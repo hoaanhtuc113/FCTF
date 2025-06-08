@@ -66,6 +66,7 @@ namespace ControlCenterServer.Controllers
                             { "UnixTime", UnixTimeNow },
                         };
                         string baseUrl = challengeServerInfo.ServerHost + ":" + challengeServerInfo.ServerPort;
+           await             Console.Out.WriteLineAsync("LINE: 68----"+baseUrl+"---"+JsonConvert.SerializeObject(request));
                         MultiServiceConnector multiServiceConnector = new MultiServiceConnector(baseUrl);
                         var response
                           = await multiServiceConnector.ExecuteRequest<GenaralViewResponseData<ClusterUsageByPercent>>(request, requestDictionary, RequestContentType.Form);
@@ -73,6 +74,8 @@ namespace ControlCenterServer.Controllers
                         {
                             return BadRequest(response);
                         }
+
+                        await             Console.Out.WriteLineAsync("LINE: 76");
 
                         if (response != null && response.data != null)
                         {

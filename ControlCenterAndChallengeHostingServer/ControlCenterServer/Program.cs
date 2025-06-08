@@ -23,8 +23,11 @@ namespace ControlCenterServer
             //Init config from ControlConfig, SharedConfig
             new ControlCenterConfigHelper().InitConfig();
 
+            Console.WriteLine("RedisConfigs.ConnectionString: "+RedisConfigs.ConnectionString);
             // Cấu hình Redis
             builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
+
+            //RedisHelper redisHelper = new RedisHelper(builder.Services.BuildServiceProvider().GetRequiredService<IConnectionMultiplexer>());
 
             await Console.Out.WriteLineAsync("Config server done, run application....");
 
