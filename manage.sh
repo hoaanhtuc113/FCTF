@@ -199,7 +199,7 @@ check_env() {
 # Hàm cập nhật cấu hình appsettings.json
 update_appsettings() {
     local env=$1
-    local domain="localhost"
+    local domain="secathon2025.fpt.edu.vn"
     local control_domain="localhost"
     local env_upper=$(echo "$env" | tr '[:lower:]' '[:upper:]')
 
@@ -311,7 +311,13 @@ EOF
 
 # Hàm build themes và ứng dụng .NET
 build_apps() {
-    echo "Build themes và ứng dụng ChallengeHosting, ControlCenter..."
+    echo "Build themes và ứng dụng ChallengeHosting, ControlCenter, và giao diện thi sinh viên..."
+
+    # Tải nvm để đảm bảo Node.js 18
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    nvm use 18 --silent || { echo "Lỗi: Không thể sử dụng Node.js 18. Chạy './manage.sh dev check-env' trước."; exit 1; }
+    echo "Sử dụng Node.js: $(node -v)"
 
     # Build themes cho FCTF-ManagementPlatform
     if [ ! -d "$PROJECT_ROOT/FCTF-ManagementPlatform/CTFd/themes" ]; then
@@ -378,6 +384,42 @@ build_apps() {
     fi
     echo "File manifest.json đã được tạo thành công tại themes/core-beta/static/"
 
+    # Build giao diện thi sinh viên (ContestantPlatform)
+    CONTESTANT_PLATFORM="$PROJECT_ROOT/ContestantPlatform"
+    if [ ! -d "$CONTESTANT_PLATFORM" ]; then
+        echo "Lỗi: Thư mục ContestantPlatform ($CONTESTANT_PLATFORM) không tồn tại."
+        exit 1
+    fi
+    if [ ! -f "$CONTESTANT_PLATFORM/package.json" ]; then
+        echo "Lỗi: File package.json không tồn tại trong $CONTESTANT_PLATFORM."
+        exit 1
+    fi
+    echo "Cài đặt dependencies cho ContestantPlatform..."
+    cd "$CONTESTANT_PLATFORM"
+    # Xóa thư mục dist để tránh cache
+    rm -rf dist
+    if ! npm install vite --legacy-peer-deps; then
+        echo "Lỗi: Không thể cài đặt vite cho ContestantPlatform."
+        exit 1
+    fi
+    if ! npm install --legacy-peer-deps; then
+        echo "Lỗi: Không thể cài đặt dependencies cho ContestantPlatform."
+        exit 1
+    fi
+    echo "Build ContestantPlatform..."
+    if ! npm run build; then
+        echo "Lỗi: Không thể build ContestantPlatform."
+        exit 1
+    fi
+    # Kiểm tra thư mục dist
+    if [ ! -d "$CONTESTANT_PLATFORM/dist" ]; then
+        echo "Lỗi: Thư mục dist không được tạo trong $CONTESTANT_PLATFORM sau khi build."
+        echo "Kiểm tra thủ công bằng lệnh:"
+        echo "  cd $CONTESTANT_PLATFORM && npm run build"
+        exit 1
+    fi
+    echo "Giao diện thi sinh viên đã được build thành công tại $CONTESTANT_PLATFORM/dist"
+    echo "Nhắc nhở: Vui lòng cấu hình Nginx để trỏ tới thư mục $CONTESTANT_PLATFORM/dist"
 
     # Build ứng dụng .NET
     if [ ! -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer" ]; then
@@ -406,7 +448,7 @@ build_apps() {
         exit 1
     fi
 
-    # Kiểm tra xem thư mục publish và file thực thi đã được tạo chưa
+    # Kiểm tra thư mục publish và file thực thi
     if [ ! -d "ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish" ]; then
         echo "Lỗi: Không thể tạo thư mục publish cho ChallengeManagementServer."
         exit 1
@@ -415,8 +457,8 @@ build_apps() {
         echo "Lỗi: File thực thi ChallengeManagementServer không được tạo."
         exit 1
     fi
-    if [ ! -d "ControlCenterServer/bin/Release/net8.0/linux-x64/publish" ]; then
-        echo "Lỗi: Không thể tạo thư mục publish cho ControlCenterServer."
+    if [ ! -d "$PROJECT_ROOT/ControlCenter/ControlCenterServer/bin" ]; then
+        echo "Lỗi: Không thể tạo Directory publish cho ControlCenterServer."
         exit 1
     fi
     if [ ! -f "ControlCenterServer/bin/Release/net8.0/linux-x64/publish/ControlCenterServer" ]; then
@@ -425,7 +467,7 @@ build_apps() {
     fi
 
     cd "$PROJECT_ROOT"
-    echo "Build themes và ứng dụng .NET hoàn tất."
+    echo "Build themes, ứng dụng .NET, và giao diện thi sinh viên hoàn tất."
 }
 
 # Hàm khởi động hệ thống
