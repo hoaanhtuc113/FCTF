@@ -356,10 +356,13 @@ namespace ChallengeManagementServer.Utils
                 string nginxConfigPath2 = $"/etc/nginx/sites-enabled/{SubDomain}";
                 if (File.Exists(nginxConfigPath))
                 {
+                    Console.WriteLine($"Deleting NGINX config file: {nginxConfigPath}");
                     File.Delete(nginxConfigPath);
                 }
+
                 if (File.Exists(nginxConfigPath2))
                 {
+                    Console.WriteLine($"Deleting NGINX symbolic link: {nginxConfigPath2}");
                     File.Delete(nginxConfigPath2);
                 }
 
@@ -403,8 +406,26 @@ namespace ChallengeManagementServer.Utils
             // Đường dẫn file cấu hình NGINX
             string nginxConfigPath = $"/etc/nginx/sites-available/{SubDomain}";
 
-            // Nội dung file cấu hình
-            string nginxConfig = $@"
+            // Nội dung file cấu hình (SSL)
+//             string nginxConfig = $@"
+// server {{
+//     listen 443 ssl;
+//     server_name {SubDomain};
+
+//     ssl_certificate /etc/nginx/ssl/fullchain.crt;
+//     ssl_certificate_key /etc/nginx/ssl/private.key;
+
+//     location / {{
+//         proxy_pass http://127.0.0.1:{TargetPort};
+//         proxy_set_header Host $host;
+//         proxy_set_header X-Real-IP $remote_addr;
+//         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+//         proxy_set_header X-Forwarded-Proto $scheme;
+//     }}
+// }}";
+
+            // Nội dung file cấu hình (No SSL)
+string nginxConfig = $@"
 server {{
     listen 80;
     server_name {SubDomain};
@@ -417,7 +438,6 @@ server {{
         proxy_set_header X-Forwarded-Proto $scheme;
     }}
 }}";
-
             try
             {
                 // Tạo file cấu hình NGINX
@@ -426,15 +446,16 @@ server {{
 
                 // Tạo symbolic link
                 string output = await CmdHelper.ExecuteBashCommandAsync("", $"sudo ln -s /etc/nginx/sites-available/{SubDomain} /etc/nginx/sites-enabled/", false);
-                // await Console.Out.WriteLineAsync("NGINX symbolic link created");
+                await Console.Out.WriteLineAsync($"NGINX symbolic link created by: sudo ln -s /etc/nginx/sites-available/{SubDomain} /etc/nginx/sites-enabled/");
+                await Console.Out.WriteLineAsync("NGINX symbolic link created: "+ output);
 
                 // Kiểm tra cấu hình
                 output = await CmdHelper.ExecuteBashCommandAsync("", "sudo nginx -t", false);
-                // await Console.Out.WriteLineAsync("NGINX config test");
+                await Console.Out.WriteLineAsync("NGINX config test: "+ output);
 
                 //reload NGINX
                 output = await CmdHelper.ExecuteBashCommandAsync("", "sudo systemctl reload nginx", false);
-                //  await Console.Out.WriteLineAsync("NGINX reloaded");
+                await Console.Out.WriteLineAsync("NGINX reloaded: "+ output);
 
                 // Tự động cài đặt HTTPS
                 //output = await CmdHelper.ExecuteBashCommandAsync("", $"sudo certbot --nginx -d {SubDomain} --redirect --non-interactive --agree-tos --email your-email@example.com", false);
