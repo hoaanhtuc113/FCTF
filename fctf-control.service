@@ -1,0 +1,17 @@
+[Unit]
+Description=FCTF Control Center Server 
+After=network.target
+
+[Service] 
+ExecStart=/home/ubuntu/FCTF-Platform-Deploy/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/ControlCenterServer 
+WorkingDirectory=/home/ubuntu/FCTF-Platform-Deploy/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish 
+Restart=always 
+RestartSec=10 
+SyslogIdentifier=fctf-control 
+StandardOutput=append:/home/ubuntu/FCTF-Platform-Deploy/fctf-app.log 
+StandardError=append:/home/ubuntu/FCTF-Platform-Deploy/fctf-app.log 
+User=ubuntu 
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target
