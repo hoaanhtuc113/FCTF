@@ -2,9 +2,31 @@
 
 # Script quản lý triển khai và vận hành hệ thống FCTF
 # Hỗ trợ các môi trường: dev, uat, production
-
 # Định nghĩa đường dẫn gốc của dự án
 PROJECT_ROOT="/home/$USER/FCTF-Platform-Deploy"
+
+# Kiểm tra quyền sudo ngay từ đầu
+if ! sudo -n true 2>/dev/null; then
+    echo "Lỗi: Script yêu cầu quyền root (sudo) để thực thi. Vui lòng chạy với 'sudo'."
+    echo "Ví dụ: sudo ./manage.sh <môi trường> <lệnh>"
+    exit 1
+fi
+
+# Di chuyển file dịch vụ mẫu và reload systemd
+for service in fctf-challenge fctf-control; do
+    SOURCE_PATH="$PROJECT_ROOT/$service.service"
+    DEST_PATH="/etc/systemd/system/$service.service"
+    if [ -f "$SOURCE_PATH" ]; then
+        echo "Di chuyển file dịch vụ $service.service từ $SOURCE_PATH đến $DEST_PATH..."
+        sudo cp "$SOURCE_PATH" "$DEST_PATH"
+        sudo systemctl daemon-reload
+        echo "Đã tải lại cấu hình systemd."
+    else
+        echo "Cảnh báo: File mẫu $service.service không tồn tại tại $SOURCE_PATH."
+    fi
+done
+
+
 
 # Kiểm tra PROJECT_ROOT có tồn tại không
 if [ ! -d "$PROJECT_ROOT" ]; then
@@ -493,7 +515,7 @@ start_system() {
         echo "Lỗi: Thư mục FCTF-ManagementPlatform không tồn tại."
         exit 1
     fi
-    sudo chmod -R 777 "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    sudo chmod -R 755 "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
     # Kiểm tra và dừng các tiến trình trên các cổng được sử dụng
     for port in "${PORTS[@]}"; do
@@ -596,23 +618,31 @@ start_system() {
         exit 1
     fi
 
-    # Chạy ControlCenter
-    CONTROL_CENTER="$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/ControlCenterServer"
-    if [ ! -f "$CONTROL_CENTER" ]; then
-        echo "Lỗi: File thực thi ControlCenterServer không tồn tại tại $CONTROL_CENTER."
-        exit 1
-    fi
-    "$CONTROL_CENTER" &
+    # Đảm bảo file log tồn tại và có quyền ghi
+    LOG_FILE="$PROJECT_ROOT/fctf-app.log"
+    sudo touch "$LOG_FILE"
+    sudo chown root:root "$LOG_FILE"
+    sudo chmod 664 "$LOG_FILE"
 
-    # Chạy ChallengeHosting
-    CHALLENGE_SERVER="$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish/ChallengeManagementServer"
-    if [ ! -f "$CHALLENGE_SERVER" ]; then
-        echo "Lỗi: File thực thi ChallengeManagementServer không tồn tại tại $CHALLENGE_SERVER."
-        exit 1
-    fi
-    "$CHALLENGE_SERVER" &
+    # Khởi động dịch vụ systemd cho hai ứng dụng .NET
+    for service in fctf-challenge fctf-control; do
+        if [ -f "/etc/systemd/system/$service.service" ]; then
+            echo "Kích hoạt và khởi động dịch vụ $service..."
+            sudo systemctl enable "$service"
+            sudo systemctl start "$service"
+            if ! systemctl is-active --quiet "$service"; then
+                echo "Lỗi: Không thể khởi động $service. Kiểm tra trạng thái:"
+                sudo systemctl status "$service" --no-pager -l
+                exit 1
+            fi
+        else
+            echo "Lỗi: File dịch vụ $service.service không tồn tại trong /etc/systemd/system/."
+            exit 1
+        fi
+    done
 
     echo "Hệ thống đã được khởi động trong môi trường $env."
+    echo "Log của ChallengeManagementServer và ControlCenterServer được ghi tại $LOG_FILE"
     if [ "$env" = "production" ]; then
         echo "Truy cập portal tại: https://$domain hoặc https://$control_domain"
         echo "Lưu ý: Đảm bảo firewall đã mở các cổng 8000, 5000, 5001, 8010 cho phép truy cập từ bên ngoài nếu cần."
@@ -625,6 +655,14 @@ start_system() {
 # Hàm dừng hệ thống
 stop_system() {
     echo "Dừng toàn bộ hệ thống..."
+
+    # Dừng dịch vụ systemd cho hai ứng dụng .NET
+    for service in fctf-challenge fctf-control; do
+        if systemctl is-active --quiet "$service"; then
+            echo "Dừng dịch vụ $service..."
+            sudo systemctl stop "$service"
+        fi
+    done
 
     # Dừng Docker Compose với xác nhận
     if [ -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
@@ -643,8 +681,6 @@ stop_system() {
     fi
 
     # Dừng các tiến trình .NET và kubectl
-    pkill -f ChallengeManagementServer || true
-    pkill -f ControlCenterServer || true
     pkill -f kubectl || true
 
     # Dừng các tiến trình trên các cổng được sử dụng
@@ -737,18 +773,16 @@ check_status() {
         echo "Thư mục FCTF-ManagementPlatform không tồn tại."
     fi
 
-    # Kiểm tra tiến trình .NET
-    if pgrep -f ChallengeManagementServer > /dev/null; then
-        echo "ChallengeManagementServer đang chạy."
-    else
-        echo "ChallengeManagementServer không chạy."
-    fi
-
-    if pgrep -f ControlCenterServer > /dev/null; then
-        echo "ControlCenterServer đang chạy."
-    else
-        echo "ControlCenterServer không chạy."
-    fi
+    # Kiểm tra dịch vụ systemd
+    for service in fctf-challenge fctf-control; do
+        if [ -f "/etc/systemd/system/$service.service" ]; then
+            echo "Trạng thái dịch vụ $service:"
+            systemctl is-active --quiet "$service" && echo "$service đang chạy." || echo "$service không chạy."
+            systemctl status "$service" --no-pager -l | head -n 10
+        else
+            echo "Dịch vụ $service không tồn tại."
+        fi
+    done
 
     # Kiểm tra k8s proxy
     if ps aux | grep -v grep | grep "kubectl proxy" > /dev/null; then
