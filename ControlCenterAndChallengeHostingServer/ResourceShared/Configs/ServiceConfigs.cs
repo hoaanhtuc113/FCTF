@@ -22,6 +22,8 @@ namespace ResourceShared.Configs
         public static string DomainName = "";
 
         public static int MaxInstanceAtTime = 3;
+        public static int PwnPortRangeFrom = -1;
+        public static int PwnPortRangeTo = -1;
 
     }
 }

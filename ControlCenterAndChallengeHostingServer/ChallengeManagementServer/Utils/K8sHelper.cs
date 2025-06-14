@@ -51,6 +51,7 @@ namespace ChallengeManagementServer.Utils
         private string YamlContent = "";
         public K8sDeploymentDefinition DeploymentConfigs;
         IConnectionMultiplexer _connectionMultiplexer;
+        private readonly object _portLock = new object();
 
         /// <summary>
         /// This function will be build images and update image link to yaml file. If build failed, function will throw exception with build logs
@@ -164,7 +165,6 @@ namespace ChallengeManagementServer.Utils
 
             string yaml = serializer.Serialize(DeploymentConfigs);
             await File.WriteAllTextAsync(YamlPath, yaml);
-
             var DeployResult = await CmdHelper.ExecuteBashCommandAsync(ProjectPath, "kctf chal deploy", true);
             if (!DeployResult.Contains($"{DeploymentName} created") && !DeployResult.Contains($"{DeploymentName} configured"))
             {
@@ -400,6 +400,33 @@ namespace ChallengeManagementServer.Utils
                 return port;
             }
         }
+        
+        private int GetAvailablePort(int fromPort, int toPort, bool randomize = true)
+        {
+            Random _rnd = new Random();
+            // 1. Lấy các port TCP đang Listen
+            var ipProps = IPGlobalProperties.GetIPGlobalProperties();
+            var usedPorts = new HashSet<int>(
+                ipProps.GetActiveTcpListeners().Select(ep => ep.Port)
+            );
+
+            // 2. Tập các port trong khoảng chưa bị chiếm
+            var freePorts = Enumerable
+                .Range(fromPort, toPort - fromPort + 1)
+                .Where(p => !usedPorts.Contains(p))
+                .ToList();
+
+            if (!freePorts.Any())
+                throw new InvalidOperationException(
+                    $"Không tìm được cổng TCP trống từ {fromPort} đến {toPort}.");
+
+            // 3. Trả về cổng: ngẫu nhiên hoặc port đầu tiên của list
+            return randomize
+                ? freePorts[_rnd.Next(freePorts.Count)]
+                : freePorts[0];
+        }
+
+
         // Hàm cấu hình Nginx
         private async Task ConfigureNginx(string SubDomain, int TargetPort)
         {
@@ -469,7 +496,7 @@ server {{
 
         private async Task<int> ConfigurePwnablePort(int TargetPort)
         {
-            int FreePort = GetAvailablePort();
+            int FreePort = GetAvailablePort(ServiceConfigs.PwnPortRangeFrom,ServiceConfigs.PwnPortRangeTo);
 
             // await Console.Out.WriteLineAsync($"Start forward ssh - Free Port: {FreePort}");
 

@@ -16,7 +16,11 @@ namespace ChallengeManagementServer.Configs
             ServiceConfigs.K8sPort = configuration["ServiceConfigs:K8sPort"] ?? throw new Exception("ServiceConfigs:K8sPort");
             ServiceConfigs.CTFdBaseUrl = configuration["ServiceConfigs:BaseCTFdURL"] ?? throw new Exception("ServiceConfigs:BaseCTFdURL");
             CmdHelper.ChallengeBasePath = ChallengeManagePathConfigs.ChallengeBasePath;
+            ServiceConfigs.PwnPortRangeFrom = int.TryParse(configuration["ServiceConfigs:PwnPortRangeFrom"].ToString(), out int PwnPortRangeFrom) ?PwnPortRangeFrom: throw new Exception("Can't read ServiceConfigs:PwnPortRangeFrom");
+            ServiceConfigs.PwnPortRangeTo = int.TryParse(configuration["ServiceConfigs:PwnPortRangeTo"].ToString(), out int PwnPortRangeTo) ?PwnPortRangeTo: throw new Exception("Can't read ServiceConfigs:PwnPortRangeTo");
 
+
+            // InitializePortPool(rangeFrom,rangeTo);
             //ClusterAllocateResponseInfo clusterAllocate = await GetClusterAllocate();
             //KCTFUsageConfig.CPUAllocatable = long.TryParse(clusterAllocate.Status.Allocatable.Cpu, out var cpuAllocatable)
             //    ? cpuAllocatable
@@ -31,6 +35,18 @@ namespace ChallengeManagementServer.Configs
             //KCTFUsageConfig.MemoryAllocatable = memoryInKiLong;
 
         }
+
+        // private static void InitializePortPool(int minPort, int maxPort)
+        // {
+
+        //     for (int port = minPort; port <= maxPort; port++)
+        //     {
+
+        //             PwnPortRangeConfig.PwnPortRange.Enqueue(port);
+        //     }
+
+        //     Console.WriteLine($"Khởi tạo pool với {PwnPortRangeConfig.PwnPortRange.Count} port khả dụng.");
+        // }
 
         //private async Task<ClusterAllocateResponseInfo> GetClusterAllocate()
         //{
