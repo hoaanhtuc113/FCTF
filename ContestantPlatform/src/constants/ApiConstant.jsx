@@ -1,6 +1,6 @@
-export const BASE_URL = "http://127.0.0.1:8000/";
+export const BASE_URL = "https://banchuyenmonsec2025.fpt.edu.vn";
 //export const MANAGEMENT_API_URL = 'https://admin.fctf.site';
-export const MANAGEMENT_API_URL = "http://127.0.0.1:8000/";
+export const MANAGEMENT_API_URL = "https://banchuyenmonsec2025.fpt.edu.vn";
 
 export const LOGIN_PATH = "/api/login-contestant";
 export const USER_DETAILS = "/api/v1/users";
