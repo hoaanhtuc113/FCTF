@@ -11,7 +11,6 @@ import CornerBorderBox from "../components/ConnerBorderBox";
 import { useParams } from "react-router-dom";
 import ActionLogs from "../components/action_logs/ActionLogComponent";
 import { ActionLogsContext } from "../App";
-import PixiMap from "../components/map/PixiMap";
 import { useUser } from '../components/contexts/UserContext';
 import { io } from "socket.io-client";
 
@@ -163,7 +162,6 @@ const Template = ({ children, title }) => {
       ),
       onClick: () => setIsNotificationOpen(!isNotificationOpen),
     },
-    { title: "Activity", icon: <FaFlag />, url: "/actions_logs" },
     { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
   ];
 
@@ -251,17 +249,6 @@ const Template = ({ children, title }) => {
                 ))}
               </div>
             </CornerBorderBox>
-            <CornerBorderBox>
-              <div
-                className="overflow-y-auto w-full justify-center italic text-white"
-                style={{ height: "60vh" }}
-              >
-                <h1 className="text-2xl italic font-bold text-white text-center mt-4">
-                  Activity
-                </h1>
-                <ActionLogs logs={activityLogs} />
-              </div>
-            </CornerBorderBox>
 
             <div className="md:hidden">
               <button
@@ -311,7 +298,7 @@ const Template = ({ children, title }) => {
           </h1>
         </CornerBorderBox>
         <div className="bg-secondary font-primary italic w-full mx-auto text-primary flex-grow p-5">
-          {location.pathname === "/actions_logs" ? <PixiMap /> : children}
+          {children}
         </div>
       </main>
     </div>

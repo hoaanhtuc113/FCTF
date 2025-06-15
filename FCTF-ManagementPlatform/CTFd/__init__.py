@@ -175,7 +175,7 @@ def create_app(config="CTFd.config.Config"):
 
         app.config.from_object(config)
         app.config["CACHE_TYPE"] = "redis"
-        app.config["CACHE_REDIS_URL"] = os.getenv("REDIS_URL", "redis://localhost:6379")
+        app.config["CACHE_REDIS_URL"] = os.getenv("REDIS_URL", "http://localhost:6379")
         cache = Cache(app)
 
         from CTFd.cache import cache

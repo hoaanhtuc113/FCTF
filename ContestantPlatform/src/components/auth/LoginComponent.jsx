@@ -187,9 +187,8 @@ const LoginComponent = () => {
               name="username"
               value={formData.username}
               onChange={handleInputChange}
-              className={`mt-1 block w-full px-3 py-2 border ${
-                errors.username ? "border-red-500" : "border-gray-300"
-              } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+              className={`mt-1 block w-full px-3 py-2 border ${errors.username ? "border-red-500" : "border-gray-300"
+                } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
               aria-invalid={errors.username ? "true" : "false"}
               aria-describedby="username-error"
               autoComplete="username"
@@ -219,9 +218,8 @@ const LoginComponent = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border ${
-                  errors.password ? "border-red-500" : "border-gray-300"
-                } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
+                className={`mt-1 block w-full px-3 py-2 border ${errors.password ? "border-red-500" : "border-gray-300"
+                  } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
                 aria-invalid={errors.password ? "true" : "false"}
                 aria-describedby="password-error"
                 autoComplete="current-password"
