@@ -260,7 +260,9 @@ update_appsettings() {
     "ServerHost": "http://0.0.0.0",
     "ServerPort": "5001",
     "DomainName": "$domain",
-    "K8sPort": 8010
+    "K8sPort": 8010,
+    "PwnPortRangeFrom": 35000,
+    "PwnPortRangeTo": 35200
   },
   "EnvironmentConfigs": {
     "ENVIRONMENT_NAME": "$env_upper"
@@ -307,7 +309,7 @@ EOF
 
     # Cập nhật file .env cho FCTF-ManagementPlatform
     # API_URL_CONTROLSERVER= Địa chỉ IP hoặc domain của ControlCenter
-    cat > "$PROJECT_ROOT/FCTF-ManagementPlatform/.env" << EOF
+    cat > "$PROJECT_ROOT/.env" << EOF
 API_URL_CONTROLSERVER=http://172.17.0.1:5000 
 API_URL_ADMINSERVER=http://127.0.0.1:8000
 HOST_CACHE=cache
@@ -479,7 +481,7 @@ build_apps() {
         echo "Lỗi: File thực thi ChallengeManagementServer không được tạo."
         exit 1
     fi
-    if [ ! -d "$PROJECT_ROOT/ControlCenter/ControlCenterServer/bin" ]; then
+    if [ ! -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin" ]; then
         echo "Lỗi: Không thể tạo Directory publish cho ControlCenterServer."
         exit 1
     fi
@@ -591,9 +593,9 @@ start_system() {
     fi
 
     # Chạy FCTF-ManagementPlatform trước để khởi động Redis và MariaDB
-    cd "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    cd "$PROJECT_ROOT"
     if [ ! -f "docker-compose.yml" ]; then
-        echo "Lỗi: File docker-compose.yml không tồn tại trong FCTF-ManagementPlatform."
+        echo "Lỗi: File docker-compose.yml không tồn tại trong FCTF-Platform-Deployment."
         exit 1
     fi
     if [ ! -f ".env" ]; then
@@ -665,8 +667,8 @@ stop_system() {
     done
 
     # Dừng Docker Compose với xác nhận
-    if [ -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
-        cd "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    if [ -d "$PROJECT_ROOT" ]; then
+        cd "$PROJECT_ROOT"
         if [ "$(docker compose ps -q)" ]; then
             read -p "Dừng container Docker (MariaDB, Redis, CTFd)? Dữ liệu MariaDB được bảo vệ trong .data/mysql, nhưng xác nhận để tiếp tục (y/n) [n]: " confirm_db
             confirm_db="${confirm_db:-n}"
@@ -723,8 +725,8 @@ restart_system() {
 
 # Hàm hiển thị log của các container Docker
 show_logs() {
-    if [ -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
-        cd "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    if [ -d "$PROJECT_ROOT" ]; then
+        cd "$PROJECT_ROOT"
         if [ "$(docker compose ps -q)" ]; then
             echo "Hiển thị log của các container trong FCTF-ManagementPlatform..."
             docker compose logs
@@ -760,8 +762,8 @@ check_status() {
     echo "Kiểm tra trạng thái hệ thống..."
 
     # Kiểm tra container Docker
-    if [ -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
-        cd "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    if [ -d "$PROJECT_ROOT" ]; then
+        cd "$PROJECT_ROOT"
         if [ "$(docker compose ps -q)" ]; then
             echo "Trạng thái container trong FCTF-ManagementPlatform:"
             docker compose ps
@@ -835,8 +837,8 @@ clean_system() {
     fi
 
     # Xóa image và container với xác nhận
-    if [ -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
-        cd "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    if [ -d "$PROJECT_ROOT" ]; then
+        cd "$PROJECT_ROOT"
         if [ "$(docker compose ps -q)" ]; then
             read -p "Cảnh báo: Xóa container và image Docker? Dữ liệu MariaDB được bảo vệ trong .data/mysql, nhưng xác nhận để tiếp tục (y/n) [n]: " confirm_db
             confirm_db="${confirm_db:-n}"
