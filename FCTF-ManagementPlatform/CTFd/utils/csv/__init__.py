@@ -456,6 +456,9 @@ def load_users_and_teams_csv(csvfile):
         # Skip rows with empty Name or Email
         if not row.get("Name") or not row.get("Email"):
             continue
+        # Skip rows with empty Password
+        if not row.get("Password"):
+            continue
         # Skip rows with email that already exists
         if any(user.email == row.get("Email") for user in users):
             continue
@@ -493,7 +496,7 @@ def load_users_and_teams_csv(csvfile):
         user_data = {
             "name": row.get("Name"),
             "email": row.get("Email"),
-            "password": user_password,
+            "password": row.get("Password"),
             "team_id": team.id if team else None
         }
         try:
@@ -507,7 +510,7 @@ def load_users_and_teams_csv(csvfile):
             created_users.append({
                 "email": user.email,
                 "name": user.name,
-                "password": user_password,
+                "password": user.password,
             })
         except (ValueError, SQLAlchemyError) as e:
             db.session.rollback()

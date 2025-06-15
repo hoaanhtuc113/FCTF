@@ -30,7 +30,6 @@ from CTFd.utils.maps import add_character_to_map
 
 LoginUser = Blueprint("login", __name__)
 
-
 @LoginUser.route("/api/login-contestant", methods=["POST"])
 @bypass_csrf_protection
 def login():
