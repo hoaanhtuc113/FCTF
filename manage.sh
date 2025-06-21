@@ -291,7 +291,7 @@ EOF
     "ServerHost": "http://0.0.0.0",
     "ServerPort": "5000",
     "DomainName": "$control_domain",
-    "MaxInstanceAtTime": "3"
+    "MaxInstanceAtTime": "4"
   },
   "EnvironmentConfigs": {
     "ENVIRONMENT_NAME": "$env_upper"
@@ -409,41 +409,41 @@ build_apps() {
     echo "File manifest.json đã được tạo thành công tại themes/core-beta/static/"
 
     # Build giao diện thi sinh viên (ContestantPlatform)
-    CONTESTANT_PLATFORM="$PROJECT_ROOT/ContestantPlatform"
-    if [ ! -d "$CONTESTANT_PLATFORM" ]; then
-        echo "Lỗi: Thư mục ContestantPlatform ($CONTESTANT_PLATFORM) không tồn tại."
-        exit 1
-    fi
-    if [ ! -f "$CONTESTANT_PLATFORM/package.json" ]; then
-        echo "Lỗi: File package.json không tồn tại trong $CONTESTANT_PLATFORM."
-        exit 1
-    fi
-    echo "Cài đặt dependencies cho ContestantPlatform..."
-    cd "$CONTESTANT_PLATFORM"
-    # Xóa thư mục dist để tránh cache
-    rm -rf dist
-    if ! npm install vite --legacy-peer-deps; then
-        echo "Lỗi: Không thể cài đặt vite cho ContestantPlatform."
-        exit 1
-    fi
-    if ! npm install --legacy-peer-deps; then
-        echo "Lỗi: Không thể cài đặt dependencies cho ContestantPlatform."
-        exit 1
-    fi
-    echo "Build ContestantPlatform..."
-    if ! npm run build; then
-        echo "Lỗi: Không thể build ContestantPlatform."
-        exit 1
-    fi
-    # Kiểm tra thư mục dist
-    if [ ! -d "$CONTESTANT_PLATFORM/dist" ]; then
-        echo "Lỗi: Thư mục dist không được tạo trong $CONTESTANT_PLATFORM sau khi build."
-        echo "Kiểm tra thủ công bằng lệnh:"
-        echo "  cd $CONTESTANT_PLATFORM && npm run build"
-        exit 1
-    fi
-    echo "Giao diện thi sinh viên đã được build thành công tại $CONTESTANT_PLATFORM/dist"
-    echo "Nhắc nhở: Vui lòng cấu hình Nginx để trỏ tới thư mục $CONTESTANT_PLATFORM/dist"
+    # CONTESTANT_PLATFORM="$PROJECT_ROOT/ContestantPlatform"
+    # if [ ! -d "$CONTESTANT_PLATFORM" ]; then
+    #     echo "Lỗi: Thư mục ContestantPlatform ($CONTESTANT_PLATFORM) không tồn tại."
+    #     exit 1
+    # fi
+    # if [ ! -f "$CONTESTANT_PLATFORM/package.json" ]; then
+    #     echo "Lỗi: File package.json không tồn tại trong $CONTESTANT_PLATFORM."
+    #     exit 1
+    # fi
+    # echo "Cài đặt dependencies cho ContestantPlatform..."
+    # cd "$CONTESTANT_PLATFORM"
+    # # Xóa thư mục dist để tránh cache
+    # rm -rf dist
+    # if ! npm install vite --legacy-peer-deps; then
+    #     echo "Lỗi: Không thể cài đặt vite cho ContestantPlatform."
+    #     exit 1
+    # fi
+    # if ! npm install --legacy-peer-deps; then
+    #     echo "Lỗi: Không thể cài đặt dependencies cho ContestantPlatform."
+    #     exit 1
+    # fi
+    # echo "Build ContestantPlatform..."
+    # if ! npm run build; then
+    #     echo "Lỗi: Không thể build ContestantPlatform."
+    #     exit 1
+    # fi
+    # # Kiểm tra thư mục dist
+    # if [ ! -d "$CONTESTANT_PLATFORM/dist" ]; then
+    #     echo "Lỗi: Thư mục dist không được tạo trong $CONTESTANT_PLATFORM sau khi build."
+    #     echo "Kiểm tra thủ công bằng lệnh:"
+    #     echo "  cd $CONTESTANT_PLATFORM && npm run build"
+    #     exit 1
+    # fi
+    # echo "Giao diện thi sinh viên đã được build thành công tại $CONTESTANT_PLATFORM/dist"
+    # echo "Nhắc nhở: Vui lòng cấu hình Nginx để trỏ tới thư mục $CONTESTANT_PLATFORM/dist"
 
     # Build ứng dụng .NET
     if [ ! -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer" ]; then

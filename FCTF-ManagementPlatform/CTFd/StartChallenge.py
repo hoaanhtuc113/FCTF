@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import requests
 import json
 from CTFd.models import (
+    Teams,
     ChallengeFiles,
     Challenges,
     Tokens,
@@ -90,12 +91,17 @@ def start_challenge():
     user = Users.query.filter_by(id=user_id).first()
     challenge = Challenges.query.filter_by(id=challenge_id).first()
     challenge_time = challenge.time_limit or -1
+    # lấy ra team_id theo user_id
     team_id, cache_key = get_team_id_and_cache_key(user, challenge_id, challenge_time)
-
-    if not user or not team_id or not challenge:
+    team = Teams.query.filter_by(id=team_id).first()
+    if not user or not team_id or not challenge or not team:
         return jsonify({"error": "Invalid user or team"}), 400
 
     if challenge.require_deploy:
+        # Check xem team đã có đội trưởng chưa và người khởi động challenge có phải đội trưởng không
+        if(not team.captain_id or team.captain_id != user_id):
+            return jsonify({"error": "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge."}), 400
+        
         payload, headers, api_start = prepare_challenge_payload(challenge, user, team_id, challenge_time)
         
         return challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team_id)

@@ -28,30 +28,30 @@ services:
     networks:
       - default
 
-  nginx:
-    image: nginx:alpine
-    depends_on:
-      - contestant
-    ports:
-      - "8081:80"
-    volumes:
-      - ./ContestantPlatform/dist:/usr/share/nginx/html:ro
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/cert:/etc/nginx/ssl:ro
-    networks:
-      - default
+  # nginx:
+  #   image: nginx:alpine
+  #   depends_on:
+  #     - contestant
+  #   ports:
+  #     - "8081:80"
+  #   volumes:
+  #     - ./ContestantPlatform/dist:/usr/share/nginx/html:ro
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/cert:/etc/nginx/ssl:ro
+  #   networks:
+  #     - default
 
-  contestant:
-    build: ./ContestantPlatform
-    user: root
-    restart: always
-    depends_on:
-      - ctfd
-    volumes:
-      - ./ContestantPlatform/dist:/usr/share/nginx/html:ro
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - default
+  # contestant:
+  #   build: ./ContestantPlatform
+  #   user: root
+  #   restart: always
+  #   depends_on:
+  #     - ctfd
+  #   volumes:
+  #     - ./ContestantPlatform/dist:/usr/share/nginx/html:ro
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #   networks:
+  #     - default
 
   db:
     image: mariadb:10.11

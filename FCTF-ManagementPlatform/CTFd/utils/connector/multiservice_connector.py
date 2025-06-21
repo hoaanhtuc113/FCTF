@@ -253,7 +253,9 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
 
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
-                post_notification(notification_data)
+                if(challenge.state != "hidden"):
+                    print("Gui thong bao")
+                    post_notification(notification_data)
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"

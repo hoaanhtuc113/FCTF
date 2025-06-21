@@ -416,7 +416,7 @@ def login():
 
                 db.session.close()
                 if is_challenge_writer() or is_admin() or is_jury():
-                    return redirect(url_for("admin.statistics"))
+                    return redirect(url_for("admin.challenges_listing"))
                 return redirect(url_for("auth.login"))
 
             else:
