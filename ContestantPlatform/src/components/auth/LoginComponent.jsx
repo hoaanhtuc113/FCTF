@@ -34,23 +34,23 @@ const LoginComponent = () => {
   }, [navigate]);
 
   useEffect(() => {
-    const getRegisterState = async () => {
-      const api = new ApiHelper(BASE_URL);
-      try {
-        const response = await api.get(API_GET_REGISTER_STATE);
-        if (response.success) {
-          setIsRegisterVisible(response.Visibly);
-        } else {
-          console.error("Failed to get registration config:", response.error);
-        }
-      } catch (error) {
-        console.error(
-          "An error occurred while fetching registration config:",
-          error
-        );
-      }
-    };
-    getRegisterState();
+    // const getRegisterState = async () => {
+    //   const api = new ApiHelper(BASE_URL);
+    //   try {
+    //     const response = await api.get(API_GET_REGISTER_STATE);
+    //     if (response.success) {
+    //       setIsRegisterVisible(response.Visibly);
+    //     } else {
+    //       console.error("Failed to get registration config:", response.error);
+    //     }
+    //   } catch (error) {
+    //     console.error(
+    //       "An error occurred while fetching registration config:",
+    //       error
+    //     );
+    //   }
+    // };
+    // getRegisterState();
   }, []);
 
   const validateUsername = (username) => {
@@ -258,7 +258,7 @@ const LoginComponent = () => {
             )}
           </button>
         </form>
-        {isRegisterVisible && (
+        {/* {isRegisterVisible && (
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
@@ -267,7 +267,7 @@ const LoginComponent = () => {
               </a>
             </p>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

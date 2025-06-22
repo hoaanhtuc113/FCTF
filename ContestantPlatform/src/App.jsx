@@ -166,7 +166,7 @@ function App() {
 
                 {/* Authentication */}
                 <Route path="/login" element={<LoginComponent />} />
-                <Route path="/register" element={<RegistrationForm />} />
+                {/* <Route path="/register" element={<RegistrationForm />} /> */}
 
                 {/* Team */}
                 <Route path="/team-confirm" element={<TeamComponent />} />
