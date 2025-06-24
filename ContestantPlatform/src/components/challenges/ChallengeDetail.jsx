@@ -934,7 +934,9 @@ const ChallengeDetail = () => {
                 >
                   {isStarting ? "Starting..." : "Start Challenge"}
                 </button>
-              ) : "Only captain of the team can start new environment for this challenge!"}
+              ) : (
+                <span className="text-red-500">Only captain of the team can start new environment for this challenge!</span>
+              )}
               {/* Display the Stop Challenge button if the challenge is started and require_deploy is true */}
               {isChallengeStarted &&
                 challenge?.require_deploy &&
