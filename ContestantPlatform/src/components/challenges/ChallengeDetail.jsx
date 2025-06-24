@@ -51,19 +51,7 @@ const ChallengeDetail = () => {
       setAnswer(event.target.value);
     }
   };
-  const logUserAction = async (actionType, actionDetail, challenge_id) => {
-    const api = new ApiHelper(BASE_URL);
-    try {
-      const response = await api.post(`${API_ACTION_LOGS}`, {
-        actionType: actionType,
-        actionDetail: actionDetail,
-        challenge_id: challengeId,
-      });
-      return response;
-    } catch (error) {
-      console.error("Error logging user action:", error);
-    }
-  };
+
 
   useEffect(() => {
     const container = descriptionRef.current;
@@ -172,10 +160,6 @@ const ChallengeDetail = () => {
       });
       if (response.success) {
         setUnlockHints((prev) => [...prev, hintId]);
-        logUserAction(
-          actionType.UNLOCK_HINT,
-          "Mở khóa trợ giúp cho thử thách " + challenge.name
-        );
       }
       return response;
     } catch (error) {
@@ -358,10 +342,7 @@ const ChallengeDetail = () => {
         return;
       }
       const data = detailsResponse.data;
-      logUserAction(
-        actionType.ACCESS_CHALLENGE,
-        "Tiếp cận thử thách " + data.name
-      );
+
       setChallenge(data);
       setIsSubmitted(data.solve_by_myteam);
       if (data.time_limit !== -1) {
@@ -443,10 +424,7 @@ const ChallengeDetail = () => {
       if (response.success) {
         try {
           const timeRemaining = await fetchChallengeDetails();
-          logUserAction(
-            actionType.START_CHALLENGE,
-            ` Khởi động thử thách ${challenge.name}`
-          );
+
           setUrl(response.challenge_url || null);
           setIsChallengeStarted(true);
           setIsSubmitted(false);
@@ -675,10 +653,7 @@ const ChallengeDetail = () => {
       };
       const response = await api.postForm(SUBMIT_FLAG, data);
       if (response?.data.status === "correct") {
-        logUserAction(
-          actionType.CORRECT_FLAG,
-          `Nộp cờ đúng cho thử thách ${challenge.name}`
-        );
+
         // Success message for correct flag
         Swal.fire({
           title: "Correct Flag!",

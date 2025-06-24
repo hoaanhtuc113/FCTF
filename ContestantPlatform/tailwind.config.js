@@ -3,7 +3,7 @@ export const content = ["./src/**/*.{js,jsx,ts,tsx}"];
 export const theme = {
   extend: {
     colors: {
-      primary: "#c3ba9a", // thay màu này bằng màu bạn muốn cho primary
+      primary: "#00000", // thay màu này bằng màu bạn muốn cho primary
       secondary: "#c3ba9a", // thay màu này bằng màu bạn muốn cho secondary
       "theme-color-primary": "#c3ba9a",
       "theme-color-primary-dark": "#cc5200",

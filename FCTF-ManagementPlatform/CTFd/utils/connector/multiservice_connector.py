@@ -78,7 +78,7 @@ def prepare_challenge_payload(challenge, user, team_id, challenge_time):
         "ImageLink": challenge.image_link,
         "UnixTime": unix_time,
     }
-    headers = {"Secretkey": secret_key}
+    headers = {"SecretKey": secret_key}
     api_start = f"{API_URL_CONTROLSERVER}/api/challenge/start"
     
     return payload, headers, api_start
@@ -91,9 +91,15 @@ def challenge_start(payload, headers, api_start, challenge, challenge_time, cach
         return jsonify({"error": "Redis connection failed"}), 400
 
     try:
+        print("API Endpoint: " + api_start)
+        print(json.dumps(payload))
+        print(json.dumps(headers))
+        
         if payload:
             response = requests.post(api_start, data=payload, headers=headers)
         
+        print("Response data: " + response.text)
+
         res_data = response.json()
         if res_data.get("isSuccess"):
             challenge_url = res_data.get("data")
@@ -139,7 +145,6 @@ def challenge_start(payload, headers, api_start, challenge, challenge_time, cach
                         challenge_names.append(f"<b>{challenges.name}</b>")
                 message += "<b>,</b> ".join(challenge_names)
             return format_response({"message": message})
-
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to API: {e}")
         return format_response({"message": "Connection url failed"})
@@ -248,7 +253,9 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
 
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
-                post_notification(notification_data)
+                if(challenge.state != "hidden"):
+                    print("Gui thong bao")
+                    post_notification(notification_data)
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"

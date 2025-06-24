@@ -1,6 +1,6 @@
 services:
   ctfd:
-    build: .
+    build: ./FCTF-ManagementPlatform
     user: root
     restart: always
     ports:
@@ -19,9 +19,9 @@ services:
       - ERROR_LOG=-
       - REVERSE_PROXY=true
     volumes:
-      - .data/CTFd/logs:/var/log/CTFd
-      - .data/CTFd/uploads:/var/uploads
-      - .:/opt/CTFd:ro
+      - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
+      - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads
+      - ./FCTF-ManagementPlatform:/opt/CTFd:ro
     depends_on:
       - db
       - cache
@@ -29,14 +29,27 @@ services:
       - default
 
   # nginx:
-  #   image: nginx:stable
-  #   restart: always
-  #   volumes:
-  #     - ./conf/nginx/http.conf:/etc/nginx/nginx.conf
+  #   image: nginx:alpine
+  #   depends_on:
+  #     - contestant
   #   ports:
-  #     - "80:80"
+  #     - "8081:80"
+  #   volumes:
+  #     - ./ContestantPlatform/dist:/usr/share/nginx/html:ro
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/cert:/etc/nginx/ssl:ro
+  #   networks:
+  #     - default
+
+  # contestant:
+  #   build: ./ContestantPlatform
+  #   user: root
+  #   restart: always
   #   depends_on:
   #     - ctfd
+  #   volumes:
+  #     - ./ContestantPlatform/dist:/usr/share/nginx/html:ro
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
   #   networks:
   #     - default
 
@@ -52,7 +65,7 @@ services:
       - MARIADB_DATABASE=ctfd
       - MARIADB_AUTO_UPGRADE=1
     volumes:
-      - .data/mysql:/var/lib/mysql
+      - ./FCTF-ManagementPlatform/data/mysql:/var/lib/mysql
     networks:
       - default
     command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --wait_timeout=28800, --log-warnings=0]
@@ -63,7 +76,7 @@ services:
       - "6379:6379"  # Mở cổng để truy cập từ local
     restart: always
     volumes:
-      - .data/redis:/data
+      - ./FCTF-ManagementPlatform/data/redis:/data
     networks:
       - default
 

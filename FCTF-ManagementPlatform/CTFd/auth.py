@@ -10,7 +10,6 @@ from CTFd.cache import clear_team_session, clear_user_session
 from CTFd.models import Brackets, Teams, UserFieldEntries, UserFields, Users, db
 from CTFd.utils import config, email, get_app_config, get_config
 from CTFd.utils import user as current_user
-from CTFd.utils.user import is_jury
 from CTFd.utils import validators
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.config.integrations import mlc_registration
@@ -24,6 +23,16 @@ from CTFd.utils.modes import TEAMS_MODE
 from CTFd.utils.security.auth import login_user, logout_user
 from CTFd.utils.security.signing import unserialize
 from CTFd.utils.validators import ValidationError
+from CTFd.utils.user import (
+    authed,
+    get_current_team,
+    get_current_team_attrs,
+    get_current_user,
+    get_current_user_attrs,
+    is_admin,
+    is_challenge_writer,
+    is_jury,
+)
 
 auth = Blueprint("auth", __name__)
 
@@ -406,12 +415,9 @@ def login():
                 log("logins", "[{date}] {ip} - {name} logged in", name=user.name)
 
                 db.session.close()
-                if request.args.get("next") and validators.is_safe_url(
-                    request.args.get("next")
-                ):
-                    return redirect(request.args.get("next"))
-                return redirect(url_for("challenges.listing"))
-                # return redirect(url_for("admin.view"))
+                if is_challenge_writer() or is_admin() or is_jury():
+                    return redirect(url_for("admin.challenges_listing"))
+                return redirect(url_for("auth.login"))
 
             else:
                 # This user exists but the password is wrong

@@ -11,7 +11,6 @@ import CornerBorderBox from "../components/ConnerBorderBox";
 import { useParams } from "react-router-dom";
 import ActionLogs from "../components/action_logs/ActionLogComponent";
 import { ActionLogsContext } from "../App";
-import PixiMap from "../components/map/PixiMap";
 import { useUser } from '../components/contexts/UserContext';
 import { io } from "socket.io-client";
 import { useRef } from "react";
@@ -199,8 +198,9 @@ const Template = ({ children, title }) => {
       icon: "noti",
       onClick: () => setIsNotificationOpen(!isNotificationOpen),
     },
-   
+
     // { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
+
   ];
 
   return (
@@ -283,6 +283,7 @@ const Template = ({ children, title }) => {
                       Next
                     </button>
                   </div>
+
                 </div>
               )}
             </div>
@@ -320,6 +321,7 @@ const Template = ({ children, title }) => {
         </CornerBorderBox> */}
         <div className="bg-transparent font-primary italic w-full mx-auto text-primary flex-grow px-5">
           {location.pathname === "/actions_logs" ? <PixiMap /> : children}
+
         </div>
         <FloatingSchedule />
       </main>

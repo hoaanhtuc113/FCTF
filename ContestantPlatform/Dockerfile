@@ -1,27 +1,15 @@
 # Sử dụng Node.js để build ứng dụng
-FROM node:16 AS builder
+FROM node:18 AS builder
 WORKDIR /app
 
-# Copy toàn bộ mã nguồn vào container
-COPY package.json package-lock.json ./
-RUN npm install
+# Copy file cấu hình trước để cache tốt hơn
+COPY package.json ./
 
-# Copy phần còn lại của mã nguồn và build ứng dụng
+# Cài đặt dependencies với xử lý xung đột
+RUN npm install --legacy-peer-deps
+
+# Copy toàn bộ mã nguồn còn lại
 COPY . .
+
+# Build frontend
 RUN npm run build
-
-# Sử dụng image nhẹ để chạy ứng dụng
-FROM node:16-alpine AS runner
-WORKDIR /app
-
-# Cài đặt serve để phục vụ ứng dụng
-RUN npm install -g serve
-
-# Copy thư mục build từ giai đoạn builder
-COPY --from=builder /app/dist /app/dist
-
-# Chạy ứng dụng trên port 3000
-CMD ["serve", "-s", "dist", "-l", "3000"]
-
-# Expose port 3000
-EXPOSE 3000
