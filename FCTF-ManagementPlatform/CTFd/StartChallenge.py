@@ -20,7 +20,11 @@ from CTFd.constants.envvars import (
     API_URL_CONTROLSERVER,
     HOST_CACHE,
 )
+# 
+from CTFd.utils.user import get_current_user, is_admin
+
 import redis
+import re
 
 from CTFd.utils.decorators import admins_only, during_ctf_time_only
 from CTFd.utils.connector.multiservice_connector import challenge_start, create_secret_key, force_stop, generate_cache_attempt_key, generate_cache_key, get_team_id_and_cache_key, get_token_from_header, prepare_challenge_payload
@@ -63,9 +67,7 @@ def remove_from_cache_by_challenge_id(cache_key, challenge_id):
     print(f"Removed challenge_id {challenge_id} from cache: {cache_key}")
 
 
-
-
-    
+   
 @challenge.route("/api/challenge/start", methods=["POST"])
 @during_ctf_time_only
 @bypass_csrf_protection
@@ -130,7 +132,7 @@ def stop_challenge_by_admin():
     
 
     challenge = Challenges.query.filter_by(id=challenge_id).first()
-    print("teamidddddddddđ " + team_id)
+
     if not challenge:
         return jsonify({"error": "Challenge not found"}), 400
     if team_id != '-1':
@@ -232,6 +234,79 @@ def stop_challenge_by_user():
             jsonify({"error": "Failed to connect to stop API", "error_detail": str(e)}),
             400,
         )
+
+
+@challenge.route("/api/challenge/get-all-instance", methods=["POST"])
+@bypass_csrf_protection
+def get_all_instance():
+    try:
+        # Kiểm tra quyền truy cập của người dùng
+        user = get_current_user()
+        if not user or not is_admin():
+            return jsonify({"error": "Permission denied"}), 403
+        
+        pattern = "challenge_url_*_*"
+        cursor = 0
+        matching_keys = []
+
+        while True:
+            cursor, keys = redis_client.scan(cursor=cursor, match=pattern, count=100)
+            matching_keys.extend(keys)
+            if cursor == 0:
+                break
+
+        result = []
+
+        for key in matching_keys:
+            print("key: " + str(key))
+            key_str = key
+            value_raw = redis_client.get(key)
+            print("key_str: " + key_str)
+            print("value_raw: " + str(value_raw))
+
+            if not value_raw:
+                continue
+
+            try:
+                value = json.loads(value_raw)
+            except json.JSONDecodeError:
+                continue
+
+            # Tách challenge_id và team_id từ key
+            match = re.match(r"challenge_url_(\d+)_(\d+)", key_str)
+            if not match:
+                continue
+
+            challenge_id_key = int(match.group(1))
+            team_id = int(match.group(2))
+
+            # Chuyển time_finished sang chuỗi thời gian ISO
+            raw_timestamp = value.get("time_finished")
+            finished_time = (
+                datetime.fromtimestamp(raw_timestamp).isoformat()
+                if raw_timestamp is not None
+                else None
+            )
+
+            result.append({
+                "challenge_id": challenge_id_key,
+                "team_id": team_id,
+                "user_id": value.get("user_id"),
+                "challenge_url": value.get("challenge_url"),
+                "time_finished": finished_time  # dạng ISO 8601
+            })
+
+        return jsonify({
+            "success": True,
+            "data": result
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 
 @challenge.route("/api/attempt/check_cache", methods=["POST"])
 @bypass_csrf_protection

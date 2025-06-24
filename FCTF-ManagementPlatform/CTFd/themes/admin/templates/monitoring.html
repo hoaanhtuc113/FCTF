@@ -6,12 +6,87 @@
 </style>
 <div class="jumbotron">
     <div class="container">
-        <h1>System Monitoring</h1>
+        <h1>Challenge Instance</h1>
     </div>
 </div>
 
 <div class="container">
-   Maintenance
+    <button onclick="loadData()">Load Data</button>
+    <table id="challengeTable" class="table table-bordered table-striped mt-3">
+        <thead>
+            <tr>
+                <th>Challenge ID</th>
+                <th>Team ID</th>
+                <th>User ID</th>
+                <th>Challenge URL</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Dynamic rows go here -->
+        </tbody>
+    </table>
 </div>
 
+<script>
+    async function loadData() {
+        const response = await fetch("/api/challenge/get-all-instance", {
+            method: "POST"
+        });
+
+        const result = await response.json();
+        const tbody = document.querySelector("#challengeTable tbody");
+        tbody.innerHTML = "";
+
+        if (result.success) {
+            result.data.forEach(row => {
+                const tr = document.createElement("tr");
+
+                tr.innerHTML = `
+                    <td>${row.challenge_id}</td>
+                    <td>${row.team_id}</td>
+                    <td>${row.user_id ?? "N/A"}</td>
+                    <td><a href="${row.challenge_url}" target="_blank">${row.challenge_url}</a></td>
+                    <td><button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-danger btn-sm">Stop</button></td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+        } else {
+            alert("Error loading data: " + result.error);
+        }
+    }
+
+    loadData(); // Initial load
+
+    async function stopChallenge(challengeId, teamId) {
+            try {
+                const response = await fetch("/api/challenge/stop-by-admin", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        challenge_id: challengeId,
+                        team_id: teamId
+                    })
+                });
+
+                if (response.ok) {
+                    // HTTP status 2xx
+                    alert("Challenge stopped successfully.");
+                    loadData(); // Refresh the list
+                } else {
+                    // HTTP status không thành công (4xx hoặc 5xx)
+                    const result = await response.json();
+                    alert("Failed to stop challenge: " + (result.error || "Unknown error"));
+                }
+            } catch (error) {
+                alert("Network or server error: " + error.message);
+            }
+
+    }
+</script>
+
 {% endblock %}
+
