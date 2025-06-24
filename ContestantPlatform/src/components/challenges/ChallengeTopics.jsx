@@ -36,13 +36,13 @@ const ChallengeTopics = () => {
               <Link
                 to={`/topic/${category.topic_name}`}
                 key={category.topic_name}
-                className="bg-white w-full max-w-sm rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out p-6 cursor-pointer"
+                className="w-full max-w-sm rounded-lg shadow-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out p-6 cursor-pointer group"
               >
                 <div className="flex flex-col items-center text-center space-y-3">
-                  <h3 className="text-xl font-bold text-theme-color-primary-content">
+                  <h3 className="text-xl font-bold text-theme-color-primary-content dark:text-white group-hover:text-[#e45c25] transition-colors duration-200">
                     {category.topic_name}
                   </h3>
-                  <p className="text-theme-color-neutral">
+                  <p className="text-theme-color-neutral dark:text-gray-300 group-hover:text-[#e45c25] transition-colors duration-200">
                     {category.challenge_count} Challenges
                   </p>
                 </div>
