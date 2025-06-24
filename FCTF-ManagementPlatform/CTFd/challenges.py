@@ -170,6 +170,7 @@ def get_challenge_detail(challenge_id):
             "next_id": challenge.next_id,
             "solve_by_myteam": solve_by_myteam,
             "files": files,
+            "is_captain": user.id == team.captain_id,
         }
 
         cache_key = generate_cache_key(challenge_id, team_id)
