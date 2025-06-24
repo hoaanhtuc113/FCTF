@@ -149,27 +149,28 @@ const Template = ({ children, title }) => {
     { title: "Score Board", icon: <FaRankingStar />, url: "/rankings" },
     { title: "Ticket", icon: <IoTicket />, url: "/tickets" },
     { title: "Profile", icon: <FaUser />, url: "/profile" },
+    { title: "Activity", icon: <FaFlag />, url: "/actions_logs" },
     {
-      title: "Notifications",
-      icon: (
+      title:(
         <div className="relative">
-          <FaBell />
+          <span >Notifications</span>
           {unreadCount > 0 && (
-            <span className="absolute top-0 right-0 text-xs bg-red-500 text-white rounded-full px-1">
+            <span className="absolute top-0 -right-4 text-xs bg-red-500 text-white rounded-full px-1">
               {unreadCount}
             </span>
           )}
         </div>
       ),
+      icon: "noti",
       onClick: () => setIsNotificationOpen(!isNotificationOpen),
     },
-    { title: "Activity", icon: <FaFlag />, url: "/actions_logs" },
-    { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
+   
+    // { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
   ];
 
   return (
-    <div className="bg-secondary min-h-screen flex flex-row flex-wrap over-flow-y font-primary p-5">
-      <div className="bg-secondary h-screen flex-shrink-0" style={{ flex: 1 }}>
+    <div className="bg-white dark:bg-gray-900 h-screen  font-primary p-5">
+      {/* <div className="bg-secondary h-screen flex-shrink-0" style={{ flex: 1 }}>
         <div className="h-screen max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center h-16">
             <div className="flex-shrink-0 w-full" onClick={handleLogoClick}>
@@ -300,17 +301,122 @@ const Template = ({ children, title }) => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
+      <header className="fixed top-0 left-0 w-full z-50 bg-white dark:bg-gray-900 ">
+        <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="md:flex md:items-center md:gap-12">
+              <div className="flex-shrink-0 w-full" onClick={handleLogoClick}>
+                <img className="h-10 w-auto theme-color-primary" src="/fctf-logo.png" alt="Logo" onError={(e) => {
+                  e.target.onerror = null; e.target.src = "/fctf-logo.png";
+                }}
+                />
+              </div>
+            </div>
+
+            <div className="flex">
+               {menuItems.map((item, index) => (
+                  <div key={index} className="relative">
+                    <button onClick={() => {
+                      if (item.onClick) {
+                        item.onClick();
+                      } else {
+                        navigate(item.url);
+                      }
+                    }}
+                      className="flex items-center px-3 py-2 text-xl rounded-md font-medium text-theme-color-gray hover:text-theme-color-primary-dark hover:bg-primary-low transition-all duration-300"
+                    >
+                        <span
+                            className={`${
+                              location.pathname === `${item.url}` ? 'text-[#e45c25]' : 'text-gray'
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+
+                    </button>
+
+                    {item.icon === "noti" && isNotificationOpen && (
+                      <div className="relative">
+                        {isNotificationOpen && (
+                          <div className="absolute -right-100 mt-2 w-80 dark:bg-gray-800 rounded-md shadow-xl py-2 z-50 max-h-96 overflow-y-auto">
+                            {currentNotifications.length > 0 ? (
+                              currentNotifications.map((notification) => (
+                                <div
+                                  key={notification.id}
+                                  className={`px-4 py-3 cursor-pointer transition-all duration-300 ${
+                                    notification.isRead ? "dark:bg-gray-600" : "hover:dark:bg-gray-700"
+                                  }`}
+                                  onClick={() => markAsRead(notification.id)}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-white">
+                                      {notification.title}
+                                    </p>
+                                    <span className="text-xs text-gray-500 group-hover:text-white">
+                                      {formatToCustomDateTime(notification.date)}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600 mt-1 dark:text-gray-300 group-hover:text-white">
+                                    {notification.content}
+                                  </p>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-gray-500 text-sm">
+                                No notifications available
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+                              <button
+                                onClick={handlePreviousPage}
+                                disabled={currentPage === 1}
+                                className="text-sm text-theme-color-primary hover:text-theme-color-primary-dark disabled:opacity-50"
+                              >
+                                Previous
+                              </button>
+                              <span className="text-xs text-gray-500 dark:text-gray-300">
+                                Page {currentPage} of {totalPages}
+                              </span>
+                              <button
+                                onClick={handleNextPage}
+                                disabled={currentPage === totalPages}
+                                className="text-sm text-theme-color-primary hover:text-theme-color-primary-dark disabled:opacity-50"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                    )}
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex items-center gap-4">
+                <button onClick={() => {
+                      handleLogout()
+                    }}
+                      className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-theme-color-gray hover:text-theme-color-primary-dark hover:bg-primary-low transition-all duration-300"
+                    >
+                      <span className="mr-2 text-3xl"><FaSignOutAlt /></span>
+                  </button>
+            </div>
+          </div>
+        </div>
+      </header>
       <main
-        className="font-primary rounded-lg h-screen flex-grow overflow-y-auto"
+        className="font-primary rounded-lg  flex-grow  pt-16"
         style={{ flex: 3 }}
       >
-        <CornerBorderBox>
+        {/* <CornerBorderBox>
           <h1 className="text-2xl font-bold italic flex flex-wrap justify-center items-center h-auto text-center uppercase text-primary">
             {title || categoryName || "Home Page"}
           </h1>
-        </CornerBorderBox>
-        <div className="bg-secondary font-primary italic w-full mx-auto text-primary flex-grow p-5">
+        </CornerBorderBox> */}
+        <div className="bg-transparent font-primary italic w-full mx-auto text-primary flex-grow px-5">
           {location.pathname === "/actions_logs" ? <PixiMap /> : children}
         </div>
       </main>
