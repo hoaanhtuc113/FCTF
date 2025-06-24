@@ -168,32 +168,33 @@ const LoginComponent = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">
-          Login Into F-CTF System
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+    <div class="h-screen w-screen flex ">
+      <div class="w-2/5 dark:bg-gray-900 text-white flex flex-col justify-center items-center p-10 relative bg-gradient-to-br from-base-medium to-neutral-medium"
+        style={{ backgroundImage: "url('/ctf-bg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
+
+        <div class="absolute bottom-6 left-10 text-sm opacity-70">
+          🌐 English
+        </div>
+      </div>
+
+
+      <div class="w-3/5 bg-white flex flex-col justify-center px-16">
+        <div className="text-center mb-8">
+          <div className="align-items-center mb-4">
+            <img className="h-20 w-auto theme-color-primary mx-auto" src="/fctf-logo.png" alt="Logo" onError={(e) => {
+              e.target.onerror = null; e.target.src = "/fctf-logo.png";
+            }} />
+          </div>
+          <h1 class="text-3xl font-bold mb-4">Welcome to FPTU Hackathon</h1>
+        </div>
+        {/* <div class="flex justify-between items-center mb-8 justify-center">
+          <h2 class="text-2xl font-semibold text-gray-700">Sign in</h2>
+        </div> */}
+
+        <form onSubmit={handleSubmit} class="space-y-6" noValidate>
           <div>
-            <label
-              htmlFor="username"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Username
-            </label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              className={`mt-1 block w-full px-3 py-2 border ${
-                errors.username ? "border-red-500" : "border-gray-300"
-              } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
-              aria-invalid={errors.username ? "true" : "false"}
-              aria-describedby="username-error"
-              autoComplete="username"
-            />
+            <label htmlFor="username" class="block text-sm font-medium text-gray-600">Username</label>
+            <input type="text" id="username" name="username" value={formData.username} onChange={handleInputChange} class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required />
             {errors.username && (
               <p
                 className="mt-2 text-sm text-red-600"
@@ -204,74 +205,40 @@ const LoginComponent = () => {
               </p>
             )}
           </div>
-
           <div className="relative">
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
+            <label className="block text-sm font-medium text-gray-600">Password</label>
+            <input
+              type={showPassword ? "text" : "password"}
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border ${
-                  errors.password ? "border-red-500" : "border-gray-300"
-                } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
-                aria-invalid={errors.password ? "true" : "false"}
-                aria-describedby="password-error"
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
-            </div>
-            {errors.password && (
-              <p
-                className="mt-2 text-sm text-red-600"
-                id="password-error"
-                role="alert"
-              >
-                {errors.password}
-              </p>
-            )}
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
           </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <>
-                <FaSpinner className="animate-spin mr-2" /> Loading...
-              </>
-            ) : (
-              "Login"
-            )}
-          </button>
-        </form>
-        {isRegisterVisible && (
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <a href="/register" className="text-blue-600 hover:underline">
-                Register here
-              </a>
+          {errors.password && (
+            <p
+              className="mt-2 text-sm text-red-600"
+              id="password-error"
+              role="alert"
+            >
+              {errors.password}
             </p>
-          </div>
-        )}
+          )}
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg transition">Login</button>
+        </form>
+
       </div>
-    </div>
+    </div >
   );
 };
 
