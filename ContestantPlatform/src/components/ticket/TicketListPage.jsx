@@ -125,14 +125,14 @@ const TicketList = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8 bg-white dark:bg-gray-900 transition-colors duration-300">
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-md bg-red-100 p-4 text-red-700">
+        <div className="mb-4 flex items-center gap-2 rounded-md bg-red-100 dark:bg-red-900 p-4 text-red-700 dark:text-red-300 shadow-lg">
           <FaExclamationCircle />
           <span>{error}</span>
           <button
             onClick={() => setError("")}
-            className="ml-auto"
+            className="ml-auto hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
             aria-label="Close error message"
           >
             <FaTimes />
@@ -141,10 +141,12 @@ const TicketList = () => {
       )}
 
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-primary">Support Tickets</h1>
+        <h1 className="text-2xl font-bold text-orange-400 dark:text-orange-400 drop-shadow-lg">
+          Support Tickets
+        </h1>
         <button
           onClick={handleCreateTicket}
-          className="flex items-center gap-2 rounded-md bg-theme-color-primary px-4 py-2 text-white transition-all hover:bg-theme-color-primary-dark focus:outline-none focus:ring-2 focus:ring-theme-color-primary focus:ring-offset-2"
+          className="flex items-center gap-2 rounded-md bg-orange-400 px-4 py-2 text-white shadow-lg transition-all hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900"
           aria-label="Create new ticket"
         >
           <FaPlus />
@@ -152,26 +154,28 @@ const TicketList = () => {
         </button>
       </div>
 
-      <div className="mb-6 rounded-lg bg-white p-4 shadow-md">
+      <div className="mb-6 rounded-lg bg-white dark:bg-gray-800 p-4 shadow-md">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="relative flex-1">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <FaSearch className="text-gray-400" />
+              <FaSearch className="text-gray-400 dark:text-gray-500" />
             </div>
             <input
               type="text"
               placeholder="Search tickets by ID or title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-gray-300 pl-10 pr-4 py-2 focus:border-theme-color-primary focus:outline-none focus:ring-1 focus:ring-theme-color-primary"
+              className="w-full rounded-md border  bg-white dark:bg-gray-900 pl-10 pr-4 py-2 text-gray-900 dark:text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400 transition-colors"
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Status:</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              Status:
+            </label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="rounded-md border border-gray-300 py-2 px-4 focus:border-theme-color-primary focus:outline-none focus:ring-1 focus:ring-theme-color-primary"
+              className="rounded-md border  bg-white dark:bg-gray-900 py-2 px-4 text-gray-900 dark:text-white focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400 transition-colors"
             >
               <option value="all">All</option>
               <option value="open">Open</option>
@@ -182,45 +186,84 @@ const TicketList = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTickets.map((ticket) => (
-          <div
-            key={ticket.id}
-            className="group cursor-pointer rounded-lg bg-white p-6 shadow-md transition-all hover:shadow-lg focus-within:ring-2 focus-within:ring-theme-color-primary"
-            tabIndex="0"
-            role="button"
-            aria-label={`Ticket ${ticket.id}: ${ticket.title}`}
-            onClick={() => handleTicketClick(ticket.id)}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FaTicketAlt className="text-theme-color-primary" />
-                <span className="font-medium text-gray-600">{ticket.id}</span>
-              </div>
-              <span className="capitalize">{ticket.type}</span>
-              {getStatusIcon(ticket.status)}
-            </div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-800 group-hover:text-theme-color-primary">
-              {ticket.title}
-            </h3>
-            <div className="flex items-center justify-between text-sm text-gray-500">
-              <span>Created: {ticket.date}</span>
-              <span className="capitalize">
-                {ticket.status.replace("_", " ")}
-              </span>
-            </div>
-          </div>
-        ))}
+      <div className="overflow-x-auto rounded-lg bg-white dark:bg-gray-800 shadow-md">
+        <table className="min-w-full">
+          <thead className="bg-orange-50 dark:bg-gray-900">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-orange-700 dark:text-orange-300 uppercase">
+                ID
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-orange-700 dark:text-orange-300 uppercase">
+                Title
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-orange-700 dark:text-orange-300 uppercase">
+                Type
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-orange-700 dark:text-orange-300 uppercase">
+                Status
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-orange-700 dark:text-orange-300 uppercase">
+                Created
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-orange-700 dark:text-orange-300 uppercase">
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTickets.map((ticket) => (
+              <tr
+                key={ticket.id}
+                className="hover:bg-orange-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                onClick={() => handleTicketClick(ticket.id)}
+              >
+                <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-200">
+                  {ticket.id}
+                </td>
+                <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                  {ticket.title}
+                </td>
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-200 capitalize">
+                  {ticket.type}
+                </td>
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-2">
+                    {getStatusIcon(ticket.status)}
+                    <span className="capitalize text-gray-700 dark:text-gray-200">
+                      {ticket.status.replace("_", " ")}
+                    </span>
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-500 dark:text-gray-300">
+                  {ticket.date}
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTicketClick(ticket.id);
+                    }}
+                    className="px-3 py-1 rounded bg-orange-400 text-white hover:bg-orange-500 transition text-xs font-semibold shadow focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-6 shadow-2xl border border-orange-400 dark:border-orange-400 animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Create New Ticket</h2>
+              <h2 className="text-xl font-bold text-[#e45c25] dark:text-orange-400">
+                Create New Ticket
+              </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 dark:text-gray-300 hover:text-[#e45c25] dark:hover:text-orange-400 transition-colors"
                 aria-label="Close modal"
               >
                 <FaTimes />
@@ -230,7 +273,7 @@ const TicketList = () => {
               <div className="mb-4">
                 <label
                   htmlFor="title"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200"
                 >
                   Title
                 </label>
@@ -238,21 +281,21 @@ const TicketList = () => {
                   type="text"
                   id="title"
                   name="title"
-                  className="w-full rounded-md border border-gray-300 p-2 focus:border-theme-color-primary focus:outline-none focus:ring-1 focus:ring-theme-color-primary"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-2 text-gray-900 dark:text-white focus:border-[#e45c25] focus:outline-none focus:ring-1 focus:ring-[#e45c25]"
                   required
                 />
               </div>
               <div className="mb-4">
                 <label
                   htmlFor="type"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200"
                 >
                   Type
                 </label>
                 <select
                   id="type"
                   name="type"
-                  className="w-full rounded-md border border-gray-300 p-2 focus:border-theme-color-primary focus:outline-none focus:ring-1 focus:ring-theme-color-primary"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-2 text-gray-900 dark:text-white focus:border-[#e45c25] focus:outline-none focus:ring-1 focus:ring-[#e45c25]"
                   required
                 >
                   {ticketTypes.map((type) => (
@@ -266,21 +309,21 @@ const TicketList = () => {
               <div className="mb-6">
                 <label
                   htmlFor="description"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200"
                 >
                   Description
                 </label>
                 <textarea
                   id="description"
                   name="description"
-                  className="w-full rounded-md border border-gray-300 p-2 focus:border-theme-color-primary focus:outline-none focus:ring-1 focus:ring-theme-color-primary"
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-2 text-gray-900 dark:text-white focus:border-[#e45c25] focus:outline-none focus:ring-1 focus:ring-[#e45c25]"
                   rows="3"
                   required
                 ></textarea>
               </div>
               <button
                 type="submit"
-                className="w-full rounded-md bg-theme-color-primary px-4 py-2 text-white transition-all hover:bg-theme-color-primary-dark"
+                className="w-full rounded-md bg-orange-400 px-4 py-2 text-white shadow-lg border border-orange-400 transition-all hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-400"
               >
                 Submit
               </button>

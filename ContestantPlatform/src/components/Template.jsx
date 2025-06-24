@@ -4,7 +4,7 @@ import { FaBell, FaFlag, FaSignOutAlt, FaUser } from "react-icons/fa";
 import { FaRankingStar } from "react-icons/fa6";
 import { IoTicket } from "react-icons/io5";
 import { useNavigate, useLocation } from "react-router-dom";
-import { API_GET_NOTIFICATION, BASE_URL } from "../constants/ApiConstant";
+import { API_GET_NOTIFICATION, BASE_URL, API_USER_PROFILE } from "../constants/ApiConstant";
 import { ACCESS_TOKEN_KEY } from "../constants/LocalStorageKey";
 import ApiHelper from "../utils/ApiHelper";
 import CornerBorderBox from "../components/ConnerBorderBox";
@@ -13,7 +13,8 @@ import ActionLogs from "../components/action_logs/ActionLogComponent";
 import { ActionLogsContext } from "../App";
 import { useUser } from '../components/contexts/UserContext';
 import { io } from "socket.io-client";
-
+import { useRef } from "react";
+import FloatingSchedule from "./FloatingSchedule";
 const Template = ({ children, title }) => {
   const { logout } = useUser();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,6 +22,7 @@ const Template = ({ children, title }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [userInfo, setUserInfo] = useState({});
   const itemsPerPage = 3;
   const { categoryName } = useParams();
   const navigate = useNavigate();
@@ -53,6 +55,21 @@ const Template = ({ children, title }) => {
     );
   };
 
+  const fetchUserInfo = async () => {
+    const api = new ApiHelper(BASE_URL);
+    try {
+      const response = await api.get(`${API_USER_PROFILE}`);
+      console.log("user fetched:", response);
+      if (response.data) {
+        setUserInfo(response.data);
+      } else {
+        console.error("Failed to fetch user info:", response.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error fetching UserInfo:", error);
+    }
+  };
+
   const clearNotifications = () => {
     setNotifications([]);
   };
@@ -62,7 +79,24 @@ const Template = ({ children, title }) => {
       notifications.filter((notification) => !notification.isRead).length
     );
   };
+  const notificationRef = useRef();
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setIsNotificationOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
   useEffect(() => {
     updateUnreadCount();
   }, [notifications]);
@@ -116,6 +150,8 @@ const Template = ({ children, title }) => {
   useEffect(() => {
     if (!localStorage.getItem(ACCESS_TOKEN_KEY)) {
       navigate("/login");
+    } else {
+      fetchUserInfo(); // Fetch user info immediately after login check
     }
   }, [navigate]);
 
@@ -149,157 +185,145 @@ const Template = ({ children, title }) => {
     { title: "Ticket", icon: <IoTicket />, url: "/tickets" },
     { title: "Profile", icon: <FaUser />, url: "/profile" },
     {
-      title: "Notifications",
-      icon: (
+      title:(
         <div className="relative">
-          <FaBell />
+          <span >Notifications</span>
           {unreadCount > 0 && (
-            <span className="absolute top-0 right-0 text-xs bg-red-500 text-white rounded-full px-1">
+            <span className="absolute top-0 -right-4 text-xs bg-red-500 text-white rounded-full px-1">
               {unreadCount}
             </span>
           )}
         </div>
       ),
+      icon: "noti",
       onClick: () => setIsNotificationOpen(!isNotificationOpen),
     },
-    { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
+
+    // { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
+
   ];
 
   return (
-    <div className="bg-secondary min-h-screen flex flex-row flex-wrap over-flow-y font-primary p-5">
-      <div className="bg-secondary h-screen flex-shrink-0" style={{ flex: 1 }}>
-        <div className="h-screen max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center h-16">
-            <div className="flex-shrink-0 w-full" onClick={handleLogoClick}>
-              <img className="h-20 w-auto theme-color-primary" src="/fctf-logo.png" alt="Logo" onError={(e) => {
-                e.target.onerror = null; e.target.src = "/fctf-logo.png";
-              }}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col flex-grow mt-5 flex-shrink-0" style={{ flex: 1 }} >
-            <CornerBorderBox>
-              <div className="relative mt-3 p-3 flex flex-wrap items-center justify-center max-w-7xl mx-auto" style={{ flex: 1 }}>
-                {menuItems.map((item, index) => (
-                  <div key={index} className="relative">
-                    <button onClick={() => {
-                      if (item.onClick) {
-                        item.onClick();
-                      } else {
-                        navigate(item.url);
-                      }
-                    }}
-                      className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-theme-color-gray hover:text-theme-color-primary-dark hover:bg-primary-low transition-all duration-300"
-                    >
-                      <span className="mr-2 text-3xl">{item.icon}</span>
-                    </button>
-
-                    {item.title === "Notifications" && isNotificationOpen && (
-                      <div className=" right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50">
-                        {currentNotifications.length > 0 ? (
-                          currentNotifications.map((notification) => (
-                            <div
-                              key={notification.id}
-                              className={`px-4 py-3 cursor-pointer transition-all duration-300 ${notification.isRead
-                                ? "bg-gray-100"
-                                : "hover:bg-gray-50"
-                                }`}
-                              onClick={() => markAsRead(notification.id)}
-                            >
-                              <div className="flex justify-between items-start">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {notification.title}
-                                </p>
-                                <span className="text-xs text-gray-500">
-                                  {formatToCustomDateTime(notification.date)}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-600 mt-1">
-                                {notification.content}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-4 py-3 text-gray-500 text-sm">
-                            No notifications available
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200">
-                          <button
-                            onClick={handlePreviousPage}
-                            disabled={currentPage === 1}
-                            className="text-sm text-theme-color-primary hover:text-theme-color-primary-dark disabled:opacity-50"
-                          >
-                            Previous
-                          </button>
-                          <span className="text-xs text-gray-500">
-                            Page {currentPage} of {totalPages}
-                          </span>
-                          <button
-                            onClick={handleNextPage}
-                            disabled={currentPage === totalPages}
-                            className="text-sm text-theme-color-primary hover:text-theme-color-primary-dark disabled:opacity-50"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CornerBorderBox>
-
-            <div className="md:hidden">
-              <button
-                onClick={toggleMenu}
-                className="inline-flex items-center justify-center p-2 rounded-md text-theme-color-primary hover:text-theme-color-primary-dark"
-              >
-                <svg
-                  className={`h-6 w-6 ${isMenuOpen ? "hidden" : "block"}`}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-                <svg
-                  className={`h-6 w-6 ${isMenuOpen ? "block" : "hidden"}`}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
+    <div className="bg-white dark:bg-gray-900 h-screen font-primary p-5">
+      <header className="fixed top-0 left-0 w-full z-50 bg-white dark:bg-gray-900 ">
+    <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 items-center justify-between">
+        {/* Left: Logo */}
+        <div className="flex items-center flex-shrink-0" style={{ minWidth: '160px' }}>
+          <div className="cursor-pointer" onClick={handleLogoClick}>
+            <img className="h-10 w-auto theme-color-primary" src="/fctf-logo.png" alt="Logo" onError={(e) => {
+              e.target.onerror = null; e.target.src = "/fctf-logo.png";
+            }} />
           </div>
         </div>
+
+        {/* Center: Menu Items */}
+        <div className="flex-1 flex justify-center items-center gap-2">
+          {menuItems.map((item, index) => (
+            <div key={index} className="relative">
+              <button
+                onClick={() => {
+                  if (item.onClick) {
+                    item.onClick();
+                  } else {
+                    navigate(item.url);
+                  }
+                }}
+                className={`flex items-center px-4 py-2 text-lg rounded-md font-medium transition-all duration-300
+                  ${location.pathname === `${item.url}` ? 'text-[#e45c25] bg-primary-low' : 'text-gray-700 dark:text-gray-200 hover:text-theme-color-primary-dark hover:bg-primary-low'}`}
+                style={{ minWidth: '120px', justifyContent: 'center' }}
+              >
+                <span className="mr-2 text-xl">{item.icon !== 'noti' && item.icon}</span>
+                <span>{item.title}</span>
+              </button>
+              {/* Notification Dropdown */}
+              {item.icon === "noti" && isNotificationOpen && (
+                <div className="absolute -right-100 mt-2 w-80 dark:bg-gray-800 rounded-md shadow-xl py-2 z-50 max-h-96 overflow-y-auto" ref={notificationRef}>
+                  {currentNotifications.length > 0 ? (
+                    currentNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`px-4 py-3 cursor-pointer transition-all duration-300 ${notification.isRead ? "dark:bg-gray-600" : "hover:dark:bg-gray-700"}`}
+                        onClick={() => markAsRead(notification.id)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-white">
+                            {notification.title}
+                          </p>
+                          <span className="text-xs text-gray-500 group-hover:text-white">
+                            {formatToCustomDateTime(notification.date)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1 dark:text-gray-300 group-hover:text-white">
+                          {notification.content}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-gray-500 text-sm">
+                      No notifications available
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={handlePreviousPage}
+                      disabled={currentPage === 1}
+                      className="text-sm text-theme-color-primary hover:text-theme-color-primary-dark disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-xs text-gray-500 dark:text-gray-300">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className="text-sm text-theme-color-primary hover:text-theme-color-primary-dark disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Right: User Info & Logout */}
+        <div className="flex items-center gap-4 min-w-[120px] justify-end">
+          <div className="flex flex-col items-end mr-2">
+            <span className="text-sm font-semibold text-gray-800 dark:text-white">
+              {userInfo.username || "Username"}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-300">
+              {userInfo.team || "No team"}
+            </span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-theme-color-gray hover:text-theme-color-primary-dark hover:bg-primary-low transition-all duration-300"
+          >
+            <span className="mr-2 text-2xl"><FaSignOutAlt /></span>
+          </button>
+        </div>
       </div>
+    </div>
+  </header>
       <main
-        className="font-primary rounded-lg h-screen flex-grow overflow-y-auto"
+        className="font-primary rounded-lg  flex-grow  pt-16"
         style={{ flex: 3 }}
       >
-        <CornerBorderBox>
+        {/* <CornerBorderBox>
           <h1 className="text-2xl font-bold italic flex flex-wrap justify-center items-center h-auto text-center uppercase text-primary">
             {title || categoryName || "Home Page"}
           </h1>
-        </CornerBorderBox>
-        <div className="bg-secondary font-primary italic w-full mx-auto text-primary flex-grow p-5">
-          {children}
+        </CornerBorderBox> */}
+        <div className="bg-transparent font-primary italic w-full mx-auto text-primary flex-grow px-5">
+          {location.pathname === "/actions_logs" ? <PixiMap /> : children}
+
         </div>
+        <FloatingSchedule />
       </main>
     </div>
   );

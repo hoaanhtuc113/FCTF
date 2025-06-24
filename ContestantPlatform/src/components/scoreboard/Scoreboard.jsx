@@ -62,7 +62,7 @@ const Scoreboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] bg-white rounded-lg shadow-lg">
+      <div className="flex items-center justify-center min-h-[400px] bg-transparent rounded-lg">
         <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-theme-color-primary"></div>
       </div>
     );
@@ -79,7 +79,7 @@ const Scoreboard = () => {
   return (
     <div className="w-full mx-auto p-8 space-y-8">
       <div className="grid md:grid-cols-[2fr_5fr] gap-8">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white/15 rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-bold mb-6 text-primary text-center">
             Team Scores
           </h2>
@@ -89,8 +89,8 @@ const Scoreboard = () => {
                 key={team.id}
                 className={`p-4 rounded-lg transition-all duration-300 ${
                   selectedTeam === team.id
-                    ? "bg-theme-color-primary bg-opacity-10"
-                    : "bg-gray-50 hover:bg-gray-100"
+                    ? "bg-gray-50  hover:text-black hover:bg-gray-100 "
+                    : "bg-theme-color-primary text-white bg-opacity-10"
                 }`}
                 onMouseEnter={() => setSelectedTeam(team.id)}
                 onMouseLeave={() => setSelectedTeam(null)}
@@ -99,12 +99,12 @@ const Scoreboard = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <span className="font-semibold text-gray-800">
+                    <span className="font-semibold ">
                       {team.name}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="font-bold text-gray-800">
+                    <span className="font-bold ">
                       {team.score}
                     </span>
                     {team.score === highestScore && (
@@ -117,7 +117,7 @@ const Scoreboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white/15 rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-bold text-primary text-center">
             Score Progress
           </h2>
@@ -125,7 +125,7 @@ const Scoreboard = () => {
           <div className="flex items-center justify-center h-full">
             <div className="relative w-full">
               <ChartComponent
-                className="max-h-full"
+                className="max-h-full text-white"
                 data={scores}
                 selectedTeam={selectedTeam}
               />
