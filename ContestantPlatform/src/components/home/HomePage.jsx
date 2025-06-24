@@ -106,7 +106,7 @@ const HomePage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base-medium to-neutral-medium flex flex-col items-center justify-center p-4">
+    <div className="bg-gradient-to-br from-base-medium to-neutral-medium flex flex-col items-center justify-center p-4">
       <div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}

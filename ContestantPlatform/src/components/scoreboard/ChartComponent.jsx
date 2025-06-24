@@ -1,5 +1,6 @@
 import { Line } from "react-chartjs-2";
 import dayjs from "dayjs";
+import { color } from "framer-motion";
 
 const ChartComponent = ({ data, selectedTeam = null }) => {
   const teams = Object.values(data);
@@ -66,6 +67,7 @@ const ChartComponent = ({ data, selectedTeam = null }) => {
           font: {
             family: "Roboto",
             size: 12,
+            color: "rgba(255, 255, 255, 0.8)"
           },
         },
       },
@@ -87,12 +89,12 @@ const ChartComponent = ({ data, selectedTeam = null }) => {
       y: {
         beginAtZero: true,
         grid: {
-          color: "rgba(0, 0, 0, 0.1)",
+          color: "rgba(255, 255, 255, 0.1)",
         },
       },
       x: {
         grid: {
-          color: "rgba(0, 0, 0, 0.1)",
+          color: "rgba(255, 255, 255, 0.1)",
         },
       },
     },
