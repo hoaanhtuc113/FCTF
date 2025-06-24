@@ -433,25 +433,26 @@ namespace ChallengeManagementServer.Utils
             // Đường dẫn file cấu hình NGINX
             string nginxConfigPath = $"/etc/nginx/sites-available/{SubDomain}";
 
-            // Nội dung file cấu hình (SSL)
-//             string nginxConfig = $@"
-// server {{
-//     listen 443 ssl;
-//     server_name {SubDomain};
+            #region NginxConfig
+                        // Nội dung file cấu hình (SSL)
+            //             string nginxConfig = $@"
+            // server {{
+            //     listen 443 ssl;
+            //     server_name {SubDomain};
 
-//     ssl_certificate /etc/nginx/ssl/fullchain.crt;
-//     ssl_certificate_key /etc/nginx/ssl/private.key;
+            //     ssl_certificate /etc/nginx/ssl/fullchain.crt;
+            //     ssl_certificate_key /etc/nginx/ssl/private.key;
 
-//     location / {{
-//         proxy_pass http://127.0.0.1:{TargetPort};
-//         proxy_set_header Host $host;
-//         proxy_set_header X-Real-IP $remote_addr;
-//         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-//         proxy_set_header X-Forwarded-Proto $scheme;
-//     }}
-// }}";
-
-            // Nội dung file cấu hình (No SSL)
+            //     location / {{
+            //         proxy_pass http://127.0.0.1:{TargetPort};
+            //         proxy_set_header Host $host;
+            //         proxy_set_header X-Real-IP $remote_addr;
+            //         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            //         proxy_set_header X-Forwarded-Proto $scheme;
+            //     }}
+            // }}";
+            #endregion
+                        // Nội dung file cấu hình (No SSL)
 string nginxConfig = $@"
 server {{
     listen 80;
@@ -465,6 +466,7 @@ server {{
         proxy_set_header X-Forwarded-Proto $scheme;
     }}
 }}";
+
             try
             {
                 // Tạo file cấu hình NGINX
@@ -481,8 +483,8 @@ server {{
                 await Console.Out.WriteLineAsync("NGINX config test: "+ output);
 
                 //reload NGINX
-                output = await CmdHelper.ExecuteBashCommandAsync("", "sudo systemctl reload nginx", false);
-                await Console.Out.WriteLineAsync("NGINX reloaded: "+ output);
+                output = await CmdHelper.ExecuteBashCommandAsync("", "sudo nginx -s reload", false);
+                await Console.Out.WriteLineAsync("nginx -s reload: "+ output);
 
                 // Tự động cài đặt HTTPS
                 //output = await CmdHelper.ExecuteBashCommandAsync("", $"sudo certbot --nginx -d {SubDomain} --redirect --non-interactive --agree-tos --email your-email@example.com", false);

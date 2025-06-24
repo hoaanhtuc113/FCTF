@@ -60,25 +60,25 @@ function App() {
           reconnectionDelay: 2000,
         });
 
-        socket.on("connect", () => {
-          console.log("Connected to server with socket ID:", socket.id);
-        });
+        // socket.on("connect", () => {
+        //   console.log("Connected to server with socket ID:", socket.id);
+        // });
 
-        socket.on("disconnect", (reason) => {
-          if (reason === "io server disconnect") {
-            socket.connect();
-          }
-        });
+        // socket.on("disconnect", (reason) => {
+        //   if (reason === "io server disconnect") {
+        //     socket.connect();
+        //   }
+        // });
 
-        socket.on("connect_error", (error) => {
-          console.error("Socket connection error:", error);
-        });
+        // socket.on("connect_error", (error) => {
+        //   console.error("Socket connection error:", error);
+        // });
 
-        socket.on("action_logs", (data) => {
-          if (data.type === "action_logs" && data.logs) {
-            setActionLogs(data.logs);
-          }
-        });
+        // socket.on("action_logs", (data) => {
+        //   if (data.type === "action_logs" && data.logs) {
+        //     setActionLogs(data.logs);
+        //   }
+        // });
 
         socket.on("notify", (data) => {
           if (data.notif_type === "alert") {
@@ -105,33 +105,33 @@ function App() {
           }
         });
 
-        socket.on("user-login-notification", (userData) => {
-          Swal.fire({
-            title: "Thí sinh mới đăng nhập",
-            html: `
-                <div>
-                  <p><strong>Tên:</strong> ${userData.name}</p>
-                  ${userData.team ? `<p><strong>Team:</strong> ${userData.team}</p>` : ""}
-                  <p><small>${userData.time} - ${userData.date}</small></p>
-                </div>
-              `,
-            icon: "info",
-            timer: 5000,
-            toast: true,
-            position: "top-end",
-            showConfirmButton: false,
-          });
-          console.log("User login notification received:", userData);
-        });
+        // socket.on("user-login-notification", (userData) => {
+        //   Swal.fire({
+        //     title: "Thí sinh mới đăng nhập",
+        //     html: `
+        //         <div>
+        //           <p><strong>Tên:</strong> ${userData.name}</p>
+        //           ${userData.team ? `<p><strong>Team:</strong> ${userData.team}</p>` : ""}
+        //           <p><small>${userData.time} - ${userData.date}</small></p>
+        //         </div>
+        //       `,
+        //     icon: "info",
+        //     timer: 5000,
+        //     toast: true,
+        //     position: "top-end",
+        //     showConfirmButton: false,
+        //   });
+        //   console.log("User login notification received:", userData);
+        // });
 
-        socket.on("all-characters", (userData) => {
-          if (localStorage) {
-            localStorage.setItem("charactersOnMap", JSON.stringify(userData.characters));
-          } else {
-            console.warn("localStorage is not available.");
-          }
-          console.log("All characters on map:", userData.characters);
-        });
+        // socket.on("all-characters", (userData) => {
+        //   if (localStorage) {
+        //     localStorage.setItem("charactersOnMap", JSON.stringify(userData.characters));
+        //   } else {
+        //     console.warn("localStorage is not available.");
+        //   }
+        //   console.log("All characters on map:", userData.characters);
+        // });
       } catch (error) {
         console.error("Failed to initialize socket connection:", error);
       }
@@ -152,53 +152,51 @@ function App() {
   }, []);
 
   return (
-    <ActionLogsContext.Provider value={actionLogs}>
-      <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-        <Routes>
-          <Route path="/replay" element={<ReplayPage />} />
+    <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+      <Routes>
+        {/* <Route path="/replay" element={<ReplayPage />} /> */}
 
-          <Route
-            path="/*"
-            element={
-              <UserProvider>
-                <Routes>
-                  {/* Home */}
-                  <Route path="/" element={<Template><HomePage /></Template>} />
+        <Route
+          path="/*"
+          element={
+            <UserProvider>
+              <Routes>
+                {/* Home */}
+                <Route path="/" element={<Template><HomePage /></Template>} />
 
-                  {/* Authentication */}
-                  <Route path="/login" element={<LoginComponent />} />
-                  <Route path="/register" element={<RegistrationForm />} />
+                {/* Authentication */}
+                <Route path="/login" element={<LoginComponent />} />
+                {/* <Route path="/register" element={<RegistrationForm />} /> */}
 
-                  {/* Team */}
-                  <Route path="/team-confirm" element={<TeamComponent />} />
-                  <Route path="/team-create" element={<CreateTeamComponent />} />
-                  <Route path="/team-join" element={<JoinTeamComponent />} />
+                {/* Team */}
+                <Route path="/team-confirm" element={<TeamComponent />} />
+                <Route path="/team-create" element={<CreateTeamComponent />} />
+                <Route path="/team-join" element={<JoinTeamComponent />} />
 
-                  {/* Ranking and Topic */}
-                  <Route path="/rankings" element={<Template title="Rankings"><Scoreboard /></Template>} />
-                  <Route path="/topics" element={<Template title="Topics"><ChallengeTopics /></Template>} />
-                  <Route path="/topic/:categoryName" element={<Template><ChallengeList /></Template>} />
+                {/* Ranking and Topic */}
+                <Route path="/rankings" element={<Template title="Rankings"><Scoreboard /></Template>} />
+                <Route path="/topics" element={<Template title="Topics"><ChallengeTopics /></Template>} />
+                <Route path="/topic/:categoryName" element={<Template><ChallengeList /></Template>} />
 
-                  {/* Challenges and Ticket */}
-                  <Route path="/challenge/:id" element={<Template><ChallengeDetail /></Template>} />
-                  <Route path="/tickets" element={<Template title="Tickets"><TicketList /></Template>} />
-                  <Route path="/ticket/:id" element={<Template><TicketDetailPage /></Template>} />
+                {/* Challenges and Ticket */}
+                <Route path="/challenge/:id" element={<Template><ChallengeDetail /></Template>} />
+                <Route path="/tickets" element={<Template title="Tickets"><TicketList /></Template>} />
+                <Route path="/ticket/:id" element={<Template><TicketDetailPage /></Template>} />
 
-                  {/* Profile */}
-                  <Route path="/profile" element={<Template title="Profile"><UserProfile /></Template>} />
+                {/* Profile */}
+                <Route path="/profile" element={<Template title="Profile"><UserProfile /></Template>} />
 
-                  {/* Logs */}
-                  <Route path="/actions_logs" element={<Template title="Preview"><ActionLogs /></Template>} />
+                {/* Logs */}
+                {/* <Route path="/actions_logs" element={<Template title="Preview"><ActionLogs /></Template>} /> */}
 
-                  {/* Prohibited */}
-                  <Route path="/forbidden" element={<Template><LockScreen /></Template>} />
-                </Routes>
-              </UserProvider>
-            }
-          />
-        </Routes>
-      </Router>
-    </ActionLogsContext.Provider>
+                {/* Prohibited */}
+                <Route path="/forbidden" element={<Template><LockScreen /></Template>} />
+              </Routes>
+            </UserProvider>
+          }
+        />
+      </Routes>
+    </Router>
   );
 }
 

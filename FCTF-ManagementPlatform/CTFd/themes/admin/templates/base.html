@@ -231,6 +231,7 @@
         
         <div class="d-flex flex-column w-100">
             <ul class="list-unstyled components">
+                
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.statistics') }}">
                         <i class="bx bx-bar-chart-alt-2"></i> Dashboard
@@ -270,27 +271,11 @@
                         <i class="bx bx-trophy"></i> Scoreboard
                     </a>
                 </li>
-                <li class="nav-item">
 
-                    <a class="nav-link" href="{{ url_for('admin.monitoring') }}">
-                        <i class="bx bx-show"></i> Monitoring
-                    </a>
-                </li>
-                <li class="nav-item">
 
-                    <a class="nav-link" href="{{ url_for('admin.estimate') }}">
-                        <i class="bx bx-cog"></i> Estimates
-                    </a>
-                    
-                </li>
                 {% endif %}
-                {% if is_challenge_writer()%}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.estimate') }}">
-                        <i class="bx bx-cog"></i> Estimates
-                    </a>         
-                </li>
-                {% endif %}
+
+                {% if is_admin() or is_jury() %}
                 <li class="nav-item">
                     <a class="sub-btn nav-link"><i class="bx bx-down-arrow-circle"></i>Submissions<i class='bx bx-chevron-right dropdown'></i> </a>
                     <div class="sub-menu">
@@ -299,6 +284,7 @@
                       <a href="{{ url_for('admin.submissions_listing', submission_type='incorrect') }}" class="sub-item">Incorrect Submissions</a>
                     </div>
                 </li>
+                {% endif %}
                 {% if is_admin() %}
                
                 
@@ -315,7 +301,7 @@
      <div id="content" class="pt-0 mt-0">
         <main role="main" class="pt-0 mt-0">
             {% if get_config('version_latest') %}
-            
+
             {% endif %}
             {% block content %}{% endblock %}
         </main>

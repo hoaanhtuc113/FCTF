@@ -34,23 +34,23 @@ const LoginComponent = () => {
   }, [navigate]);
 
   useEffect(() => {
-    const getRegisterState = async () => {
-      const api = new ApiHelper(BASE_URL);
-      try {
-        const response = await api.get(API_GET_REGISTER_STATE);
-        if (response.success) {
-          setIsRegisterVisible(response.Visibly);
-        } else {
-          console.error("Failed to get registration config:", response.error);
-        }
-      } catch (error) {
-        console.error(
-          "An error occurred while fetching registration config:",
-          error
-        );
-      }
-    };
-    getRegisterState();
+    // const getRegisterState = async () => {
+    //   const api = new ApiHelper(BASE_URL);
+    //   try {
+    //     const response = await api.get(API_GET_REGISTER_STATE);
+    //     if (response.success) {
+    //       setIsRegisterVisible(response.Visibly);
+    //     } else {
+    //       console.error("Failed to get registration config:", response.error);
+    //     }
+    //   } catch (error) {
+    //     console.error(
+    //       "An error occurred while fetching registration config:",
+    //       error
+    //     );
+    //   }
+    // };
+    // getRegisterState();
   }, []);
 
   const validateUsername = (username) => {
@@ -193,8 +193,10 @@ const LoginComponent = () => {
 
         <form onSubmit={handleSubmit} class="space-y-6" noValidate>
           <div>
+
             <label htmlFor="username" class="block text-sm font-medium text-gray-600">Username</label>
             <input type="text" id="username" name="username" value={formData.username} onChange={handleInputChange} class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required />
+
             {errors.username && (
               <p
                 className="mt-2 text-sm text-red-600"
@@ -222,6 +224,7 @@ const LoginComponent = () => {
               className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
+
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
@@ -236,7 +239,6 @@ const LoginComponent = () => {
           )}
           <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg transition">Login</button>
         </form>
-
       </div>
     </div >
   );

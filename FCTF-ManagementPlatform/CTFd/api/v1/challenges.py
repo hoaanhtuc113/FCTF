@@ -73,7 +73,7 @@ from CTFd.utils.user import (
 )
 
 from CTFd.plugins import bypass_csrf_protection
-from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop
+from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification
 
 challenges_namespace = Namespace(
     "challenges", description="Endpoint to retrieve Challenges"
@@ -519,10 +519,21 @@ class Challenge(Resource):
         challenge_class = get_chal_class(challenge.type)
         challenge = challenge_class.update(challenge, request)
         response = challenge_class.read(challenge)
-        notify_to_contestant(notif_type = "toast", 
-                             notif_sound = True,
-                             notif_title= "Thông báo từ ban quản trị",
-                             notif_message= f"Thử thách '{challenge.name}' vừa được cập nhật.")
+        print("challengeState:" + challenge.state)
+        if challenge.state == "visible":
+            notify_to_contestant(notif_type = "toast",
+                                notif_sound = True,
+                                notif_title = "Thông báo từ ban quản trị",
+                                notif_message = f"Thử thách '{challenge.name}' vừa được cập nhật.")
+            notification_data = {
+                "title": f"Thông báo từ ban quản trị",
+                "content": f"Thử thách '{challenge.name}' vừa được cập nhật.",
+                "date": time.time(),
+                "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa được cập nhật</p>\n",
+                "sound": False,
+                "type": "background",
+            }
+            post_notification(notification_data)
 
         clear_standings()
         clear_challenges()
@@ -554,10 +565,21 @@ class Challenge(Resource):
         clear_standings()
         clear_challenges()
         
-        notify_to_contestant(notif_type = "toast", 
+        if(challenge.state == "visible"):
+            notify_to_contestant(notif_type = "toast", 
                              notif_sound = True,
                              notif_title= "Thông báo từ ban quản trị",
                              notif_message= f"Thử thách '{challenge.name}' vừa bị xóa bỏ.")
+            notification_data = {
+            "title": f"Thông báo từ ban quản trị",
+            "content": f"Thử thách '{challenge.name}' vừa bị xóa bỏ.",
+            "date": time.time(),
+            "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa bị xóa bỏ</p>\n",
+            "sound": False,
+            "type": "background",
+            }
+            post_notification(notification_data)
+        
 
         return {"success": True}
 
