@@ -4,11 +4,12 @@ import { API_GET_DATE_CONFIG, BASE_URL, GET_CHALLENGE_LIST_PATH } from "../../co
 import ApiHelper from "../../utils/ApiHelper";
 
 const ChallengeList = () => {
-    const { categoryName } = useParams(); // Lấy `abcxyz` từ URL, đặt tên là `category`
+    const { categoryName } = useParams();
     const [challenges, setChallenges] = useState([]);
     const [error, setError] = useState(false);
-    const [statusMessage, setStatusMessage]= useState(null)
-    const [isContestActive, setIsContestActive]= useState(false)
+    const [statusMessage, setStatusMessage] = useState(null);
+    const [isContestActive, setIsContestActive] = useState(false);
+
     useEffect(() => {
         const fetchChallenge = async () => {
             const api = new ApiHelper(BASE_URL);
@@ -17,13 +18,13 @@ const ChallengeList = () => {
                 setChallenges(response.data);
                 setError(false);
             } catch (err) {
-                console.error("Error fetching categories:", err);
+                console.error("Error fetching challenges:", err);
                 setError(true);
             }
         };
 
         fetchChallenge();
-    }, []);
+    }, [categoryName]);
 
     useEffect(() => {
         const fetchDateConfig = async () => {
@@ -66,55 +67,62 @@ const ChallengeList = () => {
             <h2 className="text-4xl font-bold text-center mb-4 text-[#f17226]" role="heading">
                 Topic: {categoryName}
             </h2>
-            <div className="text-center mb-4 text-theme-color-neutral-dark">
+            <div className="text-center mb-4 text-white rounded-lg px-4 py-2">
                 {statusMessage}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6 justify-items-center">
+
+            <div className="space-y-4">
                 {challenges.map((challenge) => (
-                    isContestActive ? (
-                        <Link
-                            to={`/challenge/${challenge.id}`}
-                            key={challenge.id}
-                            className="bg-white w-full max-w-sm rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out p-6 cursor-pointer"
-                        >
-                            <div className="flex flex-col text-center space-y-3">
-                                <h3 className="text-xl font-bold text-theme-color-primary-content">
-                                    {challenge.name}
-                                </h3>
-                                <p className="text-theme-color-neutral text-left">
-                                    <b>Limit Time:</b> {challenge.time_limit > 0 ? challenge.time_limit + " minutes" : "UNLIMITED"}
-                                </p>
-                                <p className="text-theme-color-neutral text-left">
-                                    <b>Max attempts:</b> {challenge.max_attempts == 0? "UNLIMITED" : challenge.max_attempts}
-                                </p>
-                                <p className="text-theme-color-neutral text-left">
-                                    <b>Points:</b> {challenge.value}
-                                </p>
-                            </div>
-                        </Link>
-                    ) : (
+                    <Link
+                        key={challenge.id}
+                        to={isContestActive ? `/challenge/${challenge.id}` : '#'}
+                        className={`block w-full group ${isContestActive ? 'transition' : ''}`}
+                    >
                         <div
-                            key={challenge.id}
-                            className="bg-gray-200 w-full max-w-sm rounded-lg shadow-md p-6 opacity-50 cursor-not-allowed"
+                            className={`w-full flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-4 border rounded-lg shadow-sm transition-all duration-200
+                                ${isContestActive ? 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 group-hover:bg-[#fef3e7] dark:group-hover:bg-gray-700 group-hover:shadow-lg group-hover:border-[#f17226] dark:group-hover:border-[#f17226] cursor-pointer' : 'bg-gray-200 dark:bg-gray-700 opacity-60 cursor-not-allowed border-gray-300 dark:border-gray-700'}
+                            `}
                         >
-                            <div className="flex flex-col text-center space-y-3">
-                                <h3 className="text-xl font-bold text-gray-500">
+                            <div className="flex-1">
+                                <h3 className={`text-lg font-semibold ${isContestActive ? 'text-theme-color-primary-content dark:text-white group-hover:text-[#f17226]' : 'text-gray-500 dark:text-gray-400'}`}>
                                     {challenge.name}
                                 </h3>
-                                <p className="text-gray-500 text-left">
-                                    <b>Limit Time:</b> {challenge.time_limit ? challenge.time_limit + " minutes" : "None"}
-                                </p>
-                                <p className="text-gray-500 text-left">
-                                    <b>Max attempts:</b> {challenge.max_attempts}
-                                </p>
-                                <p className="text-gray-500 text-left">
-                                    <b>Points:</b> {challenge.value}
-                                </p>
+                                <div className="text-sm mt-1 space-y-1">
+                                    <p className={`${isContestActive ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                        <b>Time Limit:</b> {challenge.time_limit > 0 ? `${challenge.time_limit} minutes` : 'UNLIMITED'}
+                                    </p>
+                                    <p className={`${isContestActive ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                        <b>Max Attempts:</b> {challenge.max_attempts === 0 ? 'UNLIMITED' : challenge.max_attempts}
+                                    </p>
+                                    <p className={`${isContestActive ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                        <b>Points:</b> {challenge.value}
+                                    </p>
+                                </div>
                             </div>
+
+                            {isContestActive && (
+                                <div className="mt-4 sm:mt-0 sm:ml-4 min-w-[160px] flex justify-end">
+                                    {challenge.solve_by_myteam ? (
+                                        <button
+                                            className="w-full min-w-[150px] max-w-[180px] bg-green-500 text-white px-4 py-2 rounded cursor-default font-semibold text-center transition-all duration-200"
+                                            disabled
+                                        >
+                                            Completed
+                                        </button>
+                                    ) : (
+                                        <button
+                                            className="w-full min-w-[150px] max-w-[180px] bg-[#f17226] text-white px-4 py-2 rounded font-semibold text-center transition-all duration-200 group-hover:bg-orange-600 dark:group-hover:bg-orange-700"
+                                        >
+                                            Not Completed
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    )
+                    </Link>
                 ))}
             </div>
+
             {error && (
                 <div className="mt-4 text-center text-theme-color-neutral-dark">
                     Unable to fetch categories. Showing sample data.
