@@ -84,38 +84,38 @@ const HomePage = () => {
 
   const TimeUnit = ({ value, label, icon }) => (
     <div
-      className="flex flex-col items-center p-4 bg-white rounded-lg shadow-lg m-2 min-w-[120px] hover:shadow-xl transition-shadow duration-300 ease-in-out"
+      className="flex flex-col items-center p-4 bg-base-dark rounded-lg shadow-lg m-2 min-w-[120px] hover:shadow-xl transition-shadow duration-300 ease-in-out"
       whilehover={{ scale: 1.05 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div className="text-theme-color-primary text-3xl mb-2">{icon}</div>
+      <div className="text-orange-400 text-3xl mb-2">{icon}</div>
       <span
         key={value}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-4xl font-bold text-theme-color-primary-dark mb-2"
+        className="text-4xl font-bold text-white mb-2"
         aria-label={`${value} ${label}`}
       >
         {String(value).padStart(2, "0")}
       </span>
-      <span className="text-theme-color-neutral text-sm uppercase">
+      <span className="text-white text-sm uppercase">
         {label}
       </span>
     </div>
   );
 
   return (
-    <div className="bg-gradient-to-br from-base-medium to-neutral-medium flex flex-col items-center justify-center p-4">
+    <div className="bg-gradient-to-br from-base-dark to-neutral-dark flex flex-col items-center justify-center p-4">
       <div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-12"
       >
-        <h1 className="text-4xl md:text-6xl font-bold text-theme-color-secondary-dark mb-4">
+        <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
           {statusMessage}
         </h1>
-        <p className="text-theme-color-secondary text-lg md:text-xl">
+        <p className="text-white text-lg md:text-xl">
           {isContestActive
             ? "Get ready for an amazing experience! "
             : "Check back later for updates."}
@@ -124,7 +124,7 @@ const HomePage = () => {
 
       {!isContestActive && (
         <div
-          className="flex flex-wrap justify-center items-center gap-4"
+          className="flex flex-wrap justify-center items-center gap-4 text-white"
           role="timer"
           aria-label="Contest countdown timer"
         >
@@ -166,7 +166,7 @@ const HomePage = () => {
 
       {IsComing && (
         <motion.button
-          className="mt-12 px-8 py-4 bg-theme-color-primary text-white rounded-full font-bold text-lg shadow-lg hover:bg-theme-color-primary-dark focus:outline-none focus:ring-2 focus:ring-theme-color-primary focus:ring-opacity-50 transition-all duration-300"
+          className="mt-12 px-8 py-4 bg-orange-400 text-white rounded-full font-bold text-lg shadow-lg hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-50 transition-all duration-300"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           aria-label="Register for the contest"
@@ -175,7 +175,7 @@ const HomePage = () => {
         </motion.button>
       )}
 
-      <div className="mt-8 text-theme-color-secondary text-center">
+      <div className="mt-8 text-white text-center">
         <p>Don't miss out on this opportunity!</p>
         <p className="mt-2">Mark your calendar and set your reminders.</p>
       </div>

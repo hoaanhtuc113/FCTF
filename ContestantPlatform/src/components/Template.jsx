@@ -11,6 +11,7 @@ import CornerBorderBox from "../components/ConnerBorderBox";
 import { useParams } from "react-router-dom";
 import ActionLogs from "../components/action_logs/ActionLogComponent";
 import { ActionLogsContext } from "../App";
+import PixiMap from "../components/map/PixiMap";
 import { useUser } from '../components/contexts/UserContext';
 import { io } from "socket.io-client";
 import { useRef } from "react";
@@ -23,6 +24,7 @@ const Template = ({ children, title }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [userInfo, setUserInfo] = useState({});
+  const [isFetchingNotifications, setIsFetchingNotifications] = useState(false);
   const itemsPerPage = 3;
   const { categoryName } = useParams();
   const navigate = useNavigate();
@@ -198,14 +200,13 @@ const Template = ({ children, title }) => {
       icon: "noti",
       onClick: () => setIsNotificationOpen(!isNotificationOpen),
     },
-
+   
     // { title: "Logout", icon: <FaSignOutAlt />, onClick: () => handleLogout() },
-
   ];
 
   return (
-    <div className="bg-white dark:bg-gray-900 h-screen font-primary p-5">
-      <header className="fixed top-0 left-0 w-full z-50 bg-white dark:bg-gray-900 ">
+    <div className="bg-gray-900 min-h-screen font-primary p-5">
+      <header className="fixed top-0 left-0 w-full z-50 bg-gray-900 ">
     <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
       <div className="flex h-16 items-center justify-between">
         {/* Left: Logo */}
@@ -230,7 +231,7 @@ const Template = ({ children, title }) => {
                   }
                 }}
                 className={`flex items-center px-4 py-2 text-lg rounded-md font-medium transition-all duration-300
-                  ${location.pathname === `${item.url}` ? 'text-[#e45c25] bg-primary-low' : 'text-gray-700 dark:text-gray-200 hover:text-theme-color-primary-dark hover:bg-primary-low'}`}
+                  ${location.pathname === `${item.url}` ? 'text-[#e45c25] bg-primary-low' : 'text-gray-200 hover:text-theme-color-primary-dark hover:bg-primary-low'}`}
                 style={{ minWidth: '120px', justifyContent: 'center' }}
               >
                 <span className="mr-2 text-xl">{item.icon !== 'noti' && item.icon}</span>
@@ -238,33 +239,53 @@ const Template = ({ children, title }) => {
               </button>
               {/* Notification Dropdown */}
               {item.icon === "noti" && isNotificationOpen && (
-                <div className="absolute -right-100 mt-2 w-80 dark:bg-gray-800 rounded-md shadow-xl py-2 z-50 max-h-96 overflow-y-auto" ref={notificationRef}>
+                <div
+                  className="absolute -right-100 mt-2 w-80 bg-gray-800 rounded-md shadow-xl py-2 z-50 max-h-96 overflow-y-auto flex flex-col"
+                  ref={notificationRef}
+                  onScroll={async (e) => {
+                    const { scrollTop, scrollHeight, clientHeight } = e.target;
+                    if (scrollTop + clientHeight >= scrollHeight - 10 && !isFetchingNotifications && currentPage < totalPages) {
+                      setIsFetchingNotifications(true);
+                      await handleNextPage();
+                      setIsFetchingNotifications(false);
+                    }
+                  }}
+                  style={{ scrollbarWidth: 'thin' }}
+                >
                   {currentNotifications.length > 0 ? (
                     currentNotifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`px-4 py-3 cursor-pointer transition-all duration-300 ${notification.isRead ? "dark:bg-gray-600" : "hover:dark:bg-gray-700"}`}
+                        className={`px-4 py-3 cursor-pointer transition-all duration-300 ${notification.isRead ? "bg-gray-600" : "hover:bg-gray-700"}`}
                         onClick={() => markAsRead(notification.id)}
                       >
                         <div className="flex justify-between items-start">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-white">
+                          <p className="text-sm font-medium text-white group-hover:text-white">
                             {notification.title}
                           </p>
-                          <span className="text-xs text-gray-500 group-hover:text-white">
+                          <span className="text-xs text-gray-300 group-hover:text-white">
                             {formatToCustomDateTime(notification.date)}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-600 mt-1 dark:text-gray-300 group-hover:text-white">
+                        <p className="text-xs text-gray-300 mt-1 group-hover:text-white">
                           {notification.content}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <div className="px-4 py-3 text-gray-500 text-sm">
+                    <div className="px-4 py-3 text-gray-300 text-sm">
                       No notifications available
                     </div>
                   )}
-                  <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+                  {isFetchingNotifications && (
+                    <div className="flex justify-center items-center py-4">
+                      <svg className="animate-spin h-6 w-6 text-orange-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between px-4 py-2 border-t border-gray-700">
                     <button
                       onClick={handlePreviousPage}
                       disabled={currentPage === 1}
@@ -272,7 +293,7 @@ const Template = ({ children, title }) => {
                     >
                       Previous
                     </button>
-                    <span className="text-xs text-gray-500 dark:text-gray-300">
+                    <span className="text-xs text-gray-300">
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
@@ -283,7 +304,6 @@ const Template = ({ children, title }) => {
                       Next
                     </button>
                   </div>
-
                 </div>
               )}
             </div>
@@ -293,10 +313,10 @@ const Template = ({ children, title }) => {
         {/* Right: User Info & Logout */}
         <div className="flex items-center gap-4 min-w-[120px] justify-end">
           <div className="flex flex-col items-end mr-2">
-            <span className="text-sm font-semibold text-gray-800 dark:text-white">
+            <span className="text-sm font-semibold text-white">
               {userInfo.username || "Username"}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-300">
+            <span className="text-xs text-gray-300">
               {userInfo.team || "No team"}
             </span>
           </div>
@@ -321,7 +341,6 @@ const Template = ({ children, title }) => {
         </CornerBorderBox> */}
         <div className="bg-transparent font-primary italic w-full mx-auto text-primary flex-grow px-5">
           {location.pathname === "/actions_logs" ? <PixiMap /> : children}
-
         </div>
         <FloatingSchedule />
       </main>

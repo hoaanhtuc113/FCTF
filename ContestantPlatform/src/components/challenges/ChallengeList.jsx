@@ -80,21 +80,21 @@ const ChallengeList = () => {
                     >
                         <div
                             className={`w-full flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-4 border rounded-lg shadow-sm transition-all duration-200
-                                ${isContestActive ? 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 group-hover:bg-[#fef3e7] dark:group-hover:bg-gray-700 group-hover:shadow-lg group-hover:border-[#f17226] dark:group-hover:border-[#f17226] cursor-pointer' : 'bg-gray-200 dark:bg-gray-700 opacity-60 cursor-not-allowed border-gray-300 dark:border-gray-700'}
+                                ${isContestActive ? 'bg-gray-800 border-gray-700 group-hover:bg-gray-700 group-hover:shadow-lg group-hover:border-[#f17226] cursor-pointer' : 'bg-gray-700 opacity-60 cursor-not-allowed border-gray-700'}
                             `}
                         >
                             <div className="flex-1">
-                                <h3 className={`text-lg font-semibold ${isContestActive ? 'text-theme-color-primary-content dark:text-white group-hover:text-[#f17226]' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <h3 className={`text-lg font-semibold ${isContestActive ? 'text-white group-hover:text-[#f17226]' : 'text-gray-400'}`}>
                                     {challenge.name}
                                 </h3>
                                 <div className="text-sm mt-1 space-y-1">
-                                    <p className={`${isContestActive ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    <p className={`${isContestActive ? 'text-gray-200' : 'text-gray-400'}`}>
                                         <b>Time Limit:</b> {challenge.time_limit > 0 ? `${challenge.time_limit} minutes` : 'UNLIMITED'}
                                     </p>
-                                    <p className={`${isContestActive ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    <p className={`${isContestActive ? 'text-gray-200' : 'text-gray-400'}`}>
                                         <b>Max Attempts:</b> {challenge.max_attempts === 0 ? 'UNLIMITED' : challenge.max_attempts}
                                     </p>
-                                    <p className={`${isContestActive ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    <p className={`${isContestActive ? 'text-gray-200' : 'text-gray-400'}`}>
                                         <b>Points:</b> {challenge.value}
                                     </p>
                                 </div>
@@ -111,7 +111,7 @@ const ChallengeList = () => {
                                         </button>
                                     ) : (
                                         <button
-                                            className="w-full min-w-[150px] max-w-[180px] bg-[#f17226] text-white px-4 py-2 rounded font-semibold text-center transition-all duration-200 group-hover:bg-orange-600 dark:group-hover:bg-orange-700"
+                                            className="w-full min-w-[150px] max-w-[180px] bg-[#f17226] text-white px-4 py-2 rounded font-semibold text-center transition-all duration-200 group-hover:bg-orange-700"
                                         >
                                             Not Completed
                                         </button>
