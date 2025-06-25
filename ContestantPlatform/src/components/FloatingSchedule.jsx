@@ -96,9 +96,9 @@ const FloatingSchedule = () => {
               animate={{ opacity: 1, y: -10 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.3 }}
-              className="absolute bottom-full right-0 mb-4 w-72 p-4 bg-white dark:bg-gray-800 border border-orange-300 dark:border-gray-700 rounded-xl shadow-2xl"
+              className="absolute bottom-full right-0 mb-4 w-72 p-4 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl"
             >
-              <div className="text-center text-sm font-semibold text-orange-600 dark:text-orange-300 mb-2">
+              <div className="text-center text-sm font-semibold text-orange-300 mb-2">
                 {statusMessage}
               </div>
               <div className="flex justify-between">

@@ -28,7 +28,7 @@ const TicketDetailPage = () => {
   }, [ticketId])
   
   return (
-    <div className="min-h-screen p-4 md:p-8 bg-white dark:bg-gray-900 transition-colors duration-300">
+    <div className="min-h-screen p-4 md:p-8 bg-gray-900 transition-colors duration-300">
       <div className="max-w-4xl mx-auto">
         <button
           onClick={() => navigate('/tickets')}
@@ -37,9 +37,9 @@ const TicketDetailPage = () => {
           <FaArrowLeft />
           Back to List
         </button>
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-orange-400 dark:border-orange-400 transition-colors">
+        <div className="bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border :border-orange-400 transition-colors">
           {/* Header Section */}
-          <div className="bg-orange-400 dark:bg-orange-400 p-6 transition-colors">
+          <div className="bg-orange-400 p-6 transition-colors">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
               <h1 className="text-2xl font-bold text-white mb-2 md:mb-0 drop-shadow">Ticket Details</h1>
               <div className="flex items-center space-x-4">
@@ -59,30 +59,30 @@ const TicketDetailPage = () => {
           </div>
 
           {/* Ticket Information */}
-          <div className="p-6 bg-white dark:bg-gray-800 transition-colors">
+          <div className="p-6 bg-gray-800 transition-colors">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left Column */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <FaUser className="text-orange-400 text-xl" />
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-300">Author</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{ticket?.author_name}</p>
+                    <p className="text-sm text-gray-300">Author</p>
+                    <p className="font-medium text-white">{ticket?.author_name}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-3">
                   <FaCalendarAlt className="text-orange-400 text-xl" />
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-300">Creation Date</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{ticket?.date}</p>
+                    <p className="text-sm text-gray-300">Creation Date</p>
+                    <p className="font-medium text-white">{ticket?.date}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
                   <FaReply className="text-orange-400 text-xl" />
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-300">Replier</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{ticket?.replier_name}</p>
+                    <p className="text-sm text-gray-300">Replier</p>
+                    <p className="font-medium text-white">{ticket?.replier_name}</p>
                   </div>
                 </div>
               </div>
@@ -90,26 +90,26 @@ const TicketDetailPage = () => {
               {/* Right Column */}
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Title</h2>
-                  <p className="text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 p-3 rounded-md shadow-sm transition-colors">{ticket?.title}</p>
+                  <h2 className="text-xl font-semibold mb-2 text-white">Title</h2>
+                  <p className="text-gray-200 bg-gray-900 p-3 rounded-md shadow-sm transition-colors">{ticket?.title}</p>
                 </div>
 
                 <div>
-                  <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Description</h2>
-                  <p className="text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 p-3 rounded-md min-h-[100px] shadow-sm transition-colors">{ticket?.description}</p>
+                  <h2 className="text-xl font-semibold mb-2 text-white">Description</h2>
+                  <p className="text-gray-200 bg-gray-900 p-3 rounded-md min-h-[100px] shadow-sm transition-colors">{ticket?.description}</p>
                 </div>
 
                 <div>
-                  <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Reply from {ticket?.replier_name}</h2>
-                  <p className="text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 p-3 rounded-md min-h-[100px] shadow-sm transition-colors">{ticket?.replier_message}</p>
+                  <h2 className="text-xl font-semibold mb-2 text-white">Reply from {ticket?.replier_name}</h2>
+                  <p className="text-gray-200 bg-gray-900 p-3 rounded-md min-h-[100px] shadow-sm transition-colors">{ticket?.replier_message}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Additional Information */}
-          <div className="border-t border-orange-200 dark:border-orange-400 p-6 bg-gray-50 dark:bg-gray-900 transition-colors">
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
+          <div className="border-t border-orange-400 p-6 bg-gray-900 transition-colors">
+            <div className="flex items-center space-x-2 text-sm text-gray-300">
               <FaInfoCircle className="text-orange-400" />
               <p>Last updated: 2 hours ago</p>
             </div>
