@@ -988,6 +988,7 @@ const ChallengeDetail = () => {
                         ? "bg-gray-700 text-white cursor-not-allowed"
                         : "bg-gradient-to-r from-green-400 to-blue-400 hover:from-blue-400 hover:to-green-400 text-white hover:scale-105"
                     }`}
+
                   >
                     {isStarting ? (
                       <span className="flex items-center space-x-2">
@@ -1021,6 +1022,13 @@ const ChallengeDetail = () => {
                     )}
                   </button>
                 )}
+                >
+                  {isStarting ? "Starting..." : "Start Challenge"}
+                </button>
+              ) : (
+                <span className="text-red-500">Only captain of the team can start new environment for this challenge!</span>
+              )}
+
               {/* Display the Stop Challenge button if the challenge is started and require_deploy is true */}
               {isChallengeStarted &&
                 challenge?.require_deploy &&

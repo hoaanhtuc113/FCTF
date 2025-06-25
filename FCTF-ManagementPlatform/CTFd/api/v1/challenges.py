@@ -500,12 +500,13 @@ class Challenge(Resource):
         user_id = session["id"]
         user = Users.query.filter_by(id=user_id).first()
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
-
+        
         # Debugging logs
         print(f"Challenge user_id: {challenge.user_id}")
         print(f"Current user's user_id: {user_id}")
 
         if user.type == "admin":
+            data["user_id"] = challenge.user_id
             pass
         elif user.type == "challenge_writer":
             if challenge.user_id != user_id:
@@ -513,6 +514,7 @@ class Challenge(Resource):
                     "success": False,
                     "error": "You are not authorized to update this challenge.",
                 }, 403
+            data["user_id"] = user_id
         else:
             return {"success": False, "error": "Unauthorized user type."}, 403
 
