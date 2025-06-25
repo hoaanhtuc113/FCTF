@@ -51,7 +51,19 @@ const ChallengeDetail = () => {
       setAnswer(event.target.value);
     }
   };
-
+  const logUserAction = async (actionType, actionDetail, challenge_id) => {
+    const api = new ApiHelper(BASE_URL);
+    try {
+      const response = await api.post(`${API_ACTION_LOGS}`, {
+        actionType: actionType,
+        actionDetail: actionDetail,
+        challenge_id: challengeId,
+      });
+      return response;
+    } catch (error) {
+      console.error("Error logging user action:", error);
+    }
+  };
 
   useEffect(() => {
     const container = descriptionRef.current;
@@ -160,6 +172,10 @@ const ChallengeDetail = () => {
       });
       if (response.success) {
         setUnlockHints((prev) => [...prev, hintId]);
+        logUserAction(
+          actionType.UNLOCK_HINT,
+          "Mở khóa trợ giúp cho thử thách " + challenge.name
+        );
       }
       return response;
     } catch (error) {
@@ -204,8 +220,9 @@ const ChallengeDetail = () => {
         // Fetch the hint details directly from the server
         Swal.fire({
           title: "Hint Details",
-          text: `Details: ${hintDetailsResponse.data.content || "No content available."
-            }`,
+          text: `Details: ${
+            hintDetailsResponse.data.content || "No content available."
+          }`,
           icon: "info",
           confirmButtonText: "OK",
         });
@@ -234,8 +251,9 @@ const ChallengeDetail = () => {
               // Show success with hint details using SweetAlert
               Swal.fire({
                 title: "Unlock Success!",
-                text: `Hint unlocked! Details: ${hintDetailsResponse.data.content || "No content available."
-                  }`,
+                text: `Hint unlocked! Details: ${
+                  hintDetailsResponse.data.content || "No content available."
+                }`,
                 icon: "success",
                 confirmButtonText: "OK",
               });
@@ -267,9 +285,10 @@ const ChallengeDetail = () => {
                 if (hintDetailsResponse?.data) {
                   Swal.fire({
                     title: "Already Unlocked",
-                    text: `You've already unlocked this hint. Details: ${hintDetailsResponse.data.content ||
+                    text: `You've already unlocked this hint. Details: ${
+                      hintDetailsResponse.data.content ||
                       "No content available."
-                      }`,
+                    }`,
                     icon: "info",
                     confirmButtonText: "OK",
                   });
@@ -339,7 +358,10 @@ const ChallengeDetail = () => {
         return;
       }
       const data = detailsResponse.data;
-
+      logUserAction(
+        actionType.ACCESS_CHALLENGE,
+        "Tiếp cận thử thách " + data.name
+      );
       setChallenge(data);
       setIsSubmitted(data.solve_by_myteam);
       if (data.time_limit !== -1) {
@@ -352,7 +374,7 @@ const ChallengeDetail = () => {
             setUrl(detailsResponse.challenge_url || null);
             setMessage(
               detailsResponse.message ||
-              "Challenge started by other member in your team. "
+                "Challenge started by other member in your team. "
             );
           }
         } else {
@@ -368,7 +390,7 @@ const ChallengeDetail = () => {
             setUrl(detailsResponse.challenge_url || null);
             setMessage(
               detailsResponse.message ||
-              "Challenge started by other member in your team. "
+                "Challenge started by other member in your team. "
             );
           }
         }
@@ -421,7 +443,10 @@ const ChallengeDetail = () => {
       if (response.success) {
         try {
           const timeRemaining = await fetchChallengeDetails();
-
+          logUserAction(
+            actionType.START_CHALLENGE,
+            ` Khởi động thử thách ${challenge.name}`
+          );
           setUrl(response.challenge_url || null);
           setIsChallengeStarted(true);
           setIsSubmitted(false);
@@ -469,10 +494,11 @@ const ChallengeDetail = () => {
       } else {
         Swal.fire({
           title: "Error!",
-          html: `${response.message ||
+          html: `${
+            response.message ||
             response.error ||
             "An error occurs, please try again later!"
-            }`,
+          }`,
           icon: "error",
           confirmButtonText: "OK",
         });
@@ -649,7 +675,10 @@ const ChallengeDetail = () => {
       };
       const response = await api.postForm(SUBMIT_FLAG, data);
       if (response?.data.status === "correct") {
-
+        logUserAction(
+          actionType.CORRECT_FLAG,
+          `Nộp cờ đúng cho thử thách ${challenge.name}`
+        );
         // Success message for correct flag
         Swal.fire({
           title: "Correct Flag!",
@@ -738,11 +767,11 @@ const ChallengeDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-theme-color-base dark:bg-gray-900 p-4">
-      <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-orange-100 dark:border-gray-700">
+    <div className="min-h-screen bg-gray-900 p-4">
+      <div className="max-w-7xl mx-auto bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-700">
         <div className="lg:flex">
           {/* LEFT: Challenge Info */}
-          <div className="lg:w-[70%] p-10 bg-white dark:bg-gray-900 flex flex-col gap-6">
+          <div className="lg:w-[70%] p-10 bg-gray-900 flex flex-col gap-6">
             <h1
               className="text-4xl font-extrabold text-orange-500 mb-2 flex items-center gap-3"
               role="heading"
@@ -752,32 +781,32 @@ const ChallengeDetail = () => {
               </span>
             </h1>
             <div className="flex flex-wrap gap-4 mb-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 text-sm font-semibold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-900 text-orange-300 text-sm font-semibold">
                 <FiClock className="mr-1" />
                 {challenge?.time_limit === -1
                   ? "Unlimited"
                   : `${challenge?.time_limit} min`}
               </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-sm font-semibold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-900 text-green-300 text-sm font-semibold">
                 Max: {challenge?.max_attempts > 0 ? challenge.max_attempts : "∞"} attempts
               </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-sm font-semibold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-900 text-purple-300 text-sm font-semibold">
                 Submitted: {challenge?.attemps} times
               </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 text-sm font-semibold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-yellow-900 text-yellow-300 text-sm font-semibold">
                 Type: {challenge?.type}
               </span>
             </div>
-            <div className="bg-theme-color-base dark:bg-gray-900 rounded-xl p-6 shadow-inner border border-orange-100 dark:border-gray-700">
-              <div className="bg-white dark:bg-gray-800 rounded-xl overflow-y-auto max-h-96 p-4 border border-gray-100 dark:border-gray-700">
+            <div className="bg-gray-900 rounded-xl p-6 shadow-inner border border-gray-700">
+              <div className="bg-gray-800 rounded-xl overflow-y-auto max-h-96 p-4 border border-gray-700">
                 {challenge?.type === "multiple_choice" ? (
                   <div
                     ref={descriptionRef}
-                    className="prose max-w-none text-lg dark:text-white"
+                    className="prose max-w-none text-lg text-white"
                     dangerouslySetInnerHTML={{ __html: challenge.description }}
                   />
                 ) : (
-                  <div className="prose max-w-none text-lg dark:text-white">{challenge?.description}</div>
+                  <div className="prose max-w-none text-lg text-white">{challenge?.description}</div>
                 )}
                 {challenge?.files && (
                   <div className="mt-4">
@@ -786,7 +815,7 @@ const ChallengeDetail = () => {
                         <button
                           key={index}
                           onClick={() => handleDowloadFiles(file)}
-                          className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-pink-400"
+                          className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-pink-400"
                         >
                           <FaDownload className="mr-2" />
                           {getFileName(file)}
@@ -796,9 +825,9 @@ const ChallengeDetail = () => {
                   </div>
                 )}
                 {url && (
-                  <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-950 border-l-4 border-orange-400 dark:border-orange-600 rounded flex items-center gap-2 animate-fade-in">
-                    <span className="font-semibold text-orange-700 dark:text-orange-300">{message}</span>
-                    <span className="ml-2 text-gray-700 dark:text-gray-200">Your connection info is: <span className="font-mono text-orange-600 dark:text-orange-400">{url}</span></span>
+                  <div className="mt-4 p-3 bg-orange-950 border-l-4 border-orange-600 rounded flex items-center gap-2 animate-fade-in">
+                    <span className="font-semibold text-orange-300">{message}</span>
+                    <span className="ml-2 text-gray-200">Your connection info is: <span className="font-mono text-orange-400">{url}</span></span>
                   </div>
                 )}
               </div>
@@ -806,21 +835,21 @@ const ChallengeDetail = () => {
           </div>
 
           {/* RIGHT: Actions & Hints */}
-          <div className="lg:w-[30%] bg-theme-color-base dark:bg-gray-900 p-10 flex flex-col gap-8 border-l border-orange-100 dark:border-gray-700">
+          <div className="lg:w-[30%] bg-gray-900 p-10 flex flex-col gap-8 border-l border-gray-700">
             {/* Timer */}
             <div className="mb-4">
-              <div className="flex items-center justify-center space-x-2 text-3xl font-mono bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-orange-200 dark:border-orange-700">
+              <div className="flex items-center justify-center space-x-2 text-3xl font-mono bg-gray-800 p-6 rounded-2xl shadow-lg border border-orange-700">
                 <FiClock className="text-orange-500 animate-pulse" />
                 {!isChallengeStarted && (
-                  <span className="font-bold text-orange-700 dark:text-orange-300">{formatTime(timeLimit)}</span>
+                  <span className="font-bold text-orange-300">{formatTime(timeLimit)}</span>
                 )}
                 {isChallengeStarted && (
-                  <span className="font-bold text-green-600 dark:text-green-300 animate-countdown">{formatTime(timeRemaining)}</span>
+                  <span className="font-bold text-green-300 animate-countdown">{formatTime(timeRemaining)}</span>
                 )}
               </div>
             </div>
             {showTimeUpAlert && (
-              <div className="bg-red-500 dark:bg-red-700 text-white p-4 rounded-xl mb-6 flex items-center justify-center shadow animate-bounce">
+              <div className="bg-red-700 text-white p-4 rounded-xl mb-6 flex items-center justify-center shadow animate-bounce">
                 <FiAlertCircle className="mr-2" />
                 <span>Time is up!</span>
               </div>
@@ -837,11 +866,11 @@ const ChallengeDetail = () => {
                   <div key={hint.id}>
                     <button
                       type="button"
-                      className="w-full h-20 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl hover:bg-orange-50 dark:hover:bg-orange-900 transition-all duration-300 flex flex-col items-center justify-center font-semibold text-orange-500 dark:text-orange-300 border border-orange-200 dark:border-orange-700 hover:scale-105"
+                      className="w-full h-20 bg-gray-800 rounded-xl shadow-md hover:shadow-xl hover:bg-orange-900 transition-all duration-300 flex flex-col items-center justify-center font-semibold text-orange-300 border border-orange-700 hover:scale-105"
                       onClick={() => handleUnlockHintClick(hint.id, hint.cost)}
                     >
                       <span className="text-base">Hint</span>
-                      <span className="text-sm text-pink-500 dark:text-pink-300 font-bold">{hint.cost} Points</span>
+                      <span className="text-sm text-pink-300 font-bold">{hint.cost} Points</span>
                     </button>
                   </div>
                 ))}
@@ -854,7 +883,7 @@ const ChallengeDetail = () => {
                 challenge?.max_attempts !== 0 &&
                 !isSubmitted && (
                   <div className="text-center">
-                    <span className="w-full py-3 px-6 rounded-xl font-medium flex items-center justify-center space-x-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-300 cursor-not-allowed shadow">
+                    <span className="w-full py-3 px-6 rounded-xl font-medium flex items-center justify-center space-x-2 :bg-gray-700 text-gray-300 cursor-not-allowed shadow">
                       You have reached the maximum number of submissions allowed.
                     </span>
                   </div>
@@ -874,13 +903,14 @@ const ChallengeDetail = () => {
                       id="answer"
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
-                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-theme-color-primary focus:border-transparent ${error ? "border-red-500" : "border-theme-color-neutral"
-                        }`}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-400 text-lg shadow-sm transition-all bg-gray-800 text-white placeholder-gray-400 ${
+                        error ? "border-red-500" : "border-orange-700"
+                      }`}
                       rows="6"
                       placeholder="Enter your solution here..."
                       disabled={
-                        isSubmitted
-                        // || (challenge?.require_deploy && !isChallengeStarted)
+                        isSubmitted ||
+                        (challenge?.require_deploy && !isChallengeStarted)
                       }
                       aria-label="Answer input field"
                     />
@@ -891,50 +921,106 @@ const ChallengeDetail = () => {
                 )}
               {(challenge?.attemps <= challenge?.max_attempts ||
                 challenge?.max_attempts == 0) && (
-                  <button
-                    onClick={handleSubmitFlag}
-                    type="submit"
-                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${isSubmitted
-                      // || (challenge?.require_deploy && !isChallengeStarted)
-                      ? "bg-theme-color-neutral cursor-not-allowed"
-                      : "bg-theme-color-primary hover:bg-theme-color-primary-dark text-white"
-                      }`}
-                    disabled={
-                      isSubmitted
-                      // || (challenge?.require_deploy && !isChallengeStarted) || isTimeOut
-                    }
-                  >
-                    {isSubmitted ? (
-                      <>
-                        <FiCheck className="text-white" />
-                        <span>This challenge have solved</span>
-                      </>
-                    ) : (
-                      "Submit Answer"
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={handleSubmitFlag}
+                  type="submit"
+                  className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${
+                    isSubmitted ||
+                    (challenge?.require_deploy && !isChallengeStarted)
+                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-500 to-pink-500 hover:from-pink-500 hover:to-blue-500 text-white hover:scale-105"
+                  }`}
+                  disabled={
+                    isSubmitted ||
+                    (challenge?.require_deploy && !isChallengeStarted) ||
+                    isTimeOut
+                  }
+                >
+                  {isSubmitted ? (
+                    <>
+                      <FiCheck className="text-white" />
+                      <span>This challenge has been solved</span>
+                    </>
+                  ) : isSubmittingFlag ? (
+                    <span className="flex items-center space-x-2">
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        ></path>
+                      </svg>
+                      <span>Submitting...</span>
+                    </span>
+                  ) : (
+                    "Submit Answer"
+                  )}
+                </button>
+              )}
               <Modal
                 isOpen={isModalOpen}
                 message={modalMessage}
                 onClose={() => setIsModalOpen(false)}
               />
               {/* Nút Start Challenge chỉ hiển thị nếu require_deploy là true */}
-              {(challenge?.require_deploy && challenge?.is_captain &&
+              {challenge?.require_deploy &&
                 !isChallengeStarted &&
-                !isSubmitted) ? (
-                <button
-                  type="button"
-                  onClick={handleStartChallenge}
-                  disabled={isStarting} // Disable button while starting
-                  className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${isStarting
-                    ? "bg-gray-500 text-white cursor-not-allowed"
-                    : "bg-green-600 hover:bg-green-700 text-white"
+                !isSubmitted && (
+                  <button
+                    type="button"
+                    onClick={handleStartChallenge}
+                    disabled={isStarting}
+                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${
+                      isStarting
+                        ? "bg-gray-700 text-white cursor-not-allowed"
+                        : "bg-gradient-to-r from-green-400 to-blue-400 hover:from-blue-400 hover:to-green-400 text-white hover:scale-105"
                     }`}
-                >
-                  {isStarting ? "Starting..." : "Start Challenge"}
-                </button>
-              ) : "Only captain of the team can start new environment for this challenge!"}
+                  >
+                    {isStarting ? (
+                      <span className="flex items-center space-x-2">
+                        <svg
+                          className="animate-spin h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          ></path>
+                        </svg>
+                        <span>Starting...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <span className="inline-block w-3 h-3 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                        Start Challenge
+                      </>
+                    )}
+                  </button>
+                )}
               {/* Display the Stop Challenge button if the challenge is started and require_deploy is true */}
               {isChallengeStarted &&
                 challenge?.require_deploy &&
@@ -942,11 +1028,12 @@ const ChallengeDetail = () => {
                   <button
                     type="button"
                     onClick={handleStopChallenge}
-                    disabled={IsStopping} // Disable the button during API call
-                    className={`w-full py-3 px-6 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${IsStopping
-                      ? "bg-red-400 cursor-not-allowed"
-                      : "bg-red-600 hover:bg-red-700 text-white"
-                      }`}
+                    disabled={IsStopping}
+                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${
+                      IsStopping
+                        ? "bg-red-700 text-white cursor-not-allowed"
+                        : "bg-gradient-to-r from-red-500 to-pink-500 hover:from-pink-500 hover:to-red-500 text-white hover:scale-105"
+                    }`}
                   >
                     {IsStopping ? (
                       <span className="flex items-center space-x-2">
