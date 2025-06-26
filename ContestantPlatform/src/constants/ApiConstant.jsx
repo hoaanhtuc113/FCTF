@@ -23,7 +23,7 @@ export const API_UNLOCK_HINTS = "/api/v1/unlocks"; //unlock hint
 export const API_GET_UNLOCKED_HINT = "/api/v1/unlocks"; //get unlock
 
 //Scoreboard
-export const API_SCOREBOARD_TOP_STANDINGS = "/api/v1/scoreboard/top/10";
+export const API_SCOREBOARD_TOP_STANDINGS = "/api/v1/scoreboard/top/200";
 
 //Ticket
 export const API_LIST_TICKET = "/api/tickets-user";
