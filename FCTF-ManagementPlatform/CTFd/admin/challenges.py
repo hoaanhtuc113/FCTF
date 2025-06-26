@@ -17,7 +17,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, DeployedChallenge, Flags, Solves, db
+from CTFd.models import Challenges, DeployedChallenge, Flags, Solves, Users, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -55,11 +55,17 @@ def challenges_listing():
         writer_id = session["id"]  # Assuming the session stores the user ID
         filters.append(Challenges.user_id == writer_id)
         query = Challenges.query.filter(*filters).order_by(Challenges.id.asc())
-
+        
+        
     # Fetch the results
     challenges = query.all()
     total = query.count()
-
+    for c in challenges:
+        user = Users.query.filter_by(id=c.user_id).first_or_404()
+        if user:
+            c.creator = user.name
+        
+        
     return render_template(
         "admin/challenges/challenges.html",
         challenges=challenges,

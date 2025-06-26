@@ -90,6 +90,7 @@
                             <th class="sort-col text-center"><b>ID</b></th>
                             <th class="sort-col text-center"><b>Name</b></th>
                             <th class="sort-col text-center"><b>Category</b></th>
+                            <th class="sort-col text-center"><b>Creator</b></th>
                             <th class="sort-col text-center"><b>Value</b></th>
                             <th class="sort-col text-center"><b>Type</b></th>
                             <th class="sort-col text-center"><b>Deploy Status</b></th>
@@ -118,6 +119,8 @@
                             <td class="text-center text-wrap"> {{ challenge.name }}</td>
                             {% endif %}
                             <td class="text-center text-wrap"> {{ challenge.category }}</td>
+                            <td class="text-center text-wrap"> {{ challenge.creator }}</td>
+
                             <td class="text-center">{{ challenge.value }}</td>
                             <td class="text-center">{{ challenge.type }}</td>
                             <td class="text-center">

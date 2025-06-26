@@ -18,6 +18,8 @@ import {
 } from "../../constants/ApiConstant";
 import ApiHelper from "../../utils/ApiHelper";
 import { actionType } from "../../constants/ActionLogConstant";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm"
 const ChallengeDetail = () => {
   const { id } = useParams();
   const challengeId = id ? parseInt(id, 10) : undefined;
@@ -774,7 +776,7 @@ const ChallengeDetail = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="bg-gray-900 p-4 h-full">
         <div className="max-w-7xl mx-auto bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-700">
           <div className="lg:flex">
             <div className="lg:w-[70%] p-10 bg-gray-900 flex flex-col gap-6">
@@ -803,52 +805,50 @@ const ChallengeDetail = () => {
                   Type: {challenge?.type}
                 </span>
               </div>
-              <div className="bg-gray-900 rounded-xl shadow-inner border border-gray-700">
-                <div className="bg-gray-800 rounded-xl overflow-y-auto max-h-96 p-4 border border-gray-700">
-                  <div className="relative">
-                    <div
-                      ref={descriptionRef}
-                      className={`prose max-w-none text-lg text-white whitespace-pre-line overflow-hidden transition-all ${showMore && !isExpanded ? "max-h-[150px]" : ""
-                        }`}
-                      dangerouslySetInnerHTML={{
-                        __html: challenge?.type === "multiple_choice"
-                          ? challenge.description.replace(/\n/g, "<br>")
-                          : challenge?.description,
-                      }}
-                    />
-                    {showMore && !isExpanded && (
-                      <div className="text-right mt-2">
-                        <button
-                          onClick={() => setIsExpanded(true)}
-                          className="text-blue-400 hover:underline"
-                        >
-                          Xem thêm
-                        </button>
-                      </div>
-                    )}
+              {challenge?.files && (
+                <div className="mt-4">
+                  <div className="flex flex-wrap gap-4">
+                    {challenge.files.map((file, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleDowloadFiles(file)}
+                        className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-pink-400"
+                      >
+                        <FaDownload className="mr-2" />
+                        {getFileName(file)}
+                      </button>
+                    ))}
                   </div>
-                  {challenge?.files && (
-                    <div className="mt-4">
-                      <div className="flex flex-wrap gap-4">
-                        {challenge.files.map((file, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleDowloadFiles(file)}
-                            className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-pink-400"
-                          >
-                            <FaDownload className="mr-2" />
-                            {getFileName(file)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {url && (
-                    <div className="mt-4 p-3 bg-orange-950 border-l-4 border-orange-600 rounded flex items-center gap-2 animate-fade-in">
-                      <span className="font-semibold text-orange-300">{message}</span>
-                      <span className="ml-2 text-gray-200">Your connection info is: <span className="font-mono text-orange-400">{url}</span></span>
-                    </div>
-                  )}
+                </div>
+              )}
+              {url && (
+                <div className="mt-4 p-3 bg-orange-950 border-l-4 border-orange-600 rounded flex items-center gap-2 animate-fade-in">
+                  <span className="font-semibold text-orange-300">{message}</span>
+                  <span className="ml-2 text-gray-200">Your connection info is: <span className="font-mono text-orange-400">{url}</span></span>
+                </div>
+              )}
+
+              <div className="bg-gray-900 rounded-xl shadow-inner border border-gray-700">
+                <div className="bg-gray-800 rounded-xl overflow-y-auto p-4 border border-gray-700">
+
+                  {/* <div
+                    ref={descriptionRef}
+                    className={`prose max-w-none text-lg text-white whitespace-pre-line overflow-hidden transition-all ${showMore && !isExpanded ? "max-h-[150px]" : ""
+                      }`}
+                    dangerouslySetInnerHTML={{
+                      __html: challenge?.type === "multiple_choice"
+                        ? challenge.description.replace(/\n/g, "<br>")
+                        : challenge?.description,
+                    }}
+                  /> */}
+                  <div
+                    ref={descriptionRef}
+                    className="text-white prose prose-white"
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {challenge?.description || ""}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             </div>

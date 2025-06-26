@@ -1,5 +1,7 @@
 /** @type {import('tailwindcss').Config} */
+import typography from "@tailwindcss/typography";
 export const content = ["./src/**/*.{js,jsx,ts,tsx}"];
+
 export const theme = {
   extend: {
     colors: {
@@ -17,6 +19,23 @@ export const theme = {
       serif: ["Merriweather", "serif"],
       primary: ["Roboto", "sans-serif", "monospace"],
     },
+    typography: (theme) => ({
+      white: {
+        css: {
+          color: theme('colors.white'),
+          a: { color: theme('colors.white') },
+          strong: { color: theme('colors.white') },
+          'ul > li::before': { backgroundColor: theme('colors.white') },
+          code: { color: theme('colors.white') },
+          h1: { color: theme('colors.white') },
+          h2: { color: theme('colors.white') },
+          h3: { color: theme('colors.white') },
+          blockquote: { color: theme('colors.white') },
+          li: {
+            color: theme('colors.white'),}
+        },
+      },
+    })
   },
 };
-export const plugins = [];
+export const plugins = [typography];
