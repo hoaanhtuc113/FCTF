@@ -80,7 +80,7 @@ const Scoreboard = () => {
  <div className="flex flex-col md:flex-row gap-8">
   {/* LEFT: Team list */}
   <div className="md:w-1/3 bg-white/15 rounded-lg shadow-lg p-6">
-    <h2 className="text-2xl font-bold mb-6 text-primary text-center">
+    <h2 className="text-2xl font-bold mb-6 text-primary text-center text-white">
       Team Scores
     </h2>
     <div className="space-y-2">
