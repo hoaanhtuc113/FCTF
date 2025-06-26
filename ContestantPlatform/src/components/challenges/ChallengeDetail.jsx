@@ -4,6 +4,7 @@ import { FaDownload } from "react-icons/fa";
 import { FiAlertCircle, FiCheck, FiClock } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 import Swal from "sweetalert2";
+import { Dialog } from "@headlessui/react";
 import {
   API_CHALLEGE_START,
   API_CHALLENGE_STOP,
@@ -44,7 +45,16 @@ const ChallengeDetail = () => {
   const [IsStopping, setIsStopping] = useState(false);
   const [message, setMessage] = useState(null);
   const descriptionRef = useRef(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
+
+  // Kiểm tra nếu nội dung quá dài (tùy chỉnh số dòng ở đây)
+  useEffect(() => {
+    if (descriptionRef.current) {
+      setShowMore(descriptionRef.current.scrollHeight > 150); // 150px là khoảng ~5 dòng
+    }
+  }, [challenge?.description]);
   const handleRadioChange = (event) => {
     if (event.target.name === "radio-group") {
       console.log(event.target.value);
@@ -763,74 +773,88 @@ const ChallengeDetail = () => {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-gray-900 p-4">
       <div className="max-w-7xl mx-auto bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-700">
         <div className="lg:flex">
-          {/* LEFT: Challenge Info */}
-          <div className="lg:w-[70%] p-10 bg-gray-900 flex flex-col gap-6">
-            <h1
-              className="text-4xl font-extrabold text-orange-500 mb-2 flex items-center gap-3"
-              role="heading"
-            >
-              <span className="inline-block bg-gradient-to-r from-orange-400 to-orange-600 text-white px-4 py-2 rounded-xl shadow-md animate-pulse">
-                {challenge ? challenge.name : "..."}
-              </span>
-            </h1>
-            <div className="flex flex-wrap gap-4 mb-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-900 text-orange-300 text-sm font-semibold">
-                <FiClock className="mr-1" />
-                {challenge?.time_limit === -1
-                  ? "Unlimited"
-                  : `${challenge?.time_limit} min`}
-              </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-900 text-green-300 text-sm font-semibold">
-                Max: {challenge?.max_attempts > 0 ? challenge.max_attempts : "∞"} attempts
-              </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-900 text-purple-300 text-sm font-semibold">
-                Submitted: {challenge?.attemps} times
-              </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-yellow-900 text-yellow-300 text-sm font-semibold">
-                Type: {challenge?.type}
-              </span>
-            </div>
-            <div className="bg-gray-900 rounded-xl p-6 shadow-inner border border-gray-700">
-              <div className="bg-gray-800 rounded-xl overflow-y-auto max-h-96 p-4 border border-gray-700">
-                {challenge?.type === "multiple_choice" ? (
-                  <div
-                    ref={descriptionRef}
-                    className="prose max-w-none text-lg text-white"
-                    dangerouslySetInnerHTML={{ __html: challenge.description }}
-                  />
-                ) : (
-                  <div className="prose max-w-none text-lg text-white">{challenge?.description}</div>
-                )}
-                {challenge?.files && (
-                  <div className="mt-4">
+                <div className="lg:w-[70%] p-10 bg-gray-900 flex flex-col gap-6">
+                <h1
+                  className="text-4xl font-extrabold text-orange-500 mb-2 flex items-center gap-3"
+                  role="heading"
+                >
+                  <span className="inline-block bg-gradient-to-r from-orange-400 to-orange-600 text-white px-4 py-2 rounded-xl shadow-md animate-pulse">
+                  {challenge ? challenge.name : "..."}
+                  </span>
+                </h1>
+                <div className="flex flex-wrap gap-4 mb-2">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-orange-900 text-orange-300 text-sm font-semibold">
+                  <FiClock className="mr-1" />
+                  {challenge?.time_limit === -1
+                    ? "Unlimited"
+                    : `${challenge?.time_limit} min`}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-900 text-green-300 text-sm font-semibold">
+                  Max: {challenge?.max_attempts > 0 ? challenge.max_attempts : "∞"} attempts
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-900 text-purple-300 text-sm font-semibold">
+                  Submitted: {challenge?.attemps} times
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-yellow-900 text-yellow-300 text-sm font-semibold">
+                  Type: {challenge?.type}
+                  </span>
+                </div>
+                <div className="bg-gray-900 rounded-xl shadow-inner border border-gray-700">
+                  <div className="bg-gray-800 rounded-xl overflow-y-auto max-h-96 p-4 border border-gray-700">
+                     <div className="relative">
+                    <div
+                      ref={descriptionRef}
+                       className={`prose max-w-none text-lg text-white whitespace-pre-line overflow-hidden transition-all ${
+                        showMore && !isExpanded ? "max-h-[150px]" : ""
+                      }`}
+                      dangerouslySetInnerHTML={{
+                        __html: challenge?.type === "multiple_choice"
+                          ? challenge.description.replace(/\n/g, "<br>")
+                          : challenge?.description,
+                      }}
+                      />
+                      {showMore && !isExpanded && (
+                        <div className="text-right mt-2">
+                          <button
+                            onClick={() => setIsExpanded(true)}
+                            className="text-blue-400 hover:underline"
+                          >
+                            Xem thêm
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  {challenge?.files && (
+                    <div className="mt-4">
                     <div className="flex flex-wrap gap-4">
                       {challenge.files.map((file, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleDowloadFiles(file)}
-                          className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-pink-400"
-                        >
-                          <FaDownload className="mr-2" />
-                          {getFileName(file)}
-                        </button>
+                      <button
+                        key={index}
+                        onClick={() => handleDowloadFiles(file)}
+                        className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-pink-400"
+                      >
+                        <FaDownload className="mr-2" />
+                        {getFileName(file)}
+                      </button>
                       ))}
                     </div>
-                  </div>
-                )}
-                {url && (
-                  <div className="mt-4 p-3 bg-orange-950 border-l-4 border-orange-600 rounded flex items-center gap-2 animate-fade-in">
+                    </div>
+                  )}
+                  {url && (
+                    <div className="mt-4 p-3 bg-orange-950 border-l-4 border-orange-600 rounded flex items-center gap-2 animate-fade-in">
                     <span className="font-semibold text-orange-300">{message}</span>
                     <span className="ml-2 text-gray-200">Your connection info is: <span className="font-mono text-orange-400">{url}</span></span>
+                    </div>
+                  )}
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
+                </div>
+                </div>
 
-          {/* RIGHT: Actions & Hints */}
+                {/* RIGHT: Actions & Hints */}
           <div className="lg:w-[30%] bg-gray-900 p-10 flex flex-col gap-8 border-l border-gray-700">
             {/* Timer */}
             <div className="mb-4">
@@ -983,6 +1007,11 @@ const ChallengeDetail = () => {
                       ? "bg-gray-700 text-white cursor-not-allowed"
                       : "bg-gradient-to-r from-green-400 to-blue-400 hover:from-blue-400 hover:to-green-400 text-white hover:scale-105"
                       }`}
+                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${
+                      isStarting
+                        ? "bg-gray-700 text-white cursor-not-allowed"
+                        : "bg-gradient-to-r from-green-400 to-blue-400 hover:from-blue-400 hover:to-green-400 text-white hover:scale-105"
+                    }`}
                   >
                     {isStarting ? (
                       <span className="flex items-center space-x-2">
@@ -1020,6 +1049,8 @@ const ChallengeDetail = () => {
               )}
 
 
+                  </button>
+                )}
               {/* Display the Stop Challenge button if the challenge is started and require_deploy is true */}
               {isChallengeStarted &&
                 challenge?.require_deploy &&
@@ -1070,6 +1101,45 @@ const ChallengeDetail = () => {
         </div>
       </div>
     </div>
+    <Dialog
+      open={isExpanded}
+      onClose={() => setIsExpanded(false)}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/60" aria-hidden="true" />
+
+      {/* Modal Panel */}
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="relative bg-gray-900 text-white rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-lg">
+          
+          {/* === Sticky Header === */}
+          <div className="sticky top-0 z-10 bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
+            <Dialog.Title className="text-xl font-bold">Mô tả chi tiết</Dialog.Title>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="text-gray-400 hover:text-white transition"
+            >
+              x
+            </button>
+          </div>
+
+          {/* === Scrollable Content === */}
+          <div className="overflow-y-auto p-4">
+            <div
+              className="prose max-w-none text-lg whitespace-pre-line"
+              dangerouslySetInnerHTML={{
+                __html:
+                  challenge?.type === "multiple_choice"
+                    ? challenge.description.replace(/\n/g, "<br>")
+                    : challenge?.description,
+              }}
+            />
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+    </>
   );
 };
 
