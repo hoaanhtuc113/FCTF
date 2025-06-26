@@ -24,7 +24,7 @@ const TicketList = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [tickets, setTickets] = useState([]);
   const navigate = useNavigate();
-  const ticketTypes = ["Error", "Bug", "Issues", "Question"];
+  const ticketTypes = ["Question", "Error", "Inform"];
 
   const fetchTickets = async () => {
     try {
