@@ -220,9 +220,8 @@ const ChallengeDetail = () => {
         // Fetch the hint details directly from the server
         Swal.fire({
           title: "Hint Details",
-          text: `Details: ${
-            hintDetailsResponse.data.content || "No content available."
-          }`,
+          text: `Details: ${hintDetailsResponse.data.content || "No content available."
+            }`,
           icon: "info",
           confirmButtonText: "OK",
         });
@@ -251,9 +250,8 @@ const ChallengeDetail = () => {
               // Show success with hint details using SweetAlert
               Swal.fire({
                 title: "Unlock Success!",
-                text: `Hint unlocked! Details: ${
-                  hintDetailsResponse.data.content || "No content available."
-                }`,
+                text: `Hint unlocked! Details: ${hintDetailsResponse.data.content || "No content available."
+                  }`,
                 icon: "success",
                 confirmButtonText: "OK",
               });
@@ -285,10 +283,9 @@ const ChallengeDetail = () => {
                 if (hintDetailsResponse?.data) {
                   Swal.fire({
                     title: "Already Unlocked",
-                    text: `You've already unlocked this hint. Details: ${
-                      hintDetailsResponse.data.content ||
+                    text: `You've already unlocked this hint. Details: ${hintDetailsResponse.data.content ||
                       "No content available."
-                    }`,
+                      }`,
                     icon: "info",
                     confirmButtonText: "OK",
                   });
@@ -374,7 +371,7 @@ const ChallengeDetail = () => {
             setUrl(detailsResponse.challenge_url || null);
             setMessage(
               detailsResponse.message ||
-                "Challenge started by other member in your team. "
+              "Challenge started by other member in your team. "
             );
           }
         } else {
@@ -390,7 +387,7 @@ const ChallengeDetail = () => {
             setUrl(detailsResponse.challenge_url || null);
             setMessage(
               detailsResponse.message ||
-                "Challenge started by other member in your team. "
+              "Challenge started by other member in your team. "
             );
           }
         }
@@ -494,11 +491,10 @@ const ChallengeDetail = () => {
       } else {
         Swal.fire({
           title: "Error!",
-          html: `${
-            response.message ||
+          html: `${response.message ||
             response.error ||
             "An error occurs, please try again later!"
-          }`,
+            }`,
           icon: "error",
           confirmButtonText: "OK",
         });
@@ -903,15 +899,14 @@ const ChallengeDetail = () => {
                       id="answer"
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
-                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-400 text-lg shadow-sm transition-all bg-gray-800 text-white placeholder-gray-400 ${
-                        error ? "border-red-500" : "border-orange-700"
-                      }`}
+                      className={`w-full p-4 border-2 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-400 text-lg shadow-sm transition-all bg-gray-800 text-white placeholder-gray-400 ${error ? "border-red-500" : "border-orange-700"
+                        }`}
                       rows="6"
                       placeholder="Enter your solution here..."
-                      disabled={
-                        isSubmitted ||
-                        (challenge?.require_deploy && !isChallengeStarted)
-                      }
+                      // disabled={
+                      //   isSubmitted ||
+                      //   (challenge?.require_deploy && !isChallengeStarted)
+                      // }
                       aria-label="Answer input field"
                     />
                     {error && (
@@ -921,74 +916,73 @@ const ChallengeDetail = () => {
                 )}
               {(challenge?.attemps <= challenge?.max_attempts ||
                 challenge?.max_attempts == 0) && (
-                <button
-                  onClick={handleSubmitFlag}
-                  type="submit"
-                  className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${
-                    isSubmitted ||
-                    (challenge?.require_deploy && !isChallengeStarted)
-                      ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                      : "bg-gradient-to-r from-blue-500 to-pink-500 hover:from-pink-500 hover:to-blue-500 text-white hover:scale-105"
-                  }`}
-                  disabled={
-                    isSubmitted ||
-                    (challenge?.require_deploy && !isChallengeStarted) ||
-                    isTimeOut
-                  }
-                >
-                  {isSubmitted ? (
-                    <>
-                      <FiCheck className="text-white" />
-                      <span>This challenge has been solved</span>
-                    </>
-                  ) : isSubmittingFlag ? (
-                    <span className="flex items-center space-x-2">
-                      <svg
-                        className="animate-spin h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        ></path>
-                      </svg>
-                      <span>Submitting...</span>
-                    </span>
-                  ) : (
-                    "Submit Answer"
-                  )}
-                </button>
-              )}
+                  <button
+                    onClick={handleSubmitFlag}
+                    type="submit"
+                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 
+                      ${isSubmitted
+                        // ||(challenge?.require_deploy && !isChallengeStarted)
+                        ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-blue-500 to-pink-500 hover:from-pink-500 hover:to-blue-500 text-white hover:scale-105"
+                      }`}
+                    disabled={
+                      isSubmitted
+                      // ||
+                      // (challenge?.require_deploy 
+                      //   && !isChallengeStarted) ||
+                      // isTimeOut
+                    }
+                  >
+                    {isSubmitted ? (
+                      <>
+                        <FiCheck className="text-white" />
+                        <span>This challenge has been solved</span>
+                      </>
+                    ) : isSubmittingFlag ? (
+                      <span className="flex items-center space-x-2">
+                        <svg
+                          className="animate-spin h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          ></path>
+                        </svg>
+                        <span>Submitting...</span>
+                      </span>
+                    ) : (
+                      "Submit Answer"
+                    )}
+                  </button>
+                )}
               <Modal
                 isOpen={isModalOpen}
                 message={modalMessage}
                 onClose={() => setIsModalOpen(false)}
               />
               {/* Nút Start Challenge chỉ hiển thị nếu require_deploy là true */}
-              {challenge?.require_deploy &&
-                !isChallengeStarted &&
-                !isSubmitted && (
+              {challenge?.require_deploy && !isChallengeStarted && !isSubmitted && (
+                challenge?.is_captain ? (
                   <button
                     type="button"
                     onClick={handleStartChallenge}
                     disabled={isStarting}
-                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${
-                      isStarting
-                        ? "bg-gray-700 text-white cursor-not-allowed"
-                        : "bg-gradient-to-r from-green-400 to-blue-400 hover:from-blue-400 hover:to-green-400 text-white hover:scale-105"
-                    }`}
-
+                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${isStarting
+                      ? "bg-gray-700 text-white cursor-not-allowed"
+                      : "bg-gradient-to-r from-green-400 to-blue-400 hover:from-blue-400 hover:to-green-400 text-white hover:scale-105"
+                      }`}
                   >
                     {isStarting ? (
                       <span className="flex items-center space-x-2">
@@ -1015,19 +1009,16 @@ const ChallengeDetail = () => {
                         <span>Starting...</span>
                       </span>
                     ) : (
-                      <>
-                        <span className="inline-block w-3 h-3 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                        Start Challenge
-                      </>
+                      "Start Challenge"
                     )}
                   </button>
-                )}
-                >
-                  {isStarting ? "Starting..." : "Start Challenge"}
-                </button>
-              ) : (
-                <span className="text-red-500">Only captain of the team can start new environment for this challenge!</span>
+                ) : (
+                  <span className="text-red-500">
+                    Only captain of the team can start new environment for this challenge!
+                  </span>
+                )
               )}
+
 
               {/* Display the Stop Challenge button if the challenge is started and require_deploy is true */}
               {isChallengeStarted &&
@@ -1037,11 +1028,10 @@ const ChallengeDetail = () => {
                     type="button"
                     onClick={handleStopChallenge}
                     disabled={IsStopping}
-                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${
-                      IsStopping
-                        ? "bg-red-700 text-white cursor-not-allowed"
-                        : "bg-gradient-to-r from-red-500 to-pink-500 hover:from-pink-500 hover:to-red-500 text-white hover:scale-105"
-                    }`}
+                    className={`w-full py-3 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 text-lg shadow-lg transition-all duration-200 ${IsStopping
+                      ? "bg-red-700 text-white cursor-not-allowed"
+                      : "bg-gradient-to-r from-red-500 to-pink-500 hover:from-pink-500 hover:to-red-500 text-white hover:scale-105"
+                      }`}
                   >
                     {IsStopping ? (
                       <span className="flex items-center space-x-2">

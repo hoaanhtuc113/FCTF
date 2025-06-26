@@ -256,6 +256,8 @@ def get_all_instance():
                 break
 
         result = []
+        special_cases = []
+        normal_cases = []
 
         for key in matching_keys:
             print("key: " + str(key))
@@ -273,12 +275,23 @@ def get_all_instance():
                 continue
 
             # Tách challenge_id và team_id từ key
-            match = re.match(r"challenge_url_(\d+)_(\d+)", key_str)
+            match = re.match(r"challenge_url_(\d+)_(-?\d+)", key_str)
             if not match:
                 continue
 
             challenge_id_key = int(match.group(1))
             team_id = int(match.group(2))
+            user_id = value.get("user_id")
+            user = Users.query.filter_by(id=user_id).first()
+            team_name = "Unknown Team"
+            if team_id == -1:
+                team_name = "Preview Mode"
+            else:
+                team = Teams.query.filter_by(id=team_id).first()
+                if team:
+                    team_name = team.name
+                    
+            challenge = Challenges.query.filter_by(id=challenge_id_key).first()
 
             # Chuyển time_finished sang chuỗi thời gian ISO
             raw_timestamp = value.get("time_finished")
@@ -287,18 +300,33 @@ def get_all_instance():
                 if raw_timestamp is not None
                 else None
             )
-
-            result.append({
-                "challenge_id": challenge_id_key,
-                "team_id": team_id,
-                "user_id": value.get("user_id"),
-                "challenge_url": value.get("challenge_url"),
-                "time_finished": finished_time  # dạng ISO 8601
-            })
+            
+            if team_id == -1:
+                special_cases.append({
+                    "challenge_id": challenge_id_key,
+                    "team_id": team_id,
+                    "challenge_name": challenge.name if challenge else "Unknown Challenge",
+                    "team_name": team_name,
+                    "user_name": user.name if user else "Unknown User",
+                    "user_id": value.get("user_id"),
+                    "challenge_url": value.get("challenge_url"),
+                    "time_finished": finished_time  # dạng ISO 8601
+                })
+            else:
+                normal_cases.append({
+                    "challenge_id": challenge_id_key,
+                    "challenge_name": challenge.name if challenge else "Unknown Challenge",
+                    "team_name": team_name,
+                    "user_name": user.name if user else "Unknown User",
+                    "team_id": team_id,
+                    "user_id": value.get("user_id"),
+                    "challenge_url": value.get("challenge_url"),
+                    "time_finished": finished_time  # dạng ISO 8601
+                })
 
         return jsonify({
             "success": True,
-            "data": result
+            "data": special_cases + normal_cases,
         }), 200
 
     except Exception as e:

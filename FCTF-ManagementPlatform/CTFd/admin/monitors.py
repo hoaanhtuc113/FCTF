@@ -15,7 +15,7 @@ from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admin_
 from CTFd.utils.connector.multiservice_connector import monitoring_control
 
 @admin.route("/admin/monitoring")
-@admin_or_challenge_writer_only_or_jury
+@admin_or_jury
 def monitoring():
     return render_template("admin/monitoring.html")
 
