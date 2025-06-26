@@ -294,7 +294,7 @@ const UserProfile = () => {
                                 </thead>
                                 <tbody>
                                     {teamPointInfo.members.map((member, index) => (
-                                        <tr key={index} className="border-t border-orange-400 hover:bg-gray-700">
+                                        <tr key={index} className="border-t border-orange-400 hover:bg-gray-700 text-gray-200">
                                             <td className="p-3">{member.name}</td>
                                             <td className="p-3">{member.email}</td>
                                             <td className="p-3">{member.score}</td>
@@ -317,7 +317,7 @@ const UserProfile = () => {
                                     <div key={achievement.id} className="flex items-center gap-3">
                                         <FaMedal className={`text-2xl ${achievement.type === "gold" ? "text-yellow-500" : achievement.type === "silver" ? "text-gray-400" : "text-yellow-700"}`} />
                                         <div>
-                                            <h3 className="font-semibold">{achievement.title}</h3>
+                                            <h3 className="font-semibold text-white">{achievement.title}</h3>
                                             <p className="text-xs text-gray-300">{achievement.description}</p>
                                         </div>
                                     </div>
@@ -334,7 +334,7 @@ const UserProfile = () => {
                                 {teamPerformance.data.map((challenge, index) => (
                                     <div key={index} className="border-b pb-4 last:border-b-0 border-gray-700">
                                         <div className="flex justify-between items-center">
-                                            <h3 className="font-semibold">{challenge.challenge.name}</h3>
+                                            <h3 className="font-semibold text-white">{challenge.challenge.name}</h3>
                                             <span className={`px-2 py-1 rounded-full text-xs ${challenge.type === "correct" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}`}>
                                                 {challenge.type.toUpperCase()}
                                             </span>
