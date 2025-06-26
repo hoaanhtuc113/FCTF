@@ -77,63 +77,51 @@ const Scoreboard = () => {
   }
 
   return (
-    <div className="w-full mx-auto p-8 space-y-8">
-      <div className="grid md:grid-cols-[2fr_5fr] gap-8">
-        <div className="bg-white/15 rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-6 text-primary text-center">
-            Team Scores
-          </h2>
-          <div className="space-y-2">
-            {Object.values(scores).map((team) => (
-              <div
-                key={team.id}
-                className={`p-4 rounded-lg transition-all duration-300 ${
-                  selectedTeam === team.id
-                    ? "bg-gray-50  hover:text-black hover:bg-gray-100 "
-                    : "bg-theme-color-primary text-white bg-opacity-10"
-                }`}
-                onMouseEnter={() => setSelectedTeam(team.id)}
-                onMouseLeave={() => setSelectedTeam(null)}
-                role="listitem"
-                aria-label={`${team.name} score: ${team.score}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <span className="font-semibold ">
-                      {team.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold ">
-                      {team.score}
-                    </span>
-                    {team.score === highestScore && (
-                      <FaTrophy className="text-yellow-500 animate-pulse" />
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white/15 rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-primary text-center">
-            Score Progress
-          </h2>
-          {/* Chart */}
-          <div className="flex items-center justify-center h-full">
-            <div className="relative w-full">
-              <ChartComponent
-                className="max-h-full text-white"
-                data={scores}
-                selectedTeam={selectedTeam}
-              />
+ <div className="flex flex-col md:flex-row gap-8">
+  {/* LEFT: Team list */}
+  <div className="md:w-1/3 bg-white/15 rounded-lg shadow-lg p-6">
+    <h2 className="text-2xl font-bold mb-6 text-primary text-center">
+      Team Scores
+    </h2>
+    <div className="space-y-2">
+      {Object.values(scores).map((team) => (
+        <div
+          key={team.id}
+          className={`p-4 rounded-lg transition-all duration-300 ${
+            selectedTeam === team.id
+              ? "bg-gray-50 hover:text-black hover:bg-gray-100"
+              : "bg-theme-color-primary text-white bg-opacity-10"
+          }`}
+          onMouseEnter={() => setSelectedTeam(team.id)}
+          onMouseLeave={() => setSelectedTeam(null)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="font-semibold">{team.name}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="font-bold">{team.score}</span>
+              {team.score === highestScore && (
+                <FaTrophy className="text-yellow-500 animate-pulse" />
+              )}
             </div>
           </div>
         </div>
-      </div>
+      ))}
     </div>
+  </div>
+
+  {/* RIGHT: Chart */}
+  <div className="md:w-2/3 bg-white/15 rounded-lg shadow-lg p-6 text-white min-w-0">
+    <h2 className="text-2xl font-bold text-primary text-center mb-4">
+      Score Progress
+    </h2>
+    <div className="h-[500px]">
+      <ChartComponent data={scores} selectedTeam={selectedTeam} />
+    </div>
+  </div>
+</div>
+
   );
 };
 
