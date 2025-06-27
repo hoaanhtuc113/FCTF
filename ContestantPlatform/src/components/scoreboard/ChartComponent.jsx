@@ -87,7 +87,6 @@ const ChartComponent = ({ data, selectedTeam = null }) => {
       },
       title: {
         display: true,
-        text: "Biểu đồ điểm theo thời gian",
         color: "#fff",
         font: {
           size: 16,

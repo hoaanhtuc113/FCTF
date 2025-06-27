@@ -26,6 +26,7 @@ import ActionLogs from "./components/action_logs/ActionLogComponent";
 import ReplayPage from "./components/action_logs/ReplayActions";
 import LockScreen from "./template/Forbidden";
 import { UserProvider } from './components/contexts/UserContext';
+import PublicScoreboard from "./components/scoreboard/PublicScoreboard";
 
 export const ActionLogsContext = createContext();
 
@@ -161,6 +162,7 @@ function App() {
           element={
             <UserProvider>
               <Routes>
+                <Route path="/public/rankings" element={<PublicScoreboard />} />
                 {/* Home */}
                 <Route path="/" element={<Template><HomePage /></Template>} />
 
