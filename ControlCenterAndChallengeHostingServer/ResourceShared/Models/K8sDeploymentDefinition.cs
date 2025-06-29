@@ -66,6 +66,27 @@ namespace ResourceShared.Models
         public string Image { get; set; } = string.Empty;
         public List<EnvironmentVariable> Env { get; set; } = new List<EnvironmentVariable>();
         public List<Port> Ports { get; set; } = new List<Port>();
+
+        public Resource Resources { get; set; } = new Resource();
+
+    }
+
+    public class Resource
+    {
+        public Limits Limits { get; set; } = new Limits();
+        public Requests Requests { get; set; } = new Requests();
+    }
+
+    public class Requests
+    {
+        public string Cpu { get; set; } = string.Empty;
+        public string Memory { get; set; } = string.Empty;
+    }
+
+    public class Limits
+    {
+        public string Cpu { get; set; } = string.Empty;
+        public string Memory { get; set; } = string.Empty;
     }
 
     public class EnvironmentVariable
