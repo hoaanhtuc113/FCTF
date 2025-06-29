@@ -2,38 +2,16 @@ import json
 from flask import abort, flash, jsonify, redirect, render_template, request, session, url_for
 import requests
 
-
 from CTFd.admin import admin
-from CTFd.SendTicket import get_all_tickets, get_ticket_by_id, send_ticket_from_relier,bulk_delete_tickets
+from CTFd.SendTicket import get_all_tickets, get_ticket_by_id, send_ticket_from_relier
 from CTFd.utils.decorators import admins_only
 from CTFd.plugins import bypass_csrf_protection
-from CTFd.models import Users
-
-
 
 
 # View tickets with filter, search, pagination, and bulk delete
-@admin.route("/admin/viewticket", methods=["GET", "POST"])
+@admin.route("/admin/viewticket", methods=["GET"])
 def view_tickets():
     try:
-        if request.method == "POST":
-            ticket_ids = request.form.getlist("ticket_ids")
-            if not ticket_ids:
-                flash("No tickets selected for deletion", "danger")
-            else:
-                page = request.args.get("page", 1)
-                per_page = request.args.get("per_page", 10)
-                user_id = request.args.get("user_id", type=int)
-                status = request.args.get("status", type=str)
-                type_ = request.args.get("type", type=str)
-                search = request.args.get("search", type=str)
-                response, status_code = bulk_delete_tickets(ticket_ids)
-                if status_code == 200:
-                    flash("Deleted {} tickets successfully".format(len(ticket_ids)), "success")
-                else:
-                    msg = response.get('message', 'Failed to delete tickets')
-                    flash(msg, "danger")
-                return redirect(url_for('admin.view_tickets', page=page, per_page=per_page, user_id=user_id, status=status, **{"type": type_}, search=search))
         page = int(request.args.get("page", 1))
         per_page = int(request.args.get("per_page", 10))
         user_id = request.args.get("user_id", type=int)
@@ -52,13 +30,12 @@ def view_tickets():
 
         tickets = response.get("tickets", []) if status_code == 200 else []
         total = response.get("total", 0) if status_code == 200 else 0
-        users = Users.query.all()
-        user_options = [(u.id, u.name) for u in users]
-        status_options = ["Open", "Closed"]
-        type_options = list({t["type"] for t in tickets})
 
-        # Fix: ensure selected_user, selected_status, selected_type are defined
-        selected_user = user_id
+
+        # Lấy tất cả status/type từ model Tickets (distinct)
+        all_status = ["Open", "Closed"]
+        all_type = ["Question", "Error"]
+
         selected_status = status
         selected_type = type_
 
@@ -68,10 +45,8 @@ def view_tickets():
             total=total,
             per_page=per_page,
             page=page,
-            user_options=user_options,
-            status_options=status_options,
-            type_options=type_options,
-            selected_user=selected_user,
+            status_options=all_status,
+            type_options=all_type,
             selected_status=selected_status,
             selected_type=selected_type,
             search=search
