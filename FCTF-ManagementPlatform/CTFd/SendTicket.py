@@ -1,5 +1,3 @@
-# routes/sendticket.py
-
 from difflib import SequenceMatcher
 from flask import Blueprint, jsonify, request, flash, render_template, abort, session
 from CTFd.utils.decorators import require_verified_emails, during_ctf_time_only
@@ -9,7 +7,6 @@ from CTFd.plugins import bypass_csrf_protection
 from CTFd.StartChallenge import get_token_from_header
 from sqlalchemy.orm import aliased
 import datetime
-
 
 sendticket = Blueprint("sendticket", __name__)
 
@@ -105,18 +102,29 @@ def get_ticket_by_id(ticket_id):
 @sendticket.route("/api/tickets", methods=['GET'])
 @bypass_csrf_protection
 @during_ctf_time_only
-def get_all_tickets():
+def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, per_page=10):
     try:
         Author = aliased(Users)
         Replier = aliased(Users)
-
-        tickets = db.session.query(
+        query = db.session.query(
             Tickets,
             Author.name.label('author_name'),
             Replier.name.label('replier_name')
         ).join(Author, Tickets.author_id == Author.id) \
-        .outerjoin(Replier, Tickets.replier_id == Replier.id) \
-        .all()
+        .outerjoin(Replier, Tickets.replier_id == Replier.id)
+
+        # Filtering
+        if user_id:
+            query = query.filter(Tickets.author_id == user_id)
+        if status:
+            query = query.filter(Tickets.status.ilike(status))
+        if type_:
+            query = query.filter(Tickets.type.ilike(type_))
+        if search:
+            query = query.filter(Tickets.title.ilike(f"%{search}%"))
+
+        total = query.count()
+        tickets = query.order_by(Tickets.create_at.desc()).offset((page-1)*per_page).limit(per_page).all()
 
         tickets_data = []
         for ticket, author_name, replier_name in tickets:
@@ -132,7 +140,7 @@ def get_all_tickets():
                 'replier_message': ticket.replier_message
             })
 
-        return {'tickets': tickets_data}, 200  # Return as a dict and status code
+        return {'tickets': tickets_data, 'total': total}, 200
     except Exception as e:
         return {'message': 'An error occurred while retrieving tickets', 'error': str(e)}, 500
 
@@ -224,3 +232,24 @@ def get_user_tickets():
         return {'tickets': tickets_data}, 200
     except Exception as e:
         return {'message': 'An error occurred while retrieving tickets', 'error': str(e)}, 500
+
+@sendticket.route("/api/tickets/bulk-delete", methods=["POST"])
+@bypass_csrf_protection
+def bulk_delete_tickets():
+    try:
+        ticket_ids = request.json.get("ticket_ids") if request.json else None
+        if not ticket_ids:
+            ticket_ids = request.form.getlist("ticket_ids")
+        if not ticket_ids:
+            return jsonify({'message': 'No tickets selected for deletion'}), 400
+        deleted = 0
+        for tid in ticket_ids:
+            ticket = Tickets.query.filter_by(id=tid).first()
+            if ticket:
+                db.session.delete(ticket)
+                deleted += 1
+        db.session.commit()
+
+        return jsonify({'message': f'Deleted {deleted} tickets successfully', 'deleted': deleted}), 200
+    except Exception as e:
+        return jsonify({'message': 'An error occurred while deleting tickets', 'error': str(e)}), 500
