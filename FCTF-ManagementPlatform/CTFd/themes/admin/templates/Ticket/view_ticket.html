@@ -31,19 +31,13 @@
     <div class="container">
         <h1>Tickets</h1>
         <form method="get" class="form-inline mb-3" action="">
-            <select name="user_id" class="form-control mr-2">
-                <option value="">All Users</option>
-                {% for uid, uname in user_options %}
-                    <option value="{{ uid }}" {% if selected_user==uid %}selected{% endif %}>{{ uname }}</option>
-                {% endfor %}
-            </select>
-            <select name="status" class="form-control mr-2">
+            <select name="status" class="form-control mr-2" id="status-select" onchange="this.form.submit()">
                 <option value="">All Status</option>
                 {% for s in status_options %}
                     <option value="{{ s }}" {% if selected_status==s %}selected{% endif %}>{{ s }}</option>
                 {% endfor %}
             </select>
-            <select name="type" class="form-control mr-2">
+            <select name="type" class="form-control mr-2" id="type-select" onchange="this.form.submit()">
                 <option value="">All Types</option>
                 {% for t in type_options %}
                     <option value="{{ t }}" {% if selected_type==t %}selected{% endif %}>{{ t }}</option>
@@ -56,20 +50,11 @@
 </div>
 
 <div class="container mt-5">
-    <form method="post" id="bulk-delete-form">
-        <div class="d-flex justify-content-end mb-2">
-            <button type="submit" class="btn btn-danger" style="padding: 6px 12px;" title="Xóa các ticket đã chọn" id="bulk-delete-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5.5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6zm3 .5a.5.5 0 0 1 .5-.5.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6z"/>
-                  <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2h3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3a1 1 0 0 1 1 1zm-11-1a.5.5 0 0 0-.5.5V4h11V2.5a.5.5 0 0 0-.5-.5h-10zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118z"/>
-                </svg>
-            </button>
-        </div>
         <table class="table">
             <thead>
                 <tr>
-                    <th style="width: 3%;"><input type="checkbox" id="select-all"></th>
                     <th style="width: 5%;">ID</th>
+                    <th class="text-center" style="width: 10%;">Team</th>
                     <th style="width: 10%;">Type</th>
                     <th class="text-center" style="width: 20%;">Title</th>
                     <th class="text-center" style="width: 30%;">Message</th>
@@ -81,8 +66,8 @@
             <tbody>
                 {% for ticket in tickets %}
                 <tr>
-                    <td><input type="checkbox" name="ticket_ids" value="{{ ticket.id }}" class="ticket-checkbox"></td>
                     <td>{{ ticket.id }}</td>
+                    <td>{{ ticket.team_name }}</td>
                     <td>{{ ticket.type }}</td>
                     <td>{{ ticket.title }}</td>
                     <td>{{ ticket.description }}</td>
@@ -97,7 +82,7 @@
                 {% endfor %}
             </tbody>
         </table>
-    </form>
+
     <!-- Pagination -->
     <div class="d-flex justify-content-end">
         <nav aria-label="Page navigation">
@@ -117,18 +102,6 @@
         const checkboxes = document.querySelectorAll('.ticket-checkbox');
         for (const cb of checkboxes) {
             cb.checked = this.checked;
-        }
-    });
-
-    document.getElementById('bulk-delete-form').addEventListener('submit', function(e) {
-        const checked = document.querySelectorAll('.ticket-checkbox:checked');
-        if (checked.length === 0) {
-            e.preventDefault();
-            alert('Bạn phải chọn ít nhất một ticket để xóa!');
-        } else {
-            if (!confirm('Bạn có chắc chắn muốn xóa các ticket đã chọn?')) {
-                e.preventDefault();
-            }
         }
     });
 </script>
