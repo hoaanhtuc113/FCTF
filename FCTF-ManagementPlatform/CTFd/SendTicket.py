@@ -7,7 +7,7 @@ from CTFd.plugins import bypass_csrf_protection
 from CTFd.StartChallenge import get_token_from_header
 from sqlalchemy.orm import aliased
 import datetime
-
+from CTFd.models import Teams
 sendticket = Blueprint("sendticket", __name__)
 
 
@@ -106,12 +106,15 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
     try:
         Author = aliased(Users)
         Replier = aliased(Users)
+        Team = aliased(Teams)
         query = db.session.query(
             Tickets,
             Author.name.label('author_name'),
-            Replier.name.label('replier_name')
+            Replier.name.label('replier_name'),
+            Team.name.label('team_name')
         ).join(Author, Tickets.author_id == Author.id) \
-        .outerjoin(Replier, Tickets.replier_id == Replier.id)
+        .outerjoin(Replier, Tickets.replier_id == Replier.id) \
+        .outerjoin(Team, Author.team_id == Team.id)
 
         # Filtering
         if user_id:
@@ -127,9 +130,10 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
         tickets = query.order_by(Tickets.create_at.desc()).offset((page-1)*per_page).limit(per_page).all()
 
         tickets_data = []
-        for ticket, author_name, replier_name in tickets:
+        for ticket, author_name, replier_name, team_name in tickets:
             tickets_data.append({
                 'author_name': author_name,
+                'team_name': team_name,
                 'status': ticket.status,
                 'id':ticket.id,
                 'title': ticket.title,
@@ -233,23 +237,3 @@ def get_user_tickets():
     except Exception as e:
         return {'message': 'An error occurred while retrieving tickets', 'error': str(e)}, 500
 
-@sendticket.route("/api/tickets/bulk-delete", methods=["POST"])
-@bypass_csrf_protection
-def bulk_delete_tickets():
-    try:
-        ticket_ids = request.json.get("ticket_ids") if request.json else None
-        if not ticket_ids:
-            ticket_ids = request.form.getlist("ticket_ids")
-        if not ticket_ids:
-            return jsonify({'message': 'No tickets selected for deletion'}), 400
-        deleted = 0
-        for tid in ticket_ids:
-            ticket = Tickets.query.filter_by(id=tid).first()
-            if ticket:
-                db.session.delete(ticket)
-                deleted += 1
-        db.session.commit()
-
-        return jsonify({'message': f'Deleted {deleted} tickets successfully', 'deleted': deleted}), 200
-    except Exception as e:
-        return jsonify({'message': 'An error occurred while deleting tickets', 'error': str(e)}), 500
