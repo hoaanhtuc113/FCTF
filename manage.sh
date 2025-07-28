@@ -13,7 +13,7 @@ if ! sudo -n true 2>/dev/null; then
 fi
 
 # Di chuyển file dịch vụ mẫu và reload systemd
-for service in fctf-challenge fctf-control; do
+for service in fctf-challenge fctf-control kubectl-proxy; do
     SOURCE_PATH="$PROJECT_ROOT/$service.service"
     DEST_PATH="/etc/systemd/system/$service.service"
     if [ -f "$SOURCE_PATH" ]; then
@@ -227,8 +227,8 @@ update_appsettings() {
 
     # Nếu là môi trường production, hỏi người dùng nhập domain
     if [ "$env" = "production" ]; then
-        read -p "Nhập domain cho ChallengeHosting (ví dụ: fctf.site): " domain
-        read -p "Nhập domain cho ControlCenter (ví dụ: control.fctf.site): " control_domain
+        read -p "Nhập domain cho ChallengeHosting (ví dụ: secathon2025-env.net): " domain
+        read -p "Nhập domain cho ControlCenter (ví dụ: localhost nếu controlcenter nằm cùng server): " control_domain
         if [ -z "$domain" ] || [ -z "$control_domain" ]; then
             echo "Lỗi: Domain không được để trống!"
             exit 1
