@@ -81,30 +81,30 @@ function App() {
         //   }
         // });
 
-        socket.on("notify", (data) => {
-          if (data.notif_type === "alert") {
-            Swal.fire({
-              title: "Thông báo từ ban quản trị </br>" + data.notif_title,
-              text: data.notif_message,
-              icon: "info",
-              confirmButtonText: "OK",
-              timer: 10000,
-              timerProgressBar: true,
-            });
-          } else if (data.notif_type === "toast") {
-            Swal.fire({
-              toast: true,
-              position: "top-end",
-              icon: "info",
-              title: "Thông báo từ ban quản trị</br>" + data.notif_title || "Thông báo!",
-              text: data.notif_message || "Bạn có một thông báo quan trọng.",
-              showConfirmButton: false,
-              timer: 10000,
-              timerProgressBar: true,
-              showCloseButton: true,
-            });
-          }
-        });
+        // socket.on("notify", (data) => {
+        //   if (data.notif_type === "alert") {
+        //     Swal.fire({
+        //       title: "Thông báo từ ban quản trị </br>" + data.notif_title,
+        //       text: data.notif_message,
+        //       icon: "info",
+        //       confirmButtonText: "OK",
+        //       timer: 10000,
+        //       timerProgressBar: true,
+        //     });
+        //   } else if (data.notif_type === "toast") {
+        //     Swal.fire({
+        //       toast: true,
+        //       position: "top-end",
+        //       icon: "info",
+        //       title: "Thông báo từ ban quản trị</br>" + data.notif_title || "Thông báo!",
+        //       text: data.notif_message || "Bạn có một thông báo quan trọng.",
+        //       showConfirmButton: false,
+        //       timer: 10000,
+        //       timerProgressBar: true,
+        //       showCloseButton: true,
+        //     });
+        //   }
+        // });
 
         // socket.on("user-login-notification", (userData) => {
         //   Swal.fire({

@@ -161,25 +161,25 @@ const Template = ({ children, title }) => {
     navigate("/");
   };
 
-  useEffect(() => {
-    const socket = io(BASE_URL, {
-      auth: {
-        token: localStorage.getItem(ACCESS_TOKEN_KEY),
-      },
-    });
+  // useEffect(() => {
+  //   const socket = io(BASE_URL, {
+  //     auth: {
+  //       token: localStorage.getItem(ACCESS_TOKEN_KEY),
+  //     },
+  //   });
 
-    socket.on("connect", () => {
-      console.log("Connected to server");
-    });
+  //   socket.on("connect", () => {
+  //     console.log("Connected to server");
+  //   });
 
-    socket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
-    });
+  //   socket.on("connect_error", (error) => {
+  //     console.error("Socket connection error:", error);
+  //   });
 
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  //   return () => {
+  //     socket.disconnect();
+  //   };
+  // }, []);
 
   const menuItems = [
     { title: "Challenges", icon: <FaFlag />, url: "/topics" },

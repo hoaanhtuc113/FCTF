@@ -164,22 +164,25 @@ const Scoreboard = () => {
   };
 
   // Generate page numbers with specific range (1 2 3 ... 9 10)
-  const getPageNumbers = () => {
-    const pageNumbers = [];
-    if (totalPages <= 4) {
-      for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(i);
-      }
-    } else {
-      // Show first 3 pages and last 2 pages
-      pageNumbers.push(1, 2, 3);
-      if (totalPages > 4) {
-        pageNumbers.push("...");
-      }
-      pageNumbers.push(totalPages - 1, totalPages);
+  const getPageNumbers = (totalPages, currentPage) => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
-    return pageNumbers;
+
+    const pages = [];
+
+    if (currentPage <= 4) {
+      pages.push(1, 2, 3, 4, 5, "…", totalPages);
+    } else if (currentPage >= totalPages - 3) {
+      pages.push(1, "…", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, "…", currentPage - 1, currentPage, currentPage + 1, "…", totalPages);
+    }
+
+    return pages;
   };
+
+
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
@@ -227,7 +230,7 @@ const Scoreboard = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-theme-color-primary bg-opacity-20 text-white">
-               
+
                 <th
                   className="p-4 font-semibold cursor-pointer"
                   onClick={() => requestSort("top")}
@@ -243,7 +246,7 @@ const Scoreboard = () => {
                     </span>
                   )}
                 </th>
-                 <th className="p-4 font-semibold">Team Name</th>
+                <th className="p-4 font-semibold">Team Name</th>
                 <th
                   className="p-4 font-semibold text-right cursor-pointer"
                   onClick={() => requestSort("score")}
@@ -267,8 +270,8 @@ const Scoreboard = () => {
                   <tr
                     key={team.id}
                     className={`border-b border-gray-600 transition-all duration-300 ${selectedTeam === team.id
-                        ? "bg-gray-50 text-black hover:bg-gray-100"
-                        : "bg-theme-color-primary text-white bg-opacity-10"
+                      ? "bg-gray-50 text-black hover:bg-gray-100"
+                      : "bg-theme-color-primary text-white bg-opacity-10"
                       }`}
                     onMouseEnter={() => {
                       console.log("Hovering team:", team.id);
@@ -279,15 +282,15 @@ const Scoreboard = () => {
                       setSelectedTeam(null);
                     }}
                   >
-                    
+
                     <td className="p-4">{team.top}</td>
                     <td className="p-4 font-semibold">{team.name}</td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <span className="font-bold">{team.score}</span>
-                      
-                          <FaTrophy className="text-yellow-500 animate-pulse" />
-                     
+
+                        <FaTrophy className="text-yellow-500 animate-pulse" />
+
                       </div>
                     </td>
                   </tr>
@@ -314,20 +317,20 @@ const Scoreboard = () => {
               PREV
             </button>
 
-            {getPageNumbers().map((page, index) => (
+            {getPageNumbers(totalPages, currentPage).map((item, idx) => (
               <button
-                key={index}
-                onClick={() => typeof page === "number" && handlePageChange(page)}
-                disabled={typeof page !== "number"}
-                className={`w-8 h-8 text-sm rounded-full flex items-center justify-center transition-colors
-          ${currentPage === page
+                key={idx}
+                onClick={() => typeof item === "number" && handlePageChange(item)}
+                disabled={item === "…"}
+                className={`w-8 h-8 flex items-center justify-center rounded-full text-sm
+      ${currentPage === item
                     ? "bg-white text-gray-900 font-bold"
-                    : "text-gray-300 hover:bg-gray-600 hover:text-white"
-                  }`}
+                    : "text-gray-300 hover:bg-gray-600 hover:text-white"}`}
               >
-                {page}
+                {item}
               </button>
             ))}
+
 
             <button
               onClick={() => handlePageChange(currentPage + 1)}

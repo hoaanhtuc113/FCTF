@@ -100,54 +100,54 @@ const PixiMap = () => {
     useEffect(() => {
         if (!isReady) return;
 
-        const socket = io(BASE_URL, {
-            auth: { token: localStorage.getItem(ACCESS_TOKEN_KEY) },
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 2000
-        });
-        socketRef.current = socket;
+        // const socket = io(BASE_URL, {
+        //     auth: { token: localStorage.getItem(ACCESS_TOKEN_KEY) },
+        //     reconnection: true,
+        //     reconnectionAttempts: 5,
+        //     reconnectionDelay: 2000
+        // });
+        // socketRef.current = socket;
 
-        // Xử lý dữ liệu ban đầu từ server
-        socket.on("initial-data", (data) => {
-            handleInitialData(data);
-        });
+        // // Xử lý dữ liệu ban đầu từ server
+        // socket.on("initial-data", (data) => {
+        //     handleInitialData(data);
+        // });
 
-        // Xử lý các sự kiện real-time
-        socket.on("all-characters", (data) => {
-            data.characters.forEach(addOtherCharacter);
-        });
+        // // Xử lý các sự kiện real-time
+        // socket.on("all-characters", (data) => {
+        //     data.characters.forEach(addOtherCharacter);
+        // });
 
-        socket.on("add-character-to-map", addOtherCharacter);
+        // socket.on("add-character-to-map", addOtherCharacter);
 
-        socket.on("remove-character-from-map", ({ id }) => {
-            removeOtherCharacter(id);
-        });
+        // socket.on("remove-character-from-map", ({ id }) => {
+        //     removeOtherCharacter(id);
+        // });
 
-        socket.on("update-character-position", ({ id, position, animation }) => {
-            updateCharacterPosition(id, position, animation);
-        });
+        // socket.on("update-character-position", ({ id, position, animation }) => {
+        //     updateCharacterPosition(id, position, animation);
+        // });
 
-        socket.on("update-challenge-positions", (data) => {
-            updateChallengePositions(data.positions);
-        });
+        // socket.on("update-challenge-positions", (data) => {
+        //     updateChallengePositions(data.positions);
+        // });
 
-        socket.on("challenge-selected", handleLogs);
+        // socket.on("challenge-selected", handleLogs);
 
-        // Gửi yêu cầu dữ liệu ban đầu
-        socket.emit("request-initial-data");
+        // // Gửi yêu cầu dữ liệu ban đầu
+        // socket.emit("request-initial-data");
 
-        // Thiết lập interval cập nhật vị trí nhân vật chính
-        positionUpdateIntervalRef.current = setInterval(() => {
-            updateMainCharacterPosition();
-        }, 100);
+        // // Thiết lập interval cập nhật vị trí nhân vật chính
+        // positionUpdateIntervalRef.current = setInterval(() => {
+        //     updateMainCharacterPosition();
+        // }, 100);
 
         return () => {
             clearInterval(positionUpdateIntervalRef.current);
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
+            // if (socketRef.current) {
+            //     socketRef.current.disconnect();
+            //     socketRef.current = null;
+            // }
         };
     }, [isReady]);
 

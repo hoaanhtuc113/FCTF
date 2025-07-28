@@ -1,0 +1,14 @@
+[Unit]
+Description=Port Forward kubectl proxy to localhost:8010
+After=network.target
+
+[Service]
+ExecStart= /bin/bash -c 'source kctf/activate && kubectl proxy --address=127.0.0.1 --port=8010 &' 
+Restart=always
+User=ubuntu
+WorkingDirectory=/home/ubuntu/FCTF-Platform-Deploy/ctf-directory
+StandardOutput=append:/home/ubuntu/FCTF-Platform-Deploy/kubectl-proxy.log
+StandardError=append:/home/ubuntu/FCTF-Platform-Deploy/kubectl-proxy.log
+
+[Install]
+WantedBy=multi-user.target

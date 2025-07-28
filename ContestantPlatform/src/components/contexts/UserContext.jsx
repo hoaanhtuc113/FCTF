@@ -41,35 +41,35 @@ export const UserProvider = ({ children }) => {
         initializeUser();
     }, []);
 
-    useEffect(() => {
-        if (!user || user.id === 'temp') return;
+    // useEffect(() => {
+    //     if (!user || user.id === 'temp') return;
 
-        const socket = io(BASE_URL, {
-            auth: { token: localStorage.getItem(ACCESS_TOKEN_KEY) },
-            reconnection: true
-        });
-        socketRef.current = socket;
+    //     const socket = io(BASE_URL, {
+    //         auth: { token: localStorage.getItem(ACCESS_TOKEN_KEY) },
+    //         reconnection: true
+    //     });
+    //     socketRef.current = socket;
 
-        socket.emit("login", {
-            id: user.id,
-            name: user.name,
-            team: user.team || "No team",
-            position: JSON.parse(localStorage.getItem("characterPosition")) || {
-                x: Math.floor(Math.random() * 600 - 300),
-                y: Math.floor(Math.random() * 400 - 200)
-            }
-        });
+    //     socket.emit("login", {
+    //         id: user.id,
+    //         name: user.name,
+    //         team: user.team || "No team",
+    //         position: JSON.parse(localStorage.getItem("characterPosition")) || {
+    //             x: Math.floor(Math.random() * 600 - 300),
+    //             y: Math.floor(Math.random() * 400 - 200)
+    //         }
+    //     });
 
-        socket.on("login-success", (data) => {
-            console.log("Login confirmed by server:", data);
-        });
+    //     socket.on("login-success", (data) => {
+    //         console.log("Login confirmed by server:", data);
+    //     });
 
-        socket.on("force-logout", (data) => {
-            alert(data.message);
-            logout();
-            navigate('/login');
-        });
-    }, [user]);
+    //     socket.on("force-logout", (data) => {
+    //         alert(data.message);
+    //         logout();
+    //         navigate('/login');
+    //     });
+    // }, [user]);
 
     const login = (userData) => {
         localStorage.setItem(ACCESS_TOKEN_KEY, userData.token);
