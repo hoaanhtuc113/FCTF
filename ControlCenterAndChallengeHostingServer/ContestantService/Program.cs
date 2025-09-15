@@ -1,12 +1,14 @@
 
+using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared.Configs;
 using ResourceShared.Models;
 
 namespace ContestantService
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("DbConnection");
@@ -18,6 +20,10 @@ namespace ContestantService
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            //Init config from ControlConfig, SharedConfig
+            new ContestantServiceConfigHelper().InitConfig();
+
+            await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -34,7 +40,7 @@ namespace ContestantService
 
             app.MapControllers();
 
-            app.Run();
+            app.Run($"{ServiceConfigs.ServerHost}:{ServiceConfigs.ServerPort}");
         }
     }
 }

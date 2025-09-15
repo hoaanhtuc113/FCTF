@@ -3,7 +3,7 @@
 # Script quản lý triển khai và vận hành hệ thống FCTF
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
-PROJECT_ROOT="/home/$USER/FCTF-Platform-Deploy"
+PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -13,7 +13,7 @@ if ! sudo -n true 2>/dev/null; then
 fi
 
 # Di chuyển file dịch vụ mẫu và reload systemd
-for service in fctf-challenge fctf-control kubectl-proxy; do
+for service in fctf-challenge fctf-control fctf-contestant kubectl-proxy; do
     SOURCE_PATH="$PROJECT_ROOT/$service.service"
     DEST_PATH="/etc/systemd/system/$service.service"
     if [ -f "$SOURCE_PATH" ]; then
@@ -36,7 +36,7 @@ if [ ! -d "$PROJECT_ROOT" ]; then
 fi
 
 # Danh sách các cổng cần kiểm tra và giải phóng
-PORTS=(5000 5001 6379 8000 8010)
+PORTS=(5000 5001 5002 6379 8000 8010)
 
 # Hàm hiển thị hướng dẫn sử dụng
 usage() {
@@ -238,6 +238,7 @@ update_appsettings() {
     # Tạo thư mục publish nếu chưa tồn tại
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish"
+    mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
     # Cập nhật appsettings.json cho ChallengeHosting
@@ -268,7 +269,7 @@ update_appsettings() {
     "ENVIRONMENT_NAME": "$env_upper"
   },
   "ChallengeConfigs": {
-    "ChallengeBasePath": "/home/$USER/FCTF-Platform-Deploy/ctf-directory"
+    "ChallengeBasePath": "/home/manhhuy/FCTF/ctf-directory"
   }
 }
 EOF
@@ -307,10 +308,37 @@ EOF
 }
 EOF
 
+    # Cập nhật appsettings.json cho ControlCenter
+    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
+{
+    "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DbConnection": "Server=localhost;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;",
+    "RedisConnection": "127.0.0.1:6379"
+  },
+   "ServiceConfigs": {
+    "PrivateKey": "emdungdepzai",
+    "ServerHost": "http://0.0.0.0",
+    "ServerPort": "5002",
+    "DomainName": "$control_domain",
+    "MaxInstanceAtTime": "4"
+  },
+    "EnvironmentConfigs": {
+    "ENVIRONMENT_NAME": "$env_upper"
+  }
+}
+EOF
+
     # Cập nhật file .env cho FCTF-ManagementPlatform
     # API_URL_CONTROLSERVER= Địa chỉ IP hoặc domain của ControlCenter
     cat > "$PROJECT_ROOT/.env" << EOF
-API_URL_CONTROLSERVER=http://172.17.0.1:5000 
+API_URL_CONTROLSERVER=http://172.31.177.154:5000 
 API_URL_ADMINSERVER=http://127.0.0.1:8000
 HOST_CACHE=cache
 PRIVATE_KEY=emdungdepzai
@@ -471,6 +499,16 @@ build_apps() {
         echo "Lỗi: Build ControlCenterServer thất bại."
         exit 1
     fi
+    
+    # Kiểm tra file dự án ContestantService
+    if [ ! -f "ContestantService/ContestantService.csproj" ]; then
+        echo "Lỗi: File dự án ContestantService/ContestantService.csproj không tồn tại."
+        exit 1
+    fi
+    if ! dotnet publish ContestantService/ContestantService.csproj -c Release --framework net8.0 --runtime linux-x64 --self-contained true; then
+        echo "Lỗi: Build ContestantService thất bại."
+        exit 1
+    fi
 
     # Kiểm tra thư mục publish và file thực thi
     if [ ! -d "ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish" ]; then
@@ -487,6 +525,14 @@ build_apps() {
     fi
     if [ ! -f "ControlCenterServer/bin/Release/net8.0/linux-x64/publish/ControlCenterServer" ]; then
         echo "Lỗi: File thực thi ControlCenterServer không được tạo."
+        exit 1
+    fi
+        if [ ! -d "ContestantService/bin/Release/net8.0/linux-x64/publish" ]; then
+        echo "Lỗi: Không thể tạo thư mục publish cho ContestantService."
+        exit 1
+    fi
+    if [ ! -f "ContestantService/bin/Release/net8.0/linux-x64/publish/ContestantService" ]; then
+        echo "Lỗi: File thực thi ContestantService không được tạo."
         exit 1
     fi
 
@@ -540,10 +586,10 @@ start_system() {
         fi
 
         # Kiểm tra thêm bằng ps aux cho các tiến trình liên quan
-        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" > /dev/null; then
+        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" > /dev/null; then
             echo "Phát hiện các tiến trình liên quan đang chạy:"
-            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)"
-            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" | awk '{print $2}'); do
+            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)"
+            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" | awk '{print $2}'); do
                 echo "Dừng tiến trình (PID: $pid)..."
                 sudo kill -9 $pid > /dev/null 2>&1 || true
                 sleep 1
@@ -627,7 +673,7 @@ start_system() {
     sudo chmod 664 "$LOG_FILE"
 
     # Khởi động dịch vụ systemd cho hai ứng dụng .NET
-    for service in fctf-challenge fctf-control; do
+    for service in fctf-challenge fctf-control fctf-contestant; do
         if [ -f "/etc/systemd/system/$service.service" ]; then
             echo "Kích hoạt và khởi động dịch vụ $service..."
             sudo systemctl enable "$service"
@@ -659,7 +705,7 @@ stop_system() {
     echo "Dừng toàn bộ hệ thống..."
 
     # Dừng dịch vụ systemd cho hai ứng dụng .NET
-    for service in fctf-challenge fctf-control; do
+    for service in fctf-challenge fctf-control fctf-contestant; do
         if systemctl is-active --quiet "$service"; then
             echo "Dừng dịch vụ $service..."
             sudo systemctl stop "$service"
@@ -702,9 +748,9 @@ stop_system() {
     done
 
     # Dừng tất cả tiến trình kubectl proxy và .NET
-    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" > /dev/null; then
+    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" > /dev/null; then
         echo "Dừng các tiến trình liên quan còn lại..."
-        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" | awk '{print $2}'); do
+        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" | awk '{print $2}'); do
             sudo kill -9 $pid > /dev/null 2>&1 || true
         done
     fi
@@ -776,7 +822,7 @@ check_status() {
     fi
 
     # Kiểm tra dịch vụ systemd
-    for service in fctf-challenge fctf-control; do
+    for service in fctf-challenge fctf-control fctf-contestant; do
         if [ -f "/etc/systemd/system/$service.service" ]; then
             echo "Trạng thái dịch vụ $service:"
             systemctl is-active --quiet "$service" && echo "$service đang chạy." || echo "$service không chạy."
@@ -834,6 +880,10 @@ clean_system() {
     if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release" ]; then
         rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release"
         echo "Đã xóa thư mục publish của ControlCenterServer."
+    fi
+    if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release" ]; then
+        rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release"
+        echo "Đã xóa thư mục publish của ContestantService."
     fi
 
     # Xóa image và container với xác nhận

@@ -38,7 +38,7 @@ namespace ChallengeManagementServer.Services
             try
             {
                 // Read CPU statistics asynchronously
-                cpustat = await File.ReadAllLinesAsync("/proc/stat");
+                cpustat = await System.IO.File.ReadAllLinesAsync("/proc/stat");
 
                 if (cpustat.Length > 0)
                 {

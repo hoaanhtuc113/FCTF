@@ -237,7 +237,7 @@ namespace ChallengeManagementServer.Services
         }
         private async Task<bool> ValidateSettingsFile(string SettingsFile)
         {
-            var ConfigSettings = JsonConvert.DeserializeObject<Dictionary<string, string>>(await File.ReadAllTextAsync(SettingsFile));
+            var ConfigSettings = JsonConvert.DeserializeObject<Dictionary<string, string>>(await System.IO.File.ReadAllTextAsync(SettingsFile));
             if (ConfigSettings == null)
             {
                 throw new Exception("ConfigSettings is invalid");
@@ -294,7 +294,7 @@ namespace ChallengeManagementServer.Services
             foreach (var path in pathsToCheck)
             {
                 var fullPath = NormalizePath(path);
-                if (!File.Exists(fullPath) && !Directory.Exists(fullPath))
+                if (!System.IO.File.Exists(fullPath) && !Directory.Exists(fullPath))
                 {
                     allExist = false;
                     missingPaths.Add(path);

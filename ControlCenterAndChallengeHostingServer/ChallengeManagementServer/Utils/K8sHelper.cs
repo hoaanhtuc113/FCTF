@@ -34,7 +34,7 @@ namespace ChallengeManagementServer.Utils
             //Challenge directory path
             ChallengeDirectoryPath = Path.Combine(ProjectPath, "challenge");
 
-            YamlContent = File.ReadAllText(YamlPath);
+            YamlContent = System.IO.File.ReadAllText(YamlPath);
 
             //Parse yaml file to c# class
             IDeserializer deserializer = new DeserializerBuilder()
@@ -112,7 +112,7 @@ namespace ChallengeManagementServer.Utils
                 .Build();
 
             string yaml = serializer.Serialize(DeploymentConfigs);
-            await File.WriteAllTextAsync(YamlPath, yaml);
+            await System.IO.File.WriteAllTextAsync(YamlPath, yaml);
             return ImageLinks;
         }
 
@@ -164,7 +164,7 @@ namespace ChallengeManagementServer.Utils
                 .Build();
 
             string yaml = serializer.Serialize(DeploymentConfigs);
-            await File.WriteAllTextAsync(YamlPath, yaml);
+            await System.IO.File.WriteAllTextAsync(YamlPath, yaml);
             var DeployResult = await CmdHelper.ExecuteBashCommandAsync(ProjectPath, "kctf chal deploy", true);
             if (!DeployResult.Contains($"{DeploymentName} created") && !DeployResult.Contains($"{DeploymentName} configured"))
             {
@@ -228,7 +228,7 @@ namespace ChallengeManagementServer.Utils
         public async Task<string> ForwardPort(int TeamId)
         {
             string DeploymentName = $"{ChallengeManagePathConfigs.ChallengeRootName}-{ChallengeId}-{TeamId}";
-            var ConfigSettings = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(Path.Combine(ProjectPath, "settings.json")));
+            var ConfigSettings = JsonConvert.DeserializeObject<Dictionary<string, string>>(System.IO.File.ReadAllText(Path.Combine(ProjectPath, "settings.json")));
             if (ConfigSettings == null)
             {
                 throw new Exception("ConfigSettings is invalid");
@@ -305,7 +305,7 @@ namespace ChallengeManagementServer.Utils
             //Delete deployment
             await CmdHelper.ExecuteBashCommandAsync("", $"kubectl delete deployment {DeploymentName}", true);
 
-            var ConfigSettings = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(Path.Combine(ProjectPath, "settings.json")));
+            var ConfigSettings = JsonConvert.DeserializeObject<Dictionary<string, string>>(System.IO.File.ReadAllText(Path.Combine(ProjectPath, "settings.json")));
             if (ConfigSettings == null)
             {
                 throw new Exception("ConfigSettings is invalid");
@@ -354,16 +354,16 @@ namespace ChallengeManagementServer.Utils
                 string SubDomain = TargetDeployment.DeploymentDomainName.Contains(" - ") ? "" : TargetDeployment.DeploymentDomainName;
                 string nginxConfigPath = $"/etc/nginx/sites-available/{SubDomain}";
                 string nginxConfigPath2 = $"/etc/nginx/sites-enabled/{SubDomain}";
-                if (File.Exists(nginxConfigPath))
+                if (System.IO.File.Exists(nginxConfigPath))
                 {
                     Console.WriteLine($"Deleting NGINX config file: {nginxConfigPath}");
-                    File.Delete(nginxConfigPath);
+                    System.IO.File.Delete(nginxConfigPath);
                 }
 
-                if (File.Exists(nginxConfigPath2))
+                if (System.IO.File.Exists(nginxConfigPath2))
                 {
                     Console.WriteLine($"Deleting NGINX symbolic link: {nginxConfigPath2}");
-                    File.Delete(nginxConfigPath2);
+                    System.IO.File.Delete(nginxConfigPath2);
                 }
 
                 // Kiểm tra cấu hình
@@ -470,7 +470,7 @@ server {{
             try
             {
                 // Tạo file cấu hình NGINX
-                File.WriteAllText(nginxConfigPath, nginxConfig);
+                System.IO.File.WriteAllText(nginxConfigPath, nginxConfig);
                 //  await Console.Out.WriteLineAsync("NGINX config file created successfully.");
 
                 // Tạo symbolic link
