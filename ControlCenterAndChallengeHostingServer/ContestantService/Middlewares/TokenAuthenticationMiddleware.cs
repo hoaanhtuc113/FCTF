@@ -14,22 +14,26 @@ namespace ContestantService.Middlewares
 
         public async Task Invoke(HttpContext context, AppDbContext db)
         {
-            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-
-            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+            try
             {
+                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
                 var token = authHeader.Substring("Bearer ".Length).Trim();
-
                 var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
                 if (tokenAuth != null)
                 {
-                    var user = await db.Users.FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
+                    var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
                     if (user != null)
                     {
                         context.Items["CurrentUser"] = user;
-                    }
+                    }            
                 }
+                      
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AuthMiddleware] Error: {ex.Message}\n{ex.StackTrace}");
+            }
+
             await _next(context);
         }
     }

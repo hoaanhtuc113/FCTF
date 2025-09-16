@@ -1,10 +1,11 @@
-
 using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.Configs;
 using ResourceShared.Models;
 using ContestantService.Extensions;
 using ResourceShared.Utils;
+using Microsoft.OpenApi.Models; 
+
 namespace ContestantService
 {
     public class Program
@@ -13,16 +14,49 @@ namespace ContestantService
         {
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("DbConnection");
+
             // Add services to the container.
-            builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "ContestantService API",
+                    Version = "v1"
+                });
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Nhập JWT token vào ô bên dưới. \r\n\r\nVí dụ: \"Bearer {token}\""
+                });
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
+
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
+
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
 
@@ -38,15 +72,13 @@ namespace ContestantService
             await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();
 
-
-                app.UseSwagger();
-                app.UseSwaggerUI();
-
+            app.UseSwagger();
+            app.UseSwaggerUI();
 
             app.UseHttpsRedirection();
             app.UseCors("AllowAll");
             app.UseAuthorization();
-            app.UseTokenAuthentication();
+            app.UseTokenAuthentication(); 
 
             app.MapControllers();
 
