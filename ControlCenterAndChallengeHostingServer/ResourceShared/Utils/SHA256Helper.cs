@@ -1,7 +1,9 @@
-﻿using System;
-using System.Text;
+﻿using BCrypt.Net;
+using ResourceShared.Models;
+using System;
 using System.Security.Cryptography;
-using BCrypt.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ResourceShared.Utils
 {
@@ -16,80 +18,71 @@ namespace ResourceShared.Utils
             }
         }
 
-        // Hash trả về trực tiếp bcrypt string (vd: $2b$12$...)
         public static string HashPassword(string plaintext)
         {
             string rawSha = Sha256Hex(plaintext);
             return BCrypt.Net.BCrypt.HashPassword(rawSha);
         }
 
-        // Nếu muốn lưu theo kiểu Python ($bcrypt-sha256$...), dùng hàm này
         public static string HashPasswordPythonStyle(string plaintext)
         {
-            string bcrypt = HashPassword(plaintext); // $2b$12$<salt+hash>
-            var parts = bcrypt.Split('$'); // ["", "2b", "12", "<salt+hash>"]
-            if (parts.Length >= 4)
-            {
-                string type = parts[1];
-                string rounds = parts[2];
-                string saltAndHash = parts[3];
+            // generate bcrypt salt (22 chars) using BCrypt.Net
+            string salt = BCrypt.Net.BCrypt.GenerateSalt(12); // returns e.g. "$2b$12$<22salt>"
+            var parts = salt.Split('$'); // ["", "2b", "12", "<22salt>"]
+            string type = parts[1];      // "2b"
+            string cost = parts[2];      // "12"
+            string salt22 = parts[3];    // "<22salt>"
 
-                // salt = first 22 chars, hash = rest (31 chars), chuẩn bcrypt
-                if (saltAndHash.Length >= 53)
-                {
-                    string salt = saltAndHash.Substring(0, 22);
-                    string hash = saltAndHash.Substring(22);
-                    return $"$bcrypt-sha256$v=2,t={type},r={rounds}${salt}${hash}";
-                }
+            string prehashedBase64 = HmacSha256Base64(plaintext, salt22);
+            string inner = BCrypt.Net.BCrypt.HashPassword(prehashedBase64, salt);
 
-                // Fallback (nếu không đúng độ dài): ghép lại theo cách đơn giản
-                string saltFallback = saltAndHash.Length > 22 ? saltAndHash.Substring(0, 22) : saltAndHash;
-                string hashFallback = saltAndHash.Length > 22 ? saltAndHash.Substring(22) : "";
-                return $"$bcrypt-sha256$v=2,t={type},r={rounds}${saltFallback}${hashFallback}";
-            }
+            string digest31 = inner.Substring(inner.LastIndexOf('$') + 1).Substring(22);
 
-            return bcrypt; // fallback: trả bcrypt gốc
+            return $"$bcrypt-sha256$v=2,t={type},r={cost}${salt22}${digest31}";
         }
 
-        public static bool VerifyPassword(string plaintext, string storedHash)
+        public static bool VerifyPassword(string plaintext, string passlibHash)
         {
-            string rawSha = Sha256Hex(plaintext);
+            if (string.IsNullOrWhiteSpace(passlibHash) || !passlibHash.StartsWith("$bcrypt-sha256$"))
+                throw new ArgumentException("Not a passlib bcrypt_sha256 hash.", nameof(passlibHash));
 
-            if (!string.IsNullOrEmpty(storedHash) && storedHash.StartsWith("$bcrypt-sha256$"))
+            var v2 = new Regex(@"\$bcrypt-sha256\$v=2,t=(?<type>2[ab]),r=(?<rounds>\d{2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
+            var v1 = new Regex(@"\$bcrypt-sha256\$(?<type>2[ab]),(?<rounds>\d{2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
+
+            Match m = v2.Match(passlibHash);
+            int version = 2;
+            if (!m.Success)
             {
-                // storedHash: $bcrypt-sha256$v=2,t=2b,r=12$<salt>$<hash>
-                var parts = storedHash.Split('$'); // ["", "bcrypt-sha256", "v=2,t=2b,r=12", "<salt>", "<hash>", ...]
-                if (parts.Length < 5) return false;
-
-                var settings = parts[2].Split(',');
-                string type = null, rounds = null;
-                foreach (var s in settings)
-                {
-                    if (s.StartsWith("t=")) type = s.Substring(2);
-                    if (s.StartsWith("r=")) rounds = s.Substring(2);
-                }
-                if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(rounds)) return false;
-
-                string salt = parts[3];
-                string hash = parts[4];
-
-                // IMPORTANT: không thêm '$' giữa salt và hash — ghép trực tiếp
-                string saltAndHash = salt + hash; // => <22+31 chars>
-                string realHash = "$" + type + "$" + rounds + "$" + saltAndHash;
-
-                // (Tùy chọn) debug:
-                Console.WriteLine($"rawSha: {rawSha}"); // phải là 64 ký tự hex
-                Console.WriteLine($"storedHash: {storedHash}");
-                Console.WriteLine($"realHash: {realHash}"); // phải bắt đầu bằng $2b$12$ và có độ dài 60
-                Console.WriteLine($"realHash.Length: {realHash.Length}"); // bcrypt chuẩn = 60
-
-                return BCrypt.Net.BCrypt.Verify(rawSha, realHash);
+                m = v1.Match(passlibHash);
+                version = 1;
             }
-            else
-            {
-                // stored hash đã là bcrypt thuần ($2b$12$...)
-                return BCrypt.Net.BCrypt.Verify(rawSha, storedHash);
-            }
+            if (!m.Success) throw new ArgumentException("Unrecognized bcrypt_sha256 format.", nameof(passlibHash));
+
+            string type = m.Groups["type"].Value;
+            string rounds = m.Groups["rounds"].Value; 
+            string salt22 = m.Groups["salt"].Value;  
+            string digest31 = m.Groups["digest"].Value;
+
+            string innerBcryptHash = $"${type}${rounds}${salt22}{digest31}";
+            string prehashedBase64 = version == 2
+                ? HmacSha256Base64(message: plaintext, keyAscii: salt22)   // v=2 uses HMAC-SHA256 with key = salt string
+                : Sha256Base64(plaintext);                                 // v=1 used plain SHA256
+
+            return BCrypt.Net.BCrypt.Verify(prehashedBase64, innerBcryptHash);
+        }
+
+        private static string HmacSha256Base64(string message, string keyAscii)
+        {
+            using var h = new HMACSHA256(Encoding.ASCII.GetBytes(keyAscii));
+            byte[] mac = h.ComputeHash(Encoding.UTF8.GetBytes(message));
+            return Convert.ToBase64String(mac); // includes '=' padding, as passlib does
+        }
+
+        private static string Sha256Base64(string message)
+        {
+            using var sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(message));
+            return Convert.ToBase64String(hash);
         }
     }
 }

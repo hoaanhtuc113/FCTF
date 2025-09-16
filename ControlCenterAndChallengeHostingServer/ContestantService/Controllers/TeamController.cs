@@ -21,7 +21,7 @@ namespace ContestantService.Controllers
             _configHelper = configHelper;
         }
 
-        [HttpPost("team/create")]
+        [HttpPost("create")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequestDTO request)
         {
             if (_ctfTimeHelper.CtfTime())

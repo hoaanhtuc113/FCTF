@@ -20,7 +20,6 @@ namespace ContestantService.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private static object _lock = new object();
         private AppDbContext _context;
         private ConfigHelper _configHelper;
         public AuthController(AppDbContext context, ConfigHelper configHelper)
@@ -44,7 +43,7 @@ namespace ContestantService.Controllers
             if(user!=null && SHA256Helper.VerifyPassword(LoginDTO.password, user.Password) && user.Type == "user")
             {
                 DateTime dateTime = DateTime.Now + TimeSpan.FromDays(1);
-                Token token = TokenHelper.GenerateUserToken(_context,user,dateTime,"Login token");
+                Token token = await TokenHelper.GenerateUserToken(_context,user,dateTime,"Login token");
                 if(user.Team == null)
                 {
                     return BadRequest(new

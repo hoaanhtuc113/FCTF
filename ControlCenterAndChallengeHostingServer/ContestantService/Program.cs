@@ -26,6 +26,15 @@ namespace ContestantService
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", p =>
+                    p.AllowAnyOrigin()
+                     .AllowAnyHeader()
+                     .AllowAnyMethod()
+                );
+            });
+
             await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();
 
@@ -34,8 +43,8 @@ namespace ContestantService
                 app.UseSwaggerUI();
 
 
-            //app.UseHttpsRedirection();
-
+            app.UseHttpsRedirection();
+            app.UseCors("AllowAll");
             app.UseAuthorization();
             app.UseTokenAuthentication();
 

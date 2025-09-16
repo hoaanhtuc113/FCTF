@@ -1,4 +1,5 @@
-﻿using ResourceShared.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using ResourceShared.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace ResourceShared.Utils
     public static class TokenHelper
     {
 
-        public static Token GenerateUserToken(AppDbContext db, User user,
+        public static async Task<Token> GenerateUserToken(AppDbContext db, User user,
                                                   DateTime? expiration = null,
                                                   string description = null)
         {
@@ -20,7 +21,7 @@ namespace ResourceShared.Utils
             do
             {
                 value = "ctfd_" + HexEncode(RandomBytes(32));
-            } while (db.Tokens.Any(t => t.Value == value));
+            } while (await db.Tokens.AnyAsync(t => t.Value == value));
 
             var token = new Token
             {
@@ -31,7 +32,7 @@ namespace ResourceShared.Utils
             };
 
             db.Tokens.Add(token);
-            db.SaveChanges();
+            await db.SaveChangesAsync();
             return token;
         }
         private static string HexEncode(byte[] bytes) =>
