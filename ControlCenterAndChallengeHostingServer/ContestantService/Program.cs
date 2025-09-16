@@ -56,6 +56,7 @@ namespace ContestantService
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
+            builder.Services.AddSingleton<ScoreHelper>();
 
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();

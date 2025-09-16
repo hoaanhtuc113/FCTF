@@ -1,6 +1,7 @@
 ﻿using ContestantService.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Team;
 using ResourceShared.Models;
 using ResourceShared.Utils;
@@ -14,11 +15,13 @@ namespace ContestantService.Controllers
         private readonly AppDbContext _context;
         private readonly CtfTimeHelper _ctfTimeHelper;
         private readonly ConfigHelper _configHelper;
-        public TeamController(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper)
+        private readonly ScoreHelper _scoreHelper;
+        public TeamController(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper,ScoreHelper scoreHelper)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
             _configHelper = configHelper;
+            _scoreHelper = scoreHelper;
         }
 
         [HttpPost("create")]
@@ -142,6 +145,69 @@ namespace ContestantService.Controllers
                 team_id = team.Id
             });
         }
+
+        [HttpGet("contestant")]
+        public async Task<IActionResult> GetScoreTeam()
+        {
+            var user = HttpContext.GetCurrentUser();
+            if (user == null)
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    error = "Unauthorized"
+                });
+            }
+            else
+            {
+                var team = await _context.Teams
+                           .Include(t => t.Users)
+                           .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
+                if (team == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Team not found"
+                    });
+                }
+                var users = await _context.Users
+                    .Where(u => u.TeamId == team.Id)
+                    .ToListAsync();
+
+                var members = new List<object>();
+
+                foreach (var u in users)
+                {
+                    var score = await _scoreHelper.GetUserScore(u, true);
+                    members.Add(new
+                    {
+                        name = u.Name,
+                        email = u.Email,
+                        score = score
+                    });
+                }
+                var challenges = await _context.Challenges
+                               .Where(c => c.State == "visible")
+                               .ToListAsync();
+                var totalScore = challenges.Sum(c => c.Value ?? 0);
+                var response = new
+                {
+                    name = team.Name,
+                    place = await _scoreHelper.GetTeamPlace(team,true),
+                    members,
+                    score = await _scoreHelper.GetTeamScore(team,true),
+                    challengeTotalScore = totalScore
+                };
+
+                return Ok(new
+                {
+                    success = true,
+                    data = response
+                });
+            }
+        }
+
 
 
     }

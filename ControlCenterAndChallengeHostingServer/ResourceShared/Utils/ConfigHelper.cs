@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using ResourceShared.Models;
 using System;
 using System.Collections.Generic;
@@ -40,11 +41,11 @@ namespace ResourceShared.Utils
 
         public object GetConfig(string key)
         {
-            return _cache.GetOrCreate<object>(key, entry =>
+            return _cache.GetOrCreateAsync<object>(key, async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-                var config = _db.Configs.FirstOrDefault(c => c.Key == key);
+                var config = await _db.Configs.FirstOrDefaultAsync(c => c.Key == key);
                 if (config != null && !string.IsNullOrEmpty(config.Value))
                 {
                     string value = config.Value;
