@@ -24,7 +24,7 @@ namespace ContestantService.Controllers
         [HttpPost("create")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequestDTO request)
         {
-            if (_ctfTimeHelper.CtfTime())
+            if (!_ctfTimeHelper.CtfTime())
             {
                 return BadRequest(new
                 {
@@ -118,13 +118,14 @@ namespace ContestantService.Controllers
             var team = new Team
             {
                 Name = teamName,
-                Password = passphrase,
+                Password = SHA256Helper.HashPasswordPythonStyle(passphrase),
                 CaptainId = user.Id,
                 Hidden = hidden,
                 BracketId = bracketId,
                 Website = website,
                 Affiliation = affiliation,
-                Country = country
+                Country = country,
+                Created = DateTime.UtcNow
             };
 
             _context.Teams.Add(team);
