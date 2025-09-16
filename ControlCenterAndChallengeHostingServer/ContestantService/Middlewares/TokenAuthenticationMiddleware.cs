@@ -19,11 +19,15 @@ namespace ContestantService.Middlewares
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
                 var token = authHeader.Substring("Bearer ".Length).Trim();
                 var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
-                var user = await db.Users.FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
-                if (user != null)
+                if (tokenAuth != null)
                 {
-                    context.Items["CurrentUser"] = user;
-                }                                 
+                    var user = await db.Users.FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
+                    if (user != null)
+                    {
+                        context.Items["CurrentUser"] = user;
+                    }            
+                }
+                      
             }
             catch (Exception ex)
             {
