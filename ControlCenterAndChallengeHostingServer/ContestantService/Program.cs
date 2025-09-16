@@ -1,10 +1,11 @@
+using ContestantService.Extensions;
 using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models; 
 using ResourceShared.Configs;
 using ResourceShared.Models;
-using ContestantService.Extensions;
 using ResourceShared.Utils;
-using Microsoft.OpenApi.Models; 
+using StackExchange.Redis;
 
 namespace ContestantService
 {
@@ -57,6 +58,7 @@ namespace ContestantService
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
 
+            builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
 
@@ -68,6 +70,8 @@ namespace ContestantService
                      .AllowAnyMethod()
                 );
             });
+
+
 
             await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();

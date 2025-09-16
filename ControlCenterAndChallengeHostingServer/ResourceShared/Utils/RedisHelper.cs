@@ -132,7 +132,18 @@ namespace SocialSync.Shared.Utils
                 }
             }
 
-        }
+            public async Task<bool> KeyExistsAsync(string key)
+            {
+                try
+                {
+                    return await _cache.KeyExistsAsync(key);
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+
+            }
     }
 
 }
