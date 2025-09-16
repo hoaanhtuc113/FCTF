@@ -1,27 +1,65 @@
-﻿using Microsoft.Extensions.Configuration;
-using ResourceShared.Configs;
+﻿using Microsoft.Extensions.Caching.Memory;
 using ResourceShared.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ResourceShared.Utils
 {
-    public class SharedConfig
+    public class ConfigHelper
     {
-        /// <summary>
-        /// Hàm đọc các config từ appsettings.json
-        /// </summary>
-        /// <exception cref="Exception">Exception sẽ được throw khi có vấn đề với file appsetting (Thiếu config, không đúng kiểu dữ liệu,...)</exception>
+        private readonly AppDbContext _db;
+        private readonly IMemoryCache _cache;
 
-        public static IConfiguration configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .Build();
-        public virtual void InitConfig()
+        public ConfigHelper(AppDbContext db, IMemoryCache cache)
         {
-            RedisConfigs.ConnectionString = configuration.GetConnectionString("RedisConnection") ?? throw new Exception("Can't read RedisConnectionString");
-            ServiceConfigs.PrivateKey = configuration["ServiceConfigs:PrivateKey"] ?? throw new Exception("Can't read ServiceConfigs:PrivateKey");
-            ServiceConfigs.ServerHost = configuration["ServiceConfigs:ServerHost"] ?? throw new Exception("Can't read ServiceConfigs:ServerHost");
-            ServiceConfigs.ServerPort = configuration["ServiceConfigs:ServerPort"] ?? throw new Exception("Can't read ServiceConfigs:ServerPort");
-            ServiceConfigs.DomainName = configuration["ServiceConfigs:DomainName"] ?? throw new Exception("Can't read ServiceConfigs:DomainName");
-            EnvironmentConfigs.ENVIRONMENT_NAME= configuration["EnvironmentConfigs:ENVIRONMENT_NAME"] ?? throw new Exception("Can't read EnvironmentConfigs:ENVIRONMENT_NAME");
+            _db = db;
+            _cache = cache;
+        }
+        public T GetConfig<T>(object key, T defaultValue = default)
+        {
+            if (key is Enum enumKey)
+                key = enumKey.ToString();
+
+            var value = GetConfig(key.ToString());
+
+            if (value is KeyNotFoundException || value == null)
+                return defaultValue;
+
+            try
+            {
+                return (T)Convert.ChangeType(value, typeof(T));
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
+        public object GetConfig(string key)
+        {
+            return _cache.GetOrCreate<object>(key, entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+                var config = _db.Configs.FirstOrDefault(c => c.Key == key);
+                if (config != null && !string.IsNullOrEmpty(config.Value))
+                {
+                    string value = config.Value;
+
+                    if (int.TryParse(value, out int intVal))
+                        return intVal;
+
+                    if (bool.TryParse(value, out bool boolVal))
+                        return boolVal;
+
+                    return value;
+                }
+                return new KeyNotFoundException();
+            });
         }
     }
+
 }
