@@ -1,10 +1,10 @@
+using ContestantService.Extensions;
 using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models; 
 using ResourceShared.Configs;
 using ResourceShared.Models;
-using ContestantService.Extensions;
 using ResourceShared.Utils;
-using Microsoft.OpenApi.Models; 
 
 namespace ContestantService
 {
@@ -56,7 +56,12 @@ namespace ContestantService
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
-            builder.Services.AddSingleton<ScoreHelper>();
+            builder.Services.AddScoped<ScoreHelper>(provider =>
+            {
+                var options = provider.GetRequiredService<DbContextOptions<AppDbContext>>();
+                var config = provider.GetRequiredService<ConfigHelper>();
+                return new ScoreHelper(options, config);
+            });
 
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
