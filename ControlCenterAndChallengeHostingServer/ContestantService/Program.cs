@@ -15,11 +15,13 @@ namespace ContestantService
         {
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("DbConnection");
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
 
             // Add services to the container.
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
-
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
@@ -61,6 +63,7 @@ namespace ContestantService
             builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
+            ServiceConfigs.SecretKey = configuration["ServiceConfigs:SecretKey"] ?? throw new Exception("Can't read ServiceConfigs:SecretKey");
 
             builder.Services.AddCors(options =>
             {
