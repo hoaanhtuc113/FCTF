@@ -1,8 +1,10 @@
-﻿using ContestantService.Extensions;
+﻿using ContestantService.Attribute;
+using ContestantService.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.DTOs.File;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
@@ -25,9 +27,10 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("{id}")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> GetById(int id)
         {
-            // during_ctf_time_only
+            await Console.Out.WriteLineAsync($"start GetById");
             try
             {
                 RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
@@ -70,16 +73,17 @@ namespace ContestantService.Controllers
                 var attempts = await _context.Submissions.CountAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
 
                 var files = new List<object>();
-
                 foreach (var file in challenge.Files)
                 {
-                    var token = new
+                    var token = new FileTokenDTOs
                     {
                         user_id = user.Id,
                         team_id = user.TeamId,
                         file_id = file.Id
                     };
+                    var file_url = $"/files/{file.Location}?token={ItsDangerousCompatHelper.Dumps(token)}";
 
+                    if (file_url != null) files.Add(file_url);
                 }
 
                 var challenge_data = new
@@ -94,7 +98,7 @@ namespace ContestantService.Controllers
                     require_deploy = challenge.RequireDeploy,
                     type = challenge.Type,
                     next_id = challenge.NextId,
-                    solve_by_myteam = solve_id == null ? true : false,
+                    solve_by_myteam = solve_id != null ? true : false,
                     files = files,
                     is_captain = user.Id == team.CaptainId,
                 };
@@ -250,7 +254,7 @@ namespace ContestantService.Controllers
                     time_limit = challenge.TimeLimit,
                     type = challenge.Type,
                     requirements = challenge.Requirements,
-                    solve_by_myteam = sovle_id == null ? true : false,
+                    solve_by_myteam = sovle_id != null ? true : false,
                 });
             }
             return Ok(new
