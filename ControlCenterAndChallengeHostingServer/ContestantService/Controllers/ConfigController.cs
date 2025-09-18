@@ -20,12 +20,21 @@ namespace ContestantService.Controllers
             _ctfTimeHelper = ctfTimeHelper;
             _configHelper = configHelper;
         }
+        private long ToLong(object val)
+        {
+            if (val == null) return 0;
+            if (long.TryParse(val.ToString(), out var result))
+            {
+                return result;
+            }
 
+            return 0;
+        }
         [HttpGet("get_date_config")]
         public async Task<IActionResult> GetDateTimeConfig()
         {
-            var startFromConfig = _configHelper.GetConfig("start");
-            var endFromConfig = _configHelper.GetConfig("end");
+            var startFromConfig = ToLong(_configHelper.GetConfig("start"));
+            var endFromConfig = ToLong(_configHelper.GetConfig("end"));
             if(_ctfTimeHelper.CtfEnded())
             {
                 return Ok(new
