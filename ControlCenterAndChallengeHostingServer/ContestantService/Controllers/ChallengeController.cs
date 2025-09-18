@@ -1,14 +1,17 @@
 ﻿using ContestantService.Attribute;
 using ContestantService.Extensions;
+using ContestantService.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.File;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
+using System.Linq;
 using YamlDotNet.Core.Tokens;
 
 namespace ContestantService.Controllers
@@ -20,10 +23,17 @@ namespace ContestantService.Controllers
 
         private AppDbContext _context;
         private readonly IConnectionMultiplexer _connectionMultiplexer;
-        public ChallengeController(AppDbContext context, IConnectionMultiplexer connectionMultiplexer)
+        private readonly CtfTimeHelper _ctfTimeHelper;
+        private readonly ConfigHelper _configHelper;
+        private readonly UserHelper _userHelper;
+        public ChallengeController(AppDbContext context, CtfTimeHelper ctfTimeHelper ,
+                                    ConfigHelper configHelper , UserHelper userHelper, IConnectionMultiplexer connectionMultiplexer)
         {
             _context = context;
             _connectionMultiplexer = connectionMultiplexer;
+            _ctfTimeHelper = ctfTimeHelper;
+            _configHelper = configHelper;
+            _userHelper = userHelper;
         }
 
         [HttpGet("{id}")]
@@ -262,6 +272,181 @@ namespace ContestantService.Controllers
                 success = true,
                 data = topics_data
             });
+        }
+
+        [DuringCtfTimeOnly]
+        [HttpPost("attempt")]
+        public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
+        {
+            var user = HttpContext.GetCurrentUser();
+            if (user == null) return NotFound(new { error = "User not found" });
+
+            if(request.ChallengeId == 0)  return BadRequest(new { error = "ChallengeId is required" });
+
+            var challenge = await _context.Challenges
+                                            .Include(c => c.Requirements)
+                                            .FirstOrDefaultAsync(c => c.Id == request.ChallengeId);
+
+            if (challenge == null) return NotFound(new { error = "Challenge not found" });
+
+            if (_ctfTimeHelper.CtfPaused())
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    success = true,
+                    data =  new {
+                        status = "paused",
+                        message = $"{_configHelper.CtfName().ToString()} is paused"
+                    }
+                });
+            }
+
+            if (_configHelper.IsUserMode() && user.Team == null)
+            {
+               return Forbid();
+            }
+
+            var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.UserId == user.Id && s.Type == "incorrect")
+                                        .CountAsync();
+
+            if(challenge.State ==  "hidden") return NotFound();
+            if(challenge.State ==  "locked") return Forbid();
+
+            if (challenge.Requirements != null)
+            {
+                var requirements = challenge.Requirements.Split(',').Select(r => r.Trim()).ToList();
+                var solve_ids = (await _context.Solves
+                                .Where(s => s.UserId == user.Id)
+                                .Select(s => s.ChallengeId)
+                                .OrderBy(id => id)
+                                .ToListAsync()).ToHashSet();
+
+
+                var all_challenge_ids = (await _context.Challenges
+                                        .AsNoTracking()
+                                        .Select(c => c.Id)
+                                        .ToListAsync()).ToHashSet();
+                var prereqs = requirements.Where(r => all_challenge_ids.Contains(int.TryParse(r, out var id) ? id : -1)).ToHashSet();
+
+                if (!solve_ids.IsSupersetOf((IEnumerable<int?>)prereqs))
+                {
+                    return Forbid();
+                }
+            }
+
+
+            var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);
+            var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
+            if (kpm >= kpm_limit)
+            {
+
+                if (_ctfTimeHelper.CtfTime())
+                {
+                    var summit_fail = new Submission
+                    {
+                        UserId = user.Id,
+                        TeamId = user.TeamId,
+                        ChallengeId = challenge.Id,
+                        Ip = _userHelper.GetIP(HttpContext),
+                        Provided = request.Submission,
+                        Type = Enums.SubmissionTypes.INCORRECT,
+                    };
+
+                    _context.Submissions.Add(summit_fail);
+                    await _context.SaveChangesAsync();
+                }
+
+                await Console.Out.WriteLineAsync($"{DateTime.Now} {user.Name} submitted {request.Submission} on {request.ChallengeId} with kpm {kpm} [TOO FAST]");
+                return StatusCode(StatusCodes.Status429TooManyRequests, new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "ratelimited",
+                        message = "You're submitting flags too fast. Slow down."
+                    }
+                });
+            }
+
+            var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.UserId == user.Id);
+
+            //Challenge not solved yet
+            if (solve == null)
+            {
+                var max_tries = challenge.MaxAttempts;
+                if(max_tries.HasValue && max_tries >= 0 && fails >= max_tries)
+                {
+                    return BadRequest(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "incorrect",
+                            message = "You have 0 tries remaining"
+                        }
+                    });
+                }
+
+                AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
+
+                if (attempt.status)
+                {
+                    if (_ctfTimeHelper.CtfTime())
+                    {
+                        var summit_success = new Submission
+                        {
+                            UserId = user.Id,
+                            TeamId = user.TeamId,
+                            ChallengeId = challenge.Id,
+                            Ip = _userHelper.GetIP(HttpContext),
+                            Provided = request.Submission,
+                            Type = Enums.SubmissionTypes.CORRECT,
+                        };
+                        _context.Submissions.Add(summit_success);
+                        await _context.SaveChangesAsync();
+
+                        var solf = new Solf
+                        {
+                            Id = summit_success.Id,
+                            UserId = user.Id,
+                            TeamId = user.TeamId,
+                            ChallengeId = challenge.Id,
+                        };
+
+                        _context.Solves.Add(solf);
+                        await _context.SaveChangesAsync();
+
+                        // xóa cache
+
+                        var cache_key_attempt = ChallengeHelper.GenerateCacheAttemptKey(challenge.Id, user.TeamId.Value);
+                    }
+                    await Console.Out.WriteLineAsync($"{DateTime.Now} {user.Name} submitted {request.Submission} on {request.ChallengeId} with kpm {kpm} [CORRECT]");
+                    var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
+                    if (challenge.RequireDeploy)
+                    {
+
+                    }
+                }
+                else
+                {
+
+                }
+
+                return Ok();
+            }
+            else
+            {
+                await Console.Out.WriteLineAsync($"{DateTime.Now} {user.Name} submitted {request.Submission} on {request.ChallengeId} with kpm {kpm} [ALREADY SOLVED]");
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "already_solved",
+                        message = "You or your teammate already solved this"
+                    }
+                });
+            }
         }
     }
 }
