@@ -1,0 +1,6 @@
+@MQ_Producer_HostAddress = http://localhost:5135
+
+GET {{MQ_Producer_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
