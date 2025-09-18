@@ -12,7 +12,7 @@ namespace ContestantService.Middlewares
             _next = next;
         }
 
-        public async Task Invoke(HttpContext context, AppDbContext db)
+        public async Task Invoke(HttpContext context)
         {
             try
             {
@@ -24,13 +24,16 @@ namespace ContestantService.Middlewares
 
                     if (!string.IsNullOrEmpty(token))
                     {
-                        var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
-                        if (tokenAuth != null)
+                        using (var db = new AppDbContext())
                         {
-                            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
-                            if (user != null)
+                            var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
+                            if (tokenAuth != null)
                             {
-                                context.Items["CurrentUser"] = user;
+                                var user = await db.Users.FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
+                                if (user != null)
+                                {
+                                    context.Items["CurrentUser"] = user;
+                                }
                             }
                         }
                     }
