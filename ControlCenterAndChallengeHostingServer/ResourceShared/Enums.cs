@@ -21,5 +21,12 @@ namespace ResourceShared
             public const string ACCOUNT_VISIBILITY = "account_visibility";
             public const string REGISTRATION_VISIBILITY = "registration_visibility";
         }
+
+        public static class SubmissionTypes
+        {
+            public const string CORRECT = "correct";
+            public const string INCORRECT = "incorrect";
+            public const string DISCARD = "discard";
+        }
     }
 }

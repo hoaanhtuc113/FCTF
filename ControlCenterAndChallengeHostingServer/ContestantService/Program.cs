@@ -55,10 +55,12 @@ namespace ContestantService
                     }
                 });
             });
+            builder.Services.Configure<ProxyOptions>(builder.Configuration.GetSection("Proxy"));
 
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
+            builder.Services.AddSingleton<UserHelper>();
 
             builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
             //Init config from ControlConfig, SharedConfig

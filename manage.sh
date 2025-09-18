@@ -308,7 +308,7 @@ EOF
 }
 EOF
 
-    # Cập nhật appsettings.json cho ControlCenter
+    # Cập nhật appsettings.json cho ContestantService
     cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
 {
     "Logging": {
@@ -323,6 +323,7 @@ EOF
     "RedisConnection": "127.0.0.1:6379"
   },
    "ServiceConfigs": {
+    "SecretKey": "emdungdepzai",
     "PrivateKey": "emdungdepzai",
     "ServerHost": "http://0.0.0.0",
     "ServerPort": "5002",
@@ -331,6 +332,16 @@ EOF
   },
     "EnvironmentConfigs": {
     "ENVIRONMENT_NAME": "$env_upper"
+  },
+  "Proxy": {
+    "TrustedProxies": [
+        "^127\\.0\\.0\\.1$",
+        "^::1$",
+        "^fc00:",
+        "^10\\.",
+        "^172\\.(1[6-9]|2[0-9]|3[0-1])\\.",
+        "^192\\.168\\."
+    ]
   }
 }
 EOF
