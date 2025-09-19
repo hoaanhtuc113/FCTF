@@ -8,7 +8,6 @@ using ResourceShared.Utils;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
-using System.Text.Json;
 
 public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
 {
@@ -53,6 +52,7 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
 
         //var response = await client.SendAsync(request);
         var instanceInfoJson = JsonConvert.SerializeObject(context.Message);
+        Console.WriteLine($"context.Message: {(context.Message)}");
         var DictScrKey = JsonConvert.DeserializeObject<Dictionary<string, string>>(instanceInfoJson);
         var DictMultiService = JsonConvert.DeserializeObject<Dictionary<string, object>>(instanceInfoJson);
         long unixTime = DateTimeHelper.GetDateTimeNowInUnix();
@@ -66,21 +66,21 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
             DictMultiService.Add("UnixTime", unixTime);
         }
         string secretKeyStartChallenge = SecretKeyHelper.CreateSecretKey(unixTime, DictScrKey);
-        Console.WriteLine("SecretKey gen : " + secretKeyStartChallenge);
-        Console.WriteLine("SecretKey get queue: " + context.Message.SecretKey);
+
         startRequest.AddHeader("SecretKey", secretKeyStartChallenge);
 
         MultiServiceConnector connector = new MultiServiceConnector(apiUrl);
-
         GenaralViewResponseData<DeploymentInfo>? startResult
           = await connector.ExecuteRequest<GenaralViewResponseData<DeploymentInfo>>(startRequest, DictMultiService, RequestContentType.Form);
-        DeploymentInfo? entity = await _redis.GetFromCacheAsync<DeploymentInfo>(key);
+        var entity = await _redis.GetFromCacheAsync<DeploymentInfo>(key);
         if (!(startResult == null || !startResult.IsSuccess || startResult.data == null))
         {
-            entity.Status = "done";
-            await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(entity), TimeSpan.FromDays(90));
+            DeploymentInfo challengeInstance = startResult.data;
+            challengeInstance.Status = "running";
+            await _redis.SetCacheAsync(key, challengeInstance, TimeSpan.MaxValue);
 
             await Console.Out.WriteLineAsync($"[OK] Started challenge {context.Message.ChallengeId} for team {context.Message.TeamId}");
+            await Console.Out.WriteLineAsync($"[OK] Data challenge: {JsonConvert.SerializeObject(await _redis.GetFromCacheAsync<DeploymentInfo>(key))}");
         }
         else
         {

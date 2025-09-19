@@ -326,7 +326,7 @@ EOF
     "VirtualHost": "/"
   },
   "Api": {
-    "Url": "http://localhost:5000/api/Challenge/start"
+    "Url": "http://localhost:5001/api/Challenge/start"
   },
   "ConnectionStrings": {
     "RedisConnection": "127.0.0.1:6379"
