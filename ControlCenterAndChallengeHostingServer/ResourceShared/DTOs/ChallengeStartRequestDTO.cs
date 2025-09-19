@@ -17,5 +17,7 @@ namespace ResourceShared.DTOs
         public int TimeLimit { get; set; }
 
         public string ImageLink { get; set; } = "{}";
+
+        public string SecretKey { get; set; } = string.Empty;
     }
 }
