@@ -1,7 +1,11 @@
 using MassTransit;
+using Newtonsoft.Json;
 using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.Models;
+using ResourceShared.ResponseViews;
+using ResourceShared.Utils;
+using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Text.Json;
@@ -24,32 +28,57 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
 
     public async Task Consume(ConsumeContext<StartChallengeInstanceRequest> context)
     {
+        var startRequest = new RestRequest();
+        startRequest.Method = Method.Post;
         RedisHelper _redis = new RedisHelper(_connectionMultiplexer);
         string key = $"{RedisConfigs.RedisStartedChallengeKey}_{context.Message.ChallengeId}_{context.Message.TeamId}";
         var apiUrl = _config["Api:Url"];
-        var client = _httpClientFactory.CreateClient();
+        //var client = _httpClientFactory.CreateClient();
 
-        // send request to API (challenge server or jenkins) to start challenge
-        using var form = new MultipartFormDataContent
+        //// send request to API (challenge server or jenkins) to start challenge
+        //using var form = new MultipartFormDataContent
+        //{
+        //    { new StringContent(context.Message.ChallengeId.ToString()), nameof(StartChallengeInstanceRequest.ChallengeId) },
+        //    { new StringContent(context.Message.TeamId.ToString()), nameof(StartChallengeInstanceRequest.TeamId) },
+        //    { new StringContent(context.Message.TimeLimit.ToString()), nameof(StartChallengeInstanceRequest.TimeLimit) },
+        //    { new StringContent(context.Message.ImageLink ?? "{}"), nameof(StartChallengeInstanceRequest.ImageLink) }
+        //};
+
+        //var request = new HttpRequestMessage(HttpMethod.Post, $"{apiUrl}")
+        //{
+        //    Content = form
+        //};
+        //Console.WriteLine("Key: "+context.Message.SecretKey);
+        //request.Headers.Add("SecretKey", context.Message.SecretKey);
+
+        //var response = await client.SendAsync(request);
+        var instanceInfoJson = JsonConvert.SerializeObject(context.Message);
+        var DictScrKey = JsonConvert.DeserializeObject<Dictionary<string, string>>(instanceInfoJson);
+        var DictMultiService = JsonConvert.DeserializeObject<Dictionary<string, object>>(instanceInfoJson);
+        long unixTime = DateTimeHelper.GetDateTimeNowInUnix();
+        if (DictScrKey == null || DictMultiService == null)
         {
-            { new StringContent(context.Message.ChallengeId.ToString()), nameof(StartChallengeInstanceRequest.ChallengeId) },
-            { new StringContent(context.Message.TeamId.ToString()), nameof(StartChallengeInstanceRequest.TeamId) },
-            { new StringContent(context.Message.TimeLimit.ToString()), nameof(StartChallengeInstanceRequest.TimeLimit) },
-            { new StringContent(context.Message.ImageLink ?? "{}"), nameof(StartChallengeInstanceRequest.ImageLink) }
-        };
+            throw new Exception("Convert from obj instance info to dict failed");
+        }
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{apiUrl}")
+        if (!DictMultiService.ContainsKey("UnixTime"))
         {
-            Content = form
-        };
-        request.Headers.Add("SecretKey", context.Message.SecretKey);
+            DictMultiService.Add("UnixTime", unixTime);
+        }
+        string secretKeyStartChallenge = SecretKeyHelper.CreateSecretKey(unixTime, DictScrKey);
+        Console.WriteLine("SecretKey gen : " + secretKeyStartChallenge);
+        Console.WriteLine("SecretKey get queue: " + context.Message.SecretKey);
+        startRequest.AddHeader("SecretKey", secretKeyStartChallenge);
 
-        var response = await client.SendAsync(request);
+        MultiServiceConnector connector = new MultiServiceConnector(apiUrl);
+
+        GenaralViewResponseData<DeploymentInfo>? startResult
+          = await connector.ExecuteRequest<GenaralViewResponseData<DeploymentInfo>>(startRequest, DictMultiService, RequestContentType.Form);
         DeploymentInfo? entity = await _redis.GetFromCacheAsync<DeploymentInfo>(key);
-        if (response.IsSuccessStatusCode&& entity != null)
+        if (!(startResult == null || !startResult.IsSuccess || startResult.data == null))
         {
             entity.Status = "done";
-            await _redis.SetCacheAsync(key, JsonSerializer.Serialize(entity), TimeSpan.FromDays(90));
+            await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(entity), TimeSpan.FromDays(90));
 
             await Console.Out.WriteLineAsync($"[OK] Started challenge {context.Message.ChallengeId} for team {context.Message.TeamId}");
         }
@@ -58,7 +87,7 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
             if(entity != null)
             {
                 entity.Status = "failed";
-                await _redis.SetCacheAsync(key, JsonSerializer.Serialize(entity), TimeSpan.FromDays(90));
+                await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(entity), TimeSpan.FromDays(90));
             }
             else
             {
@@ -68,11 +97,11 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
                     TeamId = context.Message.TeamId,
                     Status = "failed",
                 };
-                await _redis.SetCacheAsync(key, JsonSerializer.Serialize(deploymentInfo), TimeSpan.FromDays(90));
+                await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(deploymentInfo), TimeSpan.FromDays(90));
             }
 
 
-            await Console.Out.WriteLineAsync($"[ERR] API call failed: {response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
+            await Console.Out.WriteLineAsync($"[ERR] API call failed: { startResult.Message}");
         }
     }
 }
