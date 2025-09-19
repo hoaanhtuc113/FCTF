@@ -1,7 +1,9 @@
 using MassTransit;
 using Microsoft.Extensions.Options;
 using MQ_Consumer.Utils;
+using RabbitMQ.Client;
 using ResourceShared.Configs;
+using ResourceShared.DTOs;
 using StackExchange.Redis;
 
 namespace MQ_Consumer
@@ -51,6 +53,10 @@ namespace MQ_Consumer
 
                     cfg.ReceiveEndpoint("start-challenge-queue", e =>
                     {
+                        e.Bind("start-challenge-exchange", x =>
+                        {
+                            x.ExchangeType = ExchangeType.Fanout;
+                        });
                         e.ConfigureConsumer<StartChallengeConsumer>(context);
                     });
 
