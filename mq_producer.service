@@ -1,0 +1,17 @@
+[Unit]
+Description=Message Queue Producer
+After=network.target
+
+[Service]
+ExecStart=/home/manhhuy/FCTF/ControlCenterAndChallengeHostingServer/MQ_Producer/bin/Release/net8.0/linux-x64/publish/MQ_Producer
+WorkingDirectory=/home/manhhuy/FCTF/ControlCenterAndChallengeHostingServer/MQ_Producer/bin/Release/net8.0/linux-x64/publish
+Restart=always
+RestartSec=10
+SyslogIdentifier=mq_producer
+StandardOutput=append:/home/manhhuy/FCTF/fctf-app.log
+StandardError=append:/home/manhhuy/FCTF/fctf-app.log
+User=manhhuy
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target
