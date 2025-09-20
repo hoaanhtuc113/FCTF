@@ -21,9 +21,10 @@ namespace MQ_Producer.Controllers
         [HttpPost("start-challenge")]
         public async Task<IActionResult> CheckStartChallenge([FromBody] CheckingStartChallengeStatusReq challengeInfo)
         {
+            Console.WriteLine($"[CheckingController] - CheckStartChallenge: ChallengeId={challengeInfo.ChallengeId}, TeamId={challengeInfo.TeamId}");
             RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
 
-            string redisDeployKey = $"{RedisConfigs.RedisStartedChallengeKey}_Check_{challengeInfo.ChallengeId}_{challengeInfo.TeamId}";
+            string redisDeployKey = $"{RedisConfigs.RedisStartedChallengeKey}_{challengeInfo.ChallengeId}_{challengeInfo.TeamId}";
             var redisGetDeployInfo = await redisHelper.GetFromCacheAsync<DeploymentInfo>(redisDeployKey);
 
             if (redisGetDeployInfo == null)

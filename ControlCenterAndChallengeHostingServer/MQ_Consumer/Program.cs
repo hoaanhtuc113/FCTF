@@ -1,36 +1,59 @@
+﻿using MassTransit;
+using Microsoft.Extensions.Options;
+using MQ_Consumer.Utils;
+using RabbitMQ.Client;
+using ResourceShared.Configs;
+using ResourceShared.DTOs;
+using ResourceShared.Models;
+using StackExchange.Redis;
 
 namespace MQ_Consumer
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            new ConsumerConfig().InitConfig();
+            builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
+            builder.Services.AddHttpClient();
+            Console.WriteLine("RedisConfigs.ConnectionString: "+RedisConfigs.ConnectionString);
+            builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
+            builder.Services.AddMassTransit(conf =>
+            {
+                conf.AddConsumer<StartChallengeConsumer>();
 
-            // Add services to the container.
+                conf.UsingRabbitMq((context, cfg) =>
+                {
+                    var opt = context
+                        .GetRequiredService<IOptions<RabbitMqOptions>>()
+                        .Value;
+                    var uri = new Uri($"rabbitmq://{opt.Host}:{opt.Port}{opt.VirtualHost}");
 
-            builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+                    cfg.Host(uri, h =>
+                    {
+                        h.Username(opt.Username);
+                        h.Password(opt.Password);
+                    });
+
+                    cfg.ReceiveEndpoint("start-challenge-queue", e =>
+                    {
+                        e.Bind("start-challenge-exchange", x =>
+                        {
+                            x.ExchangeType = ExchangeType.Fanout;
+                        });
+                        e.ConfigureConsumer<StartChallengeConsumer>(context);
+                    });
+
+                    // Auto-configure endpoint
+                    cfg.ConfigureEndpoints(context);
+                });
+            });
 
             var app = builder.Build();
+            await Console.Out.WriteLineAsync("MQ Consumer starting...");
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
-            app.Run();
+            await app.RunAsync($"{ServiceConfigs.ServerHost}:{ServiceConfigs.ServerPort}");
         }
     }
 }

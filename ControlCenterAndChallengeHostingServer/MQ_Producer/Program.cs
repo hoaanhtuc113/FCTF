@@ -6,6 +6,7 @@ using MQ_Producer.Utils;
 using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.Models;
+using StackExchange.Redis;
 
 namespace MQ_Producer
 {
@@ -15,9 +16,11 @@ namespace MQ_Producer
         {
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
+
             // Add services to the container.
             builder.Services.AddScoped<IPublisherService<StartChallengeInstanceRequest>, StartChallengePublisherService>();
-
+            Console.WriteLine("RedisConfigs.ConnectionString: "+RedisConfigs.ConnectionString);
+            builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
             builder.Services.AddMassTransit(conf =>
             {
                 conf.UsingRabbitMq((context, cfg) =>
