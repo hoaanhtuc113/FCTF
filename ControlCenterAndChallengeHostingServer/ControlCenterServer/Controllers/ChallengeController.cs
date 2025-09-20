@@ -387,7 +387,7 @@ namespace ControlCenterServer.Controllers
                 #region Call to Challenge Hosting Platform to start challenge
                 var startRequest = new RestRequest();
                 startRequest.Method = Method.Post;
-                startRequest.Resource = "mq/producer/start-challenge";
+                startRequest.Resource = "api/challenge/start";
 
                 long unixTime = DateTimeHelper.GetDateTimeNowInUnix();
 
@@ -409,22 +409,16 @@ namespace ControlCenterServer.Controllers
 
                 startRequest.AddHeader("SecretKey", secretKeyStartChallenge);
 
-               // string baseDeployUrl = challengeHostServer.ServerHost + ":" + challengeHostServer.ServerPort;
-                string baseDeployUrl = "http://127.0.0.1:5010" ;
+                string baseDeployUrl = challengeHostServer.ServerHost + ":" + challengeHostServer.ServerPort;
 
                 MultiServiceConnector connector = new MultiServiceConnector(baseDeployUrl);
 
-                await Console.Out.WriteLineAsync("Before publish MQ");
-                DeploymentInfo challengeInstance = new DeploymentInfo
-                {
-                    ChallengeId = instanceInfo.ChallengeId,
-                    TeamId = instanceInfo.TeamId,
-                    Status = "Creating",
-                };
-                await redisHelper.SetCacheAsync(StartedCacheKey, challengeInstance, TimeSpan.MaxValue);
-                GenaralViewResponseData<string>? startResult
-                  = await connector.ExecuteRequest<GenaralViewResponseData<string>>(startRequest, DictMultiService, RequestContentType.Json);
-                await Console.Out.WriteLineAsync("MQ response: "+ JsonConvert.SerializeObject(startResult));
+                GenaralViewResponseData<DeploymentInfo>? startResult
+                  = await connector.ExecuteRequest<GenaralViewResponseData<DeploymentInfo>>(startRequest, DictMultiService, RequestContentType.Form);
+
+                //await Console.Out.WriteLineAsync($"Returned for challenge: {instanceInfo.ChallengeId}");
+
+                //await Console.Out.WriteLineAsync($"startResult: {JsonConvert.SerializeObject(startResult)}");
 
                 if (startResult == null || !startResult.IsSuccess || startResult.data == null)
                 {
@@ -432,9 +426,9 @@ namespace ControlCenterServer.Controllers
                 }
                 #endregion
 
-                //DeploymentInfo challengeInstance = startResult.data;
-                //DeploymentDomainName = challengeInstance.DeploymentDomainName;
-                //await redisHelper.SetCacheAsync(StartedCacheKey, challengeInstance, TimeSpan.MaxValue);
+                DeploymentInfo challengeInstance = startResult.data;
+                DeploymentDomainName = challengeInstance.DeploymentDomainName;
+                await redisHelper.SetCacheAsync(StartedCacheKey, challengeInstance, TimeSpan.MaxValue);
 
                 #region Commented Code
                 //_ = Task.Run(async () =>

@@ -1,5 +1,4 @@
-﻿using MassTransit;
-using MQ_Consumer.Configs;
+using MassTransit;
 using Newtonsoft.Json;
 using ResourceShared.Configs;
 using ResourceShared.DTOs;
@@ -28,49 +27,35 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
 
     public async Task Consume(ConsumeContext<StartChallengeInstanceRequest> context)
     {
-        RedisHelper _redis = new RedisHelper(_connectionMultiplexer);
-        string key = $"{RedisConfigs.RedisStartedChallengeKey}_{context.Message.ChallengeId}_{context.Message.TeamId}";
-        string redisDeployKey = $"{RedisConfigs.RedisDeployKey}{context.Message.ChallengeId}";
-
-        var redisGetDeployInfo = await _redis.GetFromCacheAsync<DeploymentInfo>(redisDeployKey);
-        if (redisGetDeployInfo == null || redisGetDeployInfo.LastDeployTime == null)
-        {
-            await Console.Out.WriteLineAsync($"[ERR] Challenge {context.Message.ChallengeId} is not yet deployed, can't start");
-            DeploymentInfo deploymentInfo = new DeploymentInfo
-            {
-                ChallengeId = context.Message.ChallengeId,
-                TeamId = context.Message.TeamId,
-                Status = "Failed",
-            };
-            await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(deploymentInfo), TimeSpan.FromSeconds(90));
-            return;
-        }
-        #region Tìm Challenge Server đã deploy target challenge 
-        var challengeHostServer = ControlCenterServiceConfig.ChallengeServerInfoList.FirstOrDefault(c => c.ServerId == redisGetDeployInfo.ServerId);
-        if (challengeHostServer == null)
-        {
-            await Console.Out.WriteLineAsync($"[ERR] Config of Challenge Hosting Platform in Control Center Platform is invalid, please check then try again");
-            DeploymentInfo deploymentInfo = new DeploymentInfo
-            {
-                ChallengeId = context.Message.ChallengeId,
-                TeamId = context.Message.TeamId,
-                Status = "Failed",
-            };
-            await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(deploymentInfo), TimeSpan.FromSeconds(90));
-            return;
-        }
-        #endregion
-
         var startRequest = new RestRequest();
         startRequest.Method = Method.Post;
-        startRequest.Resource = "api/challenge/start";
+        RedisHelper _redis = new RedisHelper(_connectionMultiplexer);
+        string key = $"{RedisConfigs.RedisStartedChallengeKey}_{context.Message.ChallengeId}_{context.Message.TeamId}";
+        var apiUrl = _config["Api:Url"];
+        //var client = _httpClientFactory.CreateClient();
 
-        long unixTime = DateTimeHelper.GetDateTimeNowInUnix();
+        //// send request to API (challenge server or jenkins) to start challenge
+        //using var form = new MultipartFormDataContent
+        //{
+        //    { new StringContent(context.Message.ChallengeId.ToString()), nameof(StartChallengeInstanceRequest.ChallengeId) },
+        //    { new StringContent(context.Message.TeamId.ToString()), nameof(StartChallengeInstanceRequest.TeamId) },
+        //    { new StringContent(context.Message.TimeLimit.ToString()), nameof(StartChallengeInstanceRequest.TimeLimit) },
+        //    { new StringContent(context.Message.ImageLink ?? "{}"), nameof(StartChallengeInstanceRequest.ImageLink) }
+        //};
+
+        //var request = new HttpRequestMessage(HttpMethod.Post, $"{apiUrl}")
+        //{
+        //    Content = form
+        //};
+        //Console.WriteLine("Key: "+context.Message.SecretKey);
+        //request.Headers.Add("SecretKey", context.Message.SecretKey);
+
+        //var response = await client.SendAsync(request);
         var instanceInfoJson = JsonConvert.SerializeObject(context.Message);
+        Console.WriteLine($"context.Message: {(context.Message)}");
         var DictScrKey = JsonConvert.DeserializeObject<Dictionary<string, string>>(instanceInfoJson);
         var DictMultiService = JsonConvert.DeserializeObject<Dictionary<string, object>>(instanceInfoJson);
-
-
+        long unixTime = DateTimeHelper.GetDateTimeNowInUnix();
         if (DictScrKey == null || DictMultiService == null)
         {
             throw new Exception("Convert from obj instance info to dict failed");
@@ -83,14 +68,12 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
         string secretKeyStartChallenge = SecretKeyHelper.CreateSecretKey(unixTime, DictScrKey);
 
         startRequest.AddHeader("SecretKey", secretKeyStartChallenge);
-        string baseDeployUrl = challengeHostServer.ServerHost + ":" + challengeHostServer.ServerPort;
-       
-        MultiServiceConnector connector = new MultiServiceConnector(baseDeployUrl);
+
+        MultiServiceConnector connector = new MultiServiceConnector(apiUrl);
         GenaralViewResponseData<DeploymentInfo>? startResult
           = await connector.ExecuteRequest<GenaralViewResponseData<DeploymentInfo>>(startRequest, DictMultiService, RequestContentType.Form);
         var entity = await _redis.GetFromCacheAsync<DeploymentInfo>(key);
-
-        if (startResult != null && startResult.IsSuccess && startResult.data != null)
+        if (!(startResult == null || !startResult.IsSuccess || startResult.data == null))
         {
             DeploymentInfo challengeInstance = startResult.data;
             challengeInstance.Status = "running";
@@ -98,32 +81,13 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
 
             await Console.Out.WriteLineAsync($"[OK] Started challenge {context.Message.ChallengeId} for team {context.Message.TeamId}");
             await Console.Out.WriteLineAsync($"[OK] Data challenge: {JsonConvert.SerializeObject(await _redis.GetFromCacheAsync<DeploymentInfo>(key))}");
-
-            // TEMP
-            // luu redis cho admnin check
-            var adminKey = $"challenge_url_{context.Message.ChallengeId}_{context.Message.TeamId}";
-            var data = new
-            {
-                challenge_url = challengeInstance.DeploymentDomainName,
-                user_id = challengeInstance.TeamId, // sửa thành user_id              
-                challenge_id = challengeInstance.ChallengeId,
-                time_finished = challengeInstance.EndTime.HasValue ? (int)new DateTimeOffset(challengeInstance.EndTime.Value).ToUnixTimeSeconds() : 0
-            };
-            // thoi gian het han
-            TimeSpan? adminKeyExpiry = null;
-            if (challengeInstance.EndTime.HasValue)
-            {
-                var ts = challengeInstance.EndTime.Value.ToUniversalTime() - DateTime.UtcNow;
-                adminKeyExpiry = ts > TimeSpan.Zero ? ts : TimeSpan.FromSeconds(1);
-            }
-            await _redis.SetCacheAsync(adminKey,data,adminKeyExpiry ?? TimeSpan.MaxValue);
         }
         else
         {
             if(entity != null)
             {
-                entity.Status = "Failed";
-                await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(entity), TimeSpan.FromSeconds(90));
+                entity.Status = "failed";
+                await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(entity), TimeSpan.FromDays(90));
             }
             else
             {
@@ -131,10 +95,12 @@ public class StartChallengeConsumer : IConsumer<StartChallengeInstanceRequest>
                 {
                     ChallengeId = context.Message.ChallengeId,
                     TeamId = context.Message.TeamId,
-                    Status = "Failed",
+                    Status = "failed",
                 };
-                await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(deploymentInfo), TimeSpan.FromSeconds(90));
+                await _redis.SetCacheAsync(key, JsonConvert.SerializeObject(deploymentInfo), TimeSpan.FromDays(90));
             }
+
+
             await Console.Out.WriteLineAsync($"[ERR] API call failed: { startResult.Message}");
         }
     }
