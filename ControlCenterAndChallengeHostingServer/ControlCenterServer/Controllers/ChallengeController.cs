@@ -387,7 +387,6 @@ namespace ControlCenterServer.Controllers
                 #region Call to Challenge Hosting Platform to start challenge
                 var startRequest = new RestRequest();
                 startRequest.Method = Method.Post;
-               // startRequest.Resource = "api/challenge/start";
                 startRequest.Resource = "mq/producer/start-challenge";
 
                 long unixTime = DateTimeHelper.GetDateTimeNowInUnix();
@@ -416,18 +415,15 @@ namespace ControlCenterServer.Controllers
                 MultiServiceConnector connector = new MultiServiceConnector(baseDeployUrl);
 
                 await Console.Out.WriteLineAsync("Before publish MQ");
-                var mqCacheKey = $"{RedisConfigs.RedisStartedChallengeKey}_Check_{ChallengeId}_{TeamId}";
                 DeploymentInfo challengeInstance = new DeploymentInfo
                 {
                     ChallengeId = instanceInfo.ChallengeId,
                     TeamId = instanceInfo.TeamId,
                     Status = "Creating",
                 };
-                await redisHelper.SetCacheAsync(mqCacheKey, challengeInstance, TimeSpan.MaxValue);
+                await redisHelper.SetCacheAsync(StartedCacheKey, challengeInstance, TimeSpan.MaxValue);
                 GenaralViewResponseData<string>? startResult
                   = await connector.ExecuteRequest<GenaralViewResponseData<string>>(startRequest, DictMultiService, RequestContentType.Json);
-                // GenaralViewResponseData<DeploymentInfo>? startResult
-                //   = await connector.ExecuteRequest<GenaralViewResponseData<DeploymentInfo>>(startRequest, DictMultiService, RequestContentType.Form);
                 await Console.Out.WriteLineAsync("MQ response: "+ JsonConvert.SerializeObject(startResult));
 
                 if (startResult == null || !startResult.IsSuccess || startResult.data == null)

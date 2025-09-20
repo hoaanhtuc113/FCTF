@@ -1,0 +1,17 @@
+[Unit]
+Description=Message Queue Consumer
+After=network.target
+
+[Service]
+ExecStart=/home/manhhuy/FCTF/ControlCenterAndChallengeHostingServer/MQ_Consumer/bin/Release/net8.0/linux-x64/publish/MQ_Consumer
+WorkingDirectory=/home/manhhuy/FCTF/ControlCenterAndChallengeHostingServer/MQ_Consumer/bin/Release/net8.0/linux-x64/publish
+Restart=always
+RestartSec=10
+SyslogIdentifier=mq_consumer
+StandardOutput=append:/home/manhhuy/FCTF/fctf-app.log
+StandardError=append:/home/manhhuy/FCTF/fctf-app.log
+User=manhhuy
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target
