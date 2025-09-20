@@ -3,7 +3,7 @@
 # Script quản lý triển khai và vận hành hệ thống FCTF
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
-PROJECT_ROOT="/home/ubuntu/FCTF-Platform-Deploy"
+PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -13,7 +13,7 @@ if ! sudo -n true 2>/dev/null; then
 fi
 
 # Di chuyển file dịch vụ mẫu và reload systemd
-for service in fctf-challenge fctf-control mq_consumer kubectl-proxy; do
+for service in fctf-challenge fctf-control mq_producer kubectl-proxy; do
     SOURCE_PATH="$PROJECT_ROOT/$service.service"
     DEST_PATH="/etc/systemd/system/$service.service"
     if [ -f "$SOURCE_PATH" ]; then
@@ -36,7 +36,7 @@ if [ ! -d "$PROJECT_ROOT" ]; then
 fi
 
 # Danh sách các cổng cần kiểm tra và giải phóng
-PORTS=(5000 5001 5003 6379 8000 8010)
+PORTS=(5000 5001 5010 6379 8000 8010)
 
 # Hàm hiển thị hướng dẫn sử dụng
 usage() {
@@ -238,7 +238,7 @@ update_appsettings() {
     # Tạo thư mục publish nếu chưa tồn tại
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish"
-    mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Consumer/bin/Release/net8.0/linux-x64/publish"
+    mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Producer/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
     # Cập nhật appsettings.json cho ChallengeHosting
@@ -269,7 +269,7 @@ update_appsettings() {
     "ENVIRONMENT_NAME": "$env_upper"
   },
   "ChallengeConfigs": {
-    "ChallengeBasePath": "/home/ubuntu/FCTF-Platform-Deploy/ctf-directory"
+    "ChallengeBasePath": "/home/manhhuy/FCTF/ctf-directory"
   }
 }
 EOF
@@ -308,47 +308,44 @@ EOF
 }
 EOF
 
-    # Cập nhật appsettings.json cho MQ_Consumer
-    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Consumer/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
+    # Cập nhật appsettings.json cho MQ_Producer
+    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Producer/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
 {
-  "Logging": {
+    "Logging": {
     "LogLevel": {
       "Default": "Information",
       "Microsoft.AspNetCore": "Warning"
     }
   },
   "AllowedHosts": "*",
-  "RabbitMQ": {
-    "Host": "dbzmn0zjiwmju.fctf.cloud",
-    "Port": 30672,
-    "Username": "user",
-    "Password": "Fctf2025@",
-    "VirtualHost": "/"
-  },
-  "Api": {
-    "Url": "http://localhost:5001/api/Challenge/start"
-  },
-  "ConnectionStrings": {
-    "RedisConnection": "127.0.0.1:6379"
-  },
-  "EnvironmentConfigs": {
-    "ENVIRONMENT_NAME": "$env_upper"
-  },
-  "ServiceConfigs": {
-    "PrivateKey": "emdungdepzai",
-    "ServerHost": "http://0.0.0.0",
-    "ServerPort": "5003",
-    "DomainName": "control.fctf.site",
-    "MaxInstanceAtTime": "3"
-  }
+    "ServiceConfigs": {
+        "SecretKey": "emdungdepzai",
+        "PrivateKey": "emdungdepzai",
+        "ServerHost": "http://0.0.0.0",
+        "ServerPort": "5010",
+        "DomainName": "$control_domain",
+        "MaxInstanceAtTime": "4"
+    },
+    "EnvironmentConfigs": {
+        "ENVIRONMENT_NAME": "$env_upper"
+    },
+    "ConnectionStrings": {
+        "RedisConnection": "127.0.0.1:6379"
+    },
+    "RabbitMQ": {
+        "Host": "dbzmn0zjiwmju.fctf.cloud",
+        "VirtualHost": "/",
+        "Username": "user",
+        "Password": "Fctf2025@",
+        "Port": 30672
+    }
 }
-
 EOF
 
     # Cập nhật file .env cho FCTF-ManagementPlatform
     # API_URL_CONTROLSERVER= Địa chỉ IP hoặc domain của ControlCenter
     cat > "$PROJECT_ROOT/.env" << EOF
-API_URL_CONTROLSERVER=http://192.168.110.175:5000 
+API_URL_CONTROLSERVER=http://172.31.177.154:5000 
 API_URL_ADMINSERVER=http://127.0.0.1:8000
 HOST_CACHE=cache
 PRIVATE_KEY=emdungdepzai
@@ -510,15 +507,16 @@ build_apps() {
         exit 1
     fi
     
-    # Kiểm tra file dự án MQ_Consumer
-    if [ ! -f "MQ_Consumer/MQ_Consumer.csproj" ]; then
-        echo "Lỗi: File dự án MQ_Consumer/MQ_Consumer.csproj không tồn tại."
+    # Kiểm tra file dự án MQ_Producer
+    if [ ! -f "MQ_Producer/MQ_Producer.csproj" ]; then
+        echo "Lỗi: File dự án MQ_Producer/MQ_Producer.csproj không tồn tại."
         exit 1
     fi
-    if ! dotnet publish MQ_Consumer/MQ_Consumer.csproj -c Release --framework net8.0 --runtime linux-x64 --self-contained true; then
-        echo "Lỗi: Build MQ_Consumer thất bại."
+    if ! dotnet publish MQ_Producer/MQ_Producer.csproj -c Release --framework net8.0 --runtime linux-x64 --self-contained true; then
+        echo "Lỗi: Build MQ_Producer thất bại."
         exit 1
     fi
+
     # Kiểm tra thư mục publish và file thực thi
     if [ ! -d "ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish" ]; then
         echo "Lỗi: Không thể tạo thư mục publish cho ChallengeManagementServer."
@@ -536,14 +534,15 @@ build_apps() {
         echo "Lỗi: File thực thi ControlCenterServer không được tạo."
         exit 1
     fi
-     if [ ! -d "MQ_Consumer/bin/Release/net8.0/linux-x64/publish" ]; then
-        echo "Lỗi: Không thể tạo thư mục publish cho MQ_Consumer."
+        if [ ! -d "MQ_Producer/bin/Release/net8.0/linux-x64/publish" ]; then
+        echo "Lỗi: Không thể tạo thư mục publish cho MQ_Producer."
         exit 1
     fi
-    if [ ! -f "MQ_Consumer/bin/Release/net8.0/linux-x64/publish/MQ_Consumer" ]; then
-        echo "Lỗi: File thực thi MQ_Consumer không được tạo."
+    if [ ! -f "MQ_Producer/bin/Release/net8.0/linux-x64/publish/MQ_Producer" ]; then
+        echo "Lỗi: File thực thi MQ_Producer không được tạo."
         exit 1
     fi
+
     cd "$PROJECT_ROOT"
     echo "Build themes, ứng dụng .NET, và giao diện thi sinh viên hoàn tất."
 }
@@ -594,10 +593,10 @@ start_system() {
         fi
 
         # Kiểm tra thêm bằng ps aux cho các tiến trình liên quan
-        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Consumer|kubectl proxy)" > /dev/null; then
+        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Producer|kubectl proxy)" > /dev/null; then
             echo "Phát hiện các tiến trình liên quan đang chạy:"
-            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Consumer|kubectl proxy)"
-            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Consumer|kubectl proxy)" | awk '{print $2}'); do
+            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Producer|kubectl proxy)"
+            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Producer|kubectl proxy)" | awk '{print $2}'); do
                 echo "Dừng tiến trình (PID: $pid)..."
                 sudo kill -9 $pid > /dev/null 2>&1 || true
                 sleep 1
@@ -681,7 +680,7 @@ start_system() {
     sudo chmod 664 "$LOG_FILE"
 
     # Khởi động dịch vụ systemd cho hai ứng dụng .NET
-    for service in fctf-challenge fctf-control mq_consumer; do
+    for service in fctf-challenge fctf-control mq_producer; do
         if [ -f "/etc/systemd/system/$service.service" ]; then
             echo "Kích hoạt và khởi động dịch vụ $service..."
             sudo systemctl enable "$service"
@@ -713,7 +712,7 @@ stop_system() {
     echo "Dừng toàn bộ hệ thống..."
 
     # Dừng dịch vụ systemd cho hai ứng dụng .NET
-    for service in fctf-challenge fctf-control mq_consumer; do
+    for service in fctf-challenge fctf-control mq_producer; do
         if systemctl is-active --quiet "$service"; then
             echo "Dừng dịch vụ $service..."
             sudo systemctl stop "$service"
@@ -756,9 +755,9 @@ stop_system() {
     done
 
     # Dừng tất cả tiến trình kubectl proxy và .NET
-    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Consumer|kubectl proxy)" > /dev/null; then
+    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Producer|kubectl proxy)" > /dev/null; then
         echo "Dừng các tiến trình liên quan còn lại..."
-        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Consumer|kubectl proxy)" | awk '{print $2}'); do
+        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|MQ_Producer|kubectl proxy)" | awk '{print $2}'); do
             sudo kill -9 $pid > /dev/null 2>&1 || true
         done
     fi
@@ -830,7 +829,7 @@ check_status() {
     fi
 
     # Kiểm tra dịch vụ systemd
-    for service in fctf-challenge fctf-control mq_consumer; do
+    for service in fctf-challenge fctf-control mq_producer; do
         if [ -f "/etc/systemd/system/$service.service" ]; then
             echo "Trạng thái dịch vụ $service:"
             systemctl is-active --quiet "$service" && echo "$service đang chạy." || echo "$service không chạy."
@@ -889,9 +888,9 @@ clean_system() {
         rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release"
         echo "Đã xóa thư mục publish của ControlCenterServer."
     fi
-        if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Consumer/bin/Release" ]; then
-        rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Consumer/bin/Release"
-        echo "Đã xóa thư mục publish của MQ_Consumer."
+    if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Producer/bin/Release" ]; then
+        rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/MQ_Producer/bin/Release"
+        echo "Đã xóa thư mục publish của MQ_Producer."
     fi
 
     # Xóa image và container với xác nhận
