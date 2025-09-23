@@ -15,6 +15,7 @@ import {
   GET_CHALLENGE_DETAILS,
   SUBMIT_FLAG,
   API_ACTION_LOGS,
+  MANAGEMENT_API_URL,
 } from "../../constants/ApiConstant";
 import ApiHelper from "../../utils/ApiHelper";
 import { actionType } from "../../constants/ActionLogConstant";
@@ -143,11 +144,11 @@ const ChallengeDetail = () => {
   };
 
   const handleDowloadFiles = async (filePath) => {
-    const api = new ApiHelper(BASE_URL);
+    const api = new ApiHelper(MANAGEMENT_API_URL);
     try {
-      const response = await api.get(`${BASE_URL}${filePath}`);
+      const response = await api.get(`${MANAGEMENT_API_URL}${filePath}`);
       let fileName = getFileName(filePath);
-      saveAs(`${BASE_URL}${filePath}`, fileName);
+      saveAs(`${MANAGEMENT_API_URL}${filePath}`, fileName);
     } catch (error) {
       console.error("Error downloading file:", error);
     }
