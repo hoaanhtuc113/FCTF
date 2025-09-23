@@ -15,13 +15,22 @@ namespace SocialSync.Shared.Utils
             }
 
             // Phương thức để set object (phức tạp hơn string) vào cache
-            public async Task<bool> SetCacheAsync<T>(string key, T value, TimeSpan ExpiredTime)
+            public async Task<bool> SetCacheAsync<T>(string key, T value, TimeSpan? expiredTime = null)
             {
                 try
                 {
                     // Serialize object to string
                     string stringValue = JsonConvert.SerializeObject(value);
-                    bool isSet = await _cache.StringSetAsync(key, stringValue, ExpiredTime);
+                    bool isSet;
+                    if (expiredTime.HasValue)
+                    {
+                        isSet = await _cache.StringSetAsync(key, stringValue, expiredTime.Value);
+                    }
+                    else
+                    {
+                        // không expire
+                        isSet = await _cache.StringSetAsync(key, stringValue);
+                    }
                     return isSet;
                 }
                 catch (Exception)

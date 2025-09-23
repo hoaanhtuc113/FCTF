@@ -14,10 +14,17 @@ namespace ResourceShared.Utils
             options.Timeout = TimeSpan.FromMinutes(15);
             client = new RestClient(options);
         }
-        public async Task<string?> ExecuteNormalRequest(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType)
+        public async Task<string?> ExecuteNormalRequest(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType, Dictionary<string, string>? headers = null)
         {
             request.Method = method;
             request.Resource = ApiPath;
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    request.AddHeader(header.Key, header.Value);
+                }
+            }
             switch (contentType)
             {
                 case RequestContentType.Json:

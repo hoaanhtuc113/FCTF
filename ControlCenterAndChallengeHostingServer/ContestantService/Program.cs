@@ -1,4 +1,5 @@
 using ContestantService.Extensions;
+using ContestantService.Services;
 using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models; 
@@ -23,6 +24,7 @@ namespace ContestantService
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
             builder.Services.AddControllers();
+            builder.Services.AddHttpClient();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
@@ -61,8 +63,8 @@ namespace ContestantService
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
             builder.Services.AddSingleton<UserHelper>();
-
             builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
+            builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
             ServiceConfigs.SecretKey = configuration["ServiceConfigs:SecretKey"] ?? throw new Exception("Can't read ServiceConfigs:SecretKey");
