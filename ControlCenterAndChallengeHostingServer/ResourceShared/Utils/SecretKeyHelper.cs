@@ -29,7 +29,7 @@ namespace ResourceShared.Utils
             stringBuilder.Append(ServiceConfigs.PrivateKey);
             foreach (var param in sortedParams)
             {
-                stringBuilder.Append(param.Value);
+                stringBuilder.Append(param.Value ?? "1");
             }
 
             string EncryptedKey = MD5Helper.GenerateMD5Hash(stringBuilder.ToString());

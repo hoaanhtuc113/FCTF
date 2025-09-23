@@ -4,10 +4,10 @@
 # Hỗ trợ các môi trường: dev, uat, production
 
 # Định nghĩa đường dẫn gốc của dự án
-PROJECT_ROOT="/home/$USER/FCTF-Platform-Deploy"
+PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Danh sách các cổng cần kiểm tra và giải phóng
-PORTS=(5000 5001 6379 8000 8010)
+PORTS=(5000 5001 5002 6379 8000 8010)
 
 # Hàm hiển thị hướng dẫn sử dụng
 usage() {
@@ -148,6 +148,7 @@ update_appsettings() {
     # Tạo thư mục publish nếu chưa tồn tại
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish"
+    mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
     # Cập nhật appsettings.json cho ChallengeHosting
@@ -176,7 +177,7 @@ update_appsettings() {
     "ENVIRONMENT_NAME": "$env_upper"
   },
   "ChallengeConfigs": {
-    "ChallengeBasePath": "/home/$USER/ctf-directory"
+    "ChallengeBasePath": "/home/manhhuy/FCTF/ctf-directory"
   }
 }
 EOF
@@ -212,6 +213,34 @@ EOF
       "ServerName": "may-vip-1"
     }
   ]
+}
+EOF
+
+    # Cập nhật appsettings.json cho ControlCenter
+    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
+{
+    "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DbConnection": "Server=localhost;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;",
+    "RedisConnection": "127.0.0.1:6379"
+  },
+   "ServiceConfigs": {
+    "SecretKey": "emdungdepzai",
+    "PrivateKey": "emdungdepzai",
+    "ServerHost": "http://0.0.0.0",
+    "ServerPort": "5002",
+    "DomainName": "$control_domain",
+    "MaxInstanceAtTime": "4"
+  },
+    "EnvironmentConfigs": {
+    "ENVIRONMENT_NAME": "$env_upper"
+  }
 }
 EOF
 
@@ -269,6 +298,16 @@ build_apps() {
         exit 1
     fi
 
+    # Kiểm tra file dự án ContestantService
+    if [ ! -f "ContestantService/ContestantService.csproj" ]; then
+        echo "Lỗi: File dự án ContestantService/ContestantService.csproj không tồn tại."
+        exit 1
+    fi
+    if ! dotnet publish ContestantService/ContestantService.csproj -c Release --framework net8.0 --runtime linux-x64 --self-contained true; then
+        echo "Lỗi: Build ContestantService thất bại."
+        exit 1
+    fi
+
     # Kiểm tra xem thư mục publish và file thực thi đã được tạo chưa
     if [ ! -d "ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish" ]; then
         echo "Lỗi: Không thể tạo thư mục publish cho ChallengeManagementServer."
@@ -284,6 +323,14 @@ build_apps() {
     fi
     if [ ! -f "ControlCenterServer/bin/Release/net8.0/linux-x64/publish/ControlCenterServer" ]; then
         echo "Lỗi: File thực thi ControlCenterServer không được tạo."
+        exit 1
+    fi
+    if [ ! -d "ContestantService/bin/Release/net8.0/linux-x64/publish" ]; then
+        echo "Lỗi: Không thể tạo thư mục publish cho ContestantService."
+        exit 1
+    fi
+    if [ ! -f "ContestantService/bin/Release/net8.0/linux-x64/publish/ContestantService" ]; then
+        echo "Lỗi: File thực thi ContestantService không được tạo."
         exit 1
     fi
 
@@ -337,10 +384,10 @@ start_system() {
         fi
 
         # Kiểm tra thêm bằng ps aux cho các tiến trình liên quan
-        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" > /dev/null; then
+        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" > /dev/null; then
             echo "Phát hiện các tiến trình liên quan đang chạy:"
-            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)"
-            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" | awk '{print $2}'); do
+            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)"
+            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" | awk '{print $2}'); do
                 echo "Dừng tiến trình (PID: $pid)..."
                 sudo kill -9 $pid > /dev/null 2>&1 || true
                 sleep 1
@@ -426,6 +473,14 @@ start_system() {
     fi
     "$CHALLENGE_SERVER" &
 
+    # Chạy ContestantService
+    CONTESTANT_SERVICE="$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/ContestantService"
+    if [ ! -f "$CONTESTANT_SERVICE" ]; then
+        echo "Lỗi: File thực thi ContestantService không tồn tại tại $CONTESTANT_SERVICE."
+        exit 1
+    fi
+    "$CONTESTANT_SERVICE" &
+
     echo "Hệ thống đã được khởi động trong môi trường $env."
 }
 
@@ -443,6 +498,7 @@ stop_system() {
     # Dừng các tiến trình .NET và kubectl
     pkill -f ChallengeManagementServer || true
     pkill -f ControlCenterServer || true
+    pkill -f ContestantService || true
     pkill -f kubectl || true
 
     # Dừng các tiến trình trên các cổng được sử dụng
@@ -462,9 +518,9 @@ stop_system() {
     done
 
     # Dừng tất cả tiến trình kubectl proxy và .NET
-    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" > /dev/null; then
+    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" > /dev/null; then
         echo "Dừng các tiến trình liên quan còn lại..."
-        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" | awk '{print $2}'); do
+        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" | awk '{print $2}'); do
             sudo kill -9 $pid > /dev/null 2>&1 || true
         done
     fi
@@ -548,6 +604,12 @@ check_status() {
         echo "ControlCenterServer không chạy."
     fi
 
+    if pgrep -f ContestantService > /dev/null; then
+        echo "ContestantService đang chạy."
+    else
+        echo "ContestantService không chạy."
+    fi
+
     # Kiểm tra k8s proxy
     if ps aux | grep -v grep | grep "kubectl proxy" > /dev/null; then
         echo "Kubernetes proxy đang chạy:"
@@ -590,7 +652,10 @@ clean_system() {
         rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release"
         echo "Đã xóa thư mục publish của ControlCenterServer."
     fi
-
+    if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release" ]; then
+        rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release"
+        echo "Đã xóa thư mục publish của ContestantService."
+    fi
     # Xóa image Docker
     if [ -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
         cd "$PROJECT_ROOT/FCTF-ManagementPlatform"
@@ -622,6 +687,14 @@ check_config() {
         cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/appsettings.json"
     else
         echo "File appsettings.json của ControlCenter không tồn tại."
+    fi
+
+    # Kiểm tra appsettings.json của ContestantService
+    if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" ]; then
+        echo "Nội dung appsettings.json (ContestantService):"
+        cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json"
+    else
+        echo "File appsettings.json của ContestantService không tồn tại."
     fi
 
     # Kiểm tra .env của FCTF-ManagementPlatform

@@ -1,10 +1,12 @@
 using ContestantService.Extensions;
+using ContestantService.Services;
 using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models; 
 using ResourceShared.Configs;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using StackExchange.Redis;
 
 namespace ContestantService
 {
@@ -14,12 +16,15 @@ namespace ContestantService
         {
             var builder = WebApplication.CreateBuilder(args);
             var connectionString = builder.Configuration.GetConnectionString("DbConnection");
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
 
             // Add services to the container.
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
-
             builder.Services.AddControllers();
+            builder.Services.AddHttpClient();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
@@ -52,6 +57,7 @@ namespace ContestantService
                     }
                 });
             });
+            builder.Services.Configure<ProxyOptions>(builder.Configuration.GetSection("Proxy"));
 
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ConfigHelper>();
@@ -62,9 +68,12 @@ namespace ContestantService
                 var config = provider.GetRequiredService<ConfigHelper>();
                 return new ScoreHelper(options, config);
             });
-
+            builder.Services.AddSingleton<UserHelper>();
+            builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
+            builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
+            ServiceConfigs.SecretKey = configuration["ServiceConfigs:SecretKey"] ?? throw new Exception("Can't read ServiceConfigs:SecretKey");
 
             builder.Services.AddCors(options =>
             {
@@ -74,6 +83,8 @@ namespace ContestantService
                      .AllowAnyMethod()
                 );
             });
+
+
 
             await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();
