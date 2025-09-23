@@ -83,6 +83,29 @@ namespace ResourceShared.Utils
             return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
 
+        public static (object payload, string secretKey) PrepareChallengePayload(Challenge challenge, int team_id,int challenge_time)
+        {
+            var payload = new
+            {
+                ChallengeId = challenge.Id.ToString(),
+                TeamId = team_id.ToString() ,
+                TimeLimit = challenge_time.ToString(),
+                ImageLink = challenge.ImageLink ?? "",
+                UnixTime = challenge_time.ToString()
+            };
+
+            var data = new Dictionary<string, string>
+            {
+                { "ChallengeId", challenge.Id.ToString() },
+                { "TeamId", team_id.ToString() },
+                { "TimeLimit", challenge_time.ToString() },
+                { "ImageLink", challenge.ImageLink ?? "" }
+            };
+            var secretKey = SecretKeyHelper.CreateSecretKey(challenge_time,data);
+            return (payload, secretKey);
+
+        }
+
         //get_wrong_submissions_per_minute
         public static async Task<int> GetWrongSubmissionsPerMinute(AppDbContext db,int accountId)
         {
@@ -126,8 +149,6 @@ namespace ResourceShared.Utils
                 message = "Incorrect"
             };
         }
-
-
 
         private static bool Compare(Flag flag, string provided)
         {
