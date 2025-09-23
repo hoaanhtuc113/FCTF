@@ -309,12 +309,13 @@ EOF
 EOF
 
     # Cập nhật appsettings.json cho ContestantService
-    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
+    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << 'EOF'
 {
     "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
     }
   },
   "AllowedHosts": "*",
@@ -328,7 +329,8 @@ EOF
     "ServerHost": "http://0.0.0.0",
     "ServerPort": "5002",
     "DomainName": "$control_domain",
-    "MaxInstanceAtTime": "4"
+    "MaxInstanceAtTime": "4",
+    "ControlServerAPI": "http://localhost:5000"
   },
     "EnvironmentConfigs": {
     "ENVIRONMENT_NAME": "$env_upper"

@@ -1,6 +1,7 @@
 ﻿using ContestantService.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Team;
 using ResourceShared.Models;
 using ResourceShared.Utils;
@@ -14,11 +15,13 @@ namespace ContestantService.Controllers
         private readonly AppDbContext _context;
         private readonly CtfTimeHelper _ctfTimeHelper;
         private readonly ConfigHelper _configHelper;
-        public TeamController(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper)
+        private readonly ScoreHelper _scoreHelper;
+        public TeamController(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper,ScoreHelper scoreHelper)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
             _configHelper = configHelper;
+            _scoreHelper = scoreHelper;
         }
 
         [HttpPost("create")]
@@ -142,6 +145,213 @@ namespace ContestantService.Controllers
                 team_id = team.Id
             });
         }
+
+        [HttpPost("join")]
+        public async Task<IActionResult> JoinTeam([FromBody] JoinTeamRequestDTO request)
+        {
+            try
+            {
+                if (!_ctfTimeHelper.CtfTime())
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "You are not allowed to join a team at this time"
+                    });
+                }
+
+                if (_ctfTimeHelper.CtfEnded())
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "You are not allowed to join a team at this time"
+                    });
+                }
+
+                var user = HttpContext.GetCurrentUser();
+                if (user == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "You must log in first"
+                    });
+                }
+
+                if (user.TeamId != null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "You are already in a team",
+                        team = user.TeamId
+                    });
+                }
+
+                var team = _context.Teams.FirstOrDefault(t => t.Name == request.teamName);
+                if (team != null && SHA256Helper.VerifyPassword(request.teamPassword, team.Password))
+                {
+                    int teamSizeLimit = _configHelper.GetConfig("team_size", 0);
+                    if (teamSizeLimit > 0)
+                    {
+                        int teamSize = _context.Users.Count(u => u.TeamId == team.Id);
+                        if (teamSize >= teamSizeLimit)
+                        {
+                            return BadRequest(new
+                            {
+                                success = false,
+                                message = $"{team.Name} has already reached the team size limit of {teamSizeLimit}"
+                            });
+                        }
+                    }
+
+                    // Gán team cho user
+                    user.TeamId = team.Id;
+                    _context.Users.Update(user);
+                    await _context.SaveChangesAsync();
+
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "Successfully joined the team!",
+                        team = team.Name
+                    });
+                }
+
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Wrong team name or password"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An unexpected error occurred",
+                    error = ex.Message
+                });
+            }
+        }
+
+
+        [HttpGet("contestant")]
+        public async Task<IActionResult> GetScoreTeam()
+        {
+            var user = HttpContext.GetCurrentUser();
+            if (user == null)
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    error = "Unauthorized"
+                });
+            }
+            else
+            {
+                var team = await _context.Teams
+                           .Include(t => t.Users)
+                           .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
+                if (team == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Team not found"
+                    });
+                }
+                var users = await _context.Users
+                    .Where(u => u.TeamId == team.Id)
+                    .ToListAsync();
+
+                var members = new List<object>();
+
+                foreach (var u in users)
+                {
+                    var score = await _scoreHelper.GetUserScore(u, true);
+                    members.Add(new
+                    {
+                        name = u.Name,
+                        email = u.Email,
+                        score = score
+                    });
+                }
+                var challenges = await _context.Challenges
+                               .Where(c => c.State == "visible")
+                               .ToListAsync();
+                var totalScore = challenges.Sum(c => c.Value ?? 0);
+                var response = new
+                {
+                    name = team.Name,
+                    place = await _scoreHelper.GetTeamPlace(team,true),
+                    members,
+                    score = await _scoreHelper.GetTeamScore(team,true),
+                    challengeTotalScore = totalScore
+                };
+
+                return Ok(new
+                {
+                    success = true,
+                    data = response
+                });
+            }
+        }
+        [HttpGet("solves")]
+        public async Task<IActionResult> GetSolvesTeam()
+        {
+            var user = HttpContext.GetCurrentUser();
+            if (user == null)
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    error = "Token not found"
+                });
+            }
+            var team = await _context.Teams
+                           .Include(t => t.Users)
+                           .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
+            var solves = await _scoreHelper.GetTeamSolves(team, true);
+            var view = user.Type;
+            var submissions = solves.Select(s => new SubmissionDto
+            {
+                Id = s.Id,
+                ChallengeId = s.ChallengeId,
+                Challenge = s?.Challenge == null ? null : new ChallengeDto 
+                {
+                    Id = s.IdNavigation.Challenge.Id,
+                    Name = s.IdNavigation.Challenge.Name,
+                    Category = s.IdNavigation.Challenge.Category,
+                    Value = s.Challenge.Value ?? 0
+                },
+                User = s.User == null ? null : new UserDto
+                {
+                    Id = s.User.Id,
+                    Name = s.User.Name
+                },
+                Team = s.User?.Team == null ? null : new TeamDto
+                {
+                    Id = s.User.Team.Id,
+                    Name = s.User.Team.Name
+                },
+                Date = s.IdNavigation.Date,
+                Type = s.IdNavigation.Type,
+
+
+                Provided = view == "admin" ? s.IdNavigation.Provided : null,
+                Ip = view == "admin" ? s.IdNavigation.Ip : null
+            }).ToList();
+            return Ok(new
+            {
+                success = true,
+                data = submissions,
+                meta = new { count = submissions.Count }
+            });
+
+        }
+
 
 
     }
