@@ -3,14 +3,14 @@ Description=FCTF Contestant Service
 After=network.target
 
 [Service]
-ExecStart=/home/manhhuy/FCTF/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/ContestantService
-WorkingDirectory=/home/manhhuy/FCTF/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish
+ExecStart=/home/ubuntu/FCTF-Platform-Deploy/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/ContestantService
+WorkingDirectory=/home/ubuntu/FCTF-Platform-Deploy/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish
 Restart=always
 RestartSec=10
 SyslogIdentifier=fctf-contestant
-StandardOutput=append:/home/manhhuy/FCTF/fctf-app.log
-StandardError=append:/home/manhhuy/FCTF/fctf-app.log
-User=manhhuy
+StandardOutput=append:/home/ubuntu/FCTF-Platform-Deploy/fctf-app.log
+StandardError=append:/home/ubuntu/FCTF-Platform-Deploy/fctf-app.log
+User=ubuntu
 Environment=ASPNETCORE_ENVIRONMENT=Production
 
 [Install]

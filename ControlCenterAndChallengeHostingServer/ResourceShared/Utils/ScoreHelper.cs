@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ResourceShared.DTOs.Score;
 using ResourceShared.Models;
 using StackExchange.Redis;
 using System.Linq;
@@ -224,6 +225,101 @@ namespace ResourceShared.Utils
 
             var current = standings.FirstOrDefault(x => x.TeamId == team.Id);
             return current?.Place;
+        }
+        public async Task<List<StandingDto>> GetStandings(int? count = null, int? bracketId = null, bool admin = false)
+        {
+            using var _context = new AppDbContext(dbOptions);
+
+            var freeze = configHelper.GetConfig<long?>("freeze");
+            DateTime? freezeUtc = null;
+            if (freeze.HasValue)
+                freezeUtc = DateTimeOffset.FromUnixTimeSeconds(freeze.Value).UtcDateTime;
+
+
+            var solveScores = _context.Solves
+                .Include(s => s.Challenge)
+                .Where(s => s.Challenge.Value != 0)
+                .AsQueryable();
+
+            if (!admin && freezeUtc.HasValue)
+                solveScores = solveScores.Where(s => s.IdNavigation.Date < freezeUtc.Value);
+
+            var scoresGroup = solveScores
+                .GroupBy(s => s.TeamId)
+                .Select(g => new
+                {
+                    account_id = g.Key,
+                    Score = g.Sum(x => x.Challenge.Value),
+                    id = g.Max(x => x.Id),
+                    date = g.Max(x => x.IdNavigation.Date)
+                });
+            var awardScores = _context.Awards
+                .Where(a => a.Value != 0)
+                .AsQueryable();
+
+            if (!admin && freezeUtc.HasValue)
+                awardScores = awardScores.Where(a => a.Date < freezeUtc.Value);
+
+            var awardsGroup = awardScores
+                .GroupBy(a => a.TeamId)
+                .Select(g => new
+                {
+                    account_id = g.Key,
+                    Score = g.Sum(x => x.Value),
+                    id = g.Max(x => x.Id),
+                    date = g.Max(x => x.Date)
+                });
+
+
+            var combined = scoresGroup.Concat(awardsGroup);
+
+
+            var sumScores = combined
+                .GroupBy(x => x.account_id)
+                .Select(g => new
+                {
+                    account_id = g.Key,
+                    Score = g.Sum(x => x.Score),
+                    LastId = g.Max(x => x.id),
+                    LastDate = g.Max(x => x.date)
+                });
+            var query = from acc in _context.Teams
+                        join s in sumScores on acc.Id equals s.account_id
+                        join b in _context.Brackets on acc.BracketId equals b.Id into bj
+                        from bracket in bj.DefaultIfEmpty()
+                        select new StandingDto
+                        {
+                            AccountId = acc.Id,
+                            OauthId = acc.OauthId,
+                            Name = acc.Name,
+                            BracketId = acc.BracketId,
+                            BracketName = bracket != null ? bracket.Name : null,
+                            Score = s.Score,
+                            LastId = s.LastId,
+                            LastDate = s.LastDate,
+                            Hidden = acc.Hidden,
+                            Banned = acc.Banned
+                        };
+
+            if (!admin)
+            {
+                query = query.Where(x => !x.Banned.Value && !x.Hidden.Value);
+            }
+
+            if (bracketId.HasValue)
+            {
+                query = query.Where(x => x.BracketId == bracketId.Value);
+            }
+
+            query = query
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.LastDate)
+                .ThenBy(x => x.LastId);
+
+            if (count.HasValue)
+                return await query.Take(count.Value).ToListAsync();
+            else
+                return await query.ToListAsync();
         }
     }
 }
