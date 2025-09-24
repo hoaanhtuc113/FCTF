@@ -9,12 +9,14 @@ namespace ResourceShared.Utils
     public class ScoreHelper
     {
         private readonly DbContextOptions<AppDbContext> dbOptions;
+        private readonly AppDbContext _context;
         private readonly ConfigHelper configHelper;
 
-        public ScoreHelper(DbContextOptions<AppDbContext> options, ConfigHelper config)
+        public ScoreHelper(DbContextOptions<AppDbContext> options, ConfigHelper config, AppDbContext appContext)
         {
             dbOptions = options;
             configHelper = config;
+            _context = appContext;
         }
 
         public async Task<int> GetUserScore(User user, bool admin = false)
@@ -320,6 +322,123 @@ namespace ResourceShared.Utils
                 return await query.Take(count.Value).ToListAsync();
             else
                 return await query.ToListAsync();
+        }
+
+        public async Task<List<Standing2Dto>> GetStandings2(int? count = null, int? bracketId = null, bool admin = false)
+        {
+            var scores = await _context.Solves.Include(s => s.Challenge)
+                                                .Where(s => s.Challenge.Value != 0)
+                                                .GroupBy(s => s.TeamId)
+                                                .Select(s => new
+                                                {
+                                                    account_id = s.Key,
+                                                    score = s.Sum(x => x.Challenge.Value),
+                                                    id = s.Max(x => x.Id),
+                                                    date = s.Max(x => x.IdNavigation.Date)
+                                                })
+                                                .ToListAsync();
+
+            var awards = await _context.Awards.Where(a => a.Value != 0)
+                                                .GroupBy(a => a.TeamId)
+                                                .Select(a => new
+                                                {
+                                                    account_id = a.Key,
+                                                    score = a.Sum(x => x.Value),
+                                                    id = a.Max(x => x.Id),
+                                                    date = a.Max(x => x.Date)
+                                                })
+                                                .ToListAsync();
+            var freeze = configHelper.GetConfig<long?>("freeze");
+            DateTime? freezeUtc = null;
+            if (freeze.HasValue)
+                freezeUtc = DateTimeOffset.FromUnixTimeSeconds(freeze.Value).UtcDateTime;
+
+            scores = scores.Where(s => s.date < freezeUtc.Value).ToList();
+            awards = awards.Where(a => a.date < freezeUtc.Value).ToList();
+
+            var result = scores.Concat(awards).ToList();
+
+            var sumScores = result.GroupBy(x => x.account_id)
+                                    .Select(g => new
+                                    {
+                                        account_id = g.Key,
+                                        score = g.Sum(x => x.score),
+                                        id = g.Max(x => x.id),
+                                        date = g.Max(x => x.date)
+                                    });
+            var model  = configHelper.GetModel();
+
+            IEnumerable<Standing2Dto> standingsQuery = Enumerable.Empty<Standing2Dto>();
+            if (model == "users")
+            {
+                var acc = await _context.Users
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.OauthId,
+                        u.Name,
+                        u.BracketId,
+                        BracketName = u.Bracket != null ? u.Bracket.Name : null
+                    })
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                standingsQuery = from user in acc
+                                 join s in sumScores on user.Id equals s.account_id
+                                 select new Standing2Dto
+                                 {
+                                     account_id = user.Id,
+                                     oauth_id = user.OauthId,
+                                     name = user.Name,
+                                     bracket_id = user.BracketId,
+                                     bracket_name = user.BracketName,
+                                     score = s.score,
+                                     id = s.id,
+                                     date = s.date
+                                 };
+            }
+            else if (model == "teams")
+            {
+                var acc = await _context.Teams
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.OauthId,
+                        t.Name,
+                        t.BracketId,
+                        BracketName = t.Bracket != null ? t.Bracket.Name : null
+                    })
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                standingsQuery = from team in acc
+                                 join s in sumScores on team.Id equals s.account_id
+                                 select new Standing2Dto
+                                 {
+                                     account_id = team.Id,
+                                     oauth_id = team.OauthId,
+                                     name = team.Name,
+                                     bracket_id = team.BracketId,
+                                     bracket_name = team.BracketName,
+                                     score = s.score,
+                                     id = s.id,
+                                     date = s.date
+                                 };
+            }
+
+            if (bracketId != null)
+                standingsQuery = standingsQuery.Where(x => x.bracket_id == bracketId.Value);
+
+            standingsQuery = standingsQuery
+                .OrderByDescending(x => x.score)
+                .ThenBy(x => x.date)
+                .ThenBy(x => x.id);
+
+            if (count != null)
+                standingsQuery = standingsQuery.Take(count.Value);
+
+            return standingsQuery.ToList();
+
         }
     }
 }

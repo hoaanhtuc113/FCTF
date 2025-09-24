@@ -19,4 +19,16 @@ namespace ResourceShared.DTOs.Score
         public bool? Hidden { get; set; }
         public bool? Banned { get; set; }
     }
+
+    public class Standing2Dto
+    {
+        public int? account_id { get; set; }
+        public int? oauth_id { get; set; }
+        public string? name { get; set; }
+        public int? bracket_id { get; set; }
+        public string? bracket_name { get; set; }
+        public int? score { get; set; }
+        public int? id { get; set; }
+        public DateTime? date { get; set; }
+    }
 }
