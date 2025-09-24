@@ -97,7 +97,7 @@ namespace ContestantService.Controllers
             foreach (var key in solvesMapper.Keys.ToList())
             {
                 solvesMapper[key] = solvesMapper[key]
-                    .OrderBy(s => (string)s.GetType().GetProperty("date").GetValue(s))
+                    .OrderBy(s => (DateTime)s.GetType().GetProperty("date").GetValue(s))
                     .ToList();
             }
 
@@ -257,7 +257,7 @@ namespace ContestantService.Controllers
             foreach (var key in solvesMapper.Keys.ToList())
             {
                 solves_mapper[key] = solves_mapper[key]
-                    .OrderBy(s => (string)s.GetType().GetProperty("date").GetValue(s))
+                    .OrderBy(s => (DateTime)s.GetType().GetProperty("date").GetValue(s))
                     .ToList();
             }
 
