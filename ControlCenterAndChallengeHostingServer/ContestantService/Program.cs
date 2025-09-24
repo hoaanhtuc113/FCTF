@@ -56,12 +56,7 @@ namespace ContestantService
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
-            builder.Services.AddScoped<ScoreHelper>(provider =>
-            {
-                var options = provider.GetRequiredService<DbContextOptions<AppDbContext>>();
-                var config = provider.GetRequiredService<ConfigHelper>();
-                return new ScoreHelper(options, config);
-            });
+            builder.Services.AddScoped<ScoreHelper>();
 
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();

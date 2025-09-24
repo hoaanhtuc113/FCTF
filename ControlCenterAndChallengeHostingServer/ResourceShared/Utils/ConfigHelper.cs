@@ -61,6 +61,11 @@ namespace ResourceShared.Utils
                 return new KeyNotFoundException();
             });
         }
+
+        public string GetModel()
+        {
+            return GetConfig<string>("user_mode");
+        }
     }
 
 }
