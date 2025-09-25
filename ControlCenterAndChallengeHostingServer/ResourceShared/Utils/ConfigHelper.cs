@@ -67,9 +67,9 @@ namespace ResourceShared.Utils
             return GetConfig("ctf_name", "CTF");
         }
 
-        public object UserMode()
+        public string UserMode()
         {
-            return GetConfig("user_mode");
+            return GetConfig<string>("user_mode");
         }
 
         public bool IsUserMode()

@@ -13,7 +13,7 @@ namespace ResourceShared.DTOs.Submit
 
         public int? AccountId { get; set; }
 
-        public virtual Challenge? Challenge { get; set; }
+        public virtual ResourceShared.Models.Challenge? Challenge { get; set; }
 
         public virtual Submission IdNavigation { get; set; } = null!;
         public virtual ResourceShared.Models.Team? Team { get; set; }
