@@ -62,7 +62,6 @@ namespace ResourceShared.Utils
             });
         }
 
-
         public object CtfName()
         {
             return GetConfig("ctf_name", "CTF");
