@@ -308,13 +308,14 @@ EOF
 }
 EOF
 
-    # Cập nhật appsettings.json cho ControlCenter
-    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
+    # Cập nhật appsettings.json cho ContestantService
+    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << 'EOF'
 {
     "Logging": {
     "LogLevel": {
       "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
     }
   },
   "AllowedHosts": "*",
@@ -323,14 +324,26 @@ EOF
     "RedisConnection": "127.0.0.1:6379"
   },
    "ServiceConfigs": {
+    "SecretKey": "emdungdepzai",
     "PrivateKey": "emdungdepzai",
     "ServerHost": "http://0.0.0.0",
     "ServerPort": "5002",
     "DomainName": "$control_domain",
-    "MaxInstanceAtTime": "4"
+    "MaxInstanceAtTime": "4",
+    "ControlServerAPI": "http://localhost:5000"
   },
     "EnvironmentConfigs": {
     "ENVIRONMENT_NAME": "$env_upper"
+  },
+  "Proxy": {
+    "TrustedProxies": [
+        "^127\\.0\\.0\\.1$",
+        "^::1$",
+        "^fc00:",
+        "^10\\.",
+        "^172\\.(1[6-9]|2[0-9]|3[0-1])\\.",
+        "^192\\.168\\."
+    ]
   }
 }
 EOF

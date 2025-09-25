@@ -62,9 +62,24 @@ namespace ResourceShared.Utils
             });
         }
 
-        public string GetModel()
+        public object CtfName()
         {
-            return GetConfig<string>("user_mode");
+            return GetConfig("ctf_name", "CTF");
+        }
+
+        public object UserMode()
+        {
+            return GetConfig("user_mode");
+        }
+
+        public bool IsUserMode()
+        {
+            return UserMode()?.ToString() == Enums.Mode.User;
+        }
+
+        public bool IsTeamsMode()
+        {
+            return UserMode()?.ToString() == Enums.Mode.Team;
         }
     }
 

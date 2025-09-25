@@ -29,7 +29,7 @@ namespace ContestantService.Middlewares
                             var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
                             if (tokenAuth != null)
                             {
-                                var user = await db.Users.FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
+                                var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
                                 if (user != null)
                                 {
                                     context.Items["CurrentUser"] = user;
