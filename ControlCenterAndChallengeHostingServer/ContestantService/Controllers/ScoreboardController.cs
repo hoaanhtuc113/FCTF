@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Submit;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using StackExchange.Redis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -19,7 +20,7 @@ namespace ContestantService.Controllers
         private readonly CtfTimeHelper _ctfTimeHelper;
         private readonly ConfigHelper _configHelper;
         private readonly ScoreHelper _scoreHelper;
-
+        private string mode = "teams";
         public ScoreboardController(
             AppDbContext context,
             CtfTimeHelper ctfTimeHelper,
@@ -30,6 +31,24 @@ namespace ContestantService.Controllers
             _ctfTimeHelper = ctfTimeHelper;
             _configHelper = configHelper;
             _scoreHelper = scoreHelper;
+            mode = _configHelper.GetModel();
+        }
+        public int? GetAccountId(Solf solve)
+        {
+            if (mode == "teams")
+                return solve.TeamId;
+            else if (mode == "users")
+                return solve.UserId;
+            return null;
+        }
+
+        public int? GetAccountId(Award award)
+        {
+            if (mode == "teams")
+                return award.TeamId;
+            else if (mode == "users")
+                return award.UserId;
+            return null;
         }
 
         [HttpGet("top/{count:int}")]
@@ -37,10 +56,10 @@ namespace ContestantService.Controllers
         {
             var response = new Dictionary<int, object>();
             var standings = await _scoreHelper.GetStandings(count, bracket_id);
-            var teamIds = standings.Select(t => t.AccountId).ToList();
+            var accountIds = standings.Select(t => t.AccountId).ToList();
 
-            var solvesQuery = _context.Solves.Where(s => teamIds.Contains(s.TeamId.Value));
-            var awardsQuery = _context.Awards.Where(a => teamIds.Contains(a.TeamId.Value));
+            var solvesQuery = _context.Solves.Where(s => accountIds.Contains(GetAccountId(s)));
+            var awardsQuery = _context.Awards.Where(a => accountIds.Contains(GetAccountId(a)));
 
             // Freeze logic
             var freeze = _configHelper.GetConfig<long?>("freeze");
@@ -63,12 +82,12 @@ namespace ContestantService.Controllers
 
             foreach (var solve in solves)
             {
-                if (!solvesMapper.ContainsKey(solve.TeamId.Value))
-                    solvesMapper[solve.TeamId.Value] = new List<object>();
+                if (!solvesMapper.ContainsKey(GetAccountId(solve).Value))
+                    solvesMapper[GetAccountId(solve).Value] = new List<object>();
 
-                solvesMapper[solve.TeamId.Value].Add(new
+                solvesMapper[GetAccountId(solve).Value].Add(new
                 {
-                    challenge_id = solve.ChallengeId,
+                    challenge_id = GetAccountId(solve).Value,
                     account_id = solve.TeamId,
                     team_id = solve.TeamId,
                     user_id = solve.UserId,
@@ -79,13 +98,13 @@ namespace ContestantService.Controllers
 
             foreach (var award in awards)
             {
-                if (!solvesMapper.ContainsKey(award.TeamId.Value))
-                    solvesMapper[award.TeamId.Value] = new List<object>();
+                if (!solvesMapper.ContainsKey(GetAccountId(award).Value))
+                    solvesMapper[GetAccountId(award).Value] = new List<object>();
 
-                solvesMapper[award.TeamId.Value].Add(new
+                solvesMapper[GetAccountId(award).Value].Add(new
                 {
                     challenge_id = (int?)null,
-                    account_id = award.TeamId,
+                    account_id = GetAccountId(award).Value,
                     team_id = award.TeamId,
                     user_id = award.UserId,
                     value = award.Value,

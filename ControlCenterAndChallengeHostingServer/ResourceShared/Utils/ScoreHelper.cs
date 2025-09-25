@@ -228,7 +228,10 @@ namespace ResourceShared.Utils
             var current = standings.FirstOrDefault(x => x.TeamId == team.Id);
             return current?.Place;
         }
-        public async Task<List<StandingDto>> GetStandings(int? count = null, int? bracketId = null, bool admin = false)
+        public async Task<List<StandingDto>> GetStandings(
+        int? count = null,
+        int? bracketId = null,
+        bool admin = false)
         {
             using var _context = new AppDbContext(dbOptions);
 
@@ -237,17 +240,23 @@ namespace ResourceShared.Utils
             if (freeze.HasValue)
                 freezeUtc = DateTimeOffset.FromUnixTimeSeconds(freeze.Value).UtcDateTime;
 
+            // mode: teams / users
+            var userMode = configHelper.GetConfig<string>("user_mode") ?? "teams";
 
+            // chọn field group key
+            Func<Solf, int?> solveAccountKey = s => userMode == "teams" ? s.TeamId : s.UserId;
+            Func<Award, int?> awardAccountKey = a => userMode == "teams" ? a.TeamId : a.UserId;
+
+            // ===== Solves =====
             var solveScores = _context.Solves
                 .Include(s => s.Challenge)
-                .Where(s => s.Challenge.Value != 0)
-                .AsQueryable();
+                .Where(s => s.Challenge.Value != 0);
 
             if (!admin && freezeUtc.HasValue)
                 solveScores = solveScores.Where(s => s.IdNavigation.Date < freezeUtc.Value);
 
             var scoresGroup = solveScores
-                .GroupBy(s => s.TeamId)
+                .GroupBy(s => solveAccountKey(s))
                 .Select(g => new
                 {
                     account_id = g.Key,
@@ -255,15 +264,16 @@ namespace ResourceShared.Utils
                     id = g.Max(x => x.Id),
                     date = g.Max(x => x.IdNavigation.Date)
                 });
+
+            // ===== Awards =====
             var awardScores = _context.Awards
-                .Where(a => a.Value != 0)
-                .AsQueryable();
+                .Where(a => a.Value != 0);
 
             if (!admin && freezeUtc.HasValue)
                 awardScores = awardScores.Where(a => a.Date < freezeUtc.Value);
 
             var awardsGroup = awardScores
-                .GroupBy(a => a.TeamId)
+                .GroupBy(a => awardAccountKey(a))
                 .Select(g => new
                 {
                     account_id = g.Key,
@@ -272,9 +282,8 @@ namespace ResourceShared.Utils
                     date = g.Max(x => x.Date)
                 });
 
-
+            // ===== Combine & Sum =====
             var combined = scoresGroup.Concat(awardsGroup);
-
 
             var sumScores = combined
                 .GroupBy(x => x.account_id)
@@ -285,7 +294,12 @@ namespace ResourceShared.Utils
                     LastId = g.Max(x => x.id),
                     LastDate = g.Max(x => x.date)
                 });
-            var query = from acc in _context.Teams
+
+            IQueryable<StandingDto> query;
+
+            if (userMode == "teams")
+            {
+                query = from acc in _context.Teams
                         join s in sumScores on acc.Id equals s.account_id
                         join b in _context.Brackets on acc.BracketId equals b.Id into bj
                         from bracket in bj.DefaultIfEmpty()
@@ -302,10 +316,29 @@ namespace ResourceShared.Utils
                             Hidden = acc.Hidden,
                             Banned = acc.Banned
                         };
+            }
+            else // users
+            {
+                query = from acc in _context.Users
+                        join s in sumScores on acc.Id equals s.account_id
+                        select new StandingDto
+                        {
+                            AccountId = acc.Id,
+                            OauthId = acc.OauthId,
+                            Name = acc.Name,
+                            BracketId = acc.BracketId,
+                            BracketName = null,
+                            Score = s.Score,
+                            LastId = s.LastId,
+                            LastDate = s.LastDate,
+                            Hidden = acc.Hidden,
+                            Banned = acc.Banned
+                        };
+            }
 
             if (!admin)
             {
-                query = query.Where(x => !x.Banned.Value && !x.Hidden.Value);
+                query = query.Where(x => !(x.Banned ?? false) && !(x.Hidden ?? false));
             }
 
             if (bracketId.HasValue)
@@ -318,11 +351,11 @@ namespace ResourceShared.Utils
                 .ThenBy(x => x.LastDate)
                 .ThenBy(x => x.LastId);
 
-            if (count.HasValue)
-                return await query.Take(count.Value).ToListAsync();
-            else
-                return await query.ToListAsync();
+            return count.HasValue
+                ? await query.Take(count.Value).ToListAsync()
+                : await query.ToListAsync();
         }
+
 
         public async Task<List<Standing2Dto>> GetStandings2(int? count = null, int? bracketId = null, bool admin = false)
         {
