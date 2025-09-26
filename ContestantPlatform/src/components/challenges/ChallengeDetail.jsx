@@ -16,6 +16,7 @@ import {
   SUBMIT_FLAG,
   API_ACTION_LOGS,
   MANAGEMENT_API_URL,
+  API_POST_ACTION_LOGS,
 } from "../../constants/ApiConstant";
 import ApiHelper from "../../utils/ApiHelper";
 import { actionType } from "../../constants/ActionLogConstant";
@@ -67,7 +68,7 @@ const ChallengeDetail = () => {
   const logUserAction = async (actionType, actionDetail, challenge_id) => {
     const api = new ApiHelper(BASE_URL);
     try {
-      const response = await api.post(`${API_ACTION_LOGS}`, {
+      const response = await api.post(`${API_POST_ACTION_LOGS}`, {
         actionType: actionType,
         actionDetail: actionDetail,
         challenge_id: challengeId,

@@ -62,7 +62,7 @@ namespace ContestantService.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("save-logs")]
         public async Task<IActionResult> PostActionLogs([FromBody] ActionLogsReq req)
         {
             if (!ModelState.IsValid)
