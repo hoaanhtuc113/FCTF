@@ -10,7 +10,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ContestantService.Controllers
 {
-    [Route("api/action_logs")]
+    [Route("api/[controller]")]
     [ApiController]
     public class ActionLogsController : ControllerBase
     {
@@ -21,7 +21,7 @@ namespace ContestantService.Controllers
             _context = context;
         }
 
-        [HttpGet]
+        [HttpGet("get-logs")]
         public async Task<IActionResult> GetActionLogs()
         {
             try { 

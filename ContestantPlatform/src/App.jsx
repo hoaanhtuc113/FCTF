@@ -4,7 +4,7 @@ import { io } from "socket.io-client";
 import Swal from "sweetalert2";
 
 import "./App.css";
-import { BASE_URL, API_ACTION_LOGS } from "./constants/ApiConstant";
+import { BASE_URL,API_GET_ACTION_LOGS } from "./constants/ApiConstant";
 import ApiHelper from "./utils/ApiHelper";
 import { ACCESS_TOKEN_KEY } from "./constants/LocalStorageKey";
 
@@ -39,7 +39,7 @@ function App() {
     const fetchInitialLogs = async () => {
       const api = new ApiHelper(BASE_URL);
       try {
-        const response = await api.get(API_ACTION_LOGS);
+        const response = await api.get(API_GET_ACTION_LOGS);
         if (response.success) {
           setActionLogs(response.data);
         } else {

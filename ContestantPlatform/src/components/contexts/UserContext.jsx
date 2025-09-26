@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { BASE_URL, USER_DETAILS } from "../../constants/ApiConstant";
+import { BASE_URL, MANAGEMENT_API_URL, USER_DETAILS } from "../../constants/ApiConstant";
 import { ACCESS_TOKEN_KEY } from "../../constants/LocalStorageKey";
 
 const UserContext = createContext();
@@ -17,7 +17,7 @@ export const UserProvider = ({ children }) => {
             if (!token) return;
 
             try {
-                const response = await fetch(`${BASE_URL}${USER_DETAILS}`, {
+                const response = await fetch(`${MANAGEMENT_API_URL}${USER_DETAILS}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
