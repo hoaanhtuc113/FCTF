@@ -7,7 +7,7 @@
 PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Danh sách các cổng cần kiểm tra và giải phóng
-PORTS=(5000 5001 5002 6379 8000 8010)
+PORTS=(5000 5001 5010 6379 8000 8010)
 
 # Hàm hiển thị hướng dẫn sử dụng
 usage() {
@@ -234,7 +234,7 @@ EOF
     "SecretKey": "emdungdepzai",
     "PrivateKey": "emdungdepzai",
     "ServerHost": "http://0.0.0.0",
-    "ServerPort": "5002",
+    "ServerPort": "5010",
     "DomainName": "$control_domain",
     "MaxInstanceAtTime": "4"
   },

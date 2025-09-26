@@ -9,7 +9,7 @@ import { MapManager } from "../map/MapManager";
 import { ExplosionManager } from "../map/ExplosionManager";
 import { CoinManager } from "../map/CoinManager";
 import ApiHelper from "../../utils/ApiHelper";
-import { BASE_URL, API_ACTION_LOGS } from "../../constants/ApiConstant";
+import { BASE_URL, API_GET_ACTION_LOGS } from "../../constants/ApiConstant";
 import { actionType } from "../../constants/ActionLogConstant";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -58,7 +58,7 @@ const ReplayActions = () => {
         const fetchLogs = async () => {
             const api = new ApiHelper(BASE_URL);
             try {
-                const response = await api.get(API_ACTION_LOGS);
+                const response = await api.get(API_GET_ACTION_LOGS);
                 if (response.success) {
                     setLogs(response.data);
                     setFilteredLogs(response.data);
