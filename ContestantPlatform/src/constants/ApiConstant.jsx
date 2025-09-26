@@ -58,6 +58,7 @@ export const API_GET_NOTIFICATION = "/api/notifications";
 //action_logs
 export const API_ACTION_LOGS = "/api/v1/action_logs";
 export const API_GET_ACTION_LOGS = "/api/ActionLogs/get-logs";
+export const API_POST_ACTION_LOGS = "/api/ActionLogs/save-logs";
 
 //replay
 export const API_PUBLIC_CHALLENGE_GET_TOPICS = "/api/public/challenge/by-topic";
