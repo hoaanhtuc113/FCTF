@@ -8,6 +8,12 @@ namespace ResourceShared
 {
     public static class Enums
     {
+
+        public static class UserType
+        {
+            public const string User = "user";
+        }
+
         public static class Mode
         {
             public  const string User = "users";
@@ -27,6 +33,12 @@ namespace ResourceShared
             public const string CORRECT = "correct";
             public const string INCORRECT = "incorrect";
             public const string DISCARD = "discard";
+        }
+
+        public static class ChallengeState
+        {
+            public const string VISIBLE = "visible";
+            public const string HIDDEN = "hidden";
         }
     }
 }

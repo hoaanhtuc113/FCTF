@@ -1,5 +1,6 @@
 ﻿using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.File;
 using ResourceShared.DTOs.Topic;
@@ -145,7 +146,7 @@ namespace ContestantService.Services
 
         public async Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string category_name, int? team_id)
         {
-            var challenges = await _dbContext.Challenges.Where(c => c.Category == category_name && c.State != "hidden")
+            var challenges = await _dbContext.Challenges.Where(c => c.Category == category_name && c.State != Enums.ChallengeState.HIDDEN)
                 .ToListAsync();
 
             var topics_data = new List<ChallengeByCategoryDTO>();
@@ -174,13 +175,13 @@ namespace ContestantService.Services
         public async Task<List<TopicDTO>> GetTopic(User user)
         {
             var distinct_categories = await _dbContext.Challenges
-                    .Where(c => c.State != "hidden")
+                    .Where(c => c.State != Enums.ChallengeState.HIDDEN)
                     .Select(c => c.Category)
                     .Distinct()
                     .ToListAsync();
 
             var challenge_counts_by_topic = await _dbContext.Challenges
-                .Where(c => c.State != "hidden")
+                .Where(c => c.State != Enums.ChallengeState.HIDDEN)
                 .GroupBy(c => c.Category)
                 .Select(g => new
                 {
@@ -198,7 +199,7 @@ namespace ContestantService.Services
                 var topic_name = category;
                 var solved_challenges = _dbContext.Solves.Include(s => s.Challenge)
                                                         .Where(s => s.Challenge.Category == topic_name
-                                                                    && s.Challenge.State != "hidden"
+                                                                    && s.Challenge.State != Enums.ChallengeState.HIDDEN
                                                                     && s.TeamId == user.TeamId)
                                                         .AsEnumerable()
                                                         .DistinctBy(s => s.ChallengeId)

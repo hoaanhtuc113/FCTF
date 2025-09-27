@@ -12,6 +12,7 @@ using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Auth;
+using ResourceShared;
 
 
 namespace ContestantService.Controllers
@@ -40,7 +41,7 @@ namespace ContestantService.Controllers
             }
             User user = await _context.Users.Include(t=>t.Team).FirstOrDefaultAsync(u => u.Name == LoginDTO.username);
             Console.Out.WriteLine("User: "+user.Name);
-            if(user!=null && SHA256Helper.VerifyPassword(LoginDTO.password, user.Password) && user.Type == "user")
+            if(user!=null && SHA256Helper.VerifyPassword(LoginDTO.password, user.Password) && user.Type == Enums.UserType.User)
             {
                 DateTime dateTime = DateTime.Now + TimeSpan.FromDays(1);
                 Token token = await TokenHelper.GenerateUserToken(_context,user,dateTime,"Login token");

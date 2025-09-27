@@ -28,7 +28,8 @@ namespace ResourceShared.Utils
                 UserId = user.Id,
                 Expiration = expiration,
                 Description = description,
-                Value = value
+                Value = value,
+                Type = Enums.UserType.User
             };
 
             db.Tokens.Add(token);
