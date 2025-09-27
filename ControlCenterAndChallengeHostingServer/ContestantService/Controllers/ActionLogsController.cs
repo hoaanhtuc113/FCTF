@@ -1,4 +1,5 @@
 ﻿using ContestantService.Extensions;
+using ContestantService.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,33 +15,22 @@ namespace ContestantService.Controllers
     [ApiController]
     public class ActionLogsController : ControllerBase
     {
-        private AppDbContext _context;
+        private IActionLogsServices _actionLogsServices;
 
-        public ActionLogsController(AppDbContext context)
+        public ActionLogsController(IActionLogsServices actionLogsServices)
         {
-            _context = context;
+            _actionLogsServices = actionLogsServices;
         }
 
         [HttpGet("get-logs")]
         public async Task<IActionResult> GetActionLogs()
         {
             try { 
-                var logs_with_details = await _context.ActionLogs.Include(al => al.User).OrderByDescending(x => x.ActionDate)
-                                                        .Select(al => new
-                                                        {
-                                                            al.ActionId,
-                                                            al.ActionType,
-                                                            al.ActionDate,
-                                                            al.ActionDetail,
-                                                            al.TopicName,
-                                                            al.UserId,
-                                                            UserName = al.User != null ? al.User.Name : ""
-                                                        })
-                                                        .ToListAsync();
+                var logs_with_details = await _actionLogsServices.GetActionLogs();
 
                 if (logs_with_details == null || logs_with_details.Count == 0)
                 {
-                    return NotFound(new
+                    return Ok(new
                     {
                         success = false,
                         message = "No action logs found."
@@ -90,41 +80,7 @@ namespace ContestantService.Controllers
 
             try
             {
-                var topic_name = await _context.Challenges
-                                            .Where(c => c.Id == req.ChallengeId)
-                                            .Select(c => c.Category)
-                                            .FirstOrDefaultAsync();
-
-                var challenge = await _context.Challenges
-                                            .Where(c => c.Id == req.ChallengeId)
-                                            .FirstOrDefaultAsync();
-                var challenge_name = challenge != null ? challenge.Name : "Unknown";
-
-                var log = new ActionLog
-                {
-                    ActionType = req.ActionType,
-                    ActionDetail = req.ActionDetail,
-                    ActionDate = DateTime.UtcNow,
-                    UserId = user.Id,
-                    TopicName = topic_name ?? "Null",
-                };
-                _context.ActionLogs.Add(log);
-                await _context.SaveChangesAsync();
-
-                var logs_with_usernames = await _context.ActionLogs.Include(al => al.User)
-                                                            .Where(al => al.UserId == user.Id)
-                                                            .OrderByDescending(x => x.ActionDate)
-                                                            .Select(al => new
-                                                            {
-                                                                al.ActionId,
-                                                                al.ActionType,
-                                                                al.ActionDate,
-                                                                al.ActionDetail,
-                                                                al.TopicName,
-                                                                al.UserId,
-                                                                UserName = al.User != null ? al.User.Name : ""
-                                                            })
-                                                            .ToListAsync();
+                var log = await _actionLogsServices.SaveActionLogs(req, user.Id);
                 return Ok(new
                 {
                     success = true,

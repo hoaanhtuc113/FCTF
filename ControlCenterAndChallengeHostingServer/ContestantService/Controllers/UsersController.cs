@@ -1,6 +1,7 @@
 ﻿using ContestantService.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourceShared.DTOs.User;
 using ResourceShared.Models;
 
 namespace ContestantService.Controllers
@@ -48,10 +49,11 @@ namespace ContestantService.Controllers
                 });
             }
 
-            var response = new {
-                username = currentUser.Name,
-                email = currentUser.Email,
-                team = currentUser.Team.Name,
+            var response = new UserDTO
+            {
+                Username = currentUser.Name,
+                Email = currentUser.Email,
+                Team = currentUser.Team.Name,
             };
 
             return Ok(new
