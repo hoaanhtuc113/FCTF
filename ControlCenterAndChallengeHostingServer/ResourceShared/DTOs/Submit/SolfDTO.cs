@@ -18,6 +18,6 @@ namespace ResourceShared.DTOs.Submit
         public virtual Submission IdNavigation { get; set; } = null!;
         public virtual ResourceShared.Models.Team? Team { get; set; }
 
-        public virtual User? User { get; set; }
+        public virtual ResourceShared.Models.User? User { get; set; }
     }
 }
