@@ -1,4 +1,5 @@
 using ContestantService.Extensions;
+using ContestantService.Interfaces;
 using ContestantService.Services;
 using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -58,7 +59,12 @@ namespace ContestantService
                 });
             });
             builder.Services.Configure<ProxyOptions>(builder.Configuration.GetSection("Proxy"));
-
+            builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IHintService, HintService>();
+            builder.Services.AddScoped<ITeamService, TeamService>();
+            builder.Services.AddScoped<IScoreboardService, ScoreboardService>();
+            builder.Services.AddScoped<ITicketService, TicketService>();
+            builder.Services.AddScoped<IConfigService, ConfigService>();
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ConfigHelper>();
             builder.Services.AddSingleton<CtfTimeHelper>();
@@ -78,7 +84,7 @@ namespace ContestantService
                      .AllowAnyMethod()
                 );
             });
-
+            builder.Services.AddOutputCache();
 
 
             await Console.Out.WriteLineAsync("Config server done, run application....");
@@ -86,7 +92,7 @@ namespace ContestantService
 
             app.UseSwagger();
             app.UseSwaggerUI();
-
+            app.UseOutputCache();
             app.UseHttpsRedirection();
             app.UseCors("AllowAll");
             app.UseAuthorization();
