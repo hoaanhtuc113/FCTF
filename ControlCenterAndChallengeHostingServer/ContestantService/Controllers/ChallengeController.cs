@@ -63,32 +63,32 @@ namespace ContestantService.Controllers
 
                 var result = await _challengeServices.GetById(id, user);
 
-                if(result.HttpStatusCode != HttpStatusCode.OK || result.data == null)
+                if(result.HttpStatusCode != HttpStatusCode.OK || result.Data == null)
                 {
                     return StatusCode((int)result.HttpStatusCode, new
                     {
                         success = false,
-                        message = result.message
+                        message = result.Message
                     });
                 }
 
-                if (result.data.is_started)
+                if (result.Data.is_started)
                 {
                     return StatusCode((int)result.HttpStatusCode, new
                     {
-                        message = result.message,
-                        data = result.data.challenge,
-                        is_started = result.data.is_started,
-                        challenge_url = result.data.challenge_url,
-                        time_remaining = result.data.time_remaining
+                        message = result.Message,
+                        data = result.Data.challenge,
+                        is_started = result.Data.is_started,
+                        challenge_url = result.Data.challenge_url,
+                        time_remaining = result.Data.time_remaining
                     });
                 }
 
                 return StatusCode((int)result.HttpStatusCode, new
                 {
-                    message = result.data.success,
-                    data = result.data.challenge,
-                    is_started = result.data.is_started,
+                    message = result.Data.success,
+                    data = result.Data.challenge,
+                    is_started = result.Data.is_started,
                 });
             }
             catch (Exception ex)

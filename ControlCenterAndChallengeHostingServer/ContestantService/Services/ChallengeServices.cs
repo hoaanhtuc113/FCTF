@@ -1,6 +1,7 @@
 ﻿using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared;
+using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.File;
 using ResourceShared.DTOs.Topic;
@@ -12,7 +13,6 @@ using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
 using System.Text.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ContestantService.Services
 {
@@ -21,7 +21,7 @@ namespace ContestantService.Services
         Task<ChallengeStartResponeDTO> ChallengeStart(object payload, string secretKey, string apiStart, string cache_key, Challenge challenge, User user);
 
         Task ForceStopChallenge(string cache_key, int challengeId, int teamId);
-        Task<CommonResponse<ChallengeByIdDTO>> GetById(int challengeId, User user);
+        Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
         Task<List<TopicDTO>> GetTopic(User user);
 
         Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id);
@@ -38,7 +38,7 @@ namespace ContestantService.Services
             _httpFactory = httpFactory;
             _dbContext=dbContext;
         }
-        public async Task<CommonResponse<ChallengeByIdDTO>> GetById(int challengeId, User user)
+        public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
         {
             RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
             var challenge = await _dbContext.Challenges.Include(c => c.Files)
@@ -46,18 +46,18 @@ namespace ContestantService.Services
 
             if (challenge == null)
             {
-                return new CommonResponse<ChallengeByIdDTO>
+                return new BaseResponseDTO<ChallengeByIdDTO>
                 {
                     HttpStatusCode = HttpStatusCode.NotFound,
-                    message = "Challenge not found",
+                    Message = "Challenge not found"
                 };
             }
             if (challenge.State == "hidden")
             {
-                return new CommonResponse<ChallengeByIdDTO>
+                return new BaseResponseDTO<ChallengeByIdDTO>
                 {
                     HttpStatusCode = HttpStatusCode.NotFound,
-                    message = "Challenge now is not available",
+                    Message = "Challenge now is not available"
                 };
             }
 
@@ -108,11 +108,11 @@ namespace ContestantService.Services
                     if (time_remaining < 0) time_remaining = 0;
 
 
-                    return new CommonResponse<ChallengeByIdDTO>
+                    return new BaseResponseDTO<ChallengeByIdDTO>
                     {
                         HttpStatusCode = HttpStatusCode.OK,
-                        message = $"Challenge was started by: {user_chal.Name}",
-                        data = new ChallengeByIdDTO
+                        Message = $"Challenge was started by: {user_chal.Name}",
+                        Data = new ChallengeByIdDTO
                         {
                             challenge = challenge_data,
                             is_started = true,
@@ -122,20 +122,20 @@ namespace ContestantService.Services
                     };
                 }
 
-                return new CommonResponse<ChallengeByIdDTO>
+                return new BaseResponseDTO<ChallengeByIdDTO>
                 {
                     HttpStatusCode = HttpStatusCode.OK,
-                    data = new ChallengeByIdDTO
+                    Data = new ChallengeByIdDTO
                     {
                         challenge = challenge_data,
                         is_started = false
                     }
                 };
             }
-            return new CommonResponse<ChallengeByIdDTO>
+            return new BaseResponseDTO<ChallengeByIdDTO>
             {
                 HttpStatusCode = HttpStatusCode.OK,
-                data = new ChallengeByIdDTO
+                Data = new ChallengeByIdDTO
                 {
                     success = true,
                     challenge = challenge_data,

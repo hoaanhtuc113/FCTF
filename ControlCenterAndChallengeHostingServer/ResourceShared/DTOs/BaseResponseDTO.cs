@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,6 +12,11 @@ namespace ResourceShared.DTOs
     {
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
+        public HttpStatusCode HttpStatusCode { get; set; }
+
+        public BaseResponseDTO()
+        {
+        }
 
         public BaseResponseDTO(bool success, string message)
         {
@@ -28,6 +34,10 @@ namespace ResourceShared.DTOs
     public class BaseResponseDTO<T> : BaseResponseDTO
     {
         public T? Data { get; set; }
+
+        public BaseResponseDTO() : base()
+        {
+        }
 
         public BaseResponseDTO(bool success, string message, T? data = default)
             : base(success, message)
