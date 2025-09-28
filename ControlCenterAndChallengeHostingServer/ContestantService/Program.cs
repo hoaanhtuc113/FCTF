@@ -72,6 +72,9 @@ namespace ContestantService
             builder.Services.AddSingleton<UserHelper>();
             builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
             builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
+            builder.Services.AddScoped<INotificationServices, NotificationServices>();
+            builder.Services.AddScoped<IUserServices, UserServices>();
+            builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
             ServiceConfigs.SecretKey = configuration["ServiceConfigs:SecretKey"] ?? throw new Exception("Can't read ServiceConfigs:SecretKey");

@@ -675,7 +675,7 @@ const ChallengeDetail = () => {
   const handleSubmitFlag = async () => {
     setIsSubmittingFlag(true);
     setSubmissionError(null);
-    const api = new ApiHelper(BASE_URL);
+    const api = new ApiHelper(MANAGEMENT_API_URL);
 
     try {
       const data = {

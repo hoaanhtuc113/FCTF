@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using ContestantService.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared.DTOs.Notification;
 using ResourceShared.Models;
 using System.Threading.Tasks;
 
@@ -10,11 +12,11 @@ namespace ContestantService.Controllers
     [ApiController]
     public class NotificationsController : ControllerBase
     {
-        private AppDbContext _context;
+        private INotificationServices _notification;
 
-        public NotificationsController(AppDbContext context)
+        public NotificationsController(INotificationServices notification)
         {
-            _context = context;
+           _notification = notification;
         }
 
         [HttpGet]
@@ -22,19 +24,8 @@ namespace ContestantService.Controllers
         {
             try
             {
-                var notifications = await _context.Notifications.ToListAsync();
-                var data = notifications.Select(n => new
-                {
-                    n.Id,
-                    n.Content,
-                    n.Title,
-                    n.Date,
-                    user_id = n.UserId,
-                    n.User,
-                    team_id = n.TeamId,
-                    n.Team,
-                    html = n.Content,
-                });
+                var data = await _notification.GetAll();
+
                 return Ok(new
                 {
                     success = true,

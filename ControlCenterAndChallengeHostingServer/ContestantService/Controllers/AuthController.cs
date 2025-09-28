@@ -46,6 +46,7 @@ namespace ContestantService.Controllers
                 generatedToken = result.Data.token,
                 user = result.Data
             });
+
         }
 
     }

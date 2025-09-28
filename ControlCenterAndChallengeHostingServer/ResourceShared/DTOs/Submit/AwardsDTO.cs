@@ -32,6 +32,6 @@ namespace ResourceShared.DTOs.Submit
         public string? Type { get; set; }
         public virtual ResourceShared.Models.Team? Team { get; set; }
 
-        public virtual User? User { get; set; }
+        public virtual ResourceShared.Models.User? User { get; set; }
     }
 }

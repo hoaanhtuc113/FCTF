@@ -1,5 +1,9 @@
 ﻿using ContestantService.Utils;
+using Microsoft.EntityFrameworkCore;
+using ResourceShared;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.DTOs.File;
+using ResourceShared.DTOs.Topic;
 using ResourceShared.Models;
 using ResourceShared.ResponseViews;
 using ResourceShared.Utils;
@@ -16,7 +20,11 @@ namespace ContestantService.Services
     {
         Task<ChallengeStartResponeDTO> ChallengeStart(object payload, string secretKey, string apiStart, string cache_key, Challenge challenge, User user);
 
-        Task ForceStopChallenge(string cache_key,  int challengeId, int teamId);
+        Task ForceStopChallenge(string cache_key, int challengeId, int teamId);
+        Task<CommonResponse<ChallengeByIdDTO>> GetById(int challengeId, User user);
+        Task<List<TopicDTO>> GetTopic(User user);
+
+        Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id);
     }
 
     public class ChallengeServices : IChallengeServices
@@ -30,6 +38,190 @@ namespace ContestantService.Services
             _httpFactory = httpFactory;
             _dbContext=dbContext;
         }
+        public async Task<CommonResponse<ChallengeByIdDTO>> GetById(int challengeId, User user)
+        {
+            RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
+            var challenge = await _dbContext.Challenges.Include(c => c.Files)
+                                                        .FirstOrDefaultAsync(c => c.Id == challengeId);
+
+            if (challenge == null)
+            {
+                return new CommonResponse<ChallengeByIdDTO>
+                {
+                    HttpStatusCode = HttpStatusCode.NotFound,
+                    message = "Challenge not found",
+                };
+            }
+            if (challenge.State == "hidden")
+            {
+                return new CommonResponse<ChallengeByIdDTO>
+                {
+                    HttpStatusCode = HttpStatusCode.NotFound,
+                    message = "Challenge now is not available",
+                };
+            }
+
+            var solve_id = await _dbContext.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+
+            var attempts = await _dbContext.Submissions.CountAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+
+            var files = new List<object>();
+            foreach (var file in challenge.Files)
+            {
+                var token = new FileTokenDTOs
+                {
+                    user_id = user.Id,
+                    team_id = user.TeamId,
+                    file_id = file.Id
+                };
+                var file_url = $"/files/{file.Location}?token={ItsDangerousCompatHelper.Dumps(token)}";
+
+                if (file_url != null) files.Add(file_url);
+            }
+
+            var challenge_data = new ChallengeDataDto
+            {
+                id = challenge.Id,
+                name = challenge.Name,
+                description = ChallengeHelper.ModifyDescription(challenge),
+                max_attempts = challenge.MaxAttempts,
+                attemps = attempts,
+                category = challenge.Category,
+                time_limit = challenge.TimeLimit,
+                require_deploy = challenge.RequireDeploy,
+                type = challenge.Type,
+                next_id = challenge.NextId,
+                solve_by_myteam = solve_id != null ? true : false,
+                files = files,
+                is_captain = user.Id == user.Team.CaptainId,
+            };
+
+            var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.Team.Id);
+            if (await redisHelper.KeyExistsAsync(cache_key))
+            {
+                var cached_value = await redisHelper.GetFromCacheAsync<ChallengeCacheDTO>(cache_key);
+                var user_chal = _dbContext.Users.FirstOrDefault(u => u.Id == cached_value.user_id);
+                if (cached_value.challenge_id == challenge.Id)
+                {
+                    var time_finished = cached_value.time_finished;
+                    var time_remaining = time_finished - (int)DateTimeOffset.Now.ToUnixTimeSeconds();
+                    if (time_remaining < 0) time_remaining = 0;
+
+
+                    return new CommonResponse<ChallengeByIdDTO>
+                    {
+                        HttpStatusCode = HttpStatusCode.OK,
+                        message = $"Challenge was started by: {user_chal.Name}",
+                        data = new ChallengeByIdDTO
+                        {
+                            challenge = challenge_data,
+                            is_started = true,
+                            challenge_url = cached_value.challenge_url,
+                            time_remaining = time_remaining
+                        }
+                    };
+                }
+
+                return new CommonResponse<ChallengeByIdDTO>
+                {
+                    HttpStatusCode = HttpStatusCode.OK,
+                    data = new ChallengeByIdDTO
+                    {
+                        challenge = challenge_data,
+                        is_started = false
+                    }
+                };
+            }
+            return new CommonResponse<ChallengeByIdDTO>
+            {
+                HttpStatusCode = HttpStatusCode.OK,
+                data = new ChallengeByIdDTO
+                {
+                    success = true,
+                    challenge = challenge_data,
+                    is_started = false
+                }
+            };
+        }
+
+        public async Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string category_name, int? team_id)
+        {
+            var challenges = await _dbContext.Challenges.Where(c => c.Category == category_name && c.State != Enums.ChallengeState.HIDDEN)
+                .ToListAsync();
+
+            var topics_data = new List<ChallengeByCategoryDTO>();
+            foreach (var challenge in challenges)
+            {
+                var sovle_id = await _dbContext.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == team_id);
+
+                topics_data.Add(new ChallengeByCategoryDTO
+                {
+                    id = challenge.Id,
+                    name = challenge.Name,
+                    next_id = challenge.NextId,
+                    max_attempts = challenge.MaxAttempts,
+                    value = challenge.Value,
+                    category = challenge.Category,
+                    time_limit = challenge.TimeLimit,
+                    type = challenge.Type,
+                    requirements = challenge.Requirements,
+                    solve_by_myteam = sovle_id != null ? true : false,
+                });
+            }
+
+            return topics_data;
+        }
+
+        public async Task<List<TopicDTO>> GetTopic(User user)
+        {
+            var distinct_categories = await _dbContext.Challenges
+                    .Where(c => c.State != Enums.ChallengeState.HIDDEN)
+                    .Select(c => c.Category)
+                    .Distinct()
+                    .ToListAsync();
+
+            var challenge_counts_by_topic = await _dbContext.Challenges
+                .Where(c => c.State != Enums.ChallengeState.HIDDEN)
+                .GroupBy(c => c.Category)
+                .Select(g => new
+                {
+                    Category = g.Key,
+                    ChallengeCount = g.Count()
+                })
+                .ToListAsync();
+
+            var challenge_count_dict = challenge_counts_by_topic
+                .ToDictionary(x => x.Category!, x => x.ChallengeCount);
+
+            var topics_data = new List<TopicDTO>();
+            foreach (var category in distinct_categories)
+            {
+                var topic_name = category;
+                var solved_challenges = _dbContext.Solves.Include(s => s.Challenge)
+                                                        .Where(s => s.Challenge.Category == topic_name
+                                                                    && s.Challenge.State != Enums.ChallengeState.HIDDEN
+                                                                    && s.TeamId == user.TeamId)
+                                                        .AsEnumerable()
+                                                        .DistinctBy(s => s.ChallengeId)
+                                                        .ToList().Count;
+                var challenge_count_by_topic = challenge_count_dict.TryGetValue(topic_name, out int count) ? count : 0;
+                var cleared = false;
+                if (solved_challenges >= challenge_count_by_topic)
+                {
+                    cleared = true;
+                }
+                topics_data.Add(new TopicDTO
+                {
+                    topic_name = topic_name,
+                    challenge_count = challenge_count_by_topic,
+                    cleared = cleared
+                });
+            }
+
+            return topics_data;
+        }
+
+
         public async Task<ChallengeStartResponeDTO> ChallengeStart(object payload, string secretKey, string apiStart, string cache_key, Challenge challenge, User user)
         {
             RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
