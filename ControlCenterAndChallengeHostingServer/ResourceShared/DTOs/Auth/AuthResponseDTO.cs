@@ -1,9 +1,5 @@
-﻿using ResourceShared.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
+using System.Text.Json.Serialization;
 
 namespace ResourceShared.DTOs.Auth
 {
@@ -13,6 +9,8 @@ namespace ResourceShared.DTOs.Auth
         public string username { get; set; } = string.Empty;
         public string email { get; set; } = string.Empty;
         public TeamResponse? team { get; set; }
+        [JsonIgnore]
+        public string token { get; set; } = string.Empty;
 
     }
     public class TeamResponse
