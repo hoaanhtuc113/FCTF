@@ -3,7 +3,7 @@
 # Script quản lý triển khai và vận hành hệ thống FCTF
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
-PROJECT_ROOT="/home/$USER/FCTF-Platform-Deploy"
+PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -268,7 +268,7 @@ update_appsettings() {
     "ENVIRONMENT_NAME": "$env_upper"
   },
   "ChallengeConfigs": {
-    "ChallengeBasePath": "/home/$USER/FCTF-Platform-Deploy/ctf-directory"
+    "ChallengeBasePath": "/home/manhhuy/FCTF/ctf-directory"
   }
 }
 EOF
@@ -310,10 +310,19 @@ EOF
     # Cập nhật file .env cho FCTF-ManagementPlatform
     # API_URL_CONTROLSERVER= Địa chỉ IP hoặc domain của ControlCenter
     cat > "$PROJECT_ROOT/.env" << EOF
-API_URL_CONTROLSERVER=http://172.17.0.1:5000 
+API_URL_CONTROLSERVER=http://172.31.177.154:5000 
 API_URL_ADMINSERVER=http://127.0.0.1:8000
-HOST_CACHE=cache
+HOST_CACHE=dbzmn0zjiwmju.fctf.cloud
 PRIVATE_KEY=emdungdepzai
+REDIS_HOST=dbzmn0zjiwmju.fctf.cloud
+REDIS_PORT=30379
+REDIS_PASS=REDACTED
+REDIS_URL=redis://:REDACTED@dbzmn0zjiwmju.fctf.cloud:30379/0
+REDIS_DB=0
+DATABASE_PORT=30306
+DATABASE_URL=mysql+pymysql://ctfd-username:REDACTED@dbzmn0zjiwmju.fctf.cloud:30306/ctfd
+ARGO_WORKFLOWS_URL=https://argo.fctf.cloud/api/v1/workflows/argo
+ARGO_WORKFLOWS_TOKEN=REDACTED
 EOF
 
     # Kiểm tra file appsettings.json

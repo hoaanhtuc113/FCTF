@@ -11,13 +11,20 @@ services:
       - PRIVATE_KEY=${PRIVATE_KEY}
       - HOST_CACHE=${HOST_CACHE}
       - UPLOAD_FOLDER=/var/uploads
-      - DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
-      - REDIS_URL=redis://cache:6379  # Sử dụng tên service `cache`
-      - WORKERS=100
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - REDIS_URL=${REDIS_URL}  # Sử dụng tên service `cache`
+      - WORKERS=1
       - LOG_FOLDER=/var/log/CTFd
       - ACCESS_LOG=-
       - ERROR_LOG=-
       - REVERSE_PROXY=true
+      - ARGO_WORKFLOWS_URL=${ARGO_WORKFLOWS_URL}
+      - ARGO_WORKFLOWS_TOKEN=${ARGO_WORKFLOWS_TOKEN}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASS=${REDIS_PASS}
+      - REDIS_DB=${REDIS_DB}
     volumes:
       - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
       - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads

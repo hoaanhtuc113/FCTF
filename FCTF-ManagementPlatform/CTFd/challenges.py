@@ -20,6 +20,10 @@ from CTFd.constants.envvars import (
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
     HOST_CACHE,
+    REDIS_HOST,
+    REDIS_PORT,
+    REDIS_PASS,
+    REDIS_DB,
 )
 from sqlalchemy import func
 from CTFd.utils.connector.multiservice_connector import (
@@ -61,7 +65,12 @@ from CTFd.StartChallenge import generate_cache_key, get_token_from_header
 from CTFd.plugins.multiple_choice import modify_description
 
 redis_client = redis.StrictRedis(
-    host=f"{HOST_CACHE}", port=6379, db=0, encoding="utf-8", decode_responses=True
+    host=f"{REDIS_HOST}",
+    port=int(REDIS_PORT),
+    password=REDIS_PASS,
+    db=int(REDIS_DB),
+    encoding="utf-8",
+    decode_responses=True
 )
 challenges = Blueprint("challenges", __name__)
 
