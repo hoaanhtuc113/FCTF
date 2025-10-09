@@ -10,7 +10,7 @@ from flask_restx import Namespace, Resource
 from CTFd.utils.notifications import notify_to_contestant
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
-from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY
+from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
 from sqlalchemy.sql import and_
 
 from CTFd.api.v1.helpers.request import validate_args
@@ -102,7 +102,12 @@ challenges_namespace.schema_model(
 )
 
 redis_client = redis.StrictRedis(
-    host=f"{HOST_CACHE}", port=6379, db=0, encoding="utf-8", decode_responses=True
+    host=f"{REDIS_HOST}",
+    port=int(REDIS_PORT),
+    password=REDIS_PASS,
+    db=int(REDIS_DB),
+    encoding="utf-8",
+    decode_responses=True
 )
 
 

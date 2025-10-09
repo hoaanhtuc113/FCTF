@@ -19,6 +19,10 @@ from CTFd.constants.envvars import (
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
     HOST_CACHE,
+    REDIS_HOST,
+    REDIS_PORT,
+    REDIS_PASS,
+    REDIS_DB,
 )
 # 
 from CTFd.utils.user import get_current_user, is_admin
@@ -31,7 +35,12 @@ from CTFd.utils.connector.multiservice_connector import challenge_start, create_
 
 challenge = Blueprint("challenge", __name__)
 redis_client = redis.StrictRedis(
-    host=f"{HOST_CACHE}", port=6379, db=0, encoding="utf-8", decode_responses=True
+    host=f"{REDIS_HOST}",
+    port=int(REDIS_PORT),
+    password=REDIS_PASS,
+    db=int(REDIS_DB),
+    encoding="utf-8",
+    decode_responses=True
 )
 
 
@@ -106,7 +115,7 @@ def start_challenge():
         
         payload, headers, api_start = prepare_challenge_payload(challenge, user, team_id, challenge_time)
         
-        return challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team_id)
+        return challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team)
 
 @challenge.route("/api/challenge/stop-by-admin", methods=["POST"])
 @bypass_csrf_protection
