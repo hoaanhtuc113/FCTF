@@ -248,57 +248,53 @@ def challenge_start(payload, headers, api_start, challenge, challenge_time, cach
 
         if payload:
             response = requests.post(api_start, headers=headers, json=payload, timeout=30)
-        print(response.status_code)
-
+        print("Response:"+ json.dumps(response.json()))
+        print("Response status code: " + str(response.status_code))
         print("Response data: " + response.text)
         if(response.status_code == 200):
             return format_response({"success": True, "challenge_url": "Send to Argo Workflows to deploy successfully"})
-
-        res_data = response.json()
-        if res_data.get("isSuccess"):
-            challenge_url = res_data.get("data")
-            time_finished = datetime.now() + timedelta(minutes=challenge_time)
-            db.session.commit()
-
-            if challenge_time == -1 or team.id == -1:
-                cache_expiry = None
-            else:
-                cache_expiry = challenge_time * 60
-
-            try:
-                redis_client.set(
-                    cache_key,
-                    json.dumps(
-                        {"challenge_url": challenge_url, "user_id": user_id, "challenge_id": challenge_id, "time_finished": int(time_finished.timestamp())}
-                    ),
-                    ex=cache_expiry,
-                )
-                
-                print(f"Cache saved: {cache_key} -> challenge_url: {challenge_url}, time_finished: {time_finished}")
-
-                if challenge_time != -1:
-                    threading.Timer(
-                        max(30, challenge_time * 60),
-                        lambda: force_stop(cache_key, challenge_id, team.id),
-                    ).start()
-
-            except Exception as e:
-                print(f"Error saving to Redis: {e}")
-                return jsonify({"error": "Failed to save cache"}), 400
-
-            return format_response({"success": True, "challenge_url": challenge_url})
-
-        else:
-            message = res_data.get("message")
-            if res_data.get("data"):
-                message += "<br><br>Running challenge is: "
-                challenge_names = []
-                for item in res_data.get("data"):
-                    challenges = Challenges.query.filter_by(id=item).first()
-                    if challenges is not None:
-                        challenge_names.append(f"<b>{challenges.name}</b>")
-                message += "<b>,</b> ".join(challenge_names)
-            return format_response({"message": message})
+        else :
+            return format_response({"message": "Failed to start challenge deployment"})
+        
+        # res_data = response.json()
+        # if res_data.get("isSuccess"):
+        #     challenge_url = res_data.get("data")
+        #     time_finished = datetime.now() + timedelta(minutes=challenge_time)
+        #     db.session.commit()
+        #     if challenge_time == -1 or team.id == -1:
+        #         cache_expiry = None
+        #     else:
+        #         cache_expiry = challenge_time * 60
+        #     try:
+        #         redis_client.set(
+        #             cache_key,
+        #             json.dumps(
+        #                 {"challenge_url": challenge_url, "user_id": user_id, "challenge_id": challenge_id, "time_finished": int(time_finished.timestamp())}
+        #             ),
+        #             ex=cache_expiry,
+        #         )
+        #         print(f"Cache saved: {cache_key} -> challenge_url: {challenge_url}, time_finished: {time_finished}")
+        #         if challenge_time != -1:
+        #             threading.Timer(
+        #                 max(30, challenge_time * 60),
+        #                 lambda: force_stop(cache_key, challenge_id, team.id),
+        #             ).start()
+        #     except Exception as e:
+        #         print(f"Error saving to Redis: {e}")
+        #         return jsonify({"error": "Failed to save cache"}), 400
+        #     return format_response({"success": True, "challenge_url": challenge_url})
+        # else:
+        #     message = res_data.get("message")
+        #     if res_data.get("data"):
+        #         message += "<br><br>Running challenge is: "
+        #         challenge_names = []
+        #         for item in res_data.get("data"):
+        #             challenges = Challenges.query.filter_by(id=item).first()
+        #             if challenges is not None:
+        #                 challenge_names.append(f"<b>{challenges.name}</b>")
+        #         message += "<b>,</b> ".join(challenge_names)
+        #     return format_response({"message": message})
+    
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to API: {e}")
         return format_response({"message": "Connection url failed"})
