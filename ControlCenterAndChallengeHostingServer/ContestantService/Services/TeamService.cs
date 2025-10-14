@@ -49,7 +49,7 @@ namespace ContestantService.Services
                 Name = request.TeamName.Trim(),
                 Password = SHA256Helper.HashPasswordPythonStyle(request.TeamPassword ?? ""),
                 CaptainId = user.Id,
-                Hidden = user.Type == "admin",
+                Hidden = false,
                 BracketId = request.BracketId,
                 Website = request.Website,
                 Affiliation = request.Affiliation,
@@ -168,8 +168,8 @@ namespace ContestantService.Services
                     },
                     Date = s.IdNavigation.Date,
                     Type = s.IdNavigation.Type,
-                    Provided = user.Type == "admin" ? s.IdNavigation.Provided : null,
-                    Ip = user.Type == "admin" ? s.IdNavigation.Ip : null
+                    Provided =  null,
+                    Ip = null
                 }).ToList();
         }
     }

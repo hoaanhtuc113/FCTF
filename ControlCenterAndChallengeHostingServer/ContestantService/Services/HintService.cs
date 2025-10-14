@@ -69,10 +69,6 @@ namespace ContestantService.Services
                     .FirstOrDefaultAsync(u => u.UserId == user.Id && u.Target == hint.Id);
                 if (unlocked != null) view = "unlocked";
             }
-
-            if (user?.Type == "admin" && preview)
-                view = "admin";
-
             return new HintResponseDTO
             {
                 Id = hint.Id,
@@ -81,7 +77,7 @@ namespace ContestantService.Services
                 Cost = hint.Cost,
                 Content = view != "locked" ? hint.Content : null,
                 Html = view != "locked" && hint.Content != null ? $"<p>{hint.Content}</p>\n" : null,
-                Requirements = view == "admin" ? hint.Requirements : null,
+                Requirements = hint.Requirements,
                 View = view
             };
         }

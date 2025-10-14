@@ -17,8 +17,7 @@ const TicketDetailPage = () => {
       const api= new ApiHelper(BASE_URL);
       try {
         const response= await api.get(`${API_DETAIL_TICKET}/${ticketId}`)
-        console.log(response.ticket)
-        setTicket(response.ticket)
+        setTicket(response)
       } catch (err) {
         console.error(`Error fetching challenge: ${err}` )
         setError("Could not load ticket. Try Again!")
