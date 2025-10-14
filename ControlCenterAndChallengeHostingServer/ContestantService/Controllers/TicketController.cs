@@ -1,4 +1,5 @@
-﻿using ContestantService.Extensions;
+﻿using ContestantService.Attribute;
+using ContestantService.Extensions;
 using ContestantService.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpPost("sendticket")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> CreateTicketByUser([FromBody] CreateTicketRequestDTO request)
         {
             var token = HttpContext.Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "");
@@ -31,6 +33,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("tickets-user")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> GetTicketByUser()
         {
             var user = HttpContext.GetCurrentUser();
@@ -41,6 +44,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("tickets/{ticketId}")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> GetTicketById(int ticketId)
         {
             var ticket = await _ticketService.GetTicketById(ticketId);
@@ -49,6 +53,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("tickets")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> GetAllTickets([FromQuery] int? userId, [FromQuery] string? status,
             [FromQuery] string? type, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int per_page = 10)
         {

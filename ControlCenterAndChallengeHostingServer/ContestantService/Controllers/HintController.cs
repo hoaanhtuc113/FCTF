@@ -1,4 +1,5 @@
-﻿using ContestantService.Extensions;
+﻿using ContestantService.Attribute;
+using ContestantService.Extensions;
 using ContestantService.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.Hint;
@@ -17,6 +18,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("{id}")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
         {
             var user = HttpContext.GetCurrentUser();
@@ -26,6 +28,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("{id}/all")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> GetHintByChallengeId(int id)
         {
             var user = HttpContext.GetCurrentUser();
@@ -35,6 +38,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpPost("unlock")]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> PostUnlock([FromBody] UnlockRequestDto req)
         {
             var user = HttpContext.GetCurrentUser();
