@@ -1,6 +1,14 @@
-export const BASE_URL = "https://banchuyenmonsec2025.fpt.edu.vn";
-//export const MANAGEMENT_API_URL = 'https://admin.fctf.site';
-export const MANAGEMENT_API_URL = "https://banchuyenmonsec2025.fpt.edu.vn";
+// export const BASE_URL = "https://banchuyenmonsec2025.fpt.edu.vn";
+// //export const MANAGEMENT_API_URL = 'https://admin.fctf.site';
+// export const MANAGEMENT_API_URL = "https://banchuyenmonsec2025.fpt.edu.vn";
+
+// k8s cluster
+// Sử dụng biến .env để không phải build lại 
+// Tham khảo ở https://vite.dev/guide/env-and-mode
+
+export const BASE_URL = "https://admin.fctf.cloud";
+export const MANAGEMENT_API_URL = "https://admin.fctf.cloud";
+
 
 export const LOGIN_PATH = "/api/login-contestant";
 export const USER_DETAILS = "/api/v1/users";
