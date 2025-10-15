@@ -4,6 +4,7 @@
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
 PROJECT_ROOT="/home/manhhuy/FCTF"
+PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -353,8 +354,17 @@ EOF
     cat > "$PROJECT_ROOT/.env" << EOF
 API_URL_CONTROLSERVER=http://172.31.177.154:5000 
 API_URL_ADMINSERVER=http://127.0.0.1:8000
-HOST_CACHE=cache
+HOST_CACHE=dbzmn0zjiwmju.fctf.cloud
 PRIVATE_KEY=emdungdepzai
+REDIS_HOST=dbzmn0zjiwmju.fctf.cloud
+REDIS_PORT=30379
+REDIS_PASS=Fctf2025@
+REDIS_URL=redis://:Fctf2025@@dbzmn0zjiwmju.fctf.cloud:30379/0
+REDIS_DB=0
+DATABASE_PORT=30306
+DATABASE_URL=mysql+pymysql://ctfd-username:Y3RmZC1wYXNzd29yZEA@dbzmn0zjiwmju.fctf.cloud:30306/ctfd
+ARGO_WORKFLOWS_URL=https://argo.fctf.cloud/api/v1/workflows/argo
+ARGO_WORKFLOWS_TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6IjF5QW9GODhkM2NzTVRzSEtETmVhVjVQZVk0OHJKNVg1alpnS2dKWmpXSFkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJhcmdvIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImFyZ28tc2Euc2VydmljZS1hY2NvdW50LXRva2VuIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFyZ28tc2EiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI4YjNhMDU3MC04ZjllLTQ3ZmEtOTMxMC03ZjI0NDIwOThhZTYiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6YXJnbzphcmdvLXNhIn0.cgTmsjBKHXARU4N-RkhHsNfi8nAAzQuSVrzPs-iyL4qbOol70lDf5NAJryo7OYugS0e4sULby41HOncIsYYCh_XfJOlH_zi4zzB3uF4x8UhtveG-1FOo8n2GQsXnfJo2w0c-1G4nqOVPGqk3Zf3_HfWOG1bz28gv2E2yMeNesG7lsOAXIHU50Lp8Faaao70satiJ4TXPJyzUZ-69NTVE2AqLmaVlo3Havw25pyHUgjy842_1iKP7dCk9yFDPLdo4VHKCzdG7ojx0DtIR_ri-76EoUrBlNDzEKyDVDMYYxSVd2UxeSxI3twFTlo9_h8RriEpnyxrM9ZpuAXWYNg5lOw
 
 ASPNETCORE_ENVIRONMENT=Production
 CONTESTANT_DB_CONNECTION=Server=dbzmn0zjiwmju.fctf.cloud;Port=30306;Database=ctfd;User=ctfd-username;Password=Y3RmZC1wYXNzd29yZEA;
