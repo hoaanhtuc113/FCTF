@@ -143,6 +143,24 @@ namespace ResourceShared.Utils
             }
             return result;
         }
+        public async Task<string?> ExecuteRequest( string apiPath, Method method, object body,Dictionary<string, string>? headers = null)
+        {
+            var request = new RestRequest(apiPath, method)
+                .AddHeader("Content-Type", "application/json")
+                .AddJsonBody(body);
+
+            if (headers != null)
+                foreach (var h in headers)
+                    request.AddHeader(h.Key, h.Value);
+
+            var resp = await client.ExecuteAsync(request);
+            await Console.Out.WriteLineAsync($"Response :{resp.StatusCode}");
+            if (!resp.IsSuccessful)
+                throw new Exception($"[{(int)resp.StatusCode}] {resp.StatusDescription}\n{resp.Content}");
+
+            return resp.Content;
+        }
+
         //function to check if a string is a valid json
         public bool IsValidJson(string strInput)
         {

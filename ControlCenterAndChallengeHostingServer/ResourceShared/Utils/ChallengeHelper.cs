@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -105,6 +106,137 @@ namespace ResourceShared.Utils
             return (payload, secretKey);
 
         }
+
+        public static object BuildArgoPayload(int chalId, string teamName, int nodePort)
+        {
+            teamName = teamName.ToLower().Replace(" ", "-");
+
+            var payload = new
+            {
+                metadata = new
+                {
+                    generateName = $"start-challenge-{chalId}-{teamName}-",
+                    @namespace = "argo",
+                    annotations = new Dictionary<string, string>
+                    {
+                        ["workflows.argoproj.io/description"] = "start challenge workflow"
+                    }
+                },
+                spec = new
+                {
+                    entrypoint = "main",
+                    serviceAccountName = "argo-sa",
+                    arguments = new
+                    {
+                        parameters = new[]
+                        {
+                    new { name = "APP_NAME", value = $"{teamName}-chal-01-websecpro-chilp" },
+                    new { name = "SERVICE_PORT", value = "80" },
+                    new { name = "CONTAINER_PORT", value = "80" },
+                    new { name = "NODE_PORT", value = nodePort.ToString() },
+                    new { name = "REPLICA_COUNT", value = "1" },
+                    new { name = "CONTAINER_IMAGE", value = "quachuoiscontainer/kctf-chal-wsproblem:v01" },
+                    new { name = "MEMORY_LIMIT", value = "256Mi" },
+                    new { name = "CPU_LIMIT", value = "500m" },
+                    new { name = "CPU_REQUEST", value = "100m" },
+                    new { name = "MEMORY_REQUEST", value = "128Mi" }
+                }
+                    },
+                    templates = new object[]
+                    {
+                // --- Template main ---
+                new
+                {
+                    name = "main",
+                    steps = new object[]
+                    {
+                        new object[] { new { name = "check-workspace", template = "check-workspace" } },
+                        new object[] { new { name = "deploy-challenge", template = "deploy-challenge" } }
+                    }
+                },
+
+                // --- Template check-workspace ---
+                new
+                {
+                    name = "check-workspace",
+                    container = new
+                    {
+                        image = "quachuoiscontainer/kubectl-cli:v0.0.3",
+                        imagePullPolicy = "IfNotPresent",
+                        securityContext = new
+                        {
+                            runAsUser = 0,
+                            runAsGroup = 0,
+                            runAsNonRoot = false,
+                            allowPrivilegeEscalation = true,
+                            privileged = true
+                        },
+                        resources = new
+                        {
+                            requests = new { memory = "256Mi", cpu = "100m" },
+                            limits = new { memory = "512Mi", cpu = "300m" }
+                        },
+                        command = new[] { "sh", "-c" },
+                        args = new[]
+                        {
+                            "echo \"=== Checking Argo Pod Workspace ===\"\n" +
+                            "echo \"Current directory: $(pwd)\"\n" +
+                            "echo \"Testing kubectl connection:\"\n" +
+                            "kubectl top nodes"
+                        }
+                    }
+                },
+
+                // --- Template deploy-challenge ---
+                new
+                {
+                    name = "deploy-challenge",
+                    container = new
+                    {
+                        image = "quachuoiscontainer/kubectl-cli:v0.0.3",
+                        imagePullPolicy = "IfNotPresent",
+                        securityContext = new
+                        {
+                            runAsUser = 0,
+                            runAsGroup = 0,
+                            runAsNonRoot = false,
+                            allowPrivilegeEscalation = true,
+                            privileged = true
+                        },
+                        resources = new
+                        {
+                            requests = new { memory = "256Mi", cpu = "100m" },
+                            limits = new { memory = "512Mi", cpu = "300m" }
+                        },
+                        command = new[] { "sh", "-c" },
+                        args = new[]
+                        {
+                            "set -e\n" +
+                            "echo \"=== Deploying Challenge with direct parameters ===\"\n\n" +
+                            "git clone https://github.com/fctf-git-repo/challenge-config.git\n" +
+                            "cd challenge-config/websecpro_chilp-1\n\n" +
+                            "export APP_NAME=\"{{workflow.parameters.APP_NAME}}\"\n" +
+                            "export SERVICE_PORT=\"{{workflow.parameters.SERVICE_PORT}}\"\n" +
+                            "export CONTAINER_PORT=\"{{workflow.parameters.CONTAINER_PORT}}\"\n" +
+                            "export NODE_PORT=\"{{workflow.parameters.NODE_PORT}}\"\n" +
+                            "export REPLICA_COUNT=\"{{workflow.parameters.REPLICA_COUNT}}\"\n" +
+                            "export CONTAINER_IMAGE=\"{{workflow.parameters.CONTAINER_IMAGE}}\"\n" +
+                            "export MEMORY_LIMIT=\"{{workflow.parameters.MEMORY_LIMIT}}\"\n" +
+                            "export CPU_LIMIT=\"{{workflow.parameters.CPU_LIMIT}}\"\n" +
+                            "export CPU_REQUEST=\"{{workflow.parameters.CPU_REQUEST}}\"\n" +
+                            "export MEMORY_REQUEST=\"{{workflow.parameters.MEMORY_REQUEST}}\"\n\n" +
+                            "envsubst < challenge.yaml | kubectl apply -f -\n\n" +
+                            "echo \"✅ Challenge manifest submitted to cluster\""
+                        }
+                    }
+                }
+                    }
+                }
+            };
+
+            return payload;
+        }
+
 
         //get_wrong_submissions_per_minute
         public static async Task<int> GetWrongSubmissionsPerMinute(AppDbContext db,int accountId)
