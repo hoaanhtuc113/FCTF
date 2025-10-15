@@ -80,11 +80,12 @@ public partial class AppDbContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         var builder = new ConfigurationBuilder()
-               .SetBasePath(Directory.GetCurrentDirectory())
-               .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddEnvironmentVariables();
         IConfigurationRoot configuration = builder.Build();
         var connectionString = configuration.GetConnectionString("DbConnection");
-        optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        optionsBuilder.UseMySql(connectionString,new MySqlServerVersion(new Version(10, 11, 0)));
     }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

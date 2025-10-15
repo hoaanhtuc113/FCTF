@@ -13,7 +13,7 @@ services:
       - UPLOAD_FOLDER=/var/uploads
       - DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
       - REDIS_URL=redis://cache:6379  # Sử dụng tên service `cache`
-      - WORKERS=100
+      - WORKERS=1
       - LOG_FOLDER=/var/log/CTFd
       - ACCESS_LOG=-
       - ERROR_LOG=-
@@ -77,6 +77,38 @@ services:
     restart: always
     volumes:
       - ./FCTF-ManagementPlatform/data/redis:/data
+    networks:
+      - default
+
+  contestant-service:
+    build:
+      context: ./ControlCenterAndChallengeHostingServer
+      dockerfile: ContestantService/Dockerfile
+    restart: always
+    ports:
+      - "5010:5010"
+    environment:
+     # ASP.NET
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=http://+:5010
+      # Database & Cache
+      - ConnectionStrings__DbConnection=${CONTESTANT_DB_CONNECTION}
+      - ConnectionStrings__RedisConnection=${CONTESTANT_REDIS_CONNECTION}
+      # Service Config
+      - ServiceConfigs__SecretKey=${CONTESTANT_SECRET_KEY}
+      - ServiceConfigs__PrivateKey=${CONTESTANT_PRIVATE_KEY}
+      - ServiceConfigs__ServerHost=${CONTESTANT_SERVER_HOST}
+      - ServiceConfigs__ServerPort=${CONTESTANT_SERVER_PORT}
+      - ServiceConfigs__DomainName=${CONTROL_DOMAIN}
+      - ServiceConfigs__MaxInstanceAtTime=${CONTESTANT_MAX_INSTANCE}
+      - ServiceConfigs__ControlServerAPI=${CONTROL_SERVER_API}
+      # Environment
+      - EnvironmentConfigs__ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
     networks:
       - default
 

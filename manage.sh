@@ -327,7 +327,7 @@ EOF
     "SecretKey": "emdungdepzai",
     "PrivateKey": "emdungdepzai",
     "ServerHost": "http://0.0.0.0",
-    "ServerPort": "5010",
+    "ServerPort": "5011",
     "DomainName": "$control_domain",
     "MaxInstanceAtTime": "4",
     "ControlServerAPI": "http://localhost:5000"
@@ -355,6 +355,22 @@ API_URL_CONTROLSERVER=http://172.31.177.154:5000
 API_URL_ADMINSERVER=http://127.0.0.1:8000
 HOST_CACHE=cache
 PRIVATE_KEY=emdungdepzai
+
+ASPNETCORE_ENVIRONMENT=Production
+CONTESTANT_DB_CONNECTION=Server=dbzmn0zjiwmju.fctf.cloud;Port=30306;Database=ctfd;User=ctfd-username;Password=Y3RmZC1wYXNzd29yZEA;
+CONTESTANT_REDIS_CONNECTION=cache:6379
+CONTESTANT_SECRET_KEY=emdungdepzai
+CONTESTANT_PRIVATE_KEY=emdungdepzai
+CONTESTANT_SERVER_HOST=http://0.0.0.0
+CONTESTANT_SERVER_PORT=5010
+CONTROL_DOMAIN=localhost
+CONTESTANT_MAX_INSTANCE=4
+CONTROL_SERVER_API=http://ctfd:8000
+ENVIRONMENT_NAME=PRODUCTION
+API_URL_CONTROLSERVER=http://contestant-service:5010
+API_URL_ADMINSERVER=http://ctfd:8000
+PRIVATE_KEY=emdungdepzai
+HOST_CACHE=cache:6379
 EOF
 
     # Kiểm tra file appsettings.json
