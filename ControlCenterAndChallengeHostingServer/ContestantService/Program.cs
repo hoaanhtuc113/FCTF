@@ -16,14 +16,25 @@ namespace ContestantService
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            var connectionString = builder.Configuration.GetConnectionString("DbConnection");
-            IConfiguration configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .Build();
+            builder.Configuration
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddEnvironmentVariables();
+            var configuration = builder.Configuration;
+            var connectionString = configuration.GetConnectionString("DbConnection");
 
             // Add services to the container.
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(
+                connectionString,
+                new MySqlServerVersion(new Version(10, 11, 0)) 
+            ));
+            builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                var options = ConfigurationOptions.Parse(RedisConfigs.ConnectionString);
+                options.AbortOnConnectFail = false;
+                options.ConnectTimeout = 10000;
+                options.SyncTimeout = 10000;
+                return ConnectionMultiplexer.Connect(options);
+            });
             builder.Services.AddControllers();
             builder.Services.AddHttpClient();
             builder.Services.AddEndpointsApiExplorer();
@@ -58,7 +69,7 @@ namespace ContestantService
                     }
                 });
             });
-            builder.Services.Configure<ProxyOptions>(builder.Configuration.GetSection("Proxy"));
+            builder.Services.Configure<ProxyOptions>(configuration.GetSection("Proxy"));
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IHintService, HintService>();
             builder.Services.AddScoped<ITeamService, TeamService>();
@@ -70,7 +81,7 @@ namespace ContestantService
             builder.Services.AddSingleton<CtfTimeHelper>();
             builder.Services.AddSingleton<ScoreHelper>();
             builder.Services.AddSingleton<UserHelper>();
-            builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(RedisConfigs.ConnectionString));
+          
             builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
             builder.Services.AddScoped<INotificationServices, NotificationServices>();
             builder.Services.AddScoped<IUserServices, UserServices>();
@@ -92,18 +103,17 @@ namespace ContestantService
 
             await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();
-
+            app.UseRouting();
+            app.UseCors("AllowAll");
             app.UseSwagger();
             app.UseSwaggerUI();
             app.UseOutputCache();
-            app.UseHttpsRedirection();
-            app.UseCors("AllowAll");
+            // app.UseHttpsRedirection();
             app.UseAuthorization();
             app.UseTokenAuthentication(); 
-
             app.MapControllers();
-
-            app.Run($"{ServiceConfigs.ServerHost}:{ServiceConfigs.ServerPort}");
+            //app.Run($"{ServiceConfigs.ServerHost}:{ServiceConfigs.ServerPort}");
+            app.Run();
         }
     }
 }
