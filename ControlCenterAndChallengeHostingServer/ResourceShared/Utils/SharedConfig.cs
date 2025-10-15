@@ -12,6 +12,7 @@ namespace ResourceShared.Utils
         /// <exception cref="Exception">Exception sẽ được throw khi có vấn đề với file appsetting (Thiếu config, không đúng kiểu dữ liệu,...)</exception>
 
         public static IConfiguration configuration = new ConfigurationBuilder()
+                .AddEnvironmentVariables()
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .Build();
         public virtual void InitConfig()
