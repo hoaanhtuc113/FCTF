@@ -7,11 +7,15 @@ namespace ContestantService.Utils
     public class ContestantServiceConfigHelper : SharedConfig
     {
         public static string ControlServerAPI = "";
+        public static string ARGO_WORKFLOWS_URL = "";
+        public static string ARGO_WORKFLOWS_TOKEN = "";
 
         public override void InitConfig()
         {
             base.InitConfig();
             ContestantServiceConfigHelper.ControlServerAPI = configuration["ServiceConfigs:ControlServerAPI"] ?? throw new Exception("Can't read ServiceConfigs:ControlServerAPI");
+            ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL = configuration["ServiceConfigs:ArgoWorkflowsURL"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_URL");
+            ContestantServiceConfigHelper.ARGO_WORKFLOWS_TOKEN = configuration["ServiceConfigs:ArgoWorkflowsToken"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_TOKEN");
         }
     }
 }

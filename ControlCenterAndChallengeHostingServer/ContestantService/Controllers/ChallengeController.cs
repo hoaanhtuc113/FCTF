@@ -351,9 +351,7 @@ namespace ContestantService.Controllers
 
             if (user.Id != user.Team.CaptainId) return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });
 
-            var prepared =  ChallengeHelper.PrepareChallengePayload(challenge, user.TeamId.Value, challenge.TimeLimit ?? -1);
-            var endpoint = ContestantServiceConfigHelper.ControlServerAPI + "/api/challenge/start";
-            var response =  await _challengeServices.ChallengeStart(prepared.payload, prepared.secretKey, endpoint, cache_key, challenge, user);
+            var response =  await _challengeServices.ChallengeStart(challenge, user);
             return response.status switch
             {
                 HttpStatusCode.OK => Ok(response),

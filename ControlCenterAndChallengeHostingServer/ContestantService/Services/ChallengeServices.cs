@@ -18,7 +18,7 @@ namespace ContestantService.Services
 {
     public interface IChallengeServices
     {
-        Task<ChallengeStartResponeDTO> ChallengeStart(object payload, string secretKey, string apiStart, string cache_key, Challenge challenge, User user);
+        Task<ChallengeStartResponeDTO> ChallengeStart(Challenge challenge, User user);
 
         Task ForceStopChallenge(string cache_key, int challengeId, int teamId);
         Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
@@ -32,6 +32,7 @@ namespace ContestantService.Services
         private readonly IConnectionMultiplexer _connectionMultiplexer;
         private readonly IHttpClientFactory _httpFactory;
         private readonly AppDbContext _dbContext;
+        public static int port = 30000;
         public ChallengeServices(IConnectionMultiplexer connectionMultiplexer, IHttpClientFactory httpFactory, AppDbContext dbContext)
         {
             _connectionMultiplexer = connectionMultiplexer;
@@ -222,7 +223,7 @@ namespace ContestantService.Services
         }
 
 
-        public async Task<ChallengeStartResponeDTO> ChallengeStart(object payload, string secretKey, string apiStart, string cache_key, Challenge challenge, User user)
+        public async Task<ChallengeStartResponeDTO> ChallengeStart(Challenge challenge, User user)
         {
             RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
             var options = new JsonSerializerOptions
@@ -231,14 +232,36 @@ namespace ContestantService.Services
             };
             try
             {
-                if(payload == null) return new ChallengeStartResponeDTO
+                var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {ContestantServiceConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
+                var port = getPort();
+                var payload = new { workflow = ChallengeHelper.BuildArgoPayload(challenge.Id, user.Team.Name, port) };
+
+                await Console.Out.WriteLineAsync($"Payload to Argo Workflows API: {JsonSerializer.Serialize(payload)}");
+                await Console.Out.WriteLineAsync($"Argo Workflows API: {ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL}");
+
+                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL);
+                var response = await multiServiceConnector.ExecuteRequest(ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL, Method.Post, payload, headers);
+                await Console.Out.WriteLineAsync($"Response from Argo Workflows API: {response}");
+                if (response == null)
                 {
-                    status = HttpStatusCode.BadRequest,
-                    success = false,
-                    message = "Invalid payload"
+                    await Console.Out.WriteLineAsync("No response from Argo Workflows API");
+                    return new ChallengeStartResponeDTO
+                    {
+                        status = HttpStatusCode.BadRequest,
+                        success = false,
+                        message = "No response from server"
+                    };
+                }
+
+                return new ChallengeStartResponeDTO
+                {
+                    status = HttpStatusCode.OK,
+                    success = true,
+                    message = "Challenge started successfully",
+                    challenge_url = $"Send to Argo Workflows to deploy successfully"
                 };
-                var parammeters = payload.GetType().GetProperties()
-                               .ToDictionary(p => p.Name, p => p.GetValue(payload) ?? "");
+
+                /*
                 var headers = new Dictionary<string, string> { { "SecretKey", secretKey } };
                 MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantServiceConfigHelper.ControlServerAPI);
                 var body = await multiServiceConnector.ExecuteNormalRequest("/api/challenge/start", Method.Post, parammeters, RequestContentType.Form, headers);
@@ -328,6 +351,7 @@ namespace ContestantService.Services
                         message = message
                     };
                 }
+                */
             }
             catch (HttpRequestException ex)
             {
@@ -398,6 +422,14 @@ namespace ContestantService.Services
                 throw new Exception("Connection url failed" + e);
             }
             return;
+        }
+
+
+        private int getPort()
+        {
+            port += 1;
+            if (port > 32767) port = 30000;
+            return port;
         }
     }
 }
