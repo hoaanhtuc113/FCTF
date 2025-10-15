@@ -109,6 +109,8 @@ services:
       - ServiceConfigs__DomainName=${CONTROL_DOMAIN}
       - ServiceConfigs__MaxInstanceAtTime=${CONTESTANT_MAX_INSTANCE}
       - ServiceConfigs__ControlServerAPI=${CONTROL_SERVER_API}
+      - ServiceConfigs__ArgoWorkflowsURL=${ARGO_WORKFLOWS_URL}
+      - ServiceConfigs__ArgoWorkflowsToken=${ARGO_WORKFLOWS_TOKEN}
       # Environment
       - EnvironmentConfigs__ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
     depends_on:
