@@ -26,7 +26,7 @@
                 Searching for challenges with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
             </h5>
             <h6 class="text-muted text-center pb-3">
-                {{ total }} results
+                {{ challenges.total }} results
             </h6>
             {% endif %}
 
@@ -100,7 +100,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for challenge in challenges %}
+                        {% for challenge in challenges.items %}
                         <tr {% if not is_jury() %} data-href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
                             <td class="d-block border-right text-center" data-checkbox>
                                 <div class="form-check">
@@ -171,6 +171,62 @@
                     </tbody>
                 </table>
 
+                <!-- Backend Pagination Controls -->
+                {% if challenges.pages > 0 %}
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="dataTables_info" role="status" aria-live="polite">
+                                Showing page {{ challenges.page }} of {{ challenges.pages }} ({{ challenges.total }} total challenges)
+                            </div>
+                            {% if challenges.pages > 1 %}
+                            <nav aria-label="Challenge pagination">
+                                <ul class="pagination mb-0">
+                                    <li class="page-item {% if challenges.page == 1 %}disabled{% endif %}">
+                                        <a class="page-link" href="{{ prev_page if challenges.page > 1 else '#' }}">&laquo;</a>
+                                    </li>
+                                    
+                                    {% set start_page = [1, challenges.page - 2]|max %}
+                                    {% set end_page = [challenges.pages, challenges.page + 2]|min %}
+                                    
+                                    {% if start_page > 1 %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{% if q %}{{ url_for('admin.challenges_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.challenges_listing', page=1) }}{% endif %}">1</a>
+                                    </li>
+                                    {% if start_page > 2 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                    {% endif %}
+                                    
+                                    {% for page_num in range(start_page, end_page + 1) %}
+                                    <li class="page-item {% if page_num == challenges.page %}active{% endif %}">
+                                        <a class="page-link" href="{% if q %}{{ url_for('admin.challenges_listing', page=page_num, field=field, q=q) }}{% else %}{{ url_for('admin.challenges_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
+                                    </li>
+                                    {% endfor %}
+                                    
+                                    {% if end_page < challenges.pages %}
+                                    {% if end_page < challenges.pages - 1 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{% if q %}{{ url_for('admin.challenges_listing', page=challenges.pages, field=field, q=q) }}{% else %}{{ url_for('admin.challenges_listing', page=challenges.pages) }}{% endif %}">{{ challenges.pages }}</a>
+                                    </li>
+                                    {% endif %}
+                                    
+                                    <li class="page-item {% if challenges.page == challenges.pages %}disabled{% endif %}">
+                                        <a class="page-link" href="{{ next_page if challenges.page < challenges.pages else '#' }}">&raquo;</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -354,4 +354,55 @@ $(() => {
       loadChalTemplate(challenge);
     });
   });
+
+  // Change type of scoring
+  const standardSection = $("#standard-value-section");
+  const dynamicSection = $("#dynamic-value-section");
+  const standardBtn = $("#standard-scoring-btn");
+  const dynamicBtn = $("#dynamic-scoring-btn");
+
+  function toggleScoringType(type) {
+    if (type === "standard") {
+      standardSection.removeClass("d-none");
+      dynamicSection.addClass("d-none");
+      standardBtn.addClass("active");
+      standardBtn.find('input[type="radio"]').prop("checked", true);
+      dynamicBtn.removeClass("active");
+      
+      standardSection.find("input").prop("disabled", false);
+      standardSection.find(".chal-value").prop("required", true);
+      
+      dynamicSection.find("input, select").prop("disabled", true);
+      dynamicSection.find(".chal-initial, .chal-decay, .chal-minimum").prop("required", false);
+    } else {
+      standardSection.addClass("d-none");
+      dynamicSection.removeClass("d-none");
+      dynamicBtn.addClass("active");
+      dynamicBtn.find('input[type="radio"]').prop("checked", true);
+      standardBtn.removeClass("active");
+      
+      standardSection.find("input").prop("disabled", true);
+      standardSection.find(".chal-value").prop("required", false);
+      
+      dynamicSection.find("input, select").prop("disabled", false);
+      dynamicSection.find(".chal-initial, .chal-decay, .chal-minimum").prop("required", true);
+    }
+  }
+
+  // Initialize state on page load based on current active button
+  if (dynamicBtn.hasClass("active")) {
+    toggleScoringType("dynamic");
+  } else {
+    toggleScoringType("standard");
+  }
+
+  standardBtn.click(function (e) {
+    e.preventDefault();
+    toggleScoringType("standard");
+  });
+
+  dynamicBtn.click(function (e) {
+    e.preventDefault();
+    toggleScoringType("dynamic");
+  });
 });

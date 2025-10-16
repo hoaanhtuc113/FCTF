@@ -39,6 +39,7 @@ from CTFd.plugins import bypass_csrf_protection
 def challenges_listing():
     q = request.args.get("q")
     field = request.args.get("field")
+    page = abs(request.args.get("page", 1, type=int))
     filters = []
 
     # Add filter based on search query
@@ -55,21 +56,29 @@ def challenges_listing():
         writer_id = session["id"]  # Assuming the session stores the user ID
         filters.append(Challenges.user_id == writer_id)
         query = Challenges.query.filter(*filters).order_by(Challenges.id.asc())
+    else:
+        # Default fallback - show all challenges
+        query = Challenges.query.filter(*filters).order_by(Challenges.id.asc())
         
-        
-    # Fetch the results
-    challenges = query.all()
-    total = query.count()
-    for c in challenges:
-        user = Users.query.filter_by(id=c.user_id).first_or_404()
+    # Fetch the results with pagination
+    challenges = query.paginate(page=page, per_page=10, error_out=False)
+    
+    # Add creator names to challenges
+    for c in challenges.items:
+        user = Users.query.filter_by(id=c.user_id).first()
         if user:
             c.creator = user.name
-        
+        else:
+            c.creator = "Unknown"
+    
+    args = dict(request.args)
+    args.pop("page", 1)
         
     return render_template(
         "admin/challenges/challenges.html",
         challenges=challenges,
-        total=total,
+        prev_page=url_for(request.endpoint, page=challenges.prev_num, **args),
+        next_page=url_for(request.endpoint, page=challenges.next_num, **args),
         q=q,
         field=field,
     )
