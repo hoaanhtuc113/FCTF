@@ -1,6 +1,5 @@
 <form id="challenge-deploy" enctype="multipart/form-data">
   <div class="form-group">
-    {% if challenge.require_deploy %}
     <div id="deploy-progress-container" style="display: none; margin-bottom: 20px;">
       <h6 id="deploy-status-title" style="color: #ff5500; font-weight: bold;">Deployment Status</h6>
       <p id="deploy-status-message" style="margin-bottom: 10px;">Ready to deploy</p>
@@ -17,7 +16,6 @@
       </div>
       <small class="text-muted mt-2 d-block" id="deploy-status-detail"></small>
     </div>
-    {% endif %}
     <div class="form-group">
         <label>
             <input type="checkbox" name="require_deploy" id="setup_docker" {% if challenge.require_deploy %}checked{% endif %} >
@@ -48,7 +46,7 @@
       Re-deploy
     </button> -->
     <button id="deploy-btn" class="btn btn-success" type="submit">
-      Deploy
+      Save Changes
     </button>
   </div>
   <div id="status-message" class="mt-3 alert" style="display: none"></div>
@@ -74,7 +72,16 @@
     const statusDetail = document.getElementById('deploy-status-detail');
 
     function updateButtonState() {
-      deployBtn.disabled = fileInput.files.length === 0 || !setupDockerCheckbox.checked;
+      if (setupDockerCheckbox.checked) {
+        fileInput.disabled = false;
+        fileInput.required = true;
+        deployBtn.disabled = fileInput.files.length === 0;
+      } else {
+        fileInput.disabled = true;
+        fileInput.required = false;
+        fileInput.value = '';
+        deployBtn.disabled = false;
+      }
     }
 
     if (DEPLOYS == 0 && reDeployBtn) {
@@ -82,12 +89,15 @@
       reDeployBtn.disabled = false
     }
 
+    // Initialize button and file input state on page load
+    updateButtonState();
+
     function handleDeploy(event) {
       event.preventDefault();
 
       
 
-      if (progressContainer) {
+      if (progressContainer && setupDockerCheckbox.checked) {
         progressContainer.style.display = 'block';
         statusTitle.textContent = 'Deploying...';
         deployStatusMessage.textContent = 'Preparing deployment...';
@@ -100,59 +110,78 @@
       const params = { challenge_id: CHALLENGE_ID };
 
       // Update progress - 20%
-      setTimeout(() => {
-        if (progressBar) {
-          progressBar.style.width = '20%';
-          progressBar.setAttribute('aria-valuenow', '20');
-          progressPercentage.textContent = '20%';
-          deployStatusMessage.textContent = 'Uploading files...';
-          statusDetail.textContent = 'Processing files...';
-        }
-      }, 300);
+      if(setupDockerCheckbox.checked) {
+        setTimeout(() => {
+          if (progressBar) {
+            progressBar.style.width = '20%';
+            progressBar.setAttribute('aria-valuenow', '20');
+            progressPercentage.textContent = '20%';
+            deployStatusMessage.textContent = 'Uploading files...';
+            statusDetail.textContent = 'Processing files...';
+          }
+        }, 300);
+      }
 
       Promise.all([
         new Promise(function (resolve, _reject) {
           const data = {
             challenge_id: CHALLENGE_ID,
             type: "challenge",
+            require_deploy: setupDockerCheckbox.checked,
           };
 
-          // Update progress - 50%
-          setTimeout(() => {
-            if (progressBar) {
-              progressBar.style.width = '50%';
-              progressBar.setAttribute('aria-valuenow', '50');
-              progressPercentage.textContent = '50%';
-              deployStatusMessage.textContent = 'Configuring Docker...';
-              statusDetail.textContent = 'Building container...';
-            }
-          }, 800);
-
-          if (fileInput.files.length > 0) {
-            helpers.files.upload(form, data);
+          // Update progress - 40%
+          if (setupDockerCheckbox.checked) {
+            setTimeout(() => {
+              if (progressBar) {
+                progressBar.style.width = '40%';
+                progressBar.setAttribute('aria-valuenow', '40');
+                progressPercentage.textContent = '40%';
+                deployStatusMessage.textContent = 'Uploading to server...';
+                statusDetail.textContent = 'Transferring files...';
+              }
+            }, 700);
           }
 
-          // Update progress - 80%
-          setTimeout(() => {
-            if (progressBar) {
-              progressBar.style.width = '80%';
-              progressBar.setAttribute('aria-valuenow', '80');
-              progressPercentage.textContent = '80%';
-              deployStatusMessage.textContent = 'Finalizing deployment...';
-              statusDetail.textContent = 'Almost done...';
-            }
-          }, 1500);
+          // Update progress - 60%
+          if (setupDockerCheckbox.checked) {
+            setTimeout(() => {
+              if (progressBar) {
+                progressBar.style.width = '60%';
+                progressBar.setAttribute('aria-valuenow', '60');
+                progressPercentage.textContent = '60%';
+                deployStatusMessage.textContent = 'Configuring Docker...';
+                statusDetail.textContent = 'Building container...';
+              }
+            }, 1200);
+          }
+          //if (fileInput.files.length > 0) {
+          helpers.files.upload(form, data);
+         // }
+
+          // Update progress - 85%
+          if (setupDockerCheckbox.checked) {
+            setTimeout(() => {
+              if (progressBar) {
+                progressBar.style.width = '85%';
+                progressBar.setAttribute('aria-valuenow', '85');
+                progressPercentage.textContent = '85%';
+                deployStatusMessage.textContent = 'Finalizing deployment...';
+                statusDetail.textContent = 'Almost done...';
+              }
+            }, 1800);
+          }
 
           resolve();
 
           // Complete - 100%
           setTimeout(function () {
-            if (progressBar) {
+            if (setupDockerCheckbox.checked && progressBar) {
               progressBar.style.width = '100%';
               progressBar.setAttribute('aria-valuenow', '100');
               progressPercentage.textContent = '100%';
               progressBar.classList.remove('progress-bar-animated');
-              progressBar.style.backgroundColor = '#28a745'; // Green for success
+              progressBar.style.backgroundColor = '#28a745'; 
               statusTitle.textContent = 'Deployment Successful!';
               statusTitle.style.color = '#28a745';
               deployStatusMessage.textContent = 'Challenge deployed successfully!';
@@ -162,12 +191,12 @@
             setTimeout(function() {
               window.location =
                 CTFd.config.urlRoot + "/admin/challenges/" + CHALLENGE_ID;
-            }, 1500);
-          }, 2000);
+            }, 800);
+          }, 2400);
         }),
       ]).catch(function(error) {
         // Show error state
-        if (progressBar) {
+        if (setupDockerCheckbox.checked && progressBar) {
           progressBar.classList.remove('progress-bar-animated');
           progressBar.style.backgroundColor = '#dc3545'; // Red for error
           statusTitle.textContent = 'Deployment Failed!';
