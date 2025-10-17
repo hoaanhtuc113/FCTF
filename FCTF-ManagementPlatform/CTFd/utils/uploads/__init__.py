@@ -19,9 +19,7 @@ def upload_file(*args, **kwargs):
     page_id = kwargs.get("page_id") or kwargs.get("page")
     file_type = kwargs.get("type", "standard")
     location = kwargs.get("location")
-
-    print("locationlocationlocationlocation: "+ str(location))
-
+    file_upload = kwargs.get("file_upload")
     # Validate location and default filename to uploaded file's name
     parent = None
     filename = file_obj.filename
@@ -35,7 +33,8 @@ def upload_file(*args, **kwargs):
         parent = path.parts[0]
         filename = path.parts[1]
         location = parent + "/" + filename
-
+    if(file_upload == "description"):
+        file_type = "challenge"
     model_args = {"type": file_type, "location": location}
 
     model = Files
