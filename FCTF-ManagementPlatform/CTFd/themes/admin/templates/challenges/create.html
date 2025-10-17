@@ -38,6 +38,14 @@
 
 
 	{% block message %}
+	<div  class="form-group">
+		<label>
+			Files
+			<small class="form-text text-muted">Select PDF file as a description</small>
+		</label>
+		<input class="form-control-file" type="file" name="file" accept=".pdf" />
+		<input  type="hidden" name="file_upload" value="description" />
+	</div>
 	<div class="form-group">
 		<label>
 			Message:<br>
