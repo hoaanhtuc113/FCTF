@@ -90,16 +90,17 @@
 					<div class="dropdown-menu shadow-sm p-3"
 						id="export-csv-dropdown"
 						aria-labelledby="export-csv-button">
+
 						<div class="form-check mb-3">
-							<input class="form-check-input" type="checkbox" id="include-passwords-visible">
-							<label class="form-check-label small font-weight-bold" for="include-passwords-visible">
-								Passwords Visible
-							</label>
+						<input class="form-check-input" type="checkbox" id="include-passwords-visible">
+						<label class="form-check-label small font-weight-bold" for="include-passwords-visible">
+							Passwords Visible
+						</label>
 						</div>
-						<a class="btn btn-warning btn-sm w-100 text-white font-weight-bold"
-						href="{{ url_for('admin.users_listing', export='csv', page=users.page) }}">
+
+						<button class="btn btn-warning btn-sm w-100 text-white font-weight-bold" id="export-btn">
 						Export
-						</a>
+						</button>
 					</div>
 				</div>
 			</div>
