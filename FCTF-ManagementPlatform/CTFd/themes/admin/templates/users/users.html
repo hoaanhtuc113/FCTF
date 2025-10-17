@@ -1,6 +1,18 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Fix dropdown positioning without data-display="static" */
+	#export-csv-button + .dropdown-menu {
+		position: absolute !important;
+		top: 100% !important;
+		left: auto !important;
+		right: 0 !important;
+		transform: none !important;
+		margin-top: 10px !important;
+		will-change: auto !important;
+	}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -64,6 +76,31 @@
 						<i class="btn-fa fas fa-trash-alt"></i>
 					</button>
 					{%endif%}
+				</div>
+
+				<div class="dropdown d-inline-block ml-2" style="position: relative;">
+					<button class="btn btn-secondary dropdown-toggle"
+							type="button"
+							id="export-csv-button"
+							aria-haspopup="true"
+							aria-expanded="false">
+						Export CSV
+					</button>
+
+					<div class="dropdown-menu shadow-sm p-3"
+						id="export-csv-dropdown"
+						aria-labelledby="export-csv-button">
+						<div class="form-check mb-3">
+							<input class="form-check-input" type="checkbox" id="include-passwords-visible">
+							<label class="form-check-label small font-weight-bold" for="include-passwords-visible">
+								Passwords Visible
+							</label>
+						</div>
+						<a class="btn btn-warning btn-sm w-100 text-white font-weight-bold"
+						href="{{ url_for('admin.users_listing', export='csv', page=users.page) }}">
+						Export
+						</a>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -174,14 +211,14 @@
 								{% set end_page = [users.pages, users.page + 2]|min %}
 								
 								{% if start_page > 1 %}
-								<li class="page-item">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.users_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.users_listing', page=1) }}{% endif %}">1</a>
-								</li>
-								{% if start_page > 2 %}
-								<li class="page-item disabled">
-									<span class="page-link">...</span>
-								</li>
-								{% endif %}
+									<li class="page-item">
+										<a class="page-link" href="{% if q %}{{ url_for('admin.users_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.users_listing', page=1) }}{% endif %}">1</a>
+									</li>
+									{% if start_page > 2 %}
+									<li class="page-item disabled">
+										<span class="page-link">...</span>
+									</li>
+									{% endif %}
 								{% endif %}
 								
 								{% for page_num in range(start_page, end_page + 1) %}
@@ -191,14 +228,14 @@
 								{% endfor %}
 								
 								{% if end_page < users.pages %}
-								{% if end_page < users.pages - 1 %}
-								<li class="page-item disabled">
-									<span class="page-link">...</span>
-								</li>
-								{% endif %}
-								<li class="page-item">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.users_listing', page=users.pages, field=field, q=q) }}{% else %}{{ url_for('admin.users_listing', page=users.pages) }}{% endif %}">{{ users.pages }}</a>
-								</li>
+									{% if end_page < users.pages - 1 %}
+									<li class="page-item disabled">
+										<span class="page-link">...</span>
+									</li>
+									{% endif %}
+									<li class="page-item">
+										<a class="page-link" href="{% if q %}{{ url_for('admin.users_listing', page=users.pages, field=field, q=q) }}{% else %}{{ url_for('admin.users_listing', page=users.pages) }}{% endif %}">{{ users.pages }}</a>
+									</li>
 								{% endif %}
 								
 								<li class="page-item {% if users.page == users.pages %}disabled{% endif %}">

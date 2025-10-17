@@ -38,7 +38,9 @@ from CTFd.plugins import bypass_csrf_protection
 @admin_or_challenge_writer_only_or_jury
 def challenges_listing():
     q = request.args.get("q")
-    field = request.args.get("field")
+    field = request.args.get("field") or "name"
+    category = request.args.get("category")
+    type_ = request.args.get("type")
     page = abs(request.args.get("page", 1, type=int))
     filters = []
 
@@ -47,6 +49,12 @@ def challenges_listing():
         # Check if the field exists as an exposed column
         if Challenges.__mapper__.has_property(field):
             filters.append(getattr(Challenges, field).like(f"%{q}%"))
+
+    if category:
+        filters.append(Challenges.category == category)
+
+    if type_:
+        filters.append(Challenges.type == type_)
 
     # Modify query based on user role
     if is_admin() or is_jury():
@@ -62,7 +70,13 @@ def challenges_listing():
         
     # Fetch the results with pagination
     challenges = query.paginate(page=page, per_page=10, error_out=False)
-    
+    raw_categories = (
+        Challenges.query.with_entities(Challenges.category).distinct().all()
+    )
+    raw_types = Challenges.query.with_entities(Challenges.type).distinct().all()
+
+    categories = [c[0] for c in raw_categories if c and c[0]]
+    types = [t[0] for t in raw_types if t and t[0]]
     # Add creator names to challenges
     for c in challenges.items:
         user = Users.query.filter_by(id=c.user_id).first()
@@ -81,6 +95,10 @@ def challenges_listing():
         next_page=url_for(request.endpoint, page=challenges.next_num, **args),
         q=q,
         field=field,
+        category=category,
+        type=type_,
+        categories=categories,
+        types=types,
     )
 
 

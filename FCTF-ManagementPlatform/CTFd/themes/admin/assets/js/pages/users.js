@@ -93,4 +93,26 @@ function bulkEditUsers(_event) {
 $(() => {
   $("#users-delete-button").click(deleteSelectedUsers);
   $("#users-edit-button").click(bulkEditUsers);
+  
+  $("#export-csv-button").on("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $("#export-csv-dropdown").toggleClass("show");
+  });
+
+  $("#include-passwords-visible").on("change", function (e) {
+    e.stopPropagation();
+    
+    if ($(this).is(":checked")) {
+      ezAlert({
+        title: "Warning",
+        body: "All contestant passwords will be reset and displayed in the file.",
+        button: "OK",
+      });
+    }
+  });
+
+  $("#export-csv-dropdown").on("click", function (e) {
+    e.stopPropagation();
+  });
 });
