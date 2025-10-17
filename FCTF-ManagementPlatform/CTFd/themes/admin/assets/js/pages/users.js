@@ -28,6 +28,61 @@ function deleteSelectedUsers(_event) {
     },
   });
 }
+async function exportUsers(includePasswords = false) {
+  try {
+    const url = includePasswords
+      ? "/admin/export/csv/user?include_passwords=1"
+      : "/admin/export/csv/user";
+
+    // Thông báo đang export
+    CTFd.ui.ezq.ezToast({
+      title: "Export Started",
+      body: includePasswords
+        ? "Resetting passwords and preparing CSV..."
+        : "Preparing CSV for download...",
+    });
+
+    // Gọi API backend
+    const response = await CTFd.fetch(url, {
+      method: "GET",
+      credentials: "same-origin",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Export failed (${response.status})`);
+    }
+
+    // Tạo blob từ response
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const fileNameMatch = contentDisposition && contentDisposition.match(/filename="?([^"]+)"?/);
+    const fileName = fileNameMatch ? fileNameMatch[1] : "users.csv";
+
+    // Tự động tải file
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
+
+    // Hoàn tất
+    CTFd.ui.ezq.ezToast({
+      title: "Export Complete",
+      body: includePasswords
+        ? "User CSV (with reset passwords) downloaded successfully."
+        : "User CSV downloaded successfully.",
+    });
+  } catch (err) {
+    console.error(err);
+    CTFd.ui.ezq.ezToast({
+      title: "Export Failed",
+      body: err.message,
+    });
+  }
+}
 
 function bulkEditUsers(_event) {
   let userIDs = $("input[data-user-id]:checked").map(function () {
@@ -91,6 +146,10 @@ function bulkEditUsers(_event) {
 
 
 $(() => {
+    $("#export-btn").on("click", function () {
+      const includePasswords = $("#include-passwords-visible").is(":checked");
+      exportUsers(includePasswords);
+    });
   $("#users-delete-button").click(deleteSelectedUsers);
   $("#users-edit-button").click(bulkEditUsers);
   
