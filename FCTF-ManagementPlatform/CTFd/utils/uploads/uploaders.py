@@ -15,6 +15,9 @@ from werkzeug.utils import safe_join, secure_filename
 
 from CTFd.utils import get_app_config
 from CTFd.utils.encoding import hexencode
+import json
+import ssl
+import http.client
 
 
 class BaseUploader(object):
@@ -244,3 +247,172 @@ class S3Uploader(BaseUploader):
         local_path = os.path.join(local_folder, filename)
         self.s3.download_file(self.bucket, filename, local_path)
         return Path(local_path).open(mode=mode)
+
+class FileBrowserUploader(BaseUploader):
+    def __init__(self):
+        super(BaseUploader, self).__init__()
+        self.base_url = get_app_config("FILE_BROWSER_URL") or "https://filebrowser.fctf.cloud"
+        self.username = get_app_config("FILE_BROWSER_USER") or "admin"
+        self.password = get_app_config("FILE_BROWSER_PASS") or "admin"
+
+        self.logger = getattr(current_app, "logger", None)
+        self.token = self._login()
+
+    def _error(self, message):
+        """In lỗi ra console"""
+        print(f"[FileBrowserUploader ERROR] {message}")
+
+    # ---------- LOGIN ----------
+    def _login(self):
+        try:
+            parsed = urlparse(self.base_url)
+            conn = http.client.HTTPSConnection(parsed.netloc, context=ssl._create_unverified_context())
+            payload = json.dumps({"username": self.username, "password": self.password})
+            conn.request("POST", "/api/login", body=payload, headers={"Content-Type": "application/json"})
+            res = conn.getresponse()
+            data = res.read()
+            if res.status != 200:
+                self._error(f"Login failed: {res.status} {data}")
+                raise Exception(f"FileBrowser login failed: {res.status} {data}")       
+            token = data.decode().strip()
+            return token
+        except Exception as e:
+            self._error(f"Login error: {e}")
+            raise
+
+    def _headers(self):
+        return {
+            "Authorization": f"Bearer {self.token}",
+            "X-Auth": self.token
+        }   
+
+    def _clean_filename(self, c):
+        if c in string.ascii_letters + string.digits + "-" + "_" + ".": 
+            return True
+
+    # ---------- STORE ----------
+    def store(self, fileobj, filename):
+        try:
+            upload_path = f"/api/resources/{filename}"
+            parsed = urlparse(self.base_url)
+            conn = http.client.HTTPSConnection(parsed.netloc, context=ssl._create_unverified_context())
+
+            boundary = "----fctfupload"
+            body = []
+            body.append(f"--{boundary}\r\n".encode())
+            body.append(f'Content-Disposition: form-data; name="files"; filename="{filename}"\r\n'.encode())
+            body.append(b"Content-Type: application/octet-stream\r\n\r\n")
+            body.append(fileobj.read())
+            body.append(f"\r\n--{boundary}--\r\n".encode())
+            body_bytes = b"".join(body)
+
+            headers = self._headers()
+            headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+            headers["Content-Length"] = str(len(body_bytes))
+
+            conn.request("POST", upload_path, body=body_bytes, headers=headers)
+            res = conn.getresponse()
+            data = res.read()
+            if res.status not in (200, 201):
+                self._error(f"Upload failed: {res.status} {data}")
+                raise Exception(f"Upload failed: {res.status}")
+            return filename
+        except Exception as e:
+            self._error(f"store() error: {e}")
+            raise
+
+    # ---------- UPLOAD ----------
+    def upload(self, file_obj, filename, path=None):
+        try:
+            if path:
+                path = secure_filename(path) or hexencode(os.urandom(16))
+                path = path.replace(".", "")
+            else:
+                path = hexencode(os.urandom(16))
+
+            filename = filter(self._clean_filename, secure_filename(filename).replace(" ", "_"))
+            filename = "".join(filename)
+            if len(filename) <= 0:
+                raise Exception("Invalid filename")
+
+            dst = f"{path}/{filename}"
+            result = self.store(file_obj, dst)
+            return result
+        except Exception as e:
+            self._error(f"upload() error: {e}")
+            raise
+
+    # ---------- DOWNLOAD ----------
+    def download(self, filename):
+        try:
+            url = f"{self.base_url}/api/raw/{filename}"
+            return redirect(url)
+        except Exception as e:
+            self._error(f"download() error: {e}")
+            raise
+
+    # ---------- DELETE ----------
+    def delete(self, filename):
+        try:
+            parsed = urlparse(self.base_url)
+            conn = http.client.HTTPSConnection(parsed.netloc, context=ssl._create_unverified_context())
+            conn.request("DELETE", f"/api/resources/{filename}", headers=self._headers())
+            res = conn.getresponse()
+            res.read()
+            success = res.status in (200, 204)
+            if success:
+                print(f"Deleted successfully ✅ {filename}")
+            else:
+                self._error(f"Delete failed: {res.status}")
+            return success
+        except Exception as e:
+            self._error(f"delete() error: {e}")
+            raise
+
+    # ---------- SYNC ----------
+    def sync(self):
+        try:
+            local_folder = current_app.config.get("UPLOAD_FOLDER")
+            parsed = urlparse(self.base_url)
+            conn = http.client.HTTPSConnection(parsed.netloc, context=ssl._create_unverified_context())
+            conn.request("GET", "/api/resources/", headers=self._headers())
+            res = conn.getresponse()
+            data = res.read()
+            if res.status != 200:
+                self._error(f"Sync failed: {res.status}")
+                return
+
+            items = json.loads(data).get("items", [])
+            for item in items:
+                name = item["name"]
+                if item["type"] == "file":
+                    conn2 = http.client.HTTPSConnection(parsed.netloc, context=ssl._create_unverified_context())
+                    conn2.request("GET", f"/api/raw/{name}", headers=self._headers())
+                    res2 = conn2.getresponse()
+                    file_path = os.path.join(local_folder, name)
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    with open(file_path, "wb") as f:
+                        f.write(res2.read())
+        except Exception as e:
+            self._error(f"sync() error: {e}")
+            raise
+
+    # ---------- OPEN ----------
+    def open(self, filename, mode="rb"):
+        try:
+            local_folder = current_app.config.get("UPLOAD_FOLDER")
+            local_path = os.path.join(local_folder, filename)
+            parsed = urlparse(self.base_url)
+            conn = http.client.HTTPSConnection(parsed.netloc, context=ssl._create_unverified_context())
+            conn.request("GET", f"/api/raw/{filename}", headers=self._headers())
+            res = conn.getresponse()
+            if res.status != 200:
+                self._error(f"Cannot open remote file: {filename}")
+                raise Exception(f"Cannot open remote file: {filename}")
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(res.read())
+            return open(local_path, mode=mode)
+        except Exception as e:
+            self._error(f"open() error: {e}")
+            raise
