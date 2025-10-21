@@ -41,7 +41,13 @@
 			rows="10">{{ challenge.description }}</textarea>
 	</div>
 	{% endblock %}
-
+	<div class="form-group">
+        <label for="submission_cooldown">
+            Submission cooldown (seconds):<br>
+            <small class="form-text text-muted">Minimum number of seconds required between two submissions for this challenge (0 = disabled).</small>
+        </label>
+        <input type="number" class="form-control" id="submission_cooldown" name="cooldown" min="0" step="1" value="{{ challenge.cooldown }}">
+    </div>
 	{% block value %}
 	<!-- Challenge Scoring Type Toggle -->
 	<div class="form-group">

@@ -28,6 +28,7 @@ def upgrade():
         sa.Column("type", sa.String(length=80), nullable=True),
         sa.Column("state", sa.String(length=80), nullable=False),
         sa.Column("requirements", sa.JSON(), nullable=True),
+        sa.Column("cooldown", sa.Integer(), nullable=True,server_default=sa.text("0")),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(

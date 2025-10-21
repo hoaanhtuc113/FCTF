@@ -416,3 +416,150 @@ class FileBrowserUploader(BaseUploader):
         except Exception as e:
             self._error(f"open() error: {e}")
             raise
+
+class NFSUploader(BaseUploader):
+    def __init__(self, base_path=None):
+        super(BaseUploader, self).__init__()
+        # NFS mount point - có thể config qua environment variable
+        self.nfs_mount = get_app_config("NFS_MOUNT_PATH") or "/mnt/nfs/uploads"
+        self.base_path = base_path or self.nfs_mount
+        
+        # Verify NFS mount is accessible
+        if not os.path.exists(self.base_path):
+            raise Exception(f"NFS mount path does not exist: {self.base_path}")
+        
+        # Check if writable
+        if not os.access(self.base_path, os.W_OK):
+            raise Exception(f"NFS mount path is not writable: {self.base_path}")
+
+    def _error(self, message):
+        """In lỗi ra console"""
+        print(f"[NFSUploader ERROR] {message}")
+
+    def _clean_filename(self, c):
+        if c in string.ascii_letters + string.digits + "-" + "_" + ".":
+            return True
+
+    def store(self, fileobj, filename):
+        """Store file directly to NFS mount"""
+        try:
+            location = os.path.join(self.base_path, filename)
+            directory = os.path.dirname(location)
+
+            if not os.path.exists(directory):
+                os.makedirs(directory, mode=0o755)
+
+            with open(location, "wb") as dst:
+                copyfileobj(fileobj, dst, 16384)
+
+            # Set proper permissions
+            os.chmod(location, 0o644)
+            return filename
+        except Exception as e:
+            self._error(f"store() error: {e}")
+            raise
+
+    def upload(self, file_obj, filename, path=None):
+        """Upload file with path sanitization"""
+        try:
+            if len(filename) == 0:
+                raise Exception("Empty filenames cannot be used")
+
+            # Sanitize directory name
+            if path:
+                path = secure_filename(path) or hexencode(os.urandom(16))
+                path = path.replace(".", "")
+            else:
+                path = hexencode(os.urandom(16))
+
+            # Sanitize file name
+            filename = filter(self._clean_filename, secure_filename(filename).replace(" ", "_"))
+            filename = "".join(filename)
+            if len(filename) <= 0:
+                raise Exception("Invalid filename")
+
+            file_path = posixpath.join(path, filename)
+            return self.store(file_obj, file_path)
+        except Exception as e:
+            self._error(f"upload() error: {e}")
+            raise
+
+    def download(self, filename):
+        """Download file from NFS mount"""
+        try:
+            file_path = safe_join(self.base_path, filename)
+            if not os.path.exists(file_path):
+                raise Exception(f"File not found: {filename}")
+            
+            return send_file(file_path, as_attachment=True)
+        except Exception as e:
+            self._error(f"download() error: {e}")
+            raise
+
+    def delete(self, filename):
+        """Delete file from NFS mount"""
+        try:
+            file_path = os.path.join(self.base_path, filename)
+            if os.path.exists(file_path):
+                # Delete entire directory if it's a challenge folder
+                dir_path = PurePath(filename).parts[0]
+                full_dir_path = os.path.join(self.base_path, dir_path)
+                
+                if os.path.isdir(full_dir_path):
+                    rmtree(full_dir_path)
+                else:
+                    os.remove(file_path)
+                return True
+            else:
+                self._error(f"File not found: {filename}")
+                return False
+        except Exception as e:
+            self._error(f"delete() error: {e}")
+            raise
+
+    def sync(self):
+        """No sync needed - files are already on NFS"""
+        pass
+
+    def open(self, filename, mode="rb"):
+        """Open file directly from NFS mount"""
+        try:
+            file_path = safe_join(self.base_path, filename)
+            if not os.path.exists(file_path):
+                raise Exception(f"File not found: {filename}")
+            
+            return Path(file_path).open(mode=mode)
+        except Exception as e:
+            self._error(f"open() error: {e}")
+            raise
+
+    def list_files(self, path=""):
+        """List files in NFS directory"""
+        try:
+            dir_path = safe_join(self.base_path, path)
+            if not os.path.exists(dir_path):
+                return []
+            
+            files = []
+            for item in os.listdir(dir_path):
+                item_path = os.path.join(dir_path, item)
+                files.append({
+                    "name": item,
+                    "path": os.path.relpath(item_path, self.base_path),
+                    "type": "dir" if os.path.isdir(item_path) else "file",
+                    "size": os.path.getsize(item_path) if os.path.isfile(item_path) else 0,
+                    "modified": os.path.getmtime(item_path)
+                })
+            return files
+        except Exception as e:
+            self._error(f"list_files() error: {e}")
+            raise
+
+    def exists(self, filename):
+        """Check if file exists on NFS"""
+        try:
+            file_path = safe_join(self.base_path, filename)
+            return os.path.exists(file_path)
+        except Exception as e:
+            self._error(f"exists() error: {e}")
+            return False
