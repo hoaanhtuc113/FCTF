@@ -199,6 +199,9 @@ class ServerConfig(object):
     UPLOAD_PROVIDER: str = empty_str_cast(config_ini["uploads"]["UPLOAD_PROVIDER"]) \
         or "filesystem"
 
+    NFS_MOUNT_PATH: str = empty_str_cast(config_ini["uploads"]["NFS_MOUNT_PATH"]) \
+        or "/mnt/nfs/data"
+
     UPLOAD_FOLDER: str = empty_str_cast(config_ini["uploads"]["UPLOAD_FOLDER"]) \
         or os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 

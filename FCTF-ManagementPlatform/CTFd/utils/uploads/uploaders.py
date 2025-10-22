@@ -421,7 +421,7 @@ class NFSUploader(BaseUploader):
     def __init__(self, base_path=None):
         super(BaseUploader, self).__init__()
         # NFS mount point - có thể config qua environment variable
-        self.nfs_mount = get_app_config("NFS_MOUNT_PATH") or "/mnt/nfs/uploads"
+        self.nfs_mount = get_app_config("NFS_MOUNT_PATH") or "/mnt/nfs/data"
         self.base_path = base_path or self.nfs_mount
         
         # Verify NFS mount is accessible
@@ -447,6 +447,7 @@ class NFSUploader(BaseUploader):
             directory = os.path.dirname(location)
 
             if not os.path.exists(directory):
+                print(f"Creating directory: {directory}")
                 os.makedirs(directory, mode=0o755)
 
             with open(location, "wb") as dst:
@@ -479,6 +480,7 @@ class NFSUploader(BaseUploader):
                 raise Exception("Invalid filename")
 
             file_path = posixpath.join(path, filename)
+            print(f"Uploading to NFS path: {file_path}")
             return self.store(file_obj, file_path)
         except Exception as e:
             self._error(f"upload() error: {e}")

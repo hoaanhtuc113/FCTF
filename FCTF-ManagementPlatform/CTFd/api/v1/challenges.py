@@ -734,6 +734,35 @@ class ChallengeAttempt(Resource):
         # team = get_current_team()
 
         team = Teams.query.filter_by(id=team_id).first()
+        cooldown_seconds = challenge.cooldown or 0
+        if cooldown_seconds > 0:
+            cooldown_key = f"submission_cooldown_{challenge_id}_{team_id}"
+            last_submission_time = redis_client.get(cooldown_key)
+            
+            if last_submission_time:
+                last_submission_time = float(last_submission_time)
+                current_time = time.time()
+                time_elapsed = current_time - last_submission_time
+                
+                if time_elapsed < cooldown_seconds:
+                    remaining_cooldown = int(cooldown_seconds - time_elapsed)
+                    return (
+                        {
+                            "success": True,
+                            "data": {
+                                "status": "ratelimited",
+                                "message": f"Please wait {remaining_cooldown} seconds before submitting again.",
+                            },
+                        },
+                        429,
+                    )
+            
+            # Set the current submission time in Redis
+            redis_client.set(
+                cooldown_key,
+                str(time.time())
+            )
+        
         # TODO: Convert this into a re-useable decorator
         if config.is_teams_mode() and team is None:
             abort(403)

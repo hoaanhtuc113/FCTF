@@ -4,13 +4,13 @@ from pathlib import Path
 import traceback
 from CTFd.models import ChallengeFiles, Files, PageFiles, db
 from CTFd.utils import get_app_config
-from CTFd.utils.uploads.uploaders import FilesystemUploader, S3Uploader,FileBrowserUploader
+from CTFd.utils.uploads.uploaders import FilesystemUploader, S3Uploader,NFSUploader
 from flask import current_app
-UPLOADERS = {"filesystem": FilesystemUploader, "s3": S3Uploader, "filebrowser" : FileBrowserUploader}
+UPLOADERS = {"filesystem": FilesystemUploader, "s3": S3Uploader, "nfs" : NFSUploader}
 
 
 def get_uploader():
-    return UPLOADERS.get(get_app_config("UPLOAD_PROVIDER") or "filebrowser")()
+    return UPLOADERS.get(get_app_config("UPLOAD_PROVIDER") or "nfs")()
 
 
 def upload_file(*args, **kwargs):
