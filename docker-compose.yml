@@ -113,6 +113,7 @@ services:
       - ServiceConfigs__ControlServerAPI=${CONTROL_SERVER_API}
       - ServiceConfigs__ArgoWorkflowsURL=${ARGO_WORKFLOWS_URL}
       - ServiceConfigs__ArgoWorkflowsToken=${ARGO_WORKFLOWS_TOKEN}
+      - ServiceConfigs__NfsPath=${NFS_PATH}
       # Environment
       - EnvironmentConfigs__ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
     depends_on:
