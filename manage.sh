@@ -239,7 +239,6 @@ update_appsettings() {
     # Tạo thư mục publish nếu chưa tồn tại
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish"
-    mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
     # Cập nhật appsettings.json cho ChallengeHosting
@@ -309,65 +308,26 @@ EOF
 }
 EOF
 
-    # Cập nhật appsettings.json cho ContestantService
-    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release/net8.0/linux-x64/publish/appsettings.json" << 'EOF'
-{
-    "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning",
-      "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
-    }
-  },
-  "AllowedHosts": "*",
-  "ConnectionStrings": {
-    "DbConnection": "Server=localhost;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;",
-    "RedisConnection": "127.0.0.1:6379"
-  },
-   "ServiceConfigs": {
-    "SecretKey": "emdungdepzai",
-    "PrivateKey": "emdungdepzai",
-    "ServerHost": "http://0.0.0.0",
-    "ServerPort": "5011",
-    "DomainName": "$control_domain",
-    "MaxInstanceAtTime": "4",
-    "ControlServerAPI": "http://localhost:5000"
-  },
-    "EnvironmentConfigs": {
-    "ENVIRONMENT_NAME": "$env_upper"
-  },
-  "Proxy": {
-    "TrustedProxies": [
-        "^127\\.0\\.0\\.1$",
-        "^::1$",
-        "^fc00:",
-        "^10\\.",
-        "^172\\.(1[6-9]|2[0-9]|3[0-1])\\.",
-        "^192\\.168\\."
-    ]
-  }
-}
-EOF
-
     # Cập nhật file .env cho FCTF-ManagementPlatform
     # API_URL_CONTROLSERVER= Địa chỉ IP hoặc domain của ControlCenter
     cat > "$PROJECT_ROOT/.env" << EOF
 API_URL_CONTROLSERVER=http://172.31.177.154:5000 
 API_URL_ADMINSERVER=http://127.0.0.1:8000
-HOST_CACHE=dbzmn0zjiwmju.fctf.cloud
+HOST_CACHE=cache:6379
 PRIVATE_KEY=emdungdepzai
-REDIS_HOST=dbzmn0zjiwmju.fctf.cloud
-REDIS_PORT=30379
-REDIS_PASS=REDACTED
-REDIS_URL=redis://:REDACTED@dbzmn0zjiwmju.fctf.cloud:30379/0
+REDIS_HOST=cache
+REDIS_PORT=6379
+REDIS_PASS=
+REDIS_URL=redis://cache:6379
 REDIS_DB=0
-DATABASE_PORT=30306
-DATABASE_URL=mysql+pymysql://ctfd-username:REDACTED@dbzmn0zjiwmju.fctf.cloud:30306/ctfd
+DATABASE_PORT=3306
+DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
 ARGO_WORKFLOWS_URL=https://argo.fctf.cloud/api/v1/workflows/argo
 ARGO_WORKFLOWS_TOKEN=REDACTED
+NFS_MOUNT_PATH=/mnt/nfs/data
 
 ASPNETCORE_ENVIRONMENT=Production
-CONTESTANT_DB_CONNECTION=Server=dbzmn0zjiwmju.fctf.cloud;Port=30306;Database=ctfd;User=ctfd-username;Password=REDACTED;
+CONTESTANT_DB_CONNECTION=Server=db;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;
 CONTESTANT_REDIS_CONNECTION=cache:6379
 CONTESTANT_SECRET_KEY=emdungdepzai
 CONTESTANT_PRIVATE_KEY=emdungdepzai
@@ -539,15 +499,6 @@ build_apps() {
         exit 1
     fi
     
-    # Kiểm tra file dự án ContestantService
-    if [ ! -f "ContestantService/ContestantService.csproj" ]; then
-        echo "Lỗi: File dự án ContestantService/ContestantService.csproj không tồn tại."
-        exit 1
-    fi
-    if ! dotnet publish ContestantService/ContestantService.csproj -c Release --framework net8.0 --runtime linux-x64 --self-contained true; then
-        echo "Lỗi: Build ContestantService thất bại."
-        exit 1
-    fi
 
     # Kiểm tra thư mục publish và file thực thi
     if [ ! -d "ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish" ]; then
@@ -564,14 +515,6 @@ build_apps() {
     fi
     if [ ! -f "ControlCenterServer/bin/Release/net8.0/linux-x64/publish/ControlCenterServer" ]; then
         echo "Lỗi: File thực thi ControlCenterServer không được tạo."
-        exit 1
-    fi
-        if [ ! -d "ContestantService/bin/Release/net8.0/linux-x64/publish" ]; then
-        echo "Lỗi: Không thể tạo thư mục publish cho ContestantService."
-        exit 1
-    fi
-    if [ ! -f "ContestantService/bin/Release/net8.0/linux-x64/publish/ContestantService" ]; then
-        echo "Lỗi: File thực thi ContestantService không được tạo."
         exit 1
     fi
 
@@ -624,16 +567,6 @@ start_system() {
             fi
         fi
 
-        # Kiểm tra thêm bằng ps aux cho các tiến trình liên quan
-        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" > /dev/null; then
-            echo "Phát hiện các tiến trình liên quan đang chạy:"
-            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)"
-            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" | awk '{print $2}'); do
-                echo "Dừng tiến trình (PID: $pid)..."
-                sudo kill -9 $pid > /dev/null 2>&1 || true
-                sleep 1
-            done
-        fi
     done
 
     # Chạy kubectl proxy
@@ -786,13 +719,6 @@ stop_system() {
         fi
     done
 
-    # Dừng tất cả tiến trình kubectl proxy và .NET
-    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" > /dev/null; then
-        echo "Dừng các tiến trình liên quan còn lại..."
-        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|ContestantService|kubectl proxy)" | awk '{print $2}'); do
-            sudo kill -9 $pid > /dev/null 2>&1 || true
-        done
-    fi
 
     # Deactivate kCTF
     if command -v deactivate &> /dev/null; then
@@ -919,10 +845,6 @@ clean_system() {
     if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release" ]; then
         rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release"
         echo "Đã xóa thư mục publish của ControlCenterServer."
-    fi
-    if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release" ]; then
-        rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/bin/Release"
-        echo "Đã xóa thư mục publish của ContestantService."
     fi
 
     # Xóa image và container với xác nhận

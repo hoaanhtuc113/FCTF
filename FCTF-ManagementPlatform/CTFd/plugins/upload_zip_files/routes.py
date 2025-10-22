@@ -21,6 +21,7 @@ from CTFd.utils.connector.multiservice_connector import (
     delete_cached_files,
     handle_zip_file_upload,
     redeploy,
+    handle_challenge_upload,
 )
 import pytz
 
@@ -89,7 +90,7 @@ def upload_file(challenge_id, file_path):
         notification_data = None
     
     if allowed_file(file_path) and file_path.endswith(".zip"):
-        return handle_zip_file_upload(challenge, file_path, challenge_id, notification_data)
+        return handle_challenge_upload(challenge, file_path, notification_data)
     else:
         return jsonify({"error": "File type not allowed. Only zip files are allowed."}), 400
 
