@@ -92,9 +92,7 @@
 					<a class="nav-item nav-link small" data-toggle="tab" href="#tags" role="tab">Tags</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#hints" role="tab">Hints</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#requirements" role="tab">Requirements</a>
-					{% if challenge.require_deploy%}
 					<a class="nav-item nav-link small" data-toggle="tab" href="#deploy" role="tab">Deploy</a>
-					{% endif %}
 					<a class="nav-item nav-link small" data-toggle="tab" href="#next" role="tab">Next</a>
 
 				</nav>
@@ -148,7 +146,6 @@
 							</div>
 						</div>
 					</div>
-					{% if challenge.require_deploy %}
 					<div class="tab-pane fade" id="deploy" role="tabpanel">
 						<div class="row">
 							<div class="col-md-12">
@@ -157,7 +154,6 @@
 							</div>
 						</div>
 					</div>
-					{%endif%}
 					<div class="tab-pane fade" id="next" role="tabpanel">
 						<div class="row">
 							<div class="col-md-12">

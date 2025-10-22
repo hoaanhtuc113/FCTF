@@ -1,5 +1,27 @@
 <form id="challenge-deploy" enctype="multipart/form-data">
   <div class="form-group">
+    <div id="deploy-progress-container" style="display: none; margin-bottom: 20px;">
+      <h6 id="deploy-status-title" style="color: #ff5500; font-weight: bold;">Deployment Status</h6>
+      <p id="deploy-status-message" style="margin-bottom: 10px;">Ready to deploy</p>
+      <div class="progress" style="height: 25px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+             id="deploy-progress-bar"
+             role="progressbar" 
+             style="width: 0%; background-color: #ff5500;"
+             aria-valuenow="0" 
+             aria-valuemin="0" 
+             aria-valuemax="100">
+          <span id="deploy-progress-percentage">0%</span>
+        </div>
+      </div>
+      <small class="text-muted mt-2 d-block" id="deploy-status-detail"></small>
+    </div>
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="require_deploy" id="setup_docker" {% if challenge.require_deploy %}checked{% endif %} >
+            Setup Docker
+        </label>
+    </div>
     <label>Files template:</label>
 							<ul id="template-list">
 								{% for filename in template_files %}
@@ -24,7 +46,7 @@
       Re-deploy
     </button> -->
     <button id="deploy-btn" class="btn btn-success" type="submit">
-      Deploy
+      Save Changes
     </button>
   </div>
   <div id="status-message" class="mt-3 alert" style="display: none"></div>
@@ -36,41 +58,153 @@
   document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("challenge-deploy");
     const fileInput = document.getElementById("file-upload");
+    const setupDockerCheckbox = document.getElementById("setup_docker");
     const deployBtn = document.getElementById("deploy-btn");
     const reDeployBtn = document.getElementById("re-deploy-btn");
     const statusMessage = document.getElementById("status-message");
 
+    // Show progress bar container
+    const progressContainer = document.getElementById('deploy-progress-container');
+    const progressBar = document.getElementById('deploy-progress-bar');
+    const progressPercentage = document.getElementById('deploy-progress-percentage');
+    const statusTitle = document.getElementById('deploy-status-title');
+    const deployStatusMessage = document.getElementById('deploy-status-message');
+    const statusDetail = document.getElementById('deploy-status-detail');
+
     function updateButtonState() {
-      deployBtn.disabled = fileInput.files.length === 0;
+      if (setupDockerCheckbox.checked) {
+        fileInput.disabled = false;
+        fileInput.required = true;
+        deployBtn.disabled = fileInput.files.length === 0;
+      } else {
+        fileInput.disabled = true;
+        fileInput.required = false;
+        fileInput.value = '';
+        deployBtn.disabled = false;
+      }
     }
 
-    if (DEPLOYS == 0) {
+    if (DEPLOYS == 0 && reDeployBtn) {
       reDeployBtn.style.display = 'none'
       reDeployBtn.disabled = false
     }
 
+    // Initialize button and file input state on page load
+    updateButtonState();
+
     function handleDeploy(event) {
       event.preventDefault();
 
+      
+
+      if (progressContainer && setupDockerCheckbox.checked) {
+        progressContainer.style.display = 'block';
+        statusTitle.textContent = 'Deploying...';
+        deployStatusMessage.textContent = 'Preparing deployment...';
+        statusDetail.textContent = 'Initializing...';
+        progressBar.style.width = '0%';
+        progressBar.setAttribute('aria-valuenow', '0');
+        progressPercentage.textContent = '0%';
+      }
+
       const params = { challenge_id: CHALLENGE_ID };
+
+      // Update progress - 20%
+      if(setupDockerCheckbox.checked) {
+        setTimeout(() => {
+          if (progressBar) {
+            progressBar.style.width = '20%';
+            progressBar.setAttribute('aria-valuenow', '20');
+            progressPercentage.textContent = '20%';
+            deployStatusMessage.textContent = 'Uploading files...';
+            statusDetail.textContent = 'Processing files...';
+          }
+        }, 300);
+      }
 
       Promise.all([
         new Promise(function (resolve, _reject) {
           const data = {
             challenge_id: CHALLENGE_ID,
             type: "challenge",
+            require_deploy: setupDockerCheckbox.checked,
           };
 
-          if (fileInput.files.length > 0) {
-            helpers.files.upload(form, data);
+          // Update progress - 40%
+          if (setupDockerCheckbox.checked) {
+            setTimeout(() => {
+              if (progressBar) {
+                progressBar.style.width = '40%';
+                progressBar.setAttribute('aria-valuenow', '40');
+                progressPercentage.textContent = '40%';
+                deployStatusMessage.textContent = 'Uploading to server...';
+                statusDetail.textContent = 'Transferring files...';
+              }
+            }, 700);
           }
+
+          // Update progress - 60%
+          if (setupDockerCheckbox.checked) {
+            setTimeout(() => {
+              if (progressBar) {
+                progressBar.style.width = '60%';
+                progressBar.setAttribute('aria-valuenow', '60');
+                progressPercentage.textContent = '60%';
+                deployStatusMessage.textContent = 'Configuring Docker...';
+                statusDetail.textContent = 'Building container...';
+              }
+            }, 1200);
+          }
+          //if (fileInput.files.length > 0) {
+          helpers.files.upload(form, data);
+         // }
+
+          // Update progress - 85%
+          if (setupDockerCheckbox.checked) {
+            setTimeout(() => {
+              if (progressBar) {
+                progressBar.style.width = '85%';
+                progressBar.setAttribute('aria-valuenow', '85');
+                progressPercentage.textContent = '85%';
+                deployStatusMessage.textContent = 'Finalizing deployment...';
+                statusDetail.textContent = 'Almost done...';
+              }
+            }, 1800);
+          }
+
           resolve();
+
+          // Complete - 100%
           setTimeout(function () {
-            window.location =
-              CTFd.config.urlRoot + "/admin/challenges/" + CHALLENGE_ID;
-          }, 700);
+            if (setupDockerCheckbox.checked && progressBar) {
+              progressBar.style.width = '100%';
+              progressBar.setAttribute('aria-valuenow', '100');
+              progressPercentage.textContent = '100%';
+              progressBar.classList.remove('progress-bar-animated');
+              progressBar.style.backgroundColor = '#28a745'; 
+              statusTitle.textContent = 'Deployment Successful!';
+              statusTitle.style.color = '#28a745';
+              deployStatusMessage.textContent = 'Challenge deployed successfully!';
+              statusDetail.textContent = 'Redirecting...';
+            }
+
+            setTimeout(function() {
+              window.location =
+                CTFd.config.urlRoot + "/admin/challenges/" + CHALLENGE_ID;
+            }, 800);
+          }, 2400);
         }),
-      ]);
+      ]).catch(function(error) {
+        // Show error state
+        if (setupDockerCheckbox.checked && progressBar) {
+          progressBar.classList.remove('progress-bar-animated');
+          progressBar.style.backgroundColor = '#dc3545'; // Red for error
+          statusTitle.textContent = 'Deployment Failed!';
+          statusTitle.style.color = '#dc3545';
+          deployStatusMessage.textContent = 'An error occurred during deployment';
+          statusDetail.textContent = error.message || 'Please try again';
+        }
+      });
     }
 
     // API call for Re-deploy
@@ -108,8 +242,9 @@
     // }
 
     fileInput.addEventListener("change", updateButtonState);
+    setupDockerCheckbox.addEventListener("change", updateButtonState);
     form.addEventListener("submit", handleDeploy);
-    reDeployBtn.addEventListener("click", handleReDeploy); // Event listener for Re-deploy button
+    reDeployBtn?.addEventListener("click", handleReDeploy); // Event listener for Re-deploy button
   });
 
 </script>

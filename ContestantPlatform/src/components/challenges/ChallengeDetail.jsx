@@ -22,6 +22,9 @@ import ApiHelper from "../../utils/ApiHelper";
 import { actionType } from "../../constants/ActionLogConstant";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm"
+import { Document, Page, pdfjs } from 'react-pdf';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 const ChallengeDetail = () => {
   const { id } = useParams();
   const challengeId = id ? parseInt(id, 10) : undefined;
@@ -51,7 +54,10 @@ const ChallengeDetail = () => {
   const descriptionRef = useRef(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showMore, setShowMore] = useState(false);
-
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [showPdf, setShowPdf] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   // Kiểm tra nếu nội dung quá dài (tùy chỉnh số dòng ở đây)
   useEffect(() => {
@@ -118,6 +124,29 @@ const ChallengeDetail = () => {
   useEffect(() => {
     fetchHints();
   }, [challengeId]);
+  useEffect(() => {
+    if (challenge?.files) {
+      console.log("hello:",challenge.files)
+      const pdfFile = challenge.files.find(file => file.toLowerCase().includes('.pdf'));
+      if (pdfFile) {
+        setShowPdf(true);
+        setPdfUrl(`${BASE_URL}${pdfFile}`);
+      } else {
+        setShowPdf(false);
+        setPdfUrl(null);
+      }
+    }
+  }, [challenge?.files]);
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+  };
+
+  const changePage = (offset) => {
+    setPageNumber(prevPageNumber => {
+      const nextPage = prevPageNumber + offset;
+      return nextPage >= 1 && nextPage <= numPages ? nextPage : prevPageNumber;
+    });
+  };
 
   const FetchHintDetails = async (hintId) => {
     try {
@@ -810,19 +839,25 @@ const ChallengeDetail = () => {
               {challenge?.files && (
                 <div className="mt-4">
                   <div className="flex flex-wrap gap-4">
-                    {challenge.files.map((file, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleDowloadFiles(file)}
-                        className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-pink-400"
-                      >
-                        <FaDownload className="mr-2" />
-                        {getFileName(file)}
-                      </button>
-                    ))}
+                    {challenge.files.map((file, index) => {
+                      const isPdf = typeof file === "string" && file.toLowerCase().includes(".pdf");
+                      const displayName = isPdf ? "File mô tả đề" : getFileName(file);
+
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handleDowloadFiles(file)}
+                          className="flex items-center bg-gradient-to-r from-blue-500 to-pink-500 text-white py-2 px-4 rounded-lg shadow hover:scale-105 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-pink-400"
+                        >
+                          <FaDownload className="mr-2" />
+                          {displayName}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
+
               {url && (
                 <div className="mt-4 p-3 bg-orange-950 border-l-4 border-orange-600 rounded flex items-center gap-2 animate-fade-in">
                   <span className="font-semibold text-orange-300">{message}</span>
@@ -843,14 +878,90 @@ const ChallengeDetail = () => {
                         : challenge?.description,
                     }}
                   /> */}
-                  <div
-                    ref={descriptionRef}
-                    className="text-white prose prose-white"
-                  >
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {challenge?.description || ""}
-                    </ReactMarkdown>
-                  </div>
+                  {showPdf ? (
+      <div className="flex flex-col items-center">
+        <div className="relative w-full max-w-3xl mx-auto">
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            loading={
+              <div className="flex justify-center py-10">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+              </div>
+            }
+          >
+            <div className="shadow-2xl rounded-2xl overflow-hidden">
+              <Page 
+                pageNumber={pageNumber}
+                width={Math.min(window.innerWidth * 0.8, 800)}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+              />
+            </div>
+          </Document>
+          
+          {/* Page Navigation */}
+          <div className="flex items-center justify-between mt-4 px-4">
+            <button
+              onClick={() => changePage(-1)}
+              disabled={pageNumber <= 1}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                pageNumber <= 1 
+                ? 'bg-gray-700 text-gray-400' 
+                : 'bg-orange-600 hover:bg-orange-700 text-white'
+              }`}
+            >
+              Previous
+            </button>
+            
+            <div className="flex space-x-2">
+              {[...Array(Math.min(numPages, 3))].map((_, i) => {
+                const page = pageNumber + i - 1;
+                if (page > 0 && page <= numPages) {
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setPageNumber(page)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-all duration-200 ${
+                        pageNumber === page
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                }
+                return null;
+              })}
+            </div>
+
+            <button
+              onClick={() => changePage(1)}
+              disabled={pageNumber >= numPages}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                pageNumber >= numPages
+                ? 'bg-gray-700 text-gray-400'
+                : 'bg-orange-600 hover:bg-orange-700 text-white'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+          
+          <p className="text-center text-gray-400 mt-2">
+            Page {pageNumber} of {numPages}
+          </p>
+        </div>
+      </div>
+    ) : (
+      <div ref={descriptionRef} className="text-white prose prose-white">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {challenge?.description || ""}
+        </ReactMarkdown>
+      </div>
+    )}
+
                 </div>
               </div>
             </div>

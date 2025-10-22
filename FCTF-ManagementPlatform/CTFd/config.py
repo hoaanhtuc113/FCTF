@@ -132,9 +132,6 @@ class ServerConfig(object):
         # Override the threshold of cached values on the filesystem. The default is 500. Don't change unless you know what you're doing.
         CACHE_THRESHOLD: int = 0
 
-    # === NFS ===
-    NFS_MOUNT_PATH: str = empty_str_cast(config_ini["server"]["NFS_MOUNT_PATH"])
-
     # === SECURITY ===
     SESSION_COOKIE_HTTPONLY: bool = config_ini["security"].getboolean("SESSION_COOKIE_HTTPONLY", fallback=True)
 
@@ -201,6 +198,9 @@ class ServerConfig(object):
     # === UPLOADS ===
     UPLOAD_PROVIDER: str = empty_str_cast(config_ini["uploads"]["UPLOAD_PROVIDER"]) \
         or "filesystem"
+
+    NFS_MOUNT_PATH: str = empty_str_cast(config_ini["uploads"]["NFS_MOUNT_PATH"]) \
+        or "/mnt/nfs/data"
 
     UPLOAD_FOLDER: str = empty_str_cast(config_ini["uploads"]["UPLOAD_FOLDER"]) \
         or os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")

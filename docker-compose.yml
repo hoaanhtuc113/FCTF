@@ -26,6 +26,7 @@ services:
       - REDIS_PASS=${REDIS_PASS}
       - REDIS_DB=${REDIS_DB}
       - NFS_MOUNT_PATH=${NFS_MOUNT_PATH}
+      - UPLOAD_PROVIDER=${UPLOAD_PROVIDER}
     volumes:
       - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
       - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads

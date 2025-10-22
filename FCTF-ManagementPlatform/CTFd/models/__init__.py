@@ -124,7 +124,7 @@ class Challenges(db.Model):
     time_finished = db.Column(db.DateTime, nullable=True)
     start_time = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-
+    cooldown = db.Column(db.Integer, nullable=True, default=0)
     require_deploy = db.Column(db.Boolean, nullable=False, default=False)
     deploy_status = db.Column(db.Text, nullable=True, default="CREATED")
     last_update = db.Column(db.DateTime)

@@ -29,6 +29,7 @@ from CTFd.models import Challenges
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
 from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
+from CTFd.plugins.dynamic_challenges import DynamicChallenge
 from CTFd.schemas.challenges import ChallengeSchema
 from CTFd.schemas.flags import FlagSchema
 from CTFd.schemas.hints import HintSchema
@@ -477,8 +478,6 @@ class Challenge(Resource):
         )
 
         db.session.close()
-        print("challenge response")
-        print(response)
         return {"success": True, "data": response}
 
     @admin_or_challenge_writer_only_or_jury
@@ -494,10 +493,13 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+        print(f"Patch data: {data}")
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         data["user_id"] = session["id"]
         response = schema.load(data)
+        scoringType = data.get("scoring-type-radio")
+        print(f"Scoring type: {scoringType}")
 
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
@@ -522,6 +524,47 @@ class Challenge(Resource):
             data["user_id"] = user_id
         else:
             return {"success": False, "error": "Unauthorized user type."}, 403
+
+        if scoringType == "standard" and challenge.type == "dynamic":
+            # Converting from dynamic to standard
+            from sqlalchemy import text
+            db.session.execute(
+                text("DELETE FROM dynamic_challenge WHERE id = :id"),
+                {"id": challenge_id}
+            )
+            
+            challenge.type = "standard"
+            db.session.commit()
+            db.session.expunge_all()
+            challenge = Challenges.query.filter_by(id=challenge_id).first()
+            
+        elif scoringType == "dynamic" and challenge.type == "standard":
+            # Converting from standard to dynamic
+            challenge.type = "dynamic"
+            db.session.flush()
+
+            initial = int(data.get("initial", 100))
+            minimum = int(data.get("minimum", 10))
+            decay = int(data.get("decay", 50))
+            function = data.get("function", "logarithmic")
+            
+            from sqlalchemy import text
+            db.session.execute(
+                text(
+                    "INSERT INTO dynamic_challenge (id, initial, minimum, decay, function) "
+                    "VALUES (:id, :initial, :minimum, :decay, :function)"
+                ),
+                {
+                    "id": challenge_id,
+                    "initial": initial,
+                    "minimum": minimum,
+                    "decay": decay,
+                    "function": function
+                }
+            )
+            db.session.commit()
+            db.session.expunge_all()
+            challenge = Challenges.query.filter_by(id=challenge_id).first()
 
         challenge_class = get_chal_class(challenge.type)
         challenge = challenge_class.update(challenge, request)
@@ -694,6 +737,35 @@ class ChallengeAttempt(Resource):
         # team = get_current_team()
 
         team = Teams.query.filter_by(id=team_id).first()
+        cooldown_seconds = challenge.cooldown or 0
+        if cooldown_seconds > 0:
+            cooldown_key = f"submission_cooldown_{challenge_id}_{team_id}"
+            last_submission_time = redis_client.get(cooldown_key)
+            
+            if last_submission_time:
+                last_submission_time = float(last_submission_time)
+                current_time = time.time()
+                time_elapsed = current_time - last_submission_time
+                
+                if time_elapsed < cooldown_seconds:
+                    remaining_cooldown = int(cooldown_seconds - time_elapsed)
+                    return (
+                        {
+                            "success": True,
+                            "data": {
+                                "status": "ratelimited",
+                                "message": f"Please wait {remaining_cooldown} seconds before submitting again.",
+                            },
+                        },
+                        429,
+                    )
+            
+            # Set the current submission time in Redis
+            redis_client.set(
+                cooldown_key,
+                str(time.time())
+            )
+        
         # TODO: Convert this into a re-useable decorator
         if config.is_teams_mode() and team is None:
             abort(403)
