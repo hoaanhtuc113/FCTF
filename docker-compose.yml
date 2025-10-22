@@ -25,10 +25,12 @@ services:
       - REDIS_PORT=${REDIS_PORT}
       - REDIS_PASS=${REDIS_PASS}
       - REDIS_DB=${REDIS_DB}
+      - NFS_MOUNT_PATH=${NFS_MOUNT_PATH}
     volumes:
       - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
       - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads
       - ./FCTF-ManagementPlatform:/opt/CTFd:ro
+      - ${NFS_MOUNT_PATH}:${NFS_MOUNT_PATH}
     depends_on:
       - db
       - cache

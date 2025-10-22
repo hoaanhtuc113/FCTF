@@ -22,3 +22,6 @@ REDIS_DB = int(os.environ.get("REDIS_DB", 0))
 
 # Database
 DATABASE_PORT = int(os.environ.get("DATABASE_PORT", 3306))
+
+# NFS Configuration - Path to store challenge folders
+NFS_MOUNT_PATH = os.environ.get("NFS_MOUNT_PATH", "/mnt/nfs/data")

@@ -3,6 +3,8 @@ import hashlib
 import io
 import json
 import os
+import shutil
+import tempfile
 import threading
 import time
 import zipfile
@@ -21,6 +23,7 @@ from CTFd.constants.envvars import (
     REDIS_DB,
     ARGO_WORKFLOWS_URL,
     ARGO_WORKFLOWS_TOKEN,
+    NFS_MOUNT_PATH,
 )
 import random 
 from CTFd.schemas.notifications import NotificationSchema
@@ -420,6 +423,97 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
 
         else:
             return jsonify({"error": "Challenge already pending deploy"}), 400
+
+def handle_challenge_upload(challenge, file_path, notification_data):
+    """
+    Handle the challenge upload process
+    - Unzip the uploaded file
+    - Upload folder to NFS_MOUNT_PATH directory
+    """
+    zip_filename = os.path.basename(file_path)
+    folder_name = os.path.splitext(zip_filename)[0]
+    safe_folder_name = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in folder_name)
+    
+    # Create temporary directory for extraction
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        with open(file_path, "rb") as file:
+            zip_content = file.read()
+            
+            try:
+                with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
+                    if z.testzip() is not None:
+                        return {"success": False, "error": "Invalid Zip file"}, 400
+            except zipfile.BadZipFile:
+                return {"success": False, "error": "Invalid zip file format"}, 400
+        
+        # Extract the zip file to temporary directory
+        extract_path = os.path.join(temp_dir, f"challenge_{challenge.id}")
+        os.makedirs(extract_path, exist_ok=True)
+        
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        
+        print(f"Extracted challenge files to: {extract_path}")
+        
+        # Create challenges directory if it doesn't exist
+        challenges_dir = os.path.join(NFS_MOUNT_PATH, "challenges")
+        os.makedirs(challenges_dir, exist_ok=True)
+        
+        # Define destination path using the zip file name
+        nfs_destination = os.path.join(challenges_dir, safe_folder_name)
+        
+        # Remove existing directory if it exists
+        if os.path.exists(nfs_destination):
+            print(f"Removing existing challenge directory: {nfs_destination}")
+            shutil.rmtree(nfs_destination)
+        
+        # Copy the extracted folder to NFS_MOUNT_PATH
+        print(f"Copying challenge folder to: {nfs_destination}")
+        shutil.copytree(extract_path, nfs_destination)
+        print(f"Challenge folder copied successfully")
+        
+        # Update challenge status
+        if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
+            try:
+                if challenge.state != "hidden":
+                    print("Sending notification...")
+                    post_notification(notification_data)
+                
+                challenge.require_deploy = True
+                challenge.deploy_status = "PENDING_DEPLOY"
+                challenge.state = "hidden"
+                
+                db.session.commit()
+                
+                print(f"Challenge uploaded successfully to: {nfs_destination}")
+                
+                return {
+                    "success": True,
+                    "message": "Challenge folder uploaded successfully",
+                    "challenge_id": challenge.id,
+                    "path": nfs_destination
+                }, 200
+                
+            except Exception as e:
+                print(f"Error updating challenge status: {e}")
+                db.session.rollback()
+                return {"success": False, "error": f"Error updating challenge status: {str(e)}"}, 500
+        else:
+            return {"success": False, "error": "Challenge already pending deploy"}, 400
+            
+    except Exception as e:
+        print(f"Error handling challenge upload: {e}")
+        return {"success": False, "error": f"Error processing challenge upload: {str(e)}"}, 500
+    finally:
+        try:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+                print(f"Cleaned up temporary directory: {temp_dir}")
+        except Exception as e:
+            print(f"Error cleaning up temporary directory: {e}")
+    
         
 def post_notification(notify_data):
 
