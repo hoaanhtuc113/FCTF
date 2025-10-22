@@ -4,7 +4,6 @@
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
 PROJECT_ROOT="/home/manhhuy/FCTF"
-PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -325,6 +324,7 @@ DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
 ARGO_WORKFLOWS_URL=https://argo.fctf.cloud/api/v1/workflows/argo
 ARGO_WORKFLOWS_TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6IjF5QW9GODhkM2NzTVRzSEtETmVhVjVQZVk0OHJKNVg1alpnS2dKWmpXSFkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJhcmdvIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImFyZ28tc2Euc2VydmljZS1hY2NvdW50LXRva2VuIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFyZ28tc2EiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI4YjNhMDU3MC04ZjllLTQ3ZmEtOTMxMC03ZjI0NDIwOThhZTYiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6YXJnbzphcmdvLXNhIn0.cgTmsjBKHXARU4N-RkhHsNfi8nAAzQuSVrzPs-iyL4qbOol70lDf5NAJryo7OYugS0e4sULby41HOncIsYYCh_XfJOlH_zi4zzB3uF4x8UhtveG-1FOo8n2GQsXnfJo2w0c-1G4nqOVPGqk3Zf3_HfWOG1bz28gv2E2yMeNesG7lsOAXIHU50Lp8Faaao70satiJ4TXPJyzUZ-69NTVE2AqLmaVlo3Havw25pyHUgjy842_1iKP7dCk9yFDPLdo4VHKCzdG7ojx0DtIR_ri-76EoUrBlNDzEKyDVDMYYxSVd2UxeSxI3twFTlo9_h8RriEpnyxrM9ZpuAXWYNg5lOw
 NFS_MOUNT_PATH=/mnt/nfs/data
+UPLOAD_PROVIDER=nfs
 
 ASPNETCORE_ENVIRONMENT=Production
 CONTESTANT_DB_CONNECTION=Server=db;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;

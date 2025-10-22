@@ -144,7 +144,6 @@ def is_admin():
 def is_challenge_writer():
     if authed():
         user = get_current_user_attrs()
-        print("testtttttt challenge writer  " + str(user))
 
         if user and user.type:
             return user.type == "challenge_writer"
@@ -155,7 +154,6 @@ def is_challenge_writer():
 def is_jury():
     if authed():
         user = get_current_user_attrs()
-        print("testtttttt " + str(user))
         
         if user and user.type:
             return user.type == "jury"
