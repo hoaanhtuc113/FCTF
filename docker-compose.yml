@@ -117,6 +117,8 @@ services:
       - ServiceConfigs__NfsPath=${NFS_MOUNT_PATH}
       # Environment
       - EnvironmentConfigs__ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
+    volumes:
+      - ${NFS_MOUNT_PATH}:${NFS_MOUNT_PATH}
     depends_on:
       - db
       - cache
