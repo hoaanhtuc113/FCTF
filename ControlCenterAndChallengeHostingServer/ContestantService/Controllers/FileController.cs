@@ -1,4 +1,5 @@
-﻿using ContestantService.Extensions;
+﻿using ContestantService.Attribute;
+using ContestantService.Extensions;
 using ContestantService.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,7 @@ namespace ContestantService.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [DuringCtfTimeOnly]
         public async Task<IActionResult> GetFile([FromQuery] string path, [FromQuery] string token)
         {
             var user = HttpContext.GetCurrentUser();
@@ -43,7 +45,7 @@ namespace ContestantService.Controllers
             {
                 return BadRequest(new { success = false, message = "Missing 'path' parameter" });
             }
-
+            await Console.Out.WriteLineAsync($"GetFileAsync: {path}");
             var result = await _fileService.GetFileAsync(path,token,user.Id);
 
             if (!result.Success)

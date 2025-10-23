@@ -1,6 +1,6 @@
 export const BASE_URL = "http://localhost:5010";
 //export const MANAGEMENT_API_URL = 'https://admin.fctf.site';
-export const MANAGEMENT_API_URL = "http://localhost:8000";
+export const MANAGEMENT_API_URL = "http://localhost:5010";
 
 export const LOGIN_PATH = "/api/auth/login-contestant";
 export const USER_DETAILS = "/api/v1/users";

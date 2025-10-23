@@ -98,6 +98,20 @@ class ApiHelper {
       throw error; // Ensure errors propagate to the calling code
     }
   }
+  async downloadFile(url, params = {}) {
+    try {
+      const headers = this._getAuthHeaders();
+      const response = await this.api.get(url, { 
+        params, 
+        headers,
+        responseType: 'blob' // Important: tells axios to return blob
+      });
+      return response.data; // This will be a Blob object
+    } catch (error) {
+      console.error("Download file error:", error);
+      throw error;
+    }
+  }
 }
 
 export default ApiHelper;

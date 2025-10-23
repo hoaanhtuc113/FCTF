@@ -37,16 +37,16 @@ namespace ContestantService.Services
                 _ => "application/octet-stream"
             };
         }
-        public async Task<FileResult> GetFileAsync(string path,string token,int user_id)
+        public async Task<FileResult> GetFileAsync(string path, string token, int user_id)
         {
             try
             {
                 var file = _context.Files.Where(f => f.Location == path).FirstOrDefault();
                 var fileToken = ItsDangerousCompatHelper.Loads<FileTokenDTOs>(token);
-                Console.WriteLine("user_id: " + fileToken.user_id + " file id : ",fileToken.file_id) ;
 
-                if (fileToken == null || fileToken.user_id != user_id || file.Id != fileToken.file_id)
+                if (fileToken == null || fileToken.user_id != user_id)
                 {
+                    await Console.Out.WriteLineAsync("Token validation failed - user_id mismatch");
                     return new FileResult
                     {
                         Success = false,
@@ -61,10 +61,12 @@ namespace ContestantService.Services
                         Message = "File path is required"
                     };
                 }
+
                 var fullPath = Path.GetFullPath(Path.Combine(_nfsMountPath, path));
 
                 if (!fullPath.StartsWith(_nfsMountPath, StringComparison.OrdinalIgnoreCase))
                 {
+                    await Console.Out.WriteLineAsync("Path traversal detected");
                     return new FileResult
                     {
                         Success = false,
@@ -72,9 +74,9 @@ namespace ContestantService.Services
                     };
                 }
 
-                // Check if file exists
                 if (!System.IO.File.Exists(fullPath))
                 {
+                    await Console.Out.WriteLineAsync($"File does not exist at: {fullPath}");
                     return new FileResult
                     {
                         Success = false,
@@ -82,12 +84,10 @@ namespace ContestantService.Services
                     };
                 }
 
-                // Get file info
                 var fileInfo = new FileInfo(fullPath);
                 var fileName = fileInfo.Name;
                 var contentType = GetContentType(fileName);
 
-                // Open file stream
                 var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
 
                 return new FileResult

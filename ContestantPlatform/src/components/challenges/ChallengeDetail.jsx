@@ -58,6 +58,10 @@ const ChallengeDetail = () => {
   const [pageNumber, setPageNumber] = useState(1);
   const [showPdf, setShowPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [pdfFiles, setPdfFiles] = useState([]);
+  const [pdfUrls, setPdfUrls] = useState([]);
+  const [activeTab, setActiveTab] = useState('description');
+  const [activePdfIndex, setActivePdfIndex] = useState(0);
 
   // Kiểm tra nếu nội dung quá dài (tùy chỉnh số dòng ở đây)
   useEffect(() => {
@@ -126,17 +130,54 @@ const ChallengeDetail = () => {
   }, [challengeId]);
   useEffect(() => {
     if (challenge?.files) {
-      console.log("hello:",challenge.files)
-      const pdfFile = challenge.files.find(file => file.toLowerCase().includes('.pdf'));
-      if (pdfFile) {
+      const allPdfFiles = challenge.files.filter(file => 
+        file.toLowerCase().includes('.pdf')
+      );
+      
+      if (allPdfFiles.length > 0) {
+        setPdfFiles(allPdfFiles);
         setShowPdf(true);
-        setPdfUrl(`${BASE_URL}${pdfFile}`);
+        // Fetch all PDFs
+        fetchAllPdfsWithAuth(allPdfFiles);
       } else {
         setShowPdf(false);
-        setPdfUrl(null);
+        setPdfFiles([]);
+        setPdfUrls([]);
       }
     }
   }, [challenge?.files]);
+  const fetchAllPdfsWithAuth = async (files) => {
+    try {
+      const api = new ApiHelper(BASE_URL);
+      const urls = await Promise.all(
+        files.map(async (filePath) => {
+          try {
+            const blob = await api.downloadFile(`${BASE_URL}${filePath}`);
+            return URL.createObjectURL(blob);
+          } catch (error) {
+            console.error(`Error loading PDF ${filePath}:`, error);
+            return null;
+          }
+        })
+      );
+      setPdfUrls(urls.filter(url => url !== null));
+    } catch (error) {
+      console.error("Error loading PDFs:", error);
+      setShowPdf(false);
+      setPdfUrls([]);
+    }
+  };
+
+  // Clean up blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      pdfUrls.forEach(url => {
+        if (url && url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [pdfUrls]);
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
   };
@@ -146,6 +187,14 @@ const ChallengeDetail = () => {
       const nextPage = prevPageNumber + offset;
       return nextPage >= 1 && nextPage <= numPages ? nextPage : prevPageNumber;
     });
+  };
+
+  const handleTabChange = (tab, pdfIndex = 0) => {
+    setActiveTab(tab);
+    if (tab.startsWith('pdf')) {
+      setActivePdfIndex(pdfIndex);
+      setPageNumber(1); // Reset to first page when switching PDFs
+    }
   };
 
   const FetchHintDetails = async (hintId) => {
@@ -167,18 +216,38 @@ const ChallengeDetail = () => {
     }
   };
 
-  const getFileName = (filePath) => {
+const getFileName = (filePath) => {
+  try {
+    // Check if it's a URL with query parameters
+    if (filePath.includes('?path=')) {
+      // Extract the path parameter value
+      const urlObj = new URL(filePath, window.location.origin);
+      const pathParam = urlObj.searchParams.get('path');
+      if (pathParam) {
+        // Get filename from the path parameter
+        const pathParts = pathParam.split('/');
+        return pathParts[pathParts.length - 1];
+      }
+    }
+    
+    // Fallback to original logic for simple paths
     const pathParts = filePath.split("/");
     const fullName = pathParts[pathParts.length - 1];
     return fullName.split("?")[0];
-  };
+  } catch (error) {
+    console.error("Error parsing filename:", error);
+    return "download";
+  }
+};
 
   const handleDowloadFiles = async (filePath) => {
     const api = new ApiHelper(MANAGEMENT_API_URL);
     try {
-      const response = await api.get(`${MANAGEMENT_API_URL}${filePath}`);
+      const blob = await api.downloadFile(`${MANAGEMENT_API_URL}${filePath}`);
+      console.log('Blob size:', blob.size, 'bytes');
+      console.log('Blob type:', blob.type);
       let fileName = getFileName(filePath);
-      saveAs(`${MANAGEMENT_API_URL}${filePath}`, fileName);
+      saveAs(blob, fileName);
     } catch (error) {
       console.error("Error downloading file:", error);
     }
@@ -841,7 +910,7 @@ const ChallengeDetail = () => {
                   <div className="flex flex-wrap gap-4">
                     {challenge.files.map((file, index) => {
                       const isPdf = typeof file === "string" && file.toLowerCase().includes(".pdf");
-                      const displayName = isPdf ? "File mô tả đề" : getFileName(file);
+                      const displayName = isPdf ? `File mô tả đề ${index+1}` : getFileName(file);
 
                       return (
                         <button
@@ -865,102 +934,146 @@ const ChallengeDetail = () => {
                 </div>
               )}
 
-              <div className="bg-gray-900 rounded-xl shadow-inner border border-gray-700">
-                <div className="bg-gray-800 rounded-xl overflow-y-auto p-4 border border-gray-700">
-
-                  {/* <div
-                    ref={descriptionRef}
-                    className={`prose max-w-none text-lg text-white whitespace-pre-line overflow-hidden transition-all ${showMore && !isExpanded ? "max-h-[150px]" : ""
-                      }`}
-                    dangerouslySetInnerHTML={{
-                      __html: challenge?.type === "multiple_choice"
-                        ? challenge.description.replace(/\n/g, "<br>")
-                        : challenge?.description,
-                    }}
-                  /> */}
-                  {showPdf ? (
-      <div className="flex flex-col items-center">
-        <div className="relative w-full max-w-3xl mx-auto">
-          <Document
-            file={pdfUrl}
-            onLoadSuccess={onDocumentLoadSuccess}
-            loading={
-              <div className="flex justify-center py-10">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-              </div>
-            }
-          >
-            <div className="shadow-2xl rounded-2xl overflow-hidden">
-              <Page 
-                pageNumber={pageNumber}
-                width={Math.min(window.innerWidth * 0.8, 800)}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-              />
-            </div>
-          </Document>
-          
-          {/* Page Navigation */}
-          <div className="flex items-center justify-between mt-4 px-4">
-            <button
-              onClick={() => changePage(-1)}
-              disabled={pageNumber <= 1}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                pageNumber <= 1 
-                ? 'bg-gray-700 text-gray-400' 
-                : 'bg-orange-600 hover:bg-orange-700 text-white'
-              }`}
-            >
-              Previous
-            </button>
-            
-            <div className="flex space-x-2">
-              {[...Array(Math.min(numPages, 3))].map((_, i) => {
-                const page = pageNumber + i - 1;
-                if (page > 0 && page <= numPages) {
-                  return (
+              {/* Tabs Navigation */}
+              {(challenge?.description || showPdf) && (
+                <div className="flex flex-wrap gap-2 border-b border-gray-700 pb-2">
+                  {challenge?.description && (
                     <button
-                      key={page}
-                      onClick={() => setPageNumber(page)}
-                      className={`w-10 h-10 rounded-lg font-medium transition-all duration-200 ${
-                        pageNumber === page
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      onClick={() => handleTabChange('description')}
+                      className={`px-4 py-2 rounded-t-lg font-medium transition-all duration-200 ${
+                        activeTab === 'description'
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                       }`}
                     >
-                      {page}
+                      Description
                     </button>
-                  );
-                }
-                return null;
-              })}
-            </div>
+                  )}
+                  
+                  {showPdf && pdfUrls.map((url, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleTabChange(`pdf-${index}`, index)}
+                      className={`px-4 py-2 rounded-t-lg font-medium transition-all duration-200 ${
+                        activeTab === `pdf-${index}`
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      PDF {index + 1}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-            <button
-              onClick={() => changePage(1)}
-              disabled={pageNumber >= numPages}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                pageNumber >= numPages
-                ? 'bg-gray-700 text-gray-400'
-                : 'bg-orange-600 hover:bg-orange-700 text-white'
-              }`}
-            >
-              Next
-            </button>
-          </div>
-          
-          <p className="text-center text-gray-400 mt-2">
-            Page {pageNumber} of {numPages}
-          </p>
-        </div>
-      </div>
-    ) : (
-      <div ref={descriptionRef} className="text-white prose prose-white">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {challenge?.description || ""}
-        </ReactMarkdown>
-      </div>
-    )}
+              {/* Tab Content */}
+              <div className="bg-gray-900 rounded-xl shadow-inner border border-gray-700">
+                <div className="bg-gray-800 rounded-xl overflow-y-auto p-4 border border-gray-700">
+                  
+                  {/* Description Tab */}
+                  {activeTab === 'description' && challenge?.description && (
+                    <div ref={descriptionRef} className="text-white prose prose-white">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {challenge?.description || ""}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+
+                  {/* PDF Tabs */}
+                  {activeTab.startsWith('pdf') && showPdf && pdfUrls[activePdfIndex] && (
+                    <div className="flex flex-col items-center">
+                      <div className="relative w-full max-w-3xl mx-auto">
+                        <Document
+                          file={pdfUrls[activePdfIndex]}
+                          onLoadSuccess={onDocumentLoadSuccess}
+                          onLoadError={(error) => {
+                            console.error("PDF load error:", error);
+                            Swal.fire({
+                              title: "PDF Load Error",
+                              text: "Could not load the PDF file. Please try downloading it instead.",
+                              icon: "error",
+                              confirmButtonText: "OK",
+                            });
+                          }}
+                          loading={
+                            <div className="flex justify-center py-10">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+                            </div>
+                          }
+                        >
+                          <div className="shadow-2xl rounded-2xl overflow-hidden">
+                            <Page 
+                              pageNumber={pageNumber}
+                              width={Math.min(window.innerWidth * 0.8, 800)}
+                              renderTextLayer={false}
+                              renderAnnotationLayer={false}
+                            />
+                          </div>
+                        </Document>
+                        
+                        {/* Page Navigation */}
+                        <div className="flex items-center justify-between mt-4 px-4">
+                          <button
+                            onClick={() => changePage(-1)}
+                            disabled={pageNumber <= 1}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                              pageNumber <= 1 
+                              ? 'bg-gray-700 text-gray-400' 
+                              : 'bg-orange-600 hover:bg-orange-700 text-white'
+                            }`}
+                          >
+                            Previous
+                          </button>
+                          
+                          <div className="flex space-x-2">
+                            {[...Array(Math.min(numPages, 3))].map((_, i) => {
+                              const page = pageNumber + i - 1;
+                              if (page > 0 && page <= numPages) {
+                                return (
+                                  <button
+                                    key={page}
+                                    onClick={() => setPageNumber(page)}
+                                    className={`w-10 h-10 rounded-lg font-medium transition-all duration-200 ${
+                                      pageNumber === page
+                                      ? 'bg-orange-600 text-white'
+                                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    }`}
+                                  >
+                                    {page}
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })}
+                          </div>
+
+                          <button
+                            onClick={() => changePage(1)}
+                            disabled={pageNumber >= numPages}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                              pageNumber >= numPages
+                              ? 'bg-gray-700 text-gray-400'
+                              : 'bg-orange-600 hover:bg-orange-700 text-white'
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                        
+                        <p className="text-center text-gray-400 mt-2">
+                          Page {pageNumber} of {numPages}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loading state */}
+                  {showPdf && pdfUrls.length === 0 && (
+                    <div className="flex justify-center py-10">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+                      <p className="ml-3 text-gray-400">Loading PDFs...</p>
+                    </div>
+                  )}
 
                 </div>
               </div>
