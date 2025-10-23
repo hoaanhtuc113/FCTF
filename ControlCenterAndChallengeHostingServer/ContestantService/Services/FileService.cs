@@ -1,14 +1,19 @@
 ﻿using ContestantService.Interfaces;
 using ContestantService.Utils;
+using ResourceShared.DTOs.File;
+using ResourceShared.Models;
+using ResourceShared.Utils;
 
 namespace ContestantService.Services
 {
     public class FileService : IFileService
     {
         private readonly string _nfsMountPath;
-        public FileService(ILogger<FileService> logger)
+        private readonly AppDbContext _context;
+        public FileService(AppDbContext context)
         {
             _nfsMountPath = ContestantServiceConfigHelper.NFS_PATH;
+            _context = context;
         }
 
         private string GetContentType(string fileName)
@@ -32,10 +37,22 @@ namespace ContestantService.Services
                 _ => "application/octet-stream"
             };
         }
-        public async Task<FileResult> GetFileAsync(string path)
+        public async Task<FileResult> GetFileAsync(string path,string token,int user_id)
         {
             try
             {
+                var file = _context.Files.Where(f => f.Location == path).FirstOrDefault();
+                var fileToken = ItsDangerousCompatHelper.Loads<FileTokenDTOs>(token);
+                Console.WriteLine("user_id: " + fileToken.user_id + " file id : ",fileToken.file_id) ;
+
+                if (fileToken == null || fileToken.user_id != user_id || file.Id != fileToken.file_id)
+                {
+                    return new FileResult
+                    {
+                        Success = false,
+                        Message = "Invalid or expired token"
+                    };
+                }
                 if (string.IsNullOrWhiteSpace(path))
                 {
                     return new FileResult

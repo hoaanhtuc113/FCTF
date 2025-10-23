@@ -2,7 +2,10 @@
 using ContestantService.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourceShared.DTOs.File;
 using ResourceShared.Models;
+using ResourceShared.Utils;
+using System.IO;
 
 namespace ContestantService.Controllers
 {
@@ -17,12 +20,12 @@ namespace ContestantService.Controllers
             _fileService = fileService;
         }
 
-        [HttpGet("")]
+        [HttpGet("{path}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetFile([FromQuery] string path)
+        public async Task<IActionResult> GetFile([FromRoute] string path, [FromQuery] string token)
         {
             var user = HttpContext.GetCurrentUser();
             if (user == null || user is not User currentUser)
@@ -41,7 +44,7 @@ namespace ContestantService.Controllers
                 return BadRequest(new { success = false, message = "Missing 'path' parameter" });
             }
 
-            var result = await _fileService.GetFileAsync(path);
+            var result = await _fileService.GetFileAsync(path,token,user.Id);
 
             if (!result.Success)
             {

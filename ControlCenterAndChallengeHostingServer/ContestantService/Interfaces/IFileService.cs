@@ -2,7 +2,7 @@
 {
     public interface IFileService
     {
-        Task<FileResult> GetFileAsync(string path);
+        Task<FileResult> GetFileAsync(string path, string token, int user_id);
     }
 
     public class FileResult
