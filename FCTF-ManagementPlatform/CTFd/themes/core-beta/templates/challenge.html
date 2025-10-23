@@ -22,7 +22,7 @@
             <li class="nav-item">
               <button class="nav-link challenge-solves" data-bs-target="#solves" @click="showSolves()">
                 {% if solves is not none %}
-                {{ ngettext("%(num)d Solve", "%(num)d Solves", solves|length) }}
+                {{ ngettext("%(num)d Solve", "%(num)d Solves", solves) }}
                 {% endif %}
               </button>
             </li>

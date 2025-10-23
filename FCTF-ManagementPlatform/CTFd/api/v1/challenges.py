@@ -230,7 +230,6 @@ class ChallengeList(Resource):
 
             try:
                 challenge_type = get_chal_class(challenge.type)
-                print(challenge.requirements)
             except KeyError:
                 # Challenge type does not exist. Fall through to next challenge.
                 continue

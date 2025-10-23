@@ -9,6 +9,7 @@ namespace ContestantService.Utils
         public static string ControlServerAPI = "";
         public static string ARGO_WORKFLOWS_URL = "";
         public static string ARGO_WORKFLOWS_TOKEN = "";
+        public static string NFS_MOUNT_PATH = "";
 
         public override void InitConfig()
         {
@@ -16,6 +17,7 @@ namespace ContestantService.Utils
             ContestantServiceConfigHelper.ControlServerAPI = configuration["ServiceConfigs:ControlServerAPI"] ?? throw new Exception("Can't read ServiceConfigs:ControlServerAPI");
             ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL = configuration["ServiceConfigs:ArgoWorkflowsURL"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_URL");
             ContestantServiceConfigHelper.ARGO_WORKFLOWS_TOKEN = configuration["ServiceConfigs:ArgoWorkflowsToken"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_TOKEN");
+            ContestantServiceConfigHelper.NFS_MOUNT_PATH = configuration["ServiceConfigs:NfsPath"] ?? throw new Exception("Can't read ServiceConfigs:NFS_MOUNT_PATH");
         }
     }
 }
