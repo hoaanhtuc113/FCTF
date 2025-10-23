@@ -75,7 +75,7 @@ namespace ContestantService.Services
                     team_id = user.TeamId,
                     file_id = file.Id
                 };
-                var file_url = $"/files/{file.Location}?token={ItsDangerousCompatHelper.Dumps(token)}";
+                var file_url = $"/api/files?path={file.Location}&token={ItsDangerousCompatHelper.Dumps(token)}";
 
                 if (file_url != null) files.Add(file_url);
             }
