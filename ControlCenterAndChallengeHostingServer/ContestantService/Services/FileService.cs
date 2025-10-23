@@ -12,7 +12,7 @@ namespace ContestantService.Services
         private readonly AppDbContext _context;
         public FileService(AppDbContext context)
         {
-            _nfsMountPath = ContestantServiceConfigHelper.NFS_PATH;
+            _nfsMountPath = ContestantServiceConfigHelper.NFS_MOUNT_PATH;
             _context = context;
         }
 

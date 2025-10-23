@@ -25,41 +25,65 @@ function loadChalTemplate(challenge) {
     bindMarkdownEditors();
 
     $.getScript(CTFd.config.urlRoot + challenge.scripts.create, function () {
-      $("#create-chal-entry-div form").submit(function (event) {
+      $("#create-chal-entry-div form").submit(async function (event) {
         event.preventDefault();
-        const params = $("#create-chal-entry-div form").serializeJSON();
-        CTFd.fetch("/api/v1/challenges", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(params),
-        })
-          .then(function (response) {
-            return response.json();
-          })
-          .then(function (response) {
-            if (response.success) {
-              $("#challenge-create-options #challenge_id").val(
-                response.data.id
-              );
-              $("#challenge-create-options").modal();
-            } else {
-              let body = "";
-              for (const k in response.errors) {
-                body += response.errors[k].join("\n");
-                body += "\n";
-              }
+        const form = this;
+        const formData = $(form).serializeArray();
+        const params = formData
+          .filter(item => item.name !== 'file_upload')
+          .reduce((obj, item) => {
+            obj[item.name] = item.value;
+            return obj;
+          }, {});
 
-              ezAlert({
-                title: "Error",
-                body: body,
-                button: "OK",
-              });
-            }
+
+        try {
+          // Create challenge first (JSON)
+          const res = await CTFd.fetch(CTFd.config.urlRoot + "/api/v1/challenges", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(params),
           });
+          const response = await res.json();
+          if (!response.success) {
+            let body = "";
+            for (const k in response.errors) {
+              body += response.errors[k].join("\n") + "\n";
+            }
+            ezAlert({ title: "Error", body: body, button: "OK" });
+            return;
+          }
+
+          const challenge_id = response.data.id;
+          $("#challenge-create-options #challenge_id").val(challenge_id);
+
+          // If there are file inputs with files, upload them using helpers.files.upload and await result
+          const hasFiles = $(form)
+            .find('input[type="file"]')
+            .filter(function () {
+              return this.files && this.files.length > 0;
+            }).length;
+
+          if (hasFiles) {
+            const data = { challenge: challenge_id, type: "challenge" };
+            try {
+              const uploadResult = await helpers.files.upload(form, data);
+              console.log("File upload successful", uploadResult);
+            } catch (err) {
+              console.error("Upload error details:", err);
+              
+            }
+          }
+          // Open modal after creation and any uploads attempted
+          $("#challenge-create-options").modal();
+        } catch (err) {
+          console.error("Error creating challenge:", err);
+          ezAlert({ title: "Error", body: "Network error", button: "OK" });
+        }
       });
     });
   });
@@ -130,6 +154,8 @@ function handleChallengeOptions(event) {
         let filepath = $(form.elements["file"]).val();
         let deploy_file_path = $(form.elements["deploy_file"]).val();
         if (filepath || deploy_file_path) {
+          console.log("Uploading files with data:", data);
+          console.log("Form being submitted:", form);
           helpers.files
             .upload(form, data)
             .then(() => resolve()) // Thành công khi upload
@@ -353,5 +379,56 @@ $(() => {
       let challenge = data[this.value];
       loadChalTemplate(challenge);
     });
+  });
+
+  // Change type of scoring
+  const standardSection = $("#standard-value-section");
+  const dynamicSection = $("#dynamic-value-section");
+  const standardBtn = $("#standard-scoring-btn");
+  const dynamicBtn = $("#dynamic-scoring-btn");
+
+  function toggleScoringType(type) {
+    if (type === "standard") {
+      standardSection.removeClass("d-none");
+      dynamicSection.addClass("d-none");
+      standardBtn.addClass("active");
+      standardBtn.find('input[type="radio"]').prop("checked", true);
+      dynamicBtn.removeClass("active");
+      
+      standardSection.find("input").prop("disabled", false);
+      standardSection.find(".chal-value").prop("required", true);
+      
+      dynamicSection.find("input, select").prop("disabled", true);
+      dynamicSection.find(".chal-initial, .chal-decay, .chal-minimum").prop("required", false);
+    } else {
+      standardSection.addClass("d-none");
+      dynamicSection.removeClass("d-none");
+      dynamicBtn.addClass("active");
+      dynamicBtn.find('input[type="radio"]').prop("checked", true);
+      standardBtn.removeClass("active");
+      
+      standardSection.find("input").prop("disabled", true);
+      standardSection.find(".chal-value").prop("required", false);
+      
+      dynamicSection.find("input, select").prop("disabled", false);
+      dynamicSection.find(".chal-initial, .chal-decay, .chal-minimum").prop("required", true);
+    }
+  }
+
+  // Initialize state on page load based on current active button
+  if (dynamicBtn.hasClass("active")) {
+    toggleScoringType("dynamic");
+  } else {
+    toggleScoringType("standard");
+  }
+
+  standardBtn.click(function (e) {
+    e.preventDefault();
+    toggleScoringType("standard");
+  });
+
+  dynamicBtn.click(function (e) {
+    e.preventDefault();
+    toggleScoringType("dynamic");
   });
 });

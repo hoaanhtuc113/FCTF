@@ -92,10 +92,27 @@ class FilesList(Resource):
     def post(self):
         files = request.files.getlist("file")
         deploy_file = request.files.get("deploy_file")
+        require_deploy = request.form.get("require_deploy")
         temp_file_path = ""
         objs = []
+        challenge_id = request.form.to_dict().get("challenge_id")
         # challenge_id
         # page_id
+
+        print("require_deploy", require_deploy)
+
+        if require_deploy == "false":
+            print("require_deploy is false - clearing deployment info")
+            challenge = Challenges.query.filter_by(id=challenge_id).first()
+            if not challenge:
+                return jsonify({"error": "Challenge not found"}), 404
+            challenge.image_link = None
+            challenge.deploy_status = "CREATED"
+            challenge.require_deploy = False
+            db.session.commit()
+            
+            if not files or len(files) == 0:
+                return {"success": True, "data": []}
 
         # Handle situation where users attempt to upload multiple files with a single location
         if len(files) > 1 and request.form.get("location"):
@@ -106,14 +123,13 @@ class FilesList(Resource):
                 },
             }, 400
 
-        if deploy_file:
+        if deploy_file and require_deploy != "false":
             # Lưu tệp tạm thời vào đĩa trước khi xử lý nó
             filename = secure_filename(deploy_file.filename)
             temp_file_path = os.path.join("/tmp", filename)
             deploy_file.save(temp_file_path)
             print(temp_file_path)
             print("save successfully")
-            challenge_id = request.form.to_dict().get("challenge_id")
             return upload_helper.upload_file(challenge_id, temp_file_path)
 
         for f in files:
@@ -131,7 +147,7 @@ class FilesList(Resource):
 
         schema = FileSchema(many=True)
         response = schema.dump(objs)
-        print(response)
+        print("response file:  ", response)
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 

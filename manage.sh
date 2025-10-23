@@ -4,7 +4,6 @@
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
 PROJECT_ROOT="/home/manhhuy/FCTF"
-PROJECT_ROOT="/home/manhhuy/FCTF"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -325,7 +324,8 @@ DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
 ARGO_WORKFLOWS_URL=https://argo.fctf.cloud/api/v1/workflows/argo
 ARGO_WORKFLOWS_TOKEN=REDACTED
 NFS_MOUNT_PATH=/mnt/nfs/data
-NFS_PATH=/mnt/nfs/data
+UPLOAD_PROVIDER=nfs
+
 ASPNETCORE_ENVIRONMENT=Production
 CONTESTANT_DB_CONNECTION=Server=db;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;
 CONTESTANT_REDIS_CONNECTION=cache:6379

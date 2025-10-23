@@ -1,72 +1,79 @@
 import hashlib
 import shutil
 from pathlib import Path
-
+import traceback
 from CTFd.models import ChallengeFiles, Files, PageFiles, db
 from CTFd.utils import get_app_config
-from CTFd.utils.uploads.uploaders import FilesystemUploader, S3Uploader
-
-UPLOADERS = {"filesystem": FilesystemUploader, "s3": S3Uploader}
-
+from CTFd.utils.uploads.uploaders import FilesystemUploader, S3Uploader,NFSUploader
+from flask import current_app
+UPLOADERS = {"filesystem": FilesystemUploader, "s3": S3Uploader, "nfs" : NFSUploader}
+from CTFd.constants.envvars import (
+    UPLOAD_PROVIDER,
+)
 
 def get_uploader():
-    return UPLOADERS.get(get_app_config("UPLOAD_PROVIDER") or "filesystem")()
+    return UPLOADERS.get(UPLOAD_PROVIDER or "filesystem")()
 
 
 def upload_file(*args, **kwargs):
-    file_obj = kwargs.get("file")
-    challenge_id = kwargs.get("challenge_id") or kwargs.get("challenge")
-    page_id = kwargs.get("page_id") or kwargs.get("page")
-    file_type = kwargs.get("type", "standard")
-    location = kwargs.get("location")
+    def log_err(msg):
+        print(f"[upload_file ERROR] {msg}")
 
-    print("locationlocationlocationlocation: "+ str(location))
+    try:
+        file_obj = kwargs.get("file")
+        challenge_id = kwargs.get("challenge_id") or kwargs.get("challenge")
+        page_id = kwargs.get("page_id") or kwargs.get("page")
+        file_type = kwargs.get("type", "standard")
+        location = kwargs.get("location")
+        file_upload = kwargs.get("file_upload")
+        # Validate location and default filename to uploaded file's name
+        parent = None
+        filename = file_obj.filename
+        if location:
+            path = Path(location)
+            if len(path.parts) != 2:
+                raise ValueError("Location must contain two parts: directory and filename")
+            parent = path.parts[0]
+            filename = path.parts[1]
+            location = parent + "/" + filename
 
-    # Validate location and default filename to uploaded file's name
-    parent = None
-    filename = file_obj.filename
-    if location:
-        path = Path(location)
-        if len(path.parts) != 2:
-            raise ValueError(
-                "Location must contain two parts, a directory and a filename"
-            )
-        # Allow location to override the directory and filename
-        parent = path.parts[0]
-        filename = path.parts[1]
-        location = parent + "/" + filename
+        if file_upload == "description":
+            file_type = "challenge"
+        model_args = {"type": file_type, "location": location}
+        model = Files
 
-    model_args = {"type": file_type, "location": location}
+        if file_type == "challenge":
+            model = ChallengeFiles
+            model_args["challenge_id"] = challenge_id
+        if file_type == "page":
+            model = PageFiles
+            model_args["page_id"] = page_id
 
-    model = Files
-    if file_type == "challenge":
-        model = ChallengeFiles
-        model_args["challenge_id"] = challenge_id
-    if file_type == "page":
-        model = PageFiles
-        model_args["page_id"] = page_id
+        sha1sum = hash_file(fp=file_obj)
 
-    # Hash is calculated before upload since S3 file upload closes file object
-    sha1sum = hash_file(fp=file_obj)
+        uploader = get_uploader()
+        location = uploader.upload(file_obj=file_obj, filename=filename, path=parent)
 
-    uploader = get_uploader()
-    location = uploader.upload(file_obj=file_obj, filename=filename, path=parent)
+        model_args["location"] = location
+        model_args["sha1sum"] = sha1sum
 
-    model_args["location"] = location
-    model_args["sha1sum"] = sha1sum
+        existing_file = Files.query.filter_by(location=location).first()
+        if existing_file:
+            for k, v in model_args.items():
+                setattr(existing_file, k, v)
+            db.session.commit()
+            file_row = existing_file
+        else:
+            file_row = model(**model_args)
+            db.session.add(file_row)
+            db.session.commit()
 
-    existing_file = Files.query.filter_by(location=location).first()
-    if existing_file:
-        for k, v in model_args.items():
-            setattr(existing_file, k, v)
-        db.session.commit()
-        file_row = existing_file
-    else:
-        file_row = model(**model_args)
-        db.session.add(file_row)
-        db.session.commit()
-    return file_row
+        return file_row
 
+    except Exception as e:
+        log_err(f"Upload failed: {e}")
+        log_err(traceback.format_exc())
+        raise
 
 def hash_file(fp, algo="sha1"):
     fp.seek(0)

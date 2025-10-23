@@ -95,3 +95,11 @@ class ChallengeSchema(ma.ModelSchema):
             )
         ]
     )
+    cooldown = field_for(
+        Challenges,
+        "cooldown",
+        allow_none=False,
+        validate=[
+            validate.Range(min=0, error="Cooldown must be greater than or equal to 0")
+        ],
+    )
