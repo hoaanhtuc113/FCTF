@@ -73,7 +73,7 @@ namespace ContestantService.Services
                 }
 
                 // Check if file exists
-                if (!File.Exists(fullPath))
+                if (!System.IO.File.Exists(fullPath))
                 {
                     return new FileResult
                     {
