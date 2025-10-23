@@ -11,21 +11,21 @@ namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class FileController : ControllerBase
+    public class FilesController : ControllerBase
     {
         private readonly IFileService _fileService;
 
-        public FileController(IFileService fileService)
+        public FilesController(IFileService fileService)
         {
             _fileService = fileService;
         }
 
-        [HttpGet("{path}")]
+        [HttpGet("")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetFile([FromRoute] string path, [FromQuery] string token)
+        public async Task<IActionResult> GetFile([FromQuery] string path, [FromQuery] string token)
         {
             var user = HttpContext.GetCurrentUser();
             if (user == null || user is not User currentUser)
