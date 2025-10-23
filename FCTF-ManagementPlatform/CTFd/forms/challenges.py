@@ -17,7 +17,7 @@ class ChallengeSearchForm(BaseForm):
         default="name",
         validators=[InputRequired()],
     )
-    q = StringField("Parameter", validators=[InputRequired()])
+    q = StringField("Parameter", validators=[])
     submit = SubmitField("Search")
 
 

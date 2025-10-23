@@ -26,7 +26,7 @@
 				Searching for teams with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
 			</h5>
 			<h6 class="text-muted text-center pb-3">
-				Page {{ teams.page }} of {{ teams.total }} results
+				{{ teams.total }} results
 			</h6>
 			{% endif %}
 
@@ -140,22 +140,63 @@
 					{% endfor %}
 				</tbody>
 			</table>
-			{% if teams.pages > 1 %}
-			<div class="text-center">Page
-				<br>
-				{% if teams.page != 1 %}
-				<a href="{{ prev_page }}">&lt;&lt;&lt;</a>
-				{% endif %}
-				<select class="page-select">
-					{% for page in range(1, teams.pages + 1) %}
-					<option {% if teams.page == page %}selected{% endif %}>{{ page }}</option>
-					{% endfor %}
-				</select>
-				{% if teams.next_num %}
-				<a href="{{ next_page }}">&gt;&gt;&gt;</a>
-				{% endif %}
+			
+			<!-- Backend Pagination Controls -->
+			{% if teams.pages > 0 %}
+			<div class="row mt-3">
+				<div class="col-md-12">
+					<div class="d-flex justify-content-between align-items-center">
+						<div class="dataTables_info" role="status" aria-live="polite">
+							Showing page {{ teams.page }} of {{ teams.pages }} ({{ teams.total }} total teams)
+						</div>
+						{% if teams.pages > 1 %}
+						<nav aria-label="Team pagination">
+							<ul class="pagination mb-0">
+								<li class="page-item {% if teams.page == 1 %}disabled{% endif %}">
+									<a class="page-link" href="{{ prev_page if teams.page > 1 else '#' }}">&laquo;</a>
+								</li>
+								
+								{% set start_page = [1, teams.page - 2]|max %}
+								{% set end_page = [teams.pages, teams.page + 2]|min %}
+								
+								{% if start_page > 1 %}
+								<li class="page-item">
+									<a class="page-link" href="{% if q %}{{ url_for('admin.teams_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.teams_listing', page=1) }}{% endif %}">1</a>
+								</li>
+								{% if start_page > 2 %}
+								<li class="page-item disabled">
+									<span class="page-link">...</span>
+								</li>
+								{% endif %}
+								{% endif %}
+								
+								{% for page_num in range(start_page, end_page + 1) %}
+								<li class="page-item {% if page_num == teams.page %}active{% endif %}">
+									<a class="page-link" href="{% if q %}{{ url_for('admin.teams_listing', page=page_num, field=field, q=q) }}{% else %}{{ url_for('admin.teams_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
+								</li>
+								{% endfor %}
+								
+								{% if end_page < teams.pages %}
+								{% if end_page < teams.pages - 1 %}
+								<li class="page-item disabled">
+									<span class="page-link">...</span>
+								</li>
+								{% endif %}
+								<li class="page-item">
+									<a class="page-link" href="{% if q %}{{ url_for('admin.teams_listing', page=teams.pages, field=field, q=q) }}{% else %}{{ url_for('admin.teams_listing', page=teams.pages) }}{% endif %}">{{ teams.pages }}</a>
+								</li>
+								{% endif %}
+								
+								<li class="page-item {% if teams.page == teams.pages %}disabled{% endif %}">
+									<a class="page-link" href="{{ next_page if teams.page < teams.pages else '#' }}">&raquo;</a>
+								</li>
+							</ul>
+						</nav>
+						{% endif %}
+					</div>
+				</div>
 			</div>
-			{%endif%}
+			{% endif %}
 		</div>
 		<input type="hidden" id="is_jury" value="{{ 'true' if is_jury() else 'false' }}">
 	</div>

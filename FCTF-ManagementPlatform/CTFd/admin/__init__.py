@@ -14,9 +14,10 @@ from flask import (
     send_file,
     url_for,
 )
-
+from CTFd.utils.crypto import verify_password,hash_password
 from CTFd.utils.email import user_created_notification
-
+import io, csv, secrets, string
+from sqlalchemy.orm import joinedload
 admin = Blueprint("admin", __name__)
 
 # isort:imports-firstparty
@@ -182,6 +183,93 @@ def export_csv():
         ),
     )
 
+@admin.route("/admin/export/csv/user")
+@admins_only
+def export_csv_user():
+    include_passwords = request.args.get("include_passwords") == "1"
+
+    if include_passwords:
+        output = dump_csv_with_passwords()
+    else:
+        output = dump_csv_without_passwords()
+
+    return send_file(
+        output,
+        as_attachment=True,
+        max_age=-1,
+        download_name=f"{ctf_config.ctf_name()}-user.csv",
+    )
+def dump_csv_with_passwords():
+    """
+    Xuất CSV cho user type='user' kèm password mới (plaintext + hash)
+    """
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["name", "email", "team_id", "team_name", "password_plain"])
+
+    charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    users = (
+        db.session.query(Users, Teams)
+        .outerjoin(Teams, Users.team_id == Teams.id)
+        .filter(Users.type == "user")
+        .options(joinedload(Users.team))
+        .all()
+    )
+
+    for user, team in users:
+        new_pass = "".join(secrets.choice(charset) for _ in range(12))
+        # hashed = hash_password(new_pass)
+        # if isinstance(hashed, bytes):
+        #     hashed = hashed.decode("utf-8")
+        user.password = new_pass
+        db.session.flush()
+
+        # (tuỳ chọn) kiểm tra ngay lập tức
+        ok = verify_password(new_pass, user.password)
+        if not ok:
+            print("new_pass:", repr(new_pass))
+            print("hash:", repr(user.password))
+            print("type(hash):", type(user.password))
+            print("verify_password(new_pass, hash):", verify_password(new_pass, user.password))
+            raise RuntimeError(f"Verify failed for user_id={user.id}")
+        writer.writerow([
+            user.name,
+            user.email,
+            user.team_id or "",
+            team.name if team else "",
+            new_pass
+        ])
+
+    db.session.commit()
+
+    output.seek(0)
+    return io.BytesIO(output.getvalue().encode("utf-8"))
+
+def dump_csv_without_passwords():
+    """
+    Xuất CSV cho user type='user' KHÔNG chứa mật khẩu
+    """
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["name", "email", "team_id", "team_name"])
+
+    users = (
+        db.session.query(Users, Teams)
+        .outerjoin(Teams, Users.team_id == Teams.id)
+        .filter(Users.type == "user")
+        .all()
+    )
+
+    for user, team in users:
+        writer.writerow([
+            user.name,
+            user.email,
+            user.team_id or "",
+            team.name if team else "",
+        ])
+
+    output.seek(0)
+    return io.BytesIO(output.getvalue().encode("utf-8"))
 
 @admin.route("/admin/config", methods=["GET", "POST"])
 @admins_only
