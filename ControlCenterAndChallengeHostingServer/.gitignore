@@ -33,6 +33,11 @@ coverage/
 # Logs
 *.log
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # OS-specific files
 .DS_Store
 Thumbs.db

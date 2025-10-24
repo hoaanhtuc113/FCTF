@@ -2,6 +2,7 @@ using ContestantService.Extensions;
 using ContestantService.Interfaces;
 using ContestantService.Services;
 using ContestantService.Utils;
+using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models; 
 using ResourceShared.Configs;
@@ -16,11 +17,10 @@ namespace ContestantService
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            builder.Configuration
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddEnvironmentVariables();
-            var configuration = builder.Configuration;
-            var connectionString = configuration.GetConnectionString("DbConnection");
+            builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+            Env.Load();
+            builder.Configuration.AddEnvironmentVariables();
+            var connectionString = builder.Configuration["DB_CONNECTION"];
 
             // Add services to the container.
             builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(
@@ -69,7 +69,7 @@ namespace ContestantService
                     }
                 });
             });
-            builder.Services.Configure<ProxyOptions>(configuration.GetSection("Proxy"));
+            builder.Services.Configure<ProxyOptions>(builder.Configuration.GetSection("Proxy"));
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IHintService, HintService>();
             builder.Services.AddScoped<ITeamService, TeamService>();
@@ -89,7 +89,7 @@ namespace ContestantService
             builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
-            ServiceConfigs.SecretKey = configuration["ServiceConfigs:SecretKey"] ?? throw new Exception("Can't read ServiceConfigs:SecretKey");
+           
 
             builder.Services.AddCors(options =>
             {

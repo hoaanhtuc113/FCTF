@@ -102,23 +102,43 @@ services:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
       - ASPNETCORE_URLS=http://+:5010
       # Database & Cache
-      - ConnectionStrings__DbConnection=${CONTESTANT_DB_CONNECTION}
-      - ConnectionStrings__RedisConnection=${CONTESTANT_REDIS_CONNECTION}
+      - DB_CONNECTION=${DB_CONNECTION}
+      - REDIS_CONNECTION=${REDIS_CONNECTION}
       # Service Config
-      - ServiceConfigs__SecretKey=${CONTESTANT_SECRET_KEY}
-      - ServiceConfigs__PrivateKey=${CONTESTANT_PRIVATE_KEY}
-      - ServiceConfigs__ServerHost=${CONTESTANT_SERVER_HOST}
-      - ServiceConfigs__ServerPort=${CONTESTANT_SERVER_PORT}
-      - ServiceConfigs__DomainName=${CONTROL_DOMAIN}
-      - ServiceConfigs__MaxInstanceAtTime=${CONTESTANT_MAX_INSTANCE}
-      - ServiceConfigs__ControlServerAPI=${CONTROL_SERVER_API}
-      - ServiceConfigs__ArgoWorkflowsURL=${ARGO_WORKFLOWS_URL}
-      - ServiceConfigs__ArgoWorkflowsToken=${ARGO_WORKFLOWS_TOKEN}
-      - ServiceConfigs__NfsPath=${NFS_MOUNT_PATH}
+      - SECRET_KEY=${SECRET_KEY}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - CONTROL_SERVER_API=${CONTROL_SERVER_API}
+      - ARGO_WORKFLOWS_URL=${ARGO_WORKFLOWS_URL}
+      - ARGO_WORKFLOWS_TOKEN=${ARGO_WORKFLOWS_TOKEN}
+      - NFS_MOUNT_PATH=${NFS_MOUNT_PATH}
       # Environment
-      - EnvironmentConfigs__ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
+      - ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
     volumes:
       - ${NFS_MOUNT_PATH}:${NFS_MOUNT_PATH}
+    depends_on:
+      - db
+      - cache
+    networks:
+      - default
+
+  healthcheck-service:
+    build:
+      context: ./ControlCenterAndChallengeHostingServer
+      dockerfile: HealthCheckService/Dockerfile
+    restart: always
+    ports:
+      - "5020:5020"
+    environment:
+      # ASP.NET
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=http://+:5020
+      # Database & Cache
+      - DB_CONNECTION=${DB_CONNECTION}
+      - REDIS_CONNECTION=${REDIS_CONNECTION}
+      # Service Config
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      # Environment
+      - ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
     depends_on:
       - db
       - cache
