@@ -158,7 +158,7 @@ export function Layout({ children }: LayoutProps) {
         {/* Animated gradient background */}
         <div className="absolute inset-0 bg-gradient-to-r from-orange-500/3 via-orange-400/3 to-orange-500/3 dark:from-orange-500/5 dark:via-orange-400/5 dark:to-orange-500/5" />
 
-        <div className="relative z-10 px-6 py-3">
+        <div className="relative z-10 px-6 py-3 pb-4 max-w-[1920px] mx-auto">
           <div className="flex items-center">
             {/* Logo */}
             <motion.div
@@ -454,7 +454,7 @@ export function Layout({ children }: LayoutProps) {
           }}
         />
         
-        <div className="relative z-10 px-12 pt-6 pb-4">
+        <div className="relative z-10 px-12 pt-6 pb-4 pb-4 max-w-[1920px] mx-auto">
           {children}
         </div>
       </Box>

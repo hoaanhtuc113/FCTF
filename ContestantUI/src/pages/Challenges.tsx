@@ -534,6 +534,7 @@ function ChallengeDetailPanel({
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
+  const [unlockingHintId, setUnlockingHintId] = useState<number | null>(null);
   const timerRef = useRef<number | null>(null);
 
   // Filter PDF files
@@ -792,49 +793,205 @@ const getFileName = (filePath : string) => {
     }
   };
 
+  const FetchHintDetails = async (hintId: number) => {
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.HINTS.GET_DETAIL(hintId), {
+        method: 'GET'
+      });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching hint details:', error);
+      return null;
+    }
+  };
+
+  const HintUnlocks = async (hintId: number) => {
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.HINTS.UNLOCK, {
+        method: 'POST',
+        body: JSON.stringify({
+          type: "hints",
+          target: hintId,
+        })
+      });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Failed to unlock hint:", error);
+      return { success: false, errors: error.response?.data?.errors || {} };
+    }
+  };
+
   const handleUnlockHint = async (hintId: number, hintCost: number) => {
-    const result = await Swal.fire({
-      title: 'Unlock Hint?',
-      text: `This will cost ${hintCost} points. Continue?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, unlock it!',
-      cancelButtonText: 'Cancel',
-    });
-
-    if (result.isConfirmed) {
-      try {
-        const response = await fetchWithAuth(API_ENDPOINTS.HINTS.UNLOCK, {
-          method: 'POST',
-          body: JSON.stringify({
-            type: 'hints',
-            target: hintId,
-          })
-        });
-        const data = await response.json();
-
-        if (data.success) {
-          const hintResponse = await fetchWithAuth(API_ENDPOINTS.HINTS.GET_DETAIL(hintId), {
-            method: 'GET'
-          });
-          const hintData = await hintResponse.json();
-          
-          Swal.fire({
-            title: 'Hint Unlocked!',
-            text: hintData.data?.content || 'No content available.',
-            icon: 'success',
-            confirmButtonText: 'OK',
-          });
-          fetchHints();
-        }
-      } catch (error) {
+    if (unlockingHintId === hintId) return; // Prevent double click
+    
+    try {
+      setUnlockingHintId(hintId);
+      
+      // Fetch hint details first to check if already unlocked
+      const hintDetailsResponse = await FetchHintDetails(hintId);
+      
+      if (!hintDetailsResponse?.data) {
         Swal.fire({
-          title: 'Error!',
-          text: 'Failed to unlock hint.',
-          icon: 'error',
-          confirmButtonText: 'OK',
+          title: "Error!",
+          text: "Failed to fetch hint data",
+          icon: "error",
+          confirmButtonText: "OK",
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+        });
+        return;
+      }
+
+      // Check if hint is already unlocked
+      if (hintDetailsResponse?.data.content) {
+        Swal.fire({
+          title: "💡 Hint Details",
+          html: `<div class="text-left"><strong>Details:</strong><br/>${hintDetailsResponse.data.content || "No content available."}</div>`,
+          icon: "info",
+          confirmButtonText: "Got it!",
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+          customClass: {
+            popup: 'rounded-2xl',
+          }
+        });
+        return;
+      }
+
+      // Show confirmation dialog with GenZ style
+      const result = await Swal.fire({
+        title: "🤔 Unlock Hint?",
+        html: `<div class="text-lg">This will cost you <span class="font-bold text-pink-500">${hintCost}</span> points.<br/>Are you sure you want to continue?</div>`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, unlock it! 🔓",
+        cancelButtonText: "Nah, cancel 🚫",
+        reverseButtons: true,
+        background: theme === 'dark' ? '#1f2937' : '#ffffff',
+        color: theme === 'dark' ? '#ffffff' : '#000000',
+        customClass: {
+          popup: 'rounded-2xl',
+          confirmButton: 'bg-gradient-to-r from-green-400 to-blue-500 hover:from-blue-500 hover:to-green-400',
+          cancelButton: 'bg-gradient-to-r from-red-400 to-pink-500 hover:from-pink-500 hover:to-red-400',
+        }
+      });
+
+      if (result.isConfirmed) {
+        // Call unlock API
+        const response = await HintUnlocks(hintId);
+        
+        if (response?.success) {
+          // Fetch hint details again after unlock
+          const updatedHintDetails = await FetchHintDetails(hintId);
+          
+          if (updatedHintDetails?.data) {
+            Swal.fire({
+              title: "🎉 Unlocked!",
+              html: `<div class="text-left"><strong>Hint:</strong><br/>${updatedHintDetails.data.content || "No content available."}</div>`,
+              icon: "success",
+              confirmButtonText: "Awesome! 🚀",
+              background: theme === 'dark' ? '#1f2937' : '#ffffff',
+              color: theme === 'dark' ? '#ffffff' : '#000000',
+              customClass: {
+                popup: 'rounded-2xl',
+              }
+            });
+            
+            // Refresh hints list
+            fetchHints();
+          } else {
+            Swal.fire({
+              title: "✅ Unlocked!",
+              text: "Hint unlocked, but no details available.",
+              icon: "info",
+              confirmButtonText: "OK",
+              background: theme === 'dark' ? '#1f2937' : '#ffffff',
+              color: theme === 'dark' ? '#ffffff' : '#000000',
+            });
+          }
+        } else {
+          // Handle errors
+          if (response.errors?.score) {
+            Swal.fire({
+              title: "❌ Error!",
+              text: response.errors.score,
+              icon: "error",
+              confirmButtonText: "OK",
+              background: theme === 'dark' ? '#1f2937' : '#ffffff',
+              color: theme === 'dark' ? '#ffffff' : '#000000',
+            });
+          } else if (response.errors?.target) {
+            const errorMessage = response.errors.target;
+            
+            if (errorMessage === "You've already unlocked this this target") {
+              const hintDetailsResponse = await FetchHintDetails(hintId);
+              
+              if (hintDetailsResponse?.data) {
+                Swal.fire({
+                  title: "ℹ️ Already Unlocked",
+                  html: `<div class="text-left">You've already unlocked this hint.<br/><strong>Details:</strong><br/>${hintDetailsResponse.data.content || "No content available."}</div>`,
+                  icon: "info",
+                  confirmButtonText: "OK",
+                  background: theme === 'dark' ? '#1f2937' : '#ffffff',
+                  color: theme === 'dark' ? '#ffffff' : '#000000',
+                });
+              } else {
+                Swal.fire({
+                  title: "ℹ️ Already Unlocked",
+                  text: "You've already unlocked this hint, but no details are available.",
+                  icon: "info",
+                  confirmButtonText: "OK",
+                  background: theme === 'dark' ? '#1f2937' : '#ffffff',
+                  color: theme === 'dark' ? '#ffffff' : '#000000',
+                });
+              }
+            } else {
+              Swal.fire({
+                title: "❌ Error!",
+                text: errorMessage,
+                icon: "error",
+                confirmButtonText: "OK",
+                background: theme === 'dark' ? '#1f2937' : '#ffffff',
+                color: theme === 'dark' ? '#ffffff' : '#000000',
+              });
+            }
+          } else {
+            Swal.fire({
+              title: "❌ Error!",
+              text: "An error occurred while unlocking the hint.",
+              icon: "error",
+              confirmButtonText: "OK",
+              background: theme === 'dark' ? '#1f2937' : '#ffffff',
+              color: theme === 'dark' ? '#ffffff' : '#000000',
+            });
+          }
+        }
+      } else {
+        Swal.fire({
+          title: "🚫 Cancelled",
+          text: "Unlocking the hint was cancelled.",
+          icon: "info",
+          confirmButtonText: "OK",
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+          timer: 2000,
+          timerProgressBar: true,
         });
       }
+    } catch (error) {
+      Swal.fire({
+        title: "💥 Error!",
+        text: "An error occurred while processing your request.",
+        icon: "error",
+        confirmButtonText: "OK",
+        background: theme === 'dark' ? '#1f2937' : '#ffffff',
+        color: theme === 'dark' ? '#ffffff' : '#000000',
+      });
+      console.error("Error in handleUnlockHint:", error);
+    } finally {
+      setUnlockingHintId(null);
     }
   };
 
@@ -1108,21 +1265,124 @@ const getFileName = (filePath : string) => {
               </div>
             )}
 
-            {/* Hints */}
+            {/* Hints Section - GenZ Style Compact */}
             {hints.length > 0 && (
-              <div>
-                <h3 className="font-bold text-orange-500 mb-2">Hints</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {hints.map((hint) => (
-                    <button
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className={`h-0.5 w-8 rounded-full ${
+                    theme === 'dark' ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gradient-to-r from-cyan-400 to-purple-400'
+                  }`} />
+                  <h3 className={`font-bold text-sm font-mono ${
+                    theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                  }`}>
+                    {'>'} HINTS_AVAILABLE
+                  </h3>
+                  <div className={`h-0.5 flex-1 rounded-full ${
+                    theme === 'dark' ? 'bg-gradient-to-r from-purple-500 to-cyan-500' : 'bg-gradient-to-r from-purple-400 to-cyan-400'
+                  }`} />
+                </div>
+                
+                <div className="grid grid-cols-6 gap-2">
+                  {hints.map((hint, index) => (
+                    <motion.button
                       key={hint.id}
                       onClick={() => handleUnlockHint(hint.id, hint.cost)}
-                      className="bg-gray-800 hover:bg-orange-900 p-3 rounded-lg transition-colors"
+                      disabled={unlockingHintId === hint.id}
+                      className={`relative group overflow-hidden rounded-lg p-2.5 transition-all duration-300 ${
+                        theme === 'dark'
+                          ? 'bg-gradient-to-br from-gray-800 via-gray-900 to-black hover:from-cyan-900/50 hover:via-purple-900/50 hover:to-black border border-cyan-500/30 hover:border-cyan-400'
+                          : 'bg-gradient-to-br from-white via-cyan-50 to-purple-50 hover:from-cyan-100 hover:via-purple-100 hover:to-white border border-cyan-300 hover:border-cyan-500'
+                      } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : 'hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/20'}`}
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
                     >
-                      <div className="text-sm font-mono">Hint</div>
-                      <div className="text-xs text-pink-300">{hint.cost} pts</div>
-                    </button>
+                      {/* Matrix-like background effect */}
+                      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+                        theme === 'dark' 
+                          ? 'bg-[linear-gradient(0deg,transparent_24%,rgba(6,182,212,0.05)_25%,rgba(6,182,212,0.05)_26%,transparent_27%,transparent_74%,rgba(6,182,212,0.05)_75%,rgba(6,182,212,0.05)_76%,transparent_77%,transparent)] bg-[length:50px_50px]' 
+                          : 'bg-[linear-gradient(0deg,transparent_24%,rgba(6,182,212,0.1)_25%,rgba(6,182,212,0.1)_26%,transparent_27%,transparent_74%,rgba(6,182,212,0.1)_75%,rgba(6,182,212,0.1)_76%,transparent_77%,transparent)] bg-[length:50px_50px]'
+                      }`} />
+                      
+                      {/* Corner brackets - CTF style */}
+                      <div className={`absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 ${
+                        theme === 'dark' ? 'border-cyan-500 group-hover:border-cyan-400' : 'border-cyan-600 group-hover:border-cyan-700'
+                      } transition-colors`} />
+                      <div className={`absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 ${
+                        theme === 'dark' ? 'border-cyan-500 group-hover:border-cyan-400' : 'border-cyan-600 group-hover:border-cyan-700'
+                      } transition-colors`} />
+                      <div className={`absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 ${
+                        theme === 'dark' ? 'border-purple-500 group-hover:border-purple-400' : 'border-purple-600 group-hover:border-purple-700'
+                      } transition-colors`} />
+                      <div className={`absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 ${
+                        theme === 'dark' ? 'border-purple-500 group-hover:border-purple-400' : 'border-purple-600 group-hover:border-purple-700'
+                      } transition-colors`} />
+                      
+                      {/* Loading/Status icon */}
+                      <div className={`absolute top-1 right-1 text-xs ${
+                        unlockingHintId === hint.id ? 'animate-spin' : 'group-hover:animate-pulse'
+                      }`}>
+                        {unlockingHintId === hint.id ? '⟳' : '◉'}
+                      </div>
+                      
+                      <div className="relative z-10 flex flex-col items-center gap-1">
+                        {/* Terminal-style hint label */}
+                        <div className={`font-bold text-xs font-mono tracking-wider ${
+                          theme === 'dark' ? 'text-cyan-400 group-hover:text-cyan-300' : 'text-cyan-600 group-hover:text-cyan-700'
+                        } transition-colors`}>
+                          {'[HINT_' + (index + 1) + ']'}
+                        </div>
+                        
+                        {/* Cost badge */}
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded ${
+                          theme === 'dark' 
+                            ? 'bg-purple-900/60 group-hover:bg-purple-800/80 border border-purple-500/30' 
+                            : 'bg-purple-100 group-hover:bg-purple-200 border border-purple-300'
+                        } transition-all duration-300`}>
+                          <span className="text-xs">⬡</span>
+                          <span className={`font-bold text-xs font-mono ${
+                            theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
+                          }`}>
+                            {hint.cost}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Scan line effect */}
+                      <motion.div
+                        className={`absolute inset-0 ${
+                          theme === 'dark' 
+                            ? 'bg-gradient-to-b from-transparent via-cyan-500/10 to-transparent' 
+                            : 'bg-gradient-to-b from-transparent via-cyan-300/20 to-transparent'
+                        } opacity-0 group-hover:opacity-100`}
+                        animate={{
+                          y: ['-100%', '100%'],
+                        }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                          repeatDelay: 0.5,
+                        }}
+                      />
+                      
+                      {/* Bottom indicator */}
+                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
+                        theme === 'dark'
+                          ? 'bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500'
+                          : 'bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400'
+                      } opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                    </motion.button>
                   ))}
+                </div>
+                
+                <div className={`text-center text-xs font-mono flex items-center justify-center gap-2 ${
+                  theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+                }`}>
+                  <span className="text-cyan-500">{'>'}</span>
+                  <span>Click to unlock hints | Cost in points</span>
+                  <span className="text-purple-500">{'<'}</span>
                 </div>
               </div>
             )}
