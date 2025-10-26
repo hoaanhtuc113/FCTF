@@ -68,6 +68,23 @@ export function Challenges() {
   const [error, setError] = useState('');
   const [isContestActive, setIsContestActive] = useState(false);
 
+
+  const refreshChallengeData = async () => {
+    if (selectedCategory) {
+      await fetchChallenges(selectedCategory);
+    }
+    if (selectedChallenge) {
+      try {
+        const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(selectedChallenge.id), {
+          method: 'GET'
+        });
+        const data = await response.json();
+        setSelectedChallenge(data.data);
+      } catch (error) {
+        console.error('Error refreshing challenge details:', error);
+      }
+    }
+  };
   useEffect(() => {
     const fetchDataAsync = async () => {
       try {
@@ -356,6 +373,7 @@ export function Challenges() {
               challenge={selectedChallenge} 
               theme={theme}
               onClose={() => setSelectedChallenge(null)}
+              onFlagSuccess={refreshChallengeData} // Pass refresh function
             />
           </motion.div>
         )}
@@ -514,11 +532,13 @@ function ChallengeListItem({
 function ChallengeDetailPanel({ 
   challenge, 
   theme,
-  onClose 
+  onClose,
+  onFlagSuccess 
 }: { 
   challenge: Challenge; 
   theme: string;
   onClose: () => void;
+  onFlagSuccess?: () => Promise<void>; // Add this prop
 }) {
   const [answer, setAnswer] = useState('');
   const [hints, setHints] = useState<Hint[]>([]);
@@ -613,7 +633,7 @@ function ChallengeDetailPanel({
         method: 'POST',
         body: JSON.stringify({
           challenge_id: challenge.id,
-          generatedToken: localStorage.getItem('accessToken'),
+          generatedToken: localStorage.getItem('auth_token'),
         })
       });
       const data = await response.json();
@@ -648,7 +668,7 @@ function ChallengeDetailPanel({
         method: 'POST',
         body: JSON.stringify({
           challenge_id: challenge.id,
-          generatedToken: localStorage.getItem('accessToken'),
+          generatedToken: localStorage.getItem('auth_token'),
         })
       });
       const data = await response.json();
@@ -656,11 +676,23 @@ function ChallengeDetailPanel({
       if (data.isSuccess) {
         setIsChallengeStarted(false);
         setUrl(null);
+        setTimeRemaining(null);
+        
+        // Clear timer
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        
         Swal.fire({
           title: 'Success!',
           text: 'Challenge stopped successfully.',
           icon: 'success',
           confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+          timer: 2000,
+          timerProgressBar: true,
         });
       }
     } catch (error) {
@@ -669,6 +701,8 @@ function ChallengeDetailPanel({
         text: 'Failed to stop challenge.',
         icon: 'error',
         confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#1f2937' : '#ffffff',
+        color: theme === 'dark' ? '#ffffff' : '#000000',
       });
     } finally {
       setIsStopping(false);
@@ -682,6 +716,8 @@ function ChallengeDetailPanel({
         text: 'Please enter a flag before submitting.',
         icon: 'warning',
         confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#1f2937' : '#ffffff',
+        color: theme === 'dark' ? '#ffffff' : '#000000',
       });
       return;
     }
@@ -691,10 +727,10 @@ function ChallengeDetailPanel({
       const formData = new FormData();
       formData.append('challengeId', challenge.id.toString());
       formData.append('submission', answer);
-      formData.append('generatedToken', localStorage.getItem('accessToken') || '');
+      formData.append('generatedToken', localStorage.getItem('auth_token') || '');
 
       const MANAGEMENT_API_URL = import.meta.env.VITE_MANAGEMENT_API_URL || import.meta.env.VITE_API_URL;
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem('auth_token');
       
       const response = await fetch(`${MANAGEMENT_API_URL}${API_ENDPOINTS.FLAGS.SUBMIT}`, {
         method: 'POST',
@@ -707,27 +743,102 @@ function ChallengeDetailPanel({
       const data = await response.json();
       
       if (data?.data?.status === 'correct') {
-        Swal.fire({
-          title: 'Correct Flag!',
-          text: 'You have solved the challenge!',
+        // Show success with confetti effect
+        await Swal.fire({
+          title: '🎉 Correct Flag!',
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">🏆</div>
+              <p class="text-xl font-bold text-green-500 mb-2">Congratulations!</p>
+              <p class="text-lg">You have successfully solved this challenge!</p>
+              <p class="text-sm text-gray-500 mt-2">+${challenge.value} points</p>
+            </div>
+          `,
           icon: 'success',
-          confirmButtonText: 'OK',
+          confirmButtonText: 'Awesome! 🚀',
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+          customClass: {
+            popup: 'rounded-2xl',
+            confirmButton: 'bg-gradient-to-r from-green-400 to-blue-500 hover:from-blue-500 hover:to-green-400',
+          },
+          showClass: {
+            popup: 'animate__animated animate__jackInTheBox'
+          },
+          timer: 5000,
+          timerProgressBar: true,
         });
+        
         setAnswer('');
-      } else {
-        Swal.fire({
-          title: 'Incorrect Flag!',
-          text: 'The flag you entered is incorrect.',
+        
+        // Refresh challenge data to update UI
+        if (onFlagSuccess) {
+          await onFlagSuccess();
+        }
+        
+        // If challenge requires deploy and was started, stop it automatically
+        if (challenge.require_deploy && isChallengeStarted && url) {
+          try {
+            await handleStopChallenge();
+          } catch (error) {
+            console.error('Error stopping challenge after solve:', error);
+          }
+        }
+      } else if (data?.data?.status === 'incorrect') {
+        const attemptsLeft = challenge.max_attempts > 0 
+          ? challenge.max_attempts - (challenge.attemps || 0) - 1 
+          : '∞';
+        
+        await Swal.fire({
+          title: '❌ Incorrect Flag!',
+          html: `
+            <div class="text-center">
+              <div class="text-6xl mb-4">😔</div>
+              <p class="text-lg mb-2">${data.data.message || 'The flag you entered is incorrect.'}</p>
+              ${challenge.max_attempts > 0 ? `<p class="text-sm text-orange-500">Attempts remaining: ${attemptsLeft}</p>` : ''}
+            </div>
+          `,
           icon: 'error',
+          confirmButtonText: 'Try Again 💪',
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+          customClass: {
+            popup: 'rounded-2xl',
+          },
+        });
+        
+        // Refresh to update attempt count
+        if (onFlagSuccess) {
+          await onFlagSuccess();
+        }
+      } else if (data?.data?.status === 'already_solved') {
+        await Swal.fire({
+          title: 'ℹ️ Already Solved',
+          text: 'You or your teammate already solved this challenge.',
+          icon: 'info',
           confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+        });
+      } else if (data?.data?.status === 'ratelimited') {
+        await Swal.fire({
+          title: '⏱️ Rate Limited',
+          text: data.data.message || 'You are submitting too fast. Please slow down.',
+          icon: 'warning',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#1f2937' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
         });
       }
     } catch (error) {
-      Swal.fire({
-        title: 'Error!',
-        text: 'Error submitting flag.',
+      console.error('Error submitting flag:', error);
+      await Swal.fire({
+        title: '💥 Error!',
+        text: 'An error occurred while submitting the flag. Please try again.',
         icon: 'error',
         confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#1f2937' : '#ffffff',
+        color: theme === 'dark' ? '#ffffff' : '#000000',
       });
     } finally {
       setIsSubmittingFlag(false);
@@ -1064,17 +1175,22 @@ const getFileName = (filePath : string) => {
             : 'bg-white border-orange-200'
         }`}>
           <div className="p-6 space-y-4 h-full overflow-y-auto">
-            {/* Header with Timer */}
+            {/* Header with Timer and Solved Status */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h2 className="text-2xl font-bold font-mono text-orange-500">
+                <h2 className={`text-2xl font-bold font-mono ${
+                  challenge.solve_by_myteam 
+                    ? 'text-green-500' 
+                    : 'text-orange-500'
+                }`}>
+                  {challenge.solve_by_myteam && '✓ '}
                   {challenge.name}
                 </h2>
               </div>
               
               <div className="flex items-center gap-2">
                 {/* Timer for deploy challenges */}
-                {challenge.require_deploy && (
+                {challenge.require_deploy && !challenge.solve_by_myteam && (
                   <div className={`flex items-center gap-2 px-3 py-1 rounded-lg border ${
                     theme === 'dark' 
                       ? 'bg-gray-900 border-orange-500/30' 
@@ -1090,25 +1206,56 @@ const getFileName = (filePath : string) => {
                 )}
                 
                 {challenge.solve_by_myteam && (
-                  <Chip
-                    icon={<CheckCircle />}
-                    label="SOLVED"
-                    sx={{
-                      backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                      color: '#4ade80',
-                      fontWeight: 'bold',
-                    }}
-                  />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 10 }}
+                  >
+                    <Chip
+                      icon={<CheckCircle />}
+                      label="SOLVED"
+                      sx={{
+                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                        color: '#4ade80',
+                        fontWeight: 'bold',
+                        border: '2px solid rgba(34, 197, 94, 0.5)',
+                      }}
+                    />
+                  </motion.div>
                 )}
                 
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-white transition-colors text-2xl"
+                  className={`p-2 rounded-lg transition-colors ${
+                    theme === 'dark'
+                      ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
                 >
-                  ✕
+                  <Close />
                 </button>
               </div>
             </div>
+
+            {/* Show solved message */}
+            {challenge.solve_by_myteam && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`p-4 rounded-xl border-2 ${
+                  theme === 'dark'
+                    ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-green-500/50'
+                    : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400/50'
+                }`}
+              >
+                <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${
+                  theme === 'dark' ? 'text-green-300' : 'text-green-700'
+                }`}>
+                  <CheckCircle fontSize="small" />
+                  {'> CHALLENGE COMPLETED! NICE WORK! 🎉'}
+                </Typography>
+              </motion.div>
+            )}
 
             {/* Info Badges */}
             <div className="flex flex-wrap gap-2">
@@ -1266,7 +1413,7 @@ const getFileName = (filePath : string) => {
             )}
 
             {/* Hints Section - GenZ Style Compact */}
-            {hints.length > 0 && (
+            {hints.length > 0 && !challenge.solve_by_myteam && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className={`h-0.5 w-8 rounded-full ${

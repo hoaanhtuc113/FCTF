@@ -228,7 +228,7 @@ export function Layout({ children }: LayoutProps) {
                 >
                   <TimerIcon className="text-orange-600 dark:text-orange-400 animate-pulse" fontSize="small" />
                   <div>
-                    <Typography className="text-xs font-bold text-gray-700 dark:text-gray-300 font-mono uppercase tracking-wide">
+                    <Typography className="text-xs font-bold text-gray-700 dark:text-black font-mono uppercase tracking-wide">
                       {contestStatus}
                     </Typography>
                     <Typography className="text-sm text-orange-600 dark:text-orange-400 font-mono font-black tabular-nums tracking-tight">
