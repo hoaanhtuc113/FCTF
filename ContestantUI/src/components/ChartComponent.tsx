@@ -1,0 +1,223 @@
+import React, { useMemo } from "react";
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+} from "recharts";
+import dayjs from "dayjs";
+
+interface Solve {
+  date: string;
+  value: number;
+}
+
+interface TeamData {
+  id: number;
+  name: string;
+  score: number;
+  solves: Solve[];
+  top?: number;
+}
+
+interface ChartComponentProps {
+  data: TeamData[];
+  selectedTeam: number | null;
+}
+
+// Minimal color palette
+const COLORS = [
+  "#00ff9f", // Green
+  "#00d4ff", // Cyan
+  "#ff00ff", // Magenta
+  "#ffff00", // Yellow
+  "#ff3864", // Pink
+  "#7b2cbf", // Purple
+  "#06ffa5", // Light Green
+  "#ff006e", // Hot Pink
+];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-900 border border-gray-700 rounded p-3 font-mono text-xs">
+        <p className="text-green-400 mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 mb-1">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-white">
+              {entry.name}: <span style={{ color: entry.color }}>{entry.value}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomLegend = ({ payload }: any) => {
+  return (
+    <div className="flex flex-wrap justify-center gap-3 mt-4">
+      {payload.map((entry: any, index: number) => (
+        <div
+          key={`legend-${index}`}
+          className="flex items-center gap-2 px-2 py-1 rounded bg-gray-800 border border-gray-700 text-xs font-mono"
+        >
+          <div 
+            className="w-2 h-2 rounded-full" 
+            style={{ backgroundColor: entry.color }}
+          />
+          <span className="text-white">{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ChartComponent = ({ data, selectedTeam = null }: ChartComponentProps) => {
+  const chartData = useMemo(() => {
+    const teams = Object.values(data);
+
+    // Get all unique timestamps
+    const allDates = [...new Set(
+      teams.flatMap(team =>
+        team.solves.map(solve => dayjs(solve.date).unix())
+      )
+    )].sort((a, b) => a - b);
+
+    // Create data points
+    return allDates.map(timestamp => {
+      const point: any = {
+        time: dayjs.unix(timestamp).format("DD/MM HH:mm"),
+        timestamp,
+      };
+
+      teams.forEach(team => {
+        // Calculate cumulative score up to this timestamp
+        const score = team.solves
+          .filter(solve => dayjs(solve.date).unix() <= timestamp)
+          .reduce((sum, solve) => sum + solve.value, 0);
+        point[team.name] = score;
+      });
+
+      return point;
+    });
+  }, [data]);
+
+  const teams = Object.values(data);
+  const teamNames = teams.map(t => t.name);
+
+  // Filter teams based on selection
+  const visibleTeams = selectedTeam
+    ? teamNames.filter(name => teams.find(t => t.name === name)?.id === selectedTeam)
+    : teamNames;
+
+  if (chartData.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center font-mono text-sm text-gray-400">
+          <p>No data yet</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
+        >
+          <defs>
+            {visibleTeams.map((teamName, index) => {
+              const color = COLORS[index % COLORS.length];
+              return (
+                <linearGradient
+                  key={`gradient-${teamName}`}
+                  id={`gradient-${teamName}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+                </linearGradient>
+              );
+            })}
+          </defs>
+
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="rgba(255, 255, 255, 0.1)"
+          />
+
+          <XAxis
+            dataKey="time"
+            stroke="#6b7280"
+            tick={{ fill: '#9ca3af', fontFamily: 'monospace', fontSize: 11 }}
+            angle={-45}
+            textAnchor="end"
+            height={80}
+          />
+
+          <YAxis
+            stroke="#6b7280"
+            tick={{ fill: '#9ca3af', fontFamily: 'monospace', fontSize: 12 }}
+            label={{
+              value: 'Score',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fill: '#00ff9f', fontFamily: 'monospace', fontSize: 14 },
+            }}
+          />
+
+          <Tooltip content={<CustomTooltip />} />
+          <Legend content={<CustomLegend />} wrapperStyle={{ paddingTop: 20 }} />
+
+          {visibleTeams.map((teamName, index) => {
+            const color = COLORS[index % COLORS.length];
+            const isHighlighted = selectedTeam
+              ? teams.find(t => t.name === teamName)?.id === selectedTeam
+              : true;
+
+            return (
+              <Area
+                key={teamName}
+                type="monotone"
+                dataKey={teamName}
+                stroke={color}
+                strokeWidth={isHighlighted ? 2 : 1}
+                fill={`url(#gradient-${teamName})`}
+                dot={{
+                  r: isHighlighted ? 4 : 2,
+                  fill: color,
+                  strokeWidth: 1,
+                  stroke: "#1f2937",
+                }}
+                activeDot={{
+                  r: 6,
+                  fill: color,
+                  stroke: "#1f2937",
+                  strokeWidth: 2,
+                }}
+                animationDuration={1000}
+              />
+            );
+          })}
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+export default ChartComponent;

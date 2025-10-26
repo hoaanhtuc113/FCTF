@@ -1,4 +1,4 @@
-import { Typography, CircularProgress, Box, Chip, Tabs, Tab } from '@mui/material';
+import { Typography, CircularProgress, Box, Tabs, Tab } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState, useRef } from 'react';
 import { challengeService } from '../services/challengeService';
@@ -6,9 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { 
   LockOpen, 
   Lock, 
-  EmojiEvents, 
   Timer, 
-  ReplayCircleFilled,
   CheckCircle,
   Terminal,
   Security,
@@ -79,7 +77,12 @@ export function Challenges() {
           method: 'GET'
         });
         const data = await response.json();
-        setSelectedChallenge(data.data);
+        // Preserve value and solves from the current selected challenge
+        setSelectedChallenge({
+          ...data.data,
+          value: selectedChallenge.value,
+          solves: selectedChallenge.solves
+        });
       } catch (error) {
         console.error('Error refreshing challenge details:', error);
       }
@@ -139,7 +142,12 @@ export function Challenges() {
         method: 'GET'
       });
       const data = await response.json();
-      setSelectedChallenge(data.data);
+      // Preserve value and solves from the list since API detail doesn't return them
+      setSelectedChallenge({
+        ...data.data,
+        value: challenge.value,
+        solves: challenge.solves
+      });
     } catch (error) {
       console.error('Error fetching challenge details:', error);
       setSelectedChallenge(challenge);
@@ -161,12 +169,7 @@ export function Challenges() {
   if (loading) {
     return (
       <Box className="flex flex-col items-center justify-center min-h-[60vh]">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        >
-          <Terminal className="text-orange-500 text-6xl mb-4" />
-        </motion.div>
+        <Terminal className={`text-4xl mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
         <Typography className={`font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
           Loading challenges...
         </Typography>
@@ -178,7 +181,7 @@ export function Challenges() {
     return (
       <Box className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Typography className="text-red-600 font-bold text-xl mb-2">⚠️ Error</Typography>
+          <Typography className={`text-red-600 font-bold font-mono text-xl mb-2`}>[!] Error</Typography>
           <Typography className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
             {error}
           </Typography>
@@ -190,101 +193,77 @@ export function Challenges() {
   return (
     <div className="flex gap-4 min-h-[70vh] relative">
       {/* Column 1: Categories */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="w-56 flex-shrink-0"
-      >
-        <div className={`rounded-2xl shadow-2xl border p-4 sticky top-24 overflow-hidden ${
+      <div className="w-56 flex-shrink-0">
+        <div className={`rounded-lg border p-4 sticky top-24 ${
           theme === 'dark'
-            ? 'bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800 border-orange-500/30'
-            : 'bg-gradient-to-br from-white via-gray-50 to-white border-orange-200'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-300'
         }`}>
-          <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-orange-400/5 animate-pulse" />
-          
-          <div className="relative z-10">
-            <div className={`flex items-center gap-2 mb-4 pb-3 border-b ${
-              theme === 'dark' ? 'border-orange-400/30' : 'border-orange-200'
+          <div className={`mb-4 pb-3 border-b ${
+            theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
+          }`}>
+            <Typography variant="h6" className={`font-bold font-mono text-sm ${
+              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
             }`}>
-              <Terminal className={theme === 'dark' ? 'text-orange-400' : 'text-orange-500'} />
-              <Typography variant="h6" className={`font-bold font-mono text-sm ${
-                theme === 'dark' ? 'text-white' : 'text-gray-800'
-              }`}>
-                {'> CATEGORIES'}
-              </Typography>
-            </div>
-            
-            <div className="space-y-2">
-              {categories.map((category, index) => (
-                <motion.button
-                  key={category.topic_name}
-                  onClick={() => handleCategoryClick(category.topic_name)}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 flex items-center justify-between group relative overflow-hidden ${
-                    selectedCategory === category.topic_name
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-lg shadow-orange-500/30'
-                      : theme === 'dark'
-                      ? 'bg-gray-800/50 hover:bg-gray-700/70 text-gray-100 border border-gray-700/50'
-                      : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
-                  }`}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ x: 4, transition: { duration: 0.2 } }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {selectedCategory !== category.topic_name && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 via-orange-500/10 to-orange-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  )}
-                  
-                  <div className="flex items-center gap-2 relative z-10">
-                    {getCategoryIcon(category.topic_name)}
-                    <div className="flex-1">
-                      <div className="font-bold text-xs font-mono">
-                        {category.topic_name.toUpperCase()}
-                      </div>
-                      <div className={`text-xs mt-0.5 font-mono ${
-                        selectedCategory === category.topic_name
-                          ? 'text-orange-100'
-                          : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                      }`}>
-                        [{category.challenge_count}]
-                      </div>
+              [CATEGORIES]
+            </Typography>
+          </div>
+          
+          <div className="space-y-2">
+            {categories.map((category) => (
+              <button
+                key={category.topic_name}
+                onClick={() => handleCategoryClick(category.topic_name)}
+                className={`w-full text-left px-3 py-2 rounded transition-colors flex items-center justify-between ${
+                  selectedCategory === category.topic_name
+                    ? theme === 'dark'
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-green-50 text-green-700 border border-green-300'
+                    : theme === 'dark'
+                    ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
+                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {getCategoryIcon(category.topic_name)}
+                  <div className="flex-1">
+                    <div className="font-bold text-xs font-mono">
+                      {category.topic_name.toUpperCase()}
+                    </div>
+                    <div className={`text-xs font-mono ${
+                      selectedCategory === category.topic_name
+                        ? theme === 'dark' ? 'text-green-300' : 'text-green-600'
+                        : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                    }`}>
+                      {category.challenge_count} challs
                     </div>
                   </div>
-                  
-                  {selectedCategory === category.topic_name && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="w-2 h-2 bg-white rounded-full shadow-lg shadow-white/50"
-                    />
-                  )}
-                </motion.button>
-              ))}
-            </div>
+                </div>
+                
+                {selectedCategory === category.topic_name && (
+                  <span className="text-green-500">●</span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Column 2: Challenge List */}
       <div className={selectedChallenge ? "w-96 flex-shrink-0" : "flex-1"}>
         {!isContestActive && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-4 p-3 rounded-xl border-2 ${
-              theme === 'dark'
-                ? 'bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border-yellow-500/50'
-                : 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-400/50'
-            }`}
-          >
+          <div className={`mb-4 p-3 rounded border ${
+            theme === 'dark'
+              ? 'bg-orange-900/20 border-orange-500/30'
+              : 'bg-orange-50 border-orange-300'
+          }`}>
             <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${
-              theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'
+              theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
             }`}>
               <Lock fontSize="small" />
-              {'> CONTEST NOT ACTIVE'}
+              [!] CONTEST NOT ACTIVE
             </Typography>
-          </motion.div>
+          </div>
         )}
 
         <AnimatePresence mode="wait">
@@ -295,37 +274,17 @@ export function Challenges() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <motion.div 
-              className="mb-4 relative"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-            >
-              <div className="flex items-center gap-2">
-                <Terminal className="text-orange-500 text-3xl" />
-                <div>
-                  <h1 className={`text-2xl font-bold font-mono ${
-                    theme === 'dark'
-                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-500 to-orange-400'
-                      : 'text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600'
-                  }`}>
-                    {selectedCategory.toUpperCase()}
-                  </h1>
-                  <div className="flex gap-2 mt-1">
-                    <div className="h-1 w-8 bg-gradient-to-r from-orange-500 to-transparent rounded-full" />
-                    <div className="h-1 w-6 bg-gradient-to-r from-orange-400 to-transparent rounded-full" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            <div className="mb-4">
+              <h1 className={`text-xl font-bold font-mono ${
+                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                [{selectedCategory.toUpperCase()}]
+              </h1>
+            </div>
 
             {loadingChallenges ? (
               <Box className="flex flex-col items-center justify-center py-12">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                >
-                  <Terminal className="text-orange-500 text-4xl mb-2" />
-                </motion.div>
+                <Terminal className={`text-3xl mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
                 <Typography className={`font-mono text-sm ${
                   theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
                 }`}>
@@ -334,12 +293,11 @@ export function Challenges() {
               </Box>
             ) : challenges.length > 0 ? (
               <div className="space-y-2">
-                {challenges.map((challenge, index) => (
+                {challenges.map((challenge) => (
                   <ChallengeListItem
                     key={challenge.id}
                     challenge={challenge}
                     isContestActive={isContestActive}
-                    index={index}
                     onClick={() => handleChallengeClick(challenge)}
                     isSelected={selectedChallenge?.id === challenge.id}
                   />
@@ -386,18 +344,15 @@ export function Challenges() {
 function ChallengeListItem({
   challenge,
   isContestActive,
-  index,
   onClick,
   isSelected,
 }: {
   challenge: Challenge;
   isContestActive: boolean;
-  index: number;
   onClick: () => void;
   isSelected: boolean;
 }) {
   const { theme } = useTheme();
-  const [isHovered, setIsHovered] = useState(false);
 
   const handleClick = () => {
     if (isContestActive) {
@@ -406,125 +361,85 @@ function ChallengeListItem({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
-      className={`relative group ${
-        !isContestActive ? 'cursor-not-allowed' : 'cursor-pointer'
+    <div
+      className={`relative border rounded transition-colors ${
+        !isContestActive ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      } ${
+        isSelected
+          ? theme === 'dark' 
+            ? 'border-green-500 bg-green-900/20' 
+            : 'border-green-500 bg-green-50'
+          : !isContestActive
+          ? theme === 'dark'
+            ? 'bg-gray-800/50 border-gray-700'
+            : 'bg-white border-gray-300'
+          : challenge.solve_by_myteam
+          ? theme === 'dark'
+            ? 'bg-green-900/30 border-green-700 hover:border-green-500'
+            : 'bg-green-50 border-green-300 hover:border-green-500'
+          : theme === 'dark'
+          ? 'bg-gray-800 border-gray-700 hover:border-gray-500'
+          : 'bg-white border-gray-300 hover:border-gray-500'
       }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
     >
-      {isHovered && isContestActive && (
-        <motion.div
-          className={`absolute -inset-0.5 rounded-lg opacity-40 blur ${
-            challenge.solve_by_myteam
-              ? 'bg-gradient-to-r from-green-400 to-emerald-400'
-              : 'bg-gradient-to-r from-orange-400 to-orange-500'
-          }`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.4 }}
-          transition={{ duration: 0.3 }}
-        />
-      )}
-
-      <motion.div
-        className={`relative border rounded-lg shadow transition-all duration-300 overflow-hidden ${
-          isSelected
-            ? 'border-orange-500 bg-orange-500/10'
-            : !isContestActive
-            ? theme === 'dark'
-              ? 'bg-gray-800/50 border-gray-600 opacity-60'
-              : 'bg-white border-gray-300 opacity-60'
-            : challenge.solve_by_myteam
-            ? theme === 'dark'
-              ? 'bg-gradient-to-br from-green-900/50 to-emerald-900/50 border-green-500/60 hover:border-green-400'
-              : 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-400 hover:border-green-500'
-            : theme === 'dark'
-            ? 'bg-gray-800/90 border-gray-600 hover:border-orange-500'
-            : 'bg-white border-gray-300 hover:border-orange-400'
-        }`}
-        whileHover={isContestActive ? { x: 3, transition: { duration: 0.2 } } : {}}
-      >
-        {isHovered && isContestActive && (
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-500/5 to-transparent"
-            initial={{ y: '-100%' }}
-            animate={{ y: '100%' }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-          />
-        )}
-
-        <div className="relative z-10 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                {challenge.solve_by_myteam ? (
-                  <CheckCircle className="text-green-500 flex-shrink-0" sx={{ fontSize: 20 }} />
-                ) : isContestActive ? (
-                  <LockOpen className="text-orange-500 flex-shrink-0" sx={{ fontSize: 20 }} />
-                ) : (
-                  <Lock className={`flex-shrink-0 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} sx={{ fontSize: 20 }} />
-                )}
-                
-                <h3
-                  className={`text-base font-bold font-mono truncate ${
-                    challenge.solve_by_myteam
-                      ? 'text-green-600 dark:text-green-400'
-                      : isContestActive
-                      ? theme === 'dark' ? 'text-gray-100' : 'text-gray-800'
-                      : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                  }`}
-                  title={challenge.name}
-                >
-                  {challenge.name}
-                </h3>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                <Chip
-                  icon={<EmojiEvents sx={{ fontSize: 14 }} />}
-                  label={`${challenge.value}pts`}
-                  size="small"
-                  sx={{
-                    height: '22px',
-                    fontSize: '0.7rem',
-                    fontFamily: 'monospace',
-                    fontWeight: 'bold',
-                    '& .MuiChip-icon': { fontSize: 14 },
-                    ...(challenge.solve_by_myteam
-                      ? { backgroundColor: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.5)' }
-                      : { backgroundColor: 'rgba(249, 115, 22, 0.2)', color: '#fb923c', border: '1px solid rgba(249, 115, 22, 0.5)' }
-                    )
-                  }}
-                />
-
-                {challenge.solves !== undefined && (
-                  <Chip
-                    label={`${challenge.solves}`}
-                    size="small"
-                    sx={{
-                      height: '22px',
-                      fontSize: '0.7rem',
-                      fontFamily: 'monospace',
-                      backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                      color: '#60a5fa',
-                      border: '1px solid rgba(59, 130, 246, 0.5)'
-                    }}
-                  />
-                )}
-              </div>
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              {challenge.solve_by_myteam ? (
+                <CheckCircle className="text-green-500 flex-shrink-0" sx={{ fontSize: 18 }} />
+              ) : isContestActive ? (
+                <LockOpen className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} sx={{ fontSize: 18 }} />
+              ) : (
+                <Lock className="text-gray-500 flex-shrink-0" sx={{ fontSize: 18 }} />
+              )}
+              
+              <h3
+                className={`text-sm font-mono font-bold truncate ${
+                  challenge.solve_by_myteam
+                    ? 'text-green-500'
+                    : isContestActive
+                    ? theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    : 'text-gray-500'
+                }`}
+                title={challenge.name}
+              >
+                {challenge.name}
+              </h3>
             </div>
 
-            {isContestActive && challenge.solve_by_myteam && (
-              <CheckCircle className="text-green-500 flex-shrink-0" fontSize="small" />
-            )}
+            <div className="flex flex-wrap gap-2 text-xs font-mono">
+              <span className={`px-2 py-0.5 rounded ${
+                challenge.solve_by_myteam
+                  ? theme === 'dark'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'bg-green-100 text-green-700 border border-green-300'
+                  : theme === 'dark'
+                  ? 'bg-gray-700 text-gray-300 border border-gray-600'
+                  : 'bg-gray-100 text-gray-700 border border-gray-300'
+              }`}>
+                {challenge.value}pts
+              </span>
+
+              {challenge.solves !== undefined && (
+                <span className={`px-2 py-0.5 rounded ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 text-gray-400 border border-gray-600'
+                    : 'bg-gray-100 text-gray-600 border border-gray-300'
+                }`}>
+                  {challenge.solves} solves
+                </span>
+              )}
+            </div>
           </div>
+
+          {challenge.solve_by_myteam && (
+            <span className="text-green-500 text-xs">✓</span>
+          )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -643,18 +558,43 @@ function ChallengeDetailPanel({
         setUrl(data.challenge_url || null);
         await fetchChallengeStatus();
         Swal.fire({
-          title: 'Success!',
-          text: 'Challenge started successfully.',
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-green-400 mb-2">[+] Challenge deployed</div>
+              <div class="text-gray-400">> Connection established</div>
+              <div class="text-gray-400">> Environment ready</div>
+            </div>
+          `,
           icon: 'success',
+          iconColor: '#00ff9f',
           confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#00ff9f' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-green-500/30',
+            confirmButton: 'bg-green-500 hover:bg-green-600 text-black font-mono px-4 py-2 rounded',
+          },
+          timer: 2000,
+          showConfirmButton: false,
         });
       }
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: 'Failed to start challenge.',
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400 mb-2">[!] Deploy failed</div>
+            <div class="text-gray-400">> Connection error</div>
+          </div>
+        `,
         icon: 'error',
+        iconColor: '#ff006e',
         confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ff006e' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
       });
     } finally {
       setIsStarting(false);
@@ -685,24 +625,38 @@ function ChallengeDetailPanel({
         }
         
         Swal.fire({
-          title: 'Success!',
-          text: 'Challenge stopped successfully.',
-          icon: 'success',
-          confirmButtonText: 'OK',
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
-          timer: 2000,
-          timerProgressBar: true,
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-orange-400 mb-2">[-] Challenge stopped</div>
+              <div class="text-gray-400">> Connection closed</div>
+            </div>
+          `,
+          icon: 'info',
+          iconColor: '#fb923c',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fb923c' : '#000000',
+          timer: 1500,
+          showConfirmButton: false,
+          customClass: {
+            popup: 'rounded-lg border border-orange-500/30',
+          },
         });
       }
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: 'Failed to stop challenge.',
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400">[!] Stop failed</div>
+          </div>
+        `,
         icon: 'error',
+        iconColor: '#ff006e',
         confirmButtonText: 'OK',
-        background: theme === 'dark' ? '#1f2937' : '#ffffff',
-        color: theme === 'dark' ? '#ffffff' : '#000000',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
       });
     } finally {
       setIsStopping(false);
@@ -712,12 +666,16 @@ function ChallengeDetailPanel({
   const handleSubmitFlag = async () => {
     if (!answer.trim()) {
       Swal.fire({
-        title: 'Empty Flag!',
-        text: 'Please enter a flag before submitting.',
+        html: `<div class="font-mono text-sm text-yellow-400">[!] Empty flag</div>`,
         icon: 'warning',
+        iconColor: '#fbbf24',
         confirmButtonText: 'OK',
-        background: theme === 'dark' ? '#1f2937' : '#ffffff',
-        color: theme === 'dark' ? '#ffffff' : '#000000',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        timer: 1500,
+        customClass: {
+          popup: 'rounded-lg border border-yellow-500/30',
+          confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+        },
       });
       return;
     }
@@ -743,30 +701,23 @@ function ChallengeDetailPanel({
       const data = await response.json();
       
       if (data?.data?.status === 'correct') {
-        // Show success with confetti effect
         await Swal.fire({
-          title: '🎉 Correct Flag!',
           html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">🏆</div>
-              <p class="text-xl font-bold text-green-500 mb-2">Congratulations!</p>
-              <p class="text-lg">You have successfully solved this challenge!</p>
-              <p class="text-sm text-gray-500 mt-2">+${challenge.value} points</p>
+            <div class="font-mono text-left text-sm">
+              <div class="text-green-400 mb-2">[+] FLAG CORRECT</div>
+              <div class="text-gray-400">> Challenge solved</div>
+              <div class="text-gray-400">> +${challenge.value} points</div>
             </div>
           `,
           icon: 'success',
-          confirmButtonText: 'Awesome! 🚀',
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
+          iconColor: '#22c55e',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#22c55e' : '#000000',
+          timer: 2000,
+          showConfirmButton: false,
           customClass: {
-            popup: 'rounded-2xl',
-            confirmButton: 'bg-gradient-to-r from-green-400 to-blue-500 hover:from-blue-500 hover:to-green-400',
+            popup: 'rounded-lg border border-green-500/30',
           },
-          showClass: {
-            popup: 'animate__animated animate__jackInTheBox'
-          },
-          timer: 5000,
-          timerProgressBar: true,
         });
         
         setAnswer('');
@@ -790,20 +741,21 @@ function ChallengeDetailPanel({
           : '∞';
         
         await Swal.fire({
-          title: '❌ Incorrect Flag!',
           html: `
-            <div class="text-center">
-              <div class="text-6xl mb-4">😔</div>
-              <p class="text-lg mb-2">${data.data.message || 'The flag you entered is incorrect.'}</p>
-              ${challenge.max_attempts > 0 ? `<p class="text-sm text-orange-500">Attempts remaining: ${attemptsLeft}</p>` : ''}
+            <div class="font-mono text-left text-sm">
+              <div class="text-red-400 mb-2">[!] INCORRECT FLAG</div>
+              <div class="text-gray-400">> ${data.data.message || 'Wrong flag'}</div>
+              ${challenge.max_attempts > 0 ? `<div class="text-gray-400">> ${attemptsLeft} attempts left</div>` : ''}
             </div>
           `,
           icon: 'error',
-          confirmButtonText: 'Try Again 💪',
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
+          iconColor: '#ef4444',
+          confirmButtonText: 'Retry',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
           customClass: {
-            popup: 'rounded-2xl',
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
           },
         });
         
@@ -813,32 +765,59 @@ function ChallengeDetailPanel({
         }
       } else if (data?.data?.status === 'already_solved') {
         await Swal.fire({
-          title: 'ℹ️ Already Solved',
-          text: 'You or your teammate already solved this challenge.',
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-cyan-400 mb-2">[i] Already solved</div>
+              <div class="text-gray-400">> Challenge completed</div>
+            </div>
+          `,
           icon: 'info',
-          confirmButtonText: 'OK',
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
+          iconColor: '#06b6d4',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#06b6d4' : '#000000',
+          timer: 1500,
+          showConfirmButton: false,
+          customClass: {
+            popup: 'rounded-lg border border-cyan-500/30',
+          },
         });
       } else if (data?.data?.status === 'ratelimited') {
         await Swal.fire({
-          title: '⏱️ Rate Limited',
-          text: data.data.message || 'You are submitting too fast. Please slow down.',
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-orange-400 mb-2">[!] Rate limited</div>
+              <div class="text-gray-400">> ${data.data.message || 'Too many attempts'}</div>
+            </div>
+          `,
           icon: 'warning',
+          iconColor: '#fb923c',
           confirmButtonText: 'OK',
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fb923c' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-orange-500/30',
+            confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
+          },
         });
       }
     } catch (error) {
       console.error('Error submitting flag:', error);
       await Swal.fire({
-        title: '💥 Error!',
-        text: 'An error occurred while submitting the flag. Please try again.',
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400 mb-2">[!] Error</div>
+            <div class="text-gray-400">> Connection failed</div>
+          </div>
+        `,
         icon: 'error',
-        confirmButtonText: 'OK',
-        background: theme === 'dark' ? '#1f2937' : '#ffffff',
-        color: theme === 'dark' ? '#ffffff' : '#000000',
+        iconColor: '#ef4444',
+        confirmButtonText: 'Retry',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
       });
     } finally {
       setIsSubmittingFlag(false);
@@ -896,10 +875,21 @@ const getFileName = (filePath : string) => {
     } catch (error) {
       console.error('Error downloading file:', error);
       Swal.fire({
-        title: 'Download Error!',
-        text: 'Failed to download file.',
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400 mb-2">[!] Download failed</div>
+            <div class="text-gray-400">> File unavailable</div>
+          </div>
+        `,
         icon: 'error',
+        iconColor: '#ef4444',
         confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
       });
     }
   };
@@ -930,7 +920,10 @@ const getFileName = (filePath : string) => {
       return data;
     } catch (error) {
       console.error("Failed to unlock hint:", error);
-      return { success: false, errors: error.response?.data?.errors || {} };
+      const errorResponse = error && typeof error === 'object' && 'response' in error 
+        ? (error as any).response?.data?.errors 
+        : {};
+      return { success: false, errors: errorResponse || {} };
     }
   };
 
@@ -945,12 +938,21 @@ const getFileName = (filePath : string) => {
       
       if (!hintDetailsResponse?.data) {
         Swal.fire({
-          title: "Error!",
-          text: "Failed to fetch hint data",
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-red-400 mb-2">[!] Error</div>
+              <div class="text-gray-400">> Failed to fetch hint</div>
+            </div>
+          `,
           icon: "error",
+          iconColor: '#ef4444',
           confirmButtonText: "OK",
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+          },
         });
         return;
       }
@@ -958,34 +960,48 @@ const getFileName = (filePath : string) => {
       // Check if hint is already unlocked
       if (hintDetailsResponse?.data.content) {
         Swal.fire({
-          title: "💡 Hint Details",
-          html: `<div class="text-left"><strong>Details:</strong><br/>${hintDetailsResponse.data.content || "No content available."}</div>`,
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-cyan-400 mb-2">[i] Already unlocked</div>
+              <div class="text-gray-400 mb-2">> Content:</div>
+              <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-cyan-500/30">
+                ${hintDetailsResponse.data.content || "No content"}
+              </div>
+            </div>
+          `,
           icon: "info",
-          confirmButtonText: "Got it!",
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
+          iconColor: '#06b6d4',
+          confirmButtonText: "OK",
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#06b6d4' : '#000000',
           customClass: {
-            popup: 'rounded-2xl',
+            popup: 'rounded-lg border border-cyan-500/30',
+            confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
           }
         });
         return;
       }
 
-      // Show confirmation dialog with GenZ style
+      // Show confirmation dialog
       const result = await Swal.fire({
-        title: "🤔 Unlock Hint?",
-        html: `<div class="text-lg">This will cost you <span class="font-bold text-pink-500">${hintCost}</span> points.<br/>Are you sure you want to continue?</div>`,
-        icon: "warning",
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-purple-400 mb-2">[?] Unlock hint</div>
+            <div class="text-gray-400">> Cost: ${hintCost} points</div>
+            <div class="text-gray-400">> Confirm unlock?</div>
+          </div>
+        `,
+        icon: "question",
+        iconColor: '#a855f7',
         showCancelButton: true,
-        confirmButtonText: "Yes, unlock it! 🔓",
-        cancelButtonText: "Nah, cancel 🚫",
-        reverseButtons: true,
-        background: theme === 'dark' ? '#1f2937' : '#ffffff',
-        color: theme === 'dark' ? '#ffffff' : '#000000',
+        confirmButtonText: "Unlock",
+        cancelButtonText: "Cancel",
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#a855f7' : '#000000',
         customClass: {
-          popup: 'rounded-2xl',
-          confirmButton: 'bg-gradient-to-r from-green-400 to-blue-500 hover:from-blue-500 hover:to-green-400',
-          cancelButton: 'bg-gradient-to-r from-red-400 to-pink-500 hover:from-pink-500 hover:to-red-400',
+          popup: 'rounded-lg border border-purple-500/30',
+          confirmButton: 'bg-purple-500 hover:bg-purple-600 text-white font-mono px-4 py-2 rounded',
+          cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
         }
       });
 
@@ -999,39 +1015,66 @@ const getFileName = (filePath : string) => {
           
           if (updatedHintDetails?.data) {
             Swal.fire({
-              title: "🎉 Unlocked!",
-              html: `<div class="text-left"><strong>Hint:</strong><br/>${updatedHintDetails.data.content || "No content available."}</div>`,
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-green-400 mb-2">[+] Hint unlocked</div>
+                  <div class="text-gray-400 mb-2">> Content:</div>
+                  <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-cyan-500/30">
+                    ${updatedHintDetails.data.content || "No content"}
+                  </div>
+                </div>
+              `,
               icon: "success",
-              confirmButtonText: "Awesome! 🚀",
-              background: theme === 'dark' ? '#1f2937' : '#ffffff',
-              color: theme === 'dark' ? '#ffffff' : '#000000',
+              iconColor: '#22c55e',
+              confirmButtonText: "OK",
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#22c55e' : '#000000',
               customClass: {
-                popup: 'rounded-2xl',
-              }
+                popup: 'rounded-lg border border-green-500/30',
+                confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
+              },
             });
             
             // Refresh hints list
             fetchHints();
           } else {
             Swal.fire({
-              title: "✅ Unlocked!",
-              text: "Hint unlocked, but no details available.",
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-green-400 mb-2">[+] Hint unlocked</div>
+                  <div class="text-gray-400">> No details available</div>
+                </div>
+              `,
               icon: "info",
+              iconColor: '#06b6d4',
               confirmButtonText: "OK",
-              background: theme === 'dark' ? '#1f2937' : '#ffffff',
-              color: theme === 'dark' ? '#ffffff' : '#000000',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#06b6d4' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-cyan-500/30',
+                confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
+              },
             });
           }
         } else {
           // Handle errors
           if (response.errors?.score) {
             Swal.fire({
-              title: "❌ Error!",
-              text: response.errors.score,
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-red-400 mb-2">[!] Insufficient points</div>
+                  <div class="text-gray-400">> ${response.errors.score}</div>
+                </div>
+              `,
               icon: "error",
+              iconColor: '#ef4444',
               confirmButtonText: "OK",
-              background: theme === 'dark' ? '#1f2937' : '#ffffff',
-              color: theme === 'dark' ? '#ffffff' : '#000000',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#ef4444' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-red-500/30',
+                confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+              },
             });
           } else if (response.errors?.target) {
             const errorMessage = response.errors.target;
@@ -1041,64 +1084,118 @@ const getFileName = (filePath : string) => {
               
               if (hintDetailsResponse?.data) {
                 Swal.fire({
-                  title: "ℹ️ Already Unlocked",
-                  html: `<div class="text-left">You've already unlocked this hint.<br/><strong>Details:</strong><br/>${hintDetailsResponse.data.content || "No content available."}</div>`,
+                  html: `
+                    <div class="font-mono text-left text-sm">
+                      <div class="text-cyan-400 mb-2">[i] Already unlocked</div>
+                      <div class="text-gray-400 mb-2">> Content:</div>
+                      <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-cyan-500/30">
+                        ${hintDetailsResponse.data.content || "No content"}
+                      </div>
+                    </div>
+                  `,
                   icon: "info",
+                  iconColor: '#06b6d4',
                   confirmButtonText: "OK",
-                  background: theme === 'dark' ? '#1f2937' : '#ffffff',
-                  color: theme === 'dark' ? '#ffffff' : '#000000',
+                  background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                  color: theme === 'dark' ? '#06b6d4' : '#000000',
+                  customClass: {
+                    popup: 'rounded-lg border border-cyan-500/30',
+                    confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
+                  },
                 });
               } else {
                 Swal.fire({
-                  title: "ℹ️ Already Unlocked",
-                  text: "You've already unlocked this hint, but no details are available.",
+                  html: `
+                    <div class="font-mono text-left text-sm">
+                      <div class="text-cyan-400 mb-2">[i] Already unlocked</div>
+                      <div class="text-gray-400">> Hint already purchased</div>
+                    </div>
+                  `,
                   icon: "info",
+                  iconColor: '#06b6d4',
                   confirmButtonText: "OK",
-                  background: theme === 'dark' ? '#1f2937' : '#ffffff',
-                  color: theme === 'dark' ? '#ffffff' : '#000000',
+                  background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                  color: theme === 'dark' ? '#06b6d4' : '#000000',
+                  customClass: {
+                    popup: 'rounded-lg border border-cyan-500/30',
+                    confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
+                  },
                 });
               }
             } else {
               Swal.fire({
-                title: "❌ Error!",
-                text: errorMessage,
+                html: `
+                  <div class="font-mono text-left text-sm">
+                    <div class="text-red-400 mb-2">[!] Error</div>
+                    <div class="text-gray-400">> ${errorMessage}</div>
+                  </div>
+                `,
                 icon: "error",
+                iconColor: '#ef4444',
                 confirmButtonText: "OK",
-                background: theme === 'dark' ? '#1f2937' : '#ffffff',
-                color: theme === 'dark' ? '#ffffff' : '#000000',
+                background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                color: theme === 'dark' ? '#ef4444' : '#000000',
+                customClass: {
+                  popup: 'rounded-lg border border-red-500/30',
+                  confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+                },
               });
             }
           } else {
             Swal.fire({
-              title: "❌ Error!",
-              text: "An error occurred while unlocking the hint.",
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-red-400 mb-2">[!] Unlock failed</div>
+                  <div class="text-gray-400">> Error occurred</div>
+                </div>
+              `,
               icon: "error",
+              iconColor: '#ef4444',
               confirmButtonText: "OK",
-              background: theme === 'dark' ? '#1f2937' : '#ffffff',
-              color: theme === 'dark' ? '#ffffff' : '#000000',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#ef4444' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-red-500/30',
+                confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+              },
             });
           }
         }
       } else {
         Swal.fire({
-          title: "🚫 Cancelled",
-          text: "Unlocking the hint was cancelled.",
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-gray-400">[i] Cancelled</div>
+            </div>
+          `,
           icon: "info",
-          confirmButtonText: "OK",
-          background: theme === 'dark' ? '#1f2937' : '#ffffff',
-          color: theme === 'dark' ? '#ffffff' : '#000000',
-          timer: 2000,
-          timerProgressBar: true,
+          iconColor: '#6b7280',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#9ca3af' : '#000000',
+          timer: 1000,
+          showConfirmButton: false,
+          customClass: {
+            popup: 'rounded-lg border border-gray-500/30',
+          },
         });
       }
     } catch (error) {
       Swal.fire({
-        title: "💥 Error!",
-        text: "An error occurred while processing your request.",
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400 mb-2">[!] Error</div>
+            <div class="text-gray-400">> Connection failed</div>
+          </div>
+        `,
         icon: "error",
+        iconColor: '#ef4444',
         confirmButtonText: "OK",
-        background: theme === 'dark' ? '#1f2937' : '#ffffff',
-        color: theme === 'dark' ? '#ffffff' : '#000000',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
       });
       console.error("Error in handleUnlockHint:", error);
     } finally {
@@ -1127,10 +1224,21 @@ const getFileName = (filePath : string) => {
     } catch (error) {
       console.error('Error loading PDF:', error);
       Swal.fire({
-        title: 'Error!',
-        text: 'Failed to load PDF file.',
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-red-400 mb-2">[!] PDF load failed</div>
+            <div class="text-gray-400">> File unavailable</div>
+          </div>
+        `,
         icon: 'error',
-        confirmButtonText: 'OK',
+        iconColor: '#ef4444',
+        confirmButtonText: 'Close',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
       });
       setSelectedPdfIndex(null);
     } finally {
@@ -1167,38 +1275,53 @@ const getFileName = (filePath : string) => {
         selectedPdfIndex !== null ? 'w-full' : ''
       }`}>
         {/* Main Challenge Detail Panel */}
-        <div className={`rounded-2xl shadow-2xl border overflow-hidden transition-all duration-300 ${
+        <div className={`rounded-lg border overflow-hidden transition-all duration-300 ${
           selectedPdfIndex !== null ? 'w-1/2' : 'w-full'
         } ${
           theme === 'dark'
-            ? 'bg-gray-800 border-orange-500/30'
-            : 'bg-white border-orange-200'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-300'
         }`}>
           <div className="p-6 space-y-4 h-full overflow-y-auto">
             {/* Header with Timer and Solved Status */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h2 className={`text-2xl font-bold font-mono ${
+                <h2 className={`text-xl font-bold font-mono ${
                   challenge.solve_by_myteam 
                     ? 'text-green-500' 
-                    : 'text-orange-500'
+                    : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  {challenge.solve_by_myteam && '✓ '}
+                  {challenge.solve_by_myteam && '[✓] '}
                   {challenge.name}
                 </h2>
+                <div className="flex items-center gap-2 mt-2 text-sm font-mono">
+                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    {challenge.value} pts
+                  </span>
+                  {challenge.solves !== undefined && (
+                    <>
+                      <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
+                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                        {challenge.solves} solves
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
               
               <div className="flex items-center gap-2">
                 {/* Timer for deploy challenges */}
                 {challenge.require_deploy && !challenge.solve_by_myteam && (
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-lg border ${
+                  <div className={`flex items-center gap-2 px-2 py-1 rounded border text-sm font-mono ${
                     theme === 'dark' 
-                      ? 'bg-gray-900 border-orange-500/30' 
-                      : 'bg-orange-50 border-orange-300'
+                      ? 'bg-gray-900 border-gray-700' 
+                      : 'bg-gray-50 border-gray-300'
                   }`}>
-                    <Timer className="text-orange-500" sx={{ fontSize: 20 }} />
-                    <span className={`font-mono text-sm font-bold ${
-                      isChallengeStarted ? 'text-green-400' : 'text-orange-400'
+                    <Timer sx={{ fontSize: 16 }} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
+                    <span className={`font-bold ${
+                      isChallengeStarted 
+                        ? 'text-green-500' 
+                        : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                     }`}>
                       {formatTime(timeRemaining)}
                     </span>
@@ -1206,27 +1329,18 @@ const getFileName = (filePath : string) => {
                 )}
                 
                 {challenge.solve_by_myteam && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 10 }}
-                  >
-                    <Chip
-                      icon={<CheckCircle />}
-                      label="SOLVED"
-                      sx={{
-                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                        color: '#4ade80',
-                        fontWeight: 'bold',
-                        border: '2px solid rgba(34, 197, 94, 0.5)',
-                      }}
-                    />
-                  </motion.div>
+                  <span className={`px-2 py-1 rounded border text-xs font-mono font-bold ${
+                    theme === 'dark'
+                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                      : 'bg-green-50 text-green-700 border-green-300'
+                  }`}>
+                    SOLVED
+                  </span>
                 )}
                 
                 <button
                   onClick={onClose}
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`p-2 rounded transition-colors ${
                     theme === 'dark'
                       ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                       : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
@@ -1239,95 +1353,84 @@ const getFileName = (filePath : string) => {
 
             {/* Show solved message */}
             {challenge.solve_by_myteam && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-xl border-2 ${
-                  theme === 'dark'
-                    ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-green-500/50'
-                    : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400/50'
-                }`}
-              >
-                <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${
-                  theme === 'dark' ? 'text-green-300' : 'text-green-700'
+              <div className={`p-3 rounded border ${
+                theme === 'dark'
+                  ? 'bg-green-900/20 border-green-700'
+                  : 'bg-green-50 border-green-300'
+              }`}>
+                <Typography className={`text-center font-mono text-sm ${
+                  theme === 'dark' ? 'text-green-400' : 'text-green-700'
                 }`}>
-                  <CheckCircle fontSize="small" />
-                  {'> CHALLENGE COMPLETED! NICE WORK! 🎉'}
+                  [✓] Challenge completed
                 </Typography>
-              </motion.div>
+              </div>
             )}
 
             {/* Info Badges */}
-            <div className="flex flex-wrap gap-2">
-              {/* <Chip
-                icon={<EmojiEvents />}
-                label={`${challenge.value} pts`}
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(249, 115, 22, 0.2)',
-                  color: '#fb923c',
-                  fontFamily: 'monospace',
-                }}
-              /> */}
-              <Chip
-                icon={<Timer />}
-                label={challenge.time_limit === -1 ? '∞' : `${challenge.time_limit}s`}
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(168, 85, 247, 0.2)',
-                  color: '#c084fc',
-                  fontFamily: 'monospace',
-                }}
-              />
-              <Chip
-                icon={<ReplayCircleFilled />}
-                label={challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(6, 182, 212, 0.2)',
-                  color: '#22d3ee',
-                  fontFamily: 'monospace',
-                }}
-              />
+            <div className="flex flex-wrap gap-2 text-xs font-mono">
+              <span className={`px-2 py-1 rounded border ${
+                theme === 'dark'
+                  ? 'bg-gray-700 text-gray-300 border-gray-600'
+                  : 'bg-gray-100 text-gray-700 border-gray-300'
+              }`}>
+                Time: {challenge.time_limit === -1 ? '∞' : `${challenge.time_limit}s`}
+              </span>
+              <span className={`px-2 py-1 rounded border ${
+                theme === 'dark'
+                  ? 'bg-gray-700 text-gray-300 border-gray-600'
+                  : 'bg-gray-100 text-gray-700 border-gray-300'
+              }`}>
+                Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
+              </span>
             </div>
 
             {/* Files */}
             {challenge.files && challenge.files.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {challenge.files.map((file, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      if (file.toLowerCase().includes('.pdf')) {
-                        const pdfIndex = pdfFiles.indexOf(file);
-                        handlePdfClick(pdfIndex);
-                        // Switch to the corresponding PDF tab
-                        setSelectedTab(hasDescription ? pdfIndex + 1 : pdfIndex);
-                      } else {
-                        handleDownloadFile(file);
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      file.toLowerCase().includes('.pdf')
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
-                    }`}
-                  >
-                    {file.toLowerCase().includes('.pdf') ? <PictureAsPdf /> : <FaDownload />}
-                    {getFileName(file)}
-                  </button>
-                ))}
+              <div className="space-y-2">
+                <div className={`text-xs font-mono font-bold ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  [FILES]
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {challenge.files.map((file, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        if (file.toLowerCase().includes('.pdf')) {
+                          const pdfIndex = pdfFiles.indexOf(file);
+                          handlePdfClick(pdfIndex);
+                          setSelectedTab(hasDescription ? pdfIndex + 1 : pdfIndex);
+                        } else {
+                          handleDownloadFile(file);
+                        }
+                      }}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${
+                        file.toLowerCase().includes('.pdf')
+                          ? theme === 'dark'
+                            ? 'bg-red-900/20 text-red-400 border-red-700 hover:bg-red-900/30'
+                            : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+                          : theme === 'dark'
+                          ? 'bg-blue-900/20 text-blue-400 border-blue-700 hover:bg-blue-900/30'
+                          : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                      }`}
+                    >
+                      {file.toLowerCase().includes('.pdf') ? <PictureAsPdf sx={{ fontSize: 14 }} /> : <FaDownload size={12} />}
+                      {getFileName(file)}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Connection URL */}
             {url && (
-              <div className={`p-3 rounded-lg border ${
-                theme === 'dark' ? 'bg-orange-950 border-orange-600' : 'bg-orange-50 border-orange-300'
+              <div className={`p-3 rounded border ${
+                theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
               }`}>
-                <p className="font-mono text-sm">
-                  <span className="font-semibold">Connection: </span>
-                  <span className="text-orange-500 break-all">{url}</span>
+                <p className="font-mono text-xs">
+                  <span className={`font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{'>>'} </span>
+                  <span className={`break-all ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{url}</span>
                 </p>
               </div>
             )}
@@ -1339,42 +1442,44 @@ const getFileName = (filePath : string) => {
                   value={selectedTab}
                   onChange={(_, newValue) => {
                     setSelectedTab(newValue);
-                    // Close PDF viewer if switching away from PDF tab
                     const isPdfTab = hasDescription ? newValue > 0 : newValue >= 0;
                     if (!isPdfTab || (hasDescription && newValue === 0)) {
                       closePdfViewer();
                     } else {
-                      // Open corresponding PDF
                       const pdfIdx = hasDescription ? newValue - 1 : newValue;
                       handlePdfClick(pdfIdx);
                     }
                   }}
                   sx={{
+                    minHeight: '36px',
                     '& .MuiTab-root': {
                       color: theme === 'dark' ? '#9ca3af' : '#6b7280',
                       fontFamily: 'monospace',
-                      fontSize: '0.875rem',
-                      minHeight: '40px',
+                      fontSize: '0.75rem',
+                      minHeight: '36px',
+                      textTransform: 'none',
+                      padding: '8px 12px',
                     },
                     '& .Mui-selected': {
-                      color: '#fb923c !important',
+                      color: theme === 'dark' ? '#22c55e !important' : '#16a34a !important',
                     },
                     '& .MuiTabs-indicator': {
-                      backgroundColor: '#fb923c',
+                      backgroundColor: theme === 'dark' ? '#22c55e' : '#16a34a',
+                      height: '2px',
                     },
                   }}
                 >
                   {hasDescription && (
                     <Tab 
-                      icon={<Description sx={{ fontSize: 18 }} />} 
+                      icon={<Description sx={{ fontSize: 14 }} />} 
                       iconPosition="start" 
                       label="Description" 
                     />
                   )}
-                  {pdfFiles.map((file, index) => (
+                  {pdfFiles.map((_, index) => (
                     <Tab
                       key={index}
-                      icon={<PictureAsPdf sx={{ fontSize: 18 }} />}
+                      icon={<PictureAsPdf sx={{ fontSize: 14 }} />}
                       iconPosition="start"
                       label={`PDF ${index + 1}`}
                     />
@@ -1382,10 +1487,10 @@ const getFileName = (filePath : string) => {
                 </Tabs>
 
                 {/* Tab Content */}
-                <div className="mt-4">
+                <div className="mt-3">
                   {selectedTab === 0 && hasDescription && (
-                    <div className={`p-4 rounded-lg ${
-                      theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+                    <div className={`p-3 rounded border text-sm ${
+                      theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-gray-50 border-gray-300'
                     }`}>
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {challenge.description}
@@ -1393,15 +1498,17 @@ const getFileName = (filePath : string) => {
                     </div>
                   )}
                   
-                  {pdfFiles.map((file, index) => {
+                  {pdfFiles.map((_, index) => {
                     const tabIndex = hasDescription ? index + 1 : index;
                     return selectedTab === tabIndex && selectedPdfIndex === null && (
-                      <div key={index} className={`p-4 rounded-lg ${
-                        theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+                      <div key={index} className={`p-4 rounded border ${
+                        theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
                       }`}>
                         <div className="text-center">
-                          <CircularProgress sx={{ color: '#fb923c' }} size={40} />
-                          <Typography className="mt-2 font-mono text-sm text-orange-500">
+                          <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={30} />
+                          <Typography className={`mt-2 font-mono text-xs ${
+                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                             Loading PDF...
                           </Typography>
                         </div>
@@ -1412,115 +1519,41 @@ const getFileName = (filePath : string) => {
               </div>
             )}
 
-            {/* Hints Section - GenZ Style Compact */}
+            {/* Hints Section */}
             {hints.length > 0 && !challenge.solve_by_myteam && (
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className={`h-0.5 w-8 rounded-full ${
-                    theme === 'dark' ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gradient-to-r from-cyan-400 to-purple-400'
-                  }`} />
-                  <h3 className={`font-bold text-sm font-mono ${
-                    theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
-                  }`}>
-                    {'>'} HINTS_AVAILABLE
-                  </h3>
-                  <div className={`h-0.5 flex-1 rounded-full ${
-                    theme === 'dark' ? 'bg-gradient-to-r from-purple-500 to-cyan-500' : 'bg-gradient-to-r from-purple-400 to-cyan-400'
-                  }`} />
+                <div className={`text-xs font-mono font-bold ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  [HINTS]
                 </div>
                 
                 <div className="grid grid-cols-6 gap-2">
                   {hints.map((hint, index) => (
-                    <motion.button
+                    <button
                       key={hint.id}
                       onClick={() => handleUnlockHint(hint.id, hint.cost)}
                       disabled={unlockingHintId === hint.id}
-                      className={`relative group overflow-hidden rounded-lg p-2.5 transition-all duration-300 ${
+                      className={`relative p-2 rounded border transition-colors ${
                         theme === 'dark'
-                          ? 'bg-gradient-to-br from-gray-800 via-gray-900 to-black hover:from-cyan-900/50 hover:via-purple-900/50 hover:to-black border border-cyan-500/30 hover:border-cyan-400'
-                          : 'bg-gradient-to-br from-white via-cyan-50 to-purple-50 hover:from-cyan-100 hover:via-purple-100 hover:to-white border border-cyan-300 hover:border-cyan-500'
-                      } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : 'hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/20'}`}
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.05 }}
+                          ? 'bg-gray-900 border-purple-700 hover:border-purple-500 hover:bg-gray-800'
+                          : 'bg-gray-50 border-purple-300 hover:border-purple-500 hover:bg-purple-50'
+                      } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : ''}`}
                     >
-                      {/* Matrix-like background effect */}
-                      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
-                        theme === 'dark' 
-                          ? 'bg-[linear-gradient(0deg,transparent_24%,rgba(6,182,212,0.05)_25%,rgba(6,182,212,0.05)_26%,transparent_27%,transparent_74%,rgba(6,182,212,0.05)_75%,rgba(6,182,212,0.05)_76%,transparent_77%,transparent)] bg-[length:50px_50px]' 
-                          : 'bg-[linear-gradient(0deg,transparent_24%,rgba(6,182,212,0.1)_25%,rgba(6,182,212,0.1)_26%,transparent_27%,transparent_74%,rgba(6,182,212,0.1)_75%,rgba(6,182,212,0.1)_76%,transparent_77%,transparent)] bg-[length:50px_50px]'
-                      }`} />
-                      
-                      {/* Corner brackets - CTF style */}
-                      <div className={`absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 ${
-                        theme === 'dark' ? 'border-cyan-500 group-hover:border-cyan-400' : 'border-cyan-600 group-hover:border-cyan-700'
-                      } transition-colors`} />
-                      <div className={`absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 ${
-                        theme === 'dark' ? 'border-cyan-500 group-hover:border-cyan-400' : 'border-cyan-600 group-hover:border-cyan-700'
-                      } transition-colors`} />
-                      <div className={`absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 ${
-                        theme === 'dark' ? 'border-purple-500 group-hover:border-purple-400' : 'border-purple-600 group-hover:border-purple-700'
-                      } transition-colors`} />
-                      <div className={`absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 ${
-                        theme === 'dark' ? 'border-purple-500 group-hover:border-purple-400' : 'border-purple-600 group-hover:border-purple-700'
-                      } transition-colors`} />
-                      
-                      {/* Loading/Status icon */}
-                      <div className={`absolute top-1 right-1 text-xs ${
-                        unlockingHintId === hint.id ? 'animate-spin' : 'group-hover:animate-pulse'
-                      }`}>
-                        {unlockingHintId === hint.id ? '⟳' : '◉'}
-                      </div>
-                      
-                      <div className="relative z-10 flex flex-col items-center gap-1">
-                        {/* Terminal-style hint label */}
-                        <div className={`font-bold text-xs font-mono tracking-wider ${
-                          theme === 'dark' ? 'text-cyan-400 group-hover:text-cyan-300' : 'text-cyan-600 group-hover:text-cyan-700'
-                        } transition-colors`}>
-                          {'[HINT_' + (index + 1) + ']'}
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={`font-bold text-xs font-mono ${
+                          theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                        }`}>
+                          H{index + 1}
                         </div>
                         
-                        {/* Cost badge */}
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded ${
-                          theme === 'dark' 
-                            ? 'bg-purple-900/60 group-hover:bg-purple-800/80 border border-purple-500/30' 
-                            : 'bg-purple-100 group-hover:bg-purple-200 border border-purple-300'
-                        } transition-all duration-300`}>
-                          <span className="text-xs">⬡</span>
-                          <span className={`font-bold text-xs font-mono ${
-                            theme === 'dark' ? 'text-purple-300' : 'text-purple-700'
-                          }`}>
-                            {hint.cost}
-                          </span>
+                        <div className={`text-xs font-mono ${
+                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          {hint.cost}
                         </div>
                       </div>
-                      
-                      {/* Scan line effect */}
-                      <motion.div
-                        className={`absolute inset-0 ${
-                          theme === 'dark' 
-                            ? 'bg-gradient-to-b from-transparent via-cyan-500/10 to-transparent' 
-                            : 'bg-gradient-to-b from-transparent via-cyan-300/20 to-transparent'
-                        } opacity-0 group-hover:opacity-100`}
-                        animate={{
-                          y: ['-100%', '100%'],
-                        }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: Infinity,
-                          repeatDelay: 0.5,
-                        }}
-                      />
-                      
-                      {/* Bottom indicator */}
-                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
-                        theme === 'dark'
-                          ? 'bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500'
-                          : 'bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400'
-                      } opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                    </motion.button>
+                    </button>
                   ))}
                 </div>
                 
@@ -1536,25 +1569,34 @@ const getFileName = (filePath : string) => {
 
             {/* Submit Form */}
             {!challenge.solve_by_myteam && (
-              <div className="space-y-3">
+              <div className="space-y-2">
+                <div className={`text-xs font-mono font-bold ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  [SUBMIT_FLAG]
+                </div>
                 <textarea
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  className={`w-full p-3 border rounded-lg font-mono ${
+                  className={`w-full p-3 border rounded font-mono text-sm ${
                     theme === 'dark'
                       ? 'bg-gray-900 text-white border-gray-700'
                       : 'bg-white text-gray-900 border-gray-300'
                   }`}
-                  rows={4}
-                  placeholder="Enter your flag here..."
+                  rows={3}
+                  placeholder="flag{...}"
                 />
                 
                 <button
                   onClick={handleSubmitFlag}
                   disabled={isSubmittingFlag || !answer.trim()}
-                  className="w-full py-2 px-4 bg-gradient-to-r from-blue-500 to-pink-500 hover:from-pink-500 hover:to-blue-500 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-green-600 hover:bg-green-700 text-white border border-green-500'
+                      : 'bg-green-500 hover:bg-green-600 text-white border border-green-400'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {isSubmittingFlag ? 'Submitting...' : 'Submit Flag'}
+                  {isSubmittingFlag ? '[...] Submitting' : '[>] Submit Flag'}
                 </button>
               </div>
             )}
@@ -1567,22 +1609,32 @@ const getFileName = (filePath : string) => {
                     <button
                       onClick={handleStartChallenge}
                       disabled={isStarting}
-                      className="w-full py-2 px-4 bg-gradient-to-r from-green-400 to-blue-400 hover:from-blue-400 hover:to-green-400 text-white rounded-lg font-bold disabled:opacity-50 transition-all"
+                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors ${
+                        theme === 'dark'
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-500'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white border border-blue-400'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {isStarting ? 'Starting...' : 'Start Challenge'}
+                      {isStarting ? '[...] Starting' : '[+] Start Challenge'}
                     </button>
                   ) : (
-                    <p className="text-red-500 text-center text-sm">
-                      Only captain can start this challenge
+                    <p className={`text-center text-xs font-mono ${
+                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      [!] Only captain can start
                     </p>
                   )
                 ) : (
                   <button
                     onClick={handleStopChallenge}
                     disabled={isStopping}
-                    className="w-full py-2 px-4 bg-gradient-to-r from-red-500 to-pink-500 hover:from-pink-500 hover:to-red-500 text-white rounded-lg font-bold disabled:opacity-50 transition-all"
+                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors ${
+                      theme === 'dark'
+                        ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
+                        : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {isStopping ? 'Stopping...' : 'Stop Challenge'}
+                    {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
                   </button>
                 )}
               </div>
@@ -1590,7 +1642,7 @@ const getFileName = (filePath : string) => {
           </div>
         </div>
 
-        {/* PDF Viewer Panel - Shows when PDF tab is selected */}
+        {/* PDF Viewer Panel */}
         <AnimatePresence>
           {selectedPdfIndex !== null && (
             <motion.div
@@ -1598,47 +1650,55 @@ const getFileName = (filePath : string) => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
-              className={`w-1/2 rounded-2xl shadow-2xl border overflow-hidden ${
+              className={`w-1/2 rounded-lg border overflow-hidden ${
                 theme === 'dark'
-                  ? 'bg-gray-900 border-orange-500/30'
-                  : 'bg-gray-100 border-orange-200'
+                  ? 'bg-gray-900 border-gray-700'
+                  : 'bg-gray-100 border-gray-300'
               }`}
             >
               {/* PDF Header */}
-              <div className={`p-4 border-b flex items-center justify-between ${
+              <div className={`p-3 border-b flex items-center justify-between ${
                 theme === 'dark' 
                   ? 'bg-gray-800 border-gray-700' 
                   : 'bg-white border-gray-300'
               }`}>
-                <div className="flex items-center gap-3">
-                  <PictureAsPdf className="text-red-500" sx={{ fontSize: 24 }} />
-                  <h3 className={`font-bold font-mono text-base ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-800'
+                <div className="flex items-center gap-2">
+                  <PictureAsPdf className="text-red-500" sx={{ fontSize: 18 }} />
+                  <h3 className={`font-mono text-sm ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     {getFileName(pdfFiles[selectedPdfIndex])}
                   </h3>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {numPages && !loadingPdf && (
                     <>
-                      <div className={`font-mono text-sm ${
-                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                      <div className={`font-mono text-xs ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        {pageNumber} / {numPages}
+                        {pageNumber}/{numPages}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <button
                           onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
                           disabled={pageNumber <= 1}
-                          className="px-2 py-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
+                          className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                            theme === 'dark'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           ←
                         </button>
                         <button
                           onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
                           disabled={pageNumber >= numPages}
-                          className="px-2 py-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
+                          className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                            theme === 'dark'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           →
                         </button>
@@ -1646,48 +1706,52 @@ const getFileName = (filePath : string) => {
                     </>
                   )}
                   
-                  <button
-                    onClick={closePdfViewer}
-                    className={`p-1.5 rounded-lg transition-all hover:scale-110 ${
-                      theme === 'dark' 
-                        ? 'bg-gray-700 hover:bg-red-600 text-white' 
-                        : 'bg-gray-200 hover:bg-red-500 text-gray-800 hover:text-white'
-                    }`}
-                    title="Close PDF"
-                  >
-                    <Close sx={{ fontSize: 20 }} />
-                  </button>
                 </div>
               </div>
 
               {/* PDF Content */}
-              <div className="h-[calc(100%-80px)] overflow-auto p-4 flex justify-center items-start">
+              <div className="h-[calc(100%-60px)] overflow-auto p-4 flex justify-center items-start">
                 {loadingPdf ? (
                   <div className="flex flex-col items-center justify-center p-12">
-                    <CircularProgress sx={{ color: '#fb923c' }} size={60} />
-                    <Typography className="mt-4 font-mono text-orange-500 font-bold">
+                    <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
+                    <Typography className={`mt-3 font-mono text-xs ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Loading PDF...
                     </Typography>
                   </div>
                 ) : pdfBlobUrl ? (
-                  <div className="shadow-2xl">
+                  <div>
                     <Document
                       file={pdfBlobUrl}
                       onLoadSuccess={onDocumentLoadSuccess}
                       onLoadError={(error) => {
                         console.error('Error loading PDF document:', error);
                         Swal.fire({
-                          title: 'PDF Load Error!',
-                          text: 'Failed to load PDF document.',
+                          html: `
+                            <div class="font-mono text-left text-sm">
+                              <div class="text-red-400 mb-2">[!] PDF load error</div>
+                              <div class="text-gray-400">> Document failed</div>
+                            </div>
+                          `,
                           icon: 'error',
+                          iconColor: '#ef4444',
                           confirmButtonText: 'OK',
+                          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                          color: theme === 'dark' ? '#ef4444' : '#000000',
+                          customClass: {
+                            popup: 'rounded-lg border border-red-500/30',
+                            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+                          },
                         });
                       }}
                       loading={
-                        <div className="flex flex-col items-center justify-center p-12">
-                          <CircularProgress sx={{ color: '#fb923c' }} size={60} />
-                          <Typography className="mt-4 font-mono text-orange-500 font-bold">
-                            Rendering PDF...
+                        <div className="flex flex-col items-center justify-center p-8">
+                          <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
+                          <Typography className={`mt-3 font-mono text-xs ${
+                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                            Rendering...
                           </Typography>
                         </div>
                       }
