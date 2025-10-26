@@ -320,12 +320,12 @@ export function Scoreboard() {
                             <div className="flex items-center justify-center">
                               <span className={`font-mono font-bold ${
                                 isTop3
-                                  ? team.top === 1 ? 'text-yellow-500' :
-                                    team.top === 2 ? 'text-gray-400' :
+                                  ? team.top + 1 === 1 ? 'text-yellow-500' :
+                                    team.top + 1 === 2 ? 'text-gray-400' :
                                     'text-orange-600'
                                   : theme === 'dark' ? 'text-green-400' : 'text-green-600'
                               }`}>
-                                {team.top}
+                                {team.top+1}
                               </span>
                             </div>
                           </td>

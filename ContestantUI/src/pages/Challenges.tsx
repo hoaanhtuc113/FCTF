@@ -1590,11 +1590,32 @@ const getFileName = (filePath : string) => {
                 <button
                   onClick={handleSubmitFlag}
                   disabled={isSubmittingFlag || !answer.trim()}
-                  className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors ${
-                    theme === 'dark'
-                      ? 'bg-green-600 hover:bg-green-700 text-white border border-green-500'
-                      : 'bg-green-500 hover:bg-green-600 text-white border border-green-400'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    width: '100%',
+                    padding: '10px 16px',
+                    border: '1px solid #22d3ee',
+                    backgroundColor: '#22d3ee',
+                    color: '#000',
+                    borderRadius: '4px',
+                    cursor: isSubmittingFlag || !answer.trim() ? 'not-allowed' : 'pointer',
+                    opacity: isSubmittingFlag || !answer.trim() ? 0.5 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSubmittingFlag && answer.trim()) {
+                      e.currentTarget.style.backgroundColor = '#06b6d4';
+                      e.currentTarget.style.borderColor = '#06b6d4';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSubmittingFlag && answer.trim()) {
+                      e.currentTarget.style.backgroundColor = '#22d3ee';
+                      e.currentTarget.style.borderColor = '#22d3ee';
+                    }
+                  }}
                 >
                   {isSubmittingFlag ? '[...] Submitting' : '[>] Submit Flag'}
                 </button>
@@ -1609,11 +1630,32 @@ const getFileName = (filePath : string) => {
                     <button
                       onClick={handleStartChallenge}
                       disabled={isStarting}
-                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors ${
-                        theme === 'dark'
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-500'
-                          : 'bg-blue-500 hover:bg-blue-600 text-white border border-blue-400'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #4ade80',
+                        backgroundColor: '#4ade80',
+                        color: '#000',
+                        borderRadius: '4px',
+                        cursor: isStarting ? 'not-allowed' : 'pointer',
+                        opacity: isStarting ? 0.5 : 1,
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#22c55e';
+                          e.currentTarget.style.borderColor = '#22c55e';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#4ade80';
+                          e.currentTarget.style.borderColor = '#4ade80';
+                        }
+                      }}
                     >
                       {isStarting ? '[...] Starting' : '[+] Start Challenge'}
                     </button>
