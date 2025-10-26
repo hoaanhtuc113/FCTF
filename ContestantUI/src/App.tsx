@@ -13,6 +13,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ defau
 const Challenges = lazy(() => import('./pages/Challenges').then(module => ({ default: module.Challenges })));
 const Scoreboard = lazy(() => import('./pages/Scoreboard').then(module => ({ default: module.Scoreboard })));
 const Tickets = lazy(() => import('./pages/Tickets').then(module => ({ default: module.Tickets })));
+const TicketDetail = lazy(() => import('./pages/TicketDetail').then(module => ({ default: module.TicketDetail })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 
 function App() {
@@ -53,6 +54,14 @@ function App() {
                   element={
                     <PrivateRoute>
                       <Layout><Tickets /></Layout>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/tickets/:id"
+                  element={
+                    <PrivateRoute>
+                      <Layout><TicketDetail /></Layout>
                     </PrivateRoute>
                   }
                 />

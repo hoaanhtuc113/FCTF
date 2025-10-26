@@ -37,4 +37,7 @@ export const API_ENDPOINTS = {
   FLAGS: {
     SUBMIT: '/v1/challenges/attempt',
   },
+  SCOREBOARD: {
+    TOP_STANDINGS: '/scoreboard/top/200',
+  },
 } as const;
