@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { configService } from '../services/configService';
 import { Box } from '@mui/material';
 import { useTheme } from '../context/ThemeContext';
@@ -12,6 +13,7 @@ interface TimeLeft {
 
 export function Home() {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({
     days: 0,
     hours: 0,
@@ -634,22 +636,25 @@ export function Home() {
             gap: 2
           }}>
             {[
-              { label: 'view_challenges', key: 'F1', active: isContestActive },
-              { label: 'check_scoreboard', key: 'F2', active: true },
-              { label: 'submit_ticket', key: 'F3', active: true },
+              { label: 'view_challenges', key: 'F1', active: isContestActive, route: '/challenges' },
+              { label: 'check_scoreboard', key: 'F2', active: true, route: '/scoreboard' },
+              { label: 'submit_ticket', key: 'F3', active: true, route: '/tickets' },
             ].map((action, idx) => (
-              <Box key={idx} sx={{ 
-                border: `1px solid ${colors.borderColor}`,
-                p: 2,
-                bgcolor: action.active ? colors.bgDark : colors.terminalBg,
-                cursor: action.active ? 'pointer' : 'not-allowed',
-                opacity: action.active ? 1 : 0.5,
-                transition: 'all 0.2s',
-                '&:hover': action.active ? {
-                  borderColor: colors.borderLight,
-                  bgcolor: colors.terminalBorder
-                } : {}
-              }}>
+              <Box 
+                key={idx} 
+                onClick={() => action.active && navigate(action.route)}
+                sx={{ 
+                  border: `1px solid ${colors.borderColor}`,
+                  p: 2,
+                  bgcolor: action.active ? colors.bgDark : colors.terminalBg,
+                  cursor: action.active ? 'pointer' : 'not-allowed',
+                  opacity: action.active ? 1 : 0.5,
+                  transition: 'all 0.2s',
+                  '&:hover': action.active ? {
+                    borderColor: colors.borderLight,
+                    bgcolor: colors.terminalBorder
+                  } : {}
+                }}>
                 <Box sx={{ 
                   display: 'flex',
                   justifyContent: 'space-between',
