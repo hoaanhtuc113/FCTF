@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { FiCalendar, FiClock } from 'react-icons/fi';
 import { configService } from '../services/configService';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box } from '@mui/material';
+import { useTheme } from '../context/ThemeContext';
 
 interface TimeLeft {
   days: number;
@@ -12,16 +11,110 @@ interface TimeLeft {
 }
 
 export function Home() {
+  const { theme } = useTheme();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({
     days: 0,
     hours: 0,
     minutes: 0,
     seconds: 0,
   });
-  const [statusMessage, setStatusMessage] = useState('Loading contest details...');
+  const [statusMessage, setStatusMessage] = useState('initializing...');
   const [isContestActive, setIsContestActive] = useState(false);
   const [isComing, setIsComing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [typedText, setTypedText] = useState('');
+  const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
+  const [currentCommand, setCurrentCommand] = useState('');
+
+  // Theme-aware colors
+  const isDark = theme === 'dark';
+  const colors = {
+    // Terminal frame
+    terminalBg: isDark ? '#000' : '#0a0a0a',
+    terminalBorder: isDark ? '#18181b' : '#27272a',
+    titleBarBg: isDark ? '#09090b' : '#18181b',
+    
+    // Text colors
+    primary: '#22d3ee', // cyan stays same
+    textPrimary: isDark ? '#a1a1aa' : '#d4d4d8',
+    textSecondary: isDark ? '#71717a' : '#a1a1aa',
+    textMuted: isDark ? '#52525b' : '#71717a',
+    
+    // Borders and backgrounds
+    borderColor: isDark ? '#27272a' : '#3f3f46',
+    borderLight: isDark ? '#3f3f46' : '#52525b',
+    bgDark: isDark ? '#09090b' : '#18181b',
+    bgLight: isDark ? '#000' : '#0a0a0a',
+    
+    // Decorations
+    decorationBg: isDark ? '#18181b' : '#3f3f46',
+    gridOpacity: isDark ? 0.03 : 0.05,
+  };
+
+  // Terminal typing effect
+  useEffect(() => {
+    const text = 'fctf_platform_v3.0';
+    let index = 0;
+    const timer = setInterval(() => {
+      if (index < text.length) {
+        setTypedText(text.slice(0, index + 1));
+        index++;
+      } else {
+        clearInterval(timer);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Continuous terminal commands effect
+  useEffect(() => {
+    const commands = [
+      { cmd: '$ checking_network_status', output: 'connection: stable | latency: 12ms' },
+      { cmd: '$ scanning_for_threats', output: 'scan_complete: 0_threats_detected' },
+      { cmd: '$ monitoring_user_activity', output: 'active_users: 247 | new_submissions: 15' },
+      { cmd: '$ verifying_challenge_integrity', output: 'integrity_check: passed | flags: secure' },
+      { cmd: '$ syncing_scoreboard_data', output: 'sync_complete | last_update: just_now' },
+      { cmd: '$ checking_system_resources', output: 'cpu: 23% | memory: 41% | disk: 68%' },
+      { cmd: '$ analyzing_traffic_patterns', output: 'traffic: normal | requests: 1.2k/min' },
+      { cmd: '$ updating_challenge_pool', output: 'challenges_loaded: 42 | difficulty: mixed' },
+    ];
+
+    let commandIndex = 0;
+    let charIndex = 0;
+    let isTypingCommand = true;
+    const maxLines = 6;
+
+    const timer = setInterval(() => {
+      if (isTypingCommand) {
+        // Type command character by character
+        const currentCmd = commands[commandIndex].cmd;
+        if (charIndex < currentCmd.length) {
+          setCurrentCommand(currentCmd.slice(0, charIndex + 1));
+          charIndex++;
+        } else {
+          // Command fully typed, switch to output
+          isTypingCommand = false;
+          charIndex = 0;
+        }
+      } else {
+        // Show output and prepare for next command
+        const output = commands[commandIndex].output;
+        setTerminalOutput((prev) => {
+          const newOutput = [...prev, currentCommand, `  ${output}`];
+          // Keep only last maxLines
+          return newOutput.slice(-maxLines);
+        });
+        
+        // Move to next command
+        commandIndex = (commandIndex + 1) % commands.length;
+        setCurrentCommand('');
+        isTypingCommand = true;
+        charIndex = 0;
+      }
+    }, isTypingCommand ? 50 : 1500); // Fast typing, slower between commands
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchDateConfig = async () => {
@@ -29,7 +122,7 @@ export function Home() {
         const config = await configService.getDateConfig();
         
         if (!config) {
-          setStatusMessage('Error fetching contest details.');
+          setStatusMessage('error_fetch_config');
           setLoading(false);
           return;
         }
@@ -39,7 +132,7 @@ export function Home() {
         if (message === 'CTFd has not been started' && start_date) {
           const startDate = new Date(start_date * 1000);
           if (new Date() < startDate) {
-            setStatusMessage('CONTEST IS COMING...');
+            setStatusMessage('contest_pending');
             setIsComing(true);
             setIsContestActive(false);
             startCountdown(startDate);
@@ -48,16 +141,16 @@ export function Home() {
           const endDate = new Date(end_date * 1000);
           if (new Date() < endDate) {
             setIsContestActive(true);
-            setStatusMessage('CONTEST WILL END IN');
+            setStatusMessage('contest_active');
             startCountdown(endDate);
           }
         } else {
-          setStatusMessage('THE CONTEST HAS ENDED');
+          setStatusMessage('contest_terminated');
         }
         
         setLoading(false);
       } catch (error) {
-        setStatusMessage('Error connecting to the server.');
+        setStatusMessage('connection_failed');
         console.error('Fetch error:', error);
         setLoading(false);
       }
@@ -74,7 +167,7 @@ export function Home() {
       if (difference <= 0) {
         clearInterval(timer);
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        setStatusMessage('The event has started!');
+        setStatusMessage('event_started');
         setIsContestActive(true);
         return;
       }
@@ -90,109 +183,496 @@ export function Home() {
     return () => clearInterval(timer);
   };
 
-  const TimeUnit = ({ value, label, icon }: { value: number; label: string; icon: JSX.Element }) => (
-    <motion.div
-      className="flex flex-col items-center p-6 bg-white rounded-2xl shadow-lg m-2 min-w-[140px] border border-gray-200 hover:shadow-xl transition-shadow duration-300"
-      whileHover={{ scale: 1.05 }}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="text-orange-500 text-4xl mb-3">
-        {icon}
-      </div>
-      <span
-        className="text-5xl font-bold text-gray-800 mb-2 tabular-nums"
-        aria-label={`${value} ${label}`}
-      >
-        {String(value).padStart(2, '0')}
-      </span>
-      <span className="text-gray-600 text-sm uppercase font-semibold tracking-wide">
-        {label}
-      </span>
-    </motion.div>
-  );
+  const getStatusColor = () => {
+    if (loading) return colors.textSecondary;
+    if (isContestActive) return colors.primary;
+    if (isComing) return '#eab308';
+    return colors.textSecondary;
+  };
+
+  const getStatusSymbol = () => {
+    if (loading) return '...';
+    if (isContestActive) return '●';
+    if (isComing) return '◆';
+    return '○';
+  };
 
   if (loading) {
     return (
-      <Box className="flex items-center justify-center min-h-[60vh]">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <CircularProgress sx={{ color: '#ff6f00' }} />
-        </motion.div>
+      <Box className="flex items-center justify-center min-h-[70vh] font-mono">
+        <Box sx={{ textAlign: 'center' }}>
+          <Box sx={{ color: colors.primary, fontSize: '14px', mb: 2 }}>
+            <span style={{ color: colors.textSecondary }}>$</span> loading_contest_data
+          </Box>
+          <Box sx={{ color: colors.textSecondary, fontSize: '12px' }}>
+            [{Array(3).fill('█').join('')}
+            {Array(5).fill('░').join('')}] 
+            <span style={{ marginLeft: '8px' }}>37%</span>
+          </Box>
+        </Box>
       </Box>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center mb-12"
-      >
-        <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent mb-4">
-          {statusMessage}
-        </h1>
-        <Typography className="text-gray-600 text-lg md:text-xl font-medium">
-          {isContestActive
-            ? 'The competition is live! Good luck! 🚀'
-            : isComing
-            ? 'Get ready for an amazing CTF experience! 🔥'
-            : 'Thank you for participating! 🎉'}
-        </Typography>
-      </motion.div>
+    <div className="min-h-[70vh] p-4 font-mono flex items-center justify-center relative">
+      {/* Background Grid Pattern */}
+      <Box sx={{ 
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: `linear-gradient(rgba(34, 211, 238, ${colors.gridOpacity}) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, ${colors.gridOpacity}) 1px, transparent 1px)`,
+        backgroundSize: '50px 50px',
+        pointerEvents: 'none',
+        zIndex: 0
+      }} />
 
-      {(isContestActive || isComing) && (
-        <div 
-          className="flex flex-wrap justify-center items-center gap-4"
-          role="timer"
-          aria-label="Contest countdown timer"
-        >
-          <TimeUnit value={timeLeft.days} label="Days" icon={<FiCalendar />} />
-          <TimeUnit value={timeLeft.hours} label="Hours" icon={<FiClock />} />
-          <TimeUnit value={timeLeft.minutes} label="Minutes" icon={<FiClock />} />
-          <TimeUnit value={timeLeft.seconds} label="Seconds" icon={<FiClock />} />
-        </div>
-      )}
+      {/* Floating ASCII Art Decorations */}
+      <Box sx={{ 
+        position: 'absolute',
+        top: '10%',
+        left: '5%',
+        color: colors.decorationBg,
+        fontSize: '10px',
+        lineHeight: 1,
+        fontFamily: 'monospace',
+        opacity: 0.4,
+        userSelect: 'none',
+        display: { xs: 'none', md: 'block' }
+      }}>
+        <pre>{`
+   ◢◣
+  ◢███◣
+ ◢█████◣
+◢███████◣
+ ███████
+  █████
+   ███
+    █`}</pre>
+      </Box>
 
-      {!isContestActive && !isComing && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="mt-8 text-center"
-        >
-          <Typography className="text-gray-600 text-lg">
-            Check the scoreboard to see final standings! 🏆
-          </Typography>
-        </motion.div>
-      )}
+      <Box sx={{ 
+        position: 'absolute',
+        top: '15%',
+        right: '8%',
+        color: colors.decorationBg,
+        fontSize: '9px',
+        lineHeight: 1.2,
+        fontFamily: 'monospace',
+        opacity: 0.3,
+        userSelect: 'none',
+        display: { xs: 'none', lg: 'block' }
+      }}>
+        <pre>{`
+┌─────────┐
+│ CTF 2025│
+│ ▓▓▓▓▓░░ │
+│ [LIVE]  │
+└─────────┘`}</pre>
+      </Box>
 
-      {isComing && (
-        <motion.button
-          className="mt-12 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full font-bold text-lg shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-50 transition-all duration-300"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          aria-label="Register for the contest"
-        >
-          Register Now
-        </motion.button>
-      )}
+      <Box sx={{ 
+        position: 'absolute',
+        bottom: '15%',
+        left: '8%',
+        color: colors.decorationBg,
+        fontSize: '10px',
+        lineHeight: 1.1,
+        fontFamily: 'monospace',
+        opacity: 0.35,
+        userSelect: 'none',
+        display: { xs: 'none', lg: 'block' }
+      }}>
+        <pre>{`
+{CTF}
+ ║║║
+ ║║║
+▓▓▓▓▓`}</pre>
+      </Box>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-        className="mt-8 text-gray-600 text-center"
-      >
-        <p className="mb-2">Don't miss out on this opportunity!</p>
-        <p>Mark your calendar and set your reminders.</p>
-      </motion.div>
+      <Box sx={{ 
+        position: 'absolute',
+        bottom: '20%',
+        right: '10%',
+        color: colors.decorationBg,
+        fontSize: '8px',
+        lineHeight: 1.3,
+        fontFamily: 'monospace',
+        opacity: 0.3,
+        userSelect: 'none',
+        display: { xs: 'none', md: 'block' }
+      }}>
+        <pre>{`
+ ██╗ ██╗
+████████
+ ██║ ██║
+ ╚═╝ ╚═╝`}</pre>
+      </Box>
+
+      {/* Corner Brackets */}
+      <Box sx={{ 
+        position: 'absolute',
+        top: '5%',
+        left: '3%',
+        color: colors.borderColor,
+        fontSize: '40px',
+        fontFamily: 'monospace',
+        opacity: 0.5,
+        userSelect: 'none',
+        display: { xs: 'none', lg: 'block' }
+      }}>
+        ┌
+      </Box>
+
+      <Box sx={{ 
+        position: 'absolute',
+        top: '5%',
+        right: '3%',
+        color: colors.borderColor,
+        fontSize: '40px',
+        fontFamily: 'monospace',
+        opacity: 0.5,
+        userSelect: 'none',
+        display: { xs: 'none', lg: 'block' }
+      }}>
+        ┐
+      </Box>
+
+      <Box sx={{ 
+        position: 'absolute',
+        bottom: '5%',
+        left: '3%',
+        color: colors.borderColor,
+        fontSize: '40px',
+        fontFamily: 'monospace',
+        opacity: 0.5,
+        userSelect: 'none',
+        display: { xs: 'none', lg: 'block' }
+      }}>
+        └
+      </Box>
+
+      <Box sx={{ 
+        position: 'absolute',
+        bottom: '5%',
+        right: '3%',
+        color: colors.borderColor,
+        fontSize: '40px',
+        fontFamily: 'monospace',
+        opacity: 0.5,
+        userSelect: 'none',
+        display: { xs: 'none', lg: 'block' }
+      }}>
+        ┘
+      </Box>
+
+      {/* Cyan Accent Lines */}
+      <Box sx={{ 
+        position: 'absolute',
+        top: '30%',
+        left: 0,
+        width: '60px',
+        height: '2px',
+        background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
+        display: { xs: 'none', md: 'block' }
+      }} />
+
+      <Box sx={{ 
+        position: 'absolute',
+        bottom: '35%',
+        right: 0,
+        width: '60px',
+        height: '2px',
+        background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
+        display: { xs: 'none', md: 'block' }
+      }} />
+
+      {/* PC Window Frame */}
+      <Box sx={{ 
+        maxWidth: '900px', 
+        width: '100%',
+        bgcolor: colors.terminalBg,
+        border: `2px solid ${colors.terminalBorder}`,
+        boxShadow: isDark 
+          ? '0 0 0 1px rgba(255,255,255,0.05), 0 20px 40px rgba(0,0,0,0.4)'
+          : '0 0 0 1px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2)',
+        overflow: 'hidden',
+        position: 'relative',
+        zIndex: 10
+      }}>
+        {/* Window Title Bar */}
+        <Box sx={{ 
+          bgcolor: colors.titleBarBg,
+          borderBottom: `1px solid ${colors.borderColor}`,
+          p: 1.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#ef4444', border: '1px solid #7f1d1d' }} />
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#eab308', border: '1px solid #713f12' }} />
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: colors.primary, border: '1px solid #164e63' }} />
+            </Box>
+            <Box sx={{ color: colors.textMuted, fontSize: '11px', ml: 1 }}>
+              {typedText}<span style={{ opacity: 0.5 }}>▋</span>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ color: colors.textMuted, fontSize: '10px', fontFamily: 'monospace' }}>
+              fctf_terminal
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Terminal Content */}
+        <Box sx={{ bgcolor: colors.terminalBg }}>
+          <Box sx={{ p: 3 }}>
+            {/* System Info */}
+            <Box sx={{ mb: 3, color: colors.textSecondary, fontSize: '12px', lineHeight: 1.8 }}>
+              <Box>
+                <span style={{ color: colors.primary }}>system</span>: fpt_ctf_platform
+              </Box>
+              <Box>
+                <span style={{ color: colors.primary }}>version</span>: 3.0.0-stable
+              </Box>
+              <Box>
+                <span style={{ color: colors.primary }}>status</span>:{' '}
+                <span style={{ color: getStatusColor() }}>
+                  {getStatusSymbol()} {statusMessage}
+                </span>
+              </Box>
+            </Box>
+
+            {/* Main Display */}
+            {(isContestActive || isComing) && (
+              <>
+                <Box sx={{ 
+                  borderTop: `1px solid ${colors.borderColor}`,
+                  borderBottom: `1px solid ${colors.borderColor}`,
+                  py: 3,
+                  my: 3
+                }}>
+                  <Box sx={{ color: colors.textPrimary, fontSize: '11px', mb: 2 }}>
+                    [{isContestActive ? 'TIME_REMAINING' : 'COUNTDOWN_TO_START'}]
+                  </Box>
+                  
+                  {/* Countdown Grid */}
+                  <Box sx={{ 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: 2
+                  }}>
+                    {[
+                      { value: timeLeft.days, label: 'DAYS', unit: 'd' },
+                      { value: timeLeft.hours, label: 'HOURS', unit: 'h' },
+                      { value: timeLeft.minutes, label: 'MINS', unit: 'm' },
+                      { value: timeLeft.seconds, label: 'SECS', unit: 's' },
+                    ].map((item, idx) => (
+                      <Box key={idx} sx={{ 
+                        border: `1px solid ${colors.borderColor}`,
+                        p: 2,
+                        textAlign: 'center'
+                      }}>
+                        <Box sx={{ 
+                          color: colors.primary,
+                          fontSize: '32px',
+                          fontWeight: 'bold',
+                          fontFamily: 'monospace',
+                          lineHeight: 1
+                        }}>
+                          {String(item.value).padStart(2, '0')}
+                        </Box>
+                        <Box sx={{ 
+                          color: colors.textMuted,
+                          fontSize: '10px',
+                          mt: 1,
+                          letterSpacing: '0.05em'
+                        }}>
+                          [{item.label}]
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* Progress Bar */}
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ color: colors.textMuted, fontSize: '11px', mb: 1 }}>
+                    [PROGRESS_INDICATOR]
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ flex: 1, height: 4, bgcolor: colors.terminalBorder, position: 'relative' }}>
+                      <Box sx={{ 
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        height: '100%',
+                        width: isContestActive ? '65%' : '25%',
+                        bgcolor: isContestActive ? colors.primary : '#eab308',
+                        transition: 'width 0.3s'
+                      }} />
+                    </Box>
+                    <Box sx={{ color: colors.textSecondary, fontSize: '11px', minWidth: 40 }}>
+                      {isContestActive ? '65%' : '25%'}
+                    </Box>
+                  </Box>
+                </Box>
+              </>
+            )}
+
+            {/* Live Terminal Output */}
+            <Box sx={{ 
+              border: `1px solid ${colors.borderColor}`,
+              p: 2,
+              bgcolor: colors.bgDark,
+              height: '180px',
+              overflow: 'hidden',
+              fontFamily: 'monospace'
+            }}>
+              <Box sx={{ color: colors.textSecondary, fontSize: '11px', mb: 2 }}>
+                [LIVE_SYSTEM_MONITOR]
+              </Box>
+              <Box sx={{ 
+                color: colors.textPrimary, 
+                fontSize: '11px', 
+                lineHeight: 1.8,
+                fontFamily: 'monospace'
+              }}>
+                {terminalOutput.map((line, idx) => (
+                  <Box 
+                    key={idx} 
+                    sx={{ 
+                      color: line.startsWith('$') ? colors.primary : colors.textSecondary,
+                      opacity: idx < terminalOutput.length - 2 ? 0.6 : 1,
+                      transition: 'opacity 0.3s'
+                    }}
+                  >
+                    {line}
+                  </Box>
+                ))}
+                {currentCommand && (
+                  <Box sx={{ color: colors.primary }}>
+                    {currentCommand}<span style={{ opacity: 0.7 }}>▋</span>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+
+            {/* Status Messages */}
+            <Box sx={{ 
+              border: `1px solid ${colors.borderColor}`,
+              p: 2,
+              bgcolor: colors.terminalBg,
+              mt: 2
+            }}>
+              <Box sx={{ color: colors.textSecondary, fontSize: '11px', mb: 1 }}>
+                <span style={{ color: colors.primary }}>$</span> ./status --verbose
+              </Box>
+              <Box sx={{ color: colors.textPrimary, fontSize: '12px', lineHeight: 1.6 }}>
+                {isContestActive && (
+                  <>
+                    <Box>{'>'} contest_is_live</Box>
+                    <Box>{'>'} capture_flags_and_score_points</Box>
+                    <Box>{'>'} good_luck_hacker</Box>
+                  </>
+                )}
+                {isComing && (
+                  <>
+                    <Box>{'>'} preparing_challenges</Box>
+                    <Box>{'>'} initializing_scoreboard</Box>
+                    <Box>{'>'} contest_starting_soon</Box>
+                  </>
+                )}
+                {!isContestActive && !isComing && (
+                  <>
+                    <Box>{'>'} contest_has_ended</Box>
+                    <Box>{'>'} check_scoreboard_for_results</Box>
+                    <Box>{'>'} thank_you_for_participating</Box>
+                  </>
+                )}
+              </Box>
+            </Box>
+
+            {/* Footer Stats */}
+                        {/* Footer Stats */}
+            <Box sx={{ 
+              mt: 3,
+              pt: 3,
+              borderTop: `1px solid ${colors.borderColor}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 2,
+              fontSize: '11px'
+            }}>
+              <Box sx={{ color: colors.textMuted }}>
+                fpt_university_2025
+              </Box>
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                <Box sx={{ color: colors.textSecondary }}>
+                  uptime: <span style={{ color: colors.primary }}>99.9%</span>
+                </Box>
+                <Box sx={{ color: colors.textSecondary }}>
+                  ping: <span style={{ color: colors.primary }}>12ms</span>
+                </Box>
+                <Box sx={{ color: colors.textSecondary }}>
+                  ssl: <span style={{ color: colors.primary }}>secure</span>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Quick Actions - Inside Terminal */}
+          <Box sx={{ 
+            borderTop: `1px solid ${colors.borderColor}`,
+            p: 3,
+            bgcolor: colors.terminalBg,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 2
+          }}>
+            {[
+              { label: 'view_challenges', key: 'F1', active: isContestActive },
+              { label: 'check_scoreboard', key: 'F2', active: true },
+              { label: 'submit_ticket', key: 'F3', active: true },
+            ].map((action, idx) => (
+              <Box key={idx} sx={{ 
+                border: `1px solid ${colors.borderColor}`,
+                p: 2,
+                bgcolor: action.active ? colors.bgDark : colors.terminalBg,
+                cursor: action.active ? 'pointer' : 'not-allowed',
+                opacity: action.active ? 1 : 0.5,
+                transition: 'all 0.2s',
+                '&:hover': action.active ? {
+                  borderColor: colors.borderLight,
+                  bgcolor: colors.terminalBorder
+                } : {}
+              }}>
+                <Box sx={{ 
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <Box sx={{ color: colors.textPrimary, fontSize: '12px' }}>
+                    {action.label}
+                  </Box>
+                  <Box sx={{ 
+                    color: colors.textMuted,
+                    fontSize: '10px',
+                    border: `1px solid ${colors.borderColor}`,
+                    px: 0.5,
+                    py: 0.25
+                  }}>
+                    {action.key}
+                  </Box>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      </Box>
     </div>
   );
 }

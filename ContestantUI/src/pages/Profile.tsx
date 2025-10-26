@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { 
   Typography, 
   CircularProgress, 
   Box,
-  Avatar,
-  Chip
+  Avatar
 } from '@mui/material';
 import {
   Lock,
@@ -17,15 +15,13 @@ import {
   VisibilityOff,
   CheckCircle,
   Cancel,
-  Email,
-  PersonOutline
+  Email
 } from '@mui/icons-material';
-import { FaTrophy, FaMedal } from 'react-icons/fa';
+import { FaTrophy } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
-import { useAuth } from '../context/AuthContext';
 
 interface UserInfo {
   username: string;
@@ -71,7 +67,6 @@ interface PasswordCriteria {
 }
 
 export function Profile() {
-  const { user } = useAuth();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<UserInfo>({
@@ -271,15 +266,24 @@ export function Profile() {
   };
 
   const showAlert = (message: string, icon: 'success' | 'error' | 'info') => {
+    const prefix = icon === 'success' ? '[+]' : icon === 'error' ? '[!]' : '[i]';
+    const color = icon === 'success' ? 'text-green-400' : icon === 'error' ? 'text-red-400' : 'text-cyan-400';
+    const borderColor = icon === 'success' ? 'border-green-500/30' : icon === 'error' ? 'border-red-500/30' : 'border-cyan-500/30';
+    
     Swal.fire({
-      title: icon === 'success' ? '🎉 Success!' : icon === 'error' ? '❌ Error!' : 'ℹ️ Info',
-      text: message,
+      html: `
+        <div class="font-mono text-left text-sm">
+          <div class="${color} mb-2">${prefix} ${message}</div>
+        </div>
+      `,
       icon: icon,
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      timer: icon === 'success' ? 2000 : undefined,
+      showConfirmButton: icon !== 'success',
       confirmButtonText: 'OK',
-      background: theme === 'dark' ? '#1f2937' : '#ffffff',
-      color: theme === 'dark' ? '#ffffff' : '#000000',
       customClass: {
-        popup: 'rounded-2xl',
+        popup: `rounded-lg border ${borderColor}`,
+        confirmButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
       },
     });
   };
@@ -294,12 +298,7 @@ export function Profile() {
   if (loading) {
     return (
       <Box className="flex flex-col items-center justify-center min-h-[60vh]">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        >
-          <PersonOutline className="text-orange-500 text-6xl mb-4" />
-        </motion.div>
+        <div className="text-cyan-500 text-6xl mb-4 font-mono">[...]</div>
         <Typography className={`font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
           Loading profile...
         </Typography>
@@ -311,50 +310,33 @@ export function Profile() {
 
   return (
     <div className="min-h-[70vh]">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-      >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT: Profile Card */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-1"
-        >
-          <div className={`rounded-2xl shadow-2xl border p-8 flex flex-col items-center relative overflow-hidden ${
+        <div className="lg:col-span-1">
+          <div className={`rounded-lg border p-8 flex flex-col items-center ${
             theme === 'dark'
-              ? 'bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800 border-orange-500/30'
-              : 'bg-gradient-to-br from-white via-gray-50 to-white border-orange-200'
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-200'
           }`}>
-            {/* Background effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-orange-400/5 animate-pulse" />
-            
-            <div className="relative z-10 w-full flex flex-col items-center">
+            <div className="w-full flex flex-col items-center">
               {/* Avatar */}
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                className="relative mb-4"
-              >
+              <div className="relative mb-4">
                 <Avatar
                   sx={{
                     width: 120,
                     height: 120,
-                    bgcolor: 'orange',
+                    bgcolor: 'gray',
                     fontSize: '3rem',
-                    border: '4px solid',
-                    borderColor: theme === 'dark' ? '#fb923c' : '#f97316',
-                    boxShadow: '0 8px 32px rgba(249, 115, 22, 0.3)',
+                    border: '2px solid',
+                    borderColor: theme === 'dark' ? '#4b5563' : '#9ca3af',
                   }}
                 >
                   {userInfo.username.charAt(0).toUpperCase()}
                 </Avatar>
                 <div className="absolute bottom-0 right-0 w-8 h-8 bg-green-500 rounded-full border-4 border-gray-800 flex items-center justify-center">
-                  <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
+                  <div className="w-3 h-3 bg-white rounded-full" />
                 </div>
-              </motion.div>
+              </div>
 
               {/* User Info */}
               <div className="text-center mb-4 w-full">
@@ -364,7 +346,6 @@ export function Profile() {
                   }`}>
                     {userInfo.username}
                   </h2>
-                  <span className="text-lg">🇻🇳</span>
                 </div>
                 
                 <div className={`flex items-center justify-center gap-2 text-sm mb-2 ${
@@ -374,60 +355,49 @@ export function Profile() {
                   <span className="font-mono">{userInfo.email}</span>
                 </div>
 
-                <Chip
-                  icon={<People />}
-                  label={userInfo.team || 'No Team'}
-                  sx={{
-                    backgroundColor: 'rgba(249, 115, 22, 0.2)',
-                    color: '#fb923c',
-                    fontFamily: 'monospace',
-                    fontWeight: 'bold',
-                  }}
-                />
+                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded border font-mono text-sm ${
+                  theme === 'dark' ? 'border-gray-700 text-gray-300' : 'border-gray-300 text-gray-700'
+                }`}>
+                  <People sx={{ fontSize: 16 }} />
+                  {userInfo.team || 'No Team'}
+                </div>
               </div>
 
               {/* Change Password Button */}
-              <motion.button
+              <button
                 onClick={() => setShowPasswordModal(true)}
                 className={`w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-bold font-mono transition-all ${
                   theme === 'dark'
-                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white'
-                    : 'bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white'
-                } shadow-lg hover:shadow-xl hover:shadow-orange-500/30`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'
+                }`}
               >
                 <Lock />
-                CHANGE PASSWORD
-              </motion.button>
+                {'[>]'} CHANGE PASSWORD
+              </button>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* RIGHT: Stats & Info */}
         <div className="lg:col-span-2 space-y-6">
           {/* Team Ranking & Progress */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Team Ranking */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className={`rounded-2xl shadow-2xl border p-6 relative overflow-hidden ${
+            <div
+              className={`rounded-lg border p-6 ${
                 theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-yellow-500/30'
-                  : 'bg-gradient-to-br from-white to-yellow-50 border-yellow-200'
+                  ? 'bg-gray-900 border-gray-700'
+                  : 'bg-white border-gray-200'
               }`}
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-full -mr-16 -mt-16" />
-              
-              <div className="relative z-10">
+              <div>
                 <div className="flex items-center gap-2 mb-4">
                   <FaTrophy className="text-yellow-500 text-2xl" />
                   <span className={`font-bold font-mono ${
                     theme === 'dark' ? 'text-white' : 'text-gray-800'
                   }`}>
-                    TEAM RANKING
+                    [TEAM_RANKING]
                   </span>
                 </div>
 
@@ -435,7 +405,7 @@ export function Profile() {
                   <div className={`text-6xl font-extrabold font-mono ${
                     teamPointInfo.place === 1 ? 'text-yellow-500' :
                     teamPointInfo.place === 2 ? 'text-gray-400' :
-                    teamPointInfo.place === 3 ? 'text-orange-700' : 'text-orange-500'
+                    teamPointInfo.place === 3 ? 'text-orange-700' : 'text-cyan-500'
                   }`}>
                     #{teamPointInfo.place}
                   </div>
@@ -449,78 +419,67 @@ export function Profile() {
                 <div className={`flex items-center gap-2 text-lg font-mono ${
                   theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  <EmojiEvents className="text-orange-500" />
-                  <span className="font-bold text-orange-500">{teamPointInfo.score}</span>
+                  <EmojiEvents className="text-cyan-500" />
+                  <span className="font-bold text-cyan-500">{teamPointInfo.score}</span>
                   <span>points</span>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            {/* Progress */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className={`rounded-2xl shadow-2xl border p-6 relative overflow-hidden ${
+            {/* Team Score */}
+            <div
+              className={`rounded-lg border p-6 ${
                 theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-orange-500/30'
-                  : 'bg-gradient-to-br from-white to-orange-50 border-orange-200'
+                  ? 'bg-gray-900 border-gray-700'
+                  : 'bg-white border-gray-200'
               }`}
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-transparent rounded-full -mr-16 -mt-16" />
-              
-              <div className="relative z-10">
+              <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="text-orange-500 text-2xl" />
+                  <TrendingUp className="text-cyan-500 text-2xl" />
                   <span className={`font-bold font-mono ${
                     theme === 'dark' ? 'text-white' : 'text-gray-800'
                   }`}>
-                    COMPLETION
+                    [TEAM_SCORE]
                   </span>
                 </div>
 
                 <div className="flex items-baseline gap-2 mb-4">
-                  <div className="text-6xl font-extrabold font-mono text-orange-500">
+                  <div className="text-6xl font-extrabold font-mono text-cyan-500">
                     {finishPercent.toFixed(0)}%
                   </div>
                 </div>
 
                 <div className="w-full bg-gray-700 rounded-full h-3 relative overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${finishPercent}%` }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
+                  <div
+                    className="h-full bg-cyan-500 rounded-full transition-all duration-1000"
+                    style={{ width: `${finishPercent}%` }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
                 </div>
 
                 <div className={`mt-2 text-xs font-mono text-center ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  {teamPointInfo.score} / {teamPointInfo.challengeTotalScore} points
+                  {teamPointInfo.score} / {teamPointInfo.challengeTotalScore} total points
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* Team Members */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className={`rounded-2xl shadow-2xl border p-6 ${
+          <div
+            className={`rounded-lg border p-6 ${
               theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-orange-500/30'
-                : 'bg-gradient-to-br from-white to-gray-50 border-orange-200'
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-white border-gray-200'
             }`}
           >
             <div className="flex items-center gap-2 mb-4">
-              <People className="text-orange-500 text-2xl" />
+              <People className="text-cyan-500 text-2xl" />
               <span className={`font-bold text-xl font-mono ${
                 theme === 'dark' ? 'text-white' : 'text-gray-800'
               }`}>
-                TEAM MEMBERS
+                [TEAM_MEMBERS]
               </span>
             </div>
 
@@ -530,7 +489,7 @@ export function Profile() {
               }`}>
                 <thead>
                   <tr className={`border-b-2 font-mono ${
-                    theme === 'dark' ? 'border-orange-500/30' : 'border-orange-200'
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
                   }`}>
                     <th className="p-3 text-left font-bold">NAME</th>
                     <th className="p-3 text-left font-bold">EMAIL</th>
@@ -539,15 +498,12 @@ export function Profile() {
                 </thead>
                 <tbody>
                   {teamPointInfo.members.map((member, index) => (
-                    <motion.tr
+                    <tr
                       key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + index * 0.05 }}
                       className={`border-b font-mono transition-colors ${
                         theme === 'dark'
-                          ? 'border-gray-700 hover:bg-gray-800/50'
-                          : 'border-gray-200 hover:bg-gray-50'
+                          ? 'border-gray-800 hover:bg-gray-800/50'
+                          : 'border-gray-100 hover:bg-gray-50'
                       }`}
                     >
                       <td className="p-3">
@@ -556,7 +512,7 @@ export function Profile() {
                             sx={{
                               width: 32,
                               height: 32,
-                              bgcolor: 'orange',
+                              bgcolor: 'gray',
                               fontSize: '0.875rem',
                             }}
                           >
@@ -567,51 +523,40 @@ export function Profile() {
                       </td>
                       <td className="p-3">{member.email}</td>
                       <td className="p-3 text-right">
-                        <Chip
-                          label={member.score}
-                          size="small"
-                          sx={{
-                            backgroundColor: 'rgba(249, 115, 22, 0.2)',
-                            color: '#fb923c',
-                            fontFamily: 'monospace',
-                            fontWeight: 'bold',
-                          }}
-                        />
+                        <span className={`px-2 py-1 rounded border text-xs font-bold ${
+                          theme === 'dark' ? 'border-gray-700 text-cyan-400' : 'border-gray-300 text-cyan-600'
+                        }`}>
+                          {member.score}
+                        </span>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </motion.div>
+          </div>
 
           {/* Recent Activity */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className={`rounded-2xl shadow-2xl border p-6 ${
+          <div
+            className={`rounded-lg border p-6 ${
               theme === 'dark'
-                ? 'bg-gradient-to-br from-gray-800 to-gray-900 border-orange-500/30'
-                : 'bg-gradient-to-br from-white to-gray-50 border-orange-200'
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-white border-gray-200'
             }`}
           >
             <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="text-orange-500 text-2xl" />
+              <TrendingUp className="text-cyan-500 text-2xl" />
               <span className={`font-bold text-xl font-mono ${
                 theme === 'dark' ? 'text-white' : 'text-gray-800'
               }`}>
-                RECENT ACTIVITY
+                [RECENT_ACTIVITY]
               </span>
             </div>
 
             <div className="space-y-3">
               {teamPerformance.slice(0, 5).map((activity, index) => (
-                <motion.div
+                <div
                   key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.05 }}
                   className={`p-4 rounded-lg border transition-all ${
                     activity.type === 'correct'
                       ? theme === 'dark'
@@ -642,67 +587,55 @@ export function Profile() {
                         </p>
                       </div>
                     </div>
-                    <Chip
-                      label={activity.type.toUpperCase()}
-                      size="small"
-                      sx={{
-                        backgroundColor: activity.type === 'correct' 
-                          ? 'rgba(34, 197, 94, 0.2)' 
-                          : 'rgba(239, 68, 68, 0.2)',
-                        color: activity.type === 'correct' ? '#4ade80' : '#f87171',
-                        fontFamily: 'monospace',
-                        fontWeight: 'bold',
-                      }}
-                    />
+                    <span className={`px-2 py-1 rounded border text-xs font-bold ${
+                      activity.type === 'correct' 
+                        ? theme === 'dark' ? 'border-green-700 text-green-400' : 'border-green-300 text-green-600'
+                        : theme === 'dark' ? 'border-red-700 text-red-400' : 'border-red-300 text-red-600'
+                    }`}>
+                      {activity.type.toUpperCase()}
+                    </span>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Password Change Modal */}
-      <AnimatePresence>
-        {showPasswordModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => !isChangingPassword && setShowPasswordModal(false)}
+      {showPasswordModal && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => !isChangingPassword && setShowPasswordModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-md rounded-lg border p-8 relative ${
+              theme === 'dark'
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-white border-gray-200'
+            }`}
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md rounded-2xl shadow-2xl border p-8 relative ${
+            <button
+              onClick={() => !isChangingPassword && setShowPasswordModal(false)}
+              className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
                 theme === 'dark'
-                  ? 'bg-gray-800 border-orange-500/30'
-                  : 'bg-white border-orange-200'
+                  ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-800'
               }`}
+              disabled={isChangingPassword}
             >
-              <button
-                onClick={() => !isChangingPassword && setShowPasswordModal(false)}
-                className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
-                  theme === 'dark'
-                    ? 'hover:bg-gray-700 text-gray-400 hover:text-white'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-800'
-                }`}
-                disabled={isChangingPassword}
-              >
-                <Close />
-              </button>
+              <Close />
+            </button>
 
-              <div className="flex items-center gap-3 mb-6">
-                <Lock className="text-orange-500 text-3xl" />
-                <h2 className={`text-2xl font-bold font-mono ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-800'
-                }`}>
-                  CHANGE PASSWORD
-                </h2>
-              </div>
+            <div className="flex items-center gap-3 mb-6">
+              <Lock className="text-cyan-500 text-3xl" />
+              <h2 className={`text-2xl font-bold font-mono ${
+                theme === 'dark' ? 'text-white' : 'text-gray-800'
+              }`}>
+                [CHANGE_PASSWORD]
+              </h2>
+            </div>
 
               <div className="space-y-4">
                 {/* Old Password */}
@@ -785,14 +718,12 @@ export function Profile() {
                         </span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2">
-                        <motion.div
-                          className={`h-full rounded-full ${
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
                             passwordStrength.color === 'success' ? 'bg-green-500' :
                             passwordStrength.color === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
                           }`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${passwordStrength.value}%` }}
-                          transition={{ duration: 0.3 }}
+                          style={{ width: `${passwordStrength.value}%` }}
                         />
                       </div>
 
@@ -880,23 +811,22 @@ export function Profile() {
                   <button
                     onClick={handleChangePassword}
                     disabled={isChangingPassword || !passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword || passwordData.newPassword !== passwordData.confirmPassword}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-bold font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-bold font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isChangingPassword ? (
                       <>
                         <CircularProgress size={20} sx={{ color: 'white' }} />
-                        CHANGING...
+                        {'[...]'} CHANGING...
                       </>
                     ) : (
-                      'CHANGE PASSWORD'
+                      <>{' [>] CHANGE PASSWORD'}</>
                     )}
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -8,40 +8,56 @@ interface ToastProviderProps {
   children: ReactNode;
 }
 
-// Styled toast content with modern design
-const StyledMaterialDesignContent = styled(MaterialDesignContent)(({ theme }) => ({
+// Minimal terminal-style toast
+const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
   '&.notistack-MuiContent': {
-    borderRadius: '12px',
-    fontWeight: 600,
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
-    fontSize: '14px',
-    padding: '14px 18px',
-    minWidth: '320px',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    padding: '12px 16px',
+    minWidth: '280px',
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    gap: '10px',
+    backgroundColor: '#000',
+    color: '#fff',
+    border: '1px solid',
+    boxShadow: 'none',
   },
   '&.notistack-MuiContent-success': {
-    backgroundColor: '#10b981',
-    color: '#ffffff',
-    boxShadow: '0 8px 24px rgba(16, 185, 129, 0.4)',
+    borderColor: '#22d3ee',
+    color: '#22d3ee',
+    '&::before': {
+      content: '"[✓]"',
+      marginRight: '8px',
+      color: '#22d3ee',
+    },
   },
   '&.notistack-MuiContent-error': {
-    backgroundColor: '#ef4444',
-    color: '#ffffff',
-    boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)',
+    borderColor: '#ef4444',
+    color: '#ef4444',
+    '&::before': {
+      content: '"[✗]"',
+      marginRight: '8px',
+      color: '#ef4444',
+    },
   },
   '&.notistack-MuiContent-warning': {
-    backgroundColor: '#f59e0b',
-    color: '#ffffff',
-    boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)',
+    borderColor: '#eab308',
+    color: '#eab308',
+    '&::before': {
+      content: '"[!]"',
+      marginRight: '8px',
+      color: '#eab308',
+    },
   },
   '&.notistack-MuiContent-info': {
-    backgroundColor: '#3b82f6',
-    color: '#ffffff',
-    boxShadow: '0 8px 24px rgba(59, 130, 246, 0.4)',
+    borderColor: '#71717a',
+    color: '#a1a1aa',
+    '&::before': {
+      content: '"[i]"',
+      marginRight: '8px',
+      color: '#71717a',
+    },
   },
 }));
 
@@ -54,9 +70,11 @@ function CloseButton({ snackbarKey }: { snackbarKey: SnackbarKey }) {
       size="small"
       onClick={() => closeSnackbar(snackbarKey)}
       sx={{
-        color: 'rgba(255, 255, 255, 0.9)',
+        color: 'currentColor',
+        opacity: 0.7,
         '&:hover': {
-          backgroundColor: 'rgba(255, 255, 255, 0.15)',
+          opacity: 1,
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
         },
         padding: '4px',
       }}
@@ -74,7 +92,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         vertical: 'top',
         horizontal: 'right',
       }}
-      autoHideDuration={4000}
+      autoHideDuration={3000}
       Components={{
         success: StyledMaterialDesignContent,
         error: StyledMaterialDesignContent,
