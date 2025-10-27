@@ -21,9 +21,9 @@ interface Ticket {
   status: string;
   description: string;
   date: string;
-  author_name: string;
-  replier_name?: string;
-  replier_message?: string;
+  authorName: string;
+  replierName?: string;
+  replierMessage?: string;
 }
 
 export function TicketDetail() {
@@ -170,7 +170,7 @@ export function TicketDetail() {
                   <p className={`font-mono ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>
-                    {ticket.author_name}
+                    {ticket.authorName}
                   </p>
                 </div>
               </div>
@@ -207,7 +207,7 @@ export function TicketDetail() {
                 </div>
               </div>
 
-              {ticket.replier_name && (
+              {ticket.replierName && (
                 <div className="flex items-start gap-3">
                   <Reply className={theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'} />
                   <div>
@@ -219,7 +219,7 @@ export function TicketDetail() {
                     <p className={`font-mono ${
                       theme === 'dark' ? 'text-white' : 'text-gray-900'
                     }`}>
-                      {ticket.replier_name}
+                      {ticket.replierName}
                     </p>
                   </div>
                 </div>
@@ -258,20 +258,43 @@ export function TicketDetail() {
                 </p>
               </div>
 
-              {ticket.replier_message && (
+              {ticket.replierMessage ? (
                 <div>
                   <h2 className={`text-lg font-bold mb-2 font-mono ${
                     theme === 'dark' ? 'text-green-400' : 'text-green-600'
                   }`}>
-                    [REPLY]
+                    [ADMIN_RESPONSE]
                   </h2>
                   <p className={`font-mono p-3 rounded-lg border min-h-[100px] whitespace-pre-wrap ${
                     theme === 'dark'
                       ? 'bg-green-900/20 border-green-500/30 text-gray-200'
                       : 'bg-green-50 border-green-200 text-gray-800'
                   }`}>
-                    {ticket.replier_message}
+                    {ticket.replierMessage}
                   </p>
+                </div>
+              ) : ticket.status.toLowerCase() === 'open' && (
+                <div>
+                  <h2 className={`text-lg font-bold mb-2 font-mono ${
+                    theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                  }`}>
+                    [ADMIN_RESPONSE]
+                  </h2>
+                  <div className={`font-mono p-3 rounded-lg border min-h-[100px] flex flex-col items-center justify-center ${
+                    theme === 'dark'
+                      ? 'bg-gray-900 border-yellow-500/30'
+                      : 'bg-gray-50 border-yellow-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-yellow-500 animate-pulse text-xl">⚠</span>
+                      <span className={`font-bold ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                        [PENDING]
+                      </span>
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      awaiting_admin_review...
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
