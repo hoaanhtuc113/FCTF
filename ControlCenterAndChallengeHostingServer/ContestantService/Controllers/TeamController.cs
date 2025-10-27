@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Team;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-
+using ContestantService.Attribute;
 namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
