@@ -1,12 +1,14 @@
 
 using DotNetEnv;
-using HealthCheckService.Utils;
+using DeploymentService.Utils;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared;
 using ResourceShared.Configs;
 using ResourceShared.Models;
 using StackExchange.Redis;
+using DeploymentService.Services;
 
-namespace HealthCheckService
+namespace DeploymentService
 {
     public class Program
     {
@@ -38,8 +40,10 @@ namespace HealthCheckService
                 return ConnectionMultiplexer.Connect(options);
             });
             builder.Services.AddControllers();
-
-            new HealthCheckServiceConfigHelper().InitConfig();
+            builder.Services.AddScoped<IDeployService, DeployService>();
+            // DI services from ResourceShared
+            builder.Services.AddResourceShared();
+            new DeploymentServiceConfigHelper().InitConfig();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -54,6 +58,14 @@ namespace HealthCheckService
             });
 
             var app = builder.Build();
+            
+            // Enable buffering for all requests để có thể đọc body nhiều lần
+            app.Use(async (context, next) =>
+            {
+                context.Request.EnableBuffering();
+                await next();
+            });
+            
             app.UseRouting();
             app.UseCors("AllowAll");
             // Configure the HTTP request pipeline.

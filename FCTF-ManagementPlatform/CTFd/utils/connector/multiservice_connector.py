@@ -14,6 +14,7 @@ import redis
 import requests
 from CTFd.constants.envvars import (
     API_URL_CONTROLSERVER,
+    DEPLOYMENT_SERVICE_API,
     HOST_CACHE,
     PRIVATE_KEY,
     DATABASE_PORT,
@@ -80,151 +81,29 @@ def get_team_id_and_cache_key(user, challenge_id, challenge_time):
         cache_key = generate_cache_key(challenge_id, team_id)
     return team_id, cache_key
 
-def prepare_challenge_payload(challenge, user, team_id, challenge_time):
+def prepare_challenge_payload(challenge, user, team_id, team, challenge_time):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
         PRIVATE_KEY,
         unix_time,
         {
-            "ChallengeId": challenge.id,
-            "TeamId": team_id,
-            "TimeLimit": challenge_time,
-            "ImageLink": challenge.image_link,
+            "challengeId": challenge.id,
+            "teamName": team.name if team_id > 0 else "Preview",
+            "teamId": team_id,
+            "challengeName": challenge.name.replace(" ", "_"),
         },
     )
     payload = {
-        "ChallengeId": challenge.id,
-        "TeamId": team_id,
-        "TimeLimit": challenge_time,
-        "ImageLink": challenge.image_link,
-        "UnixTime": unix_time,
+        "challengeId": challenge.id,
+        "teamName": team.name if team_id > 0 else "Preview",
+        "teamId": team_id,
+        "challengeName": challenge.name.replace(" ", "_"),
+        "unixTime": unix_time, 
     }
     headers = {"SecretKey": secret_key}
-    api_start = f"{API_URL_CONTROLSERVER}/api/challenge/start"
+    api_start = f"{DEPLOYMENT_SERVICE_API}/api/challenge/start"
     
     return payload, headers, api_start
-
-def build_payload(chal_id, team_name, node_port):
-    team_name = team_name.lower().replace(" ", "-")
-    return {
-    "workflow": {
-        "metadata": {
-            "generateName": f"start-challenge-{chal_id}-{team_name}",
-            "namespace": "argo",
-            "annotations": {
-                "workflows.argoproj.io/description": "start challenge workflow"
-            }
-        },
-        "spec": {
-            "entrypoint": "main",
-            "serviceAccountName": "argo-sa",
-            "arguments": {
-                "parameters": [
-                    {"name": "APP_NAME", "value": f"{team_name}-chal-01-websecpro-chilp"},
-                    {"name": "SERVICE_PORT", "value": "80"},
-                    {"name": "CONTAINER_PORT", "value": "80"},
-                    {"name": "NODE_PORT", "value": f"{str(node_port)}"},
-                    {"name": "REPLICA_COUNT", "value": "1"},
-                    {"name": "CONTAINER_IMAGE", "value": "quachuoiscontainer/kctf-chal-wsproblem:v01"},
-                    {"name": "MEMORY_LIMIT", "value": "256Mi"},
-                    {"name": "CPU_LIMIT", "value": "500m"},
-                    {"name": "CPU_REQUEST", "value": "100m"},   
-                    {"name": "MEMORY_REQUEST", "value": "128Mi"}
-                ]
-            },
-            "templates": [
-                {
-                    "name": "main",
-                    "steps": [
-                        [{"name": "check-workspace", "template": "check-workspace"}],
-                        [{"name": "deploy-challenge", "template": "deploy-challenge"}]
-                    ]
-                },
-                {
-                    "name": "check-workspace",
-                    "container": {
-                        "image": "quachuoiscontainer/kubectl-cli:v0.0.3",
-                        "imagePullPolicy": "IfNotPresent",
-                        "securityContext": {
-                            "runAsUser": 0,
-                            "runAsGroup": 0,
-                            "runAsNonRoot": False,
-                            "allowPrivilegeEscalation": True,
-                            "privileged": True
-                        },
-                        "resources": {
-                            "requests": {"memory": "256Mi", "cpu": "100m"},
-                            "limits": {"memory": "512Mi", "cpu": "300m"}
-                        },
-                        "command": ["sh", "-c"],
-                        "args": [
-                            "echo \"=== Checking Argo Pod Workspace ===\"\n"
-                            "echo \"Current directory: $(pwd)\"\n"
-                            "echo \"Testing kubectl connection:\"\n"
-                            "kubectl top nodes"
-                        ]
-                    }
-                },
-                {
-                    "name": "deploy-challenge",
-                    "container": {
-                        "image": "quachuoiscontainer/kubectl-cli:v0.0.3",
-                        "imagePullPolicy": "IfNotPresent",
-                        "securityContext": {
-                            "runAsUser": 0,
-                            "runAsGroup": 0,
-                            "runAsNonRoot": False,
-                            "allowPrivilegeEscalation": True,
-                            "privileged": True
-                        },
-                        "resources": {
-                            "requests": {"memory": "256Mi", "cpu": "100m"},
-                            "limits": {"memory": "512Mi", "cpu": "300m"}
-                        },
-                        "command": ["sh", "-c"],
-                        "args": [
-                            "set -e\n"
-                            "echo \"=== Deploying Challenge with direct parameters ===\"\n\n"
-                            "git clone https://github.com/fctf-git-repo/challenge-config.git\n"
-                            "cd challenge-config/websecpro_chilp-1\n\n"
-                            "export APP_NAME=\"{{workflow.parameters.APP_NAME}}\"\n"
-                            "export SERVICE_PORT=\"{{workflow.parameters.SERVICE_PORT}}\"\n"
-                            "export CONTAINER_PORT=\"{{workflow.parameters.CONTAINER_PORT}}\"\n"
-                            "export NODE_PORT=\"{{workflow.parameters.NODE_PORT}}\"\n"
-                            "export REPLICA_COUNT=\"{{workflow.parameters.REPLICA_COUNT}}\"\n"
-                            "export CONTAINER_IMAGE=\"{{workflow.parameters.CONTAINER_IMAGE}}\"\n"
-                            "export MEMORY_LIMIT=\"{{workflow.parameters.MEMORY_LIMIT}}\"\n"
-                            "export CPU_LIMIT=\"{{workflow.parameters.CPU_LIMIT}}\"\n"
-                            "export CPU_REQUEST=\"{{workflow.parameters.CPU_REQUEST}}\"\n"
-                            "export MEMORY_REQUEST=\"{{workflow.parameters.MEMORY_REQUEST}}\"\n\n"
-                            "envsubst < challenge.yaml | kubectl apply -f -\n\n"
-                            "echo \"✅ Challenge manifest submitted to cluster\""
-                        ]
-                    }
-                }
-            ]
-        }
-    }
-}
-port_list = []
-public_port = 30000
-def randPort():
-    while True:
-        port = random.randint(30000,32767)
-        if port not in port_list:
-            port_list.append(port)
-            return port
-
-def getPort():
-    global public_port
-    if public_port > 32767:
-        public_port = 30000
-    else:
-        public_port += 1
-
-    if public_port == REDIS_PORT or public_port == DATABASE_PORT:
-        public_port += 1
-    return public_port
 
 def challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team):
     try:
@@ -235,72 +114,62 @@ def challenge_start(payload, headers, api_start, challenge, challenge_time, cach
 
     try:
         print("API Endpoint: " + api_start)
-        print(json.dumps(payload))
-        print(json.dumps(headers))
+        print("Payload: " + json.dumps(payload, indent=2))
+        print("Headers: " + json.dumps(headers, indent=2))
 
-        api_start = ARGO_WORKFLOWS_URL
-        token = ARGO_WORKFLOWS_TOKEN
-        port = getPort()
-        print(f"Selected random port: {port}")
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",   # tùy chọn; requests sẽ tự set khi dùng json=
-        }
-
-        payload = build_payload(challenge.id, team.name, port)
-
-        if payload:
-            response = requests.post(api_start, headers=headers, json=payload, timeout=30)
-        print("Response:"+ json.dumps(response.json()))
-        print("Response status code: " + str(response.status_code))
-        print("Response data: " + response.text)
-        if(response.status_code == 200):
-            return format_response({"success": True, "challenge_url": "Send to Argo Workflows to deploy successfully"})
-        else :
-            return format_response({"message": "Failed to start challenge deployment"})
+        # Luôn gửi request, không cần kiểm tra if payload
+        response = requests.post(api_start, headers=headers, json=payload, timeout=30)
         
-        # res_data = response.json()
-        # if res_data.get("isSuccess"):
-        #     challenge_url = res_data.get("data")
-        #     time_finished = datetime.now() + timedelta(minutes=challenge_time)
-        #     db.session.commit()
-        #     if challenge_time == -1 or team.id == -1:
-        #         cache_expiry = None
-        #     else:
-        #         cache_expiry = challenge_time * 60
-        #     try:
-        #         redis_client.set(
-        #             cache_key,
-        #             json.dumps(
-        #                 {"challenge_url": challenge_url, "user_id": user_id, "challenge_id": challenge_id, "time_finished": int(time_finished.timestamp())}
-        #             ),
-        #             ex=cache_expiry,
-        #         )
-        #         print(f"Cache saved: {cache_key} -> challenge_url: {challenge_url}, time_finished: {time_finished}")
-        #         if challenge_time != -1:
-        #             threading.Timer(
-        #                 max(30, challenge_time * 60),
-        #                 lambda: force_stop(cache_key, challenge_id, team.id),
-        #             ).start()
-        #     except Exception as e:
-        #         print(f"Error saving to Redis: {e}")
-        #         return jsonify({"error": "Failed to save cache"}), 400
-        #     return format_response({"success": True, "challenge_url": challenge_url})
-        # else:
-        #     message = res_data.get("message")
-        #     if res_data.get("data"):
-        #         message += "<br><br>Running challenge is: "
-        #         challenge_names = []
-        #         for item in res_data.get("data"):
-        #             challenges = Challenges.query.filter_by(id=item).first()
-        #             if challenges is not None:
-        #                 challenge_names.append(f"<b>{challenges.name}</b>")
-        #         message += "<b>,</b> ".join(challenge_names)
-        #     return format_response({"message": message})
-    
+        print(f"Response Status Code: {response.status_code}")
+        print(f"Response Text: {response.text}")
+
+        res_data = response.json()
+
+        if not res_data:
+            return jsonify({"success": False, "message": "Empty response from server"}), 400
+
+        print("Response start data: " + json.dumps(res_data))
+        return res_data
+        '''
+        message = res_data.get("message")
+        if res_data.get("success") == "true":
+            challenge_url = res_data.get("challenge_url")
+            time_finished = datetime.now() + timedelta(minutes=challenge_time)
+            db.session.commit()
+            if challenge_time == -1 or team.id == -1:
+                cache_expiry = None
+            else:
+                cache_expiry = challenge_time * 60
+            
+            try:
+                redis_client.set(
+                    cache_key,
+                    json.dumps(
+                        {"challenge_url": challenge_url, "user_id": user_id, "challenge_id": challenge_id, "time_finished": int(time_finished.timestamp())}
+                    ),
+                    ex=cache_expiry,
+                )
+                print(f"Cache saved: {cache_key} -> challenge_url: {challenge_url}, time_finished: {time_finished}")
+                if challenge_time != -1:
+                    threading.Timer(
+                        max(30, challenge_time * 60),
+                        lambda: force_stop(cache_key, challenge_id, team.id),
+                    ).start()
+            except Exception as e:
+                print(f"Error saving to Redis: {e}")
+                return jsonify({"error": "Failed to save cache"}), 400
+            return format_response({"status": 200, "success": True, "challenge_url": challenge_url, "message": message})
+        else:
+            if res_data.get("data"):
+                message += "<br><br>Running challenge is: "
+                challenge = Challenges.query.filter_by(id=challenge_id).first()
+                if challenge is not None:
+                    message += f"<b>{challenge.name}</b>"
+            return format_response({"message": message, "success": False, "status": 200})
+        '''
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to API: {e}")
-        return format_response({"message": "Connection url failed"})
+        return format_response({"message": "Connection url failed", "success": False, "status": 400})      
 def force_stop(cache_key, challenge_id, team_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(

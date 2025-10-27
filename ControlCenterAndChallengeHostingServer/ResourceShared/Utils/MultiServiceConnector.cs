@@ -6,7 +6,6 @@ namespace ResourceShared.Utils
     public class MultiServiceConnector
     {
         private RestClient client { get; set; }
-        private RestRequest request { get; set; } = new RestRequest();
         public MultiServiceConnector(string BaseUrl)
         {
             RestClientOptions options = new RestClientOptions(BaseUrl);
@@ -16,6 +15,7 @@ namespace ResourceShared.Utils
         }
         public async Task<string?> ExecuteNormalRequest(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType, Dictionary<string, string>? headers = null)
         {
+            var request = new RestRequest();
             request.Method = method;
             request.Resource = ApiPath;
             if (headers != null)
@@ -63,6 +63,7 @@ namespace ResourceShared.Utils
         }
         public async Task<T?> ExecuteRequest<T>(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType)
         {
+            var request = new RestRequest();
             request.Method = method;
             request.Resource = ApiPath;
             switch (contentType)

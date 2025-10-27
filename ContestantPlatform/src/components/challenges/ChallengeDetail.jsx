@@ -545,7 +545,7 @@ const getFileName = (filePath) => {
 
     try {
       const response = await api.post(API_CHALLEGE_START, {
-        challenge_id: challengeId,
+        challengeId: challengeId,
         generatedToken,
       });
 
@@ -664,7 +664,7 @@ const getFileName = (filePath) => {
     const generatedToken = localStorage.getItem("accessToken");
     try {
       const response = await api.post(API_CHALLENGE_STOP, {
-        challenge_id: challengeId,
+        challengeId: challengeId,
         generatedToken,
       });
 

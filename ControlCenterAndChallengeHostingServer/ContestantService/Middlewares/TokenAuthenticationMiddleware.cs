@@ -6,10 +6,12 @@ namespace ContestantService.Middlewares
     public class TokenAuthenticationMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public TokenAuthenticationMiddleware(RequestDelegate next)
+        public TokenAuthenticationMiddleware(RequestDelegate next, IServiceScopeFactory scopeFactory)
         {
             _next = next;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task Invoke(HttpContext context)
@@ -22,18 +24,18 @@ namespace ContestantService.Middlewares
                 {
                     var token = authHeader.Substring("Bearer ".Length).Trim();
 
+                    using var scope = _scopeFactory.CreateScope();
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
                     if (!string.IsNullOrEmpty(token))
                     {
-                        using (var db = new AppDbContext())
+                        var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
+                        if (tokenAuth != null)
                         {
-                            var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
-                            if (tokenAuth != null)
+                            var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
+                            if (user != null)
                             {
-                                var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
-                                if (user != null)
-                                {
-                                    context.Items["CurrentUser"] = user;
-                                }
+                                context.Items["CurrentUser"] = user;
                             }
                         }
                     }

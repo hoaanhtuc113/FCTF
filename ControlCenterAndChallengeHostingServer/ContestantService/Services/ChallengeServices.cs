@@ -1,5 +1,6 @@
 ﻿using ContestantService.Utils;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using ResourceShared;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
@@ -13,6 +14,7 @@ using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
 using System.Text.Json;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ContestantService.Services
 {
@@ -232,82 +234,82 @@ namespace ContestantService.Services
             };
             try
             {
-                var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {ContestantServiceConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
-                var port = getPort();
-                var payload = new { workflow = ChallengeHelper.BuildArgoPayload(challenge.Id, user.Team.Name, port) };
-
-                await Console.Out.WriteLineAsync($"Payload to Argo Workflows API: {JsonSerializer.Serialize(payload)}");
-                await Console.Out.WriteLineAsync($"Argo Workflows API: {ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL}");
-
-                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL);
-                var response = await multiServiceConnector.ExecuteRequest(ContestantServiceConfigHelper.ARGO_WORKFLOWS_URL, Method.Post, payload, headers);
-                await Console.Out.WriteLineAsync($"Response from Argo Workflows API: {response}");
-                if (response == null)
+                var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var parammeters = new ChallengeStartStopReqDTO
                 {
-                    await Console.Out.WriteLineAsync("No response from Argo Workflows API");
-                    return new ChallengeStartResponeDTO
-                    {
-                        status = HttpStatusCode.BadRequest,
-                        success = false,
-                        message = "No response from server"
-                    };
-                }
-
-                return new ChallengeStartResponeDTO
-                {
-                    status = HttpStatusCode.OK,
-                    success = true,
-                    message = "Challenge started successfully",
-                    challenge_url = $"Send to Argo Workflows to deploy successfully"
+                    challengeId = challenge.Id,
+                    challengeName = "websecpro-chilp",
+                    teamId = user.TeamId.Value,
+                    teamName = user.Team.Name,
+                    unixTime = unixTime.ToString()
                 };
+                var data = new Dictionary<string, string>
+                {
+                    { "challengeId", challenge.Id.ToString() },
+                    { "challengeName", "websecpro-chilp" },
+                    { "teamId", user.TeamId.Value.ToString() },
+                    { "teamName", user.Team.Name },
+                };
+                string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
 
-                /*
-                var headers = new Dictionary<string, string> { { "SecretKey", secretKey } };
-                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantServiceConfigHelper.ControlServerAPI);
-                var body = await multiServiceConnector.ExecuteNormalRequest("/api/challenge/start", Method.Post, parammeters, RequestContentType.Form, headers);
-
+                var headers = new Dictionary<string, string>
+                {
+                    { "SecretKey", generatedSecretKey }
+                };
+                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantServiceConfigHelper.DeploymentServiceAPI);
+                var body = await multiServiceConnector.ExecuteRequest("/api/challenge/start", Method.Post, parammeters, headers);
                 await Console.Out.WriteLineAsync($"Response Line51 is {body}");
                 if(body == null)
                     return new ChallengeStartResponeDTO
                     {
-                        status = HttpStatusCode.BadRequest,
+                        status = (int)HttpStatusCode.BadRequest,
                         success = false,
                         message = "No response from server"
                     };
-                
-                using var doc = JsonDocument.Parse(body);
-                var root = doc.RootElement;
-                bool isSuccess = root.GetProperty("isSuccess").GetBoolean();
-                if (isSuccess)
-                {
-                    var data = JsonSerializer.Deserialize<GenaralViewResponseData<string>>(body, options);
-                    var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
 
+                var result = JsonConvert.DeserializeObject<ChallengeStartResponeDTO>(body);
+                if (result == null)
+                {
+                    await Console.Out.WriteLineAsync("Failed to deserialize response");
+                    return new ChallengeStartResponeDTO
+                    {
+                        status = (int)HttpStatusCode.InternalServerError,
+                        success = false,
+                        message = "Failed to parse server response"
+                    };
+                }
+                await Console.Out.WriteLineAsync($"Start response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
+                return result;
+                /*
+                if (result.success)
+                {
+                    var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
+                    var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
                     var cacheExpired = challenge.TimeLimit != null && challenge.TimeLimit > 0 ? TimeSpan.FromSeconds(challenge.TimeLimit.Value * 60) : (TimeSpan?)null;
                     try
                     {
                         await Console.Out.WriteLineAsync($"Saving to Redis: {cache_key} with expiration: {(cacheExpired.HasValue ? cacheExpired.ToString() : "No Expiration")}");
                         var cacheObj = new
                         {
-                            challenge_url = data.data,
+                            challenge_url = result.challenge_url,
                             user_id = user.Id,
-                            challenge_id = challenge.Id,
+                            challengeId = challenge.Id,
                             time_finished = new DateTimeOffset(timeFinished).ToUnixTimeSeconds()
                         };
                         await redisHelper.SetCacheAsync(cache_key, cacheObj, cacheExpired);
 
                         var cachedData = await redisHelper.GetFromCacheAsync<object>(cache_key);
-                        await Console.Out.WriteLineAsync($"Cache saved: {cache_key} -> challenge_url: {JsonSerializer.Serialize(data.data)}, time_finished: {timeFinished}");
+                        await Console.Out.WriteLineAsync($"Cache saved: {cache_key} -> challenge_url: {result.challenge_url}, time_finished: {timeFinished}");
                         
                         if(challenge.TimeLimit != null)
                         {
                             // tự đống stop challenge sau thời gian challenge.TimeLimit
-                            var delay = TimeSpan.FromSeconds(Math.Max(30, challenge.TimeLimit.Value * 60));
-                            _ = Task.Run(async () =>
-                            {
-                                await Task.Delay(delay);
-                                await ForceStopChallenge(cache_key, challenge.Id, user.TeamId.Value);
-                            });
+                            //var delay = TimeSpan.FromSeconds(Math.Max(30, challenge.TimeLimit.Value * 60));
+                            //_ = Task.Run(async () =>
+                            //{
+                            //    await Task.Delay(delay);
+                            //    await ForceStopChallenge(cache_key, challenge.Id, user.TeamId.Value);
+                            //});
                         }
                     }
                     catch(Exception ex)
@@ -315,38 +317,34 @@ namespace ContestantService.Services
                         await Console.Out.WriteLineAsync($"Error saving to Redis: {cache_key} - {ex.Message}");
                         return new ChallengeStartResponeDTO
                         {
-                            status = HttpStatusCode.NotFound,
+                            status = (int)HttpStatusCode.NotFound,
                             success = false,
                             message = "Error saving to cache"
                         };
                     }
+
                     return new ChallengeStartResponeDTO
                     {
-                        status = HttpStatusCode.OK,
+                        status = (int)HttpStatusCode.OK,
                         success = true,
                         message = "Challenge started successfully",
-                        challenge_url = data.data
+                        challenge_url = result.challenge_url
                     };
                 }
                 else
                 {
-                    var data = JsonSerializer.Deserialize<GenaralViewResponseData<List<int>>>(body,options);
-                    var message = data.Message;
-                    var startedIds = data?.data ?? new List<int>();
-
-                    if (startedIds.Any())
-                    {
-                        message += "<br><br>Running challenge is: ";
-                        var chalNames = _dbContext.Challenges
-                                         .Where(c => startedIds.Contains(c.Id))
-                                         .Select(c => $"<b>{c.Name}</b>")
-                                         .ToList();
-                        message += string.Join(", ", chalNames);
-                    }
+                    var message = result.message;
+       
+                    message += "<br><br>Running challenge is: ";
+                    var chalNames = _dbContext.Challenges
+                                        .Where(c => c.Id == challenge.Id)
+                                        .Select(c => $"<b>{c.Name}</b>")
+                                        .ToList();
+                    message += string.Join(", ", chalNames);
 
                     return new ChallengeStartResponeDTO
                     {
-                        status =HttpStatusCode.OK,
+                        status = (int)HttpStatusCode.OK,
                         success = false,
                         message = message
                     };
@@ -358,7 +356,7 @@ namespace ContestantService.Services
                 await Console.Out.WriteLineAsync($"Error connecting to API: {ex.Message}");
                 return new ChallengeStartResponeDTO
                 {
-                    status = HttpStatusCode.OK,
+                    status = (int)HttpStatusCode.BadGateway,
                     success = false,
                     message = "Connection url failed"
                 };
@@ -368,7 +366,7 @@ namespace ContestantService.Services
                 await Console.Out.WriteLineAsync($"Unexpected error: {ex.Message}");
                 return new ChallengeStartResponeDTO
                 {
-                    status = HttpStatusCode.InternalServerError,
+                    status = (int)HttpStatusCode.InternalServerError,
                     success = false,
                     message = "Unexpected error occurred"
                 };
@@ -422,14 +420,6 @@ namespace ContestantService.Services
                 throw new Exception("Connection url failed" + e);
             }
             return;
-        }
-
-
-        private int getPort()
-        {
-            port += 1;
-            if (port > 32767) port = 30000;
-            return port;
         }
     }
 }

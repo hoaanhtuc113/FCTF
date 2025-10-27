@@ -8,6 +8,7 @@ services:
     environment:
       - API_URL_CONTROLSERVER=${API_URL_CONTROLSERVER}
       - API_URL_ADMINSERVER=${API_URL_ADMINSERVER}
+      - DEPLOYMENT_SERVICE_API=${DEPLOYMENT_SERVICE_API}
       - PRIVATE_KEY=${PRIVATE_KEY}
       - HOST_CACHE=${HOST_CACHE}
       - UPLOAD_FOLDER=/var/uploads
@@ -108,9 +109,10 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - PRIVATE_KEY=${PRIVATE_KEY}
       - CONTROL_SERVER_API=${CONTROL_SERVER_API}
-      - ARGO_WORKFLOWS_URL=${ARGO_WORKFLOWS_URL}
-      - ARGO_WORKFLOWS_TOKEN=${ARGO_WORKFLOWS_TOKEN}
+      - DEPLOYMENT_SERVICE_API=${DEPLOYMENT_SERVICE_API}
       - NFS_MOUNT_PATH=${NFS_MOUNT_PATH}
+      - USE_LOCAL_K8S=${USE_LOCAL_K8S}
+      - K8S_NAMESPACE=${K8S_NAMESPACE}
       # Environment
       - ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
     volumes:
@@ -121,10 +123,10 @@ services:
     networks:
       - default
 
-  healthcheck-service:
+  deployment-service:
     build:
       context: ./ControlCenterAndChallengeHostingServer
-      dockerfile: HealthCheckService/Dockerfile
+      dockerfile: DeploymentService/Dockerfile
     restart: always
     ports:
       - "5020:5020"
@@ -137,6 +139,10 @@ services:
       - REDIS_CONNECTION=${REDIS_CONNECTION}
       # Service Config
       - PRIVATE_KEY=${PRIVATE_KEY}
+      - USE_LOCAL_K8S=${USE_LOCAL_K8S}
+      - K8S_NAMESPACE=${K8S_NAMESPACE}
+      - ARGO_WORKFLOWS_URL=${ARGO_WORKFLOWS_URL}
+      - ARGO_WORKFLOWS_TOKEN=${ARGO_WORKFLOWS_TOKEN}
       # Environment
       - ENVIRONMENT_NAME=${ENVIRONMENT_NAME}
     depends_on:

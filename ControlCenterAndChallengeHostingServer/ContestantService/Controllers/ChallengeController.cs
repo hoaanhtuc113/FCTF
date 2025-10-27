@@ -156,7 +156,7 @@ namespace ContestantService.Controllers
             });
         }
 
-        #region Attempt Challenge Stop
+        #region Attempt Challenge: pending refactor because related remove cache in Admin portal
         //[DuringCtfTimeOnly]
         //[HttpPost("attempt")]
         //public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
@@ -339,11 +339,9 @@ namespace ContestantService.Controllers
         {
             var user = HttpContext.GetCurrentUser();
             if (user == null) return NotFound(new { error = "Please login" });
-            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challenge_id);
+            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
             if (challenge == null) return NotFound(new { error = "Challenge not found" });
-
-            var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
 
             if(user.Team == null || user.TeamId == null) return NotFound(new { error = "Team not found" });
 
@@ -354,9 +352,9 @@ namespace ContestantService.Controllers
             var response =  await _challengeServices.ChallengeStart(challenge, user);
             return response.status switch
             {
-                HttpStatusCode.OK => Ok(response),
-                HttpStatusCode.BadRequest => BadRequest(response),
-                HttpStatusCode.NotFound => NotFound(response),
+                (int)HttpStatusCode.OK => Ok(response),
+                (int)HttpStatusCode.BadRequest => BadRequest(response),
+                (int)HttpStatusCode.NotFound => NotFound(response),
                 _ => StatusCode((int)response.status, response)
             };
         }
@@ -364,7 +362,7 @@ namespace ContestantService.Controllers
         [HttpPost("stop-by-user")]
         public async Task<IActionResult> StopChallengeByUser([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
-            if (challengeStartReq == null || challengeStartReq.challenge_id <= 0)
+            if (challengeStartReq == null || challengeStartReq.challengeId <= 0)
             {
                 return BadRequest(new { error = "ChallengeId is required" });
             }
@@ -375,7 +373,7 @@ namespace ContestantService.Controllers
                 return BadRequest(new { error = "User no join team" });
             }
 
-            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challenge_id);
+            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
             if (challenge == null) return BadRequest(new { error = "Challenge not found" });
             var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);

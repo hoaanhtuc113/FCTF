@@ -77,16 +77,32 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        var builder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddEnvironmentVariables();
-        IConfigurationRoot configuration = builder.Build();
-        var connectionString = configuration.GetConnectionString("DbConnection");
-        optionsBuilder.UseMySql(connectionString,new MySqlServerVersion(new Version(10, 11, 0)));
-    }
+    //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    //{
+    //    var builder = new ConfigurationBuilder()
+    //            .SetBasePath(Directory.GetCurrentDirectory())
+    //            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    //            .AddEnvironmentVariables();
+    //    IConfigurationRoot configuration = builder.Build();
+        
+    //    var connectionString = configuration["DB_CONNECTION"] 
+    //                        ?? configuration.GetConnectionString("DbConnection");
+                            
+    //    if (string.IsNullOrEmpty(connectionString))
+    //    {
+    //        throw new InvalidOperationException("Database connection string not found. Please set DB_CONNECTION environment variable.");
+    //    }
+        
+    //    optionsBuilder.UseMySql(
+    //        connectionString,
+    //        new MySqlServerVersion(new Version(10, 11, 0)),
+    //        options => options.EnableRetryOnFailure(
+    //            maxRetryCount: 5,
+    //            maxRetryDelay: TimeSpan.FromSeconds(10),
+    //            errorNumbersToAdd: null
+    //        )
+    //    );
+    //}
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder

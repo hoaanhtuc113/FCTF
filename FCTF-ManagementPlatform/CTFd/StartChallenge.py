@@ -112,9 +112,9 @@ def start_challenge():
         # Check xem team đã có đội trưởng chưa và người khởi động challenge có phải đội trưởng không
         if(user.type == 'user' and (not team.captain_id or team.captain_id != user_id)):
             return jsonify({"error": "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge."}), 400
-        
-        payload, headers, api_start = prepare_challenge_payload(challenge, user, team_id, challenge_time)
-        
+
+        payload, headers, api_start = prepare_challenge_payload(challenge, user, team_id, team, challenge_time)
+
         return challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team)
 
 @challenge.route("/api/challenge/stop-by-admin", methods=["POST"])

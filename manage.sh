@@ -12,6 +12,22 @@ if ! sudo -n true 2>/dev/null; then
     exit 1
 fi
 
+# Di chuyển file dịch vụ mẫu và reload systemd
+# for service in fctf-challenge fctf-control fctf-contestant kubectl-proxy; do
+#     SOURCE_PATH="$PROJECT_ROOT/$service.service"
+#     DEST_PATH="/etc/systemd/system/$service.service"
+#     if [ -f "$SOURCE_PATH" ]; then
+#         echo "Di chuyển file dịch vụ $service.service từ $SOURCE_PATH đến $DEST_PATH..."
+#         sudo cp "$SOURCE_PATH" "$DEST_PATH"
+#         sudo systemctl daemon-reload
+#         echo "Đã tải lại cấu hình systemd."
+#     else
+#         echo "Cảnh báo: File mẫu $service.service không tồn tại tại $SOURCE_PATH."
+#     fi
+# done
+
+
+
 # Kiểm tra PROJECT_ROOT có tồn tại không
 if [ ! -d "$PROJECT_ROOT" ]; then
     echo "Lỗi: Đường dẫn PROJECT_ROOT ($PROJECT_ROOT) không tồn tại."
@@ -222,7 +238,7 @@ update_appsettings() {
     # Tạo thư mục publish nếu chưa tồn tại
     mkdir -p "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
-    # Cập nhật file .env cho FCTF-ManagementPlatform, ContestantService & HealthCheckService
+    # Cập nhật file .env cho FCTF-ManagementPlatform, ContestantService & DeploymentService
     # API_URL_CONTROLSERVER= Địa chỉ IP hoặc domain của ControlCenter
     cat > "$PROJECT_ROOT/.env" << EOF
 # Cấu hình cho FCTF-ManagementPlatform
@@ -241,16 +257,19 @@ UPLOAD_PROVIDER=nfs
 # Cấu hình dùng chung
 PRIVATE_KEY=emdungdepzai
 ARGO_WORKFLOWS_URL=https://argo.fctf.cloud/api/v1/workflows/argo
-ARGO_WORKFLOWS_TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6IjF5QW9GODhkM2NzTVRzSEtETmVhVjVQZVk0OHJKNVg1alpnS2dKWmpXSFkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJhcmdvIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImFyZ28tc2Euc2VydmljZS1hY2NvdW50LXRva2VuIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFyZ28tc2EiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI4YjNhMDU3MC04ZjllLTQ3ZmEtOTMxMC03ZjI0NDIwOThhZTYiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6YXJnbzphcmdvLXNhIn0.cgTmsjBKHXARU4N-RkhHsNfi8nAAzQuSVrzPs-iyL4qbOol70lDf5NAJryo7OYugS0e4sULby41HOncIsYYCh_XfJOlH_zi4zzB3uF4x8UhtveG-1FOo8n2GQsXnfJo2w0c-1G4nqOVPGqk3Zf3_HfWOG1bz28gv2E2yMeNesG7lsOAXIHU50Lp8Faaao70satiJ4TXPJyzUZ-69NTVE2AqLmaVlo3Havw25pyHUgjy842_1iKP7dCk9yFDPLdo4VHKCzdG7ojx0DtIR_ri-76EoUrBlNDzEKyDVDMYYxSVd2UxeSxI3twFTlo9_h8RriEpnyxrM9ZpuAXWYNg5lOw
+ARGO_WORKFLOWS_TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6ImtLUld2RlR4UUdZMXZTWjhxdDRLN3NKam5ZbnN0WFd2d0NGc3p6UFNEb2cifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJhcmdvIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImFyZ28tc2Euc2VydmljZS1hY2NvdW50LXRva2VuIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFyZ28tc2EiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiJmNDIzNDYxMS0wOTNlLTQ2MDItOGQ1YS05YTcxZDcxZjViY2MiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6YXJnbzphcmdvLXNhIn0.x8r92H5yYWS4aCrKvqJUG8SSREHNWMEHFtbB4ViLsG1gM_UuZaM_jrxPCofhcFuXxEqPEYLZGP5CEE2zr37pXV_YKinctUfakGnhZdovONpVjVrh4Q6udk419MgqErOGfY-D81Bfyo7raUPVebwMtKv6HcQNyBk0UR0rPfduERtw3bPWRu3hvJu6YmrktwPnHm9Abdq5IeoxwxTNeqjwAMnDm1rlhJlIIsRm7aaP8GGXCp4pNEXYQcaeJ9PtQ3avhO2ezsgZvB9UmPZdAZjOFkygeorPLRGfDZDoZKfvqf-EHSMr6rfV5_JQaSQDMAIjdKmhb5vpO-eLEDq3ECdpOw
 NFS_MOUNT_PATH=/mnt/nfs/data
+DEPLOYMENT_SERVICE_API=http://172.31.177.154:5020
 
-# Cấu hình cho ContestantService & HealthCheckService
+# Cấu hình cho ContestantService & DeploymentService
 ASPNETCORE_ENVIRONMENT=Production
 DB_CONNECTION=Server=db;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;
 REDIS_CONNECTION=cache:6379
 SECRET_KEY=emdungdepzai
 CONTROL_SERVER_API=http://ctfd:8000
 ENVIRONMENT_NAME=PRODUCTION
+USE_LOCAL_K8S=false
+
 EOF
 
     echo "Đã cập nhật cấu hình cho môi trường $env."
@@ -330,6 +349,43 @@ build_apps() {
         exit 1
     fi
     echo "File manifest.json đã được tạo thành công tại themes/core-beta/static/"
+
+    # Build giao diện thi sinh viên (ContestantPlatform)
+    # CONTESTANT_PLATFORM="$PROJECT_ROOT/ContestantPlatform"
+    # if [ ! -d "$CONTESTANT_PLATFORM" ]; then
+    #     echo "Lỗi: Thư mục ContestantPlatform ($CONTESTANT_PLATFORM) không tồn tại."
+    #     exit 1
+    # fi
+    # if [ ! -f "$CONTESTANT_PLATFORM/package.json" ]; then
+    #     echo "Lỗi: File package.json không tồn tại trong $CONTESTANT_PLATFORM."
+    #     exit 1
+    # fi
+    # echo "Cài đặt dependencies cho ContestantPlatform..."
+    # cd "$CONTESTANT_PLATFORM"
+    # # Xóa thư mục dist để tránh cache
+    # rm -rf dist
+    # if ! npm install vite --legacy-peer-deps; then
+    #     echo "Lỗi: Không thể cài đặt vite cho ContestantPlatform."
+    #     exit 1
+    # fi
+    # if ! npm install --legacy-peer-deps; then
+    #     echo "Lỗi: Không thể cài đặt dependencies cho ContestantPlatform."
+    #     exit 1
+    # fi
+    # echo "Build ContestantPlatform..."
+    # if ! npm run build; then
+    #     echo "Lỗi: Không thể build ContestantPlatform."
+    #     exit 1
+    # fi
+    # # Kiểm tra thư mục dist
+    # if [ ! -d "$CONTESTANT_PLATFORM/dist" ]; then
+    #     echo "Lỗi: Thư mục dist không được tạo trong $CONTESTANT_PLATFORM sau khi build."
+    #     echo "Kiểm tra thủ công bằng lệnh:"
+    #     echo "  cd $CONTESTANT_PLATFORM && npm run build"
+    #     exit 1
+    # fi
+    # echo "Giao diện thi sinh viên đã được build thành công tại $CONTESTANT_PLATFORM/dist"
+    # echo "Nhắc nhở: Vui lòng cấu hình Nginx để trỏ tới thư mục $CONTESTANT_PLATFORM/dist"
 
     cd "$PROJECT_ROOT"
     echo "Build themes, ứng dụng .NET, và giao diện thi sinh viên hoàn tất."
@@ -456,6 +512,23 @@ start_system() {
     sudo touch "$LOG_FILE"
     sudo chown root:root "$LOG_FILE"
     sudo chmod 664 "$LOG_FILE"
+
+    # Khởi động dịch vụ systemd cho hai ứng dụng .NET
+    # for service in fctf-challenge fctf-control fctf-contestant; do
+    #     if [ -f "/etc/systemd/system/$service.service" ]; then
+    #         echo "Kích hoạt và khởi động dịch vụ $service..."
+    #         sudo systemctl enable "$service"
+    #         sudo systemctl start "$service"
+    #         if ! systemctl is-active --quiet "$service"; then
+    #             echo "Lỗi: Không thể khởi động $service. Kiểm tra trạng thái:"
+    #             sudo systemctl status "$service" --no-pager -l
+    #             exit 1
+    #         fi
+    #     else
+    #         echo "Lỗi: File dịch vụ $service.service không tồn tại trong /etc/systemd/system/."
+    #         exit 1
+    #     fi
+    # done
 
     echo "Hệ thống đã được khởi động trong môi trường $env."
     echo "Log của ChallengeManagementServer và ControlCenterServer được ghi tại $LOG_FILE"
@@ -667,6 +740,22 @@ clean_system() {
 check_config() {
     echo "Kiểm tra nội dung các file cấu hình..."
 
+    # Kiểm tra appsettings.json của ChallengeHosting
+    # if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish/appsettings.json" ]; then
+    #     echo "Nội dung appsettings.json (ChallengeHosting):"
+    #     cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish/appsettings.json"
+    # else
+    #     echo "File appsettings.json của ChallengeHosting không tồn tại."
+    # fi
+
+    # # Kiểm tra appsettings.json của ControlCenter
+    # if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/appsettings.json" ]; then
+    #     echo "Nội dung appsettings.json (ControlCenter):"
+    #     cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/appsettings.json"
+    # else
+    #     echo "File appsettings.json của ControlCenter không tồn tại."
+    # fi
+
     # kiểm tra .env của ContestantService
     if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantService/.env" ]; then
         echo "Nội dung .env (ContestantService):"
@@ -675,12 +764,12 @@ check_config() {
         echo "File .env của ContestantService không tồn tại."
     fi
 
-    # kiểm tra .env của HealthCheckService
-    if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/HealthCheckService/.env" ]; then
-        echo "Nội dung .env (HealthCheckService):"
-        cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/HealthCheckService/.env"
+    # kiểm tra .env của DeploymentService
+    if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/DeploymentService/.env" ]; then
+        echo "Nội dung .env (DeploymentService):"
+        cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/DeploymentService/.env"
     else
-        echo "File .env của HealthCheckService không tồn tại."
+        echo "File .env của DeploymentService không tồn tại."
     fi
 
     # Kiểm tra .env của FCTF-ManagementPlatform

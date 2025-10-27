@@ -10,11 +10,11 @@ namespace HealthCheckService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class HealthCheckController : ControllerBase
+    public class StatusCheckController : ControllerBase
     {
 
         private readonly IConnectionMultiplexer _connectionMultiplexer;
-        public HealthCheckController(IConnectionMultiplexer connectionMultiplexer)
+        public StatusCheckController(IConnectionMultiplexer connectionMultiplexer)
         {
             _connectionMultiplexer = connectionMultiplexer;
         }

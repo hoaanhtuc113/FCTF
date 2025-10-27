@@ -1,10 +1,12 @@
 using ContestantService.Extensions;
 using ContestantService.Interfaces;
+using ContestantService.Middlewares;
 using ContestantService.Services;
 using ContestantService.Utils;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models; 
+using Microsoft.OpenApi.Models;
+using ResourceShared;
 using ResourceShared.Configs;
 using ResourceShared.Models;
 using ResourceShared.Utils;
@@ -77,16 +79,19 @@ namespace ContestantService
             builder.Services.AddScoped<ITicketService, TicketService>();
             builder.Services.AddScoped<IConfigService, ConfigService>();
             builder.Services.AddMemoryCache();
-            builder.Services.AddSingleton<ConfigHelper>();
-            builder.Services.AddSingleton<CtfTimeHelper>();
-            builder.Services.AddSingleton<ScoreHelper>();
-            builder.Services.AddSingleton<UserHelper>();
+            builder.Services.AddScoped<ConfigHelper>();
+            builder.Services.AddScoped<CtfTimeHelper>();
+            builder.Services.AddScoped<ScoreHelper>();
+            builder.Services.AddScoped<UserHelper>();
           
             builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
             builder.Services.AddScoped<IFileService, FileService>();
             builder.Services.AddScoped<INotificationServices, NotificationServices>();
             builder.Services.AddScoped<IUserServices, UserServices>();
             builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
+
+            // DI services from ResourceShared
+            builder.Services.AddResourceShared();
             //Init config from ControlConfig, SharedConfig
             new ContestantServiceConfigHelper().InitConfig();
            
