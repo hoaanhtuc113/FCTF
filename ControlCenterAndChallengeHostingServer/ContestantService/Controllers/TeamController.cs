@@ -45,6 +45,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("contestant")]
+        [RequireAuth]
         public async Task<IActionResult> GetScoreTeam()
         {
             var user = HttpContext.GetCurrentUser();
@@ -57,6 +58,7 @@ namespace ContestantService.Controllers
         }
 
         [HttpGet("solves")]
+        [RequireAuth]
         public async Task<IActionResult> GetSolvesTeam()
         {
             var user = HttpContext.GetCurrentUser();

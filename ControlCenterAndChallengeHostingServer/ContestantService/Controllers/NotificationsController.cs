@@ -10,6 +10,7 @@ namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class NotificationsController : ControllerBase
     {
         private INotificationServices _notification;

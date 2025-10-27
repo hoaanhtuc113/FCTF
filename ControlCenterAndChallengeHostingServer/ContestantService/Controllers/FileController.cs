@@ -12,6 +12,7 @@ namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class FilesController : ControllerBase
     {
         private readonly IFileService _fileService;
