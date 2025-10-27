@@ -470,14 +470,37 @@ function ChallengeDetailPanel({
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [unlockingHintId, setUnlockingHintId] = useState<number | null>(null);
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
+  const cooldownTimerRef = useRef<number | null>(null);
 
   // Filter PDF files
   const pdfFiles = challenge.files?.filter(file => file.toLowerCase().includes('.pdf')) || [];
   const hasDescription = !!challenge.description;
   const hasPdfFiles = pdfFiles.length > 0;
 
+  // Load cooldown from localStorage when challenge changes
   useEffect(() => {
+    const loadCooldown = () => {
+      const cooldownKey = `cooldown_${challenge.id}`;
+      const savedCooldown = localStorage.getItem(cooldownKey);
+      
+      if (savedCooldown) {
+        const { expireTime } = JSON.parse(savedCooldown);
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((expireTime - now) / 1000));
+        
+        if (remaining > 0) {
+          setCooldownRemaining(remaining);
+        } else {
+          // Expired, remove from localStorage
+          localStorage.removeItem(cooldownKey);
+          setCooldownRemaining(0);
+        }
+      }
+    };
+
+    loadCooldown();
     fetchHints();
     fetchChallengeStatus();
 
@@ -485,8 +508,41 @@ function ChallengeDetailPanel({
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
     };
   }, [challenge.id]);
+
+  // Cooldown countdown effect
+  useEffect(() => {
+    if (cooldownRemaining > 0) {
+      // Save to localStorage with expiry time
+      const cooldownKey = `cooldown_${challenge.id}`;
+      const expireTime = Date.now() + (cooldownRemaining * 1000);
+      localStorage.setItem(cooldownKey, JSON.stringify({ expireTime }));
+
+      cooldownTimerRef.current = window.setInterval(() => {
+        setCooldownRemaining((prev) => {
+          if (prev <= 1) {
+            if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+            // Remove from localStorage when cooldown ends
+            localStorage.removeItem(cooldownKey);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (cooldownTimerRef.current) {
+      clearInterval(cooldownTimerRef.current);
+    }
+
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
+    };
+  }, [cooldownRemaining, challenge.id]);
 
   useEffect(() => {
     if (isChallengeStarted && timeRemaining && timeRemaining > 0) {
@@ -782,11 +838,20 @@ function ChallengeDetailPanel({
           },
         });
       } else if (data?.data?.status === 'ratelimited') {
+        // Extract cooldown seconds from message
+        const cooldownMatch = data.data.message?.match(/(\d+)\s+seconds?/i);
+        const cooldownSeconds = cooldownMatch ? parseInt(cooldownMatch[1]) : 0;
+        
+        if (cooldownSeconds > 0) {
+          setCooldownRemaining(cooldownSeconds);
+        }
+        
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
               <div class="text-orange-400 mb-2">[!] Rate limited</div>
-              <div class="text-gray-400">> ${data.data.message || 'Too many attempts'}</div>
+              <div class="text-gray-400">> ${data.data.message || 'Too many submissions'}</div>
+              ${cooldownSeconds > 0 ? `<div class="text-gray-400">> Please wait ${cooldownSeconds}s</div>` : ''}
             </div>
           `,
           icon: 'warning',
@@ -797,6 +862,24 @@ function ChallengeDetailPanel({
           customClass: {
             popup: 'rounded-lg border border-orange-500/30',
             confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
+          },
+        });
+      } else if (data?.data?.status === 'paused') {
+        await Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-yellow-400 mb-2">[!] Contest Paused</div>
+              <div class="text-gray-400">> ${data.data.message || 'Contest is paused'}</div>
+            </div>
+          `,
+          icon: 'warning',
+          iconColor: '#fbbf24',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fbbf24' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-yellow-500/30',
+            confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
           },
         });
       }
@@ -1575,55 +1658,119 @@ const getFileName = (filePath : string) => {
                 }`}>
                   [SUBMIT_FLAG]
                 </div>
-                <textarea
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  className={`w-full p-3 border rounded font-mono text-sm ${
-                    theme === 'dark'
-                      ? 'bg-gray-900 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
-                  }`}
-                  rows={3}
-                  placeholder="flag{...}"
-                />
-                
-                <button
-                  onClick={handleSubmitFlag}
-                  disabled={isSubmittingFlag || !answer.trim()}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    width: '100%',
-                    padding: '10px 16px',
-                    border: '1px solid #22d3ee',
-                    backgroundColor: '#22d3ee',
-                    color: '#000',
-                    borderRadius: '4px',
-                    cursor: isSubmittingFlag || !answer.trim() ? 'not-allowed' : 'pointer',
-                    opacity: isSubmittingFlag || !answer.trim() ? 0.5 : 1,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSubmittingFlag && answer.trim()) {
-                      e.currentTarget.style.backgroundColor = '#06b6d4';
-                      e.currentTarget.style.borderColor = '#06b6d4';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSubmittingFlag && answer.trim()) {
-                      e.currentTarget.style.backgroundColor = '#22d3ee';
-                      e.currentTarget.style.borderColor = '#22d3ee';
-                    }
-                  }}
-                >
-                  {isSubmittingFlag ? '[...] Submitting' : '[>] Submit Flag'}
-                </button>
+
+                {/* Check if max attempts reached */}
+                {challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts ? (
+                  <div className={`p-4 rounded border ${
+                    theme === 'dark' 
+                      ? 'bg-red-900/20 border-red-700' 
+                      : 'bg-red-50 border-red-300'
+                  }`}>
+                    <div className={`font-mono text-sm text-center ${
+                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      <div className="font-bold mb-2">[!] MAX ATTEMPTS REACHED</div>
+                      <div className="text-xs">
+                        You have used all {challenge.max_attempts} attempts for this challenge.
+                      </div>
+                      <div className="text-xs mt-1">
+                        No more submissions allowed.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
+                      className={`w-full p-3 border rounded font-mono text-sm ${
+                        theme === 'dark'
+                          ? 'bg-gray-900 text-white border-gray-700'
+                          : 'bg-white text-gray-900 border-gray-300'
+                      }`}
+                      rows={3}
+                      placeholder="flag{...}"
+                    />
+                    
+                    {/* Show attempts remaining */}
+                    {challenge.max_attempts > 0 && (
+                      <div className={`text-xs font-mono ${
+                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        <span className={
+                          (challenge.max_attempts - (challenge.attemps || 0)) <= 2 
+                            ? 'text-orange-500' 
+                            : theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                        }>
+                          [i]
+                        </span> Attempts remaining: {challenge.max_attempts - (challenge.attemps || 0)} / {challenge.max_attempts}
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={handleSubmitFlag}
+                      disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        textTransform: 'none',
+                        color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '#52525b' : '#fff',
+                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '#18181b' : '#22d3ee',
+                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '1px solid #27272a' : '1px solid #22d3ee',
+                        padding: '10px',
+                        borderRadius: '4px',
+                        cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? 'not-allowed' : 'pointer',
+                        width: '100%',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0) {
+                          e.currentTarget.style.backgroundColor = '#06b6d4';
+                          e.currentTarget.style.borderColor = '#06b6d4';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0) {
+                          e.currentTarget.style.backgroundColor = '#22d3ee';
+                          e.currentTarget.style.borderColor = '#22d3ee';
+                        }
+                      }}
+                    >
+                      {isSubmittingFlag 
+                        ? '[SUBMITTING...]' 
+                        : cooldownRemaining > 0 
+                          ? `[COOLDOWN: ${cooldownRemaining}s]`
+                          : '[SUBMIT]'}
+                    </button>
+                    
+                    {/* Cooldown Progress Bar */}
+                    {cooldownRemaining > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className={`text-xs font-mono ${
+                          theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                        }`}>
+                          [!] Cooldown active: {cooldownRemaining}s remaining
+                        </div>
+                        <div className={`w-full h-1 rounded overflow-hidden ${
+                          theme === 'dark' ? 'bg-gray-800' : 'bg-gray-300'
+                        }`}>
+                          <div 
+                            className="h-full bg-orange-500 transition-all duration-1000 ease-linear"
+                            style={{ 
+                              width: `${(cooldownRemaining / 60) * 100}%` // Assuming max 60s cooldown
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
             {/* Start/Stop Buttons */}
-            {challenge.require_deploy && !challenge.solve_by_myteam && (
+            {challenge.require_deploy && !challenge.solve_by_myteam && 
+             !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className="space-y-2">
                 {!isChallengeStarted ? (
                   challenge.is_captain ? (
