@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ResourceShared.Models;
+using ContestantService.Attribute;
 
 namespace ContestantService.Middlewares
 {
@@ -14,6 +15,17 @@ namespace ContestantService.Middlewares
 
         public async Task Invoke(HttpContext context)
         {
+            // Kiểm tra xem endpoint có require authentication không
+            var endpoint = context.GetEndpoint();
+            var requireAuth = endpoint?.Metadata.GetMetadata<RequireAuthAttribute>() != null;
+
+            // Nếu endpoint không yêu cầu auth, bỏ qua middleware
+            if (!requireAuth)
+            {
+                await _next(context);
+                return;
+            }
+
             try
             {
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
