@@ -84,6 +84,16 @@ namespace ResourceShared.Utils
             return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
 
+        public static string GetArgoWName(string chalId, string teamName)
+        {
+            return $"start-challenge-{chalId}-{teamName}".ToLower().Replace(" ", "-"); ;
+        }
+
+        public static string GetDeploymentAppName(string teamName,string challengeId,string challengeName)
+        {
+            return $"{teamName}-chal-{challengeId}-{challengeName}".ToLower().Replace(" ", "-");
+        }
+
         public static (object payload, string secretKey) PrepareChallengePayload(Challenge challenge, int team_id,int challenge_time)
         {
             var payload = new
@@ -107,7 +117,7 @@ namespace ResourceShared.Utils
 
         }
 
-        public static object BuildArgoPayload(int chalId, string teamName, int nodePort)
+        public static object BuildArgoPayload(string chalId, string teamName, int nodePort)
         {
             teamName = teamName.ToLower().Replace(" ", "-");
 
@@ -115,7 +125,7 @@ namespace ResourceShared.Utils
             {
                 metadata = new
                 {
-                    generateName = $"start-challenge-{chalId}-{teamName}-",
+                    generateName = $"{GetArgoWName(chalId,teamName)}-",
                     @namespace = "argo",
                     annotations = new Dictionary<string, string>
                     {
@@ -130,7 +140,7 @@ namespace ResourceShared.Utils
                     {
                         parameters = new[]
                         {
-                    new { name = "APP_NAME", value = $"{teamName}-chal-01-websecpro-chilp" },
+                    new { name = "APP_NAME", value = $"{GetDeploymentAppName(teamName,chalId,"websecpro-chilp")}" },
                     new { name = "SERVICE_PORT", value = "80" },
                     new { name = "CONTAINER_PORT", value = "80" },
                     new { name = "NODE_PORT", value = nodePort.ToString() },

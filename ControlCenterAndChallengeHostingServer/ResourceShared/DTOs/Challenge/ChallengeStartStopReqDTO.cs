@@ -8,6 +8,10 @@ namespace ResourceShared.DTOs.Challenge
 {
     public class ChallengeStartStopReqDTO
     {
-        public int challenge_id { get; set; }
+        public int challengeId { get; set; }
+        public string challengeName { get; set; } = string.Empty;
+        public string teamName { get; set; } = string.Empty;
+        public int teamId { get; set; }
+        public string? unixTime { get; set; }
     }
 }

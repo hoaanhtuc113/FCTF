@@ -40,5 +40,13 @@ namespace ResourceShared
             public const string VISIBLE = "visible";
             public const string HIDDEN = "hidden";
         }
+
+        public static class DeploymentStatus
+        {
+            public const string PROCESS = "pending";
+            public const string RUNING = "running";
+            public const string FAILED = "failed";
+            public const string SUCCEEDED = "succeeded";
+        }
     }
 }

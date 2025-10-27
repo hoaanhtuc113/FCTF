@@ -11,20 +11,20 @@ EXPOSE 5020
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["HealthCheckService/HealthCheckService.csproj", "HealthCheckService/"]
+COPY ["DeploymentService/DeploymentService.csproj", "DeploymentService/"]
 COPY ["ResourceShared/ResourceShared.csproj", "ResourceShared/"]
-RUN dotnet restore "./HealthCheckService/HealthCheckService.csproj"
+RUN dotnet restore "./DeploymentService/DeploymentService.csproj"
 COPY . .
-WORKDIR "/src/HealthCheckService"
-RUN dotnet build "./HealthCheckService.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/DeploymentService"
+RUN dotnet build "./DeploymentService.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./HealthCheckService.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./DeploymentService.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "HealthCheckService.dll"]
+ENTRYPOINT ["dotnet", "DeploymentService.dll"]
