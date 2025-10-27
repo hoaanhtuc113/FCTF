@@ -13,6 +13,7 @@ namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class ActionLogsController : ControllerBase
     {
         private IActionLogsServices _actionLogsServices;
