@@ -8,6 +8,7 @@ namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class HintController : ControllerBase
     {
         private readonly IHintService _hintService;

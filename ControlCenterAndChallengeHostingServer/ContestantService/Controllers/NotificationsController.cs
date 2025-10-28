@@ -5,11 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Notification;
 using ResourceShared.Models;
 using System.Threading.Tasks;
-
+using ContestantService.Attribute;
 namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class NotificationsController : ControllerBase
     {
         private INotificationServices _notification;

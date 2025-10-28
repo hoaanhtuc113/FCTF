@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ResourceShared.Models;
+using ContestantService.Attribute;
 
 namespace ContestantService.Middlewares
 {
@@ -16,6 +17,15 @@ namespace ContestantService.Middlewares
 
         public async Task Invoke(HttpContext context)
         {
+            var endpoint = context.GetEndpoint();
+            var requireAuth = endpoint?.Metadata.GetMetadata<RequireAuthAttribute>() != null;
+
+            if (!requireAuth)
+            {
+                await _next(context);
+                return;
+            }
+
             try
             {
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
