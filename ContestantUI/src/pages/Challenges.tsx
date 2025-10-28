@@ -525,6 +525,37 @@ function ChallengeListItem({
   isSelected: boolean;
 }) {
   const { theme } = useTheme();
+  
+  // Check if this challenge is deploying
+  const [isDeploying, setIsDeploying] = React.useState(false);
+  
+  React.useEffect(() => {
+    const deploymentKey = `deployment_${challenge.id}`;
+    const checkDeploymentStatus = () => {
+      const savedDeployment = localStorage.getItem(deploymentKey);
+      if (savedDeployment) {
+        const { isDeploying, startTime } = JSON.parse(savedDeployment);
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000;
+        // If still within timeout
+        if (isDeploying && elapsed < 120) {
+          setIsDeploying(true);
+        } else {
+          setIsDeploying(false);
+        }
+      } else {
+        setIsDeploying(false);
+      }
+    };
+    
+    // Check immediately
+    checkDeploymentStatus();
+    
+    // Check every 2 seconds
+    const interval = setInterval(checkDeploymentStatus, 2000);
+    
+    return () => clearInterval(interval);
+  }, [challenge.id]);
 
   const handleClick = () => {
     if (isContestActive) {
@@ -603,6 +634,17 @@ function ChallengeListItem({
                   {challenge.solves} solves
                 </span>
               )}
+              
+              {/* Deployment status badge */}
+              {isDeploying && (
+                <span className={`px-2 py-0.5 rounded animate-pulse ${
+                  theme === 'dark'
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
+                }`}>
+                  [~] deploying...
+                </span>
+              )}
             </div>
           </div>
 
@@ -652,7 +694,7 @@ function ChallengeDetailPanel({
   const hasDescription = !!challenge.description;
   const hasPdfFiles = pdfFiles.length > 0;
 
-  // Load cooldown from localStorage when challenge changes
+  // Load cooldown and deployment state from localStorage when challenge changes
   useEffect(() => {
     const loadCooldown = () => {
       const cooldownKey = `cooldown_${challenge.id}`;
@@ -673,7 +715,32 @@ function ChallengeDetailPanel({
       }
     };
 
+    const loadDeploymentState = async () => {
+      const deploymentKey = `deployment_${challenge.id}`;
+      const savedDeployment = localStorage.getItem(deploymentKey);
+      
+      if (savedDeployment) {
+        const { isDeploying, startTime } = JSON.parse(savedDeployment);
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000; // seconds
+        
+        // If still within deployment timeout (2 minutes = 120 seconds)
+        if (isDeploying && elapsed < 120) {
+          setIsDeploymentInProgress(true);
+          setIsStarting(true);
+          // Continue health check in background
+          setTimeout(() => {
+            startHealthCheckLoop();
+          }, 100);
+        } else {
+          // Timeout or completed, clean up
+          localStorage.removeItem(deploymentKey);
+        }
+      }
+    };
+
     loadCooldown();
+    loadDeploymentState();
     fetchHints();
     fetchChallengeStatus();
 
@@ -763,6 +830,14 @@ function ChallengeDetailPanel({
         setTimeRemaining(data.data.time_limit);
         setIsChallengeStarted(data.data.is_started || false);
         setUrl(data.challenge_url || null);
+        
+        // If we have URL, deployment is complete - clean up deployment state
+        if (data.challenge_url) {
+          const deploymentKey = `deployment_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          setIsDeploymentInProgress(false);
+          setIsStarting(false);
+        }
       }
     } catch (error) {
       console.error('Error fetching challenge status:', error);
@@ -772,6 +847,13 @@ function ChallengeDetailPanel({
   const handleStartChallenge = async () => {
     setIsStarting(true);
     setIsDeploymentInProgress(true); // Set immediately with button
+    
+    // Save deployment state to localStorage
+    const deploymentKey = `deployment_${challenge.id}`;
+    localStorage.setItem(deploymentKey, JSON.stringify({
+      isDeploying: true,
+      startTime: Date.now()
+    }));
     
     // Give React time to update the UI before showing popup
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -805,44 +887,44 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
 
-      // Case 1: 200 + true = Already deployed or deploy complete
+      // Case 1: 200 + true + có URL = Challenge đã deploy xong, trả URL luôn
       if (response.status === 200 && data.success === true && data.challenge_url) {
         Swal.close();
         setIsChallengeStarted(true);
         setUrl(data.challenge_url);
         setIsStarting(false);
+        setIsDeploymentInProgress(false);
+        
+        // Clear deployment state from localStorage
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
+        
         await fetchChallengeStatus();
         
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-green-400 mb-2">[+] Challenge deployed</div>
-              <div class="text-gray-400">> Connection established</div>
-              <div class="text-gray-400">> Environment ready</div>
-              <div class="text-cyan-400 mt-2">> ${data.challenge_url}</div>
-            </div>
-          `,
-          icon: 'success',
-          iconColor: '#22c55e',
-          confirmButtonText: 'OK',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#22c55e' : '#000000',
-          customClass: {
-            popup: 'rounded-lg border border-green-500/30',
-            confirmButton: 'bg-green-500 hover:bg-green-600 text-black font-mono px-4 py-2 rounded',
-          },
-          timer: 3000,
-          showConfirmButton: false,
-        });
+        // Save notification for global listener (immediate success)
+        const notificationKey = `deployment_notification_${challenge.id}`;
+        localStorage.setItem(notificationKey, JSON.stringify({
+          challengeId: challenge.id,
+          challengeName: challenge.name,
+          status: 'success',
+          url: data.challenge_url,
+          message: 'Challenge already deployed',
+          timestamp: Date.now()
+        }));
       }
-      // Case 2: 200 + false = Sent to Argo, need to health check
-      else if (response.status === 200 && data.success === false) {
+      // Case 2: 200 + true + KHÔNG có URL = Đang deploy, cần loop health check
+      else if (response.status === 200 && data.success === true && !data.challenge_url) {
         await startHealthCheckLoop();
       }
       else {
         Swal.close();
         setIsStarting(false);
         setIsDeploymentInProgress(false);
+        
+        // Clear deployment state from localStorage
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
+        
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -866,6 +948,11 @@ function ChallengeDetailPanel({
       Swal.close();
       setIsStarting(false);
       setIsDeploymentInProgress(false); // Hide red note
+      
+      // Clear deployment state from localStorage
+      const deploymentKey = `deployment_${challenge.id}`;
+      localStorage.removeItem(deploymentKey);
+      
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
@@ -909,27 +996,20 @@ function ChallengeDetailPanel({
           setIsStarting(false);
           setIsDeploymentInProgress(false);
           
-          // Show success popup when URL is ready
-          Swal.fire({
-            html: `
-              <div class="font-mono text-left text-sm">
-                <div class="text-green-400 mb-2">[+] Deployment complete</div>
-                <div class="text-gray-400">> ${data.message}</div>
-                <div class="text-cyan-400 mt-2">> ${data.challenge_url}</div>
-              </div>
-            `,
-            icon: 'success',
-            iconColor: '#22c55e',
-            confirmButtonText: 'OK',
-            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-            color: theme === 'dark' ? '#22c55e' : '#000000',
-            customClass: {
-              popup: 'rounded-lg border border-green-500/30',
-              confirmButton: 'bg-green-500 hover:bg-green-600 text-black font-mono px-4 py-2 rounded',
-            },
-            timer: 3000,
-            showConfirmButton: false,
-          });
+          // Clear deployment state from localStorage
+          const deploymentKey = `deployment_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          
+          // Save notification for global listener
+          const notificationKey = `deployment_notification_${challenge.id}`;
+          localStorage.setItem(notificationKey, JSON.stringify({
+            challengeId: challenge.id,
+            challengeName: challenge.name,
+            status: 'success',
+            url: data.challenge_url,
+            message: data.message,
+            timestamp: Date.now()
+          }));
           
           return true; // Success
         }
@@ -938,25 +1018,21 @@ function ChallengeDetailPanel({
         if (attempts >= maxAttempts) {
           setIsStarting(false);
           setIsDeploymentInProgress(false);
-          Swal.fire({
-            html: `
-              <div class="font-mono text-left text-sm">
-                <div class="text-orange-400 mb-2">[!] Deployment timeout</div>
-                <div class="text-gray-400">> Pod creation taking longer than expected</div>
-                <div class="text-gray-400">> Please try again or contact admin</div>
-                <div class="text-gray-500 mt-2">> Attempts: ${attempts}/${maxAttempts}</div>
-              </div>
-            `,
-            icon: 'warning',
-            iconColor: '#fb923c',
-            confirmButtonText: 'Close',
-            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-            color: theme === 'dark' ? '#fb923c' : '#000000',
-            customClass: {
-              popup: 'rounded-lg border border-orange-500/30',
-              confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
-            },
-          });
+          
+          // Clear deployment state from localStorage
+          const deploymentKey = `deployment_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          
+          // Save notification for global listener
+          const notificationKey = `deployment_notification_${challenge.id}`;
+          localStorage.setItem(notificationKey, JSON.stringify({
+            challengeId: challenge.id,
+            challengeName: challenge.name,
+            status: 'timeout',
+            message: 'Pod creation taking longer than expected',
+            timestamp: Date.now()
+          }));
+          
           return true; // Stop loop
         }
         
@@ -975,24 +1051,21 @@ function ChallengeDetailPanel({
         
         setIsStarting(false);
         setIsDeploymentInProgress(false);
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-red-400 mb-2">[!] Health check failed</div>
-              <div class="text-gray-400">> Unable to verify deployment</div>
-              <div class="text-gray-400">> Please refresh and try again</div>
-            </div>
-          `,
-          icon: 'error',
-          iconColor: '#ef4444',
-          confirmButtonText: 'Close',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#ef4444' : '#000000',
-          customClass: {
-            popup: 'rounded-lg border border-red-500/30',
-            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-          },
-        });
+        
+        // Clear deployment state from localStorage
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
+        
+        // Save notification for global listener
+        const notificationKey = `deployment_notification_${challenge.id}`;
+        localStorage.setItem(notificationKey, JSON.stringify({
+          challengeId: challenge.id,
+          challengeName: challenge.name,
+          status: 'error',
+          message: 'Unable to verify deployment',
+          timestamp: Date.now()
+        }));
+        
         return true; // Stop loop
       }
     };

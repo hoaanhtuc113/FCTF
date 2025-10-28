@@ -5,7 +5,8 @@ import { ToastProvider } from './components/ToastProvider';
 import { PrivateRoute } from './components/PrivateRoute';
 import { PageLoader } from './components/PageLoader';
 import { Layout } from './components/Layout';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { useDeploymentNotification } from './hooks/useDeploymentNotification';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
@@ -16,69 +17,81 @@ const Tickets = lazy(() => import('./pages/Tickets').then(module => ({ default: 
 const TicketDetail = lazy(() => import('./pages/TicketDetail').then(module => ({ default: module.TicketDetail })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 
+// Inner component to use theme context
+function AppRoutes() {
+  const { theme } = useTheme();
+  
+  // Global deployment notification listener
+  useDeploymentNotification(theme);
+
+  return (
+    <BrowserRouter>
+      <ToastProvider>
+        <AuthProvider>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <PrivateRoute>
+                    <Layout><Dashboard /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/challenges"
+                element={
+                  <PrivateRoute>
+                    <Layout><Challenges /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/scoreboard"
+                element={
+                  <PrivateRoute>
+                    <Layout><Scoreboard /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/tickets"
+                element={
+                  <PrivateRoute>
+                    <Layout><Tickets /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/tickets/:id"
+                element={
+                  <PrivateRoute>
+                    <Layout><TicketDetail /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <Layout><Profile /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
+        </AuthProvider>
+      </ToastProvider>
+    </BrowserRouter>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <ToastProvider>
-          <AuthProvider>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                  path="/dashboard"
-                  element={
-                    <PrivateRoute>
-                      <Layout><Dashboard /></Layout>
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/challenges"
-                  element={
-                    <PrivateRoute>
-                      <Layout><Challenges /></Layout>
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/scoreboard"
-                  element={
-                    <PrivateRoute>
-                      <Layout><Scoreboard /></Layout>
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/tickets"
-                  element={
-                    <PrivateRoute>
-                      <Layout><Tickets /></Layout>
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/tickets/:id"
-                  element={
-                    <PrivateRoute>
-                      <Layout><TicketDetail /></Layout>
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <PrivateRoute>
-                      <Layout><Profile /></Layout>
-                    </PrivateRoute>
-                  }
-                />
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </Suspense>
-          </AuthProvider>
-        </ToastProvider>
-      </BrowserRouter>
+      <AppRoutes />
     </ThemeProvider>
   );
 }
