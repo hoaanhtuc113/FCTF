@@ -68,6 +68,32 @@ export function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // F1 - Challenges (only if contest is active)
+      if (e.key === 'F1') {
+        e.preventDefault();
+        if (isContestActive) {
+          navigate('/challenges');
+        }
+      }
+      // F2 - Scoreboard
+      else if (e.key === 'F2') {
+        e.preventDefault();
+        navigate('/scoreboard');
+      }
+      // F3 - Tickets
+      else if (e.key === 'F3') {
+        e.preventDefault();
+        navigate('/tickets');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [navigate, isContestActive]);
+
   // Continuous terminal commands effect
   useEffect(() => {
     const commands = [
@@ -640,9 +666,9 @@ export function Home() {
             gap: 2
           }}>
             {[
-              { label: 'view_challenges', key: 'F1', active: isContestActive, route: '/challenges' },
-              { label: 'check_scoreboard', key: 'F2', active: true, route: '/scoreboard' },
-              { label: 'submit_ticket', key: 'F3', active: true, route: '/tickets' },
+              { label: 'view_challenges', key: 'F1', active: isContestActive, route: '/challenges', icon: '[]' },
+              { label: 'check_scoreboard', key: 'F2', active: true, route: '/scoreboard', icon: '[]' },
+              { label: 'submit_ticket', key: 'F3', active: true, route: '/tickets', icon: '[]' },
             ].map((action, idx) => (
               <Box 
                 key={idx} 
@@ -654,29 +680,55 @@ export function Home() {
                   cursor: action.active ? 'pointer' : 'not-allowed',
                   opacity: action.active ? 1 : 0.5,
                   transition: 'all 0.2s',
+                  position: 'relative',
                   '&:hover': action.active ? {
-                    borderColor: colors.borderLight,
-                    bgcolor: colors.terminalBorder
+                    borderColor: colors.primary,
+                    bgcolor: colors.terminalBorder,
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px rgba(34, 211, 238, 0.2)`
+                  } : {},
+                  '&:active': action.active ? {
+                    transform: 'translateY(0)',
                   } : {}
                 }}>
                 <Box sx={{ 
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  gap: 1
                 }}>
-                  <Box sx={{ color: colors.textPrimary, fontSize: '12px' }}>
-                    {action.label}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <span style={{ fontSize: '14px' }}>{action.icon}</span>
+                    <Box sx={{ color: colors.textPrimary, fontSize: '12px' }}>
+                      {action.label}
+                    </Box>
                   </Box>
                   <Box sx={{ 
-                    color: colors.textMuted,
+                    color: action.active ? colors.primary : colors.textMuted,
                     fontSize: '10px',
-                    border: `1px solid ${colors.borderColor}`,
-                    px: 0.5,
-                    py: 0.25
+                    border: `1px solid ${action.active ? colors.primary : colors.borderColor}`,
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: '2px',
+                    fontWeight: 'bold',
+                    bgcolor: action.active ? 'rgba(34, 211, 238, 0.1)' : 'transparent'
                   }}>
                     {action.key}
                   </Box>
                 </Box>
+                {!action.active && (
+                  <Box sx={{ 
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    color: colors.textMuted,
+                    fontSize: '9px',
+                    pointerEvents: 'none'
+                  }}>
+                    [LOCKED]
+                  </Box>
+                )}
               </Box>
             ))}
           </Box>
