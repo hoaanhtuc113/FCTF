@@ -210,7 +210,7 @@ export function Challenges() {
             theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
           }`}>
             <Typography variant="h6" className={`font-bold font-mono text-sm ${
-              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              theme === 'dark' ? 'text-cyan-300' : 'text-cyan-600'
             }`}>
               [CATEGORIES]
             </Typography>
@@ -297,7 +297,7 @@ export function Challenges() {
           >
             <div className="mb-4">
               <h1 className={`text-xl font-bold font-mono ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                theme === 'dark' ? 'text-cyan-300' : 'text-cyan-600'
               }`}>
                 [{selectedCategory.toUpperCase()}]
               </h1>

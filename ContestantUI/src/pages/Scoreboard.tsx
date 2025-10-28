@@ -175,7 +175,7 @@ export function Scoreboard() {
           {/* Header */}
           <div className="mb-6">
             <h2 className={`text-xl font-mono font-bold mb-1 ${
-              theme === 'dark' ? 'text-green-400' : 'text-green-600'
+              theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
             }`}>
               [LEADERBOARD]
             </h2>
@@ -204,12 +204,13 @@ export function Scoreboard() {
                     : 'bg-white text-gray-900 border-gray-300 focus:border-green-500'
                 }`}
               />
+
               <button
                 onClick={handleSearch}
                 className={`absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 rounded font-mono text-xs ${
                   theme === 'dark'
-                    ? 'bg-green-500 hover:bg-green-600 text-black'
-                    : 'bg-green-500 hover:bg-green-600 text-white'
+                    ? 'bg-cyan-400 hover:bg-cyan-600 text-black'
+                    : 'bg-cyan-400 hover:bg-cyan-600 text-white'
                 }`}
               >
                 GO
@@ -339,11 +340,10 @@ export function Scoreboard() {
                               <span className="truncate">{team.name}</span>
                             </div>
                           </td>
-                          
                           {/* Score */}
                           <td className="p-3 text-right">
                             <span className={`font-mono font-bold ${
-                              theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                              theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
                             }`}>
                               {team.score}
                             </span>
@@ -441,7 +441,7 @@ export function Scoreboard() {
           {/* Chart Header */}
           <div className="mb-6">
             <h2 className={`text-xl font-mono font-bold mb-1 ${
-              theme === 'dark' ? 'text-green-400' : 'text-green-600'
+              theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
             }`}>
               [SCORE_EVOLUTION]
             </h2>
