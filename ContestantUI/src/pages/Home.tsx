@@ -33,8 +33,8 @@ export function Home() {
   const colors = {
     // Terminal frame
     terminalBg: isDark ? '#000' : '#0a0a0a',
-    terminalBorder: isDark ? '#18181b' : '#27272a',
-    titleBarBg: isDark ? '#09090b' : '#18181b',
+    terminalBorder: isDark ? '#3f3f46' : '#27272a', // Tăng độ sáng của border trong dark mode
+    titleBarBg: isDark ? '#18181b' : '#18181b',
     
     // Text colors
     primary: '#22d3ee', // cyan stays same
@@ -49,8 +49,8 @@ export function Home() {
     bgLight: isDark ? '#000' : '#0a0a0a',
     
     // Decorations
-    decorationBg: isDark ? '#18181b' : '#3f3f46',
-    gridOpacity: isDark ? 0.03 : 0.05,
+    decorationBg: isDark ? '#ffffff' : '#3f3f46', // Tăng độ sáng cho ASCII art
+    gridOpacity: isDark ? 0.08 : 0.05, // Tăng độ sáng của lưới trong dark mode
   };
 
   // Terminal typing effect
@@ -237,7 +237,7 @@ export function Home() {
         fontSize: '10px',
         lineHeight: 1,
         fontFamily: 'monospace',
-        opacity: 0.4,
+        opacity: isDark ? 0.6 : 0.4, // Tăng opacity trong dark mode
         userSelect: 'none',
         display: { xs: 'none', md: 'block' }
       }}>
@@ -260,7 +260,7 @@ export function Home() {
         fontSize: '9px',
         lineHeight: 1.2,
         fontFamily: 'monospace',
-        opacity: 0.3,
+        opacity: isDark ? 0.5 : 0.3, // Tăng opacity trong dark mode
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -280,7 +280,7 @@ export function Home() {
         fontSize: '10px',
         lineHeight: 1.1,
         fontFamily: 'monospace',
-        opacity: 0.35,
+        opacity: isDark ? 0.55 : 0.35, // Tăng opacity trong dark mode
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -299,7 +299,7 @@ export function Home() {
         fontSize: '8px',
         lineHeight: 1.3,
         fontFamily: 'monospace',
-        opacity: 0.3,
+        opacity: isDark ? 0.5 : 0.3, // Tăng opacity trong dark mode
         userSelect: 'none',
         display: { xs: 'none', md: 'block' }
       }}>
@@ -315,10 +315,10 @@ export function Home() {
         position: 'absolute',
         top: '5%',
         left: '3%',
-        color: colors.borderColor,
+        color: isDark ? colors.borderLight : colors.borderColor, // Sáng hơn trong dark mode
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: 0.5,
+        opacity: isDark ? 0.7 : 0.5, // Tăng opacity trong dark mode
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -329,10 +329,10 @@ export function Home() {
         position: 'absolute',
         top: '5%',
         right: '3%',
-        color: colors.borderColor,
+        color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: 0.5,
+        opacity: isDark ? 0.7 : 0.5,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -343,10 +343,10 @@ export function Home() {
         position: 'absolute',
         bottom: '5%',
         left: '3%',
-        color: colors.borderColor,
+        color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: 0.5,
+        opacity: isDark ? 0.7 : 0.5,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -357,10 +357,10 @@ export function Home() {
         position: 'absolute',
         bottom: '5%',
         right: '3%',
-        color: colors.borderColor,
+        color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: 0.5,
+        opacity: isDark ? 0.7 : 0.5,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -374,7 +374,9 @@ export function Home() {
         left: 0,
         width: '60px',
         height: '2px',
-        background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
+        background: isDark 
+          ? 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.5), transparent)'
+          : 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
         display: { xs: 'none', md: 'block' }
       }} />
 
@@ -384,7 +386,9 @@ export function Home() {
         right: 0,
         width: '60px',
         height: '2px',
-        background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
+        background: isDark 
+          ? 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.5), transparent)'
+          : 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
         display: { xs: 'none', md: 'block' }
       }} />
 
@@ -395,7 +399,7 @@ export function Home() {
         bgcolor: colors.terminalBg,
         border: `2px solid ${colors.terminalBorder}`,
         boxShadow: isDark 
-          ? '0 0 0 1px rgba(255,255,255,0.05), 0 20px 40px rgba(0,0,0,0.4)'
+          ? '0 0 0 1px rgba(255,255,255,0.1), 0 0 30px rgba(34, 211, 238, 0.15), 0 20px 40px rgba(0,0,0,0.4)'
           : '0 0 0 1px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2)',
         overflow: 'hidden',
         position: 'relative',
