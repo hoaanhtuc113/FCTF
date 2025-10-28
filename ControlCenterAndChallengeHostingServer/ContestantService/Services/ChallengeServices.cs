@@ -157,6 +157,20 @@ namespace ContestantService.Services
             {
                 var sovle_id = await _dbContext.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == team_id);
 
+                // Parse requirements JSON string
+                ChallengeRequirementsDTO? requirementsObj = null;
+                if (!string.IsNullOrEmpty(challenge.Requirements))
+                {
+                    try
+                    {
+                        requirementsObj = JsonConvert.DeserializeObject<ChallengeRequirementsDTO>(challenge.Requirements);
+                    }
+                    catch (Exception ex)
+                    {
+                        await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+                    }
+                }
+
                 topics_data.Add(new ChallengeByCategoryDTO
                 {
                     id = challenge.Id,
@@ -167,7 +181,7 @@ namespace ContestantService.Services
                     category = challenge.Category,
                     time_limit = challenge.TimeLimit,
                     type = challenge.Type,
-                    requirements = challenge.Requirements,
+                    requirements = requirementsObj,
                     solve_by_myteam = sovle_id != null ? true : false,
                 });
             }

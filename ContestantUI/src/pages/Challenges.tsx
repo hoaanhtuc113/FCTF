@@ -32,6 +32,11 @@ interface Category {
   challenge_count: number;
 }
 
+interface ChallengeRequirements {
+  prerequisites?: number[];
+  anonymize?: boolean;
+}
+
 interface Challenge {
   id: number;
   name: string;
@@ -47,6 +52,14 @@ interface Challenge {
   attemps?: number;
   require_deploy?: boolean;
   is_captain?: boolean;
+  requirements?: ChallengeRequirements | null;
+}
+
+interface PrerequisiteChallenge {
+  id: number;
+  name: string;
+  category: string;
+  solved: boolean;
 }
 
 interface Hint {
@@ -65,12 +78,65 @@ export function Challenges() {
   const [loadingChallenges, setLoadingChallenges] = useState(false);
   const [error, setError] = useState('');
   const [isContestActive, setIsContestActive] = useState(false);
+  const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
 
   // Pagination states
   const [categoryPage, setCategoryPage] = useState(1);
   const [challengePage, setChallengePage] = useState(1);
   const categoriesPerPage = 5;
   const challengesPerPage = 10;
+
+  // Check if challenge prerequisites are met
+  const checkPrerequisites = async (challenge: Challenge): Promise<{ locked: boolean; unmetPrereqs: PrerequisiteChallenge[] }> => {
+    if (!challenge.requirements?.prerequisites || challenge.requirements.prerequisites.length === 0) {
+      return { locked: false, unmetPrereqs: [] };
+    }
+
+    const unmetPrereqs: PrerequisiteChallenge[] = [];
+    
+    for (const prereqId of challenge.requirements.prerequisites) {
+      try {
+        const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(prereqId), {
+          method: 'GET'
+        });
+        const data = await response.json();
+        
+        // API response structure: { message: true, data: { id, name, category, solve_by_myteam, ... } }
+        if (data.data) {
+          const isSolved = data.data.solve_by_myteam || false;
+          
+          if (!isSolved) {
+            unmetPrereqs.push({
+              id: prereqId,
+              name: data.data.name || `Challenge ${prereqId}`,
+              category: data.data.category || '',
+              solved: false
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Error checking prerequisite ${prereqId}:`, error);
+      }
+    }
+
+    return { locked: unmetPrereqs.length > 0, unmetPrereqs };
+  };
+
+  // Load prerequisites info for all challenges
+  const loadPrerequisitesInfo = async (challengeList: Challenge[]) => {
+    const prereqMap = new Map<number, PrerequisiteChallenge[]>();
+    
+    for (const challenge of challengeList) {
+      if (challenge.requirements?.prerequisites) {
+        const { unmetPrereqs } = await checkPrerequisites(challenge);
+        if (unmetPrereqs.length > 0) {
+          prereqMap.set(challenge.id, unmetPrereqs);
+        }
+      }
+    }
+    
+    setPrerequisiteInfo(prereqMap);
+  };
 
 
   const refreshChallengeData = async () => {
@@ -87,7 +153,8 @@ export function Challenges() {
         setSelectedChallenge({
           ...data.data,
           value: selectedChallenge.value,
-          solves: selectedChallenge.solves
+          solves: selectedChallenge.solves,
+          requirements: selectedChallenge.requirements
         });
       } catch (error) {
         console.error('Error refreshing challenge details:', error);
@@ -125,7 +192,12 @@ export function Challenges() {
     try {
       setLoadingChallenges(true);
       const data = await challengeService.getChallengesByTopic(categoryName);
-      setChallenges(Array.isArray(data) ? data : []);
+      const challengeList = Array.isArray(data) ? data : [];
+      setChallenges(challengeList);
+      
+      // Load prerequisites info for challenges with requirements
+      await loadPrerequisitesInfo(challengeList);
+      
       setLoadingChallenges(false);
     } catch (err) {
       console.error('Error fetching challenges:', err);
@@ -144,6 +216,37 @@ export function Challenges() {
   const handleChallengeClick = async (challenge: Challenge) => {
     if (!isContestActive) return;
     
+    // Check if challenge has prerequisites
+    const unmetPrereqs = prerequisiteInfo.get(challenge.id) || [];
+    
+    if (unmetPrereqs.length > 0) {
+      // Show locked challenge warning
+      const prereqList = unmetPrereqs.map(p => `${p.name} (${p.category})`).join(', ');
+      
+      Swal.fire({
+        html: `
+          <div class="font-mono text-left text-sm">
+            <div class="text-yellow-400 mb-2">[!] Challenge Locked</div>
+            <div class="text-gray-400 mb-2">> Prerequisites required:</div>
+            <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-yellow-500/30">
+              ${prereqList}
+            </div>
+            <div class="text-gray-400 mt-2">> Complete required challenges first</div>
+          </div>
+        `,
+        icon: 'warning',
+        iconColor: '#fbbf24',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#fbbf24' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-yellow-500/30',
+          confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+        },
+      });
+      return;
+    }
+    
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
         method: 'GET'
@@ -153,7 +256,8 @@ export function Challenges() {
       setSelectedChallenge({
         ...data.data,
         value: challenge.value,
-        solves: challenge.solves
+        solves: challenge.solves,
+        requirements: challenge.requirements // Preserve requirements
       });
     } catch (error) {
       console.error('Error fetching challenge details:', error);
@@ -324,6 +428,8 @@ export function Challenges() {
                       isContestActive={isContestActive}
                       onClick={() => handleChallengeClick(challenge)}
                       isSelected={selectedChallenge?.id === challenge.id}
+                      isLocked={(prerequisiteInfo.get(challenge.id) || []).length > 0}
+                      prerequisites={prerequisiteInfo.get(challenge.id) || []}
                     />
                   ))}
                 </div>
@@ -518,11 +624,15 @@ function ChallengeListItem({
   isContestActive,
   onClick,
   isSelected,
+  isLocked = false,
+  prerequisites = [],
 }: {
   challenge: Challenge;
   isContestActive: boolean;
   onClick: () => void;
   isSelected: boolean;
+  isLocked?: boolean;
+  prerequisites?: PrerequisiteChallenge[];
 }) {
   const { theme } = useTheme();
   
@@ -566,13 +676,13 @@ function ChallengeListItem({
   return (
     <div
       className={`relative border rounded transition-colors ${
-        !isContestActive ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+        !isContestActive || isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
       } ${
         isSelected
           ? theme === 'dark' 
             ? 'border-green-500 bg-green-900/20' 
             : 'border-green-500 bg-green-50'
-          : !isContestActive
+          : !isContestActive || isLocked
           ? theme === 'dark'
             ? 'bg-gray-800/50 border-gray-700'
             : 'bg-white border-gray-300'
@@ -592,6 +702,8 @@ function ChallengeListItem({
             <div className="flex items-center gap-2 mb-2">
               {challenge.solve_by_myteam ? (
                 <CheckCircle className="text-green-500 flex-shrink-0" sx={{ fontSize: 18 }} />
+              ) : isLocked ? (
+                <Lock className="text-yellow-500 flex-shrink-0" sx={{ fontSize: 18 }} />
               ) : isContestActive ? (
                 <LockOpen className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} sx={{ fontSize: 18 }} />
               ) : (
@@ -602,6 +714,8 @@ function ChallengeListItem({
                 className={`text-sm font-mono font-bold truncate ${
                   challenge.solve_by_myteam
                     ? 'text-green-500'
+                    : isLocked
+                    ? 'text-yellow-500'
                     : isContestActive
                     ? theme === 'dark' ? 'text-white' : 'text-gray-900'
                     : 'text-gray-500'
@@ -613,6 +727,31 @@ function ChallengeListItem({
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs font-mono">
+              {isLocked && (
+                <span className={`px-2 py-0.5 rounded ${
+                  theme === 'dark'
+                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                    : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                }`}>
+                  [!] locked
+                </span>
+              )}
+              
+              {/* Prerequisites chips */}
+              {isLocked && prerequisites.map((prereq) => (
+                <span 
+                  key={prereq.id}
+                  className={`px-2 py-0.5 rounded ${
+                    theme === 'dark'
+                      ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                      : 'bg-orange-100 text-orange-700 border border-orange-300'
+                  }`}
+                  title={`Requires: ${prereq.name}`}
+                >
+                  {prereq.name} ({prereq.category})
+                </span>
+              ))}
+              
               <span className={`px-2 py-0.5 rounded ${
                 challenge.solve_by_myteam
                   ? theme === 'dark'
@@ -686,6 +825,7 @@ function ChallengeDetailPanel({
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [unlockingHintId, setUnlockingHintId] = useState<number | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [cooldownTotal, setCooldownTotal] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
 
@@ -701,16 +841,18 @@ function ChallengeDetailPanel({
       const savedCooldown = localStorage.getItem(cooldownKey);
       
       if (savedCooldown) {
-        const { expireTime } = JSON.parse(savedCooldown);
+        const { expireTime, totalSeconds } = JSON.parse(savedCooldown);
         const now = Date.now();
         const remaining = Math.max(0, Math.floor((expireTime - now) / 1000));
         
         if (remaining > 0) {
           setCooldownRemaining(remaining);
+          setCooldownTotal(totalSeconds || remaining);
         } else {
           // Expired, remove from localStorage
           localStorage.removeItem(cooldownKey);
           setCooldownRemaining(0);
+          setCooldownTotal(0);
         }
       }
     };
@@ -757,10 +899,13 @@ function ChallengeDetailPanel({
   // Cooldown countdown effect
   useEffect(() => {
     if (cooldownRemaining > 0) {
-      // Save to localStorage with expiry time
+      // Save to localStorage with expiry time and total seconds
       const cooldownKey = `cooldown_${challenge.id}`;
       const expireTime = Date.now() + (cooldownRemaining * 1000);
-      localStorage.setItem(cooldownKey, JSON.stringify({ expireTime }));
+      localStorage.setItem(cooldownKey, JSON.stringify({ 
+        expireTime, 
+        totalSeconds: cooldownTotal > 0 ? cooldownTotal : cooldownRemaining 
+      }));
 
       cooldownTimerRef.current = window.setInterval(() => {
         setCooldownRemaining((prev) => {
@@ -768,6 +913,7 @@ function ChallengeDetailPanel({
             if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
             // Remove from localStorage when cooldown ends
             localStorage.removeItem(cooldownKey);
+            setCooldownTotal(0);
             return 0;
           }
           return prev - 1;
@@ -1213,12 +1359,20 @@ function ChallengeDetailPanel({
           ? challenge.max_attempts - (challenge.attemps || 0) - 1 
           : '∞';
         
+        // Set cooldown if provided by API
+        const cooldownSeconds = data.data.cooldown || 0;
+        if (cooldownSeconds > 0) {
+          setCooldownRemaining(cooldownSeconds);
+          setCooldownTotal(cooldownSeconds);
+        }
+        
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
               <div class="text-red-400 mb-2">[!] INCORRECT FLAG</div>
               <div class="text-gray-400">> ${data.data.message || 'Wrong flag'}</div>
               ${challenge.max_attempts > 0 ? `<div class="text-gray-400">> ${attemptsLeft} attempts left</div>` : ''}
+              ${cooldownSeconds > 0 ? `<div class="text-orange-400">> Cooldown: ${cooldownSeconds}s</div>` : ''}
             </div>
           `,
           icon: 'error',
@@ -1255,12 +1409,12 @@ function ChallengeDetailPanel({
           },
         });
       } else if (data?.data?.status === 'ratelimited') {
-        // Extract cooldown seconds from message
-        const cooldownMatch = data.data.message?.match(/(\d+)\s+seconds?/i);
-        const cooldownSeconds = cooldownMatch ? parseInt(cooldownMatch[1]) : 0;
+        // Get cooldown directly from API response
+        const cooldownSeconds = data.data.cooldown || 0;
         
         if (cooldownSeconds > 0) {
           setCooldownRemaining(cooldownSeconds);
+          setCooldownTotal(cooldownSeconds);
         }
         
         await Swal.fire({
@@ -1287,6 +1441,26 @@ function ChallengeDetailPanel({
             <div class="font-mono text-left text-sm">
               <div class="text-yellow-400 mb-2">[!] Contest Paused</div>
               <div class="text-gray-400">> ${data.data.message || 'Contest is paused'}</div>
+            </div>
+          `,
+          icon: 'warning',
+          iconColor: '#fbbf24',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fbbf24' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-yellow-500/30',
+            confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+          },
+        });
+      } else if (data?.message && data.message.includes("don't have the permission")) {
+        // Handle prerequisite not met error
+        await Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-yellow-400 mb-2">[!] Challenge Locked</div>
+              <div class="text-gray-400 mb-2">> Prerequisites not met</div>
+              <div class="text-gray-400">> Complete required challenges first</div>
             </div>
           `,
           icon: 'warning',
@@ -2173,7 +2347,7 @@ const getFileName = (filePath : string) => {
                           <div 
                             className="h-full bg-orange-500 transition-all duration-1000 ease-linear"
                             style={{ 
-                              width: `${(cooldownRemaining / 60) * 100}%` // Assuming max 60s cooldown
+                              width: `${cooldownTotal > 0 ? (cooldownRemaining / cooldownTotal) * 100 : 0}%`
                             }}
                           />
                         </div>
