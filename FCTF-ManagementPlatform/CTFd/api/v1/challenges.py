@@ -717,6 +717,7 @@ class ChallengeAttempt(Resource):
                     "data": {
                         "status": "correct" if status else "incorrect",
                         "message": message,
+                        "cooldown": challenge.cooldown,
                     },
                 }
 
@@ -940,7 +941,7 @@ class ChallengeAttempt(Resource):
                 else:
                     return {
                         "success": True,
-                        "data": {"status": "incorrect", "message": message},
+                        "data": {"status": "incorrect", "message": message, "cooldown": challenge.cooldown},
                     }
 
         # Challenge already solved

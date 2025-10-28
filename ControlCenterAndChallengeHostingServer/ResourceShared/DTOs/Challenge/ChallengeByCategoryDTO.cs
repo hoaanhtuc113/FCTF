@@ -16,7 +16,7 @@ namespace ResourceShared.DTOs.Challenge
         public string? category { get; set; }
         public int? time_limit { get; set; }
         public string? type { get; set; }
-        public string? requirements { get; set; }
+        public ChallengeRequirementsDTO? requirements { get; set; }
         public bool solve_by_myteam { get; set; }
 
     }
