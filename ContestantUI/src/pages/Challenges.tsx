@@ -66,6 +66,12 @@ export function Challenges() {
   const [error, setError] = useState('');
   const [isContestActive, setIsContestActive] = useState(false);
 
+  // Pagination states
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [challengePage, setChallengePage] = useState(1);
+  const categoriesPerPage = 5;
+  const challengesPerPage = 10;
+
 
   const refreshChallengeData = async () => {
     if (selectedCategory) {
@@ -131,6 +137,7 @@ export function Challenges() {
   const handleCategoryClick = async (categoryName: string) => {
     setSelectedCategory(categoryName);
     setSelectedChallenge(null);
+    setChallengePage(1); // Reset challenge page when switching category
     await fetchChallenges(categoryName);
   };
 
@@ -210,7 +217,9 @@ export function Challenges() {
           </div>
           
           <div className="space-y-2">
-            {categories.map((category) => (
+            {categories
+              .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
+              .map((category) => (
               <button
                 key={category.topic_name}
                 onClick={() => handleCategoryClick(category.topic_name)}
@@ -246,6 +255,18 @@ export function Challenges() {
               </button>
             ))}
           </div>
+
+          {/* Categories Pagination */}
+          {categories.length > categoriesPerPage && (
+            <div className="mt-4 pt-3 border-t border-gray-700">
+              <TerminalPagination
+                currentPage={categoryPage}
+                totalPages={Math.ceil(categories.length / categoriesPerPage)}
+                onPageChange={setCategoryPage}
+                theme={theme}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -292,17 +313,35 @@ export function Challenges() {
                 </Typography>
               </Box>
             ) : challenges.length > 0 ? (
-              <div className="space-y-2">
-                {challenges.map((challenge) => (
-                  <ChallengeListItem
-                    key={challenge.id}
-                    challenge={challenge}
-                    isContestActive={isContestActive}
-                    onClick={() => handleChallengeClick(challenge)}
-                    isSelected={selectedChallenge?.id === challenge.id}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="space-y-2">
+                  {challenges
+                    .slice((challengePage - 1) * challengesPerPage, challengePage * challengesPerPage)
+                    .map((challenge) => (
+                    <ChallengeListItem
+                      key={challenge.id}
+                      challenge={challenge}
+                      isContestActive={isContestActive}
+                      onClick={() => handleChallengeClick(challenge)}
+                      isSelected={selectedChallenge?.id === challenge.id}
+                    />
+                  ))}
+                </div>
+
+                {/* Challenges Pagination */}
+                {challenges.length > challengesPerPage && (
+                  <div className="mt-4">
+                    <TerminalPagination
+                      currentPage={challengePage}
+                      totalPages={Math.ceil(challenges.length / challengesPerPage)}
+                      onPageChange={setChallengePage}
+                      theme={theme}
+                      totalItems={challenges.length}
+                      itemsPerPage={challengesPerPage}
+                    />
+                  </div>
+                )}
+              </>
             ) : (
               <Box className="text-center py-12">
                 <Lock className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} sx={{ fontSize: 48 }} />
@@ -340,6 +379,139 @@ export function Challenges() {
   );
 }
 
+// Terminal Pagination Component
+function TerminalPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  theme,
+  totalItems,
+  itemsPerPage,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  theme: string;
+  totalItems?: number;
+  itemsPerPage?: number;
+}) {
+  const startItem = totalItems ? (currentPage - 1) * itemsPerPage! + 1 : 0;
+  const endItem = totalItems ? Math.min(currentPage * itemsPerPage!, totalItems) : 0;
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    
+    if (totalPages <= 7) {
+      // Show all pages if 7 or less
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+      
+      if (currentPage > 3) {
+        pages.push('...');
+      }
+      
+      // Show pages around current page
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      if (currentPage < totalPages - 2) {
+        pages.push('...');
+      }
+      
+      // Always show last page
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Page info */}
+      {totalItems && (
+        <div className={`text-xs font-mono text-center ${
+          theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+        }`}>
+          [{startItem}-{endItem} / {totalItems}]
+        </div>
+      )}
+
+      {/* Pagination controls */}
+      <div className="flex items-center justify-center gap-1">
+        {/* Previous button */}
+        <button
+          onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${
+            currentPage === 1
+              ? theme === 'dark'
+                ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
+                : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
+              : theme === 'dark'
+              ? 'bg-gray-700 border-gray-600 text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50'
+              : 'bg-white border-gray-300 text-cyan-600 hover:bg-cyan-50 hover:border-cyan-400'
+          }`}
+        >
+          {'[<]'}
+        </button>
+
+        {/* Page numbers */}
+        {getPageNumbers().map((page, index) => (
+          <React.Fragment key={index}>
+            {page === '...' ? (
+              <span className={`px-2 py-1 text-xs font-mono ${
+                theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+              }`}>
+                ...
+              </span>
+            ) : (
+              <button
+                onClick={() => onPageChange(page as number)}
+                className={`min-w-[32px] px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${
+                  currentPage === page
+                    ? theme === 'dark'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
+                      : 'bg-cyan-50 border-cyan-400 text-cyan-600'
+                    : theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                {page}
+              </button>
+            )}
+          </React.Fragment>
+        ))}
+
+        {/* Next button */}
+        <button
+          onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${
+            currentPage === totalPages
+              ? theme === 'dark'
+                ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
+                : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
+              : theme === 'dark'
+              ? 'bg-gray-700 border-gray-600 text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50'
+              : 'bg-white border-gray-300 text-cyan-600 hover:bg-cyan-50 hover:border-cyan-400'
+          }`}
+        >
+          {'[>]'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Challenge List Item Component
 function ChallengeListItem({
   challenge,
@@ -353,6 +525,37 @@ function ChallengeListItem({
   isSelected: boolean;
 }) {
   const { theme } = useTheme();
+  
+  // Check if this challenge is deploying
+  const [isDeploying, setIsDeploying] = React.useState(false);
+  
+  React.useEffect(() => {
+    const deploymentKey = `deployment_${challenge.id}`;
+    const checkDeploymentStatus = () => {
+      const savedDeployment = localStorage.getItem(deploymentKey);
+      if (savedDeployment) {
+        const { isDeploying, startTime } = JSON.parse(savedDeployment);
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000;
+        // If still within timeout
+        if (isDeploying && elapsed < 120) {
+          setIsDeploying(true);
+        } else {
+          setIsDeploying(false);
+        }
+      } else {
+        setIsDeploying(false);
+      }
+    };
+    
+    // Check immediately
+    checkDeploymentStatus();
+    
+    // Check every 2 seconds
+    const interval = setInterval(checkDeploymentStatus, 2000);
+    
+    return () => clearInterval(interval);
+  }, [challenge.id]);
 
   const handleClick = () => {
     if (isContestActive) {
@@ -431,6 +634,17 @@ function ChallengeListItem({
                   {challenge.solves} solves
                 </span>
               )}
+              
+              {/* Deployment status badge */}
+              {isDeploying && (
+                <span className={`px-2 py-0.5 rounded animate-pulse ${
+                  theme === 'dark'
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
+                }`}>
+                  [~] deploying...
+                </span>
+              )}
             </div>
           </div>
 
@@ -463,6 +677,7 @@ function ChallengeDetailPanel({
   const [isSubmittingFlag, setIsSubmittingFlag] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
   const [selectedTab, setSelectedTab] = useState(0);
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
@@ -479,7 +694,7 @@ function ChallengeDetailPanel({
   const hasDescription = !!challenge.description;
   const hasPdfFiles = pdfFiles.length > 0;
 
-  // Load cooldown from localStorage when challenge changes
+  // Load cooldown and deployment state from localStorage when challenge changes
   useEffect(() => {
     const loadCooldown = () => {
       const cooldownKey = `cooldown_${challenge.id}`;
@@ -500,7 +715,32 @@ function ChallengeDetailPanel({
       }
     };
 
+    const loadDeploymentState = async () => {
+      const deploymentKey = `deployment_${challenge.id}`;
+      const savedDeployment = localStorage.getItem(deploymentKey);
+      
+      if (savedDeployment) {
+        const { isDeploying, startTime } = JSON.parse(savedDeployment);
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000; // seconds
+        
+        // If still within deployment timeout (2 minutes = 120 seconds)
+        if (isDeploying && elapsed < 120) {
+          setIsDeploymentInProgress(true);
+          setIsStarting(true);
+          // Continue health check in background
+          setTimeout(() => {
+            startHealthCheckLoop();
+          }, 100);
+        } else {
+          // Timeout or completed, clean up
+          localStorage.removeItem(deploymentKey);
+        }
+      }
+    };
+
     loadCooldown();
+    loadDeploymentState();
     fetchHints();
     fetchChallengeStatus();
 
@@ -587,10 +827,17 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
       if (data.data) {
-        console.log('Challenge status data:', data.data);
         setTimeRemaining(data.data.time_limit);
         setIsChallengeStarted(data.data.is_started || false);
         setUrl(data.challenge_url || null);
+        
+        // If we have URL, deployment is complete - clean up deployment state
+        if (data.challenge_url) {
+          const deploymentKey = `deployment_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          setIsDeploymentInProgress(false);
+          setIsStarting(false);
+        }
       }
     } catch (error) {
       console.error('Error fetching challenge status:', error);
@@ -599,62 +846,232 @@ function ChallengeDetailPanel({
 
   const handleStartChallenge = async () => {
     setIsStarting(true);
+    setIsDeploymentInProgress(true); // Set immediately with button
+    
+    // Save deployment state to localStorage
+    const deploymentKey = `deployment_${challenge.id}`;
+    localStorage.setItem(deploymentKey, JSON.stringify({
+      isDeploying: true,
+      startTime: Date.now()
+    }));
+    
+    // Give React time to update the UI before showing popup
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Show initial deploying message with 3s timer
+    Swal.fire({
+      html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-cyan-400 mb-2">[~] Deploying challenge...</div>
+          <div class="text-gray-400">> Please wait...</div>
+        </div>
+      `,
+      icon: 'info',
+      iconColor: '#22d3ee',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#22d3ee' : '#000000',
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      timer: 2000, // Auto close after 3 seconds
+      customClass: {
+        popup: 'rounded-lg border border-cyan-500/30',
+      },
+    });
+
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START, {
         method: 'POST',
         body: JSON.stringify({
-          challenge_id: challenge.id,
-          generatedToken: localStorage.getItem('auth_token'),
+          challengeId: challenge.id,
         })
       });
       const data = await response.json();
 
-      if (data.success) {
+      // Case 1: 200 + true + có URL = Challenge đã deploy xong, trả URL luôn
+      if (response.status === 200 && data.success === true && data.challenge_url) {
+        Swal.close();
         setIsChallengeStarted(true);
-        setUrl(data.challenge_url || null);
+        setUrl(data.challenge_url);
+        setIsStarting(false);
+        setIsDeploymentInProgress(false);
+        
+        // Clear deployment state from localStorage
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
+        
         await fetchChallengeStatus();
+        
+        // Save notification for global listener (immediate success)
+        const notificationKey = `deployment_notification_${challenge.id}`;
+        localStorage.setItem(notificationKey, JSON.stringify({
+          challengeId: challenge.id,
+          challengeName: challenge.name,
+          status: 'success',
+          url: data.challenge_url,
+          message: 'Challenge already deployed',
+          timestamp: Date.now()
+        }));
+      }
+      // Case 2: 200 + true + KHÔNG có URL = Đang deploy, cần loop health check
+      else if (response.status === 200 && data.success === true && !data.challenge_url) {
+        await startHealthCheckLoop();
+      }
+      else {
+        Swal.close();
+        setIsStarting(false);
+        setIsDeploymentInProgress(false);
+        
+        // Clear deployment state from localStorage
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
+        
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-green-400 mb-2">[+] Challenge deployed</div>
-              <div class="text-gray-400">> Connection established</div>
-              <div class="text-gray-400">> Environment ready</div>
+              <div class="text-red-400 mb-2">[!] Deploy failed</div>
+              <div class="text-gray-400">> ${data.message || 'Unknown error'}</div>
+              <div class="text-gray-500 mt-2">> Status: ${response.status}</div>
             </div>
           `,
-          icon: 'success',
-          iconColor: '#00ff9f',
-          confirmButtonText: 'OK',
+          icon: 'error',
+          iconColor: '#ef4444',
+          confirmButtonText: 'Close',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#00ff9f' : '#000000',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
           customClass: {
-            popup: 'rounded-lg border border-green-500/30',
-            confirmButton: 'bg-green-500 hover:bg-green-600 text-black font-mono px-4 py-2 rounded',
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
           },
-          timer: 2000,
-          showConfirmButton: false,
         });
       }
     } catch (error) {
+      Swal.close();
+      setIsStarting(false);
+      setIsDeploymentInProgress(false); // Hide red note
+      
+      // Clear deployment state from localStorage
+      const deploymentKey = `deployment_${challenge.id}`;
+      localStorage.removeItem(deploymentKey);
+      
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
-            <div class="text-red-400 mb-2">[!] Deploy failed</div>
-            <div class="text-gray-400">> Connection error</div>
+            <div class="text-red-400 mb-2">[!] Connection error</div>
+            <div class="text-gray-400">> Failed to reach server</div>
+            <div class="text-gray-400">> Please try again</div>
           </div>
         `,
         icon: 'error',
-        iconColor: '#ff006e',
-        confirmButtonText: 'OK',
+        iconColor: '#ef4444',
+        confirmButtonText: 'Close',
         background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-        color: theme === 'dark' ? '#ff006e' : '#000000',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
         customClass: {
           popup: 'rounded-lg border border-red-500/30',
           confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
         },
       });
-    } finally {
-      setIsStarting(false);
     }
+  };
+
+  // Health check loop function
+  const startHealthCheckLoop = async () => {
+    const maxAttempts = 40;
+    let attempts = 0;
+    
+    const checkStatus = async (): Promise<boolean> => {
+      try {
+        attempts++;
+        // note: Sủa url
+        const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
+          method: 'GET'
+        });
+        const data = await response.json();
+        
+        // Check if challenge is started and has URL
+        if (data.data && data.challenge_url) {
+          setIsChallengeStarted(true);
+          setUrl(data.challenge_url);
+          setTimeRemaining(data.data.time_limit);
+          setIsStarting(false);
+          setIsDeploymentInProgress(false);
+          
+          // Clear deployment state from localStorage
+          const deploymentKey = `deployment_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          
+          // Save notification for global listener
+          const notificationKey = `deployment_notification_${challenge.id}`;
+          localStorage.setItem(notificationKey, JSON.stringify({
+            challengeId: challenge.id,
+            challengeName: challenge.name,
+            status: 'success',
+            url: data.challenge_url,
+            message: data.message,
+            timestamp: Date.now()
+          }));
+          
+          return true; // Success
+        }
+        
+        // Max attempts reached
+        if (attempts >= maxAttempts) {
+          setIsStarting(false);
+          setIsDeploymentInProgress(false);
+          
+          // Clear deployment state from localStorage
+          const deploymentKey = `deployment_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          
+          // Save notification for global listener
+          const notificationKey = `deployment_notification_${challenge.id}`;
+          localStorage.setItem(notificationKey, JSON.stringify({
+            challengeId: challenge.id,
+            challengeName: challenge.name,
+            status: 'timeout',
+            message: 'Pod creation taking longer than expected',
+            timestamp: Date.now()
+          }));
+          
+          return true; // Stop loop
+        }
+        
+        // Continue checking silently (no popup updates)
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+        return checkStatus(); // Recursive call
+        
+      } catch (error) {
+        console.error('Health check error:', error);
+        
+        // Continue trying even on error
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          return checkStatus();
+        }
+        
+        setIsStarting(false);
+        setIsDeploymentInProgress(false);
+        
+        // Clear deployment state from localStorage
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
+        
+        // Save notification for global listener
+        const notificationKey = `deployment_notification_${challenge.id}`;
+        localStorage.setItem(notificationKey, JSON.stringify({
+          challengeId: challenge.id,
+          challengeName: challenge.name,
+          status: 'error',
+          message: 'Unable to verify deployment',
+          timestamp: Date.now()
+        }));
+        
+        return true; // Stop loop
+      }
+    };
+    
+    // Start the check loop
+    await checkStatus();
   };
 
   const handleStopChallenge = async () => {
@@ -908,7 +1325,6 @@ function ChallengeDetailPanel({
   };
 
   const formatTime = (seconds: number | string | null) => {
-    console.log('Formatting time for seconds:', seconds);
     if (challenge?.time_limit === -1) return '∞';
     if (seconds === null || seconds === undefined) return '--:--';
     
@@ -1774,38 +2190,66 @@ const getFileName = (filePath : string) => {
               <div className="space-y-2">
                 {!isChallengeStarted ? (
                   challenge.is_captain ? (
-                    <button
-                      onClick={handleStartChallenge}
-                      disabled={isStarting}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        width: '100%',
-                        padding: '10px 16px',
-                        border: '1px solid #4ade80',
-                        backgroundColor: '#4ade80',
-                        color: '#000',
-                        borderRadius: '4px',
-                        cursor: isStarting ? 'not-allowed' : 'pointer',
-                        opacity: isStarting ? 0.5 : 1,
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isStarting) {
-                          e.currentTarget.style.backgroundColor = '#22c55e';
-                          e.currentTarget.style.borderColor = '#22c55e';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isStarting) {
-                          e.currentTarget.style.backgroundColor = '#4ade80';
-                          e.currentTarget.style.borderColor = '#4ade80';
-                        }
-                      }}
-                    >
-                      {isStarting ? '[...] Starting' : '[+] Start Challenge'}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleStartChallenge}
+                        disabled={isStarting}
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          padding: '10px 16px',
+                          border: '1px solid #4ade80',
+                          backgroundColor: '#4ade80',
+                          color: '#000',
+                          borderRadius: '4px',
+                          cursor: isStarting ? 'not-allowed' : 'pointer',
+                          opacity: isStarting ? 0.5 : 1,
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isStarting) {
+                            e.currentTarget.style.backgroundColor = '#22c55e';
+                            e.currentTarget.style.borderColor = '#22c55e';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isStarting) {
+                            e.currentTarget.style.backgroundColor = '#4ade80';
+                            e.currentTarget.style.borderColor = '#4ade80';
+                          }
+                        }}
+                      >
+                        {isStarting && (
+                          <CircularProgress 
+                            size={14} 
+                            sx={{ 
+                              color: '#000',
+                              animation: 'spin 1s linear infinite',
+                              '@keyframes spin': {
+                                '0%': {
+                                  transform: 'rotate(0deg)',
+                                },
+                                '100%': {
+                                  transform: 'rotate(360deg)',
+                                },
+                              },
+                            }} 
+                          />
+                        )}
+                        <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
+                      </button>
+                      {isDeploymentInProgress && (
+                        <p className="text-center text-xs font-mono text-red-500 animate-pulse">
+                          [~] waiting for challenge deployment...
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <p className={`text-center text-xs font-mono ${
                       theme === 'dark' ? 'text-red-400' : 'text-red-600'
