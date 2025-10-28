@@ -4,11 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.Team;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-
+using ContestantService.Attribute;
 namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class ConfigController : ControllerBase
     {
         private readonly AppDbContext _context;

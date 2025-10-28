@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.User;
 using ResourceShared.Models;
-
+using ContestantService.Attribute;
 namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class UsersController : ControllerBase
     {
 

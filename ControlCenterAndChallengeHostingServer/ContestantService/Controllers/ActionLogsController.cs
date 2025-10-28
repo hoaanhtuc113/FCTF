@@ -1,4 +1,5 @@
-﻿using ContestantService.Extensions;
+﻿using System;
+using ContestantService.Extensions;
 using ContestantService.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,12 +8,15 @@ using ResourceShared.DTOs.ActionLogs;
 using ResourceShared.Models;
 using System.Net;
 using System.Net.WebSockets;
+using System.Threading.Tasks;
+using ContestantService.Attribute;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ContestantService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequireAuth]
     public class ActionLogsController : ControllerBase
     {
         private IActionLogsServices _actionLogsServices;

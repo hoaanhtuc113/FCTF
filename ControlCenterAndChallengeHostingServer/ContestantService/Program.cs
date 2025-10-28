@@ -1,3 +1,4 @@
+using System;
 using ContestantService.Extensions;
 using ContestantService.Interfaces;
 using ContestantService.Middlewares;

@@ -464,13 +464,14 @@ class Challenge(Resource):
         response["tags"] = tags
         response["hints"] = hints
 
+        # FIX: Don't pass Hints objects to template, use dict instead
         response["view"] = render_template(
             chal_class.templates["view"].lstrip("/"),
             solves=solve_count,
             solved_by_me=solved_by_user,
             files=files,
             tags=tags,
-            hints=[Hints(**h) for h in hints],
+            hints=hints,  # Changed from [Hints(**h) for h in hints] to just hints
             max_attempts=chal.max_attempts,
             attempts=attempts,
             challenge=chal,
@@ -662,7 +663,7 @@ class ChallengeAttempt(Resource):
         print("Chay vao day")
         auth_header = get_token_from_header()
         if not auth_header:
-            return jsonify({"message": "Authorization missing"}), 403
+            return {"success": False, "message": "Authorization missing"}, 403
 
         if request.is_json:
             request_data = request.get_json()
@@ -676,19 +677,19 @@ class ChallengeAttempt(Resource):
         # Kiểm tra nếu dữ liệu cache không tồn tại
         token = Tokens.query.filter_by(value=auth_header).first()
         if token is None:
-            return jsonify({"error": "Token not found"}), 404
+            return {"success": False, "error": "Token not found"}, 404
 
         user = Users.query.filter_by(id=token.user_id).first()
         if user is None:
-            return jsonify({"error": "User not found"}), 404
+            return {"success": False, "error": "User not found"}, 404
 
         team_id = user.team_id
         if not challenge_id:
-            return jsonify({"error": "ChallengeId is required"}), 400
+            return {"success": False, "error": "ChallengeId is required"}, 400
 
         challenge = Challenges.query.filter_by(id=challenge_id).first()
         if not challenge:
-            return jsonify({"error": "Challenge not found"}), 400
+            return {"success": False, "error": "Challenge not found"}, 400
 
         # cache_name = f"challenge:{challenge_id}:team_id:{team_id}"
 
@@ -720,7 +721,6 @@ class ChallengeAttempt(Resource):
                 }
 
         if ctf_paused():
-
             return (
                 {
                     "success": True,
@@ -732,10 +732,9 @@ class ChallengeAttempt(Resource):
                 403,
             )
 
-        # user = get_current_user()
-        # team = get_current_team()
-
         team = Teams.query.filter_by(id=team_id).first()
+        
+        # Cooldown check
         cooldown_seconds = challenge.cooldown or 0
         if cooldown_seconds > 0:
             cooldown_key = f"submission_cooldown_{challenge_id}_{team_id}"
@@ -759,11 +758,7 @@ class ChallengeAttempt(Resource):
                         429,
                     )
             
-            # Set the current submission time in Redis
-            redis_client.set(
-                cooldown_key,
-                str(time.time())
-            )
+            redis_client.set(cooldown_key, str(time.time()))
         
         # TODO: Convert this into a re-useable decorator
         if config.is_teams_mode() and team is None:
@@ -790,7 +785,6 @@ class ChallengeAttempt(Resource):
                 .all()
             )
             solve_ids = {solve_id for solve_id, in solve_ids}
-            # Gather all challenge IDs so that we can determine invalid challenge prereqs
             all_challenge_ids = {
                 c.id for c in Challenges.query.with_entities(Challenges.id).all()
             }
@@ -818,7 +812,6 @@ class ChallengeAttempt(Resource):
                 challenge_id=challenge_id,
                 kpm=kpm,
             )
-            # Submitting too fast
             return (
                 {
                     "success": True,
@@ -836,7 +829,6 @@ class ChallengeAttempt(Resource):
 
         # Challenge not solved yet
         if not solves:
-            # Hit max attempts
             max_tries = challenge.max_attempts
             if max_tries and fails >= max_tries >= 0:
                 return (
@@ -853,7 +845,7 @@ class ChallengeAttempt(Resource):
             status, message = chal_class.attempt(challenge, request)
 
             if status:
-                print("Print hello")  # The challenge plugin says the input is right
+                print("Print hello")
                 if (
                     ctftime()
                     or current_user.is_admin()
@@ -863,10 +855,8 @@ class ChallengeAttempt(Resource):
                     chal_class.solve(
                         user=user, team=team, challenge=challenge, request=request
                     )
-
                     clear_standings()
                     clear_challenges()
-                    cache_key = generate_cache_attempt_key(challenge_id, team_id)
 
                 log(
                     "submissions",
@@ -876,49 +866,48 @@ class ChallengeAttempt(Resource):
                     challenge_id=challenge_id,
                     kpm=kpm,
                 )
+                
                 cache_key = generate_cache_key(challenge_id, team_id)
                 if challenge.require_deploy:
-
-                    if not redis_client.exists(cache_key):
-                        pass
-
-                    try:
-                        force_stop(
-                            cache_key=cache_key,
-                            challenge_id=challenge_id,
-                            team_id=team_id,
-                        )
-                    except requests.exceptions.RequestException as e:
-                        log(
-                            "errors",
-                            "[{date}] Error stopping challenge {challenge_id} for team {team_id}: {error}",
-                            challenge_id=challenge_id,
-                            team_id=team_id,
-                            error=str(e),
-                        )
-                        return (
-                            jsonify(
+                    if redis_client.exists(cache_key):
+                        try:
+                            force_stop(
+                                cache_key=cache_key,
+                                challenge_id=challenge_id,
+                                team_id=team_id,
+                            )
+                        except requests.exceptions.RequestException as e:
+                            log(
+                                "errors",
+                                "[{date}] Error stopping challenge {challenge_id} for team {team_id}: {error}",
+                                challenge_id=challenge_id,
+                                team_id=team_id,
+                                error=str(e),
+                            )
+                            return (
                                 {
                                     "success": False,
                                     "message": f"Failed to stop challenge: {e}",
-                                }
-                            ),
-                            500,
-                        )
+                                },
+                                500,
+                            )
 
-                return jsonify(
-                    {"success": True, "data": {"status": "correct", "message": message}}
-                )
+                return {
+                    "success": True, 
+                    "data": {
+                        "status": "correct", 
+                        "message": message
+                    }
+                }
 
             else:
-                print("dddddd")  # The challenge plugin says the input is wrong
+                print("dddddd")
                 if (
                     ctftime()
                     or current_user.is_admin()
                     or current_user.is_challenge_writer()
                     or current_user.is_jury()
                 ):
-
                     chal_class.fail(
                         user=user, team=team, challenge=challenge, request=request
                     )
@@ -935,10 +924,8 @@ class ChallengeAttempt(Resource):
                 )
 
                 if max_tries:
-                    # Off by one since fails has changed since it was gotten
                     attempts_left = max_tries - fails - 1
                     tries_str = pluralize(attempts_left, singular="try", plural="tries")
-                    # Add a punctuation mark if there isn't one
                     if message[-1] not in "!().;?[]{}":
                         message = message + "."
                     return {
