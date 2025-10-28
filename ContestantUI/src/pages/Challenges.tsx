@@ -2069,15 +2069,7 @@ const getFileName = (filePath : string) => {
                   {challenge.files.map((file, index) => (
                     <button
                       key={index}
-                      onClick={() => {
-                        if (file.toLowerCase().includes('.pdf')) {
-                          const pdfIndex = pdfFiles.indexOf(file);
-                          handlePdfClick(pdfIndex);
-                          setSelectedTab(hasDescription ? pdfIndex + 1 : pdfIndex);
-                        } else {
-                          handleDownloadFile(file);
-                        }
-                      }}
+                      onClick={() => handleDownloadFile(file)}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${
                         file.toLowerCase().includes('.pdf')
                           ? theme === 'dark'
