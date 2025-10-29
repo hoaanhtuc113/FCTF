@@ -391,12 +391,15 @@ def handle_challenge_upload(challenge, file_path, notification_data):
                 if challenge.state != "hidden":
                     print("Sending notification...")
                     post_notification(notification_data)
-                
+                image_tag = f"challenge-{challenge.id}-{safe_folder_name}"
+                image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}:{image_tag}"
+
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"
+                challenge.image_link = image_link
                 db.session.commit()
-                image_tag = f"challenge-{challenge.id}-{safe_folder_name}"
+
                 payload, headers, api_url = prepare_up_challenge_payload(dockerfile_path, image_tag)
                 print(f"Uploading challenge to deployment service with challenge path {dockerfile_path}, image tag:  {image_tag}")
                 response = requests.post(api_url, headers=headers, json=payload)
