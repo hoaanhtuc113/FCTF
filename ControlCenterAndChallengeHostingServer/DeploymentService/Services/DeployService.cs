@@ -93,8 +93,8 @@ namespace DeploymentService.Services
                         teamName,
                         "80",
                         DeploymentServiceConfigHelper.CPU_LIMIT,
-                        DeploymentServiceConfigHelper.MEMORY_LIMIT,
                         DeploymentServiceConfigHelper.CPU_REQUEST,
+                        DeploymentServiceConfigHelper.MEMORY_LIMIT,
                         DeploymentServiceConfigHelper.MEMORY_REQUEST,
                         DeploymentServiceConfigHelper.POD_START_TIMEOUT_MINUTES);
                 
