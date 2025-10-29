@@ -2,7 +2,7 @@ import hashlib
 import json
 import time
 from typing import List
-
+from datetime import datetime, timedelta, timezone
 import requests  # noqa: I001
 
 from flask import abort, jsonify, render_template, request, session, url_for
@@ -74,7 +74,7 @@ from CTFd.utils.user import (
 )
 
 from CTFd.plugins import bypass_csrf_protection
-from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification
+from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification, get_workflow_status ,get_workflow_name
 
 challenges_namespace = Namespace(
     "challenges", description="Endpoint to retrieve Challenges"
@@ -1078,3 +1078,48 @@ class ChallengeRequirements(Resource):
     def get(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         return {"success": True, "data": challenge.requirements}
+
+@challenges_namespace.route("/<challenge_id>/deploy-duration")
+class ChallengeDeploy(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, challenge_id):
+        try:
+            challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+            if not challenge.require_deploy:
+                return {"success": False, "error": "Challenge does not require deployment"}, 400
+            
+            workflow_name = get_workflow_name(challenge.id)
+            if not workflow_name:
+                return {"success": False, "error": "Workflow name not found for challenge"}, 404
+            
+            workflow_phase, started_at_iso, estimated_duration = get_workflow_status(workflow_name)
+            if workflow_phase is None or started_at_iso is None or estimated_duration is None:
+                return {"success": False, "error": "Could not retrieve workflow status"}, 500
+
+            remaining_time = None
+            if estimated_duration and started_at_iso:
+                started_at_dt = datetime.fromisoformat(started_at_iso.replace("Z", "+00:00"))
+                now_utc = datetime.now(timezone.utc)
+
+                elapsed_time = max(0.0, (now_utc - started_at_dt).total_seconds())
+                remaining_time = max(0.0, float(estimated_duration) - elapsed_time)
+
+                print(f"Started at: {started_at_dt}, Now: {now_utc}, Elapsed: {elapsed_time}, Remaining: {remaining_time}")
+
+            if workflow_phase == "Succeeded":
+                challenge.deploy_status = "DEPLOY_SUCCESS"
+                challenge.state = "visible"
+                db.session.commit()
+
+            return {
+                "success": True,
+                "data": {
+                    "phase": workflow_phase,
+                    "estimated_duration": float(estimated_duration),
+                    "started_at": started_at_iso,
+                    "remaining_time": remaining_time
+                }
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}, 500
+

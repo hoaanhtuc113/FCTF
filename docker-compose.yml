@@ -28,6 +28,8 @@ services:
       - REDIS_DB=${REDIS_DB}
       - NFS_MOUNT_PATH=${NFS_MOUNT_PATH}
       - UPLOAD_PROVIDER=${UPLOAD_PROVIDER}
+      - IMAGE_REPO=${IMAGE_REPO}
+      - DOCKER_USERNAME=${DOCKER_USERNAME}
     volumes:
       - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
       - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads

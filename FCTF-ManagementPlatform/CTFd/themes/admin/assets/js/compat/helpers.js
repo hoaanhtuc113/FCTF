@@ -39,6 +39,7 @@ const files = {
         },
         success: function (data, status, jqXHR) {
           if (jqXHR.status === 200) {
+            console.log("File uploaded successfully:", data);
             form.reset();
             resolve();
           } else {

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import io
 import json
@@ -25,6 +25,8 @@ from CTFd.constants.envvars import (
     ARGO_WORKFLOWS_URL,
     ARGO_WORKFLOWS_TOKEN,
     NFS_MOUNT_PATH,
+    IMAGE_REPO,
+    DOCKER_USERNAME,
 )
 import random 
 from CTFd.schemas.notifications import NotificationSchema
@@ -71,6 +73,14 @@ def generate_cache_key(challenge_id, team_id):
     raw_key = f"challenge_url_{challenge_id}_{team_id}"
     return raw_key
 
+def get_workflow_key(challenge_id):
+    key = f"challenge_workflow_{challenge_id}"
+    return key
+
+def get_workflow_name(challenge_id):
+    key = get_workflow_key(challenge_id)
+    workflow_name = redis_client.get(key)
+    return workflow_name
 
 def get_team_id_and_cache_key(user, challenge_id, challenge_time):
     if user.type != "user":
@@ -104,6 +114,25 @@ def prepare_challenge_payload(challenge, user, team_id, team, challenge_time):
     api_start = f"{DEPLOYMENT_SERVICE_API}/api/challenge/start"
     
     return payload, headers, api_start
+
+def prepare_up_challenge_payload(path, image_tag):
+    headers = { 
+        "Authorization": f"Bearer {ARGO_WORKFLOWS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "resourceKind": "WorkflowTemplate",
+        "resourceName": "up-challenge-template",
+        "submitOptions": {
+            "entryPoint": "main",
+            "parameters": [
+                f"CHALLENGE_PATH={path}",
+                f"IMAGE_TAG={image_tag}",
+            ]
+        }
+    }
+    api_url = f"{ARGO_WORKFLOWS_URL}/submit"
+    return payload, headers, api_url
 
 def challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team):
     try:
@@ -299,8 +328,8 @@ def handle_challenge_upload(challenge, file_path, notification_data):
     - Unzip the uploaded file
     - Upload folder to NFS_MOUNT_PATH directory
     """
-    zip_filename = os.path.basename(file_path)
-    folder_name = os.path.splitext(zip_filename)[0]
+    zip_filename = os.path.basename(file_path) 
+    folder_name = os.path.splitext(zip_filename)[0] #TODO + f"_{challenge.id}" 
     safe_folder_name = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in folder_name)
     
     # Create temporary directory for extraction
@@ -343,6 +372,19 @@ def handle_challenge_upload(challenge, file_path, notification_data):
         shutil.copytree(extract_path, nfs_destination)
         print(f"Challenge folder copied successfully")
         
+        # Find Dockerfile directory path (relative to challenges directory)
+        dockerfile_path = None
+        for root, dirs, files in os.walk(nfs_destination):
+            if "Dockerfile" in files:
+                # Get directory path relative to NFS_MOUNT_PATH (without Dockerfile filename)
+                dockerfile_path = os.path.relpath(root, NFS_MOUNT_PATH)
+                print(f"Found Dockerfile at: {dockerfile_path}")
+                break
+        
+        if dockerfile_path is None:
+            print(f"Warning: Dockerfile not found in {nfs_destination}")
+            return {"success": False, "error": "Dockerfile not found in challenge folder"}, 400
+        
         # Update challenge status
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
@@ -353,16 +395,41 @@ def handle_challenge_upload(challenge, file_path, notification_data):
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"
-                
                 db.session.commit()
-                
-                print(f"Challenge uploaded successfully to: {nfs_destination}")
-                
+                image_tag = f"challenge-{challenge.id}-{safe_folder_name}"
+                payload, headers, api_url = prepare_up_challenge_payload(dockerfile_path, image_tag)
+                print(f"Uploading challenge to deployment service with challenge path {dockerfile_path}, image tag:  {image_tag}")
+                response = requests.post(api_url, headers=headers, json=payload)
+                print(f"Response Status Code: {response.status_code}")
+
+                if response.status_code != 200:
+                    print(f"Error uploading challenge: {response.text}")
+                    return {"success": False, "error": f"Deployment service error: {response.text}"}, 500
+                    
+                result = response.json()
+                workflow_name = result.get("metadata", {}).get("name")
+
+                redis_client.set(
+                    f"{get_workflow_key(challenge.id)}",
+                    workflow_name
+                )
+
+                print(f"Challenge uploaded successfully to: {nfs_destination} with workflow: {workflow_name}")
+                print(f"Response Text: {response.text}")
+
+                workflow_phase, started_at, estimated_duration = get_workflow_status(workflow_name)
+                if workflow_phase is None:
+                    return {"success": False, "error": "Error getting workflow status"}, 500
+
+                print(f"Workflow phase: {workflow_phase}, Estimated duration: {estimated_duration} seconds")
                 return {
                     "success": True,
                     "message": "Challenge folder uploaded successfully",
                     "challenge_id": challenge.id,
-                    "path": nfs_destination
+                    "workflow_name": workflow_name,
+                    "workflow_phase": workflow_phase,
+                    "estimated_duration": estimated_duration,
+                    "started_at": started_at
                 }, 200
                 
             except Exception as e:
@@ -383,7 +450,46 @@ def handle_challenge_upload(challenge, file_path, notification_data):
         except Exception as e:
             print(f"Error cleaning up temporary directory: {e}")
     
+def get_workflow_status(workflow_name):
+    """
+    Get workflow status from Argo Workflows
+    Returns: (workflow_phase, started_at, estimated_duration)
+    """
+    url = f"{ARGO_WORKFLOWS_URL}/{workflow_name}"
+    headers = {
+        "Authorization": f"Bearer {ARGO_WORKFLOWS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            print(f"Error getting workflow status: {response.status_code} - {response.text}")
+            return None, None, None
         
+        data = response.json()
+        status = data.get("status", {})
+        
+        workflow_phase = status.get("phase")
+        started_at_str = status.get("startedAt")
+        started_at = None
+        if started_at_str:
+            try:
+                started_at = datetime.fromisoformat(
+                    started_at_str.replace('Z', '+00:00')
+                ).astimezone(timezone.utc)
+            except Exception as e:
+                print(f"Error parsing startedAt: {e}")
+                started_at = None
+        
+        estimated_duration = status.get("estimatedDuration", 60)
+        print(f"Workflow {workflow_name}: phase={workflow_phase}, started={started_at}, duration={estimated_duration}s")
+        
+        return workflow_phase, (started_at.isoformat() if started_at else None), int(estimated_duration)
+        
+    except Exception as e:
+        print(f"Error getting workflow status: {e}")
+        return None, None, None
+
 def post_notification(notify_data):
 
     schema = NotificationSchema()
