@@ -20,10 +20,12 @@ namespace DeploymentService.Services
     {
         public static int port = 30000;
         private readonly IConnectionMultiplexer _connectionMultiplexer;
-        private readonly IK8sHealthService _k8SHealthService;     
-        public DeployService(IConnectionMultiplexer connectionMultiplexer)
+        private readonly IK8sHealthService _k8SHealthService;
+        private readonly AppDbContext _dbContext;
+        public DeployService(IConnectionMultiplexer connectionMultiplexer, AppDbContext dbContext)
         {
             _connectionMultiplexer = connectionMultiplexer;
+            _dbContext=dbContext;
             //_k8SHealthService = k8SHealthService;
         }
         private int getPort()
@@ -79,18 +81,29 @@ namespace DeploymentService.Services
                         break;
                 }
             }
-
+            var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == challengId);
             try
             {
                 var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentServiceConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
                 var port = getPort();
-                var payload = new { workflow = ChallengeHelper.BuildArgoPayload("01", teamName, port) };
+                //var payload = new { workflow = ChallengeHelper.BuildArgoPayload("01", teamName, port) };
 
+                var payload = ChallengeHelper.BuildArgoPayload(
+                        challenge,
+                        teamName,
+                        "80",
+                        DeploymentServiceConfigHelper.CPU_LIMIT,
+                        DeploymentServiceConfigHelper.MEMORY_LIMIT,
+                        DeploymentServiceConfigHelper.CPU_REQUEST,
+                        DeploymentServiceConfigHelper.MEMORY_REQUEST,
+                        DeploymentServiceConfigHelper.POD_START_TIMEOUT_MINUTES);
+                
+                var api = DeploymentServiceConfigHelper.ARGO_WORKFLOWS_URL + "/submit";
                 await Console.Out.WriteLineAsync($"Payload to Argo Workflows API: {JsonSerializer.Serialize(payload)}");
                 await Console.Out.WriteLineAsync($"Argo Workflows API: {DeploymentServiceConfigHelper.ARGO_WORKFLOWS_URL}");
 
-                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(DeploymentServiceConfigHelper.ARGO_WORKFLOWS_URL);
-                var response = await multiServiceConnector.ExecuteRequest(DeploymentServiceConfigHelper.ARGO_WORKFLOWS_URL, Method.Post, payload, headers);
+                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(api);
+                var response = await multiServiceConnector.ExecuteRequest(api, Method.Post, payload, headers);
                 await Console.Out.WriteLineAsync($"Response from Argo Workflows API: {response}");
                 if (response == null)
                 {
