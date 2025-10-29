@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Box, Typography } from "@mui/material";
 import { useTheme } from '../context/ThemeContext';
 import { scoreboardService } from '../services/scoreboardService';
@@ -298,7 +298,7 @@ export function Scoreboard() {
               <tbody>
                 <AnimatePresence mode="wait">
                   {paginatedScores.length > 0 ? (
-                    paginatedScores.map((team, index) => {
+                    paginatedScores.map((team, _index) => {
                       const isTop3 = team.top <= 3;
                       
                       return (

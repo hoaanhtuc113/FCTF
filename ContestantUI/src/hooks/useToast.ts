@@ -1,4 +1,4 @@
-import { useSnackbar, type VariantType } from 'notistack';
+import { useSnackbar } from 'notistack';
 
 export function useToast() {
   const { enqueueSnackbar } = useSnackbar();

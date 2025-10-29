@@ -13,6 +13,7 @@ const Login = lazy(() => import('./pages/Login').then(module => ({ default: modu
 const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
 const Challenges = lazy(() => import('./pages/Challenges').then(module => ({ default: module.Challenges })));
 const Scoreboard = lazy(() => import('./pages/Scoreboard').then(module => ({ default: module.Scoreboard })));
+const PublicScoreboard = lazy(() => import('./pages/PublicScoreboard').then(module => ({ default: module.PublicScoreboard })));
 const Tickets = lazy(() => import('./pages/Tickets').then(module => ({ default: module.Tickets })));
 const TicketDetail = lazy(() => import('./pages/TicketDetail').then(module => ({ default: module.TicketDetail })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
@@ -31,6 +32,7 @@ function AppRoutes() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/public/scoreboard" element={<PublicScoreboard />} />
               <Route
                 path="/dashboard"
                 element={
