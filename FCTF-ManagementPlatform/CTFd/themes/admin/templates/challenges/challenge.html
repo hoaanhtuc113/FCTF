@@ -84,6 +84,22 @@
 
 	<div class="container">
 		<div class="row">
+			<div id="deploy-progress-container" style="display: none; margin-bottom: 20px;">
+				<h6 id="deploy-status-title" style="color: #ff5500; font-weight: bold;">Deployment Status</h6>
+				<p id="deploy-status-message" style="margin-bottom: 10px;">Ready to deploy</p>
+				<div class="progress" style="height: 25px;">
+					<div class="progress-bar progress-bar-striped progress-bar-animated" 
+						id="deploy-progress-bar"
+						role="progressbar" 
+						style="width: 0%; background-color: #ff5500;"
+						aria-valuenow="0" 
+						aria-valuemin="0" 
+						aria-valuemax="100">
+					<span id="deploy-progress-percentage">0%</span>
+					</div>
+				</div>
+				<small class="text-muted mt-2 d-block" id="deploy-status-detail"></small>
+			</div>
 			<div class="col-md-6">
 				<nav class="nav nav-tabs nav-fill" id="challenge-properties" role="tablist">
 					<a class="nav-item nav-link small active" data-toggle="tab" href="#files" role="tab">Files</a>
