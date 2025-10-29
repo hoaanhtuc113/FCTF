@@ -40,3 +40,73 @@
       monospace;
   }
 }
+
+@layer utilities {
+  /* Terminal scanline animation */
+  @keyframes scan {
+    0% {
+      transform: translateY(-100%);
+    }
+    100% {
+      transform: translateY(100%);
+    }
+  }
+
+  .animate-scan {
+    animation: scan 8s linear infinite;
+  }
+
+  /* CRT screen flicker effect */
+  @keyframes flicker {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.95;
+    }
+  }
+
+  .animate-flicker {
+    animation: flicker 0.15s infinite;
+  }
+
+  /* Terminal cursor blink */
+  @keyframes blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    51%, 100% {
+      opacity: 0;
+    }
+  }
+
+  .animate-blink {
+    animation: blink 1s infinite;
+  }
+
+  /* Glitch effect */
+  @keyframes glitch {
+    0% {
+      transform: translate(0);
+    }
+    20% {
+      transform: translate(-2px, 2px);
+    }
+    40% {
+      transform: translate(-2px, -2px);
+    }
+    60% {
+      transform: translate(2px, 2px);
+    }
+    80% {
+      transform: translate(2px, -2px);
+    }
+    100% {
+      transform: translate(0);
+    }
+  }
+
+  .animate-glitch {
+    animation: glitch 0.3s infinite;
+  }
+}

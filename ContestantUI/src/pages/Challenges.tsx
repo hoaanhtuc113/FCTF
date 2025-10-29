@@ -1498,23 +1498,32 @@ function ChallengeDetailPanel({
     }
   };
 
-  const formatTime = (seconds: number | string | null) => {
+  const formatTime = (minutes: number | string | null) => {
     if (challenge?.time_limit === -1) return '∞';
-    if (seconds === null || seconds === undefined) return '--:--';
+    if (minutes === null || minutes === undefined) return '--:--';
     
     // Convert to number and validate
-    const numSeconds = typeof seconds === 'string' ? parseFloat(seconds) : seconds;
+    const numMinutes = typeof minutes === 'string' ? parseFloat(minutes) : minutes;
     
-    if (isNaN(numSeconds)) return '--:--';
+    if (isNaN(numMinutes)) return '--:--';
     
-    // Ensure seconds is a positive number
-    const totalSeconds = Math.max(0, Math.floor(numSeconds));
+    // Ensure minutes is a positive number
+    const totalMinutes = Math.max(0, Math.floor(numMinutes));
     
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    if (totalMinutes < 60) {
+      // Less than 60 minutes, show as "Xm"
+      return `${totalMinutes}m`;
+    } else {
+      // 60 minutes or more, show as "Xh Ym"
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
+      
+      if (mins === 0) {
+        return `${hours}h`;
+      } else {
+        return `${hours}h ${mins}m`;
+      }
+    }
   };
 
 const getFileName = (filePath : string) => {
@@ -2046,7 +2055,7 @@ const getFileName = (filePath : string) => {
                   ? 'bg-gray-700 text-gray-300 border-gray-600'
                   : 'bg-gray-100 text-gray-700 border-gray-300'
               }`}>
-                Time: {challenge.time_limit === -1 ? '∞' : `${challenge.time_limit}s`}
+                Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit)}
               </span>
               <span className={`px-2 py-1 rounded border ${
                 theme === 'dark'
