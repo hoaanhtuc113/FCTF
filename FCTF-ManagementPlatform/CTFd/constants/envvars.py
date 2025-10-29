@@ -27,3 +27,7 @@ DATABASE_PORT = int(os.environ.get("DATABASE_PORT", 3306))
 # NFS Configuration - Path to store challenge folders
 NFS_MOUNT_PATH = os.environ.get("NFS_MOUNT_PATH", "/mnt/nfs/data")
 UPLOAD_PROVIDER = os.environ.get("UPLOAD_PROVIDER", "filesystem")
+
+# Docker Registry Configuration
+IMAGE_REPO = os.environ.get("IMAGE_REPO", "my-docker-repo")
+DOCKER_USERNAME = os.environ.get("DOCKER_USERNAME", "username")

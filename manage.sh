@@ -253,6 +253,8 @@ REDIS_DB=0
 DATABASE_PORT=3306
 DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
 UPLOAD_PROVIDER=nfs
+IMAGE_REPO=fctf
+DOCKER_USERNAME=quachuoiscontainer
 
 # Cấu hình dùng chung
 PRIVATE_KEY=emdungdepzai
