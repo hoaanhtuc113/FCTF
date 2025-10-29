@@ -936,6 +936,7 @@ class ChallengeAttempt(Resource):
                             "message": "{} You have {} {} remaining.".format(
                                 message, attempts_left, tries_str
                             ),
+                            "cooldown": challenge.cooldown,
                         },
                     }
                 else:
