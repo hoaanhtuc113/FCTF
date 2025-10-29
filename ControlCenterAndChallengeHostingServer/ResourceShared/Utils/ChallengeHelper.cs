@@ -91,7 +91,8 @@ namespace ResourceShared.Utils
 
         public static string GetDeploymentAppName(string teamName,string challengeId,string challengeName)
         {
-            return $"{teamName}-chal-{challengeId}-{challengeName}".ToLower().Replace(" ", "-");
+            var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            return $"{teamName}-chal-{challengeId}-{challengeName}-{date}".ToLower().Replace(" ", "-");
         }
 
         public static (object payload, string secretKey) PrepareChallengePayload(Challenge challenge, int team_id,int challenge_time)
@@ -245,6 +246,40 @@ namespace ResourceShared.Utils
             };
 
             return payload;
+        }
+
+
+        public static object BuildArgoPayload(Challenge challenge, string teamName, string port, string cpu_limit, string cpu_request,
+                                            string memory_limt, string memory_request, string pow_difficulty
+                                            )
+        {
+            var isTemp = false;
+            if(challenge.TimeLimit.HasValue && challenge.TimeLimit.Value > 0)
+            {
+                isTemp = true;
+            }
+            return new
+            {
+                resourceKind = "WorkflowTemplate",
+                resourceName = "start-chal-v2-template",
+                submitOptions = new
+                {
+                    entryPoint = "main",
+                    parameters = new[]
+                    {
+                        $"CHALLENGE_NAME={GetDeploymentAppName(teamName,challenge.Id.ToString(),challenge.Name)}",
+                        $"CONTAINER_PORT={port}",
+                        $"CONTAINER_IMAGE={challenge.ImageLink}",
+                        $"CPU_LIMIT={cpu_limit}",
+                        $"CPU_REQUEST={cpu_request}",
+                        $"MEMORY_LIMIT={memory_limt}",
+                        $"MEMORY_REQUEST={memory_request}",
+                        $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
+                        $"CHALLENGE_TIMEOUT={challenge.TimeLimit}m",
+                        $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
+                    }
+                }
+            };
         }
 
 
