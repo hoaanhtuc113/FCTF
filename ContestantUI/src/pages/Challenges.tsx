@@ -22,6 +22,11 @@ import remarkGfm from 'remark-gfm';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { fetchWithAuth, downloadFile } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
+import { 
+  CategorySkeleton, 
+  ChallengeListSkeleton, 
+  ChallengeDetailSkeleton 
+} from '../components/Skeleton';
 
 // Setup PDF worker
 // Setup PDF worker - Use jsDelivr CDN (supports CORS)
@@ -76,6 +81,7 @@ export function Challenges() {
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingChallenges, setLoadingChallenges] = useState(false);
+  const [loadingChallengeDetail, setLoadingChallengeDetail] = useState(false);
   const [error, setError] = useState('');
   const [isContestActive, setIsContestActive] = useState(false);
   const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
@@ -248,10 +254,15 @@ export function Challenges() {
     }
     
     try {
+      // Set loading state and show skeleton
+      setLoadingChallengeDetail(true);
+      setSelectedChallenge(null);
+      
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
         method: 'GET'
       });
       const data = await response.json();
+      
       // Preserve value and solves from the list since API detail doesn't return them
       setSelectedChallenge({
         ...data.data,
@@ -262,6 +273,8 @@ export function Challenges() {
     } catch (error) {
       console.error('Error fetching challenge details:', error);
       setSelectedChallenge(challenge);
+    } finally {
+      setLoadingChallengeDetail(false);
     }
   };
 
@@ -321,43 +334,54 @@ export function Challenges() {
           </div>
           
           <div className="space-y-2">
-            {categories
-              .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
-              .map((category) => (
-              <button
-                key={category.topic_name}
-                onClick={() => handleCategoryClick(category.topic_name)}
-                className={`w-full text-left px-3 py-2 rounded transition-colors flex items-center justify-between ${
-                  selectedCategory === category.topic_name
-                    ? theme === 'dark'
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      : 'bg-green-50 text-green-700 border border-green-300'
-                    : theme === 'dark'
-                    ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
-                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {getCategoryIcon(category.topic_name)}
-                  <div className="flex-1">
-                    <div className="font-bold text-xs font-mono">
-                      {category.topic_name.toUpperCase()}
-                    </div>
-                    <div className={`text-xs font-mono ${
-                      selectedCategory === category.topic_name
-                        ? theme === 'dark' ? 'text-green-300' : 'text-green-600'
-                        : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                    }`}>
-                      {category.challenge_count} challs
+            {loading ? (
+              // Show skeleton while loading categories
+              <>
+                <CategorySkeleton />
+                <CategorySkeleton />
+                <CategorySkeleton />
+                <CategorySkeleton />
+                <CategorySkeleton />
+              </>
+            ) : (
+              categories
+                .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
+                .map((category) => (
+                <button
+                  key={category.topic_name}
+                  onClick={() => handleCategoryClick(category.topic_name)}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors flex items-center justify-between ${
+                    selectedCategory === category.topic_name
+                      ? theme === 'dark'
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : 'bg-green-50 text-green-700 border border-green-300'
+                      : theme === 'dark'
+                      ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
+                      : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {getCategoryIcon(category.topic_name)}
+                    <div className="flex-1">
+                      <div className="font-bold text-xs font-mono">
+                        {category.topic_name.toUpperCase()}
+                      </div>
+                      <div className={`text-xs font-mono ${
+                        selectedCategory === category.topic_name
+                          ? theme === 'dark' ? 'text-green-300' : 'text-green-600'
+                          : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                      }`}>
+                        {category.challenge_count} challs
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {selectedCategory === category.topic_name && (
-                  <span className="text-green-500">●</span>
-                )}
-              </button>
-            ))}
+                  
+                  {selectedCategory === category.topic_name && (
+                    <span className="text-green-500">●</span>
+                  )}
+                </button>
+              ))
+            )}
           </div>
 
           {/* Categories Pagination */}
@@ -408,14 +432,17 @@ export function Challenges() {
             </div>
 
             {loadingChallenges ? (
-              <Box className="flex flex-col items-center justify-center py-12">
-                <Terminal className={`text-3xl mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
-                <Typography className={`font-mono text-sm ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                }`}>
-                  Fetching challenges...
-                </Typography>
-              </Box>
+              // Show skeleton while loading challenges
+              <div className="space-y-2">
+                <ChallengeListSkeleton />
+                <ChallengeListSkeleton />
+                <ChallengeListSkeleton />
+                <ChallengeListSkeleton />
+                <ChallengeListSkeleton />
+                <ChallengeListSkeleton />
+                <ChallengeListSkeleton />
+                <ChallengeListSkeleton />
+              </div>
             ) : challenges.length > 0 ? (
               <>
                 <div className="space-y-2">
@@ -464,7 +491,17 @@ export function Challenges() {
 
       {/* Column 3: Challenge Detail */}
       <AnimatePresence mode="wait">
-        {selectedChallenge && (
+        {loadingChallengeDetail ? (
+          <motion.div
+            key="skeleton"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="flex-1"
+          >
+            <ChallengeDetailSkeleton />
+          </motion.div>
+        ) : selectedChallenge ? (
           <motion.div
             key={selectedChallenge.id}
             initial={{ opacity: 0, x: 20 }}
@@ -479,7 +516,7 @@ export function Challenges() {
               onFlagSuccess={refreshChallengeData} // Pass refresh function
             />
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   );
