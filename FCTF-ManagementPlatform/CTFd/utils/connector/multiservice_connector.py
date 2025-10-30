@@ -322,7 +322,7 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
         else:
             return jsonify({"error": "Challenge already pending deploy"}), 400
 
-def handle_challenge_upload(challenge, file_path, notification_data):
+def handle_challenge_upload(challenge, file_path, notification_data, expose_port=None):
     """
     Handle the challenge upload process
     - Unzip the uploaded file
@@ -384,7 +384,12 @@ def handle_challenge_upload(challenge, file_path, notification_data):
         if dockerfile_path is None:
             print(f"Warning: Dockerfile not found in {nfs_destination}")
             return {"success": False, "error": "Dockerfile not found in challenge folder"}, 400
-        
+
+        if expose_port is None:
+            print(f"Warning: No exposed port found")
+            return {"success": False, "error": "No exposed port found"}, 400
+
+        print(f"Docker file found at {dockerfile_path} Exposed port found: {expose_port}")
         # Update challenge status
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
@@ -394,10 +399,15 @@ def handle_challenge_upload(challenge, file_path, notification_data):
                 image_tag = f"challenge-{challenge.id}-{safe_folder_name}"
                 image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}:{image_tag}"
 
+                object_image = {
+                    "imageLink": image_link,
+                    "exposedPort": expose_port,
+                }
+
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"
-                challenge.image_link = image_link
+                challenge.image_link = json.dumps(object_image)
                 db.session.commit()
 
                 payload, headers, api_url = prepare_up_challenge_payload(dockerfile_path, image_tag)

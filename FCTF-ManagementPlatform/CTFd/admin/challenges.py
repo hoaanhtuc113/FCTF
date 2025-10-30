@@ -3,6 +3,7 @@ import hashlib
 import os
 import time
 import requests
+import json
 from flask import (
     abort,
     current_app,
@@ -120,6 +121,11 @@ def challenges_detail(challenge_id):
     flags = Flags.query.filter_by(challenge_id=challenge.id).all()
     deploys = DeployedChallenge.query.filter_by(challenge_id=challenge.id).all()
 
+    expose_port = ""
+    if challenge.image_link:
+        object_image = json.loads(challenge.image_link)
+        expose_port = object_image.get("exposedPort", "")
+
     try:
         challenge_class = get_chal_class(challenge.type)
     except KeyError:
@@ -143,6 +149,7 @@ def challenges_detail(challenge_id):
         update_template=update_j2,
         update_script=update_script,
         challenge=challenge,
+        expose_port=expose_port,
         challenges=challenges,
         solves=solves,
         flags=flags,

@@ -145,6 +145,8 @@ function handleChallengeOptions(event) {
     }),
     // Upload files
     new Promise(function (resolve, _reject) {
+      const btnFinish = $(event.target).find('#deploy-btn');
+      btnFinish.prop('disabled', true);
       try {
         let form = event.target;
         let data = {
@@ -158,14 +160,20 @@ function handleChallengeOptions(event) {
           console.log("Form being submitted:", form);
           helpers.files
             .upload(form, data)
-            .then(() => resolve()) // Thành công khi upload
-            .catch((error) =>
-              _reject(`Error uploading files: ${error.message}`)
-            ); // Xử lý lỗi upload
+            .then(() => {
+              btnFinish.prop('disabled', false);
+              resolve();
+            })
+            .catch((error) => {
+              btnFinish.prop('disabled', false);
+              reject(`Error uploading files: ${error.message}`);
+            });
         } else {
+          btnFinish.prop('disabled', false);
           resolve(); // Không có file để upload
         }
       } catch (error) {
+        btnFinish.prop('disabled', false);
         _reject(`Unexpected error during file upload: ${error.message}`);
       }
     }),

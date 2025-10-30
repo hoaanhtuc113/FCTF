@@ -75,7 +75,7 @@ redis_client = redis.StrictRedis(
 )
 vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
 
-def upload_file(challenge_id, file_path):
+def upload_file(challenge_id, file_path, exposed_port=None):
     delete_cached_files(challenge_id)
 
     if not os.path.exists(file_path):
@@ -89,7 +89,7 @@ def upload_file(challenge_id, file_path):
         notification_data = None
     
     if allowed_file(file_path) and file_path.endswith(".zip"):
-        return handle_challenge_upload(challenge, file_path, notification_data)
+        return handle_challenge_upload(challenge, file_path, notification_data, exposed_port)
     else:
         return jsonify({"error": "File type not allowed. Only zip files are allowed."}), 400
 

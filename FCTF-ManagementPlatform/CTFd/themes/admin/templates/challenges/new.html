@@ -50,7 +50,12 @@
                             Setup Docker
                         </label>
                     </div>
-
+                    <div class="form-group d-none" id="expose_port_container">
+                        <label> Expose port <br>
+                        <small class="form-text text-muted">Expose a port for the Docker container</small>
+                        </label>
+                        <input type="text" class="form-control" name="expose_port" id="expose_port"  min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    </div>
                     <div class="form-group">
                         <div class="form-group d-none upload-file">
                             <label>Files template:</label>
@@ -175,7 +180,6 @@
                 cards[index].classList.add('active');
             }
         });
-
         cards.forEach((card, index) => {
             card.addEventListener('click', function () {
                 radioButtons[index].checked = true;

@@ -16,6 +16,7 @@ import CTFd.plugins.upload_zip_files.routes as upload_helper
 from werkzeug.utils import secure_filename
 import os
 import json
+import re
 from flask import jsonify
 
 files_namespace = Namespace("files", description="Endpoint to retrieve Files")
@@ -93,11 +94,15 @@ class FilesList(Resource):
         files = request.files.getlist("file")
         deploy_file = request.files.get("deploy_file")
         require_deploy = request.form.get("require_deploy")
+        expose_port = request.form.get("expose_port")
         temp_file_path = ""
         objs = []
         challenge_id = request.form.to_dict().get("challenge_id")
         # challenge_id
         # page_id
+
+        if expose_port and not re.fullmatch(r"^[1-9]\d*$", expose_port) and require_deploy != "false":
+            return {"success": False, "errors": "Expose port must be a positive integer"}, 400
 
         print("require_deploy", require_deploy)
 
@@ -130,7 +135,7 @@ class FilesList(Resource):
             deploy_file.save(temp_file_path)
             print(temp_file_path)
             print("save successfully")
-            return upload_helper.upload_file(challenge_id, temp_file_path)
+            return upload_helper.upload_file(challenge_id, temp_file_path, expose_port)
 
         for f in files:
             print("upload file to local")
