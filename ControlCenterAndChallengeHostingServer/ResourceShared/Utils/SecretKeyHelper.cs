@@ -26,7 +26,7 @@ namespace ResourceShared.Utils
             // Concatenate UnixTime, PrivateKey, and sorted parameter values
             var stringBuilder = new StringBuilder();
             stringBuilder.Append(unixTime);
-            stringBuilder.Append(ServiceConfigs.PrivateKey);
+            stringBuilder.Append(SharedConfig.PRIVATE_KEY);
             foreach (var param in sortedParams)
             {
                 stringBuilder.Append(param.Value ?? "1");

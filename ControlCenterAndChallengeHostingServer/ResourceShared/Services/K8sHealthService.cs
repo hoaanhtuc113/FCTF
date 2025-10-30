@@ -18,15 +18,7 @@ namespace ResourceShared.Services
         private readonly IKubernetes _kubernetes;
         public K8sHealthService()
         {
-            var useLocal = K8sConfigs.USE_LOCAL_K8S?.ToLower() == "true";
-
-            var config = useLocal
-                ? KubernetesClientConfiguration.BuildConfigFromConfigFile(
-                    string.IsNullOrWhiteSpace(K8sConfigs.KUBE_CONFIG_PATH)
-                        ? null
-                        : K8sConfigs.KUBE_CONFIG_PATH)
-                : KubernetesClientConfiguration.InClusterConfig();
-
+            var config = KubernetesClientConfiguration.InClusterConfig();
             _kubernetes = new Kubernetes(config);
         }
 
