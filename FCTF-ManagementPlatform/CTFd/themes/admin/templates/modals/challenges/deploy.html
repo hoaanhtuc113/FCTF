@@ -6,18 +6,25 @@
             Setup Docker
         </label>
     </div>
+    <div class="form-group" id="expose_port_container">
+        <label> Expose port <br>
+          <small class="form-text text-muted">Expose a port for the Docker container</small>
+        </label>
+        <input type="text" class="form-control" name="expose_port" id="expose_port"  value="{{ expose_port }}"
+           min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+    </div>
     <label>Files template:</label>
-							<ul id="template-list">
-								{% for filename in template_files %}
-								<li class="list-unstyled">
-									<a href="{{ url_for('admin.download_template', filename=filename) }}" download>
-										{{ filename }}
-									</a>
-								</li>
-								{% else %}
-								<li>No templates available.</li>
-								{% endfor %}
-							</ul>
+    <ul id="template-list">
+      {% for filename in template_files %}
+      <li class="list-unstyled">
+        <a href="{{ url_for('admin.download_template', filename=filename) }}" download>
+          {{ filename }}
+        </a>
+      </li>
+      {% else %}
+      <li>No templates available.</li>
+      {% endfor %}
+    </ul>
     <label>
       Files:
       <small class="form-text text-muted">Files distributed along with your challenge</small>
@@ -46,6 +53,8 @@
     const deployBtn = document.getElementById("deploy-btn");
     const reDeployBtn = document.getElementById("re-deploy-btn");
     const statusMessage = document.getElementById("status-message");
+    const exposePortContainer = document.getElementById("expose_port_container");
+    const exposePortInput = document.getElementById("expose_port");
 
     // Show progress bar container
     const progressContainer = document.getElementById('deploy-progress-container');
@@ -62,16 +71,27 @@
     let timeDeployDuration = 1000;
     let isRunning = false;
 
+    $('#expose_port').on('input', function() {
+        updateButtonState();
+    });
+
     function updateButtonState() {
       if (setupDockerCheckbox.checked) {
         fileInput.disabled = false;
         fileInput.required = true;
-        deployBtn.disabled = fileInput.files.length === 0;
+        console.log("Expose Port:", exposePortInput.value);
+        if (exposePortInput.value === '') {
+          deployBtn.disabled = true;
+        } else {
+          deployBtn.disabled = fileInput.files.length === 0;
+        }
+        exposePortContainer.style.display = 'block';
       } else {
         fileInput.disabled = true;
         fileInput.required = false;
         fileInput.value = '';
         deployBtn.disabled = false;
+        exposePortContainer.style.display = 'none';
       }
     }
 
@@ -117,7 +137,13 @@
           };
 
           //if (fileInput.files.length > 0) {
-          helpers.files.upload(form, data);
+          helpers.files.upload(form, data)
+          .then(() => {
+            resolve();
+          })
+          .catch((error) => {
+            _reject(`Error uploading files: ${error.message}`);
+          });
          // }
 
           resolve();

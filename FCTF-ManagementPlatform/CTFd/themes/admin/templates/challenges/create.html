@@ -5,8 +5,10 @@
 	document.getElementById("setup_docker").addEventListener("click", () => {
 		const uploadFileSection = document.querySelector(".upload-file");
 		const multi_files = document.querySelector(".multi_files");
+		const exposePortContainer = document.getElementById("expose_port_container");
 		multi_files.classList.toggle("d-none", document.getElementById("setup_docker").checked);
 		uploadFileSection.classList.toggle("d-none", !document.getElementById("setup_docker").checked);
+		exposePortContainer.classList.toggle("d-none", !document.getElementById("setup_docker").checked);
 	});
 </script>
 

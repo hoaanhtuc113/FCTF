@@ -18,7 +18,6 @@ namespace DeploymentCenter.Services
     }
     public class DeployService : IDeployService
     {
-        public static int port = 30000;
         private readonly IConnectionMultiplexer _connectionMultiplexer;
         private readonly IK8sHealthService _k8SHealthService;
         private readonly AppDbContext _dbContext;
@@ -28,13 +27,6 @@ namespace DeploymentCenter.Services
             _dbContext=dbContext;
             //_k8SHealthService = k8SHealthService;
         }
-        private int getPort()
-        {
-            port += 1;
-            if (port > 32767) port = 30000;
-            return port;
-        }
-
         public async Task<ChallengeStartResponeDTO> Start(int challengId, string challengName, string teamName)
         {
             RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
@@ -82,16 +74,41 @@ namespace DeploymentCenter.Services
                 }
             }
             var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == challengId);
+            if (challenge == null)
+            {
+                return new ChallengeStartResponeDTO
+                {
+                    status = (int)HttpStatusCode.NotFound,
+                    success = false,
+                    message = "Challenge not found."
+                };
+            }
             try
             {
                 var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
-                var port = getPort();
-                //var payload = new { workflow = ChallengeHelper.BuildArgoPayload("01", teamName, port) };
+                var jsonImageLink = challenge.ImageLink;
+                if (jsonImageLink == null)
+                    return new ChallengeStartResponeDTO
+                    {
+                        status = (int)HttpStatusCode.BadRequest,
+                        success = false,
+                        message = "Challenge image link is null."
+                    };
 
+                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink);
+
+                if (imageObj == null) 
+                    return new ChallengeStartResponeDTO
+                    {
+                        status = (int)HttpStatusCode.BadRequest,
+                        success = false,
+                        message = "Challenge image link is invalid."
+                    };
+               
                 var payload = ChallengeHelper.BuildArgoPayload(
                         challenge,
                         teamName,
-                        "80",
+                        imageObj,
                         DeploymentCenterConfigHelper.CPU_LIMIT,
                         DeploymentCenterConfigHelper.CPU_REQUEST,
                         DeploymentCenterConfigHelper.MEMORY_LIMIT,
