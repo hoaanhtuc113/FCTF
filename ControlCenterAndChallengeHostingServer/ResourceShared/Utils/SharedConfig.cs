@@ -11,8 +11,10 @@ namespace ResourceShared.Utils
         /// Hàm đọc các config từ appsettings.json và .env file
         /// </summary>
         /// <exception cref="Exception">Exception sẽ được throw khi có vấn đề với file appsetting (Thiếu config, không đúng kiểu dữ liệu,...)</exception>
+        public static string PRIVATE_KEY = "";
 
         public static IConfiguration configuration = BuildConfiguration();
+
 
         private static IConfiguration BuildConfiguration()
         {
@@ -31,11 +33,7 @@ namespace ResourceShared.Utils
         public virtual void InitConfig()
         {
             RedisConfigs.ConnectionString = configuration["REDIS_CONNECTION"] ?? throw new Exception("Can't read RedisConnectionString");
-            ServiceConfigs.PrivateKey = configuration["PRIVATE_KEY"] ?? throw new Exception("Can't read ServiceConfigs:PrivateKey");
-            K8sConfigs.USE_LOCAL_K8S = Environment.GetEnvironmentVariable("USE_LOCAL_K8S") ?? "false";
-            K8sConfigs.KUBE_CONFIG_PATH = Environment.GetEnvironmentVariable("KUBE_CONFIG_PATH") ?? "";
-            EnvironmentConfigs.ENVIRONMENT_NAME= configuration["ENVIRONMENT_NAME"] ?? throw new Exception("Can't read EnvironmentConfigs:ENVIRONMENT_NAME");
-            Console.WriteLine($"[SharedConfig] Kubeconfig {K8sConfigs.USE_LOCAL_K8S} {K8sConfigs.KUBE_CONFIG_PATH}");
+            PRIVATE_KEY = configuration["PRIVATE_KEY"] ?? throw new Exception("Can't read PrivateKey");
         }
     }
 }

@@ -55,7 +55,6 @@ import asyncio
 import json
 import redis
 from CTFd.constants.envvars import (
-    API_URL_ADMINSERVER,
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
     HOST_CACHE,

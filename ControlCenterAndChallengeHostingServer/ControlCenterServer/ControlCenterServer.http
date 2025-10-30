@@ -1,6 +1,0 @@
-@ControlCenterServer_HostAddress = http://localhost:5050
-
-GET {{ControlCenterServer_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
