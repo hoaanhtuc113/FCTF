@@ -10,9 +10,7 @@ import {
   CheckCircle,
   Terminal,
   Security,
-  Description,
   PictureAsPdf,
-  Close,
 } from '@mui/icons-material';
 import { FaDownload } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -85,6 +83,7 @@ export function Challenges() {
   const [error, setError] = useState('');
   const [isContestActive, setIsContestActive] = useState(false);
   const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
+  const [showCategories, setShowCategories] = useState(false);
 
   // Pagination states
   const [categoryPage, setCategoryPage] = useState(1);
@@ -216,6 +215,7 @@ export function Challenges() {
     setSelectedCategory(categoryName);
     setSelectedChallenge(null);
     setChallengePage(1); // Reset challenge page when switching category
+    setShowCategories(false); // Hide category overlay after selection
     await fetchChallenges(categoryName);
   };
 
@@ -315,91 +315,105 @@ export function Challenges() {
   }
 
   return (
-    <div className="flex gap-4 min-h-[70vh] relative">
-      {/* Column 1: Categories */}
-      <div className="w-56 flex-shrink-0">
-        <div className={`rounded-lg border p-4 sticky top-24 ${
-          theme === 'dark'
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-300'
-        }`}>
-          <div className={`mb-4 pb-3 border-b ${
-            theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
-          }`}>
-            <Typography variant="h6" className={`font-bold font-mono text-sm ${
-              theme === 'dark' ? 'text-cyan-300' : 'text-cyan-600'
+    <div className="flex gap-4 min-h-[70vh]">
+      {/* Column 1: Categories - Show when no challenge selected OR when showCategories is true */}
+      <AnimatePresence>
+        {(!selectedChallenge || showCategories) && (
+          <motion.div
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: 'auto' }}
+            exit={{ opacity: 0, width: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex-shrink-0"
+          >
+            <div className={`w-48 rounded-lg border p-3 ${
+              theme === 'dark'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-300'
             }`}>
-              [CATEGORIES]
-            </Typography>
-          </div>
+              <div className={`mb-3 pb-2 border-b ${
+                theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
+              }`}>
+                <Typography variant="h6" className={`font-bold font-mono text-xs ${
+                  theme === 'dark' ? 'text-cyan-300' : 'text-cyan-600'
+                }`}>
+                  [CATEGORIES]
+                </Typography>
+              </div>
           
-          <div className="space-y-2">
-            {loading ? (
-              // Show skeleton while loading categories
-              <>
-                <CategorySkeleton />
-                <CategorySkeleton />
-                <CategorySkeleton />
-                <CategorySkeleton />
-                <CategorySkeleton />
-              </>
-            ) : (
-              categories
-                .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
-                .map((category) => (
-                <button
-                  key={category.topic_name}
-                  onClick={() => handleCategoryClick(category.topic_name)}
-                  className={`w-full text-left px-3 py-2 rounded transition-colors flex items-center justify-between ${
-                    selectedCategory === category.topic_name
-                      ? theme === 'dark'
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                        : 'bg-green-50 text-green-700 border border-green-300'
-                      : theme === 'dark'
-                      ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
-                      : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {getCategoryIcon(category.topic_name)}
-                    <div className="flex-1">
-                      <div className="font-bold text-xs font-mono">
-                        {category.topic_name.toUpperCase()}
-                      </div>
-                      <div className={`text-xs font-mono ${
-                        selectedCategory === category.topic_name
-                          ? theme === 'dark' ? 'text-green-300' : 'text-green-600'
-                          : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                      }`}>
-                        {category.challenge_count} challs
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                {loading ? (
+                  <>
+                    <CategorySkeleton />
+                    <CategorySkeleton />
+                    <CategorySkeleton />
+                    <CategorySkeleton />
+                    <CategorySkeleton />
+                  </>
+                ) : (
+                  categories
+                    .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
+                    .map((category) => (
+                  <button
+                    key={category.topic_name}
+                    onClick={() => handleCategoryClick(category.topic_name)}
+                    className={`w-full text-left px-2 py-1.5 rounded transition-colors flex items-center justify-between text-xs ${
+                      selectedCategory === category.topic_name
+                        ? theme === 'dark'
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          : 'bg-green-50 text-green-700 border border-green-300'
+                        : theme === 'dark'
+                        ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
+                        : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {getCategoryIcon(category.topic_name)}
+                      <div className="flex-1">
+                        <div className="font-bold text-xs font-mono">
+                          {category.topic_name.toUpperCase()}
+                        </div>
+                        <div className={`text-xs font-mono ${
+                          selectedCategory === category.topic_name
+                            ? theme === 'dark' ? 'text-green-300' : 'text-green-600'
+                            : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                        }`}>
+                          {category.challenge_count} challs
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  {selectedCategory === category.topic_name && (
-                    <span className="text-green-500">●</span>
-                  )}
-                </button>
-              ))
-            )}
-          </div>
+                    
+                    {selectedCategory === category.topic_name && (
+                      <span className="text-green-500 text-xs">●</span>
+                    )}
+                  </button>
+                ))
+                )}
+              </div>
 
-          {/* Categories Pagination */}
-          {categories.length > categoriesPerPage && (
-            <div className="mt-4 pt-3 border-t border-gray-700">
-              <TerminalPagination
-                currentPage={categoryPage}
-                totalPages={Math.ceil(categories.length / categoriesPerPage)}
-                onPageChange={setCategoryPage}
-                theme={theme}
-              />
+              {categories.length > categoriesPerPage && (
+                <div className="mt-3 pt-2 border-t border-gray-700">
+                  <TerminalPagination
+                    currentPage={categoryPage}
+                    totalPages={Math.ceil(categories.length / categoriesPerPage)}
+                    onPageChange={setCategoryPage}
+                    theme={theme}
+                  />
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Column 2: Challenge List */}
-      <div className={selectedChallenge ? "w-96 flex-shrink-0" : "flex-1"}>
+      <div 
+        className={`transition-all duration-300 ${
+          selectedChallenge 
+            ? (showCategories ? 'w-72' : 'w-80')
+            : 'flex-1'
+        }`}
+      >
         {!isContestActive && (
           <div className={`mb-4 p-3 rounded border ${
             theme === 'dark'
@@ -423,8 +437,27 @@ export function Challenges() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="mb-4">
+            <div className={`mb-4 pb-3 border-b ${
+              selectedChallenge ? 'flex items-center justify-between' : ''
+            } ${
+              theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
+            }`}>
+              {selectedChallenge && (
+                <button
+                  onClick={() => setShowCategories(!showCategories)}
+                  className={`p-1.5 rounded transition-colors border ${
+                    theme === 'dark'
+                      ? 'text-cyan-400 border-cyan-500/50 hover:bg-cyan-500/20 hover:border-cyan-400'
+                      : 'text-cyan-600 border-cyan-300 hover:bg-cyan-50 hover:border-cyan-500'
+                  }`}
+                  title={showCategories ? "Hide Categories" : "Show Categories"}
+                >
+                  BACK
+                </button>
+              )}
               <h1 className={`text-xl font-bold font-mono ${
+                selectedChallenge ? 'flex-1 text-center' : ''
+              } ${
                 theme === 'dark' ? 'text-cyan-300' : 'text-cyan-600'
               }`}>
                 [{selectedCategory.toUpperCase()}]
@@ -854,7 +887,6 @@ function ChallengeDetailPanel({
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(0);
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -863,13 +895,56 @@ function ChallengeDetailPanel({
   const [unlockingHintId, setUnlockingHintId] = useState<number | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [cooldownTotal, setCooldownTotal] = useState<number>(0);
+  const [pdfScale, setPdfScale] = useState<number>(1.0);
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
+  const pdfContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Filter PDF files
   const pdfFiles = challenge.files?.filter(file => file.toLowerCase().includes('.pdf')) || [];
   const hasDescription = !!challenge.description;
   const hasPdfFiles = pdfFiles.length > 0;
+
+  // Handle mouse wheel zoom for PDF
+  const handlePdfWheel = (e: WheelEvent) => {
+    // Check if Ctrl key is pressed (standard zoom modifier)
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      
+      // Determine zoom direction
+      const delta = -e.deltaY;
+      const zoomStep = 0.1;
+      
+      setPdfScale(prev => {
+        if (delta > 0) {
+          // Zoom in
+          return Math.min(2.0, prev + zoomStep);
+        } else {
+          // Zoom out
+          return Math.max(0.5, prev - zoomStep);
+        }
+      });
+    }
+  };
+
+  // Attach wheel event listener to PDF container
+  useEffect(() => {
+    const container = pdfContainerRef.current;
+    if (container && selectedPdfIndex !== null) {
+      container.addEventListener('wheel', handlePdfWheel, { passive: false });
+      
+      return () => {
+        container.removeEventListener('wheel', handlePdfWheel);
+      };
+    }
+  }, [selectedPdfIndex]);
+
+  // Auto-open first PDF when challenge has PDF files
+  useEffect(() => {
+    if (hasPdfFiles && selectedPdfIndex === null) {
+      handlePdfClick(0);
+    }
+  }, [challenge.id, hasPdfFiles]);
 
   // Load cooldown and deployment state from localStorage when challenge changes
   useEffect(() => {
@@ -1925,6 +2000,7 @@ const getFileName = (filePath : string) => {
   const handlePdfClick = async (index: number) => {
     setSelectedPdfIndex(index);
     setPageNumber(1);
+    // Don't reset scale here, let onDocumentLoadSuccess calculate it
     setLoadingPdf(true);
     
     // Revoke previous blob URL if exists
@@ -1967,16 +2043,28 @@ const getFileName = (filePath : string) => {
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-  };
-
-  const closePdfViewer = () => {
-    if (pdfBlobUrl) {
-      URL.revokeObjectURL(pdfBlobUrl);
-      setPdfBlobUrl(null);
-    }
-    setSelectedPdfIndex(null);
-    setNumPages(null);
-    setPageNumber(1);
+    
+    // Calculate optimal scale to fit PDF in container
+    // We need to wait a bit for the PDF to render to get its dimensions
+    setTimeout(() => {
+      if (pdfContainerRef.current) {
+        const container = pdfContainerRef.current;
+        const containerWidth = container.clientWidth - 32; // Subtract padding (16px * 2)
+        
+        // Get the actual PDF page element to check its width
+        const pdfPage = container.querySelector('.react-pdf__Page');
+        if (pdfPage) {
+          const pageWidth = (pdfPage as HTMLElement).offsetWidth;
+          
+          // Calculate scale to fit container width
+          const optimalScale = containerWidth / pageWidth;
+          
+          // Clamp between 0.5 and 2.0 for reasonable limits
+          const finalScale = Math.max(0.5, Math.min(2.0, optimalScale));
+          setPdfScale(finalScale);
+        }
+      }
+    }, 100);
   };
 
   // Cleanup blob URL when component unmounts or PDF changes
@@ -1995,7 +2083,7 @@ const getFileName = (filePath : string) => {
       }`}>
         {/* Main Challenge Detail Panel */}
         <div className={`rounded-lg border overflow-hidden transition-all duration-300 ${
-          selectedPdfIndex !== null ? 'w-1/2' : 'w-full'
+          selectedPdfIndex !== null ? 'w-[25%]' : 'w-full'
         } ${
           theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
@@ -2065,7 +2153,7 @@ const getFileName = (filePath : string) => {
                       : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                   }`}
                 >
-                  <Close />
+                  <span className="font-mono text-sm">✕</span>
                 </button>
               </div>
             </div>
@@ -2146,20 +2234,36 @@ const getFileName = (filePath : string) => {
               </div>
             )}
 
-            {/* Tabs for Description and PDFs */}
-            {(hasDescription || hasPdfFiles) && (
+            {/* Description - Always show if exists */}
+            {hasDescription && (
               <div>
+                <div className={`text-xs font-mono font-bold mb-2 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  [DESCRIPTION]
+                </div>
+                <div className={`p-3 rounded border text-sm ${
+                  theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-gray-50 border-gray-300'
+                }`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {challenge.description}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {/* PDF Tabs - Only for switching between PDFs when there are multiple */}
+            {hasPdfFiles && pdfFiles.length > 1 && (
+              <div>
+                <div className={`text-xs font-mono font-bold mb-2 ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  [PDF FILES]
+                </div>
                 <Tabs
-                  value={selectedTab}
+                  value={selectedPdfIndex !== null ? selectedPdfIndex : 0}
                   onChange={(_, newValue) => {
-                    setSelectedTab(newValue);
-                    const isPdfTab = hasDescription ? newValue > 0 : newValue >= 0;
-                    if (!isPdfTab || (hasDescription && newValue === 0)) {
-                      closePdfViewer();
-                    } else {
-                      const pdfIdx = hasDescription ? newValue - 1 : newValue;
-                      handlePdfClick(pdfIdx);
-                    }
+                    handlePdfClick(newValue);
                   }}
                   sx={{
                     minHeight: '36px',
@@ -2180,53 +2284,15 @@ const getFileName = (filePath : string) => {
                     },
                   }}
                 >
-                  {hasDescription && (
-                    <Tab 
-                      icon={<Description sx={{ fontSize: 14 }} />} 
-                      iconPosition="start" 
-                      label="Description" 
-                    />
-                  )}
                   {pdfFiles.map((_, index) => (
                     <Tab
                       key={index}
                       icon={<PictureAsPdf sx={{ fontSize: 14 }} />}
                       iconPosition="start"
-                      label={`PDF ${index + 1}`}
+                      label={`Detail ${index + 1}`}
                     />
                   ))}
                 </Tabs>
-
-                {/* Tab Content */}
-                <div className="mt-3">
-                  {selectedTab === 0 && hasDescription && (
-                    <div className={`p-3 rounded border text-sm ${
-                      theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-gray-50 border-gray-300'
-                    }`}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {challenge.description}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                  
-                  {pdfFiles.map((_, index) => {
-                    const tabIndex = hasDescription ? index + 1 : index;
-                    return selectedTab === tabIndex && selectedPdfIndex === null && (
-                      <div key={index} className={`p-4 rounded border ${
-                        theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
-                      }`}>
-                        <div className="text-center">
-                          <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={30} />
-                          <Typography className={`mt-2 font-mono text-xs ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                            Loading PDF...
-                          </Typography>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             )}
 
@@ -2495,14 +2561,14 @@ const getFileName = (filePath : string) => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
-              className={`w-1/2 rounded-lg border overflow-hidden ${
+              className={`w-[75%] rounded-lg border overflow-hidden flex flex-col max-h-[85vh] ${
                 theme === 'dark'
                   ? 'bg-gray-900 border-gray-700'
                   : 'bg-gray-100 border-gray-300'
               }`}
             >
               {/* PDF Header */}
-              <div className={`p-3 border-b flex items-center justify-between ${
+              <div className={`p-3 border-b flex items-center justify-between flex-shrink-0 ${
                 theme === 'dark' 
                   ? 'bg-gray-800 border-gray-700' 
                   : 'bg-white border-gray-300'
@@ -2517,6 +2583,44 @@ const getFileName = (filePath : string) => {
                 </div>
                 
                 <div className="flex items-center gap-2">
+                  {/* Zoom Controls - Minimal Terminal Style */}
+                  {numPages && !loadingPdf && (
+                    <>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setPdfScale(prev => Math.max(0.5, prev - 0.1))}
+                          disabled={pdfScale <= 0.5}
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
+                            theme === 'dark'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-cyan-400 border-gray-600'
+                              : 'bg-gray-100 hover:bg-gray-200 text-cyan-600 border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                        >
+                          [-]
+                        </button>
+                        <span className={`font-mono text-xs min-w-[45px] text-center ${
+                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          {Math.round(pdfScale * 100)}%
+                        </span>
+                        <button
+                          onClick={() => setPdfScale(prev => Math.min(3.0, prev + 0.1))}
+                          disabled={pdfScale >= 3.0}
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
+                            theme === 'dark'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-cyan-400 border-gray-600'
+                              : 'bg-gray-100 hover:bg-gray-200 text-cyan-600 border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                        >
+                          [+]
+                        </button>
+                      </div>
+                      
+                      <span className={`mx-1 ${theme === 'dark' ? 'text-gray-700' : 'text-gray-400'}`}>|</span>
+                    </>
+                  )}
+                  
+                  {/* Page Navigation - Minimal Terminal Style */}
                   {numPages && !loadingPdf && (
                     <>
                       <div className={`font-mono text-xs ${
@@ -2528,24 +2632,24 @@ const getFileName = (filePath : string) => {
                         <button
                           onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
                           disabled={pageNumber <= 1}
-                          className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
                             theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600'
-                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
+                              : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
                           } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
-                          ←
+                          [&lt;]
                         </button>
                         <button
                           onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
                           disabled={pageNumber >= numPages}
-                          className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
                             theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600'
-                              : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
+                              : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
                           } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
-                          →
+                          [&gt;]
                         </button>
                       </div>
                     </>
@@ -2555,7 +2659,10 @@ const getFileName = (filePath : string) => {
               </div>
 
               {/* PDF Content */}
-              <div className="h-[calc(100%-60px)] overflow-auto p-4 flex justify-center items-start">
+              <div 
+                ref={pdfContainerRef}
+                className="flex-1 overflow-auto p-4 flex justify-center items-start"
+              >
                 {loadingPdf ? (
                   <div className="flex flex-col items-center justify-center p-12">
                     <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
@@ -2605,7 +2712,7 @@ const getFileName = (filePath : string) => {
                         pageNumber={pageNumber} 
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
-                        width={Math.min((window.innerWidth * 0.33) - 100, 600)}
+                        scale={pdfScale}
                         loading={
                           <div className="flex items-center justify-center p-8">
                             <CircularProgress sx={{ color: '#fb923c' }} size={40} />
