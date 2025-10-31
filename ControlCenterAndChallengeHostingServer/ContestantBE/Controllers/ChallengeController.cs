@@ -47,7 +47,6 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetById(int id)
         {
-            await Console.Out.WriteLineAsync($"start GetById");
             try
             {
                 var user = HttpContext.GetCurrentUser();

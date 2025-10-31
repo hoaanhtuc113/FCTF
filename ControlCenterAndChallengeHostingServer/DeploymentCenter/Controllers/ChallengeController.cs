@@ -24,7 +24,7 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
-            if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || string.IsNullOrEmpty(challengeStartReq.teamName))
+            if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || string.IsNullOrEmpty(challengeStartReq.teamName) || challengeStartReq.userId == null)
             {
                 return BadRequest(new ChallengeStartResponeDTO
                 {
@@ -33,13 +33,7 @@ namespace DeploymentCenter.Controllers
                     message = "Invalid request data."
                 });
             }
-            var response = await _deployService.Start(challengeStartReq.challengeId, challengeStartReq.teamName, challengeStartReq.teamName);
-            if(response.challenge_url != null)
-            {
-                var message = $"{response.message} <br><br>Running challenge is: {challengeStartReq.teamName}";
-                response.message = message;
-            }
-
+            var response = await _deployService.Start(challengeStartReq.challengeId, challengeStartReq.teamName, challengeStartReq.userId.Value , challengeStartReq.teamName);
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),

@@ -7,6 +7,7 @@ using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
+using System.Security.AccessControl;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
@@ -14,7 +15,7 @@ namespace DeploymentCenter.Services
 {
     public interface IDeployService
     {
-        Task<ChallengeStartResponeDTO> Start(int challengId, string challengName, string teamName);
+        Task<ChallengeStartResponeDTO> Start(int challengId, string challengName, int userId, string teamName);
     }
     public class DeployService : IDeployService
     {
@@ -27,27 +28,29 @@ namespace DeploymentCenter.Services
             _dbContext=dbContext;
             //_k8SHealthService = k8SHealthService;
         }
-        public async Task<ChallengeStartResponeDTO> Start(int challengId, string challengName, string teamName)
+        public async Task<ChallengeStartResponeDTO> Start(int challengId, string challengName, int userId, string teamName)
         {
             RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
             var startedKey = ChallengeHelper.GetArgoWName(challengId.ToString(), teamName);
 
-            var cache = await redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+            var deploymentCache = await redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
 
-            if (cache != null)
+            if (deploymentCache != null)
             {
-                switch (cache.Status)
+                switch (deploymentCache.Status)
                 {
                     case DeploymentStatus.PROCESS:
                         return new ChallengeStartResponeDTO
                         {
                             status = (int)HttpStatusCode.OK,
                             success = true,
-                            message = "Challenge is deploying. Please wait a moment."
+                            message = "Challenge is deploying. The domain bellow may not be immediately accessible.",
+                            challenge_url = deploymentCache.DeploymentDomainName,
+
                         };
                     case DeploymentStatus.RUNING:
 
-                        var podName = ChallengeHelper.GetDeploymentAppName(teamName, challengId.ToString(), challengName);
+                        var podName = deploymentCache.PodName;
 
                         //var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName, "challenge");
                         var podStatus = true;
@@ -57,7 +60,8 @@ namespace DeploymentCenter.Services
                             {
                                 status = (int)HttpStatusCode.OK,
                                 success = true,
-                                message = "Challenge is deploying. Please wait a moment."
+                                message = "Challenge is deploying. The domain bellow may not be immediately accessible.",
+                                challenge_url = deploymentCache.DeploymentDomainName,
                             };
                         }
 
@@ -66,46 +70,30 @@ namespace DeploymentCenter.Services
                             status = (int)HttpStatusCode.OK,
                             success = true,
                             message = "Challenge is already deployed.",
-                            challenge_url = cache.DeploymentDomainName,
+                            challenge_url = deploymentCache.DeploymentDomainName,
                         };
                     default:
-                        await Console.Out.WriteLineAsync($"Unknown deployment status: {cache.Status}");
+                        await Console.Out.WriteLineAsync($"Unknown deployment status: {deploymentCache.Status}");
                         break;
                 }
             }
             var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == challengId);
-            if (challenge == null)
-            {
-                return new ChallengeStartResponeDTO
-                {
-                    status = (int)HttpStatusCode.NotFound,
-                    success = false,
-                    message = "Challenge not found."
-                };
-            }
+            if (challenge == null) 
+                return new ChallengeStartResponeDTO{ status = (int)HttpStatusCode.NotFound, success = false, message = "Challenge not found."};
+            
             try
             {
                 var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
                 var jsonImageLink = challenge.ImageLink;
                 if (jsonImageLink == null)
-                    return new ChallengeStartResponeDTO
-                    {
-                        status = (int)HttpStatusCode.BadRequest,
-                        success = false,
-                        message = "Challenge image link is null."
-                    };
+                    return new ChallengeStartResponeDTO{ status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is null." };
 
                 var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink);
 
                 if (imageObj == null) 
-                    return new ChallengeStartResponeDTO
-                    {
-                        status = (int)HttpStatusCode.BadRequest,
-                        success = false,
-                        message = "Challenge image link is invalid."
-                    };
+                    return new ChallengeStartResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is invalid." };
                
-                var payload = ChallengeHelper.BuildArgoPayload(
+                var (payload, appName) = ChallengeHelper.BuildArgoPayload(
                         challenge,
                         teamName,
                         imageObj,
@@ -116,6 +104,7 @@ namespace DeploymentCenter.Services
                         DeploymentCenterConfigHelper.POD_START_TIMEOUT_MINUTES);
                 
                 var api = DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL + "/submit";
+
                 await Console.Out.WriteLineAsync($"Payload to Argo Workflows API: {JsonSerializer.Serialize(payload)}");
                 await Console.Out.WriteLineAsync($"Argo Workflows API: {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL}");
 
@@ -125,19 +114,35 @@ namespace DeploymentCenter.Services
                 if (response == null)
                 {
                     await Console.Out.WriteLineAsync("No response from Argo Workflows API");
-                    return new ChallengeStartResponeDTO
-                    {
-                        status = (int)HttpStatusCode.BadRequest,
-                        success = false,
-                        message = "No response from server"
-                    };
+                    return new ChallengeStartResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "No response from server" };
                 }
+                var domainName = $"http://{appName}.challenge-zg9uj3rfagfja19tzq.fctf.cloud";
+
+                await redisHelper.SetCacheAsync(startedKey, new DeploymentInfo
+                {
+                    Status = DeploymentStatus.PROCESS,
+                    ChallengeId = challengId,
+                    PodName = appName,
+                    DeploymentDomainName = domainName,
+                });
+
+                var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
+                ChallengeDeploymentCacheDTO  chalDeploy = new ChallengeDeploymentCacheDTO
+                {
+                    challenge_id = challengId,
+                    user_id = userId,
+                    status = DeploymentStatus.PROCESS,
+                    challenge_url = domainName,
+                    time_finished = -1
+                };
+                // khi nào thực sự lên thì cập nhật lại status và time_finished
 
                 return new ChallengeStartResponeDTO
                 {
                     status = (int)HttpStatusCode.OK,
                     success = true,
-                    message = "Send to Argo Workflows to deploy successfully.",
+                    message = "Send to request to deploy successfully. The domain bellow may not be immediately accessible.",
+                    challenge_url = domainName
                 };
             }
             catch (HttpRequestException ex)
