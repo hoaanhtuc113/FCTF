@@ -82,7 +82,7 @@ def get_workflow_name(challenge_id):
     workflow_name = redis_client.get(key)
     return workflow_name
 
-def get_team_id_and_cache_key(user, challenge_id, challenge_time):
+def get_team_id_and_cache_key(user, challenge_id):
     if user.type != "user":
         team_id = -1
         cache_key = generate_cache_key(challenge_id, team_id)
@@ -91,23 +91,25 @@ def get_team_id_and_cache_key(user, challenge_id, challenge_time):
         cache_key = generate_cache_key(challenge_id, team_id)
     return team_id, cache_key
 
-def prepare_challenge_payload(challenge, user, team_id, team, challenge_time):
+def prepare_start_challenge_payload(challenge, user_id, team_id, team_name):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
         PRIVATE_KEY,
         unix_time,
         {
             "challengeId": challenge.id,
-            "teamName": team.name if team_id > 0 else "Preview",
-            "teamId": team_id,
             "challengeName": challenge.name.replace(" ", "_"),
+            "teamId": team_id,
+            "teamName": team_name if team_id > 0 else "Preview",
+            "userId": user_id,
         },
     )
     payload = {
         "challengeId": challenge.id,
-        "teamName": team.name if team_id > 0 else "Preview",
-        "teamId": team_id,
         "challengeName": challenge.name.replace(" ", "_"),
+        "teamId": team_id,
+        "teamName": team_name if team_id > 0 else "Preview",
+        "userId": user_id,
         "unixTime": unix_time, 
     }
     headers = {"SecretKey": secret_key}
@@ -134,7 +136,7 @@ def prepare_up_challenge_payload(path, image_tag):
     api_url = f"{ARGO_WORKFLOWS_URL}/submit"
     return payload, headers, api_url
 
-def challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team):
+def challenge_start(payload, headers, api_start):
     try:
         redis_client.ping()
     except redis.ConnectionError as e:

@@ -30,7 +30,7 @@ import redis
 import re
 
 from CTFd.utils.decorators import admins_only, during_ctf_time_only
-from CTFd.utils.connector.multiservice_connector import challenge_start, create_secret_key, force_stop, generate_cache_attempt_key, generate_cache_key, get_team_id_and_cache_key, get_token_from_header, prepare_challenge_payload
+from CTFd.utils.connector.multiservice_connector import challenge_start, create_secret_key, force_stop, generate_cache_attempt_key, generate_cache_key, get_team_id_and_cache_key, get_token_from_header, prepare_start_challenge_payload
 
 challenge = Blueprint("challenge", __name__)
 redis_client = redis.StrictRedis(
@@ -99,22 +99,25 @@ def start_challenge():
         return jsonify({"error": "ChallengeId is required"}), 400
 
     user = Users.query.filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"error": "User Not found"}), 404
+
     challenge = Challenges.query.filter_by(id=challenge_id).first()
-    challenge_time = challenge.time_limit or -1
     # lấy ra team_id theo user_id
-    team_id, cache_key = get_team_id_and_cache_key(user, challenge_id, challenge_time)
+    team_id, cache_key = get_team_id_and_cache_key(user, challenge_id)
     team = Teams.query.filter_by(id=team_id).first()
-    if not user or not team_id or not challenge:
-        return jsonify({"error": "Invalid user or team"}), 400
+    if not team_id or not challenge:
+        return jsonify({"error": "Invalid team or challenge"}), 400
 
     if challenge.require_deploy:
-        # Check xem team đã có đội trưởng chưa và người khởi động challenge có phải đội trưởng không
-        if(user.type == 'user' and (not team.captain_id or team.captain_id != user_id)):
-            return jsonify({"error": "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge."}), 400
+        # # Check xem team đã có đội trưởng chưa và người khởi động challenge có phải đội trưởng không
+        # if(user.type == 'user' and (not team.captain_id or team.captain_id != user_id)):
+        #     return jsonify({"error": "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge."}), 400
+        team_name = team.name if team else "Unknown Team"
+        # Chuẩn bị payload và headers
+        payload, headers, api_start = prepare_start_challenge_payload(challenge, user_id, team_id, team_name)
 
-        payload, headers, api_start = prepare_challenge_payload(challenge, user, team_id, team, challenge_time)
-
-        return challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team)
+        return challenge_start(payload, headers, api_start)
 
 @challenge.route("/api/challenge/stop-by-admin", methods=["POST"])
 @bypass_csrf_protection

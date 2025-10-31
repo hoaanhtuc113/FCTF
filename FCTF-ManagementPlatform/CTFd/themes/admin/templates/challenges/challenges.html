@@ -251,58 +251,65 @@
 {% block scripts %}
 <script>
     function previewChallenge(challengeId) {
+        const result = confirm("The domain will be immediately returned to you, but it won’t be accessible until the environment finishes starting up.\nWould you like to proceed?");
+        if (!result) {
+            return;
+        }
         const errorElement = document.getElementById(`preview-error-${challengeId}`);
         const previewButton = document.getElementById(`preview-button-${challengeId}`);
         const successElement = document.getElementById(`preview-success-${challengeId}`);
 
-        errorElement.innerText = "Waiting for response...";
+        // Prepare UI
+        errorElement.innerText = 'Waiting for response...';
+        errorElement.style.display = 'block';
+        successElement.innerText = '';
+        successElement.style.display = 'none';
         previewButton.disabled = true;
 
-        fetch("/api/challenge/start", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                challenge_id: challengeId
-            })
+        fetch('/api/challenge/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ challenge_id: challengeId })
         })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.challenge_url) {
-                        errorElement.style.display = "none";
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
 
-                        alert("http://" + data.challenge_url);
-                            
-                        } else if (data.Challenge_url) {
-                            try {
-                            errorElement.style.display = "none";
-                            const cacheData = JSON.parse(data.Challenge_url);
-                            const challengeUrl = cacheData.challenge_url;
-                            if (challengeUrl) {
-                                alert("http://" + data.challenge_url);
+            if (!data || !data.success) {
+                errorElement.innerText = (data && data.message) || 'Failed to Preview challenge.';
+                return;
+            }
 
-                            } else {
-                                errorElement.innerText = "Challenge URL not found in cached data.";
-                            }
-                        } catch (e) {
-                            errorElement.innerText = "Error parsing cached data.";
-                        }
-                    } else {
-                        errorElement.innerText = "Challenge URL not available.";
-                    }
-                } else {
-                    errorElement.innerText = data.message || "Failed to Preview challenge.";
+            let challengeUrl = data.challenge_url || null;
+
+            if (!challengeUrl && data.Challenge_url) {
+                try {
+                    const cacheData = typeof data.Challenge_url === 'string'
+                        ? JSON.parse(data.Challenge_url)
+                        : data.Challenge_url;
+                    challengeUrl = (cacheData && (cacheData.challenge_url || cacheData.Challenge_url)) || null;
+                } catch (e) {
+                    errorElement.innerText = 'Error parsing cached data.';
+                    return;
                 }
-            })
-            .catch(error => {
-                console.error(error);
-                errorElement.innerText = "Connection failed.";
-            })
-            .finally(() => {
-                previewButton.disabled = false;
-            });
+            }
+
+            if (challengeUrl) {
+                errorElement.style.display = 'none';
+                successElement.innerText = `${challengeUrl}`;
+                successElement.style.display = 'block';
+                alert(`${data.message}\n${challengeUrl}`);
+            } else {
+                errorElement.innerText = 'Challenge URL not available.';
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            errorElement.innerText = 'Connection failed.';
+        })
+        .finally(() => {
+            previewButton.disabled = false;
+        });
     }
 </script>
 

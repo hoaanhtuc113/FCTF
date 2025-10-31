@@ -12,6 +12,6 @@ namespace ResourceShared.DTOs.Challenge
         public bool is_started { get; set; }
         public bool success { get; set; }
         public string? challenge_url { get; set; }
-        public int? time_remaining { get; set; }
+        public long? time_remaining { get; set; }
     }
 }

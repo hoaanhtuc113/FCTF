@@ -92,12 +92,11 @@ namespace ResourceShared.Utils
         public static string GetDeploymentAppName(string teamName,string challengeId,string challengeName)
         {
             var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            return $"{teamName}-chal-{challengeId}-{challengeName}-{date}".ToLower().Replace(" ", "-");
+            return $"{teamName}-{challengeId}-{challengeName}-{date}".ToLower().Replace(" ", "-");
         }
 
-        public static object BuildArgoPayload(Challenge challenge, string teamName, ChallengeImageDTO challengeImage, string cpu_limit, string cpu_request,
-                                            string memory_limt, string memory_request, string pow_difficulty
-                                            )
+        public static (object payload, string appName) BuildArgoPayload(Challenge challenge, string teamName, ChallengeImageDTO challengeImage, 
+                    string cpu_limit, string cpu_request, string memory_limt, string memory_request, string pow_difficulty)
         {
             var isTemp = true;
             if(challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
@@ -105,7 +104,9 @@ namespace ResourceShared.Utils
                 isTemp = false;
                 challenge.TimeLimit = 0;
             }
-            return new
+
+            var deploymentAppName = GetDeploymentAppName(teamName, challenge.Id.ToString(), challenge.Name);
+            return (new
             {
                 resourceKind = "WorkflowTemplate",
                 resourceName = "start-chal-v2-template",
@@ -114,7 +115,7 @@ namespace ResourceShared.Utils
                     entryPoint = "main",
                     parameters = new[]
                     {
-                        $"CHALLENGE_NAME={GetDeploymentAppName(teamName,challenge.Id.ToString(),challenge.Name)}",
+                        $"CHALLENGE_NAME={deploymentAppName}",
                         $"CONTAINER_PORT={challengeImage.exposedPort}",
                         $"CONTAINER_IMAGE={challengeImage.imageLink}",
                         $"CPU_LIMIT={cpu_limit}",
@@ -126,7 +127,8 @@ namespace ResourceShared.Utils
                         $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
                     }
                 }
-            };
+            },
+            deploymentAppName);
         }
 
 
