@@ -890,7 +890,7 @@ function ChallengeDetailPanel({
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [unlockingHintId, setUnlockingHintId] = useState<number | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
@@ -2003,19 +2003,15 @@ const getFileName = (filePath : string) => {
     // Don't reset scale here, let onDocumentLoadSuccess calculate it
     setLoadingPdf(true);
     
-    // Revoke previous blob URL if exists
-    if (pdfBlobUrl) {
-      URL.revokeObjectURL(pdfBlobUrl);
-      setPdfBlobUrl(null);
-    }
-
     try {
       // Download PDF with authentication
-      const blob = await downloadFile(pdfFiles[index]);
-      
-      // Create blob URL
-      const blobUrl = URL.createObjectURL(blob);
-      setPdfBlobUrl(blobUrl);
+  const blob = await downloadFile(pdfFiles[index]);
+
+  // Debug info: log blob type/size to help diagnose invalid responses
+  console.debug('[handlePdfClick] downloaded blob:', blob.type, blob.size);
+
+  // Store blob in state (pass Blob directly to react-pdf)
+  setPdfBlob(blob);
     } catch (error) {
       console.error('Error loading PDF:', error);
       Swal.fire({
@@ -2067,14 +2063,15 @@ const getFileName = (filePath : string) => {
     }, 100);
   };
 
-  // Cleanup blob URL when component unmounts or PDF changes
+  // Cleanup blob when component unmounts
   useEffect(() => {
     return () => {
-      if (pdfBlobUrl) {
-        URL.revokeObjectURL(pdfBlobUrl);
-      }
+      // Clear blob reference to help GC
+      // (no object URL was created when using Blob directly)
+      // eslint-disable-next-line no-unused-expressions
+      pdfBlob && null;
     };
-  }, [pdfBlobUrl]);
+  }, [pdfBlob]);
 
   return (
     <>
@@ -2672,10 +2669,10 @@ const getFileName = (filePath : string) => {
                       Loading PDF...
                     </Typography>
                   </div>
-                ) : pdfBlobUrl ? (
+                ) : pdfBlob ? (
                   <div>
                     <Document
-                      file={pdfBlobUrl}
+                      file={pdfBlob}
                       onLoadSuccess={onDocumentLoadSuccess}
                       onLoadError={(error) => {
                         console.error('Error loading PDF document:', error);
