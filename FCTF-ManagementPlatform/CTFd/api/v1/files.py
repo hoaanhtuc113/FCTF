@@ -18,6 +18,7 @@ import os
 import json
 import re
 from flask import jsonify
+from CTFd.utils.uploads import delete_folder
 
 files_namespace = Namespace("files", description="Endpoint to retrieve Files")
 
@@ -111,9 +112,13 @@ class FilesList(Resource):
             challenge = Challenges.query.filter_by(id=challenge_id).first()
             if not challenge:
                 return jsonify({"error": "Challenge not found"}), 404
+
+            delete_folder(challenge.deploy_file)
+            
             challenge.image_link = None
             challenge.deploy_status = "CREATED"
             challenge.require_deploy = False
+            challenge.deploy_file = None
             db.session.commit()
             
             if not files or len(files) == 0:

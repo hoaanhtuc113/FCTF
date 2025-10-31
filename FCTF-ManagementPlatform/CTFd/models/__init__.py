@@ -129,6 +129,7 @@ class Challenges(db.Model):
     deploy_status = db.Column(db.Text, nullable=True, default="CREATED")
     last_update = db.Column(db.DateTime)
     image_link = db.Column(db.Text,nullable =True)
+    deploy_file = db.Column(db.String(256), nullable=True)
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")

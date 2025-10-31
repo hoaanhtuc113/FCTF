@@ -1,5 +1,7 @@
 import hashlib
 import shutil
+import os
+import logging
 from pathlib import Path
 import traceback
 from CTFd.models import ChallengeFiles, Files, PageFiles, db
@@ -98,6 +100,38 @@ def delete_file(file_id):
     db.session.commit()
     return True
 
-
 def rmdir(directory):
     shutil.rmtree(directory, ignore_errors=True)
+
+def delete_folder(path: str) -> bool:
+    """
+    Xóa một thư mục (kể cả trong NFS mount).
+    Tự động cấp quyền nếu PermissionError.
+    Trả về dict thông báo kết quả.
+    """
+    try:
+        if not os.path.exists(path):
+            print(f"Thư mục không tồn tại: {path}")
+            return False
+
+        if not os.path.isdir(path):
+            print(f"{path} không phải là thư mục.")
+            return False
+
+        logging.info(f"Đang xóa thư mục: {path}")
+
+        try:
+            shutil.rmtree(path)
+        except PermissionError:
+            os.system(f"chmod -R 777 '{path}'")
+            shutil.rmtree(path)
+
+        if os.path.exists(path):
+            print(f"Thư mục vẫn còn tồn tại sau khi xóa: {path}")
+            return False
+
+        return True
+
+    except Exception as e:
+        logging.exception(f"Lỗi khi xóa thư mục {path}: {e}")
+        return False

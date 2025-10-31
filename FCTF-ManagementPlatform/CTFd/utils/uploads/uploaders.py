@@ -345,8 +345,13 @@ class NFSUploader(BaseUploader):
             file_path = os.path.join(self.base_path, filename)
             if os.path.exists(file_path):
                 # Delete entire directory if it's a challenge folder
-                dir_path = PurePath(filename).parts[0]
-                full_dir_path = os.path.join(self.base_path, dir_path)
+                parts = PurePath(filename).parts
+                
+                if len(parts) > 1 and parts[0] == self.prefix:
+                    dir_path = parts[1]  # Get the actual directory after 'file/'
+                else:
+                    dir_path = parts[0]
+                full_dir_path = os.path.join(self.base_path, self.prefix, dir_path)
                 
                 if os.path.isdir(full_dir_path):
                     rmtree(full_dir_path)

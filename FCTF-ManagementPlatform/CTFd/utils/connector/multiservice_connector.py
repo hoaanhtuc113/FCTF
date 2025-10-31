@@ -370,6 +370,7 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
         # Copy the extracted folder to NFS_MOUNT_PATH
         print(f"Copying challenge folder to: {nfs_destination}")
         shutil.copytree(extract_path, nfs_destination)
+        challenge.deploy_file = nfs_destination
         print(f"Challenge folder copied successfully")
         
         # Find Dockerfile directory path (relative to challenges directory)
@@ -521,6 +522,7 @@ def post_notification(notify_data):
     response.data["type"] = notif_type
     response.data["sound"] = notif_sound
     return {"success": True}
+    
 def delete_challenge(challenge_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
