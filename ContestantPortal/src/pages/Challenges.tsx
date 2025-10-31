@@ -1165,8 +1165,8 @@ function ChallengeDetailPanel({
           challengeId: challenge.id,
           challengeName: challenge.name,
           status: 'success',
-          url: data.challenge_url,
-          message: 'Challenge already deployed',
+          url: "You can access this domain: " + data.challenge_url,
+          message: data.message,
           timestamp: Date.now()
         }));
       }
@@ -1210,7 +1210,7 @@ function ChallengeDetailPanel({
       // Clear deployment state from localStorage
       const deploymentKey = `deployment_${challenge.id}`;
       localStorage.removeItem(deploymentKey);
-      
+      console.error('Start challenge error:', error);
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">

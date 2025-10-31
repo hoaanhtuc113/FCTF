@@ -102,7 +102,7 @@ namespace ContestantBE.Services
             var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.Team.Id);
             if (await redisHelper.KeyExistsAsync(cache_key))
             {
-                var cached_value = await redisHelper.GetFromCacheAsync<ChallengeCacheDTO>(cache_key);
+                var cached_value = await redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(cache_key);
                 var user_chal = _dbContext.Users.FirstOrDefault(u => u.Id == cached_value.user_id);
                 if (cached_value.challenge_id == challenge.Id)
                 {
@@ -255,6 +255,7 @@ namespace ContestantBE.Services
                     challengeName = "websecpro-chilp",
                     teamId = user.TeamId.Value,
                     teamName = user.Team.Name,
+                    userId = user.Id,
                     unixTime = unixTime.ToString()
                 };
                 var data = new Dictionary<string, string>
@@ -263,6 +264,7 @@ namespace ContestantBE.Services
                     { "challengeName", "websecpro-chilp" },
                     { "teamId", user.TeamId.Value.ToString() },
                     { "teamName", user.Team.Name },
+                    { "userId", user.Id.ToString() },
                 };
                 string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
 

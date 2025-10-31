@@ -33,7 +33,7 @@ from CTFd.utils.connector.multiservice_connector import (
     generate_cache_key,
     get_team_id_and_cache_key,
     get_token_from_header,
-    prepare_challenge_payload,
+    prepare_start_challenge_payload,
 )
 
 from CTFd.constants.config import ChallengeVisibilityTypes, Configs

@@ -91,9 +91,9 @@ function showDeploymentPopup(data: DeploymentNotification, theme: string) {
     Swal.fire({
       html: `
         <div class="font-mono text-left text-sm">
-          <div class="text-green-400 mb-2">[+] Challenge Deployed</div>
+          <div class="text-green-400 mb-2">[+] Challenge Deploying</div>
           <div class="text-gray-400">> ${data.challengeName}</div>
-          <div class="text-gray-400">> Connection established</div>
+          <div class="text-gray-400">> ${data.message}</div>
           <div class="text-cyan-400 mt-2">> ${data.url}</div>
         </div>
       `,
@@ -114,7 +114,7 @@ function showDeploymentPopup(data: DeploymentNotification, theme: string) {
       html: `
         <div class="font-mono text-left text-sm">
           <div class="text-orange-400 mb-2">[!] Deployment Timeout</div>
-          <div class="text-gray-400">> Challenge Name : ${data.challengeName}</div>
+          <div class="text-gray-400">> ${data.challengeName}</div>
           <div class="text-gray-400">> ${data.message || 'Pod creation taking longer than expected'}</div>
           <div class="text-gray-400">> Please try again or contact admin</div>
         </div>
