@@ -74,7 +74,8 @@ from CTFd.utils.user import (
 )
 
 from CTFd.plugins import bypass_csrf_protection
-from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification, get_workflow_status ,get_workflow_name
+from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification, get_workflow_status ,get_workflow_name, delete_cached_files
+from CTFd.utils.uploads import delete_folder
 
 challenges_namespace = Namespace(
     "challenges", description="Endpoint to retrieve Challenges"
@@ -600,15 +601,17 @@ class Challenge(Resource):
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         if challenge.require_deploy:
-            if challenge.deploy_status != "PENDING_DEPLOY":
-                delete_response, status_code = delete_challenge(challenge_id)
-                if status_code != 200 or not delete_response.get("isSuccess"):
-                    return {
-                        "isSuccess": False,
-                        "message": delete_response.get("message"),
-                    }, status_code
-            else:
-                pass
+            delete_folder(challenge.deploy_file)
+            delete_cached_files(challenge.id)
+            # if challenge.deploy_status != "PENDING_DEPLOY":
+            #     delete_response, status_code = delete_challenge(challenge_id)
+            #     if status_code != 200 or not delete_response.get("isSuccess"):
+            #         return {
+            #             "isSuccess": False,
+            #             "message": delete_response.get("message"),
+            #         }, status_code
+            # else:
+            #     pass
 
         chal_class = get_chal_class(challenge.type)
         chal_class.delete(challenge)
