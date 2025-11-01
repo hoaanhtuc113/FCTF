@@ -27,20 +27,20 @@ namespace ContestantBE.Controllers
     {
 
         private AppDbContext _context;
-        private readonly IConnectionMultiplexer _connectionMultiplexer;
         private readonly CtfTimeHelper _ctfTimeHelper;
         private readonly ConfigHelper _configHelper;
         private readonly UserHelper _userHelper;
         private readonly IChallengeServices _challengeServices;
+        private readonly RedisHelper _redisHelper;
         public ChallengeController(AppDbContext context, CtfTimeHelper ctfTimeHelper ,ConfigHelper configHelper , UserHelper userHelper, 
-                            IConnectionMultiplexer connectionMultiplexer, IChallengeServices challengeServices)
+                             IChallengeServices challengeServices, RedisHelper redisHelper)
         {
             _context = context;
-            _connectionMultiplexer = connectionMultiplexer;
             _ctfTimeHelper = ctfTimeHelper;
             _configHelper = configHelper;
             _userHelper = userHelper;
             _challengeServices = challengeServices;
+            _redisHelper = redisHelper;
         }
 
         [HttpGet("{id}")]
@@ -378,8 +378,7 @@ namespace ContestantBE.Controllers
             if (challenge == null) return BadRequest(new { error = "Challenge not found" });
             var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
 
-            RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
-            if (!await redisHelper.KeyExistsAsync(cache_key))
+            if (!await _redisHelper.KeyExistsAsync(cache_key))
             {
                 return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
             }

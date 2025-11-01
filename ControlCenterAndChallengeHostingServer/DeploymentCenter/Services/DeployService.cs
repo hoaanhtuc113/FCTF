@@ -15,25 +15,24 @@ namespace DeploymentCenter.Services
 {
     public interface IDeployService
     {
-        Task<ChallengeStartResponeDTO> Start(int challengId, string challengName, int userId, string teamName);
+        Task<ChallengeStartResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
     }
     public class DeployService : IDeployService
     {
-        private readonly IConnectionMultiplexer _connectionMultiplexer;
         private readonly IK8sHealthService _k8SHealthService;
         private readonly AppDbContext _dbContext;
-        public DeployService(IConnectionMultiplexer connectionMultiplexer, AppDbContext dbContext)
+        private readonly RedisHelper _redisHelper;
+        public DeployService(AppDbContext dbContext, RedisHelper redisHelper)
         {
-            _connectionMultiplexer = connectionMultiplexer;
             _dbContext=dbContext;
+            _redisHelper=redisHelper;
             //_k8SHealthService = k8SHealthService;
         }
-        public async Task<ChallengeStartResponeDTO> Start(int challengId, string challengName, int userId, string teamName)
+        public async Task<ChallengeStartResponeDTO> Start(ChallengeStartStopReqDTO startReq)
         {
-            RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
-            var startedKey = ChallengeHelper.GetArgoWName(challengId.ToString(), teamName);
-
-            var deploymentCache = await redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+            var startedKey = ChallengeHelper.GetArgoWName(startReq.challengeId.ToString(), startReq.teamName);
+            // Get cache: thông tin deployment, kiểm tra đã từng gửi vào argo chưa
+            var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
 
             if (deploymentCache != null)
             {
@@ -77,7 +76,7 @@ namespace DeploymentCenter.Services
                         break;
                 }
             }
-            var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == challengId);
+            var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == startReq.challengeId);
             if (challenge == null) 
                 return new ChallengeStartResponeDTO{ status = (int)HttpStatusCode.NotFound, success = false, message = "Challenge not found."};
             
@@ -95,7 +94,7 @@ namespace DeploymentCenter.Services
                
                 var (payload, appName) = ChallengeHelper.BuildArgoPayload(
                         challenge,
-                        teamName,
+                        startReq.teamName,
                         imageObj,
                         DeploymentCenterConfigHelper.CPU_LIMIT,
                         DeploymentCenterConfigHelper.CPU_REQUEST,
@@ -118,24 +117,31 @@ namespace DeploymentCenter.Services
                 }
                 var domainName = $"http://{appName}.challenge-zg9uj3rfagfja19tzq.fctf.cloud";
 
-                await redisHelper.SetCacheAsync(startedKey, new DeploymentInfo
+                // Save cache: thông tin deployment khi bắm vào argo 
+                await _redisHelper.SetCacheAsync(startedKey, new DeploymentInfo
                 {
                     Status = DeploymentStatus.PROCESS,
-                    ChallengeId = challengId,
+                    ChallengeId = startReq.challengeId,
                     PodName = appName,
                     DeploymentDomainName = domainName,
                 });
 
                 var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
+
+
                 ChallengeDeploymentCacheDTO  chalDeploy = new ChallengeDeploymentCacheDTO
                 {
-                    challenge_id = challengId,
-                    user_id = userId,
+                    challenge_id = startReq.challengeId,
+                    user_id = startReq.userId.Value,
                     status = DeploymentStatus.PROCESS,
                     challenge_url = domainName,
                     time_finished = -1
                 };
                 // khi nào thực sự lên thì cập nhật lại status và time_finished
+
+                // Save cache: thông tin tạm thông tin deployment với trạng thái processing và thời gian kết thúc -1 
+                // Để bên admin có thể xem được thông tin này
+                await _redisHelper.SetCacheAsync(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId), chalDeploy, TimeSpan.FromHours(1));
 
                 return new ChallengeStartResponeDTO
                 {

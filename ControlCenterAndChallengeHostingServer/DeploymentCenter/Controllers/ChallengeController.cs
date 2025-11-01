@@ -33,7 +33,7 @@ namespace DeploymentCenter.Controllers
                     message = "Invalid request data."
                 });
             }
-            var response = await _deployService.Start(challengeStartReq.challengeId, challengeStartReq.teamName, challengeStartReq.userId.Value , challengeStartReq.teamName);
+            var response = await _deployService.Start(challengeStartReq);
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),
