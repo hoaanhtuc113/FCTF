@@ -31,19 +31,18 @@ namespace ContestantBE.Services
 
     public class ChallengeServices : IChallengeServices
     {
-        private readonly IConnectionMultiplexer _connectionMultiplexer;
         private readonly IHttpClientFactory _httpFactory;
         private readonly AppDbContext _dbContext;
+        private readonly RedisHelper _redisHelper;
         public static int port = 30000;
-        public ChallengeServices(IConnectionMultiplexer connectionMultiplexer, IHttpClientFactory httpFactory, AppDbContext dbContext)
+        public ChallengeServices(IHttpClientFactory httpFactory, AppDbContext dbContext, RedisHelper redisHelper)
         {
-            _connectionMultiplexer = connectionMultiplexer;
             _httpFactory = httpFactory;
             _dbContext=dbContext;
+            _redisHelper=redisHelper;
         }
         public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
         {
-            RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
             var challenge = await _dbContext.Challenges.Include(c => c.Files)
                                                         .FirstOrDefaultAsync(c => c.Id == challengeId);
 
@@ -100,9 +99,9 @@ namespace ContestantBE.Services
             };
 
             var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.Team.Id);
-            if (await redisHelper.KeyExistsAsync(cache_key))
+            if (await _redisHelper.KeyExistsAsync(cache_key))
             {
-                var cached_value = await redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(cache_key);
+                var cached_value = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(cache_key);
                 var user_chal = _dbContext.Users.FirstOrDefault(u => u.Id == cached_value.user_id);
                 if (cached_value.challenge_id == challenge.Id)
                 {
@@ -241,7 +240,6 @@ namespace ContestantBE.Services
 
         public async Task<ChallengeStartResponeDTO> ChallengeStart(Challenge challenge, User user)
         {
-            RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -420,8 +418,7 @@ namespace ContestantBE.Services
                 bool isSuccess = root.GetProperty("isSuccess").GetBoolean();
                 if (isSuccess)
                 {
-                    RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
-                    await redisHelper.RemoveCacheAsync(cache_key);
+                    await _redisHelper.RemoveCacheAsync(cache_key);
                     await Console.Out.WriteLineAsync($"Challenge stopped and cache cleared: {cache_key}");
                 }
                 else

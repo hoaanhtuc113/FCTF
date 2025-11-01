@@ -13,10 +13,10 @@ namespace HealthCheckService.Controllers
     public class StatusCheckController : ControllerBase
     {
 
-        private readonly IConnectionMultiplexer _connectionMultiplexer;
-        public StatusCheckController(IConnectionMultiplexer connectionMultiplexer)
+        private readonly RedisHelper _redisHelper;
+        public StatusCheckController(RedisHelper redisHelper)
         {
-            _connectionMultiplexer = connectionMultiplexer;
+            _redisHelper = redisHelper;
         }
 
         [HttpGet("status")]
@@ -28,19 +28,18 @@ namespace HealthCheckService.Controllers
         [HttpGet("start")]
         public async Task<IActionResult> StartChallengeChecking([FromBody] ChallengCheckStatusReqDTO statusReqDTO)
         {
-            RedisHelper redisHelper = new RedisHelper(_connectionMultiplexer);
 
             var startedChallengeKey = $"{RedisConfigs.RedisStartedChallengeKey}_{statusReqDTO.challengeId}_{statusReqDTO.teamId}";
 
-            var data = await redisHelper.GetFromCacheAsync<object>(startedChallengeKey);
+            var data = await _redisHelper.GetFromCacheAsync<object>(startedChallengeKey);
 
             await Console.Out.WriteLineAsync($"Data from Redis for key {startedChallengeKey}: {data}");
             
             return Ok(new { data = data });
         }
 
-        [HttpPost("start")]
-        public async Task<IActionResult> StartChallengeResponse([FromBody] string message)
+        [HttpPost("message")]
+        public async Task<IActionResult> MessageFromArgo([FromBody] string message)
         {
             await Console.Out.WriteLineAsync($"Received message: {message}");
             return Ok(new { message = message });

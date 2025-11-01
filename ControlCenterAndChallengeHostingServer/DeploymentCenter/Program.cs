@@ -31,34 +31,7 @@ namespace DeploymentCenter
                     new MySqlServerVersion(new Version(10, 11, 0))
                 )
             );
-            builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-            {
-                var logger = sp.GetRequiredService<ILogger<IConnectionMultiplexer>>();
-                var options = ConfigurationOptions.Parse(RedisConfigs.ConnectionString);
-
-                options.AbortOnConnectFail = false;
-                options.ConnectRetry = 3;
-                options.ConnectTimeout = 2000;
-                options.SyncTimeout = 3000;
-                options.KeepAlive = 60;
-                options.ReconnectRetryPolicy = new ExponentialRetry(5000);
-
-                var multiplexer = ConnectionMultiplexer.Connect(options);
-
-                try
-                {
-                    var db = multiplexer.GetDatabase();
-                    var latency = db.Ping();
-                    logger.LogInformation($"[Redis] Connected OK (ping {latency.TotalMilliseconds} ms)");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning($"[Redis] Warm-up failed: {ex.Message}");
-                    throw;
-                }
-
-                return multiplexer;
-            });
+           
             builder.Services.AddControllers();
             builder.Services.AddScoped<IDeployService, DeployService>();
             // DI services from ResourceShared
