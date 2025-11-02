@@ -1,8 +1,8 @@
 using System;
-using ContestantBE.Extensions;
 using ContestantBE.Interfaces;
-using ContestantBE.Middlewares;
 using ContestantBE.Services;
+using ResourceShared.Extensions;
+using ResourceShared.Middlewares;
 using ContestantBE.Utils;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
@@ -103,16 +103,16 @@ namespace ContestantBE
 
             await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();
-            app.UseRouting();
-            app.UseCors("AllowAll");
-            app.UseSwagger();
+            app.UseRouting();                    
+            app.UseCors("AllowAll");                   
+            app.UseSwagger();                    
             app.UseSwaggerUI();
-            app.UseOutputCache();
-            app.UseHttpsRedirection();
-            app.UseAuthorization();
-            app.UseTokenAuthentication(); 
-            app.MapControllers();
-            
+            app.UseOutputCache();                
+            app.UseMiddleware<TokenAuthenticationMiddleware>();
+            app.UseAuthorization();             
+            app.UseTokenAuthentication();
+            app.MapControllers();                 
+
             app.Run();
         }
     }

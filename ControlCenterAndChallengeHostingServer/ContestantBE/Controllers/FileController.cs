@@ -1,9 +1,10 @@
 ﻿using ContestantBE.Attribute;
-using ContestantBE.Extensions;
 using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourceShared.Attribute;
 using ResourceShared.DTOs.File;
+using ResourceShared.Extensions;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using System.IO;

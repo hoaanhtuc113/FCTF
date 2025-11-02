@@ -37,7 +37,6 @@ namespace ContestantBE.Controllers
                 return BadRequest(new
                 {
                     message = result.Message,
-                    generatedToken = result.Data.token,
                 });
             }
 

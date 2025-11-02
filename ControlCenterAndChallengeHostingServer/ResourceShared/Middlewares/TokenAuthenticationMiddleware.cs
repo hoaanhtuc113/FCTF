@@ -1,8 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using ResourceShared.Attribute;
 using ResourceShared.Models;
-using ContestantBE.Attribute;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace ContestantBE.Middlewares
+namespace ResourceShared.Middlewares
 {
     public class TokenAuthenticationMiddleware
     {
@@ -43,6 +48,7 @@ namespace ContestantBE.Middlewares
                         if (tokenAuth != null)
                         {
                             var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
+                            Console.WriteLine($"[AuthMiddleware] Authenticated user: {user?.Name} (ID: {user?.Id})");
                             if (user != null)
                             {
                                 context.Items["CurrentUser"] = user;

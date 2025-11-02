@@ -1,5 +1,5 @@
 ﻿using System;
-using ContestantBE.Extensions;
+using ResourceShared.Extensions;
 using ContestantBE.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +11,7 @@ using System.Net.WebSockets;
 using System.Threading.Tasks;
 using ContestantBE.Attribute;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using ResourceShared.Attribute;
 
 namespace ContestantBE.Controllers
 {
