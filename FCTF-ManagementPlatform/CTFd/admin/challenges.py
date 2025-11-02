@@ -28,6 +28,7 @@ from CTFd.utils.decorators import (
     is_challenge_writer,
     is_jury
 )
+from CTFd.utils.dates import ctftime
 from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import get_current_team, get_current_user, is_admin,is_jury
 from CTFd.utils.uploads import upload_file
@@ -134,15 +135,19 @@ def challenges_detail(challenge_id):
             f"The underlying challenge type ({challenge.type}) is not installed. This challenge cannot be loaded.",
         )
 
+    is_detail = True   # check if this is detail page
+    
+    ctf_is_active = ctftime()
+
     update_j2 = render_template(
-        challenge_class.templates["update"].lstrip("/"), challenge=challenge
+        challenge_class.templates["update"].lstrip("/"), 
+        challenge=challenge,
+        ctf_is_active=ctf_is_active
     )
 
     update_script = url_for(
         "views.static_html", route=challenge_class.scripts["update"].lstrip("/")
     )
-
-    is_detail = True   # check if this is detail page
 
     return render_template(
         "admin/challenges/challenge.html",
@@ -154,7 +159,8 @@ def challenges_detail(challenge_id):
         solves=solves,
         flags=flags,
         deploys=len(deploys),
-        is_detail=is_detail
+        is_detail=is_detail,
+        ctf_is_active=ctf_is_active
     )
 
 
