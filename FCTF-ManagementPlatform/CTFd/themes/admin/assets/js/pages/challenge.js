@@ -432,11 +432,19 @@ $(() => {
 
   standardBtn.click(function (e) {
     e.preventDefault();
+    // Don't allow toggle if buttons are disabled (CTF is active)
+    if ($(this).hasClass('disabled') || $(this).find('input').prop('disabled')) {
+      return false;
+    }
     toggleScoringType("standard");
   });
 
   dynamicBtn.click(function (e) {
     e.preventDefault();
+    // Don't allow toggle if buttons are disabled (CTF is active)
+    if ($(this).hasClass('disabled') || $(this).find('input').prop('disabled')) {
+      return false;
+    }
     toggleScoringType("dynamic");
   });
 });

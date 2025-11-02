@@ -55,6 +55,7 @@ interface Challenge {
   attemps?: number;
   require_deploy?: boolean;
   is_captain?: boolean;
+  captain_only_start?: boolean;
   requirements?: ChallengeRequirements | null;
 }
 
@@ -2464,7 +2465,14 @@ const getFileName = (filePath : string) => {
              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className="space-y-2">
                 {!isChallengeStarted ? (
-                  challenge.is_captain ? (
+                  // Only show captain restriction if captain_only_start is enabled
+                  (challenge.captain_only_start && !challenge.is_captain) ? (
+                    <p className={`text-center text-xs font-mono ${
+                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      [!] Only captain can start
+                    </p>
+                  ) : (
                     <>
                       <button
                         onClick={handleStartChallenge}
@@ -2525,12 +2533,6 @@ const getFileName = (filePath : string) => {
                         </p>
                       )}
                     </>
-                  ) : (
-                    <p className={`text-center text-xs font-mono ${
-                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                    }`}>
-                      [!] Only captain can start
-                    </p>
                   )
                 ) : (
                   <button

@@ -20,6 +20,19 @@
 			<textarea class="form-control" type="text" id="ctf_description" name="ctf_description" rows="5">{{ ctf_description }}</textarea>
 		</div>
 
+		<div class="form-group">
+			<label for="captain_only_start_challenge">
+				Captain Only Start Challenge
+				<small class="form-text text-muted">
+					When enabled, only team captains can start challenges that require deployment. Other team members will see a message indicating they need captain permission.
+				</small>
+			</label>
+			<select class="form-control custom-select" id="captain_only_start_challenge" name="captain_only_start_challenge">
+				<option value="1" {% if captain_only_start_challenge == 1 %}selected{% endif %}>Enabled</option>
+				<option value="0" {% if captain_only_start_challenge != 1 %}selected{% endif %}>Disabled</option>
+			</select>
+		</div>
+
 		<button type="submit" class="btn btn-md btn-primary float-right">Update</button>
 	</form>
 </div>
