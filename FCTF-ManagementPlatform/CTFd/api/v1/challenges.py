@@ -738,6 +738,21 @@ class ChallengeAttempt(Resource):
 
         team = Teams.query.filter_by(id=team_id).first()
         
+        # Check captain_only_submit_challenge config
+        captain_only_submit = get_config("captain_only_submit_challenge")
+        if (captain_only_submit == "1" or captain_only_submit == "true") and user.type == 'user':
+            if not team or not team.captain_id or team.captain_id != user.id:
+                return (
+                    {
+                        "success": False,
+                        "data": {
+                            "status": "forbidden",
+                            "message": "Only the team captain has permission to submit flags for challenges.",
+                        },
+                    },
+                    403,
+                )
+        
         # Cooldown check
         cooldown_seconds = challenge.cooldown or 0
         if cooldown_seconds > 0:
