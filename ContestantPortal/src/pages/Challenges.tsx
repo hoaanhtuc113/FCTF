@@ -18,7 +18,7 @@ import { saveAs } from 'file-saver';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { fetchWithAuth, downloadFile } from '../services/api';
+import { fetchWithAuth, downloadFile, API_DEPLOYMENT_URL, MANAGEMENT_API_URL } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
 import { 
   CategorySkeleton, 
@@ -1169,6 +1169,8 @@ function ChallengeDetailPanel({
           message: data.message,
           timestamp: Date.now()
         }));
+
+        await startHealthCheckLoop();
       }
       // Case 2: 200 + true + KHÔNG có URL = Đang deploy, cần loop health check
       else if (response.status === 200 && data.success === true && !data.challenge_url) {
@@ -1234,103 +1236,82 @@ function ChallengeDetailPanel({
 
   // Health check loop function
   const startHealthCheckLoop = async () => {
-    const maxAttempts = 40;
-    let attempts = 0;
-    
-    const checkStatus = async (): Promise<boolean> => {
-      try {
-        attempts++;
-        // note: Sủa url
-        const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
-          method: 'GET'
-        });
-        const data = await response.json();
-        
-        // Check if challenge is started and has URL
-        if (data.data && data.challenge_url) {
-          setIsChallengeStarted(true);
-          setUrl(data.challenge_url);
-          setTimeRemaining(data.data.time_limit);
-          setIsStarting(false);
-          setIsDeploymentInProgress(false);
-          
-          // Clear deployment state from localStorage
-          const deploymentKey = `deployment_${challenge.id}`;
-          localStorage.removeItem(deploymentKey);
-          
-          // Save notification for global listener
-          const notificationKey = `deployment_notification_${challenge.id}`;
-          localStorage.setItem(notificationKey, JSON.stringify({
-            challengeId: challenge.id,
-            challengeName: challenge.name,
-            status: 'success',
-            url: data.challenge_url,
-            message: data.message,
-            timestamp: Date.now()
-          }));
-          
-          return true; // Success
-        }
-        
-        // Max attempts reached
-        if (attempts >= maxAttempts) {
-          setIsStarting(false);
-          setIsDeploymentInProgress(false);
-          
-          // Clear deployment state from localStorage
-          const deploymentKey = `deployment_${challenge.id}`;
-          localStorage.removeItem(deploymentKey);
-          
-          // Save notification for global listener
-          const notificationKey = `deployment_notification_${challenge.id}`;
-          localStorage.setItem(notificationKey, JSON.stringify({
-            challengeId: challenge.id,
-            challengeName: challenge.name,
-            status: 'timeout',
-            message: 'Pod creation taking longer than expected',
-            timestamp: Date.now()
-          }));
-          
-          return true; // Stop loop
-        }
-        
-        // Continue checking silently (no popup updates)
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
-        return checkStatus(); // Recursive call
-        
-      } catch (error) {
-        console.error('Health check error:', error);
-        
-        // Continue trying even on error
-        if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          return checkStatus();
-        }
-        
+  const maxAttempts = 40;
+  const interval = 3000;
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      attempts++;
+
+      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START_CHECKING, {
+        method: 'POST',
+        body: JSON.stringify({
+          challengeId: challenge.id,
+        }),
+      }, API_DEPLOYMENT_URL);
+
+      const data = await response.json();
+      console.log('Health check response:', data);
+      if (data.challenge_url) {
+        setIsChallengeStarted(true);
+        setUrl(data.challenge_url);
+        //setTimeRemaining(data.data.time_limit);
         setIsStarting(false);
         setIsDeploymentInProgress(false);
-        
-        // Clear deployment state from localStorage
+
         const deploymentKey = `deployment_${challenge.id}`;
         localStorage.removeItem(deploymentKey);
-        
-        // Save notification for global listener
+
+        const notificationKey = `deployment_notification_${challenge.id}`;
+        localStorage.setItem(notificationKey, JSON.stringify({
+          challengeId: challenge.id,
+          challengeName: challenge.name,
+          status: 'success',
+          url: data.challenge_url,
+          message: data.message,
+          timestamp: Date.now(),
+        }));
+        return;
+      }
+      if (attempts >= maxAttempts) {
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
+        const notificationKey = `deployment_notification_${challenge.id}`;
+        localStorage.setItem(notificationKey, JSON.stringify({
+          challengeId: challenge.id,
+          challengeName: challenge.name,
+          status: 'timeout',
+          message: 'Pod creation taking longer than expected',
+          timestamp: Date.now(),
+        }));
+
+        setIsStarting(false);
+        setIsDeploymentInProgress(false);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, interval));
+    } catch (error) {
+      console.error('Health check error:', error);
+      if (attempts >= maxAttempts) {
+        const deploymentKey = `deployment_${challenge.id}`;
+        localStorage.removeItem(deploymentKey);
         const notificationKey = `deployment_notification_${challenge.id}`;
         localStorage.setItem(notificationKey, JSON.stringify({
           challengeId: challenge.id,
           challengeName: challenge.name,
           status: 'error',
           message: 'Unable to verify deployment',
-          timestamp: Date.now()
+          timestamp: Date.now(),
         }));
-        
-        return true; // Stop loop
+        setIsStarting(false);
+        setIsDeploymentInProgress(false);
+        return;
       }
-    };
-    
-    // Start the check loop
-    await checkStatus();
-  };
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  }
+};
 
   const handleStopChallenge = async () => {
     setIsStopping(true);
@@ -1418,16 +1399,21 @@ function ChallengeDetailPanel({
       formData.append('submission', answer);
       formData.append('generatedToken', localStorage.getItem('auth_token') || '');
 
-      const MANAGEMENT_API_URL = import.meta.env.VITE_MANAGEMENT_API_URL || import.meta.env.VITE_API_URL;
-      const token = localStorage.getItem('auth_token');
+      // const MANAGEMENT_API_URL = import.meta.env.VITE_MANAGEMENT_API_URL || import.meta.env.VITE_API_URL;
+      // const token = localStorage.getItem('auth_token');
       
-      const response = await fetch(`${MANAGEMENT_API_URL}${API_ENDPOINTS.FLAGS.SUBMIT}`, {
+      // const response = await fetch(`${MANAGEMENT_API_URL}${API_ENDPOINTS.FLAGS.SUBMIT}`, {
+      //   method: 'POST',
+      //   headers: {
+      //     ...(token && { Authorization: `Bearer ${token}` }),
+      //   },
+      //   body: formData,
+      // });
+
+      const response = await fetchWithAuth(API_ENDPOINTS.FLAGS.SUBMIT, {
         method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: formData,
-      });
+        body: formData
+      }, MANAGEMENT_API_URL);
 
       const data = await response.json();
       

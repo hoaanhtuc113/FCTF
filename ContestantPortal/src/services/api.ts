@@ -1,8 +1,10 @@
 import { authService } from './authService';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
+export const API_DEPLOYMENT_URL = import.meta.env.VITE_API_DEPLOYMENT_URL;
+export const MANAGEMENT_API_URL = import.meta.env.VITE_MANAGEMENT_API_URL;
 
-export async function fetchWithAuth(url: string, options: RequestInit = {}) {
+export async function fetchWithAuth(url: string, options: RequestInit = {}, API = API_BASE_URL) {
   const token = authService.getToken();
   
   const headers = {
@@ -11,7 +13,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${url}`, {
+  const response = await fetch(`${API}${url}`, {
     ...options,
     headers,
   });
@@ -24,13 +26,13 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   return response;
 }
 
-export async function fetchData(url: string, options: RequestInit = {}) {
+export async function fetchData(url: string, options: RequestInit = {}, API = API_BASE_URL) {
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
 
-  return fetch(`${API_BASE_URL}${url}`, {
+  return fetch(`${API}${url}`, {
     ...options,
     headers,
   });

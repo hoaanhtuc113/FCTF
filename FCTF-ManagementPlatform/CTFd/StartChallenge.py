@@ -30,7 +30,17 @@ import redis
 import re
 
 from CTFd.utils.decorators import admins_only, during_ctf_time_only
-from CTFd.utils.connector.multiservice_connector import challenge_start, create_secret_key, force_stop, generate_cache_attempt_key, generate_cache_key, get_team_id_and_cache_key, get_token_from_header, prepare_start_challenge_payload
+from CTFd.utils.connector.multiservice_connector import (
+    challenge_start,
+    create_secret_key,
+    force_stop,
+    generate_cache_attempt_key,
+    generate_cache_key,
+    get_team_id_and_cache_key,
+    get_token_from_header,
+    prepare_start_challenge_payload,
+    start_challenge_status_checking,
+)
 
 challenge = Blueprint("challenge", __name__)
 redis_client = redis.StrictRedis(
@@ -86,6 +96,7 @@ def start_challenge():
 
     if user_id is None:
         generatedToken = get_token_from_header()
+        print("Generated Token:", generatedToken)
         token = Tokens.query.filter_by(value=generatedToken).first()
         if not token:
             return jsonify({"error": "Token not found"}), 404
@@ -119,6 +130,14 @@ def start_challenge():
 
         return challenge_start(payload, headers, api_start)
 
+@challenge.route("/api/challenge/status-check/<challenge_id>", methods=["GET"])
+@bypass_csrf_protection
+def check_challenge_status(challenge_id):
+    if not challenge_id or challenge_id == 'undefined':
+        return jsonify({"error": "ChallengeId is required"}), 400
+
+    return start_challenge_status_checking(challenge_id, "Preview")
+    
 @challenge.route("/api/challenge/stop-by-admin", methods=["POST"])
 @bypass_csrf_protection
 def stop_challenge_by_admin():

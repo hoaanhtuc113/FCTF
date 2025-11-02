@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
     START: '/challenge/start',
     STOP: '/challenge/stop-by-user',
     CHECK_CACHE: '/challenge/check_cache',
+    START_CHECKING: '/statuscheck/start',
   },
   HINTS: {
     GET_ALL: (challengeId: string | number) => `/hint/${challengeId}/all`,
