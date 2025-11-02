@@ -56,6 +56,7 @@ interface Challenge {
   require_deploy?: boolean;
   is_captain?: boolean;
   captain_only_start?: boolean;
+  captain_only_submit?: boolean;
   requirements?: ChallengeRequirements | null;
 }
 
@@ -1412,6 +1413,22 @@ function ChallengeDetailPanel({
       return;
     }
 
+    // Check if captain_only_submit is enabled and user is not captain
+    if (challenge.captain_only_submit && !challenge.is_captain) {
+      Swal.fire({
+        html: `<div class="font-mono text-sm text-red-400">[!] Only team captain can submit flags</div>`,
+        icon: 'error',
+        iconColor: '#ef4444',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
+      });
+      return;
+    }
+
     setIsSubmittingFlag(true);
     try {
       const formData = new FormData();
@@ -2399,30 +2416,41 @@ const getFileName = (filePath : string) => {
                       </div>
                     )}
                     
+                    {/* Show captain-only submit warning */}
+                    {challenge.captain_only_submit && !challenge.is_captain && (
+                      <div className={`text-xs font-mono p-2 rounded border ${
+                        theme === 'dark' 
+                          ? 'bg-red-900/20 text-red-400 border-red-500/30' 
+                          : 'bg-red-50 text-red-600 border-red-300'
+                      }`}>
+                        <span className="text-red-500">[!]</span> Only team captain can submit flags
+                      </div>
+                    )}
+                    
                     <button
                       onClick={handleSubmitFlag}
-                      disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0}
+                      disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
                       style={{
                         fontFamily: 'monospace',
                         fontSize: '13px',
                         textTransform: 'none',
-                        color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '#52525b' : '#fff',
-                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '#18181b' : '#22d3ee',
-                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '1px solid #27272a' : '1px solid #22d3ee',
+                        color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#52525b' : '#fff',
+                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#18181b' : '#22d3ee',
+                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '1px solid #27272a' : '1px solid #22d3ee',
                         padding: '10px',
                         borderRadius: '4px',
-                        cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? 'not-allowed' : 'pointer',
+                        cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? 'not-allowed' : 'pointer',
                         width: '100%',
                         transition: 'all 0.2s',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0) {
+                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
                           e.currentTarget.style.backgroundColor = '#06b6d4';
                           e.currentTarget.style.borderColor = '#06b6d4';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0) {
+                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
                           e.currentTarget.style.backgroundColor = '#22d3ee';
                           e.currentTarget.style.borderColor = '#22d3ee';
                         }
@@ -2432,7 +2460,9 @@ const getFileName = (filePath : string) => {
                         ? '[SUBMITTING...]' 
                         : cooldownRemaining > 0 
                           ? `[COOLDOWN: ${cooldownRemaining}s]`
-                          : '[SUBMIT]'}
+                          : (challenge.captain_only_submit && !challenge.is_captain)
+                            ? '[CAPTAIN ONLY]'
+                            : '[SUBMIT]'}
                     </button>
                     
                     {/* Cooldown Progress Bar */}

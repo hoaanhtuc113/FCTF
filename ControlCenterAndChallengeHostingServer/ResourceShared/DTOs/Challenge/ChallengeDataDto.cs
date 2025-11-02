@@ -22,5 +22,6 @@ namespace ResourceShared.DTOs.Challenge
         public List<object> files { get; set; } = new();
         public bool is_captain { get; set; }
         public bool captain_only_start { get; set; }
+        public bool captain_only_submit { get; set; }
     }
 }

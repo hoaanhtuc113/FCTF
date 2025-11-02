@@ -81,9 +81,9 @@ namespace ContestantBE.Services
                 var file_url = $"/files?path={file.Location}&token={ItsDangerousCompatHelper.Dumps(token)}";
 
                 if (file_url != null) files.Add(file_url);
-            }          
+            }
             var captainOnlyStart = _configHelper.GetConfig<bool>("captain_only_start_challenge", true);
-            Console.WriteLine($"[ChallengeServices] captain_only_start_challenge config value: {captainOnlyStart}");
+            var captainOnlySubmit = _configHelper.GetConfig<bool>("captain_only_submit_challenge", true);
             var challenge_data = new ChallengeDataDto
             {
                 id = challenge.Id,
@@ -100,6 +100,7 @@ namespace ContestantBE.Services
                 files = files,
                 is_captain = user.Id == user.Team.CaptainId,
                 captain_only_start = captainOnlyStart,
+                captain_only_submit = captainOnlySubmit,
             };
 
             var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.Team.Id);
