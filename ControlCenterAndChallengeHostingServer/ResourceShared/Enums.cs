@@ -45,8 +45,29 @@ namespace ResourceShared
         {
             public const string PROCESS = "pending";
             public const string RUNING = "running";
+
             public const string FAILED = "failed";
             public const string SUCCEEDED = "succeeded";
+
+            public const string PENDING_DEPLOY = "PENDING_DEPLOY";
+            public const string DEPLOY_FAILED = "DEPLOY_FAILED";
+            public const string DEPLOY_SUCCEEDED = "DEPLOY_SUCCEEDED";
+        }
+
+        public static class ArgoMessageType
+        {
+            public const string UP = "up";
+            public const string START = "start";
+        }
+
+        public static string GetDeploymentStatus(string status)
+        {
+            return status.ToLower() switch
+            {
+                DeploymentStatus.FAILED => DeploymentStatus.DEPLOY_FAILED,
+                DeploymentStatus.SUCCEEDED => DeploymentStatus.DEPLOY_SUCCEEDED,
+                _ => DeploymentStatus.PENDING_DEPLOY,
+            };
         }
     }
 }

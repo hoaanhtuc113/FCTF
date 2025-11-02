@@ -117,7 +117,7 @@ def prepare_start_challenge_payload(challenge, user_id, team_id, team_name):
     
     return payload, headers, api_start
 
-def prepare_up_challenge_payload(path, image_tag):
+def prepare_up_challenge_payload(challenge_id,path, image_tag):
     headers = { 
         "Authorization": f"Bearer {ARGO_WORKFLOWS_TOKEN}",
         "Content-Type": "application/json"
@@ -128,6 +128,7 @@ def prepare_up_challenge_payload(path, image_tag):
         "submitOptions": {
             "entryPoint": "main",
             "parameters": [
+                f"CHALLENGE_ID={challenge_id}",
                 f"CHALLENGE_PATH={path}",
                 f"IMAGE_TAG={image_tag}",
             ]
@@ -413,7 +414,7 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                 challenge.image_link = json.dumps(object_image)
                 db.session.commit()
 
-                payload, headers, api_url = prepare_up_challenge_payload(dockerfile_path, image_tag)
+                payload, headers, api_url = prepare_up_challenge_payload(challenge.id,dockerfile_path, image_tag)
                 print(f"Uploading challenge to deployment service with challenge path {dockerfile_path}, image tag:  {image_tag}")
                 response = requests.post(api_url, headers=headers, json=payload)
                 print(f"Response Status Code: {response.status_code}")
@@ -505,6 +506,36 @@ def get_workflow_status(workflow_name):
     except Exception as e:
         print(f"Error getting workflow status: {e}")
         return None, None, None
+
+def start_challenge_status_checking(challenge_id, team_name):
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY,
+        unix_time,
+        {
+            "challengeId": challenge_id,
+            "teamName": team_name,
+        },
+    )
+    payload = {
+        "challengeId": challenge_id,
+        "teamName": team_name,
+        "unixTime": unix_time, 
+    }
+    headers = {"SecretKey": secret_key}
+    api_status = f"{DEPLOYMENT_SERVICE_API}/api/statuscheck/admin-start"
+
+    try:
+        response = requests.post(api_status, json=payload, headers=headers)
+
+        if response.status_code != 200:
+            return {"success": False, "message": "Failed to start status checking"}, 400
+            
+        result = response.json()
+        return result
+    except requests.exceptions.RequestException as e:
+        print(f"Error connecting to API: {e}")
+        return {"success": False, "message": "Connection url failed"}, 400
 
 def post_notification(notify_data):
 

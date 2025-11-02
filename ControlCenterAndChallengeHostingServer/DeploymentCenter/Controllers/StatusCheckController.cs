@@ -1,10 +1,22 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using DeploymentCenter.Middlewares;
+using DeploymentCenter.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ResourceShared;
+using ResourceShared.Attribute;
 using ResourceShared.Configs;
+using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.DTOs.Deployments;
+using ResourceShared.Extensions;
+using ResourceShared.Models;
+using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
+using System.Net;
 using System.Net.WebSockets;
+using System.Text.Json;
 
 namespace HealthCheckService.Controllers
 {
@@ -13,10 +25,10 @@ namespace HealthCheckService.Controllers
     public class StatusCheckController : ControllerBase
     {
 
-        private readonly RedisHelper _redisHelper;
-        public StatusCheckController(RedisHelper redisHelper)
+        private readonly IDeployService _deployService;
+        public StatusCheckController( IDeployService deployService)
         {
-            _redisHelper = redisHelper;
+            _deployService = deployService;
         }
 
         [HttpGet("status")]
@@ -25,25 +37,92 @@ namespace HealthCheckService.Controllers
             return Ok(new { status = "Healthy" });
         }
 
-        [HttpGet("start")]
-        public async Task<IActionResult> StartChallengeChecking([FromBody] ChallengCheckStatusReqDTO statusReqDTO)
+        [HttpPost("start")]
+        [RequireAuth]
+        public async Task<ChallengeStartResponeDTO> StartChallengeChecking([FromBody] ChallengCheckStatusReqDTO statusReq)
         {
+            var user = HttpContext.GetCurrentUser();
 
-            var startedChallengeKey = $"{RedisConfigs.RedisStartedChallengeKey}_{statusReqDTO.challengeId}_{statusReqDTO.teamId}";
+            if (user == null)
+            {
+                return new ChallengeStartResponeDTO
+                {
+                    success = false,
+                    message = "Unauthorized",
+                    status = (int)HttpStatusCode.Unauthorized
+                };
+            }
 
-            var data = await _redisHelper.GetFromCacheAsync<object>(startedChallengeKey);
+            if (string.IsNullOrEmpty(statusReq.teamName))
+            {
+               statusReq.teamName =  user.Team.Name;
+            }
 
-            await Console.Out.WriteLineAsync($"Data from Redis for key {startedChallengeKey}: {data}");
-            
-            return Ok(new { data = data });
+            if (statusReq == null || string.IsNullOrEmpty(statusReq.teamName) || statusReq.challengeId <= 0)
+            {
+                return new ChallengeStartResponeDTO
+                {
+                    success = false,
+                    message = "Invalid request parameters",
+                    status = (int)HttpStatusCode.BadRequest
+                };
+            }
+
+            return new ChallengeStartResponeDTO
+            {
+                success = true,
+                message = "Challenge status checking started",
+                status = (int)HttpStatusCode.OK,
+                challenge_url = "http://demo-domain-for-testing.com"
+                
+            };
+            var data = await _deployService.StatusCheck(statusReq);
+
+            return data;
+        }
+
+        [HttpPost("admin-start")]
+        [RequireSecretKey]
+        public async Task<ChallengeStartResponeDTO> StartChallengeCheckingForAdmin([FromBody] ChallengCheckStatusReqDTO statusReq)
+        {
+            if (statusReq == null || string.IsNullOrEmpty(statusReq.teamName) || statusReq.challengeId <= 0)
+            {
+                return new ChallengeStartResponeDTO
+                {
+                    success = false,
+                    message = "Invalid request parameters",
+                    status = (int)HttpStatusCode.BadRequest
+                };
+            }
+
+            return new ChallengeStartResponeDTO
+            {
+                success = true,
+                message = "Challenge status checking started",
+                status = (int)HttpStatusCode.OK,
+                challenge_url = "http://demo-domain-for-testing.com"
+
+            };
+            var data = await _deployService.StatusCheck(statusReq);
+
+            return data;
         }
 
         [HttpPost("message")]
-        public async Task<IActionResult> MessageFromArgo([FromBody] string message)
+        public async Task<BaseResponseDTO> MessageFromArgo([FromBody] WorkflowStatusDTO message)
         {
-            await Console.Out.WriteLineAsync($"Received message: {message}");
-            return Ok(new { message = message });
+
+            if (message == null )
+            {
+                return new BaseResponseDTO
+                {
+                    Success = false,
+                    Message = "Invalid request parameters",
+                    HttpStatusCode = HttpStatusCode.BadRequest
+                };
+            }
+
+            return await _deployService.HandleMessageFromArgo(message);
         }
-        
     }
 }
