@@ -1,6 +1,7 @@
-﻿using ResourceShared.Models;
+﻿using Microsoft.AspNetCore.Http;
+using ResourceShared.Models;
 
-namespace ContestantBE.Extensions
+namespace ResourceShared.Extensions
 {
     public static class HttpContextExtensions
     {

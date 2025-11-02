@@ -1,8 +1,9 @@
 ﻿using ContestantBE.Attribute;
-using ContestantBE.Extensions;
 using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using ResourceShared.Attribute;
 using ResourceShared.DTOs.Hint;
+using ResourceShared.Extensions;
 
 namespace ContestantBE.Controllers
 {

@@ -1,12 +1,13 @@
 
-using DotNetEnv;
+using DeploymentCenter.Services;
 using DeploymentCenter.Utils;
+using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared;
 using ResourceShared.Configs;
+using ResourceShared.Middlewares;
 using ResourceShared.Models;
 using StackExchange.Redis;
-using DeploymentCenter.Services;
 
 namespace DeploymentCenter
 {
@@ -33,9 +34,9 @@ namespace DeploymentCenter
             );
            
             builder.Services.AddControllers();
+            builder.Services.AddResourceShared();
             builder.Services.AddScoped<IDeployService, DeployService>();
             // DI services from ResourceShared
-            builder.Services.AddResourceShared();
             new DeploymentCenterConfigHelper().InitConfig();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
@@ -67,8 +68,7 @@ namespace DeploymentCenter
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
-            app.UseHttpsRedirection();
+            app.UseMiddleware<TokenAuthenticationMiddleware>();
             app.UseAuthorization();
             app.MapControllers();
             app.Run();

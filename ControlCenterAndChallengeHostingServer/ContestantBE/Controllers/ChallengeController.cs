@@ -1,14 +1,15 @@
 ﻿using ContestantBE.Attribute;
-using ContestantBE.Extensions;
 using ContestantBE.Services;
 using ContestantBE.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared;
+using ResourceShared.Attribute;
 using ResourceShared.Configs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.File;
+using ResourceShared.Extensions;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;

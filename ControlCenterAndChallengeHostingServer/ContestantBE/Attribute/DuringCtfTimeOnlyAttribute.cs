@@ -1,6 +1,6 @@
-﻿using ContestantBE.Extensions;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using ResourceShared.Extensions;
 using ResourceShared.Utils;
 
 namespace ContestantBE.Attribute

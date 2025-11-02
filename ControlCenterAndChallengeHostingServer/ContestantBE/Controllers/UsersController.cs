@@ -1,9 +1,10 @@
-﻿using ContestantBE.Extensions;
+﻿using ResourceShared.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.User;
 using ResourceShared.Models;
 using ContestantBE.Attribute;
+using ResourceShared.Attribute;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]

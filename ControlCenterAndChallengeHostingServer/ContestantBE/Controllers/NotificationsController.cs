@@ -6,6 +6,7 @@ using ResourceShared.DTOs.Notification;
 using ResourceShared.Models;
 using System.Threading.Tasks;
 using ContestantBE.Attribute;
+using ResourceShared.Attribute;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
