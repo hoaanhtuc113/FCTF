@@ -8,7 +8,10 @@
 			Name<br>
 			<small class="form-text text-muted">Challenge Name</small>
 		</label>
-		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}">
+		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}" maxlength="40" required>
+		<small class="form-text text-muted">
+			<span id="char-count">{{ challenge.name|length if challenge.name else 0 }}</span>/40 characters
+		</small>
 	</div>
 	{% endblock %}
 
@@ -23,13 +26,7 @@
 	{% endblock %}
 
 	{% block message %}
-	<div  class="form-group">
-		<label>
-			Files
-			<small class="form-text text-muted">Select PDF file as a description</small>
-		</label>
-		<input class="form-control-file" type="file" name="deploy_file" id="file-upload" accept=".pdf" />
-	</div>
+	
 	<div class="form-group">
 		<label>
 			Message<br>
