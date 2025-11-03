@@ -89,17 +89,26 @@
 
 					<div class="dropdown-menu shadow-sm p-3"
 						id="export-csv-dropdown"
-						aria-labelledby="export-csv-button">
+						aria-labelledby="export-csv-button"
+						style="min-width: 250px;">
 
 						<div class="form-check mb-3">
-						<input class="form-check-input" type="checkbox" id="include-passwords-visible">
-						<label class="form-check-label small font-weight-bold" for="include-passwords-visible">
-							Passwords Visible
-						</label>
+							<input class="form-check-input" type="checkbox" id="include-passwords-visible">
+							<label class="form-check-label small font-weight-bold" for="include-passwords-visible">
+								Include Passwords (Reset)
+							</label>
+							<small class="form-text text-muted d-block mt-1">
+								Reset and export passwords for all users
+							</small>
+						</div>
+
+						<div id="ctf-active-warning" class="alert alert-warning py-2 px-2 mb-2" style="display: none; font-size: 0.85rem;">
+							<i class="fas fa-exclamation-triangle"></i>
+							<small>CTF is active. Password export is disabled.</small>
 						</div>
 
 						<button class="btn btn-warning btn-sm w-100 text-white font-weight-bold" id="export-btn">
-						Export
+							Export
 						</button>
 					</div>
 				</div>
