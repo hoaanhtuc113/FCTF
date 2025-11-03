@@ -740,7 +740,7 @@ class ChallengeAttempt(Resource):
         
         # Check captain_only_submit_challenge config
         captain_only_submit = get_config("captain_only_submit_challenge")
-        if (captain_only_submit == "1" or captain_only_submit == "true") and user.type == 'user':
+        if (captain_only_submit == 1 or captain_only_submit == "true") and user.type == 'user':
             if not team or not team.captain_id or team.captain_id != user.id:
                 return (
                     {
