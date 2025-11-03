@@ -17,17 +17,230 @@ import TopicsList from "../components/topics/TopicsList.vue";
 import { bindMarkdownEditors } from "../styles";
 import "./main";
 
+// Validation: Challenge name character counter and limit
+function initNameValidation() {
+  const nameInput = document.querySelector('.chal-name');
+  const charCountSpan = document.getElementById('char-count');
+  
+  if (nameInput && charCountSpan) {
+    nameInput.addEventListener('input', function() {
+      const currentLength = this.value.length;
+      charCountSpan.textContent = currentLength;
+      
+      // Change color based on length
+      const parentSmall = charCountSpan.parentElement;
+      if (currentLength > 40) {
+        parentSmall.classList.add('text-danger');
+        parentSmall.classList.remove('text-muted', 'text-warning');
+      } else if (currentLength > 35) {
+        parentSmall.classList.add('text-warning');
+        parentSmall.classList.remove('text-muted', 'text-danger');
+      } else {
+        parentSmall.classList.add('text-muted');
+        parentSmall.classList.remove('text-warning', 'text-danger');
+      }
+      
+      // Validation
+      if (currentLength > 40) {
+        this.setCustomValidity('Challenge name must not exceed 40 characters');
+        this.classList.add('is-invalid');
+      } else {
+        this.setCustomValidity('');
+        this.classList.remove('is-invalid');
+      }
+    });
+  }
+}
+
+// Validation: PDF file size (max 5MB)
+function initFileValidation() {
+  const fileInput = document.getElementById('file-upload');
+  if (!fileInput) return;
+  
+  const form = fileInput.closest('form');
+  const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+  
+  fileInput.addEventListener('change', function(e) {
+    // Remove existing messages
+    const existingError = this.parentNode.querySelector('.file-error-message');
+    const existingSuccess = this.parentNode.querySelector('.file-success-message');
+    if (existingError) existingError.remove();
+    if (existingSuccess) existingSuccess.remove();
+    
+    const file = this.files[0];
+    
+    if (file) {
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      
+      console.log('File selected:', file.name, 'Size:', fileSizeMB, 'MB');
+      
+      if (file.size > maxSize) {
+        console.log('FILE TOO LARGE! Blocking submission');
+        
+        // Create error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger file-error-message mt-2';
+        errorDiv.innerHTML = `<strong>⚠ File Too Large!</strong><br>File size (${fileSizeMB}MB) exceeds the 5MB limit. Please select a smaller file.`;
+        this.parentNode.appendChild(errorDiv);
+        
+        // Disable submit button
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.classList.add('disabled');
+          submitButton.title = 'Cannot submit: File size exceeds 5MB limit';
+        }
+        
+        // Show alert
+        ezAlert({
+          title: 'File Too Large',
+          body: `The selected PDF file (${fileSizeMB}MB) exceeds the 5MB limit. Please choose a smaller file before submitting.`,
+          button: 'OK'
+        });
+      } else {
+        console.log('File size OK, enabling submit');
+        
+        // Enable submit button
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.classList.remove('disabled');
+          submitButton.title = '';
+        }
+        
+        // Show success message
+        const successDiv = document.createElement('div');
+        successDiv.className = 'text-success small mt-1 file-success-message';
+        successDiv.textContent = `✓ ${file.name} (${fileSizeMB}MB)`;
+        this.parentNode.appendChild(successDiv);
+        
+        // Remove success message after 3 seconds
+        setTimeout(() => {
+          if (successDiv && successDiv.parentNode) {
+            successDiv.remove();
+          }
+        }, 3000);
+      }
+    } else {
+      // No file selected, enable submit
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.classList.remove('disabled');
+        submitButton.title = '';
+      }
+    }
+  });
+}
+
+// Form submission validation
+function initFormValidation() {
+  const forms = document.querySelectorAll('form');
+  
+  forms.forEach(form => {
+    form.addEventListener('submit', function(e) {
+      const nameInput = this.querySelector('.chal-name');
+      const fileInput = this.querySelector('#file-upload');
+      let hasError = false;
+      
+      // Check name length
+      if (nameInput && nameInput.value.length > 40) {
+        e.preventDefault();
+        hasError = true;
+        nameInput.focus();
+        nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        ezAlert({
+          title: 'Validation Error',
+          body: 'Challenge name must not exceed 40 characters.',
+          button: 'OK'
+        });
+      }
+      
+      // Check file size
+      if (!hasError && fileInput && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (file.size > maxSize) {
+          e.preventDefault();
+          hasError = true;
+          fileInput.focus();
+          fileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+          ezAlert({
+            title: 'File Size Error',
+            body: `File size (${fileSizeMB}MB) exceeds the 5MB limit. Please select a smaller file.`,
+            button: 'OK'
+          });
+        }
+      }
+      
+      if (hasError) {
+        // Prevent any other submit handlers (jQuery handlers) from running
+        try {
+          e.preventDefault();
+          if (typeof e.stopImmediatePropagation === 'function') {
+            e.stopImmediatePropagation();
+          }
+        } catch (err) {
+          // ignore
+        }
+        return false;
+      }
+    });
+  });
+}
+
 function loadChalTemplate(challenge) {
   CTFd._internal.challenge = {};
   $.getScript(CTFd.config.urlRoot + challenge.scripts.view, function () {
     let template_data = challenge.create;
     $("#create-chal-entry-div").html(template_data);
     bindMarkdownEditors();
+    
+    // Initialize validation for dynamically loaded create form
+    initNameValidation();
+    initFileValidation();
 
     $.getScript(CTFd.config.urlRoot + challenge.scripts.create, function () {
       $("#create-chal-entry-div form").submit(async function (event) {
         event.preventDefault();
         const form = this;
+        
+        // Validate before submission
+        const nameInput = form.querySelector('.chal-name');
+        const fileInput = form.querySelector('#file-upload');
+        
+        // Check name length
+        if (nameInput && nameInput.value.length > 40) {
+          nameInput.focus();
+          nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          ezAlert({
+            title: 'Validation Error',
+            body: 'Challenge name must not exceed 40 characters.',
+            button: 'OK'
+          });
+          return false;
+        }
+        
+        // Check file size
+        if (fileInput && fileInput.files[0]) {
+          const file = fileInput.files[0];
+          const maxSize = 5 * 1024 * 1024; // 5MB
+          
+          if (file.size > maxSize) {
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            fileInput.focus();
+            fileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            ezAlert({
+              title: 'File Size Error',
+              body: `File size (${fileSizeMB}MB) exceeds the 5MB limit. Please select a smaller file.`,
+              button: 'OK'
+            });
+            return false;
+          }
+        }
+        
         const formData = $(form).serializeArray();
         const params = formData
           .filter(item => item.name !== 'file_upload')
@@ -183,6 +396,11 @@ function handleChallengeOptions(event) {
 }
 
 $(() => {
+  // Initialize validations
+  initNameValidation();
+  initFileValidation();
+  initFormValidation();
+  
   $(".preview-challenge").click(function (_e) {
     let url = `${CTFd.config.urlRoot}/admin/challenges/preview/${window.CHALLENGE_ID}`;
     $("#challenge-window").html(

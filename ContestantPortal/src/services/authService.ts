@@ -1,5 +1,4 @@
 import { API_ENDPOINTS } from '../config/endpoints';
-import { configService } from './configService';
 import type { User, Team } from '../models/user.model';
 import type { LoginCredentials, AuthResponse } from '../models/auth.model';
 
@@ -28,9 +27,8 @@ class AuthService {
   }
 
   logout(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    configService.clearCache();
+    // Clear all localStorage data on logout
+    localStorage.clear();
   }
 
   getToken(): string | null {
