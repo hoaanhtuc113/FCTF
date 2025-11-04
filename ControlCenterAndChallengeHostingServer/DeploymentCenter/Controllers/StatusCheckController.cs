@@ -67,7 +67,15 @@ namespace HealthCheckService.Controllers
                     status = (int)HttpStatusCode.BadRequest
                 };
             }
+            //NOTE: this state for runing in local with out k8s cubeconfig 
+            return new ChallengeStartResponeDTO
+            {
+                success = true,
+                message = "Challenge status checking started",
+                status = (int)HttpStatusCode.OK,
+                challenge_url = "http://demo-domain-for-testing.com"
 
+            };
             var data = await _deployService.StatusCheck(statusReq);
 
             return data;
@@ -86,7 +94,15 @@ namespace HealthCheckService.Controllers
                     status = (int)HttpStatusCode.BadRequest
                 };
             }
+            //NOTE: this state for runing in local with out k8s cubeconfig 
+            return new ChallengeStartResponeDTO
+            {
+                success = true,
+                message = "Challenge status checking started",
+                status = (int)HttpStatusCode.OK,
+                challenge_url = "http://demo-domain-for-testing.com"
 
+            };
             var data = await _deployService.StatusCheck(statusReq);
 
             return data;

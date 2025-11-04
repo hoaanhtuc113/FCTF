@@ -348,7 +348,12 @@ namespace ContestantBE.Controllers
 
             if(!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy"});
 
-            if (user.Id != user.Team.CaptainId) return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });
+            // Check captain_only_start_challenge config (stored as "1" or "0" in database)
+            var captainOnlyStart = _configHelper.GetConfig<bool>("captain_only_start_challenge", true);
+            if (captainOnlyStart && user.Id != user.Team.CaptainId)
+            {
+                return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });
+            }
 
             var response =  await _challengeServices.ChallengeStart(challenge, user);
             return response.status switch

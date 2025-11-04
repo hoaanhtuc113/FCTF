@@ -29,11 +29,12 @@ namespace DeploymentCenter.Services
         private readonly IK8sHealthService _k8SHealthService;
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
-        public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sHealthService k8SHealthService )
+        public DeployService(AppDbContext dbContext, RedisHelper redisHelper /*,  IK8sHealthService k8SHealthService */ )
         {
             _dbContext=dbContext;
             _redisHelper=redisHelper;
-            _k8SHealthService = k8SHealthService;
+            //NOTE: comment this state for runing in local with out k8s cubeconfig 
+            //_k8SHealthService = k8SHealthService;
         }
 
         public async Task<ChallengeStartResponeDTO> Start(ChallengeStartStopReqDTO startReq)
