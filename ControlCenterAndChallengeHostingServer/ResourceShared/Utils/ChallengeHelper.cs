@@ -102,7 +102,7 @@ namespace ResourceShared.Utils
             if(challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
             {
                 isTemp = false;
-                challenge.TimeLimit = 0;
+                challenge.TimeLimit = 1;
             }
 
             var deploymentAppName = GetDeploymentAppName(teamName, challenge.Id.ToString(), challenge.Name);

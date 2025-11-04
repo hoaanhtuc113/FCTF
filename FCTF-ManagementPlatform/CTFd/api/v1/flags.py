@@ -2,6 +2,7 @@ from typing import List
 
 from flask import request
 from flask_restx import Namespace, Resource
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
@@ -108,7 +109,15 @@ class FlagList(Resource):
             return {"success": False, "errors": response.errors}, 400
         
         db.session.add(response.data)
-        db.session.commit()
+        
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError) as e:
+            db.session.rollback()
+            return {"success": False, "errors": {"database": [str(e)]}}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "errors": {"unknown": [str(e)]}}, 400
 
         response = schema.dump(response.data)
         db.session.close()

@@ -222,10 +222,6 @@ function CheckingStatus(challengeId) {
     })
     .catch(error => {
       console.error(error);
-      ezToast({
-        title: `Preview Challenge ${challengeId} Error`,
-        body: error.message,
-      });
       return false;
     });
 }
