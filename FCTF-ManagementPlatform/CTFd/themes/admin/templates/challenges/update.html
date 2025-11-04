@@ -8,7 +8,10 @@
 			Name<br>
 			<small class="form-text text-muted">Challenge Name</small>
 		</label>
-		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}">
+		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}" maxlength="40" required>
+		<small class="form-text text-muted">
+			<span id="char-count">{{ challenge.name|length if challenge.name else 0 }}</span>/40 characters
+		</small>
 	</div>
 	{% endblock %}
 
@@ -23,13 +26,7 @@
 	{% endblock %}
 
 	{% block message %}
-	<div  class="form-group">
-		<label>
-			Files
-			<small class="form-text text-muted">Select PDF file as a description</small>
-		</label>
-		<input class="form-control-file" type="file" name="deploy_file" id="file-upload" accept=".pdf" />
-	</div>
+	
 	<div class="form-group">
 		<label>
 			Message<br>
@@ -55,14 +52,19 @@
 			Scoring Type<br>
 			<small class="form-text text-muted">Choose between standard (fixed) or dynamic (decreasing) scoring</small>
 		</label>
-		<div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
-			<label class="btn btn-outline-success {% if challenge.type != 'dynamic' %}active{% endif %}" id="standard-scoring-btn">
-				<input type="radio" name="scoring-type-radio" value="standard" {% if challenge.type != 'dynamic' %}checked{% endif %}> Standard
+		<div class="btn-group btn-group-toggle w-100" data-toggle="buttons" {% if ctf_is_active %}style="pointer-events: none;"{% endif %}>
+			<label class="btn btn-outline-success {% if challenge.type != 'dynamic' %}active{% endif %} {% if ctf_is_active and challenge.type == 'dynamic' %}disabled{% endif %}" id="standard-scoring-btn">
+				<input type="radio" name="scoring-type-radio" value="standard" {% if challenge.type != 'dynamic' %}checked{% endif %} {% if ctf_is_active %}disabled{% endif %}> Standard
 			</label>
-			<label class="btn btn-outline-info {% if challenge.type == 'dynamic' %}active{% endif %}" id="dynamic-scoring-btn">
-				<input type="radio" name="scoring-type-radio" value="dynamic" {% if challenge.type == 'dynamic' %}checked{% endif %}> Dynamic
+			<label class="btn btn-outline-info {% if challenge.type == 'dynamic' %}active{% endif %} {% if ctf_is_active and challenge.type != 'dynamic' %}disabled{% endif %}" id="dynamic-scoring-btn">
+				<input type="radio" name="scoring-type-radio" value="dynamic" {% if challenge.type == 'dynamic' %}checked{% endif %} {% if ctf_is_active %}disabled{% endif %}> Dynamic
 			</label>
 		</div>
+		{% if ctf_is_active %}
+		<small class="form-text text-warning mt-2">
+			<i class="fas fa-exclamation-triangle"></i> Cannot change scoring type during active CTF
+		</small>
+		{% endif %}
 	</div>
 
 	<!-- Standard Value Section -->
