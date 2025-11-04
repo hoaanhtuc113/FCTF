@@ -34,12 +34,14 @@ namespace ContestantBE.Services
         private readonly IHttpClientFactory _httpFactory;
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
+        private readonly ConfigHelper _configHelper;
         public static int port = 30000;
-        public ChallengeServices(IHttpClientFactory httpFactory, AppDbContext dbContext, RedisHelper redisHelper)
+        public ChallengeServices(IHttpClientFactory httpFactory, AppDbContext dbContext, RedisHelper redisHelper, ConfigHelper configHelper)
         {
             _httpFactory = httpFactory;
             _dbContext=dbContext;
             _redisHelper=redisHelper;
+            _configHelper=configHelper;
         }
         public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
         {
@@ -80,7 +82,8 @@ namespace ContestantBE.Services
 
                 if (file_url != null) files.Add(file_url);
             }
-
+            var captainOnlyStart = _configHelper.GetConfig<bool>("captain_only_start_challenge", true);
+            var captainOnlySubmit = _configHelper.GetConfig<bool>("captain_only_submit_challenge", true);
             var challenge_data = new ChallengeDataDto
             {
                 id = challenge.Id,
@@ -96,6 +99,8 @@ namespace ContestantBE.Services
                 solve_by_myteam = solve_id != null ? true : false,
                 files = files,
                 is_captain = user.Id == user.Team.CaptainId,
+                captain_only_start = captainOnlyStart,
+                captain_only_submit = captainOnlySubmit,
             };
 
             var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.Team.Id);

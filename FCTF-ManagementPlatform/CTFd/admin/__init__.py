@@ -187,19 +187,30 @@ def export_csv():
 @admins_only
 def export_csv_user():
     include_passwords = request.args.get("include_passwords") == "1"
+    
+    # Get filter parameters
+    field = request.args.get("field")
+    q = request.args.get("q")
 
     if include_passwords:
-        output = dump_csv_with_passwords()
+        output = dump_csv_with_passwords(field=field, q=q)
     else:
-        output = dump_csv_without_passwords()
+        output = dump_csv_without_passwords(field=field, q=q)
+
+    # Add filter info to filename if present
+    filename = f"{ctf_config.ctf_name()}-user"
+    if q and field:
+        filename += f"-{field}-{q}"
+    filename += ".csv"
 
     return send_file(
         output,
         as_attachment=True,
         max_age=-1,
-        download_name=f"{ctf_config.ctf_name()}-user.csv",
+        download_name=filename,
     )
-def dump_csv_with_passwords():
+
+def dump_csv_with_passwords(field=None, q=None):
     """
     Xuất CSV cho user type='user' kèm password mới (plaintext + hash)
     """
@@ -208,13 +219,21 @@ def dump_csv_with_passwords():
     writer.writerow(["name", "email", "team_id", "team_name", "password_plain"])
 
     charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    users = (
+    
+    # Build query with filters
+    query = (
         db.session.query(Users, Teams)
         .outerjoin(Teams, Users.team_id == Teams.id)
         .filter(Users.type == "user")
         .options(joinedload(Users.team))
-        .all()
     )
+    
+    # Apply filters if provided
+    if q and field:
+        if Users.__mapper__.has_property(field):
+            query = query.filter(getattr(Users, field).like(f"%{q}%"))
+    
+    users = query.all()
 
     for user, team in users:
         new_pass = "".join(secrets.choice(charset) for _ in range(12))
@@ -245,7 +264,7 @@ def dump_csv_with_passwords():
     output.seek(0)
     return io.BytesIO(output.getvalue().encode("utf-8"))
 
-def dump_csv_without_passwords():
+def dump_csv_without_passwords(field=None, q=None):
     """
     Xuất CSV cho user type='user' KHÔNG chứa mật khẩu
     """
@@ -253,12 +272,19 @@ def dump_csv_without_passwords():
     writer = csv.writer(output)
     writer.writerow(["name", "email", "team_id", "team_name"])
 
-    users = (
+    # Build query with filters
+    query = (
         db.session.query(Users, Teams)
         .outerjoin(Teams, Users.team_id == Teams.id)
         .filter(Users.type == "user")
-        .all()
     )
+    
+    # Apply filters if provided
+    if q and field:
+        if Users.__mapper__.has_property(field):
+            query = query.filter(getattr(Users, field).like(f"%{q}%"))
+    
+    users = query.all()
 
     for user, team in users:
         writer.writerow([
