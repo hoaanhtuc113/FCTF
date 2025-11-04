@@ -55,6 +55,8 @@ interface Challenge {
   attemps?: number;
   require_deploy?: boolean;
   is_captain?: boolean;
+  captain_only_start?: boolean;
+  captain_only_submit?: boolean;
   requirements?: ChallengeRequirements | null;
 }
 
@@ -887,6 +889,7 @@ function ChallengeDetailPanel({
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
+  const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -899,6 +902,7 @@ function ChallengeDetailPanel({
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
+  const healthCheckRunningRef = useRef<boolean>(false);
 
   // Filter PDF files
   const pdfFiles = challenge.files?.filter(file => file.toLowerCase().includes('.pdf')) || [];
@@ -969,32 +973,9 @@ function ChallengeDetailPanel({
       }
     };
 
-    const loadDeploymentState = async () => {
-      const deploymentKey = `deployment_${challenge.id}`;
-      const savedDeployment = localStorage.getItem(deploymentKey);
-      
-      if (savedDeployment) {
-        const { isDeploying, startTime } = JSON.parse(savedDeployment);
-        const now = Date.now();
-        const elapsed = (now - startTime) / 1000; // seconds
-        
-        // If still within deployment timeout (2 minutes = 120 seconds)
-        if (isDeploying && elapsed < 120) {
-          setIsDeploymentInProgress(true);
-          setIsStarting(true);
-          // Continue health check in background
-          setTimeout(() => {
-            startHealthCheckLoop();
-          }, 100);
-        } else {
-          // Timeout or completed, clean up
-          localStorage.removeItem(deploymentKey);
-        }
-      }
-    };
+    // Note: Removed loadDeploymentState() - fetchChallengeStatus() handles this by checking is_healthy
 
     loadCooldown();
-    loadDeploymentState();
     fetchHints();
     fetchChallengeStatus();
 
@@ -1048,6 +1029,12 @@ function ChallengeDetailPanel({
         setTimeRemaining((prev) => {
           if (prev && prev <= 1) {
             if (timerRef.current) clearInterval(timerRef.current);
+            
+            // Auto stop challenge when time runs out
+            if (challenge.require_deploy && url) {
+              handleStopChallenge();
+            }
+            
             return 0;
           }
           return prev ? prev - 1 : null;
@@ -1085,16 +1072,49 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
       if (data.data) {
-        setTimeRemaining(data.data.time_limit);
-        setIsChallengeStarted(data.data.is_started || false);
+        // Set challenge started status from API
+        setIsChallengeStarted(data.is_started || false);
+        
+        // Set URL if challenge was already started
         setUrl(data.challenge_url || null);
         
-        // If we have URL, deployment is complete - clean up deployment state
-        if (data.challenge_url) {
+        // Set time remaining (for countdown timer)
+        setTimeRemaining(data.time_remaining || data.data.time_limit);
+        
+        // If challenge is started and has URL
+        if (data.is_started && data.challenge_url) {
+          const deploymentKey = `deployment_${challenge.id}`;
+          const savedDeployment = localStorage.getItem(deploymentKey);
+          
+          // Check if pod is healthy
+          if (data.data.is_healthy) {
+            // Pod is healthy - clean up and stop health checking
+            localStorage.removeItem(deploymentKey);
+            setIsHealthChecking(false);
+            setIsDeploymentInProgress(false);
+            setIsStarting(false);
+          } else if (savedDeployment) {
+            // Pod not healthy yet, but we have deployment state - continue health checking
+            setIsHealthChecking(true);
+            setIsDeploymentInProgress(true);
+            
+            // Start health check loop
+            setTimeout(() => {
+              startHealthCheckLoop();
+            }, 100);
+          } else {
+            // No deployment state, assume it's an old challenge that was started before
+            setIsHealthChecking(false);
+            setIsDeploymentInProgress(false);
+            setIsStarting(false);
+          }
+        } else {
+          // Not started or no URL yet
           const deploymentKey = `deployment_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
           setIsDeploymentInProgress(false);
           setIsStarting(false);
+          setIsHealthChecking(false);
         }
       }
     } catch (error) {
@@ -1104,7 +1124,7 @@ function ChallengeDetailPanel({
 
   const handleStartChallenge = async () => {
     setIsStarting(true);
-    setIsDeploymentInProgress(true); // Set immediately with button
+    setIsDeploymentInProgress(true);
     
     // Save deployment state to localStorage
     const deploymentKey = `deployment_${challenge.id}`;
@@ -1113,29 +1133,6 @@ function ChallengeDetailPanel({
       startTime: Date.now()
     }));
     
-    // Give React time to update the UI before showing popup
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Show initial deploying message with 3s timer
-    Swal.fire({
-      html: `
-        <div class="font-mono text-left text-sm">
-          <div class="text-cyan-400 mb-2">[~] Deploying challenge...</div>
-          <div class="text-gray-400">> Please wait...</div>
-        </div>
-      `,
-      icon: 'info',
-      iconColor: '#22d3ee',
-      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-      color: theme === 'dark' ? '#22d3ee' : '#000000',
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      timer: 2000, // Auto close after 3 seconds
-      customClass: {
-        popup: 'rounded-lg border border-cyan-500/30',
-      },
-    });
-
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START, {
         method: 'POST',
@@ -1145,42 +1142,44 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
 
-      // Case 1: 200 + true + có URL = Challenge đã deploy xong, trả URL luôn
+      // API now returns URL immediately
       if (response.status === 200 && data.success === true && data.challenge_url) {
-        Swal.close();
+        // Set URL immediately
         setIsChallengeStarted(true);
         setUrl(data.challenge_url);
         setIsStarting(false);
-        setIsDeploymentInProgress(false);
         
-        // Clear deployment state from localStorage
-        const deploymentKey = `deployment_${challenge.id}`;
-        localStorage.removeItem(deploymentKey);
+        // Set health checking state to show spinner
+        setIsHealthChecking(true);
         
-        await fetchChallengeStatus();
+        // Start health check in background
+        startHealthCheckLoop();
         
-        // Save notification for global listener (immediate success)
-        const notificationKey = `deployment_notification_${challenge.id}`;
-        localStorage.setItem(notificationKey, JSON.stringify({
-          challengeId: challenge.id,
-          challengeName: challenge.name,
-          status: 'success',
-          url: "You can access this domain: " + data.challenge_url,
-          message: data.message,
-          timestamp: Date.now()
-        }));
-      }
-      // Case 2: 200 + true + KHÔNG có URL = Đang deploy, cần loop health check
-      else if (response.status === 200 && data.success === true && !data.challenge_url) {
-        await startHealthCheckLoop();
+        // Show success message
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-cyan-400 mb-2">[+] Challenge URL ready</div>
+              <div class="text-gray-400">> URL: ${data.challenge_url}</div>
+              <div class="text-yellow-400 mt-2">> Health check in progress...</div>
+            </div>
+          `,
+          icon: 'success',
+          iconColor: '#22d3ee',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#22d3ee' : '#000000',
+          timer: 3000,
+          showConfirmButton: false,
+          customClass: {
+            popup: 'rounded-lg border border-cyan-500/30',
+          },
+        });
       }
       else {
-        Swal.close();
         setIsStarting(false);
         setIsDeploymentInProgress(false);
         
         // Clear deployment state from localStorage
-        const deploymentKey = `deployment_${challenge.id}`;
         localStorage.removeItem(deploymentKey);
         
         Swal.fire({
@@ -1203,9 +1202,8 @@ function ChallengeDetailPanel({
         });
       }
     } catch (error) {
-      Swal.close();
       setIsStarting(false);
-      setIsDeploymentInProgress(false); // Hide red note
+      setIsDeploymentInProgress(false);
       
       // Clear deployment state from localStorage
       const deploymentKey = `deployment_${challenge.id}`;
@@ -1232,99 +1230,144 @@ function ChallengeDetailPanel({
     }
   };
 
-  // Health check loop function
+  // Health check loop function - runs silently in background
   const startHealthCheckLoop = async () => {
-    const maxAttempts = 40;
+    console.log('[Health Check] startHealthCheckLoop called');
+    
+    // Prevent duplicate health check loops
+    if (healthCheckRunningRef.current) {
+      console.log('[Health Check] Already running, skipping duplicate start');
+      return;
+    }
+    
+    healthCheckRunningRef.current = true;
+    console.log('[Health Check] Starting new health check loop');
+    const maxAttempts = 100;
     let attempts = 0;
     
     const checkStatus = async (): Promise<boolean> => {
       try {
         attempts++;
-        // note: Sủa url
+        console.log(`[Health Check] Attempt ${attempts}/${maxAttempts}`);
+        
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
           method: 'GET'
         });
         const data = await response.json();
         
-        // Check if challenge is started and has URL
-        if (data.data && data.challenge_url) {
-          setIsChallengeStarted(true);
-          setUrl(data.challenge_url);
-          setTimeRemaining(data.data.time_limit);
-          setIsStarting(false);
+        // Check if pod is healthy (challenge is ready)
+        if (data.data?.is_healthy) {
+          console.log('[Health Check] Pod is healthy! Stopping health check.');
+          setIsHealthChecking(false);
           setIsDeploymentInProgress(false);
+          healthCheckRunningRef.current = false;
           
           // Clear deployment state from localStorage
           const deploymentKey = `deployment_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
           
-          // Save notification for global listener
+          // Health check success - show notification
           const notificationKey = `deployment_notification_${challenge.id}`;
           localStorage.setItem(notificationKey, JSON.stringify({
             challengeId: challenge.id,
             challengeName: challenge.name,
             status: 'success',
-            url: data.challenge_url,
-            message: data.message,
+            url: url,
+            message: 'Challenge is ready!',
             timestamp: Date.now()
           }));
           
-          return true; // Success
+          return true; // Stop loop - SUCCESS
         }
         
         // Max attempts reached
         if (attempts >= maxAttempts) {
-          setIsStarting(false);
+          console.log('[Health Check] Max attempts reached. Stopping.');
+          setIsHealthChecking(false);
           setIsDeploymentInProgress(false);
+          setIsStarting(false);
+          healthCheckRunningRef.current = false;
+          
+          // Clear URL to show Start button again
+          setUrl(null);
+          setIsChallengeStarted(false);
           
           // Clear deployment state from localStorage
           const deploymentKey = `deployment_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
           
-          // Save notification for global listener
-          const notificationKey = `deployment_notification_${challenge.id}`;
-          localStorage.setItem(notificationKey, JSON.stringify({
-            challengeId: challenge.id,
-            challengeName: challenge.name,
-            status: 'timeout',
-            message: 'Pod creation taking longer than expected',
-            timestamp: Date.now()
-          }));
+          // Show timeout notification
+          Swal.fire({
+            html: `
+              <div class="font-mono text-left text-sm">
+                <div class="text-red-400 mb-2">[!] Health Check Timeout</div>
+                <div class="text-gray-400">> Pod failed to become ready</div>
+                <div class="text-gray-400">> Please try starting again</div>
+              </div>
+            `,
+            icon: 'error',
+            iconColor: '#ef4444',
+            confirmButtonText: 'OK',
+            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+            color: theme === 'dark' ? '#ef4444' : '#000000',
+            customClass: {
+              popup: 'rounded-lg border border-red-500/30',
+              confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+            },
+          });
           
-          return true; // Stop loop
+          return true; // Stop loop - TIMEOUT
         }
         
-        // Continue checking silently (no popup updates)
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+        // Continue checking silently
+        console.log('[Health Check] Pod not ready yet. Waiting 1s...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
         return checkStatus(); // Recursive call
         
       } catch (error) {
-        console.error('Health check error:', error);
+        console.error('[Health Check] Error:', error);
         
         // Continue trying even on error
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          await new Promise(resolve => setTimeout(resolve, 1000));
           return checkStatus();
         }
         
-        setIsStarting(false);
+        // Max attempts reached even with errors
+        setIsHealthChecking(false);
         setIsDeploymentInProgress(false);
+        setIsStarting(false);
+        healthCheckRunningRef.current = false;
+        
+        // Clear URL to show Start button again
+        setUrl(null);
+        setIsChallengeStarted(false);
         
         // Clear deployment state from localStorage
         const deploymentKey = `deployment_${challenge.id}`;
         localStorage.removeItem(deploymentKey);
         
-        // Save notification for global listener
-        const notificationKey = `deployment_notification_${challenge.id}`;
-        localStorage.setItem(notificationKey, JSON.stringify({
-          challengeId: challenge.id,
-          challengeName: challenge.name,
-          status: 'error',
-          message: 'Unable to verify deployment',
-          timestamp: Date.now()
-        }));
+        // Show error notification
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-red-400 mb-2">[!] Health Check Error</div>
+              <div class="text-gray-400">> Failed to check pod status</div>
+              <div class="text-gray-400">> Please try starting again</div>
+            </div>
+          `,
+          icon: 'error',
+          iconColor: '#ef4444',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+          },
+        });
         
-        return true; // Stop loop
+        return true; // Stop loop - ERROR
       }
     };
     
@@ -1406,6 +1449,22 @@ function ChallengeDetailPanel({
         customClass: {
           popup: 'rounded-lg border border-yellow-500/30',
           confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+        },
+      });
+      return;
+    }
+
+    // Check if captain_only_submit is enabled and user is not captain
+    if (challenge.captain_only_submit && !challenge.is_captain) {
+      Swal.fire({
+        html: `<div class="font-mono text-sm text-red-400">[!] Only team captain can submit flags</div>`,
+        icon: 'error',
+        iconColor: '#ef4444',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
         },
       });
       return;
@@ -1610,31 +1669,40 @@ function ChallengeDetailPanel({
     }
   };
 
-  const formatTime = (minutes: number | string | null) => {
+  const formatTime = (seconds: number | string | null) => {
     if (challenge?.time_limit === -1) return '∞';
-    if (minutes === null || minutes === undefined) return '--:--';
+    if (seconds === null || seconds === undefined) return '--:--';
     
     // Convert to number and validate
-    const numMinutes = typeof minutes === 'string' ? parseFloat(minutes) : minutes;
+    const numSeconds = typeof seconds === 'string' ? parseFloat(seconds) : seconds;
     
-    if (isNaN(numMinutes)) return '--:--';
+    if (isNaN(numSeconds)) return '--:--';
     
-    // Ensure minutes is a positive number
-    const totalMinutes = Math.max(0, Math.floor(numMinutes));
+    // Ensure seconds is a positive number
+    const totalSeconds = Math.max(0, Math.floor(numSeconds));
     
-    if (totalMinutes < 60) {
-      // Less than 60 minutes, show as "Xm"
-      return `${totalMinutes}m`;
-    } else {
-      // 60 minutes or more, show as "Xh Ym"
-      const hours = Math.floor(totalMinutes / 60);
-      const mins = totalMinutes % 60;
-      
-      if (mins === 0) {
-        return `${hours}h`;
+    // Convert to hours, minutes, seconds
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    
+    if (hours > 0) {
+      // Show hours and minutes: "Xh Ym"
+      if (minutes > 0) {
+        return `${hours}h ${minutes}m`;
       } else {
-        return `${hours}h ${mins}m`;
+        return `${hours}h`;
       }
+    } else if (minutes > 0) {
+      // Show minutes and seconds: "Xm Ys"
+      if (secs > 0) {
+        return `${minutes}m ${secs}s`;
+      } else {
+        return `${minutes}m`;
+      }
+    } else {
+      // Show seconds only: "Xs"
+      return `${secs}s`;
     }
   };
 
@@ -2177,7 +2245,7 @@ const getFileName = (filePath : string) => {
                   ? 'bg-gray-700 text-gray-300 border-gray-600'
                   : 'bg-gray-100 text-gray-700 border-gray-300'
               }`}>
-                Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit)}
+                Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
               </span>
               <span className={`px-2 py-1 rounded border ${
                 theme === 'dark'
@@ -2224,6 +2292,28 @@ const getFileName = (filePath : string) => {
               <div className={`p-3 rounded border ${
                 theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
               }`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-xs font-mono font-bold ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    [URL]
+                  </span>
+                  {isHealthChecking && (
+                    <div className="flex items-center gap-2">
+                      <CircularProgress 
+                        size={12} 
+                        sx={{ 
+                          color: theme === 'dark' ? '#fbbf24' : '#f59e0b',
+                        }} 
+                      />
+                      <span className={`text-xs font-mono ${
+                        theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                      }`}>
+                        Health checking...
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <p className="font-mono text-xs">
                   <span className={`font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{'>>'} </span>
                   <span className={`break-all ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{url}</span>
@@ -2398,30 +2488,41 @@ const getFileName = (filePath : string) => {
                       </div>
                     )}
                     
+                    {/* Show captain-only submit warning */}
+                    {challenge.captain_only_submit && !challenge.is_captain && (
+                      <div className={`text-xs font-mono p-2 rounded border ${
+                        theme === 'dark' 
+                          ? 'bg-red-900/20 text-red-400 border-red-500/30' 
+                          : 'bg-red-50 text-red-600 border-red-300'
+                      }`}>
+                        <span className="text-red-500">[!]</span> Only team captain can submit flags
+                      </div>
+                    )}
+                    
                     <button
                       onClick={handleSubmitFlag}
-                      disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0}
+                      disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
                       style={{
                         fontFamily: 'monospace',
                         fontSize: '13px',
                         textTransform: 'none',
-                        color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '#52525b' : '#fff',
-                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '#18181b' : '#22d3ee',
-                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? '1px solid #27272a' : '1px solid #22d3ee',
+                        color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#52525b' : '#fff',
+                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#18181b' : '#22d3ee',
+                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '1px solid #27272a' : '1px solid #22d3ee',
                         padding: '10px',
                         borderRadius: '4px',
-                        cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0) ? 'not-allowed' : 'pointer',
+                        cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? 'not-allowed' : 'pointer',
                         width: '100%',
                         transition: 'all 0.2s',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0) {
+                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
                           e.currentTarget.style.backgroundColor = '#06b6d4';
                           e.currentTarget.style.borderColor = '#06b6d4';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0) {
+                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
                           e.currentTarget.style.backgroundColor = '#22d3ee';
                           e.currentTarget.style.borderColor = '#22d3ee';
                         }
@@ -2431,7 +2532,9 @@ const getFileName = (filePath : string) => {
                         ? '[SUBMITTING...]' 
                         : cooldownRemaining > 0 
                           ? `[COOLDOWN: ${cooldownRemaining}s]`
-                          : '[SUBMIT]'}
+                          : (challenge.captain_only_submit && !challenge.is_captain)
+                            ? '[CAPTAIN ONLY]'
+                            : '[SUBMIT]'}
                     </button>
                     
                     {/* Cooldown Progress Bar */}
@@ -2463,8 +2566,15 @@ const getFileName = (filePath : string) => {
             {challenge.require_deploy && !challenge.solve_by_myteam && 
              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className="space-y-2">
-                {!isChallengeStarted ? (
-                  challenge.is_captain ? (
+                {!url ? (
+                  // Show Start button only when no URL exists
+                  (challenge.captain_only_start && !challenge.is_captain) ? (
+                    <p className={`text-center text-xs font-mono ${
+                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                      [!] Only captain can start
+                    </p>
+                  ) : (
                     <>
                       <button
                         onClick={handleStartChallenge}
@@ -2505,15 +2615,6 @@ const getFileName = (filePath : string) => {
                             size={14} 
                             sx={{ 
                               color: '#000',
-                              animation: 'spin 1s linear infinite',
-                              '@keyframes spin': {
-                                '0%': {
-                                  transform: 'rotate(0deg)',
-                                },
-                                '100%': {
-                                  transform: 'rotate(360deg)',
-                                },
-                              },
                             }} 
                           />
                         )}
@@ -2525,24 +2626,27 @@ const getFileName = (filePath : string) => {
                         </p>
                       )}
                     </>
-                  ) : (
-                    <p className={`text-center text-xs font-mono ${
-                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                    }`}>
-                      [!] Only captain can start
-                    </p>
                   )
                 ) : (
+                  // Show Stop button when URL exists
                   <button
                     onClick={handleStopChallenge}
-                    disabled={isStopping}
-                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors ${
+                    disabled={isStopping || isHealthChecking}
+                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
                       theme === 'dark'
                         ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
                         : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
+                    {isStopping && (
+                      <CircularProgress 
+                        size={14} 
+                        sx={{ 
+                          color: '#fff',
+                        }} 
+                      />  
+                    )}
+                    {isStopping ? '[...] Stopping' : isHealthChecking ? '[~] Health Checking...' : '[-] Stop Challenge'}
                   </button>
                 )}
               </div>
