@@ -4,7 +4,7 @@ import os
 import sys
 
 from flask import abort, redirect, render_template, request, session, url_for
-from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from CTFd.cache import clear_user_recent_ips
@@ -257,6 +257,21 @@ def init_request_processors(app):
                     db.session.rollback()
                     db.session.close()
                     logout_user()
+                except OperationalError as e:
+                    # Handle race condition errors (e.g., concurrent updates to tracking table)
+                    # Error 1020: "Record has changed since last read in table 'tracking'"
+                    # This happens when multiple requests try to update the same tracking record
+                    db.session.rollback()
+                    # Don't logout user on race conditions, just log and continue
+                    if "1020" in str(e) or "Record has changed" in str(e):
+                        logging.debug(f"Tracking update race condition for user {session.get('id')}: {e}")
+                    else:
+                        # For other operational errors, log as warning
+                        logging.warning(f"Tracking update failed: {e}")
+                except Exception as e:
+                    # Catch any other unexpected errors
+                    db.session.rollback()
+                    logging.error(f"Unexpected error in tracking: {e}")
                 else:
                     clear_user_recent_ips(user_id=session["id"])
 

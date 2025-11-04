@@ -382,7 +382,6 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
             if "Dockerfile" in files:
                 # Get directory path relative to NFS_MOUNT_PATH (without Dockerfile filename)
                 dockerfile_path = os.path.relpath(root, NFS_MOUNT_PATH)
-                print(f"Found Dockerfile at: {dockerfile_path}")
                 break
         
         if dockerfile_path is None:
@@ -457,6 +456,9 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
             return {"success": False, "error": "Challenge already pending deploy"}, 400
             
     except Exception as e:
+        challenge.deploy_status = "FILE_UPLOAD_FAILED"
+        challenge.state = "hidden"
+        db.session.commit()
         print(f"Error handling challenge upload: {e}")
         return {"success": False, "error": f"Error processing challenge upload: {str(e)}"}, 500
     finally:
@@ -486,9 +488,11 @@ def get_workflow_status(workflow_name):
         data = response.json()
         status = data.get("status", {})
         
-        workflow_phase = status.get("phase")
+        workflow_phase = status.get("phase","Running")
         started_at_str = status.get("startedAt")
-        started_at = None
+        estimated_duration = status.get("estimatedDuration", 90)
+        print(f"Workflow raw data {workflow_name}: phase={workflow_phase}, started={started_at_str}, duration={estimated_duration}s")
+        started_at = datetime.now(timezone.utc)
         if started_at_str:
             try:
                 started_at = datetime.fromisoformat(
@@ -497,10 +501,7 @@ def get_workflow_status(workflow_name):
             except Exception as e:
                 print(f"Error parsing startedAt: {e}")
                 started_at = None
-        
-        estimated_duration = status.get("estimatedDuration", 60)
-        print(f"Workflow {workflow_name}: phase={workflow_phase}, started={started_at}, duration={estimated_duration}s")
-        
+        print(f"Workflow response data {workflow_name}: phase={workflow_phase}, started={started_at}, duration={estimated_duration}s")
         return workflow_phase, (started_at.isoformat() if started_at else None), int(estimated_duration)
         
     except Exception as e:

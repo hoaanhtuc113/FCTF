@@ -48,7 +48,6 @@ namespace ResourceShared.Middlewares
                         if (tokenAuth != null)
                         {
                             var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
-                            Console.WriteLine($"[AuthMiddleware] Authenticated user: {user?.Name} (ID: {user?.Id})");
                             if (user != null)
                             {
                                 context.Items["CurrentUser"] = user;

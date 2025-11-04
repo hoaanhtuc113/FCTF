@@ -29,11 +29,11 @@ namespace DeploymentCenter.Services
         private readonly IK8sHealthService _k8SHealthService;
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
-        public DeployService(AppDbContext dbContext, RedisHelper redisHelper)
+        public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sHealthService k8SHealthService )
         {
             _dbContext=dbContext;
             _redisHelper=redisHelper;
-            //_k8SHealthService = k8SHealthService;
+            _k8SHealthService = k8SHealthService;
         }
 
         public async Task<ChallengeStartResponeDTO> Start(ChallengeStartStopReqDTO startReq)
@@ -59,8 +59,8 @@ namespace DeploymentCenter.Services
 
                         var podName = deploymentCache.PodName;
 
-                        //var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName, "challenge");
-                        var podStatus = true;
+                        var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName, "challenge");
+                        //var podStatus = true;
                         if (!podStatus)
                         {
                             return new ChallengeStartResponeDTO
@@ -205,7 +205,7 @@ namespace DeploymentCenter.Services
 
                 var podName = deploymentCache.PodName;
 
-                var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName, "challenge");
+                var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName, podName);
 
                 if (podStatus)
                 {
