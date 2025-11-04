@@ -12,12 +12,10 @@ namespace ResourceShared.Utils
     public class ConfigHelper
     {
         private readonly AppDbContext _db;
-        private readonly IMemoryCache _cache;
 
-        public ConfigHelper(AppDbContext db, IMemoryCache cache)
+        public ConfigHelper(AppDbContext db)
         {
             _db = db;
-            _cache = cache;
         }
         public T GetConfig<T>(object key, T defaultValue = default)
         {
@@ -41,25 +39,21 @@ namespace ResourceShared.Utils
 
         public object GetConfig(string key)
         {
-            return _cache.GetOrCreate<object>(key, entry =>
+
+            var config = _db.Configs.FirstOrDefault(c => c.Key == key);
+            if (config != null && !string.IsNullOrEmpty(config.Value))
             {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                string value = config.Value;
 
-                var config = _db.Configs.FirstOrDefault(c => c.Key == key);
-                if (config != null && !string.IsNullOrEmpty(config.Value))
-                {
-                    string value = config.Value;
+                if (int.TryParse(value, out int intVal))
+                    return intVal;
 
-                    if (int.TryParse(value, out int intVal))
-                        return intVal;
+                if (bool.TryParse(value, out bool boolVal))
+                    return boolVal;
 
-                    if (bool.TryParse(value, out bool boolVal))
-                        return boolVal;
-
-                    return value;
-                }
-                return new KeyNotFoundException();
-            });
+                return value;
+            }
+            return new KeyNotFoundException();
         }
 
         public object CtfName()
