@@ -74,7 +74,7 @@ def generate_cache_key(challenge_id, team_id):
     return raw_key
 
 def get_workflow_key(challenge_id):
-    key = f"challenge_workflow_{challenge_id}"
+    key = f"challenge_up_workflow_{challenge_id}"
     return key
 
 def get_workflow_name(challenge_id):
@@ -203,28 +203,41 @@ def challenge_start(payload, headers, api_start):
         print(f"Error connecting to API: {e}")
         return format_response({"message": "Connection url failed", "success": False, "status": 400})      
 def force_stop(cache_key, challenge_id, team_id):
+    team_name = "Preview"
+
+    team = Teams.query.filter_by(id=team_id).first()
+    if team:
+        team_name = team.name
+
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
-        PRIVATE_KEY, unix_time, {"ChallengeId": challenge_id, "TeamId": team_id}
+        PRIVATE_KEY, unix_time, {
+            "challengeId": challenge_id,
+            "teamId": team_id,
+            "teamName": team_name,
+        }
     )
-
     payload = {
-        "ChallengeId": challenge_id,
-        "TeamId": team_id,
-        "UnixTime": unix_time,
+        "challengeId": challenge_id,
+        "teamId": team_id,
+        "teamName": team_name,
+        "unixTime": unix_time,
     }
     headers = {"Secretkey": secret_key}
-    stop_url = f"{API_URL_CONTROLSERVER}/api/challenge/stop"
+    stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/stop"
     try:
-        response = requests.post(stop_url, data=payload, headers=headers)
-        response.raise_for_status()
+        response = requests.post(stop_url,  headers=headers,json=payload)
         response_data = response.json()
-        if response_data.get("isSuccess") == True:
-            redis_client.delete(cache_key)
-        else:
-            raise Exception(response.get("message"))
+        print(f"Force stop response: {response_data}")
+        # if response_data.get("isSuccess") == True:
+        #     redis_client.delete(cache_key)
+        # else:
+        #     raise Exception(response.get("message"))
+
+        return response_data
     except requests.exceptions.RequestException as e:
         raise Exception(e)
+
 def format_response(data):
     return jsonify(data), 200
 

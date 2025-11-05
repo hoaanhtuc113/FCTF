@@ -65,9 +65,6 @@ namespace DeploymentCenter.Middlewares
                     string bodyContent = await reader.ReadToEndAsync();
                     context.HttpContext.Request.Body.Position = 0;
 
-                    Console.WriteLine($"[Middlewares] Body Content: '{bodyContent}'");
-                    Console.WriteLine($"[Middlewares] Content-Type: '{context.HttpContext.Request.ContentType}'");
-                    Console.WriteLine($"[Middlewares] Content-Length: {context.HttpContext.Request.ContentLength}");
 
                     if (string.IsNullOrWhiteSpace(bodyContent))
                     {
@@ -116,15 +113,7 @@ namespace DeploymentCenter.Middlewares
                     data = bodyData.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? string.Empty);
                 }
             }
-
-            Console.WriteLine($"[Middlewares] UnixTime: {unixTime}");
-            Console.WriteLine($"[Middlewares] Data Keys: {string.Join(", ", data.Keys)}");
-            Console.WriteLine($"[Middlewares] Data Values: {string.Join(", ", data.Values)}");
-            
             string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
-
-            Console.WriteLine($"[Middlewares] Received SecretKey: {receivedSecretKey}");
-            Console.WriteLine($"[Middlewares] Generated SecretKey: {generatedSecretKey}");
 
             if (receivedSecretKey != generatedSecretKey)
             {

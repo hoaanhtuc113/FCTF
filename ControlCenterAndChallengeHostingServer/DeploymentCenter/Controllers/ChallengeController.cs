@@ -26,7 +26,7 @@ namespace DeploymentCenter.Controllers
         {
             if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || string.IsNullOrEmpty(challengeStartReq.teamName) || challengeStartReq.userId == null)
             {
-                return BadRequest(new ChallengeStartResponeDTO
+                return BadRequest(new ChallengeDeployResponeDTO
                 {
                     status = (int) HttpStatusCode.BadRequest,
                     success = false,
@@ -34,6 +34,29 @@ namespace DeploymentCenter.Controllers
                 });
             }
             var response = await _deployService.Start(challengeStartReq);
+            return response.status switch
+            {
+                (int)HttpStatusCode.OK => Ok(response),
+                (int)HttpStatusCode.BadRequest => BadRequest(response),
+                (int)HttpStatusCode.NotFound => NotFound(response),
+                _ => StatusCode((int)response.status, response)
+            };
+        }
+
+        [HttpPost("stop")]
+        [RequireSecretKey]
+        public async Task<IActionResult> StopChallenge([FromBody] ChallengeStartStopReqDTO challengeStopReq)
+        {
+            if (challengeStopReq == null || challengeStopReq.challengeId <= 0 || string.IsNullOrEmpty(challengeStopReq.teamName))
+            {
+                return BadRequest(new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.BadRequest,
+                    success = false,
+                    message = "Invalid request data."
+                });
+            }
+            var response = await _deployService.Stop(challengeStopReq);
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),

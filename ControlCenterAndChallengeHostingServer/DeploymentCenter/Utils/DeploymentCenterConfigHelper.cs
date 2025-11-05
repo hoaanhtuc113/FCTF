@@ -11,6 +11,7 @@ namespace DeploymentCenter.Utils
         public static string CPU_REQUEST = "";
         public static string MEMORY_REQUEST = "";
         public static string POD_START_TIMEOUT_MINUTES = "";
+        public static int WORKER_SERVICE_INTERVAL;
 
         public override void InitConfig()
         {
@@ -22,6 +23,7 @@ namespace DeploymentCenter.Utils
             DeploymentCenterConfigHelper.MEMORY_LIMIT = configuration["MEMORY_LIMIT"] ?? "256Mi";
             DeploymentCenterConfigHelper.MEMORY_REQUEST = configuration["MEMORY_REQUEST"] ?? "256Mi";
             DeploymentCenterConfigHelper.POD_START_TIMEOUT_MINUTES = configuration["POD_START_TIMEOUT_MINUTES"] ?? "5";
+            DeploymentCenterConfigHelper.WORKER_SERVICE_INTERVAL = int.Parse(configuration["WORKER_SERVICE_INTERVAL"] ?? "20");
         }
     }
 }

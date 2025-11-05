@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ResourceShared.DTOs.Challenge
 {
-    public class ChallengeStartResponeDTO
+    public class ChallengeDeployResponeDTO
     {
         public int status { get; set; }
         public bool success { get; set; }

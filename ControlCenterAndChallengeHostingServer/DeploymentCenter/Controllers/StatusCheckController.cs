@@ -39,13 +39,13 @@ namespace HealthCheckService.Controllers
 
         [HttpPost("start")]
         [RequireAuth]
-        public async Task<ChallengeStartResponeDTO> StartChallengeChecking([FromBody] ChallengCheckStatusReqDTO statusReq)
+        public async Task<ChallengeDeployResponeDTO> StartChallengeChecking([FromBody] ChallengCheckStatusReqDTO statusReq)
         {
             var user = HttpContext.GetCurrentUser();
 
             if (user == null)
             {
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     success = false,
                     message = "Unauthorized",
@@ -60,22 +60,13 @@ namespace HealthCheckService.Controllers
 
             if (statusReq == null || string.IsNullOrEmpty(statusReq.teamName) || statusReq.challengeId <= 0)
             {
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     success = false,
                     message = "Invalid request parameters",
                     status = (int)HttpStatusCode.BadRequest
                 };
             }
-            //NOTE: this state for runing in local with out k8s cubeconfig 
-            return new ChallengeStartResponeDTO
-            {
-                success = true,
-                message = "Challenge status checking started",
-                status = (int)HttpStatusCode.OK,
-                challenge_url = "http://demo-domain-for-testing.com"
-
-            };
             var data = await _deployService.StatusCheck(statusReq);
 
             return data;
@@ -83,26 +74,17 @@ namespace HealthCheckService.Controllers
 
         [HttpPost("admin-start")]
         [RequireSecretKey]
-        public async Task<ChallengeStartResponeDTO> StartChallengeCheckingForAdmin([FromBody] ChallengCheckStatusReqDTO statusReq)
+        public async Task<ChallengeDeployResponeDTO> StartChallengeCheckingForAdmin([FromBody] ChallengCheckStatusReqDTO statusReq)
         {
             if (statusReq == null || string.IsNullOrEmpty(statusReq.teamName) || statusReq.challengeId <= 0)
             {
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     success = false,
                     message = "Invalid request parameters",
                     status = (int)HttpStatusCode.BadRequest
                 };
             }
-            //NOTE: this state for runing in local with out k8s cubeconfig 
-            return new ChallengeStartResponeDTO
-            {
-                success = true,
-                message = "Challenge status checking started",
-                status = (int)HttpStatusCode.OK,
-                challenge_url = "http://demo-domain-for-testing.com"
-
-            };
             var data = await _deployService.StatusCheck(statusReq);
 
             return data;

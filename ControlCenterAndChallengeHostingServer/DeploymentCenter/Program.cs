@@ -36,6 +36,8 @@ namespace DeploymentCenter
             builder.Services.AddControllers();
             builder.Services.AddResourceShared();
             builder.Services.AddScoped<IDeployService, DeployService>();
+            builder.Services.AddScoped<IGetPodsJob, GetPodsJob>();
+            builder.Services.AddHostedService<PodsWorkerService>();
             // DI services from ResourceShared
             new DeploymentCenterConfigHelper().InitConfig();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
