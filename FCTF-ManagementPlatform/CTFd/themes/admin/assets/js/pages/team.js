@@ -584,13 +584,9 @@ $(() => {
 
   // Insert team member addition form
   const userAddForm = Vue.extend(UserAddForm);
-  let memberFormContainer = document.createElement("div");
-  document
-    .querySelector("#team-add-modal .modal-body")
-    .appendChild(memberFormContainer);
   new userAddForm({
     propsData: { team_id: window.TEAM_ID },
-  }).$mount(memberFormContainer);
+  }).$mount("#team-add-vue");
 
   let type, id, name, account_id;
   ({ type, id, name, account_id } = window.stats_data);

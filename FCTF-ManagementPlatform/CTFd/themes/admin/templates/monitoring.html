@@ -1,92 +1,217 @@
 {% extends "admin/base.html" %}
 
-{% block content %}
+{% block stylesheets %}
 <style>
-
+	/* Clean Monitoring Page Styles */
+	.monitoring-page .page-header {
+		background: #ffffff;
+		padding: 2rem 0 1rem 0;
+		margin-bottom: 2rem;
+	}
+	
+	.monitoring-page .page-header h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 1.75rem;
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.monitoring-container {
+		padding: 2rem 0;
+	}
+	
+	/* Action Button */
+	.action-section {
+		margin-bottom: 1.5rem;
+	}
+	
+	.btn-load {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+		padding: 0.65rem 1.5rem;
+		font-weight: 600;
+		border-radius: 6px;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-load:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	/* Table Styles */
+	.monitoring-table-wrapper {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		overflow: hidden;
+	}
+	
+	.monitoring-table {
+		margin: 0;
+		font-size: 0.9rem;
+	}
+	
+	.monitoring-table thead th {
+		background: #f8f9fa;
+		border-bottom: 2px solid #e8e8e8;
+		color: #495057;
+		font-weight: 600;
+		padding: 1rem 0.75rem;
+		text-transform: uppercase;
+		font-size: 0.75rem;
+		letter-spacing: 0.5px;
+		white-space: nowrap;
+	}
+	
+	.monitoring-table tbody tr {
+		border-bottom: 1px solid #f1f1f1;
+		transition: all 0.15s ease;
+	}
+	
+	.monitoring-table tbody tr:hover {
+		background: #fff5f2;
+	}
+	
+	.monitoring-table tbody td {
+		padding: 0.875rem 0.75rem;
+		color: #495057;
+		vertical-align: middle;
+	}
+	
+	.monitoring-table tbody td a {
+		color: #ff6b35;
+		text-decoration: none;
+		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+	
+	.monitoring-table tbody td a:hover {
+		color: #e85d2a;
+		text-decoration: underline;
+	}
+	
+	/* Stop Button */
+	.btn-stop {
+		background-color: #dc3545;
+		border-color: #dc3545;
+		color: #ffffff;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.875rem;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-stop:hover {
+		background-color: #c82333;
+		border-color: #bd2130;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+	}
 </style>
-<div class="jumbotron">
-    <div class="container">
-        <h1>Challenge Instance</h1>
-    </div>
-</div>
+{% endblock %}
 
-<div class="container">
-    <button onclick="loadData()">Load Data</button>
-    <table id="challengeTable" class="table table-bordered table-striped mt-3">
-        <thead>
-            <tr>
-                <th>Challenge Name</th>
-                <th>Team Name</th>
-                <th>User Name</th>
-                <th>Challenge URL</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Dynamic rows go here -->
-        </tbody>
-    </table>
+{% block content %}
+<div class="monitoring-page">
+	<div class="page-header">
+		<div class="container">
+			<h1>Challenge Instance</h1>
+		</div>
+	</div>
+
+	<div class="container monitoring-container">
+		<!-- Action Button -->
+		<div class="action-section">
+			<button onclick="loadData()" class="btn btn-load">
+				<i class="fas fa-sync-alt"></i> Load Data
+			</button>
+		</div>
+
+		<!-- Table -->
+		<div class="monitoring-table-wrapper">
+			<table id="challengeTable" class="table monitoring-table mb-0">
+			<table id="challengeTable" class="table monitoring-table mb-0">
+				<thead>
+					<tr>
+						<th>Challenge Name</th>
+						<th>Team Name</th>
+						<th>User Name</th>
+						<th>Challenge URL</th>
+						<th>Action</th>
+					</tr>
+				</thead>
+				<tbody>
+					<!-- Dynamic rows go here -->
+				</tbody>
+			</table>
+		</div>
+	</div>
 </div>
 
 <script>
-    async function loadData() {
-        const response = await fetch("/api/challenge/get-all-instance", {
-            method: "POST"
-        });
+	async function loadData() {
+		const response = await fetch("/api/challenge/get-all-instance", {
+			method: "POST"
+		});
 
-        const result = await response.json();
-        const tbody = document.querySelector("#challengeTable tbody");
-        tbody.innerHTML = "";
+		const result = await response.json();
+		const tbody = document.querySelector("#challengeTable tbody");
+		tbody.innerHTML = "";
 
-        if (result.success) {
-            result.data.forEach(row => {
-                const tr = document.createElement("tr");
+		if (result.success) {
+			result.data.forEach(row => {
+				const tr = document.createElement("tr");
 
-                tr.innerHTML = `
-                    <td>${row.challenge_name}</td>
-                    <td>${row.team_name}</td>
-                    <td>${row.user_name ?? "N/A"}</td>
-                    <td><a href="${row.challenge_url}" target="_blank">${row.challenge_url}</a></td>
-                    <td><button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-danger btn-sm">Stop</button></td>
-                `;
+				tr.innerHTML = `
+					<td>${row.challenge_name}</td>
+					<td>${row.team_name}</td>
+					<td>${row.user_name ?? "N/A"}</td>
+					<td><a href="${row.challenge_url}" target="_blank">${row.challenge_url}</a></td>
+					<td><button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-stop">Stop</button></td>
+				`;
 
-                tbody.appendChild(tr);
-            });
-        } else {
-            alert("Error loading data: " + result.error);
-        }
-    }
+				tbody.appendChild(tr);
+			});
+		} else {
+			alert("Error loading data: " + result.error);
+		}
+	}
 
-    loadData(); // Initial load
+	loadData(); // Initial load
 
-    async function stopChallenge(challengeId, teamId) {
-            try {
-                const response = await fetch("/api/challenge/stop-by-admin", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        challenge_id: challengeId,
-                        team_id: teamId
-                    })
-                });
+	async function stopChallenge(challengeId, teamId) {
+			try {
+				const response = await fetch("/api/challenge/stop-by-admin", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({
+						challenge_id: challengeId,
+						team_id: teamId
+					})
+				});
 
-                if (response.ok) {
-                    // HTTP status 2xx
-                    alert("Challenge stopped successfully.");
-                    loadData(); // Refresh the list
-                } else {
-                    // HTTP status không thành công (4xx hoặc 5xx)
-                    const result = await response.json();
-                    alert("Failed to stop challenge: " + (result.error || "Unknown error"));
-                }
-            } catch (error) {
-                alert("Network or server error: " + error.message);
-            }
+				if (response.ok) {
+					// HTTP status 2xx
+					alert("Challenge stopped successfully.");
+					loadData(); // Refresh the list
+				} else {
+					// HTTP status không thành công (4xx hoặc 5xx)
+					const result = await response.json();
+					alert("Failed to stop challenge: " + (result.error || "Unknown error"));
+				}
+			} catch (error) {
+				alert("Network or server error: " + error.message);
+			}
 
-    }
+	}
 </script>
 
 {% endblock %}
-

@@ -1,16 +1,217 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
-	<link rel="stylesheet" type="text/css" href="{{ url_for('views.themes', theme='admin', path='css/codemirror.css') }}">
+<style>
+	/* Clean Config Page Styles */
+	.config-page .page-header {
+		background: #ffffff;
+		padding: 2rem 0 1rem 0;
+		margin-bottom: 2rem;
+	}
+	
+	.config-page .page-header h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 1.75rem;
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.config-container {
+		padding: 2rem 0;
+	}
+	
+	/* Sidebar Navigation */
+	#config-sidebar {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		padding: 1rem;
+		position: sticky;
+		top: 20px;
+	}
+	
+	#config-sidebar .section-title {
+		display: block;
+		color: #6c757d;
+		font-weight: 600;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin: 1rem 0.75rem 0.5rem 0.75rem;
+		padding-top: 0.5rem;
+		border-top: 1px solid #e8e8e8;
+	}
+	
+	#config-sidebar .section-title:first-child {
+		margin-top: 0;
+		padding-top: 0;
+		border-top: none;
+	}
+	
+	#config-sidebar .nav-link {
+		color: #495057;
+		padding: 0.6rem 0.75rem;
+		margin-bottom: 0.25rem;
+		border-radius: 6px;
+		transition: all 0.2s ease;
+		font-size: 0.9rem;
+		display: flex;
+		align-items: center;
+	}
+	
+	#config-sidebar .nav-link .action-icon {
+		margin-right: 0.75rem;
+		font-size: 1rem;
+		width: 20px;
+		text-align: center;
+	}
+	
+	#config-sidebar .nav-link:hover {
+		background-color: #fff5f2;
+		color: #ff6b35;
+		transform: translateX(3px);
+	}
+	
+	#config-sidebar .nav-link.active {
+		background-color: #ff6b35;
+		color: #ffffff;
+		font-weight: 600;
+	}
+	
+	/* Tab Content */
+	.tab-content {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		padding: 2rem;
+	}
+	
+	.tab-pane h2 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.5rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 2px solid #e8e8e8;
+	}
+	
+	/* Form Styles */
+	.form-group label {
+		color: #495057;
+		font-weight: 500;
+		margin-bottom: 0.5rem;
+	}
+	
+	.form-control,
+	.custom-select {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+		transition: all 0.2s ease;
+	}
+	
+	.form-control:focus,
+	.custom-select:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+	}
+	
+	.form-text {
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+	
+	/* Buttons */
+	.btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transition: all 0.2s ease;
+		padding: 0.6rem 1.5rem;
+		font-weight: 600;
+	}
+	
+	.btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	.btn-success {
+		transition: all 0.2s ease;
+	}
+	
+	.btn-success:hover {
+		transform: translateY(-2px);
+	}
+	
+	.btn-danger {
+		transition: all 0.2s ease;
+	}
+	
+	.btn-danger:hover {
+		transform: translateY(-2px);
+	}
+	
+	/* Cards */
+	.card {
+		border: 1px solid #e8e8e8;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		margin-bottom: 1.5rem;
+	}
+	
+	.card-header {
+		background-color: #f8f9fa;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 1.25rem;
+		font-weight: 600;
+		color: #2c3e50;
+	}
+	
+	/* Custom Checkbox/Radio */
+	.custom-control-label {
+		color: #495057;
+	}
+	
+	.custom-control-input:checked ~ .custom-control-label::before {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+	}
+	
+	/* Alerts */
+	.alert {
+		border-radius: 6px;
+		border: 1px solid;
+	}
+	
+	.alert-info {
+		background-color: #f0f9ff;
+		border-color: #b3e0ff;
+		color: #0c5c8d;
+	}
+	
+	.alert-warning {
+		background-color: #fff5f2;
+		border-color: #ffccb3;
+		color: #8b2500;
+	}
+</style>
+<link rel="stylesheet" type="text/css" href="{{ url_for('views.themes', theme='admin', path='css/codemirror.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="jumbotron">
+<div class="config-page">
+<div class="page-header">
 	<div class="container">
 		<h1>Configuration</h1>
 	</div>
 </div>
-<div class="container">
+<div class="container config-container">
 	<div class="row">
 		<div class="col-md-3">
 			<ul id="config-sidebar" class="nav nav-pills flex-column">
@@ -231,6 +432,7 @@
 			</div>
 		</div>
 	</div>
+</div>
 </div>
 {% endblock %}
 

@@ -52,10 +52,17 @@ function initNameValidation() {
   }
 }
 
-// Validation: PDF file size (max 5MB)
+// Validation: PDF file size (max 5MB) - ONLY for create challenge form
 function initFileValidation() {
   const fileInput = document.getElementById('file-upload');
   if (!fileInput) return;
+  
+  // Skip validation if this is the deploy form
+  const deployForm = document.getElementById('challenge-deploy');
+  if (deployForm && deployForm.contains(fileInput)) {
+    console.log('Skipping file validation for deploy form');
+    return;
+  }
   
   const form = fileInput.closest('form');
   const submitButton = form ? form.querySelector('button[type="submit"]') : null;
@@ -131,11 +138,16 @@ function initFileValidation() {
   });
 }
 
-// Form submission validation
+// Form submission validation - ONLY for create challenge form
 function initFormValidation() {
   const forms = document.querySelectorAll('form');
   
   forms.forEach(form => {
+    // Skip validation for deploy form
+    if (form.id === 'challenge-deploy') {
+      return;
+    }
+    
     form.addEventListener('submit', function(e) {
       const nameInput = this.querySelector('.chal-name');
       const fileInput = this.querySelector('#file-upload');
@@ -155,7 +167,7 @@ function initFormValidation() {
         });
       }
       
-      // Check file size
+      // Check file size - only for create form
       if (!hasError && fileInput && fileInput.files[0]) {
         const file = fileInput.files[0];
         const maxSize = 5 * 1024 * 1024; // 5MB

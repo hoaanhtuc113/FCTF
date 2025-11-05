@@ -1,74 +1,285 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Clean Teams Page Styles - Same as Users */
+	.teams-page .page-header {
+		background: #ffffff;
+		padding: 2rem 0 1rem 0;
+		margin-bottom: 2rem;
+	}
+	
+	.teams-page .page-header h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 1.75rem;
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.teams-container {
+		padding: 2rem 0;
+	}
+	
+	/* Search Form */
+	.search-section {
+		background: #ffffff;
+		padding: 1.5rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		margin-bottom: 2rem;
+	}
+	
+	.search-section h5 {
+		color: #495057;
+		font-size: 1rem;
+		margin-bottom: 1rem;
+	}
+	
+	.search-section .form-control,
+	.search-section .custom-select {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+		transition: all 0.2s ease;
+	}
+	
+	.search-section .form-control:focus,
+	.search-section .custom-select:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+	}
+	
+	.search-section .btn-primary {
+		background-color: #495057;
+		border-color: #495057;
+		transition: all 0.2s ease;
+	}
+	
+	.search-section .btn-primary:hover {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	/* Action Buttons */
+	.action-buttons {
+		margin-bottom: 1.5rem;
+	}
+	
+	.btn-outline-secondary {
+		border: 1px solid #dee2e6;
+		color: #495057;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-outline-secondary:hover {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+		transform: translateY(-2px);
+	}
+	
+	.btn-outline-danger {
+		border: 1px solid #dc3545;
+		color: #dc3545;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-outline-danger:hover {
+		background-color: #dc3545;
+		border-color: #dc3545;
+		transform: translateY(-2px);
+	}
+	
+	/* Table Styles */
+	.table-responsive {
+		background: #ffffff;
+		padding: 1.5rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+	}
+	
+	.table {
+		margin-bottom: 0;
+	}
+	
+	.table thead th {
+		background-color: #f8f9fa;
+		color: #2c3e50;
+		font-weight: 600;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 0.75rem;
+		vertical-align: middle;
+	}
+	
+	.table tbody tr {
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+	
+	.table tbody tr:hover {
+		background-color: #fff5f2;
+		transform: translateX(3px);
+	}
+	
+	.table tbody td {
+		padding: 0.9rem 0.75rem;
+		vertical-align: middle;
+		color: #495057;
+		border-bottom: 1px solid #f1f1f1;
+	}
+	
+	.table tbody td a {
+		color: #2c3e50;
+		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+	
+	.table tbody td a:hover {
+		color: #ff6b35;
+		text-decoration: none;
+	}
+	
+	/* Badges */
+	.badge {
+		padding: 0.35rem 0.65rem;
+		border-radius: 4px;
+		font-weight: 500;
+		font-size: 0.75rem;
+	}
+	
+	.badge-primary {
+		background-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.badge-danger {
+		background-color: #dc3545;
+		color: #ffffff;
+	}
+	
+	.badge-info {
+		background-color: #17a2b8;
+		color: #ffffff;
+	}
+	
+	/* Pagination */
+	.pagination {
+		margin-top: 1.5rem;
+	}
+	
+	.page-link {
+		color: #495057;
+		border: 1px solid #dee2e6;
+		padding: 0.5rem 0.75rem;
+		transition: all 0.2s ease;
+	}
+	
+	.page-link:hover {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.page-item.active .page-link {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.page-item.disabled .page-link {
+		color: #6c757d;
+		background-color: #f8f9fa;
+	}
+	
+	/* Responsive */
+	@media (max-width: 768px) {
+		.teams-page .jumbotron h1 {
+			font-size: 1.5rem;
+		}
+		
+		.search-section {
+			padding: 1rem;
+		}
+	}
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="jumbotron">
-	<div class="container">
-		<h1>Teams
-			{%if not is_jury()%}
-			<span class="create-team" role="button" data-toggle="tooltip" title="Create Team">
-				<a href="{{ url_for('admin.teams_new') }}" style="color: inherit;">
-					<i class="btn-fa fas fa-plus-circle"></i>
-				</a>
-			</span>
-			{%endif%}
-		</h1>
-	</div>
-</div>
-
-<div class="container">
-	<div class="row">
-		<div class="col-md-12">
-			{% if q and field %}
-			<h5 class="text-muted text-center">
-				Searching for teams with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
-			</h5>
-			<h6 class="text-muted text-center pb-3">
-				{{ teams.total }} results
-			</h6>
-			{% endif %}
-
-			{% with form = Forms.teams.TeamSearchForm(field=field, q=q) %}
-			<form method="GET" class="form-inline">
-				<div class="form-group col-md-2">
-					{{ form.field(class="form-control custom-select w-100") }}
-				</div>
-				<div class="form-group col-md-8">
-					{{ form.q(class="form-control w-100", placeholder="Search for matching teams") }}
-				</div>
-				<div class="form-group col-md-2">
-					<button type="submit" class="btn btn-primary w-100">
-						<i class="fas fa-search" aria-hidden="true"></i>
-					</button>
-				</div>
-			</form>
-			{% endwith %}
+<div class="teams-page">
+	<div class="page-header">
+		<div class="container">
+			<h1>Teams</h1>
 		</div>
 	</div>
 
-	<hr>
+	<div class="container teams-container">
+		<div class="row">
+			<div class="col-md-12">
+				{% if q and field %}
+				<div class="search-section text-center mb-4">
+					<h5 class="text-muted">
+						Searching for teams with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
+					</h5>
+					<h6 class="text-muted">
+						{{ teams.total }} results
+					</h6>
+				</div>
+				{% endif %}
 
-	<div class="row">
-		<div class="col-md-12">
-			<div class="float-right pb-3">
-				<div class="btn-group" role="group">
-					<button type="button" class="btn btn-outline-secondary" data-toggle="tooltip" title="Edit Teams" id="teams-edit-button">
-						<i class="btn-fa fas fa-pencil-alt"></i>
-					</button>
-					{%if not is_jury()%}
-					<button type="button" class="btn btn-outline-danger" data-toggle="tooltip" title="Delete Teams" id="teams-delete-button">
-						<i class="btn-fa fas fa-trash-alt"></i>
-					</button>
-					{%endif%}
+				<div class="search-section">
+					{% with form = Forms.teams.TeamSearchForm(field=field, q=q) %}
+					<form method="GET" class="form-inline">
+						<div class="form-group col-md-2">
+							{{ form.field(class="form-control custom-select w-100") }}
+						</div>
+						<div class="form-group col-md-8">
+							{{ form.q(class="form-control w-100", placeholder="Search for matching teams") }}
+						</div>
+						<div class="form-group col-md-2">
+							<button type="submit" class="btn btn-primary w-100">
+								<i class="fas fa-search" aria-hidden="true"></i>
+							</button>
+						</div>
+					</form>
+					{% endwith %}
 				</div>
 			</div>
 		</div>
-	</div>
 
-	<div class="row">
-		<div class="col-md-12 table-responsive">
+		<div class="row">
+			<div class="col-md-12">
+				<div class="d-flex justify-content-between align-items-center action-buttons">
+					<div>
+						{%if not is_jury()%}
+						<a href="{{ url_for('admin.teams_new') }}" class="btn btn-primary">
+							<i class="fas fa-plus"></i> Create Team
+						</a>
+						{%endif%}
+					</div>
+					<div>
+						<div class="btn-group" role="group">
+							<button type="button" class="btn btn-outline-secondary" data-toggle="tooltip" title="Edit Teams" id="teams-edit-button">
+								<i class="btn-fa fas fa-pencil-alt"></i>
+							</button>
+							{%if not is_jury()%}
+						<button type="button" class="btn btn-outline-danger" data-toggle="tooltip" title="Delete Teams" id="teams-delete-button">
+							<i class="btn-fa fas fa-trash-alt"></i>
+						</button>
+						{%endif%}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-md-12 table-responsive">
 			<table id="teamsboard" class="table table-striped border">
 				<thead>
 					<tr>
@@ -200,6 +411,7 @@
 		</div>
 		<input type="hidden" id="is_jury" value="{{ 'true' if is_jury() else 'false' }}">
 	</div>
+</div>
 </div>
 {% endblock %}
 
