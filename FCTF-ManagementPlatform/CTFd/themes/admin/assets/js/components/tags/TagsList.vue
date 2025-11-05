@@ -89,4 +89,72 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Clean Tags Styles */
+#challenge-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 2rem;
+}
+
+.challenge-tag {
+  background: #fff5f2;
+  color: #495057;
+  border: 1px solid #ffd4c4;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.challenge-tag:hover {
+  background: #ffe8dd;
+  border-color: #ff6b35;
+}
+
+.delete-tag {
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.25rem;
+  line-height: 1;
+  text-decoration: none;
+  padding: 0 0.25rem;
+}
+
+.delete-tag:hover {
+  color: #dc3545;
+}
+
+.form-group label {
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-group small {
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.form-control {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.form-control:focus {
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
+  outline: none;
+}
+</style>

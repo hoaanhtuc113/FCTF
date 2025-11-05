@@ -2,34 +2,394 @@
 
 {% block stylesheets %}
 	{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+	<style>
+	/* Minimalist Clean Design - White background with orange accents */
+	.clean-page-header {
+		background: #ffffff;
+		border-bottom: 1px solid #e8e8e8;
+		padding: 2rem 0;
+		margin-bottom: 2rem;
+	}
+
+	.clean-page-header h1 {
+		font-size: 1.75rem;
+		font-weight: 300;
+		color: #2c3e50;
+		margin: 0.5rem 0;
+		letter-spacing: -0.5px;
+	}
+
+	.clean-page-header h2 {
+		font-size: 1.1rem;
+		font-weight: 400;
+		color: #6c757d;
+		margin: 0.25rem 0;
+	}
+
+	.clean-page-header h3 {
+		font-size: 1.5rem;
+		font-weight: 300;
+		color: #495057;
+		margin: 0.5rem 0;
+	}
+
+	.clean-page-header h5 {
+		margin: 0.75rem 0;
+	}
+
+	.clean-icon-btn {
+		color: #6c757d;
+		transition: all 0.2s ease;
+		font-size: 1.5rem;
+		margin: 0 0.5rem;
+		cursor: pointer;
+	}
+
+	.clean-icon-btn:hover {
+		color: #ff6b35;
+		transform: translateY(-2px);
+	}
+
+	.clean-actions {
+		margin-top: 1.5rem;
+	}
+
+	.clean-badge {
+		padding: 0.35rem 0.65rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+
+	.clean-badge-success {
+		background: #d4edda;
+		color: #155724;
+	}
+
+	.clean-badge-danger {
+		background: #f8d7da;
+		color: #721c24;
+	}
+
+	.clean-content-wrapper {
+		background: #ffffff;
+		border-radius: 8px;
+		padding: 1.5rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.clean-progress-container {
+		background: #f8f9fa;
+		border: 1px solid #e8e8e8;
+		border-radius: 6px;
+		padding: 1.25rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.clean-progress-title {
+		color: #495057;
+		font-weight: 600;
+		font-size: 0.95rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.clean-progress-message {
+		color: #6c757d;
+		font-size: 0.9rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.clean-progress {
+		height: 24px;
+		background: #e9ecef;
+		border-radius: 4px;
+		overflow: hidden;
+	}
+
+	.clean-progress-bar {
+		background: linear-gradient(90deg, #ff6b35 0%, #ff8c5a 100%);
+		color: #ffffff;
+		font-size: 0.8rem;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: width 0.3s ease;
+	}
+
+	.clean-nav-tabs {
+		border-bottom: 2px solid #e8e8e8;
+		margin-bottom: 1.5rem;
+		background: #ffffff;
+	}
+
+	.clean-nav-tabs .nav-link {
+		border: none;
+		color: #495057 !important;
+		background: transparent !important;
+		font-weight: 500;
+		font-size: 0.9rem;
+		padding: 0.75rem 1.25rem;
+		transition: all 0.2s ease;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -2px;
+	}
+
+	.clean-nav-tabs .nav-link:hover {
+		color: #ff6b35 !important;
+		background: #fff5f2 !important;
+		border-bottom-color: #ff6b35;
+	}
+
+	.clean-nav-tabs .nav-link.active {
+		color: #ff6b35 !important;
+		background: #ffffff !important;
+		border-bottom-color: #ff6b35;
+		font-weight: 600;
+	}
+
+	.clean-tab-content {
+		padding: 1rem 0;
+		background: #ffffff;
+	}
+	
+	.clean-tab-content h3 {
+		color: #2c3e50 !important;
+	}
+
+	.clean-modal .modal-header {
+		background: #f8f9fa;
+		border-bottom: 1px solid #e8e8e8;
+		padding: 1.25rem 1.5rem;
+	}
+
+	.clean-modal .modal-title {
+		color: #2c3e50;
+		font-weight: 400;
+		font-size: 1.25rem;
+	}
+
+	.clean-modal .modal-body {
+		padding: 1.5rem;
+	}
+
+	.text-orange-hover:hover {
+		color: #ff6b35 !important;
+	}
+
+	/* Global Component Styles */
+	#challenge-properties .table {
+		font-size: 0.9rem;
+		margin-bottom: 0;
+	}
+
+	#challenge-properties .table thead {
+		background: #f8f9fa;
+	}
+
+	#challenge-properties .table thead th,
+	#challenge-properties .table thead td {
+		border-bottom: 2px solid #e8e8e8;
+		color: #495057;
+		font-weight: 600;
+		text-transform: uppercase;
+		font-size: 0.75rem;
+		letter-spacing: 0.5px;
+		padding: 0.75rem;
+	}
+
+	#challenge-properties .table tbody tr {
+		border-bottom: 1px solid #f1f1f1;
+		transition: all 0.15s ease;
+	}
+
+	#challenge-properties .table tbody tr:hover {
+		background: #fffbf9;
+	}
+
+	#challenge-properties .table tbody td {
+		padding: 0.75rem;
+		vertical-align: middle;
+	}
+
+	#challenge-properties .table tbody td a {
+		color: #495057;
+		text-decoration: none;
+		transition: color 0.2s ease;
+	}
+
+	#challenge-properties .table tbody td a:hover {
+		color: #ff6b35;
+	}
+
+	#challenge-properties .btn-fa {
+		color: #6c757d;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		font-size: 1.1rem;
+		padding: 0.25rem 0.5rem;
+	}
+
+	#challenge-properties .btn-fa:hover {
+		color: #ff6b35;
+		transform: scale(1.1);
+	}
+
+	#challenge-properties .delete-file:hover,
+	#challenge-properties .delete-flag:hover,
+	#challenge-properties .delete-hint:hover {
+		color: #dc3545;
+	}
+
+	#challenge-properties .form-control,
+	#challenge-properties .form-control-file,
+	#challenge-properties input[type="text"],
+	#challenge-properties input[type="number"],
+	#challenge-properties select,
+	#challenge-properties textarea {
+		border: 1px solid #dee2e6;
+		border-radius: 4px;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.9rem;
+		transition: all 0.2s ease;
+	}
+
+	#challenge-properties .form-control:focus,
+	#challenge-properties input:focus,
+	#challenge-properties select:focus,
+	#challenge-properties textarea:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
+		outline: none;
+	}
+
+	#challenge-properties .btn {
+		border: 1px solid #dee2e6;
+		background: #ffffff;
+		color: #495057;
+		padding: 0.5rem 1rem;
+		border-radius: 4px;
+		font-size: 0.9rem;
+		font-weight: 500;
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+
+	#challenge-properties .btn:hover {
+		border-color: #ff6b35;
+		color: #ff6b35;
+		background: #fff5f2;
+	}
+
+	#challenge-properties .btn-primary {
+		background: #ff6b35;
+		color: #ffffff;
+		border-color: #ff6b35;
+	}
+
+	#challenge-properties .btn-primary:hover {
+		background: #e85d2a;
+		border-color: #e85d2a;
+		color: #ffffff;
+	}
+
+	#challenge-properties .btn-success {
+		background: #28a745;
+		color: #ffffff;
+		border-color: #28a745;
+	}
+
+	#challenge-properties .btn-success:hover {
+		background: #218838;
+		border-color: #218838;
+	}
+
+	#challenge-properties .btn-danger {
+		background: #dc3545;
+		color: #ffffff;
+		border-color: #dc3545;
+	}
+
+	#challenge-properties .btn-danger:hover {
+		background: #c82333;
+		border-color: #c82333;
+	}
+
+	#challenge-properties .form-check-input {
+		margin-top: 0.3rem;
+		cursor: pointer;
+	}
+
+	#challenge-properties label {
+		color: #495057;
+		font-weight: 500;
+		font-size: 0.9rem;
+		margin-bottom: 0.5rem;
+	}
+
+	#challenge-properties .text-muted {
+		color: #6c757d !important;
+		font-size: 0.875rem;
+	}
+
+	#challenge-properties .alert {
+		border-radius: 4px;
+		padding: 0.75rem 1rem;
+		margin-top: 1rem;
+	}
+
+	#challenge-properties .alert-success {
+		background: #d4edda;
+		border-color: #c3e6cb;
+		color: #155724;
+	}
+
+	#challenge-properties .alert-danger {
+		background: #f8d7da;
+		border-color: #f5c6cb;
+		color: #721c24;
+	}
+
+	#challenge-properties .alert-info {
+		background: #d1ecf1;
+		border-color: #bee5eb;
+		color: #0c5460;
+	}
+
+	/* Empty state */
+	#challenge-properties .text-center.text-muted {
+		padding: 2rem;
+		color: #9ca3af !important;
+	}
+	</style>
 {% endblock %}
 
 {% block content %}
-	<div class="modal fade" id="challenge-modal" role="dialog">
+	<div class="modal fade clean-modal" id="challenge-modal" role="dialog">
 		<div class="modal-dialog modal-xl">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h3 class="text-center w-100 p-0 m-0">Challenge Preview</h3>
+					<h3 class="modal-title text-center w-100 p-0 m-0">Challenge Preview</h3>
 					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 						<span aria-hidden="true">&times;</span>
 					</button>
 				</div>
 				<div class="modal-body" id="challenge-window" style="height: 80vh;">
 				</div>
-				<div class="text-center">
-					<h5>
-						Preview may be slightly different from the user-facing interface
-					</h5>
+				<div class="text-center text-muted py-2">
+					<small>Preview may be slightly different from the user-facing interface</small>
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<div class="modal fade" id="challenge-comments-window" role="dialog">
+	<div class="modal fade clean-modal" id="challenge-comments-window" role="dialog">
 		<div class="modal-dialog modal-lg">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h2 class="modal-action text-center w-100">Comments</h2>
+					<h2 class="modal-title modal-action text-center w-100">Comments</h2>
 					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 						<span aria-hidden="true">&times;</span>
 					</button>
@@ -46,36 +406,36 @@
 		</div>
 	</div>
 
-	<div class="jumbotron">
+	<div class="clean-page-header">
 		<div class="container" style="text-transform: none;">
 			<h1 class="text-center">{{ challenge.name }}</h1>
 			<h2 class="text-center">{{ challenge.category }}</h2>
-			<h2 class="text-center">{{ challenge.type }}</h2>
-			{% set badge_state = 'badge-danger' if challenge.state == 'hidden' else 'badge-success' %}
+			<h2 class="text-center text-muted">{{ challenge.type }}</h2>
+			{% set badge_state = 'clean-badge-danger' if challenge.state == 'hidden' else 'clean-badge-success' %}
 			<h5 class="text-center">
-				<span class="badge {{ badge_state }} challenge-state">
+				<span class="clean-badge {{ badge_state }} challenge-state">
 					{{ challenge.state }}
 				</span>
 			</h5>
-			<h3 class="text-center">{{ challenge.value }} points</h3>
-			<div class="pt-3 text-center">
+			<h3 class="text-center"><span class="text-orange-hover">{{ challenge.value }}</span> points</h3>
+			<div class="pt-3 text-center clean-actions">
 				{% if challenge.deploy_status =='success' %}
-				<a class="preview-challenge text-dark">
-					<i class="btn-fa fas fa-file-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
+				<a class="preview-challenge clean-icon-btn">
+					<i class="btn-fa fas fa-file-alt" data-toggle="tooltip" data-placement="top"
 					   title="Preview Challenge"></i>
 				</a>
 				{% endif %}
 				
-				<a class="text-dark" href="{{ url_for('admin.submissions_listing', submission_type='correct', field='challenge_id', q=challenge.id) }}">
-					<i class="btn-fa fas fa-tasks fa-2x px-2" data-toggle="tooltip" data-placement="top"
+				<a class="clean-icon-btn" href="{{ url_for('admin.submissions_listing', submission_type='correct', field='challenge_id', q=challenge.id) }}">
+					<i class="btn-fa fas fa-tasks" data-toggle="tooltip" data-placement="top"
 					   title="Correct Submissions"></i>
 				</a>
-				<a class="comments-challenge text-dark">
-					<i class="btn-fa fas fa-comments fa-2x px-2" data-toggle="tooltip" data-placement="top"
+				<a class="comments-challenge clean-icon-btn">
+					<i class="btn-fa fas fa-comments" data-toggle="tooltip" data-placement="top"
 					   title="Comments"></i>
 				</a>
-				<a class="delete-challenge text-dark">
-					<i class="btn-fa fas fa-trash-alt fa-2x px-2" data-toggle="tooltip" data-placement="top"
+				<a class="delete-challenge clean-icon-btn text-danger">
+					<i class="btn-fa fas fa-trash-alt" data-toggle="tooltip" data-placement="top"
 					   title="Delete Challenge"></i>
 				</a>
 			</div>
@@ -84,14 +444,14 @@
 
 	<div class="container">
 		<div class="row">
-			<div id="deploy-progress-container" style="display: none; margin-bottom: 20px;">
-				<h6 id="deploy-status-title" style="color: #ff5500; font-weight: bold;">Deployment Status</h6>
-				<p id="deploy-status-message" style="margin-bottom: 10px;">Ready to deploy</p>
-				<div class="progress" style="height: 25px;">
-					<div class="progress-bar progress-bar-striped progress-bar-animated" 
+			<div id="deploy-progress-container" class="col-md-12 clean-progress-container" style="display: none;">
+				<h6 id="deploy-status-title" class="clean-progress-title">Deployment Status</h6>
+				<p id="deploy-status-message" class="clean-progress-message">Ready to deploy</p>
+				<div class="clean-progress">
+					<div class="clean-progress-bar" 
 						id="deploy-progress-bar"
 						role="progressbar" 
-						style="width: 0%; background-color: #ff5500;"
+						style="width: 0%;"
 						aria-valuenow="0" 
 						aria-valuemin="0" 
 						aria-valuemax="100">
@@ -101,7 +461,7 @@
 				<small class="text-muted mt-2 d-block" id="deploy-status-detail"></small>
 			</div>
 			<div class="col-md-6">
-				<nav class="nav nav-tabs nav-fill" id="challenge-properties" role="tablist">
+				<nav class="clean-nav-tabs nav nav-tabs nav-fill" id="challenge-properties" role="tablist">
 					<a class="nav-item nav-link small active" data-toggle="tab" href="#files" role="tab">Files</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#flags" role="tab">Flags</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#topics" role="tab">Topics</a>
@@ -113,7 +473,7 @@
 
 				</nav>
 
-				<div class="tab-content" id="nav-tabContent">
+				<div class="clean-tab-content tab-content" id="nav-tabContent">
 					<div class="tab-pane fade show active" id="files" role="tabpanel">
 						<div class="row">
 							<div class="col-md-12">

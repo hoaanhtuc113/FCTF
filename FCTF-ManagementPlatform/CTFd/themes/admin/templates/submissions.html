@@ -1,54 +1,215 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Clean Submissions Page Styles */
+	.submissions-page .page-header {
+		background: #ffffff;
+		padding: 2rem 0 1rem 0;
+		margin-bottom: 2rem;
+	}
+	
+	.submissions-page .page-header h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 1.75rem;
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.submissions-container {
+		padding: 2rem 0;
+	}
+	
+	/* Search Form */
+	.search-section {
+		background: #ffffff;
+		padding: 1.5rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		margin-bottom: 2rem;
+	}
+	
+	.search-section .form-control,
+	.search-section .custom-select {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+		transition: all 0.2s ease;
+	}
+	
+	.search-section .form-control:focus,
+	.search-section .custom-select:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+	}
+	
+	.search-section .btn-primary {
+		background-color: #495057;
+		border-color: #495057;
+		transition: all 0.2s ease;
+	}
+	
+	.search-section .btn-primary:hover {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	/* Action Buttons */
+	.action-buttons {
+		margin-bottom: 1.5rem;
+	}
+	
+	.btn-outline-primary,
+	.btn-outline-success,
+	.btn-outline-danger {
+		border: 1px solid;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-outline-primary {
+		border-color: #dee2e6;
+		color: #495057;
+	}
+	
+	.btn-outline-primary:hover {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+		transform: translateY(-2px);
+	}
+	
+	.btn-outline-success:hover {
+		transform: translateY(-2px);
+	}
+	
+	.btn-outline-danger:hover {
+		transform: translateY(-2px);
+	}
+	
+	/* Table */
+	.table-responsive {
+		background: #ffffff;
+		padding: 1.5rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+	}
+	
+	.table thead th {
+		background-color: #f8f9fa;
+		color: #2c3e50;
+		font-weight: 600;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 0.75rem;
+	}
+	
+	.table tbody tr {
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+	
+	.table tbody tr:hover {
+		background-color: #fff5f2;
+	}
+	
+	.table tbody td {
+		padding: 0.9rem 0.75rem;
+		vertical-align: middle;
+		color: #495057;
+		border-bottom: 1px solid #f1f1f1;
+	}
+	
+	.table tbody td a {
+		color: #2c3e50;
+		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+	
+	.table tbody td a:hover {
+		color: #ff6b35;
+		text-decoration: none;
+	}
+	
+	/* Badges */
+	.badge-success {
+		background-color: #28a745;
+	}
+	
+	.badge-danger {
+		background-color: #dc3545;
+	}
+	
+	/* Pagination */
+	.page-link {
+		color: #495057;
+		border: 1px solid #dee2e6;
+		transition: all 0.2s ease;
+	}
+	
+	.page-link:hover {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.page-item.active .page-link {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+	}
+</style>
 {% endblock %}
 
 {% block content %}
-
-<div class="jumbotron">
+<div class="submissions-page">
+<div class="page-header">
 	<div class="container">
 		<h1>{% if type %}{{ type|title }} {% endif %}Submissions</h1>
 	</div>
 </div>
 
-<div class="container">
+<div class="container submissions-container">
 
 	<div class="row">
 		<div class="col-md-12">
 			{% if q and field %}
-			<h5 class="text-muted text-center">
-				Searching for submissions with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
-			</h5>
-			<h6 class="text-muted text-center pb-3">
-				{{ submissions.total }} results
-			</h6>
+			<div class="search-section text-center mb-4">
+				<h5 class="text-muted">
+					Searching for submissions with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
+				</h5>
+				<h6 class="text-muted">
+					{{ submissions.total }} results
+				</h6>
+			</div>
 			{% endif %}
 
-			{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
-			<form method="GET" class="form-inline">
-				<div class="form-group col-md-2 pr-0">
-					{{ form.field(class="form-control custom-select w-100") }}
-				</div>
-				<div class="form-group col-md-8">
-					{{ form.q(class="form-control w-100", placeholder="Search for matching submission") }}
-				</div>
-				<div class="form-group col-md-2">
-					<button type="submit" class="btn btn-primary w-100">
-						<i class="fas fa-search" aria-hidden="true"></i>
-					</button>
-				</div>
-				
-
-			</form>
-			{% endwith %}
+			<div class="search-section">
+				{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
+				<form method="GET" class="form-inline">
+					<div class="form-group col-md-2 pr-0">
+						{{ form.field(class="form-control custom-select w-100") }}
+					</div>
+					<div class="form-group col-md-8">
+						{{ form.q(class="form-control w-100", placeholder="Search for matching submission") }}
+					</div>
+					<div class="form-group col-md-2">
+						<button type="submit" class="btn btn-primary w-100">
+							<i class="fas fa-search" aria-hidden="true"></i>
+						</button>
+					</div>
+				</form>
+				{% endwith %}
+			</div>
 		</div>
 	</div>
 
-	<hr>
-
 	<div class="row">
 		<div class="col-md-12">
-			<div class="float-right pb-3">
+			<div class="float-right action-buttons">
 				<div class="btn-group" role="group">
 					{% if type == "incorrect" %}
 					<button type="button" class="btn btn-outline-success" data-toggle="tooltip" title="Mark submissions correct" id="correct-flags-button">
@@ -208,6 +369,7 @@
 			{% endif %}
 		</div>
 	</div>
+</div>
 </div>
 {% endblock %}
 
