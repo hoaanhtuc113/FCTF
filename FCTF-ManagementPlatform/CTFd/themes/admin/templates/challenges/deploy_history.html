@@ -1,43 +1,132 @@
 {% extends "admin/base.html" %} 
 {% block stylesheets %} {{
 Assets.css("assets/css/challenge-board.scss", theme="admin") }} 
+<style>
+/* Minimalist Clean Design - White background with orange accents */
+.page-header {
+    background: #ffffff;
+    padding: 2rem 0 1rem 0;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.clean-table-wrapper {
+    background: #ffffff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.clean-table {
+    margin: 0;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.clean-table thead th {
+    background: #f8f9fa;
+    border-bottom: 2px solid #e8e8e8;
+    color: #495057;
+    font-weight: 600;
+    padding: 1rem 0.75rem;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+.clean-table tbody tr {
+    border-bottom: 1px solid #f1f1f1;
+    transition: all 0.15s ease;
+}
+
+.clean-table tbody tr:hover {
+    background: #fff5f2;
+}
+
+.clean-table tbody td {
+    padding: 0.875rem 0.75rem;
+    color: #495057;
+    vertical-align: middle;
+}
+
+.clean-table tbody td a {
+    color: #ff6b35;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.clean-table tbody td a:hover {
+    color: #e85d2a;
+    text-decoration: underline;
+}
+
+.clean-badge {
+    padding: 0.35rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.clean-badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.clean-badge-danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.clean-badge-primary {
+    background: #ffe8df;
+    color: #ff6b35;
+}
+
+.clean-badge-secondary {
+    background: #e2e3e5;
+    color: #6c757d;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+</style>
 {% endblock %}
 {% block content %}
-<div class="jumbotron">
+<div class="page-header">
   <div class="container">
     <h1>Deploy History</h1>
   </div>
 </div>
 <div class="container">
   <div class="row">
-    <div class="col-md-12 table-responsive">
-      <div>
-        <table id="challenges" class="table table-striped border">
+    <div class="col-md-12">
+      <div class="clean-table-wrapper">
+        <table id="challenges" class="clean-table table">
           <thead>
             <tr>
-              <td
-                class="d-block border-right border-bottom text-center"
-                data-checkbox
-              >
-                <div class="form-check">
-                  <input
-                    type="checkbox"
-                    class="form-check-input"
-                    autocomplete="off"
-                    data-checkbox-all
-                  />&nbsp;
-                </div>
-              </td>
-              <th class="sort-col text-center"><b>ID</b></th>
-              <th class="sort-col text-center"><b>Deploy state</b></th>
-              <th class="sort-col text-center"><b>Deploy At</b></th>
-              <th class=""></th>
+              <th class="text-center"><b>ID</b></th>
+              <th class="text-center"><b>Challenge ID</b></th>
+              <th class="text-center"><b>Deploy State</b></th>
+              <th class="text-center"><b>Deploy At</b></th>
+              <th class="text-center"><b>Actions</b></th>
             </tr>
           </thead>
           <tbody>
             {% if not deployed_challenges %}
             <tr>
-              <td colspan="6" class="text-center">
+              <td colspan="5" class="text-center text-muted">
                 No deployed challenges available.
               </td>
             </tr>
@@ -50,18 +139,24 @@ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
               <td class="text-center">
                 {{ deployed_challenge.challenge_id if deployed_challenge.challenge_id else 'N/A' }}
               </td>
-
               <td class="text-center">
-                {{ deployed_challenge.deploy_status if deployed_challenge.deploy_status else 'N/A' }}
+                {% if deployed_challenge.deploy_status == 'DEPLOY_SUCCESS' %}
+                <span class="clean-badge clean-badge-success">{{ deployed_challenge.deploy_status }}</span>
+                {% elif deployed_challenge.deploy_status == 'DEPLOY_FAILED' %}
+                <span class="clean-badge clean-badge-danger">{{ deployed_challenge.deploy_status }}</span>
+                {% elif deployed_challenge.deploy_status == 'PENDING_DEPLOY' %}
+                <span class="clean-badge clean-badge-primary">{{ deployed_challenge.deploy_status }}</span>
+                {% else %}
+                <span class="clean-badge clean-badge-secondary">{{ deployed_challenge.deploy_status if deployed_challenge.deploy_status else 'N/A' }}</span>
+                {% endif %}
               </td>
               <td class="text-center">
                 {{ deployed_challenge.deploy_at if deployed_challenge.deploy_at else 'N/A' }}
               </td>
-              <td>
-                <a
-                  href="{{ url_for('challengeHistory.view_deploy_history_details', id=deployed_challenge.id) }}"
-                  >View details</a
-                >
+              <td class="text-center">
+                <a href="{{ url_for('challengeHistory.view_deploy_history_details', id=deployed_challenge.id) }}">
+                  <i class="fas fa-eye"></i> View Details
+                </a>
               </td>
             </tr>
             {% endfor %} 
