@@ -11,6 +11,7 @@ using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
+using System.Net.WebSockets;
 using System.Security.AccessControl;
 using System.Text.Json;
 using static ResourceShared.Enums;
@@ -19,8 +20,9 @@ namespace DeploymentCenter.Services
 {
     public interface IDeployService
     {
-        Task<ChallengeStartResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
-        Task<ChallengeStartResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
+        Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
+        Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO challengeStartReq);
+        Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
         
         Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     }
@@ -29,15 +31,15 @@ namespace DeploymentCenter.Services
         private readonly IK8sHealthService _k8SHealthService;
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
-        public DeployService(AppDbContext dbContext, RedisHelper redisHelper /*,  IK8sHealthService k8SHealthService */ )
+        public DeployService(AppDbContext dbContext, RedisHelper redisHelper ,  IK8sHealthService k8SHealthService )
         {
             _dbContext=dbContext;
             _redisHelper=redisHelper;
-            //NOTE: comment this state for runing in local with out k8s cubeconfig 
-            //_k8SHealthService = k8SHealthService;
+            //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
+            _k8SHealthService = k8SHealthService;
         }
 
-        public async Task<ChallengeStartResponeDTO> Start(ChallengeStartStopReqDTO startReq)
+        public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
         {
             var startedKey = ChallengeHelper.GetArgoWName(startReq.challengeId.ToString(), startReq.teamName);
             // Get cache: thông tin deployment, kiểm tra đã từng gửi vào argo chưa
@@ -48,7 +50,7 @@ namespace DeploymentCenter.Services
                 switch (deploymentCache.Status)
                 {
                     case DeploymentStatus.PROCESS:
-                        return new ChallengeStartResponeDTO
+                        return new ChallengeDeployResponeDTO
                         {
                             status = (int)HttpStatusCode.OK,
                             success = true,
@@ -60,11 +62,11 @@ namespace DeploymentCenter.Services
 
                         var podName = deploymentCache.PodName;
 
-                        var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName, "challenge");
+                        var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName);
                         //var podStatus = true;
                         if (!podStatus)
                         {
-                            return new ChallengeStartResponeDTO
+                            return new ChallengeDeployResponeDTO
                             {
                                 status = (int)HttpStatusCode.OK,
                                 success = true,
@@ -73,7 +75,7 @@ namespace DeploymentCenter.Services
                             };
                         }
 
-                        return new ChallengeStartResponeDTO
+                        return new ChallengeDeployResponeDTO
                         {
                             status = (int)HttpStatusCode.OK,
                             success = true,
@@ -87,19 +89,19 @@ namespace DeploymentCenter.Services
             }
             var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == startReq.challengeId);
             if (challenge == null)
-                return new ChallengeStartResponeDTO { status = (int)HttpStatusCode.NotFound, success = false, message = "Challenge not found." };
+                return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.NotFound, success = false, message = "Challenge not found." };
 
             try
             {
                 var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
                 var jsonImageLink = challenge.ImageLink;
                 if (jsonImageLink == null)
-                    return new ChallengeStartResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is null." };
+                    return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is null." };
 
                 var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink);
 
                 if (imageObj == null)
-                    return new ChallengeStartResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is invalid." };
+                    return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is invalid." };
 
                 var (payload, appName) = ChallengeHelper.BuildArgoPayload(
                         challenge,
@@ -122,7 +124,7 @@ namespace DeploymentCenter.Services
                 if (response == null)
                 {
                     await Console.Out.WriteLineAsync("No response from Argo Workflows API");
-                    return new ChallengeStartResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "No response from server" };
+                    return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "No response from server" };
                 }
                 var domainName = $"http://{appName}.challenge-zg9uj3rfagfja19tzq.fctf.cloud";
 
@@ -153,7 +155,10 @@ namespace DeploymentCenter.Services
                 // Để bên admin có thể xem được thông tin này
                 await _redisHelper.SetCacheAsync(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId), chalDeploy, TimeSpan.FromHours(1));
 
-                return new ChallengeStartResponeDTO
+                var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId));
+                await Console.Out.WriteLineAsync($"Deployment info save success: {JsonSerializer.Serialize(checkCache)}");
+
+                return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.OK,
                     success = true,
@@ -164,7 +169,7 @@ namespace DeploymentCenter.Services
             catch (HttpRequestException ex)
             {
                 await Console.Error.WriteLineAsync($"Error connecting to API: {ex.Message}");
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.BadGateway,
                     success = false,
@@ -174,7 +179,7 @@ namespace DeploymentCenter.Services
             catch (Exception ex)
             {
                 await Console.Error.WriteLineAsync($"Unexpected error: {ex.Message}");
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.InternalServerError,
                     success = false,
@@ -183,9 +188,72 @@ namespace DeploymentCenter.Services
             }
         }
 
-        public async Task<ChallengeStartResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq)
+        public async Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO stopReq)
+        {
+            await Console.Out.WriteLineAsync($"Stop challenge ID: {stopReq.challengeId}, Team ID: {stopReq.teamId}, Team Name: {stopReq.teamName}");
+            try
+            {
+                var deployInfo = ChallengeHelper.GetCacheKey(stopReq.challengeId, stopReq.teamId);
+                var argoWNameKey = ChallengeHelper.GetArgoWName(stopReq.challengeId.ToString(), stopReq.teamName);
+                var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(deployInfo);
+
+                if (checkCache == null || argoWNameKey == null) 
+                {
+                    await Console.Error.WriteLineAsync($"No deployment cache info found for with cache key {checkCache} and {argoWNameKey} ");
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.NotFound,
+                        success = false,
+                        message = "No deployment cache info found for the specified challenge and team."
+                    };
+                }
+                //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
+                var isDelete = await _k8SHealthService.DeleteNamespaceAsync(checkCache.PodName);
+                //var isDelete = true;
+                if (isDelete)
+                {
+                    await _redisHelper.RemoveCacheAsync(deployInfo);
+                    await _redisHelper.RemoveCacheAsync(argoWNameKey);
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.OK,
+                        success = true,
+                        message = "Challenge stopped and resources cleaned up successfully."
+                    };
+                }
+              
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.InternalServerError,
+                    success = false,
+                    message = "Failed to delete challenge resources."
+                };
+                
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Error during stopping challenge: {ex.Message}");
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.InternalServerError,
+                    success = false,
+                    message = "Error during stopping challenge."
+                };
+            }
+        }
+
+        public async Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq)
         {
 
+            //K8S-NOTE: this state for runing in local with out k8s cubeconfig 
+            // return new ChallengeDeployResponeDTO
+            // {
+            //     success = true,
+            //     message = "Challenge status checking started",
+            //     status = (int)HttpStatusCode.OK,
+            //     challenge_url = "http://demo-domain-for-testing.com"
+
+            // };
             try
             {
                 var startedKey = ChallengeHelper.GetArgoWName(statusReq.challengeId.ToString(), statusReq.teamName);
@@ -196,7 +264,7 @@ namespace DeploymentCenter.Services
                 if (deploymentCache == null)
                 {
                     await Console.Out.WriteLineAsync($"No deployment info found in cache for key: {startedKey} ");
-                    return new ChallengeStartResponeDTO
+                    return new ChallengeDeployResponeDTO
                     {
                         success = false,
                         message = "No deployment info found.",
@@ -206,7 +274,7 @@ namespace DeploymentCenter.Services
 
                 var podName = deploymentCache.PodName;
 
-                var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName, podName);
+                var podStatus = await _k8SHealthService.CheckPodAliveAsync(podName);
 
                 if (podStatus)
                 {
@@ -225,7 +293,7 @@ namespace DeploymentCenter.Services
 
                         await _redisHelper.SetCacheAsync(chalDeployKey, chalDeploy, cacheExpired);
                     }
-                    return new ChallengeStartResponeDTO
+                    return new ChallengeDeployResponeDTO
                     {
                         success = true,
                         message = "Challenge is running.",
@@ -234,7 +302,7 @@ namespace DeploymentCenter.Services
                     };
                 }
 
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     success = false,
                     message = "Pod is not running.",
@@ -244,7 +312,7 @@ namespace DeploymentCenter.Services
             catch (Exception ex)
             {
                 await Console.Error.WriteLineAsync($"Error during status check: {ex.Message}");
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     success = false,
                     message = "Error during status check.",

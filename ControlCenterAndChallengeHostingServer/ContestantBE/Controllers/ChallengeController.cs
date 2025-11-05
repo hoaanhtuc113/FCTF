@@ -391,13 +391,14 @@ namespace ContestantBE.Controllers
 
             try
             {
-                await _challengeServices.ForceStopChallenge(cache_key, challenge.Id, user.TeamId.Value);
-                return Ok(new
+                var response = await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                return response.status switch
                 {
-                    isSuccess = true,
-                    status = "Stopped",
-                    message = "Stop challenge success"
-                });
+                    (int)HttpStatusCode.OK => Ok(response),
+                    (int)HttpStatusCode.BadRequest => BadRequest(response),
+                    (int)HttpStatusCode.NotFound => NotFound(response),
+                    _ => StatusCode((int)response.status, response)
+                };
             }
             catch (HttpRequestException e)
             {

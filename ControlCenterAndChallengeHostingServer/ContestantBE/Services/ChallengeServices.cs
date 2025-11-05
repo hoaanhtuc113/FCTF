@@ -13,16 +13,16 @@ using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
+using System.Reflection.PortableExecutable;
 using System.Text.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ContestantBE.Services
 {
     public interface IChallengeServices
     {
-        Task<ChallengeStartResponeDTO> ChallengeStart(Challenge challenge, User user);
+        Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user);
 
-        Task ForceStopChallenge(string cache_key, int challengeId, int teamId);
+        Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user);
         Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
         Task<List<TopicDTO>> GetTopic(User user);
 
@@ -242,8 +242,7 @@ namespace ContestantBE.Services
             return topics_data;
         }
 
-
-        public async Task<ChallengeStartResponeDTO> ChallengeStart(Challenge challenge, User user)
+        public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user)
         {
             var options = new JsonSerializerOptions
             {
@@ -279,18 +278,18 @@ namespace ContestantBE.Services
                 var body = await multiServiceConnector.ExecuteRequest("/api/challenge/start", Method.Post, parammeters, headers);
                 await Console.Out.WriteLineAsync($"Response Line51 is {body}");
                 if(body == null)
-                    return new ChallengeStartResponeDTO
+                    return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.BadRequest,
                         success = false,
                         message = "No response from server"
                     };
 
-                var result = JsonConvert.DeserializeObject<ChallengeStartResponeDTO>(body);
+                var result = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(body);
                 if (result == null)
                 {
                     await Console.Out.WriteLineAsync("Failed to deserialize response");
-                    return new ChallengeStartResponeDTO
+                    return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.InternalServerError,
                         success = false,
@@ -334,7 +333,7 @@ namespace ContestantBE.Services
                     catch(Exception ex)
                     {
                         await Console.Out.WriteLineAsync($"Error saving to Redis: {cache_key} - {ex.Message}");
-                        return new ChallengeStartResponeDTO
+                        return new ChallengeDeployResponeDTO
                         {
                             status = (int)HttpStatusCode.NotFound,
                             success = false,
@@ -342,7 +341,7 @@ namespace ContestantBE.Services
                         };
                     }
 
-                    return new ChallengeStartResponeDTO
+                    return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.OK,
                         success = true,
@@ -361,7 +360,7 @@ namespace ContestantBE.Services
                                         .ToList();
                     message += string.Join(", ", chalNames);
 
-                    return new ChallengeStartResponeDTO
+                    return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.OK,
                         success = false,
@@ -373,7 +372,7 @@ namespace ContestantBE.Services
             catch (HttpRequestException ex)
             {
                 await Console.Out.WriteLineAsync($"Error connecting to API: {ex.Message}");
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.BadGateway,
                     success = false,
@@ -383,7 +382,7 @@ namespace ContestantBE.Services
             catch (Exception ex)
             {
                 await Console.Out.WriteLineAsync($"Unexpected error: {ex.Message}");
-                return new ChallengeStartResponeDTO
+                return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.InternalServerError,
                     success = false,
@@ -392,52 +391,64 @@ namespace ContestantBE.Services
             }
         }
 
-        public async Task ForceStopChallenge(string cache_key, int challengeId, int teamId)
+        public async Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId,User user)
         {
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var secretKey = SecretKeyHelper.CreateSecretKey(unixTime,new Dictionary<string, string> { 
-                                                                            { "ChallengeId", challengeId.ToString() },
-                                                                            { "TeamId", teamId.ToString() },
-                                                                        });
-            var payload = new
+            var data = new Dictionary<string, string> 
             {
-                ChallengeId = challengeId,
-                TeamId = teamId,
-                UnixTime = unixTime
+                { "challengeId", challengeId.ToString() },
+                { "teamId", user.TeamId.ToString()},
+                { "teamName" , user.Team.Name},
+            };
+            var parammeters = new ChallengeStartStopReqDTO
+            {
+                challengeId = challengeId,
+                teamId = user.TeamId.Value,
+                teamName = user.Team.Name,
+                unixTime = unixTime.ToString()
+            };
+            var secretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
+            var headers = new Dictionary<string, string>
+            {
+                { "SecretKey", secretKey }
             };
 
             try
             {
-                var parammeters = payload.GetType().GetProperties()
-                               .ToDictionary(p => p.Name, p => p.GetValue(payload) ?? "");
-                var headers = new Dictionary<string, string> { { "SecretKey", secretKey } };
                 MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantBEConfigHelper.DeploymentCenterAPI);
-                var body = await multiServiceConnector.ExecuteNormalRequest("/api/challenge/stop", Method.Post, parammeters, RequestContentType.Form, headers);
+                var body = await multiServiceConnector.ExecuteRequest("/api/challenge/stop", Method.Post, parammeters, headers);
                 if (body == null)
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.BadRequest,
+                        success = false,
+                        message = "No response from server when stopping challenge"
+                    };
+
+                var result = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(body);
+                if (result == null)
                 {
-                    await Console.Out.WriteLineAsync("No response from server when stopping challenge");
-                    throw new Exception("No response from server when stopping challenge");
+                    await Console.Out.WriteLineAsync("Failed to deserialize response");
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.InternalServerError,
+                        success = false,
+                        message = "Failed to parse server response"
+                    };
                 }
-                using var doc = JsonDocument.Parse(body);
-                var root = doc.RootElement;
-                bool isSuccess = root.GetProperty("isSuccess").GetBoolean();
-                if (isSuccess)
-                {
-                    await _redisHelper.RemoveCacheAsync(cache_key);
-                    await Console.Out.WriteLineAsync($"Challenge stopped and cache cleared: {cache_key}");
-                }
-                else
-                {
-                    await Console.Out.WriteLineAsync($"Failed to stop challenge: {root.GetProperty("message").GetString() ?? ""}");
-                    throw new Exception($"Failed to stop challenge: {root.GetProperty("message").GetString() ?? ""}");
-                }
+                await Console.Out.WriteLineAsync($"Stop response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
+                return result;
             }
             catch(HttpRequestException e)
             {
                 await Console.Out.WriteLineAsync($"Error connecting to API: {e.Message}");
-                throw new Exception("Connection url failed" + e);
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.BadGateway,
+                    success = false,
+                    message = "Connection url failed"
+                };
             }
-            return;
         }
     }
 }
