@@ -1,49 +1,313 @@
 {% extends "admin/base.html" %}
 
+{% block stylesheets %}
+<style>
+	/* Clean Notifications Page Styles */
+	.notifications-page .page-header {
+		background: #ffffff;
+		padding: 2rem 0 1rem 0;
+		margin-bottom: 2rem;
+	}
+	
+	.notifications-page .page-header h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 1.75rem;
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.notifications-container {
+		padding: 2rem 0;
+	}
+	
+	/* Notifications List - Left Side */
+	.notifications-list-section {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		padding: 1.5rem;
+		max-height: calc(100vh - 250px);
+		overflow-y: auto;
+	}
+	
+	.notifications-list-section h3 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.2rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 2px solid #e8e8e8;
+	}
+	
+	.notification-card {
+		background: #f8f9fa;
+		border: 1px solid #e8e8e8;
+		border-radius: 6px;
+		padding: 1.25rem;
+		margin-bottom: 1rem;
+		position: relative;
+		transition: all 0.2s ease;
+	}
+	
+	.notification-card:hover {
+		box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+		transform: translateY(-2px);
+	}
+	
+	.notification-card .card-title {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.1rem;
+		margin-bottom: 0.75rem;
+	}
+	
+	.notification-card .card-body {
+		padding: 0;
+	}
+	
+	.notification-card blockquote {
+		margin: 0;
+	}
+	
+	.notification-card blockquote p {
+		color: #495057;
+		font-size: 0.95rem;
+		margin-bottom: 0.5rem;
+	}
+	
+	.delete-notification {
+		background: transparent;
+		border: none;
+		color: #6c757d;
+		font-size: 1.5rem;
+		cursor: pointer;
+		transition: color 0.2s ease;
+		position: absolute;
+		right: 1rem;
+		top: 1rem;
+		padding: 0;
+		width: 30px;
+		height: 30px;
+		line-height: 1;
+	}
+	
+	.delete-notification:hover {
+		color: #dc3545;
+	}
+	
+	/* Add Notification Form - Right Side */
+	.add-notification-section {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		padding: 2rem;
+		position: sticky;
+		top: 20px;
+	}
+	
+	.add-notification-section h3 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.2rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 2px solid #e8e8e8;
+	}
+	
+	.add-notification-section .form-group {
+		margin-bottom: 1.5rem;
+		clear: both;
+	}
+	
+	.add-notification-section .form-group label {
+		color: #495057;
+		font-weight: 600;
+		margin-bottom: 0.5rem;
+		display: block !important;
+		width: 100% !important;
+		float: none !important;
+	}
+	
+	.add-notification-section .form-control {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+		transition: all 0.2s ease;
+		width: 100% !important;
+		max-width: 100% !important;
+		display: block !important;
+		box-sizing: border-box;
+		float: none !important;
+		margin: 0 !important;
+	}
+	
+	.add-notification-section .form-control:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+		outline: none;
+	}
+	
+	.add-notification-section textarea.form-control {
+		resize: vertical;
+		height: 100px !important;
+		min-height: 80px !important;
+		max-height: 200px !important;
+		overflow-y: auto;
+	}
+	
+	.add-notification-section input.form-control {
+		height: auto;
+	}
+	
+	.add-notification-section .form-text {
+		display: block !important;
+		width: 100% !important;
+		margin-top: 0.25rem;
+		clear: both;
+	}
+	
+	.add-notification-section .form-text {
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+	
+	.add-notification-section .form-check-label {
+		color: #495057;
+		font-weight: normal;
+	}
+	
+	.add-notification-section .form-check-input:checked {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+	}
+	
+	.add-notification-section .btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transition: all 0.2s ease;
+		width: 100%;
+		padding: 0.65rem;
+		font-weight: 600;
+	}
+	
+	.add-notification-section .btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	/* Empty State */
+	.empty-notifications {
+		text-align: center;
+		padding: 3rem 1rem;
+		color: #6c757d;
+	}
+	
+	.empty-notifications i {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+		opacity: 0.3;
+	}
+	
+	/* Scrollbar */
+	.notifications-list-section::-webkit-scrollbar {
+		width: 6px;
+	}
+	
+	.notifications-list-section::-webkit-scrollbar-track {
+		background: #f1f1f1;
+	}
+	
+	.notifications-list-section::-webkit-scrollbar-thumb {
+		background: #ff6b35;
+		border-radius: 3px;
+	}
+</style>
+{% endblock %}
+
 {% block content %}
-	<div class="jumbotron">
+<div class="notifications-page">
+	<div class="page-header">
 		<div class="container">
 			<h1>Notifications</h1>
 		</div>
 	</div>
-	<div class="container">
+	
+	<div class="container notifications-container">
 		<div class="row">
-			<div class="col-md-12">
-				{% with form = Forms.notifications.NotificationForm() %}
-				<form method="POST" id="notifications_form" autocomplete="off">
-					<div class="form-group">
-						<b>{{ form.title.label }}</b>
-						{{ form.title(class="form-control") }}
-						<small class="form-text text-muted">
-							{{ form.title.description }}
-						</small>
-					</div>
-					<div class="form-group">
-						<b>{{ form.content.label }}</b>
-						{{ form.content(class="form-control", rows="3", style="margin-left: 0; width: 100%") }}
-						<small class="form-text text-muted">
-							{{ form.content.description }}
-						</small>
-					</div>
-					<div class="form-row">
-						<div class="col">
-							<div class="form-group">
-								<b>{{ form.type.label }}</b>
-							</div>
-							{% for radio in form.type %}
-								<div class="form-check form-check-inline pr-1">
-									{{ radio(class="form-check-input") }}
-									{{ radio.label(class="form-check-label") }}
+			<!-- Left Side: Notifications List -->
+			<div class="col-md-7">
+				<div class="notifications-list-section">
+					<h3>Notification History</h3>
+					<div id="notifications-list">
+						{% if notifications %}
+							{% for notification in notifications %}
+								<div class="card notification-card bg-light">
+									<button type="button" data-notif-id="{{ notification.id }}" class="delete-notification" aria-label="Close">
+										<span aria-hidden="true">&times;</span>
+									</button>
+									<div class="card-body">
+										<h3 class="card-title">{{ notification.title }}</h3>
+										<blockquote class="blockquote mb-0">
+											<p>{{ notification.html }}</p>
+											<small class="text-muted"><span data-time="{{ notification.date | isoformat }}"></span></small>
+										</blockquote>
+									</div>
 								</div>
 							{% endfor %}
+						{% else %}
+							<div class="empty-notifications">
+								<i class="fas fa-bell-slash"></i>
+								<p>No notifications yet</p>
+							</div>
+						{% endif %}
+					</div>
+				</div>
+			</div>
+			
+			<!-- Right Side: Add New Notification -->
+			<div class="col-md-5">
+				<div class="add-notification-section">
+					<h3>Create New Notification</h3>
+					{% with form = Forms.notifications.NotificationForm() %}
+					<form method="POST" id="notifications_form" autocomplete="off">
+						<div class="form-group">
+							<label>{{ form.title.label }}</label>
+							{{ form.title(class="form-control") }}
+							<small class="form-text text-muted">
+								{{ form.title.description }}
+							</small>
+						</div>
+						
+						<div class="form-group">
+							<label for="content">Content</label>
+							<textarea id="content" name="content" class="form-control" rows="3" placeholder="Notification content (HTML supported)"></textarea>
+							<small class="form-text text-muted">
+								This content will be displayed to all active users
+							</small>
+						</div>
+						
+						<div class="form-group">
+							<label>{{ form.type.label }}</label>
+							<div>
+								{% for radio in form.type %}
+									<div class="form-check form-check-inline">
+										{{ radio(class="form-check-input") }}
+										{{ radio.label(class="form-check-label") }}
+									</div>
+								{% endfor %}
+							</div>
 							<small class="form-text text-muted">
 								{{ form.type.description }}
 							</small>
 						</div>
-						<div class="col">
-							<div class="form-group">
-								<b>{{ form.sound.label }}</b>
-							</div>
+						
+						<div class="form-group">
 							<div class="form-check">
 								{{ form.sound(class="form-check-input") }}
 								{{ form.sound.label(class="form-check-label") }}
@@ -52,39 +316,17 @@
 								{{ form.sound.description }}
 							</small>
 						</div>
-					</div>
-					<div class="float-right">
-						{{ form.submit(class="btn btn-primary text-center") }}
-					</div>
-				</form>
-				{% endwith %}
-			</div>
-		</div>
-	</div>
-
-	<div class="container">
-		<div class="row">
-			<div class="col-md-12">
-				<hr>
-				<div id="notifications-list">
-				{% for notification in notifications %}
-					<div class="card bg-light mb-4">
-						<button type="button" data-notif-id="{{ notification.id }}" class="delete-notification close position-absolute p-3" style="right:0;" data-dismiss="alert" aria-label="Close">
-							<span aria-hidden="true">&times;</span>
-						</button>
-						<div class="card-body">
-							<h3 class="card-title">{{ notification.title }}</h3>
-							<blockquote class="blockquote mb-0">
-								<p>{{ notification.html }}</p>
-								<small class="text-muted"><span data-time="{{ notification.date | isoformat }}"></span></small>
-							</blockquote>
+						
+						<div class="form-group mb-0">
+							{{ form.submit(class="btn btn-primary") }}
 						</div>
-					</div>
-				{% endfor %}
+					</form>
+					{% endwith %}
 				</div>
 			</div>
 		</div>
 	</div>
+</div>
 {% endblock %}
 
 {% block scripts %}

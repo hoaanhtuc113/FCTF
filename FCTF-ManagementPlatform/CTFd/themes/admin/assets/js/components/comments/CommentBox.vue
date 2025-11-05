@@ -1,116 +1,114 @@
 <template>
-  <div>
+  <div class="clean-comment-box">
     <div class="row mb-3">
       <div class="col-md-12">
         <div class="comment">
           <textarea
-            class="form-control mb-2"
-            rows="2"
+            class="clean-textarea"
+            rows="3"
             id="comment-input"
-            placeholder="Add comment"
+            placeholder="Add comment..."
             v-model.lazy="comment"
           ></textarea>
           <button
-            class="btn btn-sm btn-primary btn-outlined float-right"
+            class="clean-btn clean-btn-primary float-right mt-2"
             type="submit"
             @click="submitComment()"
           >
-            Comment
+            <i class="fas fa-comment"></i> Comment
           </button>
         </div>
       </div>
     </div>
 
-    <div class="row" v-if="pages > 1">
+    <div class="row mb-3" v-if="pages > 1">
       <div class="col-md-12">
         <div class="text-center">
-          <!-- Inversed ternary b/c disabled will turn the button off -->
           <button
             type="button"
-            class="btn btn-link p-0"
+            class="clean-pagination-btn"
             @click="prevPage()"
             :disabled="prev ? false : true"
           >
-            &lt;&lt;&lt;
+            <i class="fas fa-chevron-left"></i> Previous
           </button>
+          <span class="clean-page-info mx-3">
+            Page {{ page }} of {{ pages }}
+          </span>
           <button
             type="button"
-            class="btn btn-link p-0"
+            class="clean-pagination-btn"
             @click="nextPage()"
             :disabled="next ? false : true"
           >
-            &gt;&gt;&gt;
+            Next <i class="fas fa-chevron-right"></i>
           </button>
         </div>
       </div>
-      <div class="col-md-12">
+      <div class="col-md-12 mt-2">
         <div class="text-center">
-          <small class="text-muted"
-            >Page {{ page }} of {{ total }} comments</small
-          >
+          <small class="clean-text-muted">{{ total }} total comments</small>
         </div>
       </div>
     </div>
     <div class="comments">
       <transition-group name="comment-card">
         <div
-          class="comment-card card mb-2"
+          class="clean-comment-card"
           v-for="comment in comments"
           :key="comment.id"
         >
-          <div class="card-body pl-0 pb-0 pt-2 pr-2">
-            <button
-              type="button"
-              class="close float-right"
-              aria-label="Close"
-              @click="deleteComment(comment.id)"
-            >
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="card-body">
-            <div class="card-text" v-html="comment.html"></div>
-            <small class="text-muted float-left">
-              <span>
-                <a :href="`${urlRoot}/admin/users/${comment.author_id}`">{{
-                  comment.author.name
-                }}</a>
-              </span>
-            </small>
-            <small class="text-muted float-right">
-              <span class="float-right">{{ toLocalTime(comment.date) }}</span>
-            </small>
+          <button
+            type="button"
+            class="clean-close-btn"
+            aria-label="Close"
+            @click="deleteComment(comment.id)"
+          >
+            <i class="fas fa-times"></i>
+          </button>
+          <div class="clean-comment-content">
+            <div class="clean-comment-text" v-html="comment.html"></div>
+            <div class="clean-comment-meta">
+              <small class="clean-comment-author">
+                <a :href="`${urlRoot}/admin/users/${comment.author_id}`">
+                  <i class="fas fa-user"></i> {{ comment.author.name }}
+                </a>
+              </small>
+              <small class="clean-comment-date">
+                <i class="far fa-clock"></i> {{ toLocalTime(comment.date) }}
+              </small>
+            </div>
           </div>
         </div>
       </transition-group>
     </div>
-    <div class="row" v-if="pages > 1">
+    <div class="row mt-3" v-if="pages > 1">
       <div class="col-md-12">
         <div class="text-center">
-          <!-- Inversed ternary b/c disabled will turn the button off -->
           <button
             type="button"
-            class="btn btn-link p-0"
+            class="clean-pagination-btn"
             @click="prevPage()"
             :disabled="prev ? false : true"
           >
-            &lt;&lt;&lt;
+            <i class="fas fa-chevron-left"></i> Previous
           </button>
+          <span class="clean-page-info mx-3">
+            Page {{ page }} of {{ pages }}
+          </span>
           <button
             type="button"
-            class="btn btn-link p-0"
+            class="clean-pagination-btn"
             @click="nextPage()"
             :disabled="next ? false : true"
           >
-            &gt;&gt;&gt;
+            Next <i class="fas fa-chevron-right"></i>
           </button>
         </div>
       </div>
-      <div class="col-md-12">
+      <div class="col-md-12 mt-2">
         <div class="text-center">
-          <small class="text-muted"
-            >Page {{ page }} of {{ total }} comments</small
-          >
+          <small class="clean-text-muted">{{ total }} total comments</small>
         </div>
       </div>
     </div>
@@ -213,29 +211,211 @@ export default {
 </script>
 
 <style scoped>
-.card .close {
-  opacity: 0;
-  transition: 0.2s;
-}
-.card:hover .close {
-  opacity: 0.5;
-}
-.close:hover {
-  opacity: 0.75 !important;
+/* Clean Comment Box Styles */
+.clean-comment-box {
+  padding: 0.5rem 0;
 }
 
+.clean-textarea {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  width: 100%;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.clean-textarea:focus {
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
+  outline: none;
+}
+
+.clean-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.clean-btn {
+  border: 1px solid #dee2e6;
+  background: #ffffff;
+  color: #495057;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.clean-btn:hover {
+  border-color: #ff6b35;
+  color: #ff6b35;
+  background: #fff5f2;
+}
+
+.clean-btn-primary {
+  background: #ff6b35;
+  color: #ffffff;
+  border-color: #ff6b35;
+}
+
+.clean-btn-primary:hover {
+  background: #e85d2a;
+  border-color: #e85d2a;
+  color: #ffffff;
+}
+
+.clean-pagination-btn {
+  border: 1px solid #dee2e6;
+  background: #ffffff;
+  color: #495057;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.clean-pagination-btn:hover:not(:disabled) {
+  border-color: #ff6b35;
+  color: #ff6b35;
+  background: #fff5f2;
+}
+
+.clean-pagination-btn:disabled {
+  background: #f8f9fa;
+  color: #9ca3af;
+  border-color: #e8e8e8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.clean-page-info {
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.clean-text-muted {
+  color: #6c757d;
+}
+
+.clean-comment-card {
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.clean-comment-card:hover {
+  border-color: #ff6b35;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.1);
+}
+
+.clean-close-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.25rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.clean-comment-card:hover .clean-close-btn {
+  opacity: 1;
+}
+
+.clean-close-btn:hover {
+  color: #dc3545;
+  background: #fff5f5;
+}
+
+.clean-comment-content {
+  padding-right: 2rem;
+}
+
+.clean-comment-text {
+  color: #2c3e50;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+
+.clean-comment-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f1f1;
+}
+
+.clean-comment-author a {
+  color: #495057;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.clean-comment-author a:hover {
+  color: #ff6b35;
+}
+
+.clean-comment-author i {
+  margin-right: 0.25rem;
+  color: #9ca3af;
+}
+
+.clean-comment-date {
+  color: #6c757d;
+}
+
+.clean-comment-date i {
+  margin-right: 0.25rem;
+}
+
+/* Transition animations */
 .comment-card-leave {
   max-height: 200px;
+  opacity: 1;
 }
+
 .comment-card-leave-to {
   max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+  padding: 0;
+  border-width: 0;
 }
+
 .comment-card-active {
   position: absolute;
+  width: 100%;
 }
+
+.comment-card-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.comment-card-enter-to {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .comment-card-enter-active,
 .comment-card-move,
 .comment-card-leave-active {
-  transition: all 0.3s;
+  transition: all 0.3s ease;
 }
 </style>
