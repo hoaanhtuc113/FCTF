@@ -183,17 +183,7 @@ def stop_challenge_by_admin():
 
 
     try:
-        force_stop(cache_key=cache_key, challenge_id=challenge_id,team_id=team_id)
-        return (
-            jsonify(
-                {
-                    "isSuccess":True,
-                    "status": "Stopped",
-                    "message": "Stop challenge success",
-                }
-            ),
-            200,
-        )
+        return force_stop(cache_key=cache_key, challenge_id=challenge_id,team_id=team_id)
 
     except requests.exceptions.RequestException as e:
         print(f"Error during stop challenge: {e}")
@@ -288,7 +278,9 @@ def get_all_instance():
         result = []
         special_cases = []
         normal_cases = []
-
+        
+        # goi then status checking API de lay trang thai cua tung instance
+        print("Matching key: " + str(matching_keys))
         for key in matching_keys:
             print("key: " + str(key))
             key_str = key

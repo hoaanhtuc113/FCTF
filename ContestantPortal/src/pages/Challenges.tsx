@@ -18,7 +18,7 @@ import { saveAs } from 'file-saver';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { fetchWithAuth, downloadFile, API_DEPLOYMENT_URL, MANAGEMENT_API_URL } from '../services/api';
+import { fetchWithAuth, downloadFile, MANAGEMENT_API_URL, API_DEPLOYMENT_URL } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
 import { 
   CategorySkeleton, 
@@ -1249,14 +1249,15 @@ function ChallengeDetailPanel({
       try {
         attempts++;
         console.log(`[Health Check] Attempt ${attempts}/${maxAttempts}`);
-        
-        const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
-          method: 'GET'
-        });
+
+        const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START_CHECKING, {
+          method: 'POST',
+          body: JSON.stringify({
+            challengeId: challenge.id,
+          }),
+        }, API_DEPLOYMENT_URL);
         const data = await response.json();
-        
-        // Check if pod is healthy (challenge is ready)
-        if (data.data?.is_healthy) {
+        if (data.success == true && data.challenge_url) {
           console.log('[Health Check] Pod is healthy! Stopping health check.');
           setIsHealthChecking(false);
           setIsDeploymentInProgress(false);
@@ -1381,13 +1382,12 @@ function ChallengeDetailPanel({
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
         method: 'POST',
         body: JSON.stringify({
-          challenge_id: challenge.id,
-          generatedToken: localStorage.getItem('auth_token'),
+          challengeId: challenge.id,
         })
       });
       const data = await response.json();
 
-      if (data.isSuccess) {
+      if (data.success) {
         setIsChallengeStarted(false);
         setUrl(null);
         setTimeRemaining(null);
@@ -1417,6 +1417,7 @@ function ChallengeDetailPanel({
         });
       }
     } catch (error) {
+      console.error('Stop challenge error:', error);
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">

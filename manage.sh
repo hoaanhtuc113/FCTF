@@ -258,6 +258,7 @@ CPU_REQUEST=300m
 MEMORY_LIMIT=256Mi
 MEMORY_REQUEST=256Mi
 POW_DIFFICULTY_SECONDS=5 #protect DDOS attack
+WORKER_SERVICE_INTERVAL=20 #seconds
 EOF
 
     echo "Đã cập nhật cấu hình cho môi trường $env."
