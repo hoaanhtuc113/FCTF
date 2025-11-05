@@ -160,8 +160,6 @@
 {% endblock %}
 
 {% block scripts %}
-{% endblock %}
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const radioButtons = document.querySelectorAll('.card-radio');
@@ -187,7 +185,36 @@
             });
         });
     });
+
+    // Handle Setup Docker checkbox toggle - using jQuery for consistency
+    $(document).on('change', '#setup_docker', function() {
+        const isChecked = $(this).is(':checked');
+        console.log('Setup Docker checkbox changed:', isChecked);
+        
+        if (isChecked) {
+            $('#expose_port_container').removeClass('d-none');
+            $('.upload-file').removeClass('d-none');
+            $('.multi_files').addClass('d-none');
+        } else {
+            $('#expose_port_container').addClass('d-none');
+            $('.upload-file').addClass('d-none');
+            $('.multi_files').removeClass('d-none');
+        }
+    });
+
+    // Also handle when modal is shown
+    $('#challenge-create-options').on('shown.bs.modal', function() {
+        const setupDockerCheckbox = $('#setup_docker');
+        if (setupDockerCheckbox.is(':checked')) {
+            $('#expose_port_container').removeClass('d-none');
+            $('.upload-file').removeClass('d-none');
+            $('.multi_files').addClass('d-none');
+        } else {
+            $('.multi_files').removeClass('d-none');
+        }
+    });
 </script>
+{% endblock %}
 
 {% block entrypoint %}
 {{ Assets.js("assets/js/pages/challenge.js", theme="admin") }}
