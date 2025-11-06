@@ -1,108 +1,279 @@
 {% extends "admin/base.html" %}
 
+{% block stylesheets %}
+<style>
+	/* Clean Tickets Page Styles */
+	.tickets-page .page-header {
+		background: #ffffff;
+		padding: 2rem 0 1rem 0;
+		margin-bottom: 2rem;
+	}
+	
+	.tickets-page .page-header h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 1.75rem;
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.tickets-container {
+		padding: 2rem 0;
+	}
+	
+	/* Filter Section */
+	.filter-section {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		padding: 1.5rem;
+		margin-bottom: 1.5rem;
+	}
+	
+	.filter-section .form-control,
+	.filter-section .form-select {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+		transition: all 0.2s ease;
+		font-size: 0.9rem;
+	}
+	
+	.filter-section .form-control:focus,
+	.filter-section .form-select:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+		outline: none;
+	}
+	
+	.filter-section .btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		padding: 0.6rem 1.5rem;
+		font-weight: 600;
+		transition: all 0.2s ease;
+	}
+	
+	.filter-section .btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	/* Table Styles */
+	.tickets-table-wrapper {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		overflow: hidden;
+	}
+	
+	.tickets-table {
+		margin: 0;
+		font-size: 0.9rem;
+	}
+	
+	.tickets-table thead th {
+		background: #f8f9fa;
+		border-bottom: 2px solid #e8e8e8;
+		color: #495057;
+		font-weight: 600;
+		padding: 1rem 0.75rem;
+		text-transform: uppercase;
+		font-size: 0.75rem;
+		letter-spacing: 0.5px;
+		white-space: nowrap;
+	}
+	
+	.tickets-table tbody tr {
+		border-bottom: 1px solid #f1f1f1;
+		transition: all 0.15s ease;
+	}
+	
+	.tickets-table tbody tr:hover {
+		background: #fff5f2;
+	}
+	
+	.tickets-table tbody td {
+		padding: 0.875rem 0.75rem;
+		color: #495057;
+		vertical-align: middle;
+	}
+	
+	.tickets-table tbody td a {
+		color: #ff6b35;
+		text-decoration: none;
+		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+	
+	.tickets-table tbody td a:hover {
+		color: #e85d2a;
+		text-decoration: underline;
+	}
+	
+	/* Pagination */
+	.pagination .page-link {
+		border: 1px solid #dee2e6;
+		color: #495057;
+		padding: 0.5rem 0.75rem;
+		margin: 0 0.15rem;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+	}
+	
+	.pagination .page-link:hover {
+		background: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.pagination .page-item.active .page-link {
+		background: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	/* Alert Popup */
+	#popup {
+		border-radius: 6px;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+	}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="jumbotron">
+<div class="tickets-page">
+	<!-- Pop-up notification container for flash messages -->
+	<div id="popup" class="alert" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 1000;"></div>
 
-    <!-- Pop-up notification container for flash messages -->
-    <div id="popup" class="alert" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 1000;"></div>
+	{% with messages = get_flashed_messages(with_categories=true) %}
+		{% if messages %}
+			<script>
+				document.addEventListener("DOMContentLoaded", function() {
+					const popup = document.getElementById("popup");
+					let messageContent = `
+						{% for category, message in messages %}
+							<div class="alert alert-{{ category }}">{{ message }}</div>
+						{% endfor %}
+					`;
+					popup.innerHTML = messageContent;
+					popup.style.display = "block";
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <script>
-                document.addEventListener("DOMContentLoaded", function() {
-                    const popup = document.getElementById("popup");
-                    let messageContent = `
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    `;
-                    popup.innerHTML = messageContent;
-                    popup.style.display = "block";
+					// Hide the pop-up after 3 seconds
+					setTimeout(function() {
+						popup.style.display = "none";
+					}, 3000);
+				});
+			</script>
+		{% endif %}
+	{% endwith %}
 
-                    // Hide the pop-up after 3 seconds
-                    setTimeout(function() {
-                        popup.style.display = "none";
-                    }, 3000);
-                });
-            </script>
-        {% endif %}
-    {% endwith %}
+	<div class="page-header">
+		<div class="container">
+			<h1>Tickets</h1>
+		</div>
+	</div>
 
-    <div class="container">
-        <h1>Tickets</h1>
-        <form method="get" class="form-inline mb-3" action="">
-            <select name="status" class="form-control mr-2" id="status-select" onchange="this.form.submit()">
-                <option value="">All Status</option>
-                {% for s in status_options %}
-                    <option value="{{ s }}" {% if selected_status==s %}selected{% endif %}>{{ s }}</option>
-                {% endfor %}
-            </select>
-            <select name="type" class="form-control mr-2" id="type-select" onchange="this.form.submit()">
-                <option value="">All Types</option>
-                {% for t in type_options %}
-                    <option value="{{ t }}" {% if selected_type==t %}selected{% endif %}>{{ t }}</option>
-                {% endfor %}
-            </select>
-            <input type="text" name="search" class="form-control mr-2" placeholder="Search by title" value="{{ search or '' }}">
-            <button type="submit" class="btn btn-primary">Filter</button>
-        </form>
-    </div>
+	<div class="container tickets-container">
+		<!-- Filter Section -->
+		<div class="filter-section">
+			<form method="get" action="">
+				<div class="row align-items-end">
+					<div class="col-md-3">
+						<label class="form-label text-muted small mb-1">Status</label>
+						<select name="status" class="form-control" id="status-select" onchange="this.form.submit()">
+							<option value="">All Status</option>
+							{% for s in status_options %}
+								<option value="{{ s }}" {% if selected_status==s %}selected{% endif %}>{{ s }}</option>
+							{% endfor %}
+						</select>
+					</div>
+					<div class="col-md-3">
+						<label class="form-label text-muted small mb-1">Type</label>
+						<select name="type" class="form-control" id="type-select" onchange="this.form.submit()">
+							<option value="">All Types</option>
+							{% for t in type_options %}
+								<option value="{{ t }}" {% if selected_type==t %}selected{% endif %}>{{ t }}</option>
+							{% endfor %}
+						</select>
+					</div>
+					<div class="col-md-4">
+						<label class="form-label text-muted small mb-1">Search</label>
+						<input type="text" name="search" class="form-control" placeholder="Search by title" value="{{ search or '' }}">
+					</div>
+					<div class="col-md-2">
+						<button type="submit" class="btn btn-primary w-100">
+							<i class="fas fa-filter"></i> Filter
+						</button>
+					</div>
+				</div>
+			</form>
+		</div>
+
+		<!-- Table -->
+		<div class="tickets-table-wrapper">
+			<table class="table tickets-table mb-0">
+			<table class="table tickets-table mb-0">
+				<thead>
+					<tr>
+						<th style="width: 5%;">ID</th>
+						<th class="text-center" style="width: 10%;">Team</th>
+						<th style="width: 10%;">Type</th>
+						<th class="text-center" style="width: 20%;">Title</th>
+						<th class="text-center" style="width: 30%;">Message</th>
+						<th class="text-center" style="width: 15%;">Create At</th>
+						<th class="text-center" style="width: auto;">Status</th>
+						<th class="text-center" style="width: 10%;">Details</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for ticket in tickets %}
+					<tr class="text-center">
+						<td>{{ ticket.id }}</td>
+						<td>{{ ticket.team_name }}</td>
+						<td>{{ ticket.type }}</td>
+						<td>{{ ticket.title }}</td>
+						<td>{{ ticket.description }}</td>
+						<td>{{ ticket.date }}</td>
+						<td>{{ ticket.status }}</td>
+						<td class="text-center"><a href="{{ url_for('admin.view_tickets_detail', ticket_id=ticket.id) }}">Show Detail</a></td>
+					</tr>
+					{% else %}
+					<tr>
+						<td colspan="8" class="text-center">No tickets found</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+
+		<!-- Pagination -->
+		<div class="d-flex justify-content-end mt-3">
+			<nav aria-label="Page navigation">
+				<ul class="pagination">
+					{% set total_pages = (total // per_page) + (1 if total % per_page else 0) %}
+					{% for p in range(1, total_pages+1) %}
+						<li class="page-item {% if p == page %}active{% endif %}">
+							<a class="page-link" href="?user_id={{ selected_user or '' }}&status={{ selected_status or '' }}&type={{ selected_type or '' }}&search={{ search or '' }}&page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
+						</li>
+					{% endfor %}
+				</ul>
+			</nav>
+		</div>
+	</div>
 </div>
 
-<div class="container mt-5">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th style="width: 5%;">ID</th>
-                    <th class="text-center" style="width: 10%;">Team</th>
-                    <th style="width: 10%;">Type</th>
-                    <th class="text-center" style="width: 20%;">Title</th>
-                    <th class="text-center" style="width: 30%;">Message</th>
-                    <th class="text-center" style="width: 15%;">Create At</th>
-                    <th class="text-center" style="width: auto;">Status</th>
-                    <th class="text-center" style="width: 10%;">Details</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ticket in tickets %}
-                <tr class="text-center">
-                    <td>{{ ticket.id }}</td>
-                    <td>{{ ticket.team_name }}</td>
-                    <td>{{ ticket.type }}</td>
-                    <td>{{ ticket.title }}</td>
-                    <td>{{ ticket.description }}</td>
-                    <td>{{ ticket.date }}</td>
-                    <td>{{ ticket.status }}</td>
-                    <td class="text-center"><a href="{{ url_for('admin.view_tickets_detail', ticket_id=ticket.id) }}">Show Detail</a></td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="8" class="text-center">No tickets found</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-    <!-- Pagination -->
-    <div class="d-flex justify-content-end">
-        <nav aria-label="Page navigation">
-            <ul class="pagination">
-                {% set total_pages = (total // per_page) + (1 if total % per_page else 0) %}
-                {% for p in range(1, total_pages+1) %}
-                    <li class="page-item {% if p == page %}active{% endif %}">
-                        <a class="page-link" href="?user_id={{ selected_user or '' }}&status={{ selected_status or '' }}&type={{ selected_type or '' }}&search={{ search or '' }}&page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
-                    </li>
-                {% endfor %}
-            </ul>
-        </nav>
-    </div>
-</div>
 <script>
-    document.getElementById('select-all').addEventListener('change', function() {
-        const checkboxes = document.querySelectorAll('.ticket-checkbox');
-        for (const cb of checkboxes) {
-            cb.checked = this.checked;
-        }
-    });
+	document.getElementById('select-all').addEventListener('change', function() {
+		const checkboxes = document.querySelectorAll('.ticket-checkbox');
+		for (const cb of checkboxes) {
+			cb.checked = this.checked;
+		}
+	});
 </script>
 {% endblock %}

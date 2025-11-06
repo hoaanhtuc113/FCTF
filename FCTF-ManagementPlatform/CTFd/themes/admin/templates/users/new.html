@@ -1,24 +1,96 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Clean Create User Page Styles */
+	.create-user-page .jumbotron {
+		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+		border-bottom: 2px solid #e8e8e8;
+		margin-bottom: 0;
+		padding: 2.5rem 0;
+	}
+	
+	.create-user-page .jumbotron h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 2rem;
+		margin: 0;
+	}
+	
+	.create-user-container {
+		padding: 2rem 0;
+	}
+	
+	/* Form Container */
+	.form-container {
+		background: #ffffff;
+		padding: 2.5rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+	}
+	
+	.form-container .form-control,
+	.form-container .custom-select {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.6rem 0.75rem;
+		transition: all 0.2s ease;
+	}
+	
+	.form-container .form-control:focus,
+	.form-container .custom-select:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+	}
+	
+	.form-container label {
+		color: #495057;
+		font-weight: 500;
+		margin-bottom: 0.5rem;
+	}
+	
+	.form-container .btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transition: all 0.2s ease;
+		width: 100%;
+		padding: 0.65rem;
+		font-weight: 600;
+	}
+	
+	.form-container .btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	.form-container .form-text {
+		color: #6c757d;
+		font-size: 0.875rem;
+	}
+</style>
 {% endblock %}
 
 {% block content %}
+<div class="create-user-page">
 	<div class="jumbotron">
 		<div class="container">
-			<h1>
-				Create User
-			</h1>
+			<h1>Create User</h1>
 		</div>
 	</div>
 
-	<div class="container">
+	<div class="container create-user-container">
 		<div class="row">
 			<div class="col-md-6 offset-md-3">
-				{% include "admin/modals/users/create.html" %}
+				<div class="form-container">
+					{% include "admin/modals/users/create.html" %}
+				</div>
 			</div>
 		</div>
 	</div>
+</div>
 {% endblock %}
 
 {% block scripts %}

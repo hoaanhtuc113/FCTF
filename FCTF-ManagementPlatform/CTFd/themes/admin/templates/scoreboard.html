@@ -1,17 +1,157 @@
 {% extends "admin/base.html" %}
 
+{% block stylesheets %}
+<style>
+	/* Clean Scoreboard Page Styles */
+	.scoreboard-page .page-header {
+		background: #ffffff;
+		padding: 2rem 0 1rem 0;
+		margin-bottom: 2rem;
+	}
+	
+	.scoreboard-page .page-header h1 {
+		color: #2c3e50;
+		font-weight: 700;
+		font-size: 1.75rem;
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	
+	.scoreboard-container {
+		padding: 2rem 0;
+	}
+	
+	/* Action Buttons */
+	.action-buttons {
+		margin-bottom: 1.5rem;
+	}
+	
+	.btn-outline-secondary,
+	.btn-outline-primary {
+		border: 1px solid #dee2e6;
+		color: #495057;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-outline-secondary:hover,
+	.btn-outline-primary:hover {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+		transform: translateY(-2px);
+	}
+	
+	/* Tabs */
+	.nav-tabs {
+		border-bottom: 2px solid #e8e8e8;
+		background: #ffffff;
+		padding: 0.5rem 1rem 0 1rem;
+		border-radius: 8px 8px 0 0;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		margin-bottom: 0;
+	}
+	
+	.nav-tabs .nav-link {
+		color: #495057;
+		border: none;
+		border-bottom: 3px solid transparent;
+		padding: 0.75rem 1.5rem;
+		font-weight: 500;
+		transition: all 0.2s ease;
+	}
+	
+	.nav-tabs .nav-link:hover {
+		color: #ff6b35;
+		border-bottom-color: #ff6b35;
+		background-color: transparent !important;
+	}
+	
+	.nav-tabs .nav-link.active {
+		color: #ff6b35 !important;
+		background-color: transparent !important;
+		border-bottom-color: #ff6b35 !important;
+		font-weight: 600;
+	}
+	
+	/* Tab Content */
+	.tab-content {
+		background: #ffffff;
+		padding: 2rem;
+		border-radius: 0 0 8px 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		border-top: none;
+	}
+	
+	.tab-content h3 {
+		color: #2c3e50;
+		font-weight: 600;
+		margin-bottom: 1.5rem;
+	}
+	
+	/* Table Styles */
+	.table-responsive {
+		background: transparent;
+		padding: 0;
+	}
+	
+	.table {
+		margin-bottom: 0;
+	}
+	
+	.table thead th {
+		background-color: #f8f9fa;
+		color: #2c3e50;
+		font-weight: 600;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 0.75rem;
+	}
+	
+	.table tbody tr {
+		transition: all 0.2s ease;
+	}
+	
+	.table tbody tr:hover {
+		background-color: #fff5f2;
+	}
+	
+	.table tbody td {
+		padding: 0.9rem 0.75rem;
+		vertical-align: middle;
+		color: #495057;
+		border-bottom: 1px solid #f1f1f1;
+	}
+	
+	.table tbody td a {
+		color: #2c3e50;
+		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+	
+	.table tbody td a:hover {
+		color: #ff6b35;
+		text-decoration: none;
+	}
+	
+	/* Badges */
+	.badge {
+		padding: 0.35rem 0.65rem;
+		border-radius: 4px;
+		font-weight: 500;
+	}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="jumbotron">
+<div class="scoreboard-page">
+<div class="page-header">
     <div class="container">
         <h1>Scoreboard</h1>
     </div>
 </div>
-<style>
-    .custom-tab-padding {
-        padding: 10px 20px; /* Adjust padding as needed */
-    }
-</style>
-<div class="container">
+
+<div class="container scoreboard-container">
     <div class="row">
         <div class="col-md-12">
             <div class="float-right pb-3">
@@ -33,13 +173,13 @@
         <div class="col-md-12">
             <ul class="nav nav-tabs nav-fill" role="tablist">
                 <li class="nav-item">
-                    <a class="nav-link active custom-tab-padding" data-toggle="tab" href="#standings" role="tab">Teams</a>
+                    <a class="nav-link active" data-toggle="tab" href="#standings" role="tab">Teams</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link custom-tab-padding" data-toggle="tab" href="#user-standings" role="tab">Users</a>
+                    <a class="nav-link" data-toggle="tab" href="#user-standings" role="tab">Users</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link custom-tab-padding" data-toggle="tab" href="#awards" role="tab">Awards</a>
+                    <a class="nav-link" data-toggle="tab" href="#awards" role="tab">Awards</a>
                 </li>
             </ul>
         </div>
@@ -125,6 +265,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
