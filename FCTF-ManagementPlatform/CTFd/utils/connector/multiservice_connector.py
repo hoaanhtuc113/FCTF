@@ -98,14 +98,12 @@ def prepare_start_challenge_payload(challenge, user_id, team_id):
         unix_time,
         {
             "challengeId": challenge.id,
-            "challengeName": challenge.name.replace(" ", "_"),
             "teamId": team_id,
             "userId": user_id,
         },
     )
     payload = {
         "challengeId": challenge.id,
-        "challengeName": challenge.name.replace(" ", "_"),
         "teamId": team_id,
         "userId": user_id,
         "unixTime": unix_time, 
@@ -341,7 +339,7 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
     - Upload folder to NFS_MOUNT_PATH directory
     """
     zip_filename = os.path.basename(file_path) 
-    folder_name = os.path.splitext(zip_filename)[0] #TODO + f"_{challenge.id}" 
+    folder_name = os.path.splitext(zip_filename)[0] + f"-{challenge.id}" 
     safe_folder_name = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in folder_name)
     
     # Create temporary directory for extraction
@@ -524,12 +522,12 @@ def start_challenge_status_checking(challenge_id, team_id):
         unix_time,
         {
             "challengeId": challenge_id,
-            "team_id": team_id,
+            "teamId": team_id,
         },
     )
     payload = {
         "challengeId": challenge_id,
-        "team_id": team_id,
+        "teamId": team_id,
         "unixTime": unix_time, 
     }
     headers = {"SecretKey": secret_key}

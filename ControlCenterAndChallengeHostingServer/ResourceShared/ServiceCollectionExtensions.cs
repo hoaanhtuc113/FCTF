@@ -46,7 +46,7 @@ namespace ResourceShared
                 return multiplexer;
             });
             services.AddScoped<RedisHelper>();
-            services.AddScoped<IK8sHealthService, K8sHealthService>();
+            services.AddScoped<IK8sService, K8sService>();
             return services;
         }
     }
