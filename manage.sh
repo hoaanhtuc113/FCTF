@@ -242,7 +242,7 @@ DOCKER_USERNAME=quachuoiscontainer
 # Cấu hình dùng chung
 PRIVATE_KEY=emdungdepzai
 SECRET_KEY=emdungdepzai
-ARGO_WORKFLOWS_URL=https://argo.fctf.cloud/api/v1/workflows/argo
+ARGO_WORKFLOWS_URL=https://argo-zmn0zjiwmju.fctf.cloud/api/v1/workflows/argo
 ARGO_WORKFLOWS_TOKEN=REDACTED
 DEPLOYMENT_SERVICE_API=http://172.31.177.154:5020
 NFS_MOUNT_PATH=/mnt/nfs/data
