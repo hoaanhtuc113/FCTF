@@ -124,9 +124,8 @@ def start_challenge():
         # # Check xem team đã có đội trưởng chưa và người khởi động challenge có phải đội trưởng không
         # if(user.type == 'user' and (not team.captain_id or team.captain_id != user_id)):
         #     return jsonify({"error": "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge."}), 400
-        team_name = team.name if team else "Unknown Team"
         # Chuẩn bị payload và headers
-        payload, headers, api_start = prepare_start_challenge_payload(challenge, user_id, team_id, team_name)
+        payload, headers, api_start = prepare_start_challenge_payload(challenge, user_id, team_id)
 
         return challenge_start(payload, headers, api_start)
 
@@ -136,7 +135,7 @@ def check_challenge_status(challenge_id):
     if not challenge_id or challenge_id == 'undefined':
         return jsonify({"error": "ChallengeId is required"}), 400
 
-    return start_challenge_status_checking(challenge_id, "Preview")
+    return start_challenge_status_checking(challenge_id, -1)  # -1 for preview mode
     
 @challenge.route("/api/challenge/stop-by-admin", methods=["POST"])
 @bypass_csrf_protection

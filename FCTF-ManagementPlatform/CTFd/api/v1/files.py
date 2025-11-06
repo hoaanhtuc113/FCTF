@@ -94,20 +94,20 @@ class FilesList(Resource):
     def post(self):
         files = request.files.getlist("file")
         deploy_file = request.files.get("deploy_file")
-        require_deploy = request.form.get("require_deploy")
+        require_deploy = request.form.get("require_deploy") is not None
         expose_port = request.form.get("expose_port")
+        challenge_id = request.form.to_dict().get("challenge_id")
         temp_file_path = ""
         objs = []
-        challenge_id = request.form.to_dict().get("challenge_id")
         # challenge_id
         # page_id
 
-        if expose_port and not re.fullmatch(r"^[1-9]\d*$", expose_port) and require_deploy != "false":
+        if expose_port and not re.fullmatch(r"^[1-9]\d*$", expose_port) and require_deploy:
             return {"success": False, "errors": "Expose port must be a positive integer"}, 400
 
         print("require_deploy", require_deploy)
 
-        if require_deploy == "false":
+        if not require_deploy:
             print("require_deploy is false - clearing deployment info")
             challenge = Challenges.query.filter_by(id=challenge_id).first()
             if not challenge:
@@ -133,7 +133,7 @@ class FilesList(Resource):
                 },
             }, 400
 
-        if deploy_file and require_deploy != "false":
+        if deploy_file and require_deploy:
             # Lưu tệp tạm thời vào đĩa trước khi xử lý nó
             filename = secure_filename(deploy_file.filename)
             temp_file_path = os.path.join("/tmp", filename)

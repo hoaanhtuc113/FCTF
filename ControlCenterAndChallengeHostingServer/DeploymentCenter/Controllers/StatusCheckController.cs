@@ -53,12 +53,7 @@ namespace HealthCheckService.Controllers
                 };
             }
 
-            if (string.IsNullOrEmpty(statusReq.teamName))
-            {
-               statusReq.teamName =  user.Team.Name;
-            }
-
-            if (statusReq == null || string.IsNullOrEmpty(statusReq.teamName) || statusReq.challengeId <= 0)
+            if (statusReq == null || statusReq.teamId == 0 || statusReq.challengeId <= 0)
             {
                 return new ChallengeDeployResponeDTO
                 {
@@ -76,7 +71,7 @@ namespace HealthCheckService.Controllers
         [RequireSecretKey]
         public async Task<ChallengeDeployResponeDTO> StartChallengeCheckingForAdmin([FromBody] ChallengCheckStatusReqDTO statusReq)
         {
-            if (statusReq == null || string.IsNullOrEmpty(statusReq.teamName) || statusReq.challengeId <= 0)
+            if (statusReq == null || statusReq.teamId == 0|| statusReq.challengeId <= 0)
             {
                 return new ChallengeDeployResponeDTO
                 {
