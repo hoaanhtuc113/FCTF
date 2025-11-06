@@ -1078,8 +1078,12 @@ function ChallengeDetailPanel({
         // Set URL if challenge was already started
         setUrl(data.challenge_url || null);
         
-        // Set time remaining (for countdown timer)
-        setTimeRemaining(data.time_remaining || data.data.time_limit);
+        // Only set time remaining if we have URL (challenge is deployed)
+        if (data.challenge_url && data.time_remaining) {
+          setTimeRemaining(data.time_remaining * 60); // Convert minutes to seconds
+        } else {
+          setTimeRemaining(null); // Show --:-- when no URL
+        }
         
         // If challenge is started and has URL
         if (data.is_started && data.challenge_url) {
@@ -1142,8 +1146,8 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
 
-      // API now returns URL immediately
-      if (response.status === 200 && data.success === true && data.challenge_url) {
+      // Case 1: URL is ready immediately
+      if (response.status === 200 && data.success === true && data.challenge_url != null) {
         // Set URL immediately
         setIsChallengeStarted(true);
         setUrl(data.challenge_url);
@@ -1175,6 +1179,40 @@ function ChallengeDetailPanel({
           },
         });
       }
+      // Case 2: Success but URL is null - deploying, need to wait
+      else if (response.status === 200 && data.success === true && data.challenge_url == null) {
+        // Set challenge as started with message from backend
+        setIsChallengeStarted(true);
+        setUrl(data.message || 'Deploying challenge...');
+        setIsStarting(false);
+        
+        // Set health checking state to show spinner
+        setIsHealthChecking(true);
+        
+        // Start health check in background
+        startHealthCheckLoop();
+        
+        // Show deploying message
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-yellow-400 mb-2">[~] Deploying challenge</div>
+              <div class="text-gray-400">> ${data.message || 'Please wait...'}</div>
+              <div class="text-cyan-400 mt-2">> Health check will start shortly...</div>
+            </div>
+          `,
+          icon: 'info',
+          iconColor: '#fbbf24',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#fbbf24' : '#000000',
+          timer: 3000,
+          showConfirmButton: false,
+          customClass: {
+            popup: 'rounded-lg border border-yellow-500/30',
+          },
+        });
+      }
+      // Case 3: Error or failure
       else {
         setIsStarting(false);
         setIsDeploymentInProgress(false);
@@ -1257,8 +1295,17 @@ function ChallengeDetailPanel({
           }),
         }, API_DEPLOYMENT_URL);
         const data = await response.json();
-        if (data.success == true && data.challenge_url) {
+        if (data.success == true && data.challenge_url) {    
           console.log('[Health Check] Pod is healthy! Stopping health check.');
+          
+          // Update URL with actual challenge URL (replace message if it was set)
+          setUrl(data.challenge_url);
+          
+          // Set time remaining when healthy (convert minutes to seconds)
+          if (data.time_remaining) {
+            setTimeRemaining(data.time_remaining * 60);
+          }
+          
           setIsHealthChecking(false);
           setIsDeploymentInProgress(false);
           healthCheckRunningRef.current = false;
@@ -1273,10 +1320,30 @@ function ChallengeDetailPanel({
             challengeId: challenge.id,
             challengeName: challenge.name,
             status: 'success',
-            url: url,
+            url: data.challenge_url,
             message: 'Challenge is ready!',
             timestamp: Date.now()
           }));
+          
+          // Show success notification
+          Swal.fire({
+            html: `
+              <div class="font-mono text-left text-sm">
+                <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
+                <div class="text-gray-400">> URL: ${data.challenge_url}</div>
+                <div class="text-cyan-400 mt-2">> Pod is healthy</div>
+              </div>
+            `,
+            icon: 'success',
+            iconColor: '#22c55e',
+            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+            color: theme === 'dark' ? '#22c55e' : '#000000',
+            timer: 3000,
+            showConfirmButton: false,
+            customClass: {
+              popup: 'rounded-lg border border-green-500/30',
+            },
+          });
           
           return true; // Stop loop - SUCCESS
         }
