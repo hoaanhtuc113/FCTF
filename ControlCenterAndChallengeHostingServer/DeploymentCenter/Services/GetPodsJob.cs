@@ -18,7 +18,7 @@ namespace DeploymentCenter.Services
         {
             _redisHelper = redisHelper;
             //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
-            _k8SHealthService = k8SHealthService;
+            //_k8SHealthService = k8SHealthService;
         }
 
         public async Task RunAsync(CancellationToken ct)
@@ -28,8 +28,8 @@ namespace DeploymentCenter.Services
             try
             {
                 //K8S-NOTE:comment this state for runing in local with out k8s cubeconfig 
-                var pods = await _k8SHealthService.GetPodsByLabelAsync();
-                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
+                // var pods = await _k8SHealthService.GetPodsByLabelAsync();
+                // await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
             }
             catch (Exception ex)
             {

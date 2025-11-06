@@ -113,8 +113,6 @@ namespace ResourceShared.Services
                     await Console.Out.WriteLineAsync($"[K8sHealthService] Pod: {podName}, Status={podInfo.Status}, Ready={podInfo.Ready}");
                     return podInfo.Status == "Running" && podInfo.Ready;
                 }
-             
-                
                 await Console.Out.WriteLineAsync($"[K8sHealthService] No pod info found in cache for prefix: {podName}");
                 return false;
             }

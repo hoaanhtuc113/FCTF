@@ -84,18 +84,20 @@ namespace ResourceShared.Utils
             return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
 
-        public static string GetArgoWName(string chalId, string teamName)
+        public static string GetArgoWName(int chalId, int teamId)
         {
-            return $"start-challenge-{chalId}-{teamName}".ToLower().Replace(" ", "-"); ;
+            var team = teamId == -1 ? $"team{teamId}" : "preview";
+            return $"start-challenge-{chalId}-{team}".ToLower().Replace(" ", "-"); ;
         }
 
-        public static string GetDeploymentAppName(string teamName,string challengeId,string challengeName)
+        public static string GetDeploymentAppName(int teamId, int challengeId,string challengeName)
         {
             var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            return $"{teamName}-{challengeId}-{challengeName}-{date}".ToLower().Replace(" ", "-");
+            var team = teamId == -1 ? $"team{teamId}" : "preview";
+            return $"{team}-{challengeId}-{challengeName}-{date}".ToLower().Replace(" ", "-");
         }
 
-        public static (object payload, string appName) BuildArgoPayload(Challenge challenge, string teamName, ChallengeImageDTO challengeImage, 
+        public static (object payload, string appName) BuildArgoPayload(Challenge challenge, int teamId, ChallengeImageDTO challengeImage, 
                     string cpu_limit, string cpu_request, string memory_limt, string memory_request, string pow_difficulty)
         {
             var isTemp = true;
@@ -105,7 +107,7 @@ namespace ResourceShared.Utils
                 challenge.TimeLimit = 1;
             }
 
-            var deploymentAppName = GetDeploymentAppName(teamName, challenge.Id.ToString(), challenge.Name);
+            var deploymentAppName = GetDeploymentAppName(teamId, challenge.Id, challenge.Name);
             return (new
             {
                 resourceKind = "WorkflowTemplate",
