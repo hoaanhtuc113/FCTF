@@ -4,6 +4,7 @@ using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -93,8 +94,48 @@ namespace ResourceShared.Utils
         public static string GetDeploymentAppName(int teamId, int challengeId,string challengeName)
         {
             var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var team = teamId == -1 ? $"team{teamId}" : "preview";
-            return $"{team}-{challengeId}-{challengeName}-{date}".ToLower().Replace(" ", "-");
+            var challName = ParseAlphaNumeric(challengeName);
+            teamId = teamId == -1 ? 0 : teamId;
+            return $"team-{teamId}-{challengeId}-{challName}-{date}".ToLower().Replace(" ", "-");
+        }
+
+        public static (int teamId, int challengeId) ParseDeploymentAppName(string appName)
+        {
+            var parts = appName.Split('-', StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length < 3 || !parts[0].StartsWith("team"))
+                throw new ArgumentException("Invalid app name format", nameof(appName));
+
+            if (!int.TryParse(parts[1], out int teamId))
+                throw new FormatException("Invalid teamId in app name");
+
+            if (!int.TryParse(parts[2], out int challengeId))
+                throw new FormatException("Invalid challengeId in app name");
+
+            teamId = teamId == 0 ? -1 : teamId;
+            return (teamId, challengeId);
+        }
+
+
+        public static string ParseAlphaNumeric(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+            string normalized = input.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder(input.Length);
+
+            foreach (char c in normalized)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    if (char.IsLetterOrDigit(c))
+                        sb.Append(char.ToLowerInvariant(c));
+                    else if (char.IsWhiteSpace(c))
+                        sb.Append('-');
+                }
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
         public static (object payload, string appName) BuildArgoPayload(Challenge challenge, int teamId, ChallengeImageDTO challengeImage, 
@@ -103,7 +144,9 @@ namespace ResourceShared.Utils
             var isTemp = true;
             if(challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
             {
-                isTemp = false;
+                //isTemp = false;
+
+                //NOTE: Sau này sẽ fix lại chỗ này để lấy từ tbl config
                 challenge.TimeLimit = 1;
             }
 

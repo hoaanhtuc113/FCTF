@@ -4,6 +4,7 @@
     {
         public required int ChallengeId { get; set; }
         public string PodName { get; set; } = string.Empty;
+        public string WorkFlowName { get; set; } = string.Empty;
         public int TeamId { get; set; }
         public int DeploymentPort { get; set; } 
         public string DeploymentDomainName { get; set; } = string.Empty;

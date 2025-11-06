@@ -254,7 +254,6 @@ namespace ContestantBE.Services
                 var parammeters = new ChallengeStartStopReqDTO
                 {
                     challengeId = challenge.Id,
-                    challengeName = "websecpro-chilp",
                     teamId = user.TeamId.Value,
                     userId = user.Id,
                     unixTime = unixTime.ToString()
@@ -262,7 +261,6 @@ namespace ContestantBE.Services
                 var data = new Dictionary<string, string>
                 {
                     { "challengeId", challenge.Id.ToString() },
-                    { "challengeName", "websecpro-chilp" },
                     { "teamId", user.TeamId.Value.ToString() },
                     { "userId", user.Id.ToString() },
                 };

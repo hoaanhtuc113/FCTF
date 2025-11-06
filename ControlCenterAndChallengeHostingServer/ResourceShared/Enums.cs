@@ -60,6 +60,19 @@ namespace ResourceShared
             public const string START = "start";
         }
 
+        public enum WorkflowPhase
+        {
+            Pending,
+            Running,
+            Succeeded,
+            Failed,
+            Error,
+            Terminating,
+            Terminated,
+            Skipped,
+            Unknown
+        }
+
         public static string GetDeploymentStatus(string status)
         {
             return status.ToLower() switch
