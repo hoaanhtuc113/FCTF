@@ -24,7 +24,7 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
-            if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || string.IsNullOrEmpty(challengeStartReq.teamName) || challengeStartReq.userId == null)
+            if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || challengeStartReq.teamId == 0 ||challengeStartReq.userId == null)
             {
                 return BadRequest(new ChallengeDeployResponeDTO
                 {
@@ -47,7 +47,7 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> StopChallenge([FromBody] ChallengeStartStopReqDTO challengeStopReq)
         {
-            if (challengeStopReq == null || challengeStopReq.challengeId <= 0 || string.IsNullOrEmpty(challengeStopReq.teamName))
+            if (challengeStopReq == null || challengeStopReq.challengeId <= 0 || challengeStopReq.teamId == 0)
             {
                 return BadRequest(new ChallengeDeployResponeDTO
                 {

@@ -91,7 +91,7 @@ def get_team_id_and_cache_key(user, challenge_id):
         cache_key = generate_cache_key(challenge_id, team_id)
     return team_id, cache_key
 
-def prepare_start_challenge_payload(challenge, user_id, team_id, team_name):
+def prepare_start_challenge_payload(challenge, user_id, team_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
         PRIVATE_KEY,
@@ -100,7 +100,6 @@ def prepare_start_challenge_payload(challenge, user_id, team_id, team_name):
             "challengeId": challenge.id,
             "challengeName": challenge.name.replace(" ", "_"),
             "teamId": team_id,
-            "teamName": team_name if team_id > 0 else "Preview",
             "userId": user_id,
         },
     )
@@ -108,7 +107,6 @@ def prepare_start_challenge_payload(challenge, user_id, team_id, team_name):
         "challengeId": challenge.id,
         "challengeName": challenge.name.replace(" ", "_"),
         "teamId": team_id,
-        "teamName": team_name if team_id > 0 else "Preview",
         "userId": user_id,
         "unixTime": unix_time, 
     }
@@ -214,13 +212,11 @@ def force_stop(cache_key, challenge_id, team_id):
         PRIVATE_KEY, unix_time, {
             "challengeId": challenge_id,
             "teamId": team_id,
-            "teamName": team_name,
         }
     )
     payload = {
         "challengeId": challenge_id,
         "teamId": team_id,
-        "teamName": team_name,
         "unixTime": unix_time,
     }
     headers = {"Secretkey": secret_key}
@@ -521,19 +517,19 @@ def get_workflow_status(workflow_name):
         print(f"Error getting workflow status: {e}")
         return None, None, None
 
-def start_challenge_status_checking(challenge_id, team_name):
+def start_challenge_status_checking(challenge_id, team_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
         PRIVATE_KEY,
         unix_time,
         {
             "challengeId": challenge_id,
-            "teamName": team_name,
+            "team_id": team_id,
         },
     )
     payload = {
         "challengeId": challenge_id,
-        "teamName": team_name,
+        "team_id": team_id,
         "unixTime": unix_time, 
     }
     headers = {"SecretKey": secret_key}
