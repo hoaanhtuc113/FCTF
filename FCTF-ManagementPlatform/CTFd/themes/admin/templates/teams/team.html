@@ -1,9 +1,198 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Clean Team Detail Page Styles - Same as User Detail */
+	.team-detail-page .jumbotron {
+		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+		border-bottom: 2px solid #e8e8e8;
+		margin-bottom: 0;
+		padding: 3rem 0;
+	}
+	
+	.team-detail-page .jumbotron h1,
+	.team-detail-page .jumbotron h2,
+	.team-detail-page .jumbotron h3 {
+		color: #2c3e50;
+	}
+	
+	.team-detail-page .jumbotron h1 {
+		font-weight: 700;
+		font-size: 2.2rem;
+		margin-bottom: 1rem;
+	}
+	
+	.team-detail-page .jumbotron h2 {
+		font-weight: 500;
+		font-size: 1.2rem;
+		margin: 0.75rem 0;
+	}
+	
+	.team-detail-page .jumbotron h3 {
+		font-weight: 500;
+		font-size: 1rem;
+	}
+	
+	.team-detail-page .jumbotron hr {
+		border-top: 2px solid #e8e8e8;
+		opacity: 0.3;
+	}
+	
+	.team-detail-page .btn-fa {
+		color: #495057;
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+	
+	.team-detail-page .btn-fa:hover {
+		color: #ff6b35;
+		transform: scale(1.15);
+	}
+	
+	.team-detail-page .badge {
+		padding: 0.4rem 0.75rem;
+		border-radius: 4px;
+		font-weight: 500;
+		font-size: 0.85rem;
+	}
+	
+	.team-detail-page .badge-primary {
+		background-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.team-detail-page .badge-success {
+		background-color: #28a745;
+		color: #ffffff;
+	}
+	
+	.team-detail-page .badge-danger {
+		background-color: #dc3545;
+		color: #ffffff;
+	}
+	
+	.nav-tabs {
+		border-bottom: 2px solid #e8e8e8;
+		background: #ffffff;
+		padding: 0.5rem 1rem 0 1rem;
+		border-radius: 8px 8px 0 0;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+	}
+	
+	.nav-tabs .nav-link {
+		color: #495057;
+		border: none;
+		border-bottom: 3px solid transparent;
+		padding: 0.75rem 1.5rem;
+		font-weight: 500;
+		transition: all 0.2s ease;
+	}
+	
+	.nav-tabs .nav-link:hover {
+		color: #ff6b35;
+		border-bottom-color: #ff6b35;
+		background-color: transparent !important;
+	}
+	
+	.nav-tabs .nav-link.active {
+		color: #ff6b35 !important;
+		background-color: transparent !important;
+		border-bottom-color: #ff6b35 !important;
+		font-weight: 600;
+	}
+	
+	.tab-content {
+		background: #ffffff;
+		padding: 2rem;
+		border-radius: 0 0 8px 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		border-top: none;
+	}
+	
+	.tab-content .table thead th {
+		background-color: #f8f9fa;
+		color: #2c3e50;
+		font-weight: 600;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 0.9rem 0.75rem;
+	}
+	
+	.tab-content .table tbody td {
+		padding: 0.85rem 0.75rem;
+		vertical-align: middle;
+		color: #495057;
+		border-bottom: 1px solid #f1f1f1;
+	}
+	
+	.tab-content .table tbody tr:hover {
+		background-color: #fff5f2;
+	}
+	
+	.tab-content .table tbody td a {
+		color: #2c3e50;
+		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+	
+	.tab-content .table tbody td a:hover {
+		color: #ff6b35;
+		text-decoration: none;
+	}
+	
+	.modal-header {
+		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1.5rem;
+	}
+	
+	.modal-header h2 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.5rem;
+		margin: 0;
+	}
+	
+	.modal-body {
+		padding: 2rem;
+	}
+	
+	.card {
+		border: 1px solid #e8e8e8;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		margin-bottom: 1.5rem;
+	}
+	
+	.card-header {
+		background-color: #f8f9fa;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 1.25rem;
+	}
+	
+	.card-header h5 {
+		color: #2c3e50;
+		font-weight: 600;
+		margin: 0;
+	}
+	
+	.btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+</style>
 {% endblock %}
 
 {% block content %}
+<div class="team-detail-page">
 <div id="team-info-edit-modal" class="modal fade">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -588,8 +777,8 @@
 		<div class="col-md-10 offset-md-1">
 			<div id="comment-box">
 			</div>
-		</div>
 	</div>
+</div>
 </div>
 
 
