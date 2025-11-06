@@ -256,7 +256,6 @@ namespace ContestantBE.Services
                     challengeId = challenge.Id,
                     challengeName = "websecpro-chilp",
                     teamId = user.TeamId.Value,
-                    teamName = user.Team.Name,
                     userId = user.Id,
                     unixTime = unixTime.ToString()
                 };
@@ -265,7 +264,6 @@ namespace ContestantBE.Services
                     { "challengeId", challenge.Id.ToString() },
                     { "challengeName", "websecpro-chilp" },
                     { "teamId", user.TeamId.Value.ToString() },
-                    { "teamName", user.Team.Name },
                     { "userId", user.Id.ToString() },
                 };
                 string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
@@ -398,13 +396,11 @@ namespace ContestantBE.Services
             {
                 { "challengeId", challengeId.ToString() },
                 { "teamId", user.TeamId.ToString()},
-                { "teamName" , user.Team.Name},
             };
             var parammeters = new ChallengeStartStopReqDTO
             {
                 challengeId = challengeId,
                 teamId = user.TeamId.Value,
-                teamName = user.Team.Name,
                 unixTime = unixTime.ToString()
             };
             var secretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);

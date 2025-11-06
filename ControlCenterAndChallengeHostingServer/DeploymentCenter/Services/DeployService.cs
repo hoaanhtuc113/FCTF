@@ -31,17 +31,17 @@ namespace DeploymentCenter.Services
         private readonly IK8sHealthService _k8SHealthService;
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
-        public DeployService(AppDbContext dbContext, RedisHelper redisHelper ,  IK8sHealthService k8SHealthService )
+        public DeployService(AppDbContext dbContext, RedisHelper redisHelper /*,  IK8sHealthService k8SHealthService*/ )
         {
             _dbContext=dbContext;
             _redisHelper=redisHelper;
             //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
-            _k8SHealthService = k8SHealthService;
+            //_k8SHealthService = k8SHealthService;
         }
 
         public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
         {
-            var startedKey = ChallengeHelper.GetArgoWName(startReq.challengeId.ToString(), startReq.teamName);
+            var startedKey = ChallengeHelper.GetArgoWName(startReq.challengeId, startReq.teamId);
             // Get cache: thông tin deployment, kiểm tra đã từng gửi vào argo chưa
             var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
 
@@ -54,9 +54,7 @@ namespace DeploymentCenter.Services
                         {
                             status = (int)HttpStatusCode.OK,
                             success = true,
-                            message = "Challenge is deploying. The domain bellow may not be immediately accessible.",
-                            challenge_url = deploymentCache.DeploymentDomainName,
-
+                            message = "Challenge is deploying.",
                         };
                     case DeploymentStatus.RUNING:
 
@@ -70,17 +68,22 @@ namespace DeploymentCenter.Services
                             {
                                 status = (int)HttpStatusCode.OK,
                                 success = true,
-                                message = "Challenge is deploying. The domain bellow may not be immediately accessible.",
-                                challenge_url = deploymentCache.DeploymentDomainName,
+                                message = "Challenge is deploying.",
                             };
                         }
 
+                        int timelimit = 0;
+                        if (deploymentCache.EndTime.HasValue)
+                        {
+                            timelimit = (int)(deploymentCache.EndTime.Value - DateTime.Now).TotalMinutes;
+                        }
                         return new ChallengeDeployResponeDTO
                         {
                             status = (int)HttpStatusCode.OK,
                             success = true,
                             message = "Challenge is already deployed.",
                             challenge_url = deploymentCache.DeploymentDomainName,
+                            time_limit = timelimit,
                         };
                     default:
                         await Console.Out.WriteLineAsync($"Unknown deployment status: {deploymentCache.Status}");
@@ -105,7 +108,7 @@ namespace DeploymentCenter.Services
 
                 var (payload, appName) = ChallengeHelper.BuildArgoPayload(
                         challenge,
-                        startReq.teamName,
+                        startReq.teamId,
                         imageObj,
                         DeploymentCenterConfigHelper.CPU_LIMIT,
                         DeploymentCenterConfigHelper.CPU_REQUEST,
@@ -114,9 +117,6 @@ namespace DeploymentCenter.Services
                         DeploymentCenterConfigHelper.POD_START_TIMEOUT_MINUTES);
 
                 var api = DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL + "/submit";
-
-                await Console.Out.WriteLineAsync($"Payload to Argo Workflows API: {JsonSerializer.Serialize(payload)}");
-                await Console.Out.WriteLineAsync($"Argo Workflows API: {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL}");
 
                 MultiServiceConnector multiServiceConnector = new MultiServiceConnector(api);
                 var response = await multiServiceConnector.ExecuteRequest(api, Method.Post, payload, headers);
@@ -135,7 +135,6 @@ namespace DeploymentCenter.Services
                     ChallengeId = startReq.challengeId,
                     TeamId = startReq.teamId,
                     PodName = appName,
-                    DeploymentDomainName = domainName,
                 });
 
                 var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
@@ -146,7 +145,6 @@ namespace DeploymentCenter.Services
                     challenge_id = startReq.challengeId,
                     user_id = startReq.userId.Value,
                     status = DeploymentStatus.PROCESS,
-                    challenge_url = domainName,
                     time_finished = -1
                 };
                 // khi nào thực sự lên thì cập nhật lại status và time_finished
@@ -162,8 +160,7 @@ namespace DeploymentCenter.Services
                 {
                     status = (int)HttpStatusCode.OK,
                     success = true,
-                    message = "Send to request to deploy successfully. The domain bellow may not be immediately accessible.",
-                    challenge_url = domainName
+                    message = "Send to request to deploy successfully. Please wait a moment.",
                 };
             }
             catch (HttpRequestException ex)
@@ -190,11 +187,11 @@ namespace DeploymentCenter.Services
 
         public async Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO stopReq)
         {
-            await Console.Out.WriteLineAsync($"Stop challenge ID: {stopReq.challengeId}, Team ID: {stopReq.teamId}, Team Name: {stopReq.teamName}");
+            await Console.Out.WriteLineAsync($"Stop challenge ID: {stopReq.challengeId}, Team ID: {stopReq.teamId}");
             try
             {
                 var deployInfo = ChallengeHelper.GetCacheKey(stopReq.challengeId, stopReq.teamId);
-                var argoWNameKey = ChallengeHelper.GetArgoWName(stopReq.challengeId.ToString(), stopReq.teamName);
+                var argoWNameKey = ChallengeHelper.GetArgoWName(stopReq.challengeId, stopReq.teamId);
                 var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(deployInfo);
 
                 if (checkCache == null || argoWNameKey == null) 
@@ -208,8 +205,8 @@ namespace DeploymentCenter.Services
                     };
                 }
                 //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
-                var isDelete = await _k8SHealthService.DeleteNamespaceAsync(checkCache.PodName);
-                //var isDelete = true;
+                //var isDelete = await _k8SHealthService.DeleteNamespaceAsync(checkCache.PodName);
+                var isDelete = true;
                 if (isDelete)
                 {
                     await _redisHelper.RemoveCacheAsync(deployInfo);
@@ -246,17 +243,16 @@ namespace DeploymentCenter.Services
         {
 
             //K8S-NOTE: this state for runing in local with out k8s cubeconfig 
-            // return new ChallengeDeployResponeDTO
-            // {
-            //     success = true,
-            //     message = "Challenge status checking started",
-            //     status = (int)HttpStatusCode.OK,
-            //     challenge_url = "http://demo-domain-for-testing.com"
-
-            // };
+            return new ChallengeDeployResponeDTO
+            {
+                success = true,
+                message = "Challenge status checking started",
+                status = (int)HttpStatusCode.OK,
+                challenge_url = "http://demo-domain-for-testing.com"
+            };
             try
             {
-                var startedKey = ChallengeHelper.GetArgoWName(statusReq.challengeId.ToString(), statusReq.teamName);
+                var startedKey = ChallengeHelper.GetArgoWName(statusReq.challengeId, statusReq.teamId);
 
                 var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
 
@@ -278,30 +274,43 @@ namespace DeploymentCenter.Services
 
                 if (podStatus)
                 {
+                    var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == statusReq.challengeId);
+                    var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
+                    var cacheExpired = challenge.TimeLimit != null && challenge.TimeLimit > 0 ? TimeSpan.FromSeconds(challenge.TimeLimit.Value * 60) : (TimeSpan?)null;
+
+                    //Gọi k8s lấy port và domain name nếu cần thiết
+                    var challengeDomain = $"http://{podName}.challenge-zg9uj3rfagfja19tzq.fctf.cloud";
+
+
                     // Cập nhật lại DeploymentInfo status =  RUNING
                     deploymentCache.Status = DeploymentStatus.RUNING;
-                    await _redisHelper.SetCacheAsync(startedKey, deploymentCache);
+                    deploymentCache.DeploymentDomainName = challengeDomain;
+                    deploymentCache.EndTime = timeFinished;
+                    await _redisHelper.SetCacheAsync(startedKey, deploymentCache, cacheExpired);
 
                     // Thực sự lên cập nhật lại status và time_finished
                     var chalDeployKey = ChallengeHelper.GetCacheKey(deploymentCache.ChallengeId, deploymentCache.TeamId);
+
                     var chalDeploy = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(chalDeployKey);
                     if (chalDeploy != null)
                     {
+                        
                         chalDeploy.status = DeploymentStatus.RUNING;
-                        var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == statusReq.challengeId);
-                        var cacheExpired = challenge.TimeLimit != null && challenge.TimeLimit > 0 ? TimeSpan.FromSeconds(challenge.TimeLimit.Value * 60) : (TimeSpan?)null;
+                        chalDeploy.challenge_url = challengeDomain;
+                        chalDeploy.time_finished = new DateTimeOffset(timeFinished).ToUnixTimeSeconds();
 
                         await _redisHelper.SetCacheAsync(chalDeployKey, chalDeploy, cacheExpired);
                     }
+
                     return new ChallengeDeployResponeDTO
                     {
                         success = true,
                         message = "Challenge is running.",
                         status =  (int)HttpStatusCode.OK,
-                        challenge_url = deploymentCache.DeploymentDomainName
+                        challenge_url = challengeDomain,
+                        time_limit = challenge.TimeLimit ?? -1
                     };
                 }
-
                 return new ChallengeDeployResponeDTO
                 {
                     success = false,
@@ -325,11 +334,11 @@ namespace DeploymentCenter.Services
         {
             if (message.Type == Enums.ArgoMessageType.UP)
             {
-                return await HandleUpChallengeMessage(message);
+                return await HandleMessageUpChallenge(message);
             }
             else if (message.Type == Enums.ArgoMessageType.START)
             {
-                return await HandleStartChallengeMessage(message);
+                return await HandleMessageStartChallenge(message);
             }
             else
             {
@@ -343,7 +352,7 @@ namespace DeploymentCenter.Services
             }
         }
 
-        private async Task<BaseResponseDTO> HandleUpChallengeMessage(WorkflowStatusDTO message)
+        private async Task<BaseResponseDTO> HandleMessageUpChallenge(WorkflowStatusDTO message)
         {
             try
             {
@@ -399,7 +408,7 @@ namespace DeploymentCenter.Services
             }
         }
 
-        private async Task<BaseResponseDTO> HandleStartChallengeMessage(WorkflowStatusDTO message)
+        private async Task<BaseResponseDTO> HandleMessageStartChallenge(WorkflowStatusDTO message)
         {
 
             if (string.IsNullOrEmpty(message.WorkFlowName))
