@@ -9,7 +9,7 @@ namespace ResourceShared.DTOs.Challenge
     public class ChallengCheckStatusReqDTO
     {
         public int challengeId { get; set; }
-        public string teamName { get; set; } = string.Empty;
+        public int teamId { get; set; }
         public string? unixTime { get; set; }
     }
 }

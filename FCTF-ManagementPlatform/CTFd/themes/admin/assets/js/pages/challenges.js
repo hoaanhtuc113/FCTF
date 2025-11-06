@@ -114,7 +114,7 @@ function previewChallenge(challengeId) {
 
     let challengeUrl = data.challenge_url || null;
 
-    if (!challengeUrl && data.Challenge_url) {
+    if (!challengeUrl && data.challenge_url) {
       try {
         const cacheData = typeof data.Challenge_url === 'string'
           ? JSON.parse(data.Challenge_url)
@@ -138,8 +138,7 @@ function previewChallenge(challengeId) {
       
       const body = `<div>
         <p><strong>${data.message}</strong></p>
-        <p>Challenge URL:<br>
-        <a href="${challengeUrl}" target="_blank">${challengeUrl}</a></p>
+        <p>Challenge URL: ${data.challenge_url}"<br>
       </div>`;
 
       ezAlert({
@@ -217,6 +216,19 @@ function CheckingStatus(challengeId) {
         title: `Preview Challenge ${challengeId}`,
         body: data.message,
       });
+
+      if (data.challenge_url) {
+        const body = `<div>
+                      <p><strong>${data.message}</strong></p>
+                      <p>Challenge URL: ${data.challenge_url}"<br>
+                    </div>`;
+
+        ezAlert({
+          title: `Preview Challenge ${challengeId} Success`,
+          body: body,
+          button: "OK"
+        });
+      }
 
       return true;
     })
