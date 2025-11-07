@@ -43,6 +43,8 @@ public partial class Challenge
 
     public int UserId { get; set; }
 
+    public int? Cooldown { get; set; }
+
     public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 
     public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();

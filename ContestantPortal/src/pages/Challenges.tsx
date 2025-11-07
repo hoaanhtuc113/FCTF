@@ -1692,7 +1692,6 @@ function ChallengeDetailPanel({
       const formData = new FormData();
       formData.append('challengeId', challenge.id.toString());
       formData.append('submission', answer);
-      formData.append('generatedToken', localStorage.getItem('auth_token') || '');
 
       // const MANAGEMENT_API_URL = import.meta.env.VITE_MANAGEMENT_API_URL || import.meta.env.VITE_API_URL;
       // const token = localStorage.getItem('auth_token');
@@ -1708,7 +1707,7 @@ function ChallengeDetailPanel({
       const response = await fetchWithAuth(API_ENDPOINTS.FLAGS.SUBMIT, {
         method: 'POST',
         body: formData
-      }, MANAGEMENT_API_URL);
+      });
 
       const data = await response.json();
       
