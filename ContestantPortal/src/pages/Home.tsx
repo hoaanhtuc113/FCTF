@@ -32,25 +32,25 @@ export function Home() {
   const isDark = theme === 'dark';
   const colors = {
     // Terminal frame
-    terminalBg: isDark ? '#000' : '#0a0a0a',
-    terminalBorder: isDark ? '#3f3f46' : '#27272a', // Tăng độ sáng của border trong dark mode
-    titleBarBg: isDark ? '#18181b' : '#18181b',
+    terminalBg: isDark ? '#000' : '#ffffff',
+    terminalBorder: isDark ? '#3f3f46' : '#e5e7eb',
+    titleBarBg: isDark ? '#18181b' : '#f3f4f6',
     
     // Text colors
     primary: '#22d3ee', // cyan stays same
-    textPrimary: isDark ? '#a1a1aa' : '#d4d4d8',
-    textSecondary: isDark ? '#71717a' : '#a1a1aa',
-    textMuted: isDark ? '#52525b' : '#71717a',
+    textPrimary: isDark ? '#a1a1aa' : '#1f2937',
+    textSecondary: isDark ? '#71717a' : '#4b5563',
+    textMuted: isDark ? '#52525b' : '#6b7280',
     
     // Borders and backgrounds
-    borderColor: isDark ? '#27272a' : '#3f3f46',
-    borderLight: isDark ? '#3f3f46' : '#52525b',
-    bgDark: isDark ? '#09090b' : '#18181b',
-    bgLight: isDark ? '#000' : '#0a0a0a',
+    borderColor: isDark ? '#27272a' : '#e5e7eb',
+    borderLight: isDark ? '#3f3f46' : '#d1d5db',
+    bgDark: isDark ? '#09090b' : '#f9fafb',
+    bgLight: isDark ? '#000' : '#ffffff',
     
     // Decorations
-    decorationBg: isDark ? '#ffffff' : '#3f3f46', // Tăng độ sáng cho ASCII art
-    gridOpacity: isDark ? 0.08 : 0.05, // Tăng độ sáng của lưới trong dark mode
+    decorationBg: isDark ? '#ffffff' : '#9ca3af',
+    gridOpacity: isDark ? 0.08 : 0.05,
   };
 
   // Terminal typing effect
@@ -263,7 +263,7 @@ export function Home() {
         fontSize: '10px',
         lineHeight: 1,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.6 : 0.4, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.6 : 0.5,
         userSelect: 'none',
         display: { xs: 'none', md: 'block' }
       }}>
@@ -286,7 +286,7 @@ export function Home() {
         fontSize: '9px',
         lineHeight: 1.2,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.5 : 0.3, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.5 : 0.4,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -306,7 +306,7 @@ export function Home() {
         fontSize: '10px',
         lineHeight: 1.1,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.55 : 0.35, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.55 : 0.45,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -325,7 +325,7 @@ export function Home() {
         fontSize: '8px',
         lineHeight: 1.3,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.5 : 0.3, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.5 : 0.4,
         userSelect: 'none',
         display: { xs: 'none', md: 'block' }
       }}>
@@ -341,10 +341,10 @@ export function Home() {
         position: 'absolute',
         top: '5%',
         left: '3%',
-        color: isDark ? colors.borderLight : colors.borderColor, // Sáng hơn trong dark mode
+        color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -358,7 +358,7 @@ export function Home() {
         color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5,
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -372,7 +372,7 @@ export function Home() {
         color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5,
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -386,7 +386,7 @@ export function Home() {
         color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5,
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
