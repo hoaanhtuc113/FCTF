@@ -1689,26 +1689,16 @@ function ChallengeDetailPanel({
 
     setIsSubmittingFlag(true);
     try {
-      const formData = new FormData();
-      formData.append('challengeId', challenge.id.toString());
-      formData.append('submission', answer);
-
-      // const MANAGEMENT_API_URL = import.meta.env.VITE_MANAGEMENT_API_URL || import.meta.env.VITE_API_URL;
-      // const token = localStorage.getItem('auth_token');
+      // Send as JSON instead of FormData
+      const requestBody = {
+        challengeId: challenge.id,
+        submission: answer
+      };
       
-      // const response = await fetch(`${MANAGEMENT_API_URL}${API_ENDPOINTS.FLAGS.SUBMIT}`, {
-      //   method: 'POST',
-      //   headers: {
-      //     ...(token && { Authorization: `Bearer ${token}` }),
-      //   },
-      //   body: formData,
-      // });
-
       const response = await fetchWithAuth(API_ENDPOINTS.FLAGS.SUBMIT, {
         method: 'POST',
-        body: formData
+        body: JSON.stringify(requestBody)
       });
-
       const data = await response.json();
       
       if (data?.data?.status === 'correct') {
