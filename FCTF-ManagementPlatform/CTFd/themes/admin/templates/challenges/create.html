@@ -77,6 +77,16 @@
 		<input type="number" class="form-control" name="time_limit" min="-1" value="-1" placeholder="Enter value" required>
 	</div>
 	{% endblock %}
+	<div class="form-group">
+		<label>
+			Max Attempts<br>
+			<small class="form-text text-muted">Maximum amount of attempts users receive. Leave at 0 for
+				unlimited.</small>
+		</label>
+
+		<input type="number" class="form-control chal-attempts" name="max_attempts"
+			value="0" min="0" step="1" required>
+	</div>
 	{% block cooldown %}
 	<div class="form-group">
         <label for="submission_cooldown">

@@ -36,7 +36,7 @@ export const API_ENDPOINTS = {
     POST: '/ActionLogs/save-logs',
   },
   FLAGS: {
-    SUBMIT: '/v1/challenges/attempt',
+    SUBMIT: '/challenge/attempt',
   },
   SCOREBOARD: {
     TOP_STANDINGS: '/scoreboard/top/200',
