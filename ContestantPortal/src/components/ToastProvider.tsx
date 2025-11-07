@@ -24,12 +24,12 @@ const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => ({
     boxShadow: 'none',
   },
   '&.notistack-MuiContent-success': {
-    borderColor: '#22d3ee',
-    color: '#22d3ee',
+    borderColor: '#fb923c',
+    color: '#fb923c',
     '&::before': {
       content: '"[✓]"',
       marginRight: '8px',
-      color: '#22d3ee',
+      color: '#fb923c',
     },
   },
   '&.notistack-MuiContent-error': {
