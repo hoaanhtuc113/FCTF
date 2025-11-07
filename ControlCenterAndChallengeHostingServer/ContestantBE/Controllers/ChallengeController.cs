@@ -331,7 +331,8 @@ namespace ContestantBE.Controllers
            if (solve == null)
            {
                var max_tries = challenge.MaxAttempts;
-               if(max_tries.HasValue && max_tries >= 0 && fails >= max_tries)
+               // max_attempts = 0 means unlimited, only check if > 0
+               if(max_tries.HasValue && max_tries > 0 && fails >= max_tries)
                {
                    return BadRequest(new
                    {
