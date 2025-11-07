@@ -61,8 +61,8 @@ export function Tickets() {
 
   const showAlert = (message: string, icon: 'success' | 'error' | 'info') => {
     const prefix = icon === 'success' ? '[+]' : icon === 'error' ? '[!]' : '[i]';
-    const color = icon === 'success' ? 'text-green-400' : icon === 'error' ? 'text-red-400' : 'text-cyan-400';
-    const borderColor = icon === 'success' ? 'border-green-500/30' : icon === 'error' ? 'border-red-500/30' : 'border-cyan-500/30';
+    const color = icon === 'success' ? 'text-green-400' : icon === 'error' ? 'text-red-400' : 'text-orange-400';
+    const borderColor = icon === 'success' ? 'border-green-500/30' : icon === 'error' ? 'border-red-500/30' : 'border-orange-500/30';
     
     Swal.fire({
       html: `
@@ -125,7 +125,7 @@ export function Tickets() {
       case 'open':
         return <HourglassEmpty className="text-yellow-500" fontSize="small" />;
       case 'in_progress':
-        return <HourglassEmpty className="text-cyan-500" fontSize="small" />;
+        return <HourglassEmpty className="text-orange-500" fontSize="small" />;
       case 'closed':
         return <CheckCircle className="text-green-500" fontSize="small" />;
       default:
@@ -145,7 +145,7 @@ export function Tickets() {
   if (loading) {
     return (
       <Box className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="text-cyan-500 text-6xl mb-4 font-mono">[...]</div>
+        <div className="text-orange-500 text-6xl mb-4 font-mono">[...]</div>
         <Typography className={`font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
           Loading tickets...
         </Typography>
@@ -158,7 +158,7 @@ export function Tickets() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className={`text-2xl font-bold font-mono ${
-          theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+          theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
         }`}>
           [SUPPORT_TICKETS]
         </h1>
@@ -166,8 +166,8 @@ export function Tickets() {
           onClick={() => setShowModal(true)}
           className={`flex items-center gap-2 rounded-lg px-4 py-2 font-bold font-mono transition-all border ${
             theme === 'dark'
-              ? 'bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500'
-              : 'bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500'
+              ? 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
+              : 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
           }`}
         >
           <Add fontSize="small" />
@@ -191,8 +191,8 @@ export function Tickets() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full rounded-lg border pl-10 pr-4 py-2 font-mono focus:outline-none focus:ring-2 transition-colors ${
                 theme === 'dark'
-                  ? 'bg-gray-800 border-gray-700 text-white focus:ring-cyan-500'
-                  : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-cyan-500'
+                  ? 'bg-gray-800 border-gray-700 text-white focus:ring-orange-500'
+                  : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-orange-500'
               }`}
             />
           </div>
@@ -207,8 +207,8 @@ export function Tickets() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className={`rounded-lg border py-2 px-4 font-mono focus:outline-none focus:ring-2 transition-colors ${
                 theme === 'dark'
-                  ? 'bg-gray-800 border-gray-700 text-white focus:ring-cyan-500'
-                  : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-cyan-500'
+                  ? 'bg-gray-800 border-gray-700 text-white focus:ring-orange-500'
+                  : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-orange-500'
               }`}
             >
               <option value="all">All</option>
@@ -228,32 +228,32 @@ export function Tickets() {
           <thead className={theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}>
             <tr>
               <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
               }`}>
                 ID
               </th>
               <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
               }`}>
                 TITLE
               </th>
               <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
               }`}>
                 TYPE
               </th>
               <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
               }`}>
                 STATUS
               </th>
               <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
               }`}>
                 DATE
               </th>
               <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
               }`}>
                 ACTION
               </th>
@@ -319,8 +319,8 @@ export function Tickets() {
                       }}
                       className={`px-3 py-1 rounded border font-bold font-mono text-xs transition ${
                         theme === 'dark'
-                          ? 'border-cyan-700 text-cyan-400 hover:bg-cyan-900/30'
-                          : 'border-cyan-300 text-cyan-600 hover:bg-cyan-50'
+                          ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
+                          : 'border-orange-300 text-orange-600 hover:bg-orange-50'
                       }`}
                     >
                       {'[>]'} VIEW
@@ -345,7 +345,7 @@ export function Tickets() {
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className={`text-xl font-bold font-mono ${
-                theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
               }`}>
                 [CREATE_TICKET]
               </h2>
@@ -375,7 +375,7 @@ export function Tickets() {
                   type="text"
                   id="title"
                   name="title"
-                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all ${
+                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${
                     theme === 'dark'
                       ? 'bg-gray-800 text-white border-gray-700'
                       : 'bg-white text-gray-900 border-gray-300'
@@ -396,7 +396,7 @@ export function Tickets() {
                 <select
                   id="type"
                   name="type"
-                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all ${
+                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${
                     theme === 'dark'
                       ? 'bg-gray-800 text-white border-gray-700'
                       : 'bg-white text-gray-900 border-gray-300'
@@ -424,7 +424,7 @@ export function Tickets() {
                 <textarea
                   id="description"
                   name="description"
-                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all ${
+                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${
                     theme === 'dark'
                       ? 'bg-gray-800 text-white border-gray-700'
                       : 'bg-white text-gray-900 border-gray-300'
@@ -437,7 +437,7 @@ export function Tickets() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-lg bg-cyan-600 hover:bg-cyan-700 px-4 py-3 text-white font-bold font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full rounded-lg bg-orange-600 hover:bg-orange-700 px-4 py-3 text-white font-bold font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>
