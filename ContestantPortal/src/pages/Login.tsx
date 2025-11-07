@@ -20,7 +20,7 @@ export function Login() {
     bg: isDark ? '#000' : '#0a0a0a',
     border: isDark ? '#3f3f46' : '#52525b',
     borderLight: isDark ? '#52525b' : '#71717a',
-    text: isDark ? '#22d3ee' : '#22d3ee',
+    text: isDark ? '#fb923c' : '#f97316',
     textSecondary: isDark ? '#a1a1aa' : '#d4d4d8',
     textMuted: isDark ? '#71717a' : '#a1a1aa',
     placeholder: isDark ? '#52525b' : '#71717a',
@@ -188,12 +188,12 @@ export function Login() {
                 fontSize: '13px',
                 textTransform: 'none',
                 color: isDark ? '#000' : '#fff',
-                bgcolor: '#22d3ee',
-                border: '1px solid #22d3ee',
+                bgcolor: '#fb923c',
+                border: '1px solid #fb923c',
                 py: 1.2,
                 '&:hover': {
-                  bgcolor: '#06b6d4',
-                  borderColor: '#06b6d4',
+                  bgcolor: '#f97316',
+                  borderColor: '#f97316',
                 },
                 '&:disabled': {
                   bgcolor: isDark ? '#18181b' : '#e5e5e5',
@@ -227,7 +227,7 @@ export function Login() {
       <Box>FPT_University © 2025</Box>
       <Box sx={{ mt: 1 }}>
         <span style={{ color: colors.textMuted }}>need_access?</span>{' '}
-        <span style={{ color: '#22d3ee', cursor: 'pointer' }}>contact_admin</span>
+        <span style={{ color: '#fb923c', cursor: 'pointer' }}>contact_admin</span>
       </Box>
     </Box>
   </Box>
