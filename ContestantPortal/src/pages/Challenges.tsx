@@ -7,7 +7,7 @@ import {
   LockOpen, 
   Lock, 
   Timer, 
-  CheckCircle,
+  Check,
   Terminal,
   Security,
   PictureAsPdf,
@@ -25,10 +25,17 @@ import {
   ChallengeListSkeleton, 
   ChallengeDetailSkeleton 
 } from '../components/Skeleton';
+import { authService } from '../services/authService';
 
 // Setup PDF worker
 // Setup PDF worker - Use jsDelivr CDN (supports CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+// Helper function to get team ID from localStorage
+const getTeamId = (): number | null => {
+  const team = authService.getTeam();
+  return team?.id || null;
+};
 
 interface Category {
   topic_name: string;
@@ -773,7 +780,7 @@ function ChallengeListItem({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
               {challenge.solve_by_myteam ? (
-                <CheckCircle className="text-green-500 flex-shrink-0" sx={{ fontSize: 18 }} />
+                <Check className="text-green-500 flex-shrink-0" sx={{ fontSize: 18 }} />
               ) : isLocked ? (
                 <Lock className="text-yellow-500 flex-shrink-0" sx={{ fontSize: 18 }} />
               ) : isContestActive ? (
@@ -890,6 +897,7 @@ function ChallengeDetailPanel({
   const [isStopping, setIsStopping] = useState(false);
   const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
+  const [isPodHealthy, setIsPodHealthy] = useState(false);
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -1080,7 +1088,7 @@ function ChallengeDetailPanel({
         
         // Only set time remaining if we have URL (challenge is deployed)
         if (data.challenge_url && data.time_remaining) {
-          setTimeRemaining(data.time_remaining * 60); // Convert minutes to seconds
+          setTimeRemaining(data.time_remaining); // Convert minutes to seconds
         } else {
           setTimeRemaining(null); // Show --:-- when no URL
         }
@@ -1095,6 +1103,7 @@ function ChallengeDetailPanel({
             // Pod is healthy - clean up and stop health checking
             localStorage.removeItem(deploymentKey);
             setIsHealthChecking(false);
+            setIsPodHealthy(true);
             setIsDeploymentInProgress(false);
             setIsStarting(false);
           } else if (savedDeployment) {
@@ -1109,6 +1118,7 @@ function ChallengeDetailPanel({
           } else {
             // No deployment state, assume it's an old challenge that was started before
             setIsHealthChecking(false);
+            setIsPodHealthy(true);
             setIsDeploymentInProgress(false);
             setIsStarting(false);
           }
@@ -1119,6 +1129,7 @@ function ChallengeDetailPanel({
           setIsDeploymentInProgress(false);
           setIsStarting(false);
           setIsHealthChecking(false);
+          setIsPodHealthy(false);
         }
       }
     } catch (error) {
@@ -1292,6 +1303,7 @@ function ChallengeDetailPanel({
           method: 'POST',
           body: JSON.stringify({
             challengeId: challenge.id,
+            teamId: getTeamId(),
           }),
         }, API_DEPLOYMENT_URL);
         const data = await response.json();
@@ -1302,11 +1314,12 @@ function ChallengeDetailPanel({
           setUrl(data.challenge_url);
           
           // Set time remaining when healthy (convert minutes to seconds)
-          if (data.time_remaining) {
-            setTimeRemaining(data.time_remaining * 60);
+          if (data.time_remaining || data.time_limit) {
+            setTimeRemaining(data.time_remaining || data.time_limit * 60);
           }
           
           setIsHealthChecking(false);
+          setIsPodHealthy(true);
           setIsDeploymentInProgress(false);
           healthCheckRunningRef.current = false;
           
@@ -1352,6 +1365,7 @@ function ChallengeDetailPanel({
         if (attempts >= maxAttempts) {
           console.log('[Health Check] Max attempts reached. Stopping.');
           setIsHealthChecking(false);
+          setIsPodHealthy(false);
           setIsDeploymentInProgress(false);
           setIsStarting(false);
           healthCheckRunningRef.current = false;
@@ -1403,6 +1417,7 @@ function ChallengeDetailPanel({
         
         // Max attempts reached even with errors
         setIsHealthChecking(false);
+        setIsPodHealthy(false);
         setIsDeploymentInProgress(false);
         setIsStarting(false);
         healthCheckRunningRef.current = false;
@@ -1458,6 +1473,7 @@ function ChallengeDetailPanel({
         setIsChallengeStarted(false);
         setUrl(null);
         setTimeRemaining(null);
+        setIsPodHealthy(false);
         
         // Clear timer
         if (timerRef.current) {
@@ -2371,7 +2387,7 @@ const getFileName = (filePath : string) => {
                   }`}>
                     [URL]
                   </span>
-                  {isHealthChecking && (
+                  {isHealthChecking ? (
                     <div className="flex items-center gap-2">
                       <CircularProgress 
                         size={12} 
@@ -2385,7 +2401,20 @@ const getFileName = (filePath : string) => {
                         Health checking...
                       </span>
                     </div>
-                  )}
+                  ) : isPodHealthy ? (
+                    <div className="flex items-center gap-2">
+                      <Check 
+                        className={`text-sm ${
+                          theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                        }`}
+                      />
+                      <span className={`text-xs font-mono ${
+                        theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                      }`}>
+                        Running
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 <p className="font-mono text-xs">
                   <span className={`font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{'>>'} </span>
@@ -2706,19 +2735,30 @@ const getFileName = (filePath : string) => {
                     onClick={handleStopChallenge}
                     disabled={isStopping || isHealthChecking}
                     className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                      theme === 'dark'
+                      isHealthChecking
+                        ? theme === 'dark'
+                          ? 'bg-yellow-600 text-white border border-yellow-500'
+                          : 'bg-yellow-500 text-white border border-yellow-400'
+                        : theme === 'dark'
                         ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
                         : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {isStopping && (
+                    {isStopping ? (
                       <CircularProgress 
                         size={14} 
                         sx={{ 
                           color: '#fff',
                         }} 
                       />  
-                    )}
+                    ) : isHealthChecking ? (
+                      <CircularProgress 
+                        size={14} 
+                        sx={{ 
+                          color: '#fff',
+                        }} 
+                      />  
+                    ) : null}
                     {isStopping ? '[...] Stopping' : isHealthChecking ? '[~] Health Checking...' : '[-] Stop Challenge'}
                   </button>
                 )}
