@@ -94,7 +94,7 @@ function showDeploymentPopup(data: DeploymentNotification, theme: string) {
           <div class="text-green-400 mb-2">[+] Challenge Deploying</div>
           <div class="text-gray-400">> ${data.challengeName}</div>
           <div class="text-gray-400">> ${data.message}</div>
-          <div class="text-cyan-400 mt-2">> ${data.url}</div>
+          <div class="text-orange-400 mt-2">> ${data.url}</div>
         </div>
       `,
       icon: 'success',

@@ -154,7 +154,7 @@ export function PublicScoreboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-cyan-400 font-mono flex items-center justify-center">
+      <div className="min-h-screen bg-black text-orange-400 font-mono flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="text-2xl animate-pulse">[LOADING...]</div>
           <div className="text-sm opacity-60">{'>'} Initializing scoreboard system...</div>
@@ -164,27 +164,27 @@ export function PublicScoreboard() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-cyan-400 font-mono overflow-hidden relative">
+    <div className="min-h-screen bg-black text-orange-400 font-mono overflow-hidden relative">
       {/* Simple border lines - minimalist */}
-      <div className="fixed inset-0 pointer-events-none border-2 border-cyan-400/30" />
+      <div className="fixed inset-0 pointer-events-none border-2 border-orange-400/30" />
 
       {/* Main content */}
       <div className="relative z-10 container mx-auto px-4 py-4 max-w-[85vw]">
         {/* Terminal prompt - Hackathon style */}
-        <div className="mb-6 flex items-center gap-3 text-cyan-400">
+        <div className="mb-6 flex items-center gap-3 text-orange-400">
           <span className="text-sm">{'>'}</span>
           <span className="text-sm font-mono">fctf-{new Date().getFullYear()}</span>
-          <span className="text-cyan-600">@</span>
+          <span className="text-orange-600">@</span>
           <span className="text-sm font-mono">public-scoreboard</span>
-          <span className="text-cyan-600 ml-2 animate-pulse">█</span>
+          <span className="text-orange-600 ml-2 animate-pulse">█</span>
         </div>
 
         {/* Contest Title - Minimal */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-3 tracking-widest text-cyan-400">
-            {contestName.split(' ')[0]} <span className="text-cyan-600">/</span> {contestName.split(' ')[1] || new Date().getFullYear()}
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-3 tracking-widest text-orange-400">
+            {contestName.split(' ')[0]} <span className="text-orange-600">/</span> {contestName.split(' ')[1] || new Date().getFullYear()}
           </h1>
-          <div className="flex items-center justify-center gap-3 text-cyan-600">
+          <div className="flex items-center justify-center gap-3 text-orange-600">
             <span>━━━</span>
             <span className="text-sm tracking-wider">CAPTURE THE FLAG</span>
             <span>━━━</span>
@@ -194,7 +194,7 @@ export function PublicScoreboard() {
         {/* Countdown Timer - Minimal */}
         <div className={`mb-6 border-l-4 pl-4 ${
             timeRemaining.isActive
-              ? "border-cyan-400"
+              ? "border-orange-400"
               : timeRemaining.isEnded
               ? "border-red-500"
               : "border-yellow-500"
@@ -203,7 +203,7 @@ export function PublicScoreboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className={`text-sm font-bold ${
-                timeRemaining.isActive ? "text-cyan-400" :
+                timeRemaining.isActive ? "text-orange-400" :
                 timeRemaining.isEnded ? "text-red-500" :
                 "text-yellow-500"
               }`}>
@@ -220,14 +220,14 @@ export function PublicScoreboard() {
                   { label: "SEC", value: timeRemaining.seconds },
                 ].map((item, idx) => (
                   <div key={item.label} className="flex items-center gap-2">
-                    {idx > 0 && <span className="text-cyan-600">|</span>}
+                    {idx > 0 && <span className="text-orange-600">|</span>}
                     <div className="text-center">
                       <div className={`text-3xl md:text-4xl font-bold tabular-nums ${
-                        timeRemaining.isActive ? "text-cyan-400" : "text-yellow-400"
+                        timeRemaining.isActive ? "text-orange-400" : "text-yellow-400"
                       }`}>
                         {String(item.value).padStart(2, "0")}
                       </div>
-                      <div className="text-xs text-cyan-600 mt-1">
+                      <div className="text-xs text-orange-600 mt-1">
                         {item.label}
                       </div>
                     </div>
@@ -249,15 +249,15 @@ export function PublicScoreboard() {
           {/* Left Column: Leaderboard + Stats - Takes 2 columns (40%) */}
           <div className="space-y-6 lg:col-span-2 lg:order-1">
             {/* Scoreboard Table */}
-            <div className="border border-cyan-400 bg-black/40">
+            <div className="border border-orange-400 bg-black/40">
               {/* Table Header */}
-              <div className="border-b border-cyan-400 px-4 py-3">
+              <div className="border-b border-orange-400 px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-cyan-400 text-sm">{'>'}</span>
-                    <h2 className="text-xl md:text-2xl font-bold text-cyan-400 tracking-wider">LEADERBOARD</h2>
+                    <span className="text-orange-400 text-sm">{'>'}</span>
+                    <h2 className="text-xl md:text-2xl font-bold text-orange-400 tracking-wider">LEADERBOARD</h2>
                   </div>
-                  <span className="text-xs text-cyan-600 font-mono">
+                  <span className="text-xs text-orange-600 font-mono">
                     {currentTime.toLocaleTimeString()}
                   </span>
                 </div>
@@ -266,12 +266,12 @@ export function PublicScoreboard() {
               {/* Table Content */}
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full">
-                  <thead className="sticky top-0 z-10 bg-black/90 border-b border-cyan-400/30">
+                  <thead className="sticky top-0 z-10 bg-black/90 border-b border-orange-400/30">
                     <tr>
-                      <th className="p-4 text-left text-xs text-cyan-600 font-mono">RANK</th>
-                      <th className="p-4 text-left text-xs text-cyan-600 font-mono">TEAM</th>
-                      <th className="p-4 text-right text-xs text-cyan-600 font-mono">POINTS</th>
-                      <th className="p-4 text-right text-xs text-cyan-600 font-mono">SOLVES</th>
+                      <th className="p-4 text-left text-xs text-orange-600 font-mono">RANK</th>
+                      <th className="p-4 text-left text-xs text-orange-600 font-mono">TEAM</th>
+                      <th className="p-4 text-right text-xs text-orange-600 font-mono">POINTS</th>
+                      <th className="p-4 text-right text-xs text-orange-600 font-mono">SOLVES</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -282,8 +282,8 @@ export function PublicScoreboard() {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.02 }}
-                          className={`border-b border-cyan-400/20 hover:bg-cyan-950/30 transition-colors ${
-                            index < 3 ? "bg-cyan-950/20" : ""
+                          className={`border-b border-orange-400/20 hover:bg-orange-950/30 transition-colors ${
+                            index < 3 ? "bg-orange-950/20" : ""
                           }`}
                         >
                           {/* Rank */}
@@ -293,7 +293,7 @@ export function PublicScoreboard() {
                                 index === 0 ? "text-yellow-400" :
                                 index === 1 ? "text-gray-300" :
                                 index === 2 ? "text-orange-400" :
-                                "text-cyan-400"
+                                "text-orange-400"
                               }`}>
                                 {getRankSymbol(index)}
                               </span>
@@ -301,7 +301,7 @@ export function PublicScoreboard() {
                                 index === 0 ? "text-yellow-400" :
                                 index === 1 ? "text-gray-300" :
                                 index === 2 ? "text-orange-400" :
-                                "text-cyan-400"
+                                "text-orange-400"
                               }`}>
                                 {String(team.top + 1).padStart(2, '0')}
                               </span>
@@ -310,19 +310,19 @@ export function PublicScoreboard() {
                           
                           {/* Team Name */}
                           <td className="p-4">
-                            <span className="text-cyan-300 font-medium text-lg truncate max-w-[200px] block">{team.name}</span>
+                            <span className="text-orange-300 font-medium text-lg truncate max-w-[200px] block">{team.name}</span>
                           </td>
                           
                           {/* Score */}
                           <td className="p-4 text-right">
-                            <span className="text-cyan-400 font-bold text-xl font-mono tabular-nums">
+                            <span className="text-orange-400 font-bold text-xl font-mono tabular-nums">
                               {team.score.toLocaleString()}
                             </span>
                           </td>
                           
                           {/* Solves */}
                           <td className="p-4 text-right">
-                            <span className="text-cyan-600 text-base font-mono">
+                            <span className="text-orange-600 text-base font-mono">
                               {team.solves.length}
                             </span>
                           </td>
@@ -334,23 +334,23 @@ export function PublicScoreboard() {
               </div>
 
               {/* Footer */}
-              <div className="border-t border-cyan-400/30 px-4 py-2 text-center">
-                <span className="text-xs text-cyan-600 font-mono">AUTO-REFRESH: 30s</span>
+              <div className="border-t border-orange-400/30 px-4 py-2 text-center">
+                <span className="text-xs text-orange-600 font-mono">AUTO-REFRESH: 30s</span>
               </div>
             </div>
 
             {/* Stats Below Leaderboard - Minimal */}
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "STATUS", value: timeRemaining.isActive ? "LIVE" : timeRemaining.isEnded ? "ENDED" : "SOON", color: timeRemaining.isActive ? "text-cyan-400" : "text-yellow-500" },
-                { label: "TEAMS", value: rankedTeams.length, color: "text-cyan-400" },
-                { label: "SOLVES", value: rankedTeams.reduce((acc, t) => acc + t.solves.length, 0), color: "text-cyan-400" },
+                { label: "STATUS", value: timeRemaining.isActive ? "LIVE" : timeRemaining.isEnded ? "ENDED" : "SOON", color: timeRemaining.isActive ? "text-orange-400" : "text-yellow-500" },
+                { label: "TEAMS", value: rankedTeams.length, color: "text-orange-400" },
+                { label: "SOLVES", value: rankedTeams.reduce((acc, t) => acc + t.solves.length, 0), color: "text-orange-400" },
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="border border-cyan-400 bg-black/40 p-4 text-center"
+                  className="border border-orange-400 bg-black/40 p-4 text-center"
                 >
-                  <div className="text-xs text-cyan-600 font-mono mb-2">{stat.label}</div>
+                  <div className="text-xs text-orange-600 font-mono mb-2">{stat.label}</div>
                   <div className={`text-3xl font-bold font-mono ${stat.color}`}>{stat.value}</div>
                 </div>
               ))}
@@ -358,11 +358,11 @@ export function PublicScoreboard() {
           </div>
 
           {/* Right Column: Score Chart - Takes 3 columns (60%) */}
-          <div className="border border-cyan-400 bg-black/40 lg:col-span-3 lg:order-2">
-            <div className="border-b border-cyan-400 px-4 py-3">
+          <div className="border border-orange-400 bg-black/40 lg:col-span-3 lg:order-2">
+            <div className="border-b border-orange-400 px-4 py-3">
               <div className="flex items-center gap-3">
-                <span className="text-cyan-400 text-sm">{'>'}</span>
-                <h2 className="text-xl md:text-2xl font-bold text-cyan-400 tracking-wider">SCORE_EVOLUTION</h2>
+                <span className="text-orange-400 text-sm">{'>'}</span>
+                <h2 className="text-xl md:text-2xl font-bold text-orange-400 tracking-wider">SCORE_EVOLUTION</h2>
               </div>
             </div>
             <div className="p-4">
@@ -370,7 +370,7 @@ export function PublicScoreboard() {
                 <Suspense 
                   fallback={
                     <div className="flex items-center justify-center h-full">
-                      <p className="font-mono text-sm text-cyan-600">
+                      <p className="font-mono text-sm text-orange-600">
                         LOADING...
                       </p>
                     </div>
@@ -384,7 +384,7 @@ export function PublicScoreboard() {
         </div>
 
         {/* Footer - Minimal */}
-        <div className="text-center text-cyan-600 text-xs font-mono">
+        <div className="text-center text-orange-600 text-xs font-mono">
           <span>━━━</span>
           <span className="mx-3">FCTF {new Date().getFullYear()}</span>
           <span>━━━</span>
@@ -397,8 +397,8 @@ export function PublicScoreboard() {
       </div>
 
       {/* Corner markers with text - hackathon style */}
-      <div className="fixed top-4 left-4 text-cyan-400 text-xl">┌</div>
-      <div className="fixed top-4 right-4 text-cyan-400">
+      <div className="fixed top-4 left-4 text-orange-400 text-xl">┌</div>
+      <div className="fixed top-4 right-4 text-orange-400">
         <div className="flex flex-col items-end">
           <span className="text-xl mb-2">┐</span>
           <span className="text-sm font-mono">{'>'} WELCOME</span>
@@ -406,41 +406,41 @@ export function PublicScoreboard() {
       </div>
       
       {/* Bottom Left - CTF Info */}
-      <div className="fixed bottom-10 left-4 text-cyan-400">
+      <div className="fixed bottom-10 left-4 text-orange-400">
         <div className="flex flex-col">
           <span className="text-sm font-mono mb-2">CAPTURE THE FLAG</span>
-          <span className="text-xs text-cyan-600 font-mono">GAMEPLAY: ACTIVE</span>
+          <span className="text-xs text-orange-600 font-mono">GAMEPLAY: ACTIVE</span>
           <span className="text-xl mt-2">└</span>
         </div>
       </div>
       
       {/* Bottom Right */}
-      <div className="fixed bottom-10 right-4 text-cyan-400">
+      <div className="fixed bottom-10 right-4 text-orange-400">
         <div className="flex flex-col items-end">
-          <span className="text-sm font-mono text-cyan-400">GOOD LUCK, HACKER!</span>
+          <span className="text-sm font-mono text-orange-400">GOOD LUCK, HACKER!</span>
           <span className="text-xl mt-2">┘</span>
         </div>
       </div>
 
       {/* Bottom ticker - Latest solver */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black/90 border-t border-cyan-400/30 py-2 overflow-hidden z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-black/90 border-t border-orange-400/30 py-2 overflow-hidden z-50">
         <motion.div
           className="whitespace-nowrap"
           animate={{ x: ["-100%", "100%"] }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
         >
-          <span className="text-cyan-400 font-mono text-sm">
+          <span className="text-orange-400 font-mono text-sm">
             {'>'} good_luck_hacker
             {latestSolver && (
               <>
-                <span className="text-cyan-600 mx-4">|</span>
+                <span className="text-orange-600 mx-4">|</span>
                 <span className="text-yellow-400">LATEST SOLVE: {latestSolver}</span>
               </>
             )}
-            <span className="text-cyan-600 mx-4">|</span>
-            <span className="text-cyan-600">KEEP HACKING</span>
-            <span className="text-cyan-600 mx-4">|</span>
-            <span className="text-cyan-400">{'>'} good_luck_hacker</span>
+            <span className="text-orange-600 mx-4">|</span>
+            <span className="text-orange-600">KEEP HACKING</span>
+            <span className="text-orange-600 mx-4">|</span>
+            <span className="text-orange-400">{'>'} good_luck_hacker</span>
           </span>
         </motion.div>
       </div>
