@@ -9,7 +9,7 @@ export function PageLoader() {
   const isDark = theme === 'dark';
   const colors = {
     bg: isDark ? '#000' : '#0a0a0a',
-    text: isDark ? '#22d3ee' : '#22d3ee',
+    text: isDark ? '#fb923c' : '#f97316',
     textMuted: isDark ? '#71717a' : '#a1a1aa',
   };
 

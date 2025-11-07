@@ -267,8 +267,8 @@ export function Profile() {
 
   const showAlert = (message: string, icon: 'success' | 'error' | 'info') => {
     const prefix = icon === 'success' ? '[+]' : icon === 'error' ? '[!]' : '[i]';
-    const color = icon === 'success' ? 'text-green-400' : icon === 'error' ? 'text-red-400' : 'text-cyan-400';
-    const borderColor = icon === 'success' ? 'border-green-500/30' : icon === 'error' ? 'border-red-500/30' : 'border-cyan-500/30';
+    const color = icon === 'success' ? 'text-green-400' : icon === 'error' ? 'text-red-400' : 'text-orange-400';
+    const borderColor = icon === 'success' ? 'border-green-500/30' : icon === 'error' ? 'border-red-500/30' : 'border-orange-500/30';
     
     Swal.fire({
       html: `
@@ -298,7 +298,7 @@ export function Profile() {
   if (loading) {
     return (
       <Box className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="text-cyan-500 text-6xl mb-4 font-mono">[...]</div>
+        <div className="text-orange-500 text-6xl mb-4 font-mono">[...]</div>
         <Typography className={`font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
           Loading profile...
         </Typography>
@@ -405,7 +405,7 @@ export function Profile() {
                   <div className={`text-6xl font-extrabold font-mono ${
                     teamPointInfo.place === 1 ? 'text-yellow-500' :
                     teamPointInfo.place === 2 ? 'text-gray-400' :
-                    teamPointInfo.place === 3 ? 'text-orange-700' : 'text-cyan-500'
+                    teamPointInfo.place === 3 ? 'text-orange-700' : 'text-orange-500'
                   }`}>
                     #{teamPointInfo.place}
                   </div>
@@ -419,8 +419,8 @@ export function Profile() {
                 <div className={`flex items-center gap-2 text-lg font-mono ${
                   theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  <EmojiEvents className="text-cyan-500" />
-                  <span className="font-bold text-cyan-500">{teamPointInfo.score}</span>
+                  <EmojiEvents className="text-orange-500" />
+                  <span className="font-bold text-orange-500">{teamPointInfo.score}</span>
                   <span>points</span>
                 </div>
               </div>
@@ -436,7 +436,7 @@ export function Profile() {
             >
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="text-cyan-500 text-2xl" />
+                  <TrendingUp className="text-orange-500 text-2xl" />
                   <span className={`font-bold font-mono ${
                     theme === 'dark' ? 'text-white' : 'text-gray-800'
                   }`}>
@@ -445,14 +445,14 @@ export function Profile() {
                 </div>
 
                 <div className="flex items-baseline gap-2 mb-4">
-                  <div className="text-6xl font-extrabold font-mono text-cyan-500">
+                  <div className="text-6xl font-extrabold font-mono text-orange-500">
                     {finishPercent.toFixed(0)}%
                   </div>
                 </div>
 
                 <div className="w-full bg-gray-700 rounded-full h-3 relative overflow-hidden">
                   <div
-                    className="h-full bg-cyan-500 rounded-full transition-all duration-1000"
+                    className="h-full bg-orange-500 rounded-full transition-all duration-1000"
                     style={{ width: `${finishPercent}%` }}
                   />
                 </div>
@@ -475,7 +475,7 @@ export function Profile() {
             }`}
           >
             <div className="flex items-center gap-2 mb-4">
-              <People className="text-cyan-500 text-2xl" />
+              <People className="text-orange-500 text-2xl" />
               <span className={`font-bold text-xl font-mono ${
                 theme === 'dark' ? 'text-white' : 'text-gray-800'
               }`}>
@@ -524,7 +524,7 @@ export function Profile() {
                       <td className="p-3">{member.email}</td>
                       <td className="p-3 text-right">
                         <span className={`px-2 py-1 rounded border text-xs font-bold ${
-                          theme === 'dark' ? 'border-gray-700 text-cyan-400' : 'border-gray-300 text-cyan-600'
+                          theme === 'dark' ? 'border-gray-700 text-orange-400' : 'border-gray-300 text-orange-600'
                         }`}>
                           {member.score}
                         </span>
@@ -545,7 +545,7 @@ export function Profile() {
             }`}
           >
             <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="text-cyan-500 text-2xl" />
+              <TrendingUp className="text-orange-500 text-2xl" />
               <span className={`font-bold text-xl font-mono ${
                 theme === 'dark' ? 'text-white' : 'text-gray-800'
               }`}>
@@ -629,7 +629,7 @@ export function Profile() {
             </button>
 
             <div className="flex items-center gap-3 mb-6">
-              <Lock className="text-cyan-500 text-3xl" />
+              <Lock className="text-orange-500 text-3xl" />
               <h2 className={`text-2xl font-bold font-mono ${
                 theme === 'dark' ? 'text-white' : 'text-gray-800'
               }`}>
@@ -811,7 +811,7 @@ export function Profile() {
                   <button
                     onClick={handleChangePassword}
                     disabled={isChangingPassword || !passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword || passwordData.newPassword !== passwordData.confirmPassword}
-                    className="flex-1 py-3 px-4 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-bold font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isChangingPassword ? (
                       <>

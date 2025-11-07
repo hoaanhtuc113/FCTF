@@ -270,21 +270,11 @@ export function Layout({ children }: LayoutProps) {
               className="flex items-center gap-2 cursor-pointer"
               onClick={() => navigate('/dashboard')}
             >
-              <div className={`w-10 h-10 rounded border flex items-center justify-center ${
-                theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-100'
-              }`}>
-                <span className={`font-black text-lg font-mono ${
-                  theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
-                }`}>F</span>
-              </div>
-              <Typography
-                variant="h6"
-                className={`font-black hidden md:block font-mono ${
-                  theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
-                }`}
-              >
-                [FCTF]
-              </Typography>
+              <img 
+                src="/assets/fctf-logo.png" 
+                alt="FCTF Logo" 
+                className="w-10 h-10 object-contain"
+              />
             </Box>
 
             {/* Navigation Tabs */}
@@ -298,11 +288,11 @@ export function Layout({ children }: LayoutProps) {
                     className={`relative px-4 py-2 rounded-lg font-bold text-sm transition-all font-mono flex items-center gap-2 ${
                       isActive
                         ? theme === 'dark'
-                          ? 'text-white bg-cyan-600 border border-cyan-500'
-                          : 'text-white bg-cyan-600 border border-cyan-500'
+                          ? 'text-white bg-orange-600 border border-orange-500'
+                          : 'text-white bg-orange-600 border border-orange-500'
                         : theme === 'dark'
-                        ? 'text-gray-400 hover:text-cyan-400 border border-transparent hover:border-gray-700'
-                        : 'text-gray-600 hover:text-cyan-600 border border-transparent hover:border-gray-300'
+                        ? 'text-gray-400 hover:text-orange-400 border border-transparent hover:border-gray-700'
+                        : 'text-gray-600 hover:text-orange-600 border border-transparent hover:border-gray-300'
                     }`}
                   >
                     {tab.icon}
@@ -324,7 +314,7 @@ export function Layout({ children }: LayoutProps) {
                   }`}
                 >
                   <TimerIcon 
-                    className={theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'} 
+                    className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} 
                     fontSize="small" 
                   />
                   <div>
@@ -334,7 +324,7 @@ export function Layout({ children }: LayoutProps) {
                       {contestStatus}
                     </Typography>
                     <Typography className={`text-sm font-mono font-black tabular-nums ${
-                      theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                      theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                     }`}>
                       {formatTime()}
                     </Typography>
@@ -361,7 +351,7 @@ export function Layout({ children }: LayoutProps) {
                     color: theme === 'dark' ? 'rgb(156, 163, 175)' : 'rgb(107, 114, 128)',
                   }}
                 >
-                  <span style={{ color: theme === 'dark' ? '#22d3ee' : '#0891b2', fontWeight: 600 }}>//</span> {user?.team.teamName}
+                  <span style={{ color: theme === 'dark' ? '#fb923c' : '#f97316', fontWeight: 600 }}>//</span> {user?.team.teamName}
                 </Typography>
               </Box>
 
@@ -450,7 +440,7 @@ export function Layout({ children }: LayoutProps) {
                     {user?.email}
                   </Typography>
                   <Box className={`mt-2 px-2 py-1 rounded border inline-block ${
-                    theme === 'dark' ? 'border-gray-700 text-cyan-400' : 'border-gray-300 text-cyan-600'
+                    theme === 'dark' ? 'border-gray-700 text-orange-400' : 'border-gray-300 text-orange-600'
                   }`}>
                     <Typography className="text-xs font-bold font-mono">
                       {user?.team.teamName}
@@ -470,7 +460,7 @@ export function Layout({ children }: LayoutProps) {
                   <div className="flex items-center gap-2">
                     <TimerIcon 
                       fontSize="small" 
-                      sx={{ color: theme === 'dark' ? '#22d3ee' : '#0891b2' }} 
+                      sx={{ color: theme === 'dark' ? '#fb923c' : '#f97316' }} 
                     />
                     <div className="flex-1">
                       <Typography 
@@ -490,7 +480,7 @@ export function Layout({ children }: LayoutProps) {
                           fontSize: '0.8125rem',
                           fontFamily: 'ui-monospace, monospace',
                           fontWeight: 900,
-                          color: theme === 'dark' ? '#22d3ee' : '#0891b2',
+                          color: theme === 'dark' ? '#fb923c' : '#f97316',
                           letterSpacing: '-0.025em',
                         }}
                       >
@@ -517,7 +507,7 @@ export function Layout({ children }: LayoutProps) {
                   },
                 }}
               >
-                <PersonOutline fontSize="small" sx={{ color: theme === 'dark' ? '#22d3ee' : '#0891b2' }} />
+                <PersonOutline fontSize="small" sx={{ color: theme === 'dark' ? '#fb923c' : '#f97316' }} />
                 <span>{'[>]'} Profile</span>
               </MenuItem>
 
@@ -595,7 +585,7 @@ export function Layout({ children }: LayoutProps) {
                 theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
               }`}>
                 <Typography className={`text-base font-bold font-mono ${
-                  theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                  theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                 }`}>
                   [NOTIFICATIONS]
                 </Typography>
@@ -604,8 +594,8 @@ export function Layout({ children }: LayoutProps) {
                     onClick={markAllAsRead}
                     className={`text-xs font-bold font-mono px-2 py-1 rounded border transition ${
                       theme === 'dark'
-                        ? 'border-cyan-700 text-cyan-400 hover:bg-cyan-900/30'
-                        : 'border-cyan-300 text-cyan-600 hover:bg-cyan-50'
+                        ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
+                        : 'border-orange-300 text-orange-600 hover:bg-orange-50'
                     }`}
                   >
                     {'[✓]'} MARK ALL
