@@ -113,6 +113,9 @@ services:
       - MEMORY_REQUEST=${MEMORY_REQUEST}
       - POW_DIFFICULTY_SECONDS=${POW_DIFFICULTY_SECONDS}
       - WORKER_SERVICE_INTERVAL=${WORKER_SERVICE_INTERVAL}
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+    - /home/manhhuy/.kube/config:/root/.kube/config:ro
     depends_on:
       - db
       - cache

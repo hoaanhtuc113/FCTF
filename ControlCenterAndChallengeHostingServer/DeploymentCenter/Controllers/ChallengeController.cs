@@ -24,7 +24,8 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
-            if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || challengeStartReq.teamId == 0 ||challengeStartReq.userId == null)
+            await Console.Out.WriteLineAsync($"Received Start Challenge request. Challenge{challengeStartReq.challengeId}, Team{challengeStartReq.teamId}, User{challengeStartReq.userId}");
+            if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || challengeStartReq.teamId == 0 || challengeStartReq.userId == null)
             {
                 return BadRequest(new ChallengeDeployResponeDTO
                 {

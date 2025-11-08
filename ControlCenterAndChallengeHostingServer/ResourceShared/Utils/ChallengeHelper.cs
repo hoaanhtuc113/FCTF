@@ -87,7 +87,7 @@ namespace ResourceShared.Utils
 
         public static string GetArgoWName(int chalId, int teamId)
         {
-            var team = teamId == -1 ? $"team{teamId}" : "preview";
+            var team = teamId == -1 ? "preview" : $"team{teamId}";
             return $"start-challenge-{chalId}-{team}".ToLower().Replace(" ", "-"); ;
         }
 

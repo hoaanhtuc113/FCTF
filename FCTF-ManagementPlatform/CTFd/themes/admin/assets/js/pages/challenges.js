@@ -80,10 +80,10 @@ function previewChallenge(challengeId) {
   const previewButton = document.getElementById(`preview-button-${challengeId}`);
   const successElement = document.getElementById(`preview-success-${challengeId}`);
 
-  const result = confirm("The domain will be immediately returned to you, but it won't be accessible until the environment finishes starting up.\nWould you like to proceed?");
-  if (!result) {
-    return;
-  }
+  // const result = confirm("The domain will be immediately returned to you, but it won't be accessible until the environment finishes starting up.\nWould you like to proceed?");
+  // if (!result) {
+  //   return;
+  // }
 
   // Prepare UI
   errorElement.innerText = 'Waiting for response...';
@@ -205,10 +205,6 @@ function CheckingStatus(challengeId) {
 
       if (!data || !data.success) {
         const errorMsg = (data && data.message) || 'Failed to check challenge status.';
-        ezToast({
-          title: `Preview Challenge ${challengeId} Error`,
-          body: errorMsg,
-        });
         return false;
       }
 

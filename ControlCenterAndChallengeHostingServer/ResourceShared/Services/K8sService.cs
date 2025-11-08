@@ -15,20 +15,23 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using static ResourceShared.Enums;
+using File = System.IO.File;
 
 namespace ResourceShared.Services
 {
     public interface IK8sService
     {
-        Task<bool> CheckPodAliveAsync(string podName, string namespaceName);
-        Task<bool> CheckPodAliveAsync(string podName);
-        Task<List<PodInfo>> GetPodsByLabelAsync(string label = "ctf/kind=challenge");
-        Task<bool> DeleteNamespaceAsync(string namespaceName);
-        Task<int?> GetNodePortAsync(string namespaceName);
-        Task<ChallengeDeployResponeDTO?> HandleChallengeRunningAsync(int challengeId, int teamId, string podName, DeploymentInfo deploymentCache);
+        Task<bool> CheckPodAlive(string podName, string namespaceName);
+        Task<bool> CheckPodAliveInCache(string podName);
+        Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge");
+        Task<bool> DeleteNamespace(string namespaceName);
+        Task<int?> GetNodePort(string namespaceName);
+        Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, DeploymentInfo deploymentCache);
 
-        Task<WorkflowPhase> GetWorkflowStatusAsync(string wfName, string namespaceName = "argo");
+        Task<WorkflowPhase> GetWorkflowStatus(string wfName, string namespaceName = "argo");
+        Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo");
     }
     public class K8sService : IK8sService
     {
@@ -42,73 +45,72 @@ namespace ResourceShared.Services
             {
                 var config = KubernetesClientConfiguration.InClusterConfig();
                 _kubernetes = new Kubernetes(config);
-
-                var version = _kubernetes.Version.GetCode();
-                Console.WriteLine($"[K8sService] Connected to K8s API v{version.Major}.{version.Minor}");
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[K8sService] Failed to connect: {ex.Message}");
+                var kubeConfigPath = Environment.GetEnvironmentVariable("KUBECONFIG") ?? "/root/.kube/config";
+                if (!File.Exists(kubeConfigPath))
+                    throw new FileNotFoundException($"Không tìm thấy kubeconfig tại {kubeConfigPath}");
+
+                var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(kubeConfigPath);
+                _kubernetes = new Kubernetes(config);
+
+                var version = _kubernetes.Version.GetCode();
+                Console.WriteLine($"[K8sService] Try to local kubeconfig: Connected to K8s API v{version.Major}.{version.Minor}");
             }
 
             _dbContext=dbContext;
         }
 
-        public async Task<bool> CheckPodAliveAsync(string podName, string namespaceName)
+        public async Task<bool> CheckPodAlive(string podName, string namespaceName)
         {
             try
             {
                 // var pod = await _kubernetes.CoreV1.ReadNamespacedPodAsync(podName,namespaceName);
 
-                var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(namespaceName);
+                var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(
+                    namespaceParameter: namespaceName,
+                    fieldSelector: $"metadata.name={podName}"
+                );
 
-                var pod = pods.Items
-                    .Where(p => p.Metadata.Name.StartsWith(podName))
-                    .OrderByDescending(p => p.Metadata.CreationTimestamp)
-                    .FirstOrDefault();
+                var pod = pods.Items.FirstOrDefault();
 
                 if (pod == null)
                 {
-                    await Console.Error.WriteLineAsync($"[K8sService] No pod found with prefix: {podName}");
+                    await Console.Error.WriteLineAsync($"[Check Pod Alive] No pod found with prefix: {podName}");
                     return false;
                 }
 
-                await Console.Out.WriteLineAsync($"[K8sService] Found pod: {JsonSerializer.Serialize(pod)}");
+                await Console.Out.WriteLineAsync($"[Check Pod Alive] Found pod: {JsonSerializer.Serialize(pod)}");
 
                 var phase = pod.Status?.Phase ?? "Unknown";
                 var ready = pod.Status.Conditions?.Any(c => c.Type == "Ready" && c.Status == "True") == true;
 
-                await Console.Out.WriteLineAsync($"[K8sService] Pod: {podName}, Phase={phase}, Ready={ready}");
-                if(phase == "Running" && ready)
-                {
-                    return true;
-                }
-                else
-                {
-                    var log = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(pod.Metadata.Name, namespaceName);
-                    await Console.Error.WriteLineAsync($"[K8sService] Pod Logs:\n{log}");
-                    return false;
-                }
+                await Console.Out.WriteLineAsync($"[Check Pod Alive] Pod: {podName}, Phase={phase}, Ready={ready}");
+                if (phase == "Running" && ready) return true;
 
+                var log = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(pod.Metadata.Name, namespaceName);
+                await Console.Error.WriteLineAsync($"[Check Pod Alive] Pod Logs:\n{log}");
+                return false;
             }
             catch (k8s.Autorest.HttpOperationException ex)
             {
                 if (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    await Console.Error.WriteLineAsync($"[K8sService] Pod not found: {podName}");
+                    await Console.Error.WriteLineAsync($"[Check Pod Alive] Pod not found: {podName}");
                     return false;
                 }
-                await Console.Error.WriteLineAsync($"[K8sService] API Error: {ex.Response.ReasonPhrase}");
+                await Console.Error.WriteLineAsync($"[Check Pod Alive] API Error: {ex.Response.ReasonPhrase}");
                 return false;
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync($"[K8sService] Exception checking pod {podName}: {ex.Message}");
+                await Console.Error.WriteLineAsync($"[Check Pod Alive] Exception checking pod {podName}: {ex.Message}");
                 return false;
             }
         }
 
-        public async Task<bool> CheckPodAliveAsync(string podName)
+        public async Task<bool> CheckPodAliveInCache(string podName)
         {
             try
             {
@@ -116,47 +118,47 @@ namespace ResourceShared.Services
 
                 if (pods == null)
                 {
-                    await Console.Out.WriteLineAsync($"[K8sService] No pod info found in cache.");
+                    await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache.");
                     return false;
                 }
 
                 var podInfo = pods.FirstOrDefault(p => p.Name.StartsWith(podName));
                 if (podInfo != null) {
-                    await Console.Out.WriteLineAsync($"[K8sService] Pod: {podName}, Status={podInfo.Status}, Ready={podInfo.Ready}");
+                    await Console.Out.WriteLineAsync($"[Check Pod Alive] Pod: {podName}, Status={podInfo.Status}, Ready={podInfo.Ready}");
                     return podInfo.Status == "Running" && podInfo.Ready;
                 }
-                await Console.Out.WriteLineAsync($"[K8sService] No pod info found in cache for prefix: {podName}");
+                await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache for prefix: {podName}");
                 return false;
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync($"[K8sService] Exception checking pod {podName}: {ex.Message}");
+                await Console.Error.WriteLineAsync($"[Check Pod Alive] Exception checking pod {podName}: {ex.Message}");
                 return false;
             }
         }
 
-        public async Task<bool> DeleteNamespaceAsync(string namespaceName)
+        public async Task<bool> DeleteNamespace(string namespaceName)
         {
-            await Console.Out.WriteLineAsync($"[K8sService] Deleting namespace: {namespaceName}");
+            await Console.Out.WriteLineAsync($"[Delete Namespace] Deleting namespace: {namespaceName}");
             try
             {
                 var result = await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
-                await Console.Out.WriteLineAsync($"[K8sService] Namespace '{namespaceName}' deletion requested. Status: {result.Status}");
+                await Console.Out.WriteLineAsync($"[Delete Namespace] Namespace '{namespaceName}' deletion requested. Status: {result.Status}");
                 return true;
             }
             catch (k8s.Autorest.HttpOperationException ex)
             {
-                await Console.Error.WriteLineAsync($"[K8sService] Failed to delete namespace '{namespaceName}': {ex.Response.Content}");
+                await Console.Error.WriteLineAsync($"[Delete Namespace] Failed to delete namespace '{namespaceName}': {ex.Response.Content}");
                 return false;
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync($"[K8sService] Error deleting namespace '{namespaceName}': {ex.Message}");
+                await Console.Error.WriteLineAsync($"[Delete Namespace] Error deleting namespace '{namespaceName}': {ex.Message}");
                 return false;
             }
         }
 
-        public async Task<List<PodInfo>> GetPodsByLabelAsync(string label = "ctf/kind=challenge")
+        public async Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge")
         {
             var result = new List<PodInfo>();
 
@@ -167,8 +169,11 @@ namespace ResourceShared.Services
                 foreach (var pod in pods.Items)
                 {
                     var csList = pod.Status?.ContainerStatuses ?? new List<V1ContainerStatus>();
+                    var name = pod.Metadata?.Name ?? "unknown";
+                    var ns = pod.Metadata?.NamespaceProperty ?? "unknown";
+                    var status = pod.Status?.Phase ?? "Unknown";
+                    var ready = csList.All(c => c.Ready);
 
-                    string status = pod.Status?.Phase ?? "Unknown";
                     foreach (var cs in csList)
                     {
                         if (cs.State?.Waiting != null)
@@ -179,7 +184,6 @@ namespace ResourceShared.Services
                             status = "Running";
                     }
 
-                    bool ready = csList.All(c => c.Ready);
 
                     string age = "";
                     if (pod.Status?.StartTime != null)
@@ -192,34 +196,44 @@ namespace ResourceShared.Services
 
                     result.Add(new PodInfo
                     {
-                        Namespace = pod.Metadata.NamespaceProperty ?? "",
-                        Name = pod.Metadata.Name ?? "",
+                        Namespace = ns,
+                        Name = name,
                         Ready = ready,
                         Status = status,
                         Age = age
                     });
 
-                    if (status == "Running" && ready)
-                    {
-                        var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(pod.Metadata.NamespaceProperty ?? "");
-                        var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
-                        var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+                    await Console.Out.WriteLineAsync($"[GetPods] {ns}/{name} → {status} (Ready={ready})");
 
-                        await HandleChallengeRunningAsync(challengeId, teamId, deploymentCache.PodName, deploymentCache);
+                    if (status == "Running" && ready && !string.IsNullOrEmpty(ns))
+                    {
+                        try
+                        {
+                            var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+                            var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
+                            var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+
+                            if (deploymentCache != null)
+                                await HandleChallengeRunning(challengeId, teamId, deploymentCache.NameSpace, deploymentCache);
+                        }
+                        catch (Exception ex)
+                        {
+                            await Console.Error.WriteLineAsync($"[Get Pods By Label] Parse or handle error for {ns}: {ex.Message}");
+                        }
                     }
                 }
 
-                await  Console.Out.WriteLineAsync($"[K8sService] Found {result.Count} challenge pods: {JsonSerializer.Serialize(result)}");
+                await  Console.Out.WriteLineAsync($"[Get Pods By Label] Found {result.Count} challenge pods: {JsonSerializer.Serialize(result)}");
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync($"[K8sService] Error listing challenge pods: {ex.Message}");
+                await Console.Error.WriteLineAsync($"[Get Pods By Label] Error listing challenge pods: {ex.Message}");
             }
 
             return result;
         }
 
-        public async Task<int?> GetNodePortAsync(string namespaceName)
+        public async Task<int?> GetNodePort(string namespaceName)
         {
             try
             {
@@ -228,34 +242,39 @@ namespace ResourceShared.Services
                 var svc = svcs.Items.FirstOrDefault();
                 if (svc == null)
                 {
-                    await Console.Out.WriteLineAsync($"[WARN] Namespace '{namespaceName}' not have any service.");
+                    await Console.Out.WriteLineAsync($"[Get Node Port] Namespace '{namespaceName}' not have any service.");
                     return null;
                 }
 
+                var portSpec = svc.Spec.Ports?.FirstOrDefault();
+                if (portSpec?.NodePort == null)
+                {
+                    await Console.Out.WriteLineAsync($"[Get Node Port] Service '{svc.Metadata?.Name}' has no NodePort assigned.");
+                    return null;
+                }
                 if (svc.Spec.Type != "NodePort")
                 {
-                    await Console.Out.WriteLineAsync($"[WARN] Service '{svc.Metadata.Name}' not a NodePort type.");
+                    await Console.Out.WriteLineAsync($"[Get Node Port] Service '{svc.Metadata.Name}' not a NodePort type.");
                     return null;
                 }
 
-                var nodePort = svc.Spec.Ports.FirstOrDefault()?.NodePort;
-
-               await Console.Out.WriteLineAsync($"[INFO] Namespace '{namespaceName}' NodePort = {nodePort}");
+                var nodePort = portSpec.NodePort;
+                await Console.Out.WriteLineAsync($"[Get Node Port] Namespace '{namespaceName}' NodePort = {nodePort}");
                 return nodePort;
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync($"[ERROR] Unable to get NodePort in namespace '{namespaceName}': {ex.Message}");
+                await Console.Error.WriteLineAsync($"[Get Node Port] Unable to get NodePort in namespace '{namespaceName}': {ex.Message}");
                 return null;
             }
         }
 
-        public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunningAsync(int challengeId,int teamId,string podName, DeploymentInfo deploymentCache)
+        public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId,int teamId,string podName, DeploymentInfo deploymentCache)
         {
             try
             {
 
-                var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == challengeId);
+                var challenge =  await _dbContext.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
                 if (challenge == null)
                     return new ChallengeDeployResponeDTO
                     {
@@ -264,18 +283,26 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.NotFound
                     };
 
-                var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
-                var cacheExpired = challenge.TimeLimit != null && challenge.TimeLimit > 0
-                    ? TimeSpan.FromSeconds(challenge.TimeLimit.Value * 60)
-                    : (TimeSpan?)null;
+                var timeLimit = challenge.TimeLimit ?? -1;
+                var timeFinished = DateTime.Now.AddMinutes(timeLimit);
+                var cacheExpired = timeLimit > 0 ? TimeSpan.FromMinutes(timeLimit) : (TimeSpan?)null;
 
                 // Lấy port và domain
-                var port = await GetNodePortAsync(podName);
+                var port = await GetNodePort(podName);
+                if (port == null)
+                    return new ChallengeDeployResponeDTO
+                    {
+                        success = false,
+                        message = "Pod NodePort not ready.",
+                        status = (int)HttpStatusCode.BadRequest
+                    };
+
                 var challengeDomain = $"Host: challenge-zg9uj3rfagfja19tzq.fctf.cloud {port}";
 
                 // Cập nhật DeploymentInfo
                 deploymentCache.Status = DeploymentStatus.RUNING;
                 deploymentCache.DeploymentDomainName = challengeDomain;
+                deploymentCache.DeploymentPort = port.Value;
                 deploymentCache.EndTime = timeFinished;
 
                 var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
@@ -314,11 +341,11 @@ namespace ResourceShared.Services
             }
         }
 
-        public async Task<WorkflowPhase> GetWorkflowStatusAsync(string wfName, string namespaceName = "argo")
+        public async Task<WorkflowPhase> GetWorkflowStatus(string wfName, string namespaceName = "argo")
         {
             try
             {
-                var wf = await _kubernetes.CustomObjects.GetNamespacedCustomObjectAsync(
+                var wfObj = await _kubernetes.CustomObjects.GetNamespacedCustomObjectAsync(
                     group: "argoproj.io",
                     version: "v1alpha1",
                     namespaceParameter: namespaceName,
@@ -326,32 +353,73 @@ namespace ResourceShared.Services
                     name: wfName
                 );
 
-                // Parse JSON để lấy status.phase
-                var json = JsonSerializer.Serialize(wf);
-                using var doc = JsonDocument.Parse(json);
-
-                if (doc.RootElement.TryGetProperty("status", out var statusElem) &&
+                // Convert sang JsonElement thay vì serialize lại để tiết kiệm tài nguyên
+                if (wfObj is JsonElement wfElement &&
+                    wfElement.TryGetProperty("status", out var statusElem) &&
                     statusElem.TryGetProperty("phase", out var phaseElem))
                 {
                     var phaseStr = phaseElem.GetString();
-
-                    if (Enum.TryParse(phaseStr, true, out WorkflowPhase phase))
+                    if (!string.IsNullOrEmpty(phaseStr) &&
+                        Enum.TryParse(phaseStr, true, out WorkflowPhase phase))
                     {
-                        Console.WriteLine($"[K8sService] Workflow {wfName} status: {phase}");
+                        Console.WriteLine($"[K8sService] Workflow {wfName} phase: {phase}");
                         return phase;
                     }
 
-                    Console.WriteLine($"[K8sService] Unknown workflow phase: {phaseStr}");
+                    Console.WriteLine($"[K8sService] Unknown workflow phase value: {phaseStr}");
                     return WorkflowPhase.Unknown;
                 }
 
+                Console.WriteLine($"[K8sService] Workflow {wfName} has no status.phase field.");
+                return WorkflowPhase.Unknown;
+            }
+            catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+            {
+                Console.WriteLine($"[K8sService] Workflow {wfName} not found in namespace {namespaceName}");
                 return WorkflowPhase.Unknown;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[K8sService] ❌ Error while getting workflow status: {ex.Message}");
+                Console.WriteLine($"[K8sService] Error while getting workflow status for {wfName}: {ex.Message}");
                 return WorkflowPhase.Unknown;
             }
+        }
+
+
+        public async Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo")
+        {
+            var sb = new StringBuilder();
+
+            // Lấy danh sách pods trong workflow
+            var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(
+                namespaceParameter: namespaceName,
+                labelSelector: $"workflows.argoproj.io/workflow={workflowName}"
+            );
+
+            foreach (var pod in pods.Items)
+            {
+                sb.AppendLine($"=== Pod: {pod.Metadata.Name} ===");
+
+                //Mở stream log realtime
+                using var stream = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(
+                    name: pod.Metadata.Name,
+                    namespaceParameter: namespaceName,
+                    follow: true 
+                );
+
+                using var reader = new StreamReader(stream);
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        sb.AppendLine(line);
+                    }
+                }
+
+                sb.AppendLine();
+            }
+            return sb.ToString();
         }
     }
 }
