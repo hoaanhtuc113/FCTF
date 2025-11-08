@@ -19,7 +19,7 @@ public partial class Submission
 
     public string? Type { get; set; }
 
-    public DateTime? Date { get; set; }
+    public DateTime? Date { get; set; } = DateTime.Now;
 
     public virtual Challenge? Challenge { get; set; }
 

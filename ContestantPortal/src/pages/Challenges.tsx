@@ -7,7 +7,7 @@ import {
   LockOpen, 
   Lock, 
   Timer, 
-  CheckCircle,
+  Check,
   Terminal,
   Security,
   PictureAsPdf,
@@ -25,10 +25,17 @@ import {
   ChallengeListSkeleton, 
   ChallengeDetailSkeleton 
 } from '../components/Skeleton';
+import { authService } from '../services/authService';
 
 // Setup PDF worker
 // Setup PDF worker - Use jsDelivr CDN (supports CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+// Helper function to get team ID from localStorage
+const getTeamId = (): number | null => {
+  const team = authService.getTeam();
+  return team?.id || null;
+};
 
 interface Category {
   topic_name: string;
@@ -236,7 +243,7 @@ export function Challenges() {
           <div class="font-mono text-left text-sm">
             <div class="text-yellow-400 mb-2">[!] Challenge Locked</div>
             <div class="text-gray-400 mb-2">> Prerequisites required:</div>
-            <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-yellow-500/30">
+            <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-yellow-500/30">
               ${prereqList}
             </div>
             <div class="text-gray-400 mt-2">> Complete required challenges first</div>
@@ -337,7 +344,7 @@ export function Challenges() {
                 theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
               }`}>
                 <Typography variant="h6" className={`font-bold font-mono text-xs ${
-                  theme === 'dark' ? 'text-cyan-300' : 'text-cyan-600'
+                  theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
                 }`}>
                   [CATEGORIES]
                 </Typography>
@@ -362,8 +369,8 @@ export function Challenges() {
                     className={`w-full text-left px-2 py-1.5 rounded transition-colors flex items-center justify-between text-xs ${
                       selectedCategory === category.topic_name
                         ? theme === 'dark'
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                          : 'bg-green-50 text-green-700 border border-green-300'
+                          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                          : 'bg-orange-50 text-orange-700 border border-orange-300'
                         : theme === 'dark'
                         ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
                         : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
@@ -377,7 +384,7 @@ export function Challenges() {
                         </div>
                         <div className={`text-xs font-mono ${
                           selectedCategory === category.topic_name
-                            ? theme === 'dark' ? 'text-green-300' : 'text-green-600'
+                            ? theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
                             : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
                         }`}>
                           {category.challenge_count} challs
@@ -386,7 +393,7 @@ export function Challenges() {
                     </div>
                     
                     {selectedCategory === category.topic_name && (
-                      <span className="text-green-500 text-xs">●</span>
+                      <span className="text-orange-500 text-xs">●</span>
                     )}
                   </button>
                 ))
@@ -449,8 +456,8 @@ export function Challenges() {
                   onClick={() => setShowCategories(!showCategories)}
                   className={`p-1.5 rounded transition-colors border ${
                     theme === 'dark'
-                      ? 'text-cyan-400 border-cyan-500/50 hover:bg-cyan-500/20 hover:border-cyan-400'
-                      : 'text-cyan-600 border-cyan-300 hover:bg-cyan-50 hover:border-cyan-500'
+                      ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
+                      : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
                   }`}
                   title={showCategories ? "Hide Categories" : "Show Categories"}
                 >
@@ -460,7 +467,7 @@ export function Challenges() {
               <h1 className={`text-xl font-bold font-mono ${
                 selectedChallenge ? 'flex-1 text-center' : ''
               } ${
-                theme === 'dark' ? 'text-cyan-300' : 'text-cyan-600'
+                theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
               }`}>
                 [{selectedCategory.toUpperCase()}]
               </h1>
@@ -634,8 +641,8 @@ function TerminalPagination({
                 ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
                 : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
               : theme === 'dark'
-              ? 'bg-gray-700 border-gray-600 text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50'
-              : 'bg-white border-gray-300 text-cyan-600 hover:bg-cyan-50 hover:border-cyan-400'
+              ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
+              : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
           }`}
         >
           {'[<]'}
@@ -656,8 +663,8 @@ function TerminalPagination({
                 className={`min-w-[32px] px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${
                   currentPage === page
                     ? theme === 'dark'
-                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
-                      : 'bg-cyan-50 border-cyan-400 text-cyan-600'
+                      ? 'bg-orange-500/20 border-orange-500 text-orange-400'
+                      : 'bg-orange-50 border-orange-400 text-orange-600'
                     : theme === 'dark'
                     ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
@@ -679,8 +686,8 @@ function TerminalPagination({
                 ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
                 : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
               : theme === 'dark'
-              ? 'bg-gray-700 border-gray-600 text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50'
-              : 'bg-white border-gray-300 text-cyan-600 hover:bg-cyan-50 hover:border-cyan-400'
+              ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
+              : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
           }`}
         >
           {'[>]'}
@@ -752,8 +759,8 @@ function ChallengeListItem({
       } ${
         isSelected
           ? theme === 'dark' 
-            ? 'border-green-500 bg-green-900/20' 
-            : 'border-green-500 bg-green-50'
+            ? 'border-orange-500 bg-orange-900/20' 
+            : 'border-orange-500 bg-orange-50'
           : !isContestActive || isLocked
           ? theme === 'dark'
             ? 'bg-gray-800/50 border-gray-700'
@@ -773,7 +780,7 @@ function ChallengeListItem({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
               {challenge.solve_by_myteam ? (
-                <CheckCircle className="text-green-500 flex-shrink-0" sx={{ fontSize: 18 }} />
+                <Check className="text-green-500 flex-shrink-0" sx={{ fontSize: 18 }} />
               ) : isLocked ? (
                 <Lock className="text-yellow-500 flex-shrink-0" sx={{ fontSize: 18 }} />
               ) : isContestActive ? (
@@ -850,8 +857,8 @@ function ChallengeListItem({
               {isDeploying && (
                 <span className={`px-2 py-0.5 rounded animate-pulse ${
                   theme === 'dark'
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                    : 'bg-cyan-100 text-cyan-700 border border-cyan-300'
+                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                    : 'bg-orange-100 text-orange-700 border border-orange-300'
                 }`}>
                   [~] deploying...
                 </span>
@@ -890,6 +897,7 @@ function ChallengeDetailPanel({
   const [isStopping, setIsStopping] = useState(false);
   const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
+  const [isPodHealthy, setIsPodHealthy] = useState(false);
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -1080,7 +1088,7 @@ function ChallengeDetailPanel({
         
         // Only set time remaining if we have URL (challenge is deployed)
         if (data.challenge_url && data.time_remaining) {
-          setTimeRemaining(data.time_remaining * 60); // Convert minutes to seconds
+          setTimeRemaining(data.time_remaining); // Convert minutes to seconds
         } else {
           setTimeRemaining(null); // Show --:-- when no URL
         }
@@ -1088,37 +1096,154 @@ function ChallengeDetailPanel({
         // If challenge is started and has URL
         if (data.is_started && data.challenge_url) {
           const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
           const savedDeployment = localStorage.getItem(deploymentKey);
+          const savedHealthCheck = localStorage.getItem(healthCheckKey);
           
           // Check if pod is healthy
           if (data.data.is_healthy) {
             // Pod is healthy - clean up and stop health checking
             localStorage.removeItem(deploymentKey);
+            localStorage.removeItem(healthCheckKey);
             setIsHealthChecking(false);
+            setIsPodHealthy(true);
             setIsDeploymentInProgress(false);
             setIsStarting(false);
-          } else if (savedDeployment) {
-            // Pod not healthy yet, but we have deployment state - continue health checking
-            setIsHealthChecking(true);
-            setIsDeploymentInProgress(true);
+          } else if (savedHealthCheck || savedDeployment) {
+            // Health check is running OR deployment in progress - continue checking
+            const healthCheckData = savedHealthCheck ? JSON.parse(savedHealthCheck) : null;
             
-            // Start health check loop
-            setTimeout(() => {
-              startHealthCheckLoop();
-            }, 100);
+            // Check if health check hasn't timed out (5 minutes = 300 seconds)
+            if (healthCheckData) {
+              const elapsed = (Date.now() - healthCheckData.startTime) / 1000;
+              if (elapsed < 300) {
+                // Health check still valid - resume it
+                console.log('[fetchChallengeStatus] Resuming health check from savedHealthCheck...');
+                setIsHealthChecking(true);
+                setIsDeploymentInProgress(true);
+                setIsStarting(false);
+                setIsPodHealthy(false);
+                
+                // Resume health check loop if not already running
+                if (!healthCheckRunningRef.current) {
+                  setTimeout(() => {
+                    startHealthCheckLoop();
+                  }, 100);
+                }
+              } else {
+                // Health check timed out - clean up
+                console.log('[fetchChallengeStatus] Health check timed out');
+                localStorage.removeItem(deploymentKey);
+                localStorage.removeItem(healthCheckKey);
+                setIsHealthChecking(false);
+                setIsPodHealthy(false);
+                setIsDeploymentInProgress(false);
+                setIsStarting(false);
+              }
+            } else if (savedDeployment) {
+              // Old deployment state - start health check
+              const deploymentData = JSON.parse(savedDeployment);
+              const elapsed = (Date.now() - deploymentData.startTime) / 1000;
+              
+              if (elapsed < 300) {
+                console.log('[fetchChallengeStatus] Starting health check from old deployment state...');
+                
+                // Save health check state
+                localStorage.setItem(healthCheckKey, JSON.stringify({
+                  startTime: deploymentData.startTime,
+                  challengeId: challenge.id
+                }));
+                
+                setIsHealthChecking(true);
+                setIsDeploymentInProgress(true);
+                setIsStarting(false);
+                setIsPodHealthy(false);
+                
+                if (!healthCheckRunningRef.current) {
+                  setTimeout(() => {
+                    startHealthCheckLoop();
+                  }, 100);
+                }
+              } else {
+                // Deployment timed out
+                localStorage.removeItem(deploymentKey);
+                localStorage.removeItem(healthCheckKey);
+                setIsHealthChecking(false);
+                setIsPodHealthy(false);
+                setIsDeploymentInProgress(false);
+                setIsStarting(false);
+              }
+            }
           } else {
             // No deployment state, assume it's an old challenge that was started before
             setIsHealthChecking(false);
+            setIsPodHealthy(true);
             setIsDeploymentInProgress(false);
             setIsStarting(false);
+          }
+        } else if (data.is_started && !data.challenge_url) {
+          // Challenge started but no URL yet (still deploying)
+          const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
+          const savedDeployment = localStorage.getItem(deploymentKey);
+          const savedHealthCheck = localStorage.getItem(healthCheckKey);
+          
+          // If we have health check or deployment state, resume checking
+          if (savedHealthCheck || savedDeployment) {
+            const healthCheckData = savedHealthCheck ? JSON.parse(savedHealthCheck) : (savedDeployment ? JSON.parse(savedDeployment) : null);
+            
+            if (healthCheckData) {
+              const elapsed = (Date.now() - healthCheckData.startTime) / 1000;
+              
+              if (elapsed < 300) {
+                console.log('[fetchChallengeStatus] Resuming health check - no URL yet. Setting UI to health checking state...');
+                
+                // Ensure health check state is saved
+                if (!savedHealthCheck) {
+                  localStorage.setItem(healthCheckKey, JSON.stringify({
+                    startTime: healthCheckData.startTime,
+                    challengeId: challenge.id
+                  }));
+                }
+                
+                // Set UI to show health checking state (like image 2)
+                setIsChallengeStarted(false);  // Challenge not fully started yet (no URL)
+                setUrl(null);                  // No URL available yet
+                setIsHealthChecking(true);     // Show "Health checking..." message
+                setIsDeploymentInProgress(true);
+                setIsStarting(false);
+                setIsPodHealthy(false);
+                
+                // Resume health check loop if not already running
+                if (!healthCheckRunningRef.current) {
+                  setTimeout(() => {
+                    startHealthCheckLoop();
+                  }, 100);
+                }
+              } else {
+                // Timed out
+                console.log('[fetchChallengeStatus] Deployment timed out - no URL');
+                localStorage.removeItem(deploymentKey);
+                localStorage.removeItem(healthCheckKey);
+                setIsChallengeStarted(false);
+                setUrl(null);
+                setIsHealthChecking(false);
+                setIsPodHealthy(false);
+                setIsDeploymentInProgress(false);
+                setIsStarting(false);
+              }
+            }
           }
         } else {
           // Not started or no URL yet
           const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
+          localStorage.removeItem(healthCheckKey);
           setIsDeploymentInProgress(false);
           setIsStarting(false);
           setIsHealthChecking(false);
+          setIsPodHealthy(false);
         }
       }
     } catch (error) {
@@ -1132,9 +1257,18 @@ function ChallengeDetailPanel({
     
     // Save deployment state to localStorage
     const deploymentKey = `deployment_${challenge.id}`;
+    const healthCheckKey = `healthcheck_${challenge.id}`;
+    const startTime = Date.now();
+    
     localStorage.setItem(deploymentKey, JSON.stringify({
       isDeploying: true,
-      startTime: Date.now()
+      startTime: startTime
+    }));
+    
+    // Save health check state
+    localStorage.setItem(healthCheckKey, JSON.stringify({
+      startTime: startTime,
+      challengeId: challenge.id
     }));
     
     try {
@@ -1163,19 +1297,19 @@ function ChallengeDetailPanel({
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-cyan-400 mb-2">[+] Challenge URL ready</div>
+              <div class="text-orange-400 mb-2">[+] Challenge URL ready</div>
               <div class="text-gray-400">> URL: ${data.challenge_url}</div>
               <div class="text-yellow-400 mt-2">> Health check in progress...</div>
             </div>
           `,
           icon: 'success',
-          iconColor: '#22d3ee',
+          iconColor: '#fb923c',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#22d3ee' : '#000000',
+          color: theme === 'dark' ? '#fb923c' : '#000000',
           timer: 3000,
           showConfirmButton: false,
           customClass: {
-            popup: 'rounded-lg border border-cyan-500/30',
+            popup: 'rounded-lg border border-orange-500/30',
           },
         });
       }
@@ -1198,7 +1332,7 @@ function ChallengeDetailPanel({
             <div class="font-mono text-left text-sm">
               <div class="text-yellow-400 mb-2">[~] Deploying challenge</div>
               <div class="text-gray-400">> ${data.message || 'Please wait...'}</div>
-              <div class="text-cyan-400 mt-2">> Health check will start shortly...</div>
+              <div class="text-orange-400 mt-2">> Health check will start shortly...</div>
             </div>
           `,
           icon: 'info',
@@ -1218,7 +1352,9 @@ function ChallengeDetailPanel({
         setIsDeploymentInProgress(false);
         
         // Clear deployment state from localStorage
+        const healthCheckKey = `healthcheck_${challenge.id}`;
         localStorage.removeItem(deploymentKey);
+        localStorage.removeItem(healthCheckKey);
         
         Swal.fire({
           html: `
@@ -1245,7 +1381,9 @@ function ChallengeDetailPanel({
       
       // Clear deployment state from localStorage
       const deploymentKey = `deployment_${challenge.id}`;
+      const healthCheckKey = `healthcheck_${challenge.id}`;
       localStorage.removeItem(deploymentKey);
+      localStorage.removeItem(healthCheckKey);
       console.error('Start challenge error:', error);
       Swal.fire({
         html: `
@@ -1292,6 +1430,7 @@ function ChallengeDetailPanel({
           method: 'POST',
           body: JSON.stringify({
             challengeId: challenge.id,
+            teamId: getTeamId(),
           }),
         }, API_DEPLOYMENT_URL);
         const data = await response.json();
@@ -1302,17 +1441,20 @@ function ChallengeDetailPanel({
           setUrl(data.challenge_url);
           
           // Set time remaining when healthy (convert minutes to seconds)
-          if (data.time_remaining) {
-            setTimeRemaining(data.time_remaining * 60);
+          if (data.time_remaining || data.time_limit) {
+            setTimeRemaining(data.time_remaining || data.time_limit * 60);
           }
           
           setIsHealthChecking(false);
+          setIsPodHealthy(true);
           setIsDeploymentInProgress(false);
           healthCheckRunningRef.current = false;
           
           // Clear deployment state from localStorage
           const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
+          localStorage.removeItem(healthCheckKey);
           
           // Health check success - show notification
           const notificationKey = `deployment_notification_${challenge.id}`;
@@ -1331,7 +1473,7 @@ function ChallengeDetailPanel({
               <div class="font-mono text-left text-sm">
                 <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
                 <div class="text-gray-400">> URL: ${data.challenge_url}</div>
-                <div class="text-cyan-400 mt-2">> Pod is healthy</div>
+                <div class="text-orange-400 mt-2">> Pod is healthy</div>
               </div>
             `,
             icon: 'success',
@@ -1352,6 +1494,7 @@ function ChallengeDetailPanel({
         if (attempts >= maxAttempts) {
           console.log('[Health Check] Max attempts reached. Stopping.');
           setIsHealthChecking(false);
+          setIsPodHealthy(false);
           setIsDeploymentInProgress(false);
           setIsStarting(false);
           healthCheckRunningRef.current = false;
@@ -1362,7 +1505,9 @@ function ChallengeDetailPanel({
           
           // Clear deployment state from localStorage
           const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
+          localStorage.removeItem(healthCheckKey);
           
           // Show timeout notification
           Swal.fire({
@@ -1403,6 +1548,7 @@ function ChallengeDetailPanel({
         
         // Max attempts reached even with errors
         setIsHealthChecking(false);
+        setIsPodHealthy(false);
         setIsDeploymentInProgress(false);
         setIsStarting(false);
         healthCheckRunningRef.current = false;
@@ -1413,7 +1559,9 @@ function ChallengeDetailPanel({
         
         // Clear deployment state from localStorage
         const deploymentKey = `deployment_${challenge.id}`;
+        const healthCheckKey = `healthcheck_${challenge.id}`;
         localStorage.removeItem(deploymentKey);
+        localStorage.removeItem(healthCheckKey);
         
         // Show error notification
         Swal.fire({
@@ -1458,6 +1606,7 @@ function ChallengeDetailPanel({
         setIsChallengeStarted(false);
         setUrl(null);
         setTimeRemaining(null);
+        setIsPodHealthy(false);
         
         // Clear timer
         if (timerRef.current) {
@@ -1540,27 +1689,16 @@ function ChallengeDetailPanel({
 
     setIsSubmittingFlag(true);
     try {
-      const formData = new FormData();
-      formData.append('challengeId', challenge.id.toString());
-      formData.append('submission', answer);
-      formData.append('generatedToken', localStorage.getItem('auth_token') || '');
-
-      // const MANAGEMENT_API_URL = import.meta.env.VITE_MANAGEMENT_API_URL || import.meta.env.VITE_API_URL;
-      // const token = localStorage.getItem('auth_token');
+      // Send as JSON instead of FormData
+      const requestBody = {
+        challengeId: challenge.id,
+        submission: answer
+      };
       
-      // const response = await fetch(`${MANAGEMENT_API_URL}${API_ENDPOINTS.FLAGS.SUBMIT}`, {
-      //   method: 'POST',
-      //   headers: {
-      //     ...(token && { Authorization: `Bearer ${token}` }),
-      //   },
-      //   body: formData,
-      // });
-
       const response = await fetchWithAuth(API_ENDPOINTS.FLAGS.SUBMIT, {
         method: 'POST',
-        body: formData
-      }, MANAGEMENT_API_URL);
-
+        body: JSON.stringify(requestBody)
+      });
       const data = await response.json();
       
       if (data?.data?.status === 'correct') {
@@ -1638,18 +1776,18 @@ function ChallengeDetailPanel({
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-cyan-400 mb-2">[i] Already solved</div>
+              <div class="text-orange-400 mb-2">[i] Already solved</div>
               <div class="text-gray-400">> Challenge completed</div>
             </div>
           `,
           icon: 'info',
-          iconColor: '#06b6d4',
+          iconColor: '#f97316',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#06b6d4' : '#000000',
+          color: theme === 'dark' ? '#f97316' : '#000000',
           timer: 1500,
           showConfirmButton: false,
           customClass: {
-            popup: 'rounded-lg border border-cyan-500/30',
+            popup: 'rounded-lg border border-orange-500/30',
           },
         });
       } else if (data?.data?.status === 'ratelimited') {
@@ -1897,21 +2035,21 @@ const getFileName = (filePath : string) => {
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-cyan-400 mb-2">[i] Already unlocked</div>
+              <div class="text-orange-400 mb-2">[i] Already unlocked</div>
               <div class="text-gray-400 mb-2">> Content:</div>
-              <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-cyan-500/30">
+              <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30">
                 ${hintDetailsResponse.data.content || "No content"}
               </div>
             </div>
           `,
           icon: "info",
-          iconColor: '#06b6d4',
+          iconColor: '#f97316',
           confirmButtonText: "OK",
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#06b6d4' : '#000000',
+          color: theme === 'dark' ? '#f97316' : '#000000',
           customClass: {
-            popup: 'rounded-lg border border-cyan-500/30',
-            confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
+            popup: 'rounded-lg border border-orange-500/30',
+            confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
           }
         });
         return;
@@ -1954,7 +2092,7 @@ const getFileName = (filePath : string) => {
                 <div class="font-mono text-left text-sm">
                   <div class="text-green-400 mb-2">[+] Hint unlocked</div>
                   <div class="text-gray-400 mb-2">> Content:</div>
-                  <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-cyan-500/30">
+                  <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30">
                     ${updatedHintDetails.data.content || "No content"}
                   </div>
                 </div>
@@ -1981,13 +2119,13 @@ const getFileName = (filePath : string) => {
                 </div>
               `,
               icon: "info",
-              iconColor: '#06b6d4',
+              iconColor: '#f97316',
               confirmButtonText: "OK",
               background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-              color: theme === 'dark' ? '#06b6d4' : '#000000',
+              color: theme === 'dark' ? '#f97316' : '#000000',
               customClass: {
-                popup: 'rounded-lg border border-cyan-500/30',
-                confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
+                popup: 'rounded-lg border border-orange-500/30',
+                confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
               },
             });
           }
@@ -2021,39 +2159,39 @@ const getFileName = (filePath : string) => {
                 Swal.fire({
                   html: `
                     <div class="font-mono text-left text-sm">
-                      <div class="text-cyan-400 mb-2">[i] Already unlocked</div>
+                      <div class="text-orange-400 mb-2">[i] Already unlocked</div>
                       <div class="text-gray-400 mb-2">> Content:</div>
-                      <div class="text-cyan-400 text-xs p-2 bg-gray-800/50 rounded border border-cyan-500/30">
+                      <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30">
                         ${hintDetailsResponse.data.content || "No content"}
                       </div>
                     </div>
                   `,
                   icon: "info",
-                  iconColor: '#06b6d4',
+                  iconColor: '#f97316',
                   confirmButtonText: "OK",
                   background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-                  color: theme === 'dark' ? '#06b6d4' : '#000000',
+                  color: theme === 'dark' ? '#f97316' : '#000000',
                   customClass: {
-                    popup: 'rounded-lg border border-cyan-500/30',
-                    confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
+                    popup: 'rounded-lg border border-orange-500/30',
+                    confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
                   },
                 });
               } else {
                 Swal.fire({
                   html: `
                     <div class="font-mono text-left text-sm">
-                      <div class="text-cyan-400 mb-2">[i] Already unlocked</div>
+                      <div class="text-orange-400 mb-2">[i] Already unlocked</div>
                       <div class="text-gray-400">> Hint already purchased</div>
                     </div>
                   `,
                   icon: "info",
-                  iconColor: '#06b6d4',
+                  iconColor: '#f97316',
                   confirmButtonText: "OK",
                   background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-                  color: theme === 'dark' ? '#06b6d4' : '#000000',
+                  color: theme === 'dark' ? '#f97316' : '#000000',
                   customClass: {
-                    popup: 'rounded-lg border border-cyan-500/30',
-                    confirmButton: 'bg-cyan-500 hover:bg-cyan-600 text-white font-mono px-4 py-2 rounded',
+                    popup: 'rounded-lg border border-orange-500/30',
+                    confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
                   },
                 });
               }
@@ -2360,8 +2498,8 @@ const getFileName = (filePath : string) => {
               </div>
             )}
 
-            {/* Connection URL */}
-            {url && (
+            {/* Connection URL - Show if URL exists OR if health checking */}
+            {(url || isHealthChecking || isDeploymentInProgress) && (
               <div className={`p-3 rounded border ${
                 theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
               }`}>
@@ -2371,7 +2509,7 @@ const getFileName = (filePath : string) => {
                   }`}>
                     [URL]
                   </span>
-                  {isHealthChecking && (
+                  {isHealthChecking ? (
                     <div className="flex items-center gap-2">
                       <CircularProgress 
                         size={12} 
@@ -2385,11 +2523,26 @@ const getFileName = (filePath : string) => {
                         Health checking...
                       </span>
                     </div>
-                  )}
+                  ) : isPodHealthy ? (
+                    <div className="flex items-center gap-2">
+                      <Check 
+                        className={`text-sm ${
+                          theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                        }`}
+                      />
+                      <span className={`text-xs font-mono ${
+                        theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                      }`}>
+                        Running
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 <p className="font-mono text-xs">
                   <span className={`font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{'>>'} </span>
-                  <span className={`break-all ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>{url}</span>
+                  <span className={`break-all ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                    {url || 'Send to request to deploy successfully. Please wait a moment.'}
+                  </span>
                 </p>
               </div>
             )}
@@ -2497,7 +2650,7 @@ const getFileName = (filePath : string) => {
                 <div className={`text-center text-xs font-mono flex items-center justify-center gap-2 ${
                   theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
                 }`}>
-                  <span className="text-cyan-500">{'>'}</span>
+                  <span className="text-orange-500">{'>'}</span>
                   <span>Click to unlock hints | Cost in points</span>
                   <span className="text-purple-500">{'<'}</span>
                 </div>
@@ -2554,7 +2707,7 @@ const getFileName = (filePath : string) => {
                         <span className={
                           (challenge.max_attempts - (challenge.attemps || 0)) <= 2 
                             ? 'text-orange-500' 
-                            : theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                            : theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                         }>
                           [i]
                         </span> Attempts remaining: {challenge.max_attempts - (challenge.attemps || 0)} / {challenge.max_attempts}
@@ -2580,8 +2733,8 @@ const getFileName = (filePath : string) => {
                         fontSize: '13px',
                         textTransform: 'none',
                         color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#52525b' : '#fff',
-                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#18181b' : '#22d3ee',
-                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '1px solid #27272a' : '1px solid #22d3ee',
+                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#18181b' : '#fb923c',
+                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '1px solid #27272a' : '1px solid #fb923c',
                         padding: '10px',
                         borderRadius: '4px',
                         cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? 'not-allowed' : 'pointer',
@@ -2590,14 +2743,14 @@ const getFileName = (filePath : string) => {
                       }}
                       onMouseEnter={(e) => {
                         if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
-                          e.currentTarget.style.backgroundColor = '#06b6d4';
-                          e.currentTarget.style.borderColor = '#06b6d4';
+                          e.currentTarget.style.backgroundColor = '#f97316';
+                          e.currentTarget.style.borderColor = '#f97316';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
-                          e.currentTarget.style.backgroundColor = '#22d3ee';
-                          e.currentTarget.style.borderColor = '#22d3ee';
+                          e.currentTarget.style.backgroundColor = '#fb923c';
+                          e.currentTarget.style.borderColor = '#fb923c';
                         }
                       }}
                     >
@@ -2639,8 +2792,26 @@ const getFileName = (filePath : string) => {
             {challenge.require_deploy && !challenge.solve_by_myteam && 
              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className="space-y-2">
-                {!url ? (
-                  // Show Start button only when no URL exists
+                {/* Show Health Checking state if health check is in progress */}
+                {isHealthChecking || isDeploymentInProgress ? (
+                  <button
+                    disabled={true}
+                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
+                      theme === 'dark'
+                        ? 'bg-yellow-600 text-white border border-yellow-500'
+                        : 'bg-yellow-500 text-white border border-yellow-400'
+                    } cursor-not-allowed`}
+                  >
+                    <CircularProgress 
+                      size={14} 
+                      sx={{ 
+                        color: '#fff',
+                      }} 
+                    />
+                    <span>[-] Health Checking...</span>
+                  </button>
+                ) : !url ? (
+                  // Show Start button only when no URL exists and not health checking
                   (challenge.captain_only_start && !challenge.is_captain) ? (
                     <p className={`text-center text-xs font-mono ${
                       theme === 'dark' ? 'text-red-400' : 'text-red-600'
@@ -2648,63 +2819,56 @@ const getFileName = (filePath : string) => {
                       [!] Only captain can start
                     </p>
                   ) : (
-                    <>
-                      <button
-                        onClick={handleStartChallenge}
-                        disabled={isStarting}
-                        style={{
-                          fontFamily: 'monospace',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          width: '100%',
-                          padding: '10px 16px',
-                          border: '1px solid #4ade80',
-                          backgroundColor: '#4ade80',
-                          color: '#000',
-                          borderRadius: '4px',
-                          cursor: isStarting ? 'not-allowed' : 'pointer',
-                          opacity: isStarting ? 0.5 : 1,
-                          transition: 'all 0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isStarting) {
-                            e.currentTarget.style.backgroundColor = '#22c55e';
-                            e.currentTarget.style.borderColor = '#22c55e';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isStarting) {
-                            e.currentTarget.style.backgroundColor = '#4ade80';
-                            e.currentTarget.style.borderColor = '#4ade80';
-                          }
-                        }}
-                      >
-                        {isStarting && (
-                          <CircularProgress 
-                            size={14} 
-                            sx={{ 
-                              color: '#000',
-                            }} 
-                          />
-                        )}
-                        <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
-                      </button>
-                      {isDeploymentInProgress && (
-                        <p className="text-center text-xs font-mono text-red-500 animate-pulse">
-                          [~] waiting for challenge deployment...
-                        </p>
+                    <button
+                      onClick={handleStartChallenge}
+                      disabled={isStarting}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #4ade80',
+                        backgroundColor: '#4ade80',
+                        color: '#000',
+                        borderRadius: '4px',
+                        cursor: isStarting ? 'not-allowed' : 'pointer',
+                        opacity: isStarting ? 0.5 : 1,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#22c55e';
+                          e.currentTarget.style.borderColor = '#22c55e';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isStarting) {
+                          e.currentTarget.style.backgroundColor = '#4ade80';
+                          e.currentTarget.style.borderColor = '#4ade80';
+                        }
+                      }}
+                    >
+                      {isStarting && (
+                        <CircularProgress 
+                          size={14} 
+                          sx={{ 
+                            color: '#000',
+                          }} 
+                        />
                       )}
-                    </>
+                      <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
+                    </button>
                   )
                 ) : (
-                  // Show Stop button when URL exists
+                  // Show Stop button when URL exists (challenge is fully ready)
                   <button
                     onClick={handleStopChallenge}
-                    disabled={isStopping || isHealthChecking}
+                    disabled={isStopping}
                     className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
                       theme === 'dark'
                         ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
@@ -2717,9 +2881,9 @@ const getFileName = (filePath : string) => {
                         sx={{ 
                           color: '#fff',
                         }} 
-                      />  
+                      />
                     )}
-                    {isStopping ? '[...] Stopping' : isHealthChecking ? '[~] Health Checking...' : '[-] Stop Challenge'}
+                    {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
                   </button>
                 )}
               </div>
@@ -2766,8 +2930,8 @@ const getFileName = (filePath : string) => {
                           disabled={pdfScale <= 0.5}
                           className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
                             theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-cyan-400 border-gray-600'
-                              : 'bg-gray-100 hover:bg-gray-200 text-cyan-600 border-gray-300'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
+                              : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
                           } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           [-]
@@ -2782,8 +2946,8 @@ const getFileName = (filePath : string) => {
                           disabled={pdfScale >= 3.0}
                           className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
                             theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-cyan-400 border-gray-600'
-                              : 'bg-gray-100 hover:bg-gray-200 text-cyan-600 border-gray-300'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
+                              : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
                           } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           [+]
