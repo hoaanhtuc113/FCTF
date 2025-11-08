@@ -32,25 +32,25 @@ export function Home() {
   const isDark = theme === 'dark';
   const colors = {
     // Terminal frame
-    terminalBg: isDark ? '#000' : '#0a0a0a',
-    terminalBorder: isDark ? '#3f3f46' : '#27272a', // Tăng độ sáng của border trong dark mode
-    titleBarBg: isDark ? '#18181b' : '#18181b',
+    terminalBg: isDark ? '#000' : '#ffffff',
+    terminalBorder: isDark ? '#3f3f46' : '#e5e7eb',
+    titleBarBg: isDark ? '#18181b' : '#f3f4f6',
     
     // Text colors
-    primary: '#22d3ee', // cyan stays same
-    textPrimary: isDark ? '#a1a1aa' : '#d4d4d8',
-    textSecondary: isDark ? '#71717a' : '#a1a1aa',
-    textMuted: isDark ? '#52525b' : '#71717a',
+    primary: '#fb923c', // orange main color
+    textPrimary: isDark ? '#a1a1aa' : '#1f2937',
+    textSecondary: isDark ? '#71717a' : '#4b5563',
+    textMuted: isDark ? '#52525b' : '#6b7280',
     
     // Borders and backgrounds
-    borderColor: isDark ? '#27272a' : '#3f3f46',
-    borderLight: isDark ? '#3f3f46' : '#52525b',
-    bgDark: isDark ? '#09090b' : '#18181b',
-    bgLight: isDark ? '#000' : '#0a0a0a',
+    borderColor: isDark ? '#27272a' : '#e5e7eb',
+    borderLight: isDark ? '#3f3f46' : '#d1d5db',
+    bgDark: isDark ? '#09090b' : '#f9fafb',
+    bgLight: isDark ? '#000' : '#ffffff',
     
     // Decorations
-    decorationBg: isDark ? '#ffffff' : '#3f3f46', // Tăng độ sáng cho ASCII art
-    gridOpacity: isDark ? 0.08 : 0.05, // Tăng độ sáng của lưới trong dark mode
+    decorationBg: isDark ? '#ffffff' : '#9ca3af',
+    gridOpacity: isDark ? 0.08 : 0.05,
   };
 
   // Terminal typing effect
@@ -248,7 +248,7 @@ export function Home() {
       <Box sx={{ 
         position: 'absolute',
         inset: 0,
-        backgroundImage: `linear-gradient(rgba(34, 211, 238, ${colors.gridOpacity}) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, ${colors.gridOpacity}) 1px, transparent 1px)`,
+        backgroundImage: `linear-gradient(rgba(251, 146, 60, ${colors.gridOpacity}) 1px, transparent 1px), linear-gradient(90deg, rgba(251, 146, 60, ${colors.gridOpacity}) 1px, transparent 1px)`,
         backgroundSize: '50px 50px',
         pointerEvents: 'none',
         zIndex: 0
@@ -263,7 +263,7 @@ export function Home() {
         fontSize: '10px',
         lineHeight: 1,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.6 : 0.4, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.6 : 0.5,
         userSelect: 'none',
         display: { xs: 'none', md: 'block' }
       }}>
@@ -286,7 +286,7 @@ export function Home() {
         fontSize: '9px',
         lineHeight: 1.2,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.5 : 0.3, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.5 : 0.4,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -306,7 +306,7 @@ export function Home() {
         fontSize: '10px',
         lineHeight: 1.1,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.55 : 0.35, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.55 : 0.45,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -325,7 +325,7 @@ export function Home() {
         fontSize: '8px',
         lineHeight: 1.3,
         fontFamily: 'monospace',
-        opacity: isDark ? 0.5 : 0.3, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.5 : 0.4,
         userSelect: 'none',
         display: { xs: 'none', md: 'block' }
       }}>
@@ -341,10 +341,10 @@ export function Home() {
         position: 'absolute',
         top: '5%',
         left: '3%',
-        color: isDark ? colors.borderLight : colors.borderColor, // Sáng hơn trong dark mode
+        color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5, // Tăng opacity trong dark mode
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -358,7 +358,7 @@ export function Home() {
         color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5,
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -372,7 +372,7 @@ export function Home() {
         color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5,
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -386,7 +386,7 @@ export function Home() {
         color: isDark ? colors.borderLight : colors.borderColor,
         fontSize: '40px',
         fontFamily: 'monospace',
-        opacity: isDark ? 0.7 : 0.5,
+        opacity: isDark ? 0.7 : 0.6,
         userSelect: 'none',
         display: { xs: 'none', lg: 'block' }
       }}>
@@ -401,8 +401,8 @@ export function Home() {
         width: '60px',
         height: '2px',
         background: isDark 
-          ? 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.5), transparent)'
-          : 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
+          ? 'linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.5), transparent)'
+          : 'linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.3), transparent)',
         display: { xs: 'none', md: 'block' }
       }} />
 
@@ -413,8 +413,8 @@ export function Home() {
         width: '60px',
         height: '2px',
         background: isDark 
-          ? 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.5), transparent)'
-          : 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3), transparent)',
+          ? 'linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.5), transparent)'
+          : 'linear-gradient(90deg, transparent, rgba(251, 146, 60, 0.3), transparent)',
         display: { xs: 'none', md: 'block' }
       }} />
 
@@ -425,7 +425,7 @@ export function Home() {
         bgcolor: colors.terminalBg,
         border: `2px solid ${colors.terminalBorder}`,
         boxShadow: isDark 
-          ? '0 0 0 1px rgba(255,255,255,0.1), 0 0 30px rgba(34, 211, 238, 0.15), 0 20px 40px rgba(0,0,0,0.4)'
+          ? '0 0 0 1px rgba(255,255,255,0.1), 0 0 30px rgba(251, 146, 60, 0.15), 0 20px 40px rgba(0,0,0,0.4)'
           : '0 0 0 1px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2)',
         overflow: 'hidden',
         position: 'relative',
@@ -445,7 +445,7 @@ export function Home() {
             <Box sx={{ display: 'flex', gap: 0.5 }}>
               <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#ef4444', border: '1px solid #7f1d1d' }} />
               <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#eab308', border: '1px solid #713f12' }} />
-              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: colors.primary, border: '1px solid #164e63' }} />
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: colors.primary, border: '1px solid #9a3412' }} />
             </Box>
             <Box sx={{ color: colors.textMuted, fontSize: '11px', ml: 1 }}>
               {typedText}<span style={{ opacity: 0.5 }}>▋</span>
@@ -685,7 +685,7 @@ export function Home() {
                     borderColor: colors.primary,
                     bgcolor: colors.terminalBorder,
                     transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px rgba(34, 211, 238, 0.2)`
+                    boxShadow: `0 4px 12px rgba(251, 146, 60, 0.2)`
                   } : {},
                   '&:active': action.active ? {
                     transform: 'translateY(0)',
@@ -711,7 +711,7 @@ export function Home() {
                     py: 0.5,
                     borderRadius: '2px',
                     fontWeight: 'bold',
-                    bgcolor: action.active ? 'rgba(34, 211, 238, 0.1)' : 'transparent'
+                    bgcolor: action.active ? 'rgba(251, 146, 60, 0.1)' : 'transparent'
                   }}>
                     {action.key}
                   </Box>

@@ -295,76 +295,7 @@ namespace ContestantBE.Services
                 }
                 await Console.Out.WriteLineAsync($"Start response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
                 return result;
-                /*
-                if (result.success)
-                {
-                    var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
-                    var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
-                    var cacheExpired = challenge.TimeLimit != null && challenge.TimeLimit > 0 ? TimeSpan.FromSeconds(challenge.TimeLimit.Value * 60) : (TimeSpan?)null;
-                    try
-                    {
-                        await Console.Out.WriteLineAsync($"Saving to Redis: {cache_key} with expiration: {(cacheExpired.HasValue ? cacheExpired.ToString() : "No Expiration")}");
-                        var cacheObj = new
-                        {
-                            challenge_url = result.challenge_url,
-                            user_id = user.Id,
-                            challengeId = challenge.Id,
-                            time_finished = new DateTimeOffset(timeFinished).ToUnixTimeSeconds()
-                        };
-                        await redisHelper.SetCacheAsync(cache_key, cacheObj, cacheExpired);
-
-                        var cachedData = await redisHelper.GetFromCacheAsync<object>(cache_key);
-                        await Console.Out.WriteLineAsync($"Cache saved: {cache_key} -> challenge_url: {result.challenge_url}, time_finished: {timeFinished}");
-                        
-                        if(challenge.TimeLimit != null)
-                        {
-                            // tự đống stop challenge sau thời gian challenge.TimeLimit
-                            //var delay = TimeSpan.FromSeconds(Math.Max(30, challenge.TimeLimit.Value * 60));
-                            //_ = Task.Run(async () =>
-                            //{
-                            //    await Task.Delay(delay);
-                            //    await ForceStopChallenge(cache_key, challenge.Id, user.TeamId.Value);
-                            //});
-                        }
-                    }
-                    catch(Exception ex)
-                    {
-                        await Console.Out.WriteLineAsync($"Error saving to Redis: {cache_key} - {ex.Message}");
-                        return new ChallengeDeployResponeDTO
-                        {
-                            status = (int)HttpStatusCode.NotFound,
-                            success = false,
-                            message = "Error saving to cache"
-                        };
-                    }
-
-                    return new ChallengeDeployResponeDTO
-                    {
-                        status = (int)HttpStatusCode.OK,
-                        success = true,
-                        message = "Challenge started successfully",
-                        challenge_url = result.challenge_url
-                    };
-                }
-                else
-                {
-                    var message = result.message;
-       
-                    message += "<br><br>Running challenge is: ";
-                    var chalNames = _dbContext.Challenges
-                                        .Where(c => c.Id == challenge.Id)
-                                        .Select(c => $"<b>{c.Name}</b>")
-                                        .ToList();
-                    message += string.Join(", ", chalNames);
-
-                    return new ChallengeDeployResponeDTO
-                    {
-                        status = (int)HttpStatusCode.OK,
-                        success = false,
-                        message = message
-                    };
-                }
-                */
+                
             }
             catch (HttpRequestException ex)
             {

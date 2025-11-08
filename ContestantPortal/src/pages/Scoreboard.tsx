@@ -175,7 +175,7 @@ export function Scoreboard() {
           {/* Header */}
           <div className="mb-6">
             <h2 className={`text-xl font-mono font-bold mb-1 ${
-              theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+              theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
             }`}>
               [LEADERBOARD]
             </h2>
@@ -209,8 +209,8 @@ export function Scoreboard() {
                 onClick={handleSearch}
                 className={`absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 rounded font-mono text-xs ${
                   theme === 'dark'
-                    ? 'bg-cyan-400 hover:bg-cyan-600 text-black'
-                    : 'bg-cyan-400 hover:bg-cyan-600 text-white'
+                    ? 'bg-orange-400 hover:bg-orange-600 text-black'
+                    : 'bg-orange-400 hover:bg-orange-600 text-white'
                 }`}
               >
                 GO
@@ -343,7 +343,7 @@ export function Scoreboard() {
                           {/* Score */}
                           <td className="p-3 text-right">
                             <span className={`font-mono font-bold ${
-                              theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                              theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                             }`}>
                               {team.score}
                             </span>
@@ -441,7 +441,7 @@ export function Scoreboard() {
           {/* Chart Header */}
           <div className="mb-6">
             <h2 className={`text-xl font-mono font-bold mb-1 ${
-              theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+              theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
             }`}>
               [SCORE_EVOLUTION]
             </h2>
