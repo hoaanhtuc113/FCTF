@@ -468,7 +468,6 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
-            
             var user = HttpContext.GetCurrentUser();
             if (user == null) return NotFound(new { error = "Please login" });
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
@@ -487,12 +486,17 @@ namespace ContestantBE.Controllers
             }
 
             // Check limit_challenges - maximum concurrent challenges per team
-            var limit_challenges = _configHelper.GetConfig<int>("limit_challenges", 3);
+            var limit_challenges = _configHelper.LimitChallenges();
+            await Console.Out.WriteLineAsync($"[LIMIT CHECK] limit_challenges config: {limit_challenges}, TeamId: {user.TeamId.Value}");
+            
             var pods = await _redisHelper.GetFromCacheAsync<List<ResourceShared.DTOs.Deployments.PodInfo>>(ResourceShared.Configs.RedisConfigs.PodsInfoKey);
+            await Console.Out.WriteLineAsync($"[LIMIT CHECK] Total pods in cache: {pods?.Count ?? 0}");
             
             if (pods != null)
             {
                 var teamPods = pods.Where(p => p.TeamId == user.TeamId.Value).ToList();
+                await Console.Out.WriteLineAsync($"[LIMIT CHECK] Team {user.TeamId.Value} has {teamPods.Count} running challenges");
+                
                 if (teamPods.Count >= limit_challenges)
                 {
                     return BadRequest(new 
