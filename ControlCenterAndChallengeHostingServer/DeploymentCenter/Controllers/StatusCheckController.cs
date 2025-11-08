@@ -53,7 +53,7 @@ namespace HealthCheckService.Controllers
                 };
             }
 
-            if (statusReq == null || statusReq.teamId == 0 || statusReq.challengeId <= 0)
+            if (statusReq == null || statusReq.challengeId <= 0)
             {
                 return new ChallengeDeployResponeDTO
                 {
@@ -62,6 +62,7 @@ namespace HealthCheckService.Controllers
                     status = (int)HttpStatusCode.BadRequest
                 };
             }
+            statusReq.teamId = user.TeamId.Value;
             var data = await _deployService.StatusCheck(statusReq);
 
             return data;
@@ -85,6 +86,7 @@ namespace HealthCheckService.Controllers
             return data;
         }
 
+        //AUTHENTICATION-NOTE: api này chưa được authen 
         [HttpPost("message")]
         public async Task<BaseResponseDTO> MessageFromArgo([FromBody] WorkflowStatusDTO message)
         {

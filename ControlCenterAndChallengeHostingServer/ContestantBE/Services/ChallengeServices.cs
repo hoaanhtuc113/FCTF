@@ -270,6 +270,7 @@ namespace ContestantBE.Services
                 {
                     { "SecretKey", generatedSecretKey }
                 };
+                await Console.Out.WriteLineAsync($"Starting challenge {challenge.Id} for team {user.TeamId} by user {user.Id}");
                 MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantBEConfigHelper.DeploymentCenterAPI);
                 var body = await multiServiceConnector.ExecuteRequest("/api/challenge/start", Method.Post, parammeters, headers);
                 await Console.Out.WriteLineAsync($"Response Line51 is {body}");
