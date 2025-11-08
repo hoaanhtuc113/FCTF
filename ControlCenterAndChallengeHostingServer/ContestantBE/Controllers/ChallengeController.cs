@@ -171,7 +171,7 @@ namespace ContestantBE.Controllers
 
            if (challenge == null) return NotFound(new { error = "Challenge not found" });
 
-           if (_ctfTimeHelper.CtfPaused())
+           if (_configHelper.GetConfig<bool>("paused", false))
            {
                return StatusCode(StatusCodes.Status403Forbidden, new
                {
