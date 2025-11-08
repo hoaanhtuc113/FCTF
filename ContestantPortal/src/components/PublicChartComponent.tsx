@@ -10,6 +10,11 @@ import {
   LineChart,
 } from "recharts";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 interface Solve {
   date: string;
@@ -28,19 +33,28 @@ interface PublicChartComponentProps {
   data: TeamData[];
 }
 
-// Cyan-themed color palette for public scoreboard
-// Top 1 team gets the brightest orange, others get varied colors
+// High contrast color palette - each team gets distinctly different color
 const TEAM_COLORS = [
-  "#fb923c", // orange-400 - TOP 1 (brightest)
-  "#f59e0b", // amber-500
-  "#ef4444", // red-500
-  "#8b5cf6", // violet-500
-  "#10b981", // emerald-500
-  "#ec4899", // pink-500
-  "#f97316", // orange-500
-  "#f97316", // orange-500
-  "#6366f1", // indigo-500
-  "#14b8a6", // teal-500
+  "#ff0000", // Red
+  "#00ff00", // Green
+  "#0000ff", // Blue
+  "#ffff00", // Yellow
+  "#ff00ff", // Magenta
+  "#00ffff", // Cyan
+  "#ff8800", // Orange
+  "#8800ff", // Purple
+  "#00ff88", // Spring Green
+  "#ff0088", // Hot Pink
+  "#88ff00", // Chartreuse
+  "#0088ff", // Azure
+  "#ff6600", // Dark Orange
+  "#6600ff", // Blue Violet
+  "#00ff66", // Spring Green
+  "#ff0066", // Rose
+  "#66ff00", // Lawn Green
+  "#0066ff", // Royal Blue
+  "#ff3333", // Scarlet
+  "#33ff33", // Lime
 ];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -88,24 +102,25 @@ export default function PublicChartComponent({ data }: PublicChartComponentProps
   const chartData = useMemo(() => {
     const teams = Object.values(data);
 
-    // Get all unique timestamps
+    // Get all unique timestamps and convert to local time
+    // Parse UTC time from DB and convert to local timezone
     const allDates = [...new Set(
       teams.flatMap(team =>
-        team.solves.map(solve => dayjs(solve.date).unix())
+        team.solves.map(solve => dayjs.utc(solve.date).local().valueOf())
       )
     )].sort((a, b) => a - b);
 
     // Create data points
     return allDates.map(timestamp => {
       const point: any = {
-        time: dayjs.unix(timestamp).format("DD/MM HH:mm"),
+        time: dayjs(timestamp).format("DD/MM HH:mm"),
         timestamp,
       };
 
       teams.forEach(team => {
         // Calculate cumulative score up to this timestamp
         const cumulativeScore = team.solves
-          .filter(solve => dayjs(solve.date).unix() <= timestamp)
+          .filter(solve => dayjs.utc(solve.date).local().valueOf() <= timestamp)
           .reduce((sum, solve) => sum + solve.value, 0);
         
         point[team.name] = cumulativeScore;
@@ -140,24 +155,33 @@ export default function PublicChartComponent({ data }: PublicChartComponentProps
           dataKey="time" 
           stroke="#fb923c"
           style={{ fontSize: '11px', fontFamily: 'monospace' }}
-          tick={{ fill: '#67e8f9' }}
+          tick={{ fill: '#fb923c' }}
         />
         <YAxis 
           stroke="#fb923c"
           style={{ fontSize: '11px', fontFamily: 'monospace' }}
-          tick={{ fill: '#67e8f9' }}
+          tick={{ fill: '#fb923c' }}
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend content={<CustomLegend />} />
         {teamNames.map((name, index) => (
           <Line
             key={name}
-            type="monotone"
+            type="linear"
             dataKey={name}
             stroke={TEAM_COLORS[index % TEAM_COLORS.length]}
             strokeWidth={index === 0 ? 4 : 2}
-            dot={index === 0 ? { r: 4, fill: TEAM_COLORS[0] } : false}
-            activeDot={index === 0 ? { r: 6 } : { r: 4 }}
+            dot={{
+              r: 4,
+              fill: TEAM_COLORS[index % TEAM_COLORS.length],
+              strokeWidth: 0
+            }}
+            activeDot={{
+              r: 6,
+              fill: TEAM_COLORS[index % TEAM_COLORS.length],
+              strokeWidth: 2,
+              stroke: "#000"
+            }}
             isAnimationActive={false}
           />
         ))}
