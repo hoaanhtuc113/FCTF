@@ -468,6 +468,7 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
+            
             var user = HttpContext.GetCurrentUser();
             if (user == null) return NotFound(new { error = "Please login" });
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
@@ -483,6 +484,22 @@ namespace ContestantBE.Controllers
             if (captainOnlyStart && user.Id != user.Team.CaptainId)
             {
                 return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });
+            }
+
+            // Check limit_challenges - maximum concurrent challenges per team
+            var limit_challenges = _configHelper.GetConfig<int>("limit_challenges", 3);
+            var pods = await _redisHelper.GetFromCacheAsync<List<ResourceShared.DTOs.Deployments.PodInfo>>(ResourceShared.Configs.RedisConfigs.PodsInfoKey);
+            
+            if (pods != null)
+            {
+                var teamPods = pods.Where(p => p.TeamId == user.TeamId.Value).ToList();
+                if (teamPods.Count >= limit_challenges)
+                {
+                    return BadRequest(new 
+                    { 
+                        error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
+                    });
+                }
             }
 
             var response =  await _challengeServices.ChallengeStart(challenge, user);
