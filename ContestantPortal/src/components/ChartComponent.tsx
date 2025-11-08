@@ -6,10 +6,15 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Area,
-  AreaChart,
+  Line,
+  LineChart,
 } from "recharts";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 interface Solve {
   date: string;
@@ -86,24 +91,25 @@ const ChartComponent = ({ data, selectedTeam = null }: ChartComponentProps) => {
   const chartData = useMemo(() => {
     const teams = Object.values(data);
 
-    // Get all unique timestamps
+    // Get all unique timestamps and convert to local time
+    // Parse UTC time from DB and convert to local timezone
     const allDates = [...new Set(
       teams.flatMap(team =>
-        team.solves.map(solve => dayjs(solve.date).unix())
+        team.solves.map(solve => dayjs.utc(solve.date).local().valueOf())
       )
     )].sort((a, b) => a - b);
 
     // Create data points
     return allDates.map(timestamp => {
       const point: any = {
-        time: dayjs.unix(timestamp).format("DD/MM HH:mm"),
+        time: dayjs(timestamp).format("DD/MM HH:mm"),
         timestamp,
       };
 
       teams.forEach(team => {
         // Calculate cumulative score up to this timestamp
         const score = team.solves
-          .filter(solve => dayjs(solve.date).unix() <= timestamp)
+          .filter(solve => dayjs.utc(solve.date).local().valueOf() <= timestamp)
           .reduce((sum, solve) => sum + solve.value, 0);
         point[team.name] = score;
       });
@@ -133,29 +139,10 @@ const ChartComponent = ({ data, selectedTeam = null }: ChartComponentProps) => {
   return (
     <div className="w-full h-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
+        <LineChart
           data={chartData}
           margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
         >
-          <defs>
-            {visibleTeams.map((teamName, index) => {
-              const color = COLORS[index % COLORS.length];
-              return (
-                <linearGradient
-                  key={`gradient-${teamName}`}
-                  id={`gradient-${teamName}`}
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0.05} />
-                </linearGradient>
-              );
-            })}
-          </defs>
-
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="rgba(255, 255, 255, 0.1)"
@@ -191,30 +178,27 @@ const ChartComponent = ({ data, selectedTeam = null }: ChartComponentProps) => {
               : true;
 
             return (
-              <Area
+              <Line
                 key={teamName}
-                type="monotone"
+                type="linear"
                 dataKey={teamName}
                 stroke={color}
-                strokeWidth={isHighlighted ? 2 : 1}
-                fill={`url(#gradient-${teamName})`}
+                strokeWidth={isHighlighted ? 3 : 2}
                 dot={{
-                  r: isHighlighted ? 4 : 2,
+                  r: 4,
                   fill: color,
-                  strokeWidth: 1,
-                  stroke: "#1f2937",
+                  strokeWidth: 0
                 }}
                 activeDot={{
                   r: 6,
                   fill: color,
-                  stroke: "#1f2937",
                   strokeWidth: 2,
+                  stroke: "#1f2937"
                 }}
-                animationDuration={1000}
               />
             );
           })}
-        </AreaChart>
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );
