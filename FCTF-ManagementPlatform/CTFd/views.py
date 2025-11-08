@@ -265,6 +265,8 @@ def setup():
             # Set default value for captain only submit challenge (using "0" for disabled, "1" for enabled)
             set_config("captain_only_submit_challenge", 0)
 
+            set_config("limit_challenges", 3)
+
             set_config("setup", True)
 
             try:

@@ -193,10 +193,11 @@ namespace ResourceShared.Services
                         else if (diff.TotalHours >= 1) age = $"{(int)diff.TotalHours}h";
                         else age = $"{(int)diff.TotalMinutes}m";
                     }
-
+                    var (_teamId, _challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
                     result.Add(new PodInfo
                     {
                         Namespace = ns,
+                        TeamId = _teamId,
                         Name = name,
                         Ready = ready,
                         Status = status,

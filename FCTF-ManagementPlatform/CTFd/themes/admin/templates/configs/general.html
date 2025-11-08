@@ -33,19 +33,30 @@
 			</select>
 		</div>
 
-		<div class="form-group">
-			<label for="captain_only_submit_challenge">
-				Captain Only Submit Challenge
-				<small class="form-text text-muted">
-					When enabled, only team captains can submit flags for challenges. Other team members will not be able to submit answers.
-				</small>
-			</label>
-			<select class="form-control custom-select" id="captain_only_submit_challenge" name="captain_only_submit_challenge">
-				<option value="1" {% if captain_only_submit_challenge == 1 %}selected{% endif %}>Enabled</option>
-				<option value="0" {% if captain_only_submit_challenge != 1 %}selected{% endif %}>Disabled</option>
-			</select>
-		</div>
+	<div class="form-group">
+		<label for="captain_only_submit_challenge">
+			Captain Only Submit Challenge
+			<small class="form-text text-muted">
+				When enabled, only team captains can submit flags for challenges. Other team members will not be able to submit answers.
+			</small>
+		</label>
+		<select class="form-control custom-select" id="captain_only_submit_challenge" name="captain_only_submit_challenge">
+			<option value="1" {% if captain_only_submit_challenge == 1 %}selected{% endif %}>Enabled</option>
+			<option value="0" {% if captain_only_submit_challenge != 1 %}selected{% endif %}>Disabled</option>
+		</select>
+	</div>
 
-		<button type="submit" class="btn btn-md btn-primary float-right">Update</button>
+	<div class="form-group">
+		<label for="limit_challenges">
+			Limit Challenges
+			<small class="form-text text-muted">
+				Maximum number of challenges that can be started simultaneously by a team. Must be at least 1.
+			</small>
+		</label>
+		<input class="form-control" id="limit_challenges" name="limit_challenges" type="number" min="1" placeholder="5"
+			{% if limit_challenges is defined and limit_challenges != None %}value="{{ limit_challenges }}"{% endif %}>
+	</div>
+
+	<button type="submit" class="btn btn-md btn-primary float-right">Update</button>
 	</form>
 </div>
