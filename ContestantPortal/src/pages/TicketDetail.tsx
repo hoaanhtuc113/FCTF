@@ -67,8 +67,8 @@ export function TicketDetail() {
         break;
       case 'in_progress':
         icon = <HourglassEmpty fontSize="small" />;
-        colorClass = 'text-cyan-500';
-        borderClass = 'border-cyan-500';
+        colorClass = 'text-orange-500';
+        borderClass = 'border-orange-500';
         break;
       case 'closed':
         icon = <CheckCircle fontSize="small" />;
@@ -92,7 +92,7 @@ export function TicketDetail() {
   if (loading) {
     return (
       <Box className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="text-cyan-500 text-6xl mb-4 font-mono">[...]</div>
+        <div className="text-orange-500 text-6xl mb-4 font-mono">[...]</div>
         <Typography className={`font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
           Loading ticket...
         </Typography>
@@ -146,7 +146,7 @@ export function TicketDetail() {
         }`}>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 className={`text-2xl font-bold font-mono ${
-              theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+              theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
             }`}>
               [TICKET_DETAIL]
             </h1>
@@ -160,7 +160,7 @@ export function TicketDetail() {
             {/* Left Column - Info */}
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <Person className={theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'} />
+                <Person className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} />
                 <div>
                   <p className={`text-sm font-bold font-mono mb-1 ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -176,7 +176,7 @@ export function TicketDetail() {
               </div>
 
               <div className="flex items-start gap-3">
-                <CalendarToday className={theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'} />
+                <CalendarToday className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} />
                 <div>
                   <p className={`text-sm font-bold font-mono mb-1 ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -192,7 +192,7 @@ export function TicketDetail() {
               </div>
 
               <div className="flex items-start gap-3">
-                <Reply className={theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'} />
+                <Reply className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} />
                 <div>
                   <p className={`text-sm font-bold font-mono mb-1 ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -209,7 +209,7 @@ export function TicketDetail() {
 
               {ticket.replierName && (
                 <div className="flex items-start gap-3">
-                  <Reply className={theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'} />
+                  <Reply className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} />
                   <div>
                     <p className={`text-sm font-bold font-mono mb-1 ${
                       theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -230,7 +230,7 @@ export function TicketDetail() {
             <div className="space-y-4">
               <div>
                 <h2 className={`text-lg font-bold mb-2 font-mono ${
-                  theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                  theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                 }`}>
                   [TITLE]
                 </h2>
@@ -245,7 +245,7 @@ export function TicketDetail() {
 
               <div>
                 <h2 className={`text-lg font-bold mb-2 font-mono ${
-                  theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'
+                  theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                 }`}>
                   [DESCRIPTION]
                 </h2>

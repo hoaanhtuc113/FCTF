@@ -157,182 +157,312 @@ namespace ContestantBE.Controllers
             });
         }
 
-        #region Attempt Challenge: pending refactor because related remove cache in Admin portal
-        //[DuringCtfTimeOnly]
-        //[HttpPost("attempt")]
-        //public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
-        //{
-        //    var user = HttpContext.GetCurrentUser();
-        //    if (user == null) return NotFound(new { error = "User not found" });
+        [DuringCtfTimeOnly]
+        [HttpPost("attempt")]
+        public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
+        {
+           var user = HttpContext.GetCurrentUser();
+           if (user == null) return NotFound(new { error = "User not found" });
 
-        //    if(request.ChallengeId == 0)  return BadRequest(new { error = "ChallengeId is required" });
+           if(request.ChallengeId == 0)  return BadRequest(new { error = "ChallengeId is required" });
 
-        //    var challenge = await _context.Challenges
-        //                                    .Include(c => c.Requirements)
-        //                                    .FirstOrDefaultAsync(c => c.Id == request.ChallengeId);
+           var challenge = await _context.Challenges
+                                           .FirstOrDefaultAsync(c => c.Id == request.ChallengeId);
 
-        //    if (challenge == null) return NotFound(new { error = "Challenge not found" });
+           if (challenge == null) return NotFound(new { error = "Challenge not found" });
 
-        //    if (_ctfTimeHelper.CtfPaused())
-        //    {
-        //        return StatusCode(StatusCodes.Status403Forbidden, new
-        //        {
-        //            success = true,
-        //            data =  new {
-        //                status = "paused",
-        //                message = $"{_configHelper.CtfName().ToString()} is paused"
-        //            }
-        //        });
-        //    }
+           if (_ctfTimeHelper.CtfPaused())
+           {
+               return StatusCode(StatusCodes.Status403Forbidden, new
+               {
+                   success = true,
+                   data =  new {
+                       status = "paused",
+                       message = $"{_configHelper.CtfName().ToString()} is paused"
+                   }
+               });
+           }
 
-        //    if (_configHelper.IsUserMode() && user.Team == null)
-        //    {
-        //       return Forbid();
-        //    }
+           if (_configHelper.IsUserMode() && user.Team == null)
+           {
+              return Forbid();
+           }
 
-        //    var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.UserId == user.Id && s.Type == "incorrect")
-        //                                .CountAsync();
+           var team = user.Team;
 
-        //    if(challenge.State ==  "hidden") return NotFound();
-        //    if(challenge.State ==  "locked") return Forbid();
+           // Check captain_only_submit_challenge config
+           var captainOnlySubmit = _configHelper.GetConfig<bool>("captain_only_submit_challenge", false);
+           if (captainOnlySubmit && team != null && team.CaptainId != user.Id)
+           {
+               return StatusCode(StatusCodes.Status403Forbidden, new
+               {
+                   success = false,
+                   data = new
+                   {
+                       status = "forbidden",
+                       message = "Only the team captain has permission to submit flags for challenges."
+                   }
+               });
+           }
 
-        //    if (challenge.Requirements != null)
-        //    {
-        //        var requirements = challenge.Requirements.Split(',').Select(r => r.Trim()).ToList();
-        //        var solve_ids = (await _context.Solves
-        //                        .Where(s => s.UserId == user.Id)
-        //                        .Select(s => s.ChallengeId)
-        //                        .OrderBy(id => id)
-        //                        .ToListAsync()).ToHashSet();
+           // Cooldown check - Check if still in cooldown period
+           var cooldownSeconds = challenge.Cooldown ?? 0;
+           
+           if (cooldownSeconds > 0)
+           {
+               var cooldownKey = $"submission_cooldown_{challenge.Id}_{user.TeamId.Value}";
+            
+               
+               var lastSubmissionTime = await _redisHelper.GetFromCacheAsync<long?>(cooldownKey);
+               
+               
+               if (lastSubmissionTime.HasValue && lastSubmissionTime.Value > 0)
+               {
+                   var currentTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                   var timeElapsed = currentTime - lastSubmissionTime.Value;
+                   
+                  
+                   if (timeElapsed < cooldownSeconds)
+                   {
+                       var remainingCooldown = (int)(cooldownSeconds - timeElapsed);
+                       
+                       return StatusCode(StatusCodes.Status429TooManyRequests, new
+                       {
+                           success = true,
+                           data = new
+                           {
+                               status = "ratelimited",
+                               message = $"Please wait {remainingCooldown} seconds before submitting again.",
+                               cooldown = remainingCooldown
+                           }
+                       });
+                   }
+
+               }             
+                // First submission for this challenge+team - set cooldown timestamp
+                var newTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                await _redisHelper.SetCacheAsync<long>(cooldownKey, newTimestamp, TimeSpan.FromMinutes(10));
+               
+           }
+
+           var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.UserId == user.Id && s.Type == "incorrect")
+                                       .CountAsync();
+
+           if(challenge.State ==  "hidden") return NotFound();
+           if(challenge.State ==  "locked") return Forbid();
+
+           // Check prerequisites from Requirements JSON
+           if (!string.IsNullOrEmpty(challenge.Requirements))
+           {
+               try
+               {
+                   var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
+                   
+                   if (requirementsObj?.prerequisites != null && requirementsObj.prerequisites.Count > 0)
+                   {
+                       var solve_ids = (await _context.Solves
+                                       .Where(s => s.UserId == user.Id)
+                                       .Select(s => s.ChallengeId)
+                                       .OrderBy(id => id)
+                                       .ToListAsync()).ToHashSet();
+
+                       var all_challenge_ids = (await _context.Challenges
+                                               .AsNoTracking()
+                                               .Select(c => c.Id)
+                                               .ToListAsync()).ToHashSet();
+                       
+                       // Convert prereq ids to nullable ints to match solve_ids (IEnumerable<int?>)
+                       var prereqs = requirementsObj.prerequisites
+                                           .Where(id => all_challenge_ids.Contains(id))
+                                           .Select(id => (int?)id)
+                                           .ToHashSet();
+
+                       if (!solve_ids.IsSupersetOf(prereqs))
+                       {
+                           return StatusCode(StatusCodes.Status403Forbidden, new
+                           {
+                               success = false,
+                               message = "You don't have the permission to access this challenge. Complete the required challenges first."
+                           });
+                       }
+                   }
+               }
+               catch (Exception ex)
+               {
+                   await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+               }
+           }
 
 
-        //        var all_challenge_ids = (await _context.Challenges
-        //                                .AsNoTracking()
-        //                                .Select(c => c.Id)
-        //                                .ToListAsync()).ToHashSet();
-        //        var prereqs = requirements.Where(r => all_challenge_ids.Contains(int.TryParse(r, out var id) ? id : -1)).ToHashSet();
+            var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);
+            var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
+            if (kpm >= kpm_limit)
+            {
 
-        //        if (!solve_ids.IsSupersetOf((IEnumerable<int?>)prereqs))
-        //        {
-        //            return Forbid();
-        //        }
-        //    }
+                if (_ctfTimeHelper.CtfTime())
+                {
+                    var summit_fail = new Submission
+                    {
+                        UserId = user.Id,
+                        TeamId = user.TeamId,
+                        ChallengeId = challenge.Id,
+                        Ip = _userHelper.GetIP(HttpContext),
+                        Provided = request.Submission,
+                        Type = Enums.SubmissionTypes.INCORRECT,
+                    };
+
+                    _context.Submissions.Add(summit_fail);
+                    await _context.SaveChangesAsync();
+                }
+                return StatusCode(StatusCodes.Status429TooManyRequests, new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "ratelimited",
+                        message = "You're submitting flags too fast. Slow down.",
+                        cooldown = 0
+                    }
+                });
+            }           
+            var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.UserId == user.Id);
+
+            //Challenge not solved yet
+            if (solve == null)
+            {
+                var max_tries = challenge.MaxAttempts;
+                // max_attempts = 0 means unlimited, only check if > 0
+                if(max_tries.HasValue && max_tries > 0 && fails >= max_tries)
+                {
+                    return BadRequest(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "incorrect",
+                            message = "You have 0 tries remaining"
+                        }
+                    });
+                }
+
+                AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
+
+                if (attempt.status)
+                {
+                    if (_ctfTimeHelper.CtfTime())
+                    {
+                        var summit_success = new Submission
+                        {
+                            UserId = user.Id,
+                            TeamId = user.TeamId,
+                            ChallengeId = challenge.Id,
+                            Ip = _userHelper.GetIP(HttpContext),
+                            Provided = request.Submission,
+                            Type = Enums.SubmissionTypes.CORRECT,
+                        };
+                        _context.Submissions.Add(summit_success);
+                        await _context.SaveChangesAsync();
+
+                        var solf = new Solf
+                        {
+                            Id = summit_success.Id,
+                            UserId = user.Id,
+                            TeamId = user.TeamId,
+                            ChallengeId = challenge.Id,
+                        };
+
+                        _context.Solves.Add(solf);
+                        await _context.SaveChangesAsync();
+                    }                 
+                    var startedKey = ChallengeHelper.GetArgoWName(challenge.Id, user.TeamId.Value);
+                   
+                    // Auto stop challenge if require_deploy and cache exists
+                    if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(startedKey))
+                    {
+                        try
+                        {
+                            await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                        }
+                        catch (Exception ex)
+                        {
+                            await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                        }
+                    }
+
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "correct",
+                            message = attempt.message
+                        }
+                    });
+                }
+                else
+                {
+                    if (_ctfTimeHelper.CtfTime())
+                    {
+                        var summit_fail = new Submission
+                        {
+                            UserId = user.Id,
+                            TeamId = user.TeamId,
+                            ChallengeId = challenge.Id,
+                            Ip = _userHelper.GetIP(HttpContext),
+                            Provided = request.Submission,
+                            Type = Enums.SubmissionTypes.INCORRECT,
+                        };
+                        _context.Submissions.Add(summit_fail);
+                        await _context.SaveChangesAsync();
+                    }
 
 
-        //    var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);
-        //    var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
-        //    if (kpm >= kpm_limit)
-        //    {
+                    if (max_tries.HasValue && max_tries.Value > 0)
+                    {
+                        var attemptsLeft = max_tries.Value - fails - 1;
+                        var triesStr = attemptsLeft == 1 ? "try" : "tries";
+                        var message = attempt.message;
+                        if (!string.IsNullOrEmpty(message) && !"!().;?[]{}".Contains(message[^1]))
+                        {
+                            message += ".";
+                        }
 
-        //        if (_ctfTimeHelper.CtfTime())
-        //        {
-        //            var summit_fail = new Submission
-        //            {
-        //                UserId = user.Id,
-        //                TeamId = user.TeamId,
-        //                ChallengeId = challenge.Id,
-        //                Ip = _userHelper.GetIP(HttpContext),
-        //                Provided = request.Submission,
-        //                Type = Enums.SubmissionTypes.INCORRECT,
-        //            };
-
-        //            _context.Submissions.Add(summit_fail);
-        //            await _context.SaveChangesAsync();
-        //        }
-
-        //        await Console.Out.WriteLineAsync($"{DateTime.Now} {user.Name} submitted {request.Submission} on {request.ChallengeId} with kpm {kpm} [TOO FAST]");
-        //        return StatusCode(StatusCodes.Status429TooManyRequests, new
-        //        {
-        //            success = true,
-        //            data = new
-        //            {
-        //                status = "ratelimited",
-        //                message = "You're submitting flags too fast. Slow down."
-        //            }
-        //        });
-        //    }
-
-        //    var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.UserId == user.Id);
-
-        //    //Challenge not solved yet
-        //    if (solve == null)
-        //    {
-        //        var max_tries = challenge.MaxAttempts;
-        //        if(max_tries.HasValue && max_tries >= 0 && fails >= max_tries)
-        //        {
-        //            return BadRequest(new
-        //            {
-        //                success = true,
-        //                data = new
-        //                {
-        //                    status = "incorrect",
-        //                    message = "You have 0 tries remaining"
-        //                }
-        //            });
-        //        }
-
-        //        AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
-
-        //        if (attempt.status)
-        //        {
-        //            if (_ctfTimeHelper.CtfTime())
-        //            {
-        //                var summit_success = new Submission
-        //                {
-        //                    UserId = user.Id,
-        //                    TeamId = user.TeamId,
-        //                    ChallengeId = challenge.Id,
-        //                    Ip = _userHelper.GetIP(HttpContext),
-        //                    Provided = request.Submission,
-        //                    Type = Enums.SubmissionTypes.CORRECT,
-        //                };
-        //                _context.Submissions.Add(summit_success);
-        //                await _context.SaveChangesAsync();
-
-        //                var solf = new Solf
-        //                {
-        //                    Id = summit_success.Id,
-        //                    UserId = user.Id,
-        //                    TeamId = user.TeamId,
-        //                    ChallengeId = challenge.Id,
-        //                };
-
-        //                _context.Solves.Add(solf);
-        //                await _context.SaveChangesAsync();
-
-        //                // xóa cache
-        //                var cache_key_attempt = ChallengeHelper.GenerateCacheAttemptKey(challenge.Id, user.TeamId.Value);
-        //            }
-        //            await Console.Out.WriteLineAsync($"{DateTime.Now} {user.Name} submitted {request.Submission} on {request.ChallengeId} with kpm {kpm} [CORRECT]");
-        //            var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
-        //            if (challenge.RequireDeploy)
-        //            {
-
-        //            }
-        //        }
-        //        else
-        //        {
-
-        //        }
-
-        //        return Ok();
-        //    }
-        //    else
-        //    {
-        //        await Console.Out.WriteLineAsync($"{DateTime.Now} {user.Name} submitted {request.Submission} on {request.ChallengeId} with kpm {kpm} [ALREADY SOLVED]");
-        //        return Ok(new
-        //        {
-        //            success = true,
-        //            data = new
-        //            {
-        //                status = "already_solved",
-        //                message = "You or your teammate already solved this"
-        //            }
-        //        });
-        //    }
-        //}
-        #endregion
-
+                        return Ok(new
+                        {
+                            success = true,
+                            data = new
+                            {
+                                status = "incorrect",
+                                message = $"{message} You have {attemptsLeft} {triesStr} remaining.",
+                                cooldown = challenge.Cooldown ?? 0
+                            }
+                        });
+                    }
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "incorrect",
+                            message = attempt.message,
+                            cooldown = challenge.Cooldown ?? 0
+                        }
+                    });
+                }
+            }
+            else
+            {
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "already_solved",
+                        message = "You or your teammate already solved this"
+                    }
+                });
+            }
+        }
 
         [HttpPost("start")]
         [DuringCtfTimeOnly]

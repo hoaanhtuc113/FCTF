@@ -226,7 +226,7 @@ export function LoadingDots({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
             width: `${dotSize}px`,
             height: `${dotSize}px`,
             borderRadius: '50%',
-            backgroundColor: colors.primary.cyan[400],
+            backgroundColor: colors.primary.green[400],
             animation: 'loading-dots 1.4s ease-in-out infinite',
             animationDelay: `${i * 0.16}s`,
             '@keyframes loading-dots': {

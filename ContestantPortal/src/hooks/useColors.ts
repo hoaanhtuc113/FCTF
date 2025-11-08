@@ -12,19 +12,19 @@ export const useColors = () => {
     // Current theme
     theme,
     
-    // Primary colors (cyan - main accent)
+    // Primary colors (orange - main accent)
     primary: {
-      cyan: {
-        50: '#ecfeff',
-        100: '#cffafe',
-        200: '#a5f3fc',
-        300: '#67e8f9',
-        400: '#22d3ee',
-        500: '#06b6d4',
-        600: '#0891b2',
-        700: '#0e7490',
-        800: '#155e75',
-        900: '#164e63',
+      orange: {
+        50: '#fff7ed',
+        100: '#ffedd5',
+        200: '#fed7aa',
+        300: '#fdba74',
+        400: '#fb923c',
+        500: '#f97316',
+        600: '#ea580c',
+        700: '#c2410c',
+        800: '#9a3412',
+        900: '#7c2d12',
       },
       green: {
         50: '#f0fdf4',
@@ -59,7 +59,7 @@ export const useColors = () => {
     border: {
       primary: theme === 'dark' ? '#374151' : '#e5e7eb',
       secondary: theme === 'dark' ? '#4b5563' : '#d1d5db',
-      focus: theme === 'dark' ? '#22d3ee' : '#06b6d4',
+      focus: theme === 'dark' ? '#fb923c' : '#f97316',
     },
     
     // Status colors
@@ -67,7 +67,7 @@ export const useColors = () => {
       success: '#22c55e',
       error: '#ef4444',
       warning: theme === 'dark' ? '#fbbf24' : '#f59e0b',
-      info: theme === 'dark' ? '#22d3ee' : '#06b6d4',
+      info: theme === 'dark' ? '#fb923c' : '#f97316',
       locked: theme === 'dark' ? '#fbbf24' : '#f59e0b',
     },
     
@@ -76,7 +76,7 @@ export const useColors = () => {
       success: theme === 'dark' ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7',
       error: theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2',
       warning: theme === 'dark' ? 'rgba(251, 191, 36, 0.2)' : '#fef3c7',
-      info: theme === 'dark' ? 'rgba(34, 211, 238, 0.2)' : '#cffafe',
+      info: theme === 'dark' ? 'rgba(251, 146, 60, 0.2)' : '#ffedd5',
       locked: theme === 'dark' ? 'rgba(251, 191, 36, 0.2)' : '#fef3c7',
     },
     
@@ -85,7 +85,7 @@ export const useColors = () => {
       success: theme === 'dark' ? 'rgba(34, 197, 94, 0.3)' : '#86efac',
       error: theme === 'dark' ? 'rgba(239, 68, 68, 0.3)' : '#fca5a5',
       warning: theme === 'dark' ? 'rgba(251, 191, 36, 0.3)' : '#fde68a',
-      info: theme === 'dark' ? 'rgba(34, 211, 238, 0.3)' : '#a5f3fc',
+      info: theme === 'dark' ? 'rgba(251, 146, 60, 0.3)' : '#fed7aa',
       locked: theme === 'dark' ? 'rgba(251, 191, 36, 0.3)' : '#fde68a',
     },
   }), [theme]);
