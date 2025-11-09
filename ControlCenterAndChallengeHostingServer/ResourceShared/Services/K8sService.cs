@@ -160,7 +160,7 @@ namespace ResourceShared.Services
 
         public async Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge")
         {
-            var result = new List<PodInfo>();
+            var result = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
 
             try
             {
@@ -193,15 +193,30 @@ namespace ResourceShared.Services
                         else if (diff.TotalHours >= 1) age = $"{(int)diff.TotalHours}h";
                         else age = $"{(int)diff.TotalMinutes}m";
                     }
+                    var (_teamId, _challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+                  
 
-                    result.Add(new PodInfo
+                    if (result.FirstOrDefault(p => p.TeamId == _teamId && p.ChallengeId == _challengeId) is var existingPod && existingPod != null)
                     {
-                        Namespace = ns,
-                        Name = name,
-                        Ready = ready,
-                        Status = status,
-                        Age = age
-                    });
+                        existingPod.Namespace = ns;
+                        existingPod.Name = name;
+                        existingPod.Ready = ready;
+                        existingPod.Status = status;
+                        existingPod.Age = age;
+                    }
+                    else
+                    {
+                        result.Add(new PodInfo
+                        {
+                            Namespace = ns,
+                            TeamId = _teamId,
+                            ChallengeId = _challengeId,
+                            Name = name,
+                            Ready = ready,
+                            Status = status,
+                            Age = age
+                        });
+                    }
 
                     await Console.Out.WriteLineAsync($"[GetPods] {ns}/{name} → {status} (Ready={ready})");
 

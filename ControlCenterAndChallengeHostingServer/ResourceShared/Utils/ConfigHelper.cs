@@ -55,7 +55,20 @@ namespace ResourceShared.Utils
             }
             return new KeyNotFoundException();
         }
+        private long ToLong(object val,int defaultValue=3)
+        {
+            if (val == null) return defaultValue;
+            if (long.TryParse(val.ToString(), out var result))
+            {
+                return result;
+            }
 
+            return defaultValue;
+        }
+        public long LimitChallenges()
+        {
+            return ToLong(GetConfig("limit_challenges"));
+        }
         public object CtfName()
         {
             return GetConfig("ctf_name", "CTF");

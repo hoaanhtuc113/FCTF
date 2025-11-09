@@ -1,6 +1,7 @@
 ﻿using DeploymentCenter.Utils;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared;
+using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
@@ -160,18 +161,30 @@ namespace DeploymentCenter.Services
                     }
                 }
 
-                // Save cache: thông tin deployment khi bắm vào argo 
-                await _redisHelper.SetCacheAsync(startedKey, new DeploymentInfo
+                var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
+
+                if (pods.FirstOrDefault(p => p.TeamId == startReq.teamId && p.ChallengeId == startReq.challengeId) is var existingPod && existingPod != null)
                 {
-                    Status = DeploymentStatus.PROCESS,
-                    ChallengeId = startReq.challengeId,
-                    TeamId = startReq.teamId,
-                    NameSpace = appName,
-                    WorkFlowName = workflowName ?? string.Empty,
-                });
+                    existingPod.Namespace = appName;
+                    existingPod.Ready = false;
+                    existingPod.Status = "Pending";
+                    existingPod.Age = "N/A";
+                    existingPod.Name = "N/A";
+                }
+                else
+                {
+                    pods.Add(new PodInfo
+                    {
+                        Namespace = appName,
+                        TeamId = startReq.teamId,
+                        Ready = false,
+                        Status = "Pending",
+                        Age = "N/A",
+                        Name = "N/A",
+                    });
+                }
 
-                var timeFinished = DateTime.Now.AddMinutes(challenge.TimeLimit ?? -1);
-
+                  
 
                 ChallengeDeploymentCacheDTO chalDeploy = new ChallengeDeploymentCacheDTO
                 {
@@ -182,14 +195,24 @@ namespace DeploymentCenter.Services
                 };
                 // khi nào thực sự lên thì cập nhật lại status và time_finished, challenge_url
 
+                // Save cache: thông tin deployment khi bắm vào argo 
+                await _redisHelper.SetCacheAsync(startedKey, new DeploymentInfo
+                {
+                    Status = DeploymentStatus.PROCESS,
+                    ChallengeId = startReq.challengeId,
+                    TeamId = startReq.teamId,
+                    NameSpace = appName,
+                    WorkFlowName = workflowName ?? string.Empty,
+                });
                 /*
                 Save cache: thông tin tạm thông tin deployment với trạng thái processing và thời gian kết thúc -1 
                 Để bên admin có thể xem được thông tin này
                 */
                 await _redisHelper.SetCacheAsync(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId), chalDeploy, TimeSpan.FromHours(1));
+                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
 
-                var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId));
-                await Console.Out.WriteLineAsync($"Deployment info save success: {JsonSerializer.Serialize(checkCache)}");
+                //var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId));
+                //await Console.Out.WriteLineAsync($"Deployment info save success: {JsonSerializer.Serialize(checkCache)}");
 
                 return new ChallengeDeployResponeDTO
                 {
@@ -229,6 +252,7 @@ namespace DeploymentCenter.Services
                 var deployInfo = ChallengeHelper.GetCacheKey(stopReq.challengeId, stopReq.teamId);
                 var argoWNameKey = ChallengeHelper.GetArgoWName(stopReq.challengeId, stopReq.teamId);
                 var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(argoWNameKey);
+                var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
 
                 if (checkCache == null || argoWNameKey == null) 
                 {
@@ -247,6 +271,15 @@ namespace DeploymentCenter.Services
                 {
                     await _redisHelper.RemoveCacheAsync(deployInfo);
                     await _redisHelper.RemoveCacheAsync(argoWNameKey);
+                    if (pods != null)
+                    {
+                        var podToRemove = pods.FirstOrDefault(p => p.TeamId == stopReq.teamId && p.ChallengeId == stopReq.challengeId);
+                        if (podToRemove != null)
+                        {
+                            pods.Remove(podToRemove);
+                            await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
+                        }
+                    }
                     return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.OK,
