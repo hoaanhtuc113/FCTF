@@ -146,6 +146,27 @@
             return new PaginatedTicketsDTO { Tickets = tickets, Total = total };
         }
 
+        public async Task<BaseResponseDTO<bool>> DeleteTicket(int ticketId, int userId)
+        {
+            var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
+            
+            if (ticket == null)
+                return BaseResponseDTO<bool>.Fail("Ticket not found");
+            
+            // Check if user owns this ticket
+            if (ticket.AuthorId != userId)
+                return BaseResponseDTO<bool>.Fail("You don't have permission to delete this ticket");
+            
+            // Check if ticket has been replied (ReplierMessage is not null/empty or Status is not "open")
+            if (!string.IsNullOrEmpty(ticket.ReplierMessage) || ticket.Status?.ToLower() != "open")
+                return BaseResponseDTO<bool>.Fail("Cannot delete ticket that has been replied or closed");
+            
+            _context.Tickets.Remove(ticket);
+            await _context.SaveChangesAsync();
+            
+            return BaseResponseDTO<bool>.Ok(true, "Ticket deleted successfully");
+        }
+
         private TicketResponseDTO MapToDto(Ticket ticket, string authorName, string? replierName, string? teamName)
         {
             return new TicketResponseDTO
