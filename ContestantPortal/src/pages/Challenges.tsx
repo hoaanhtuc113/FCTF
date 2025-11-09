@@ -18,7 +18,7 @@ import { saveAs } from 'file-saver';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { fetchWithAuth, downloadFile, MANAGEMENT_API_URL, API_DEPLOYMENT_URL } from '../services/api';
+import { fetchWithAuth, downloadFile, API_DEPLOYMENT_URL } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
 import { 
   CategorySkeleton, 
