@@ -79,7 +79,7 @@ def upload_file(challenge_id, file_path, exposed_port=None):
     delete_cached_files(challenge_id)
 
     if not os.path.exists(file_path):
-        return jsonify({"error": "File not found"}), 400
+        return {"success": False, "error": "File not found"}, 400
 
     challenge = Challenges.query.filter_by(id=challenge_id).first()
     
@@ -91,7 +91,7 @@ def upload_file(challenge_id, file_path, exposed_port=None):
     if allowed_file(file_path) and file_path.endswith(".zip"):
         return handle_challenge_upload(challenge, file_path, notification_data, exposed_port)
     else:
-        return jsonify({"error": "File type not allowed. Only zip files are allowed."}), 400
+        return {"success": False, "error": "File type not allowed. Only zip files are allowed."}, 400
 
 @file_app.route("/challenges/update-info-by-cs", methods=["POST"])
 @bypass_csrf_protection

@@ -390,7 +390,6 @@ namespace ResourceShared.Services
         {
             var sb = new StringBuilder();
 
-            // Lấy danh sách pods trong workflow
             var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(
                 namespaceParameter: namespaceName,
                 labelSelector: $"workflows.argoproj.io/workflow={workflowName}"
@@ -398,23 +397,50 @@ namespace ResourceShared.Services
 
             foreach (var pod in pods.Items)
             {
-                sb.AppendLine($"=== Pod: {pod.Metadata.Name} ===");
+                sb.AppendLine($"==============================");
+                sb.AppendLine($"Pod: {pod.Metadata.Name}");
+                sb.AppendLine($"==============================");
 
-                //Mở stream log realtime
-                using var stream = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(
-                    name: pod.Metadata.Name,
-                    namespaceParameter: namespaceName,
-                    follow: true 
-                );
+                // Lấy danh sách container
+                var containerNames = new List<string>();
+                if (pod.Spec.InitContainers != null)
+                    containerNames.AddRange(pod.Spec.InitContainers.Select(c => c.Name));
+                if (pod.Spec.Containers != null)
+                    containerNames.AddRange(pod.Spec.Containers.Select(c => c.Name));
 
-                using var reader = new StreamReader(stream);
-                while (!reader.EndOfStream)
+                foreach (var containerName in containerNames)
                 {
-                    var line = await reader.ReadLineAsync();
-                    if (!string.IsNullOrWhiteSpace(line))
+                    sb.AppendLine($"--- Container: {containerName} ---");
+
+                    try
                     {
-                        sb.AppendLine(line);
+                        using var stream = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(
+                            name: pod.Metadata.Name,
+                            namespaceParameter: namespaceName,
+                            container: containerName,
+                            follow: false,
+                            cancellationToken: CancellationToken.None
+                        );
+
+                        using var reader = new StreamReader(stream);
+                        var logText = await reader.ReadToEndAsync();
+
+                        if (!string.IsNullOrWhiteSpace(logText))
+                        {
+                            foreach (var line in logText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                                sb.AppendLine($"{pod.Metadata.Name}: {line}");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"{pod.Metadata.Name}: [no logs]");
+                        }
                     }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine($"[Get Workflow Logs] Error reading logs from container {containerName}: {ex.Message}");
+                    }
+
+                    sb.AppendLine();
                 }
 
                 sb.AppendLine();

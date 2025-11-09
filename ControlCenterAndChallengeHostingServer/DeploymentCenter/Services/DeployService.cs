@@ -49,58 +49,58 @@ namespace DeploymentCenter.Services
             #region Xử lý khi đã có cache deployment - đã từng gửi request deploy lên argo workflow
             if (deploymentCache != null)
             {
-                switch (deploymentCache.Status)
-                {
-                    case DeploymentStatus.PROCESS:
+               switch (deploymentCache.Status)
+               {
+                   case DeploymentStatus.PROCESS:
 
-                        var wfPhase = await _k8SHealthService.GetWorkflowStatus(deploymentCache.WorkFlowName);
-                        // Kiểm tra trạng thái của workflow (Argo) nếu wf không ở trạng thái pending, running, succeeded thì coi như thất bại và xóa cache (startedKey)
-                        if (wfPhase is not (WorkflowPhase.Pending or WorkflowPhase.Running or WorkflowPhase.Succeeded))
-                        {
-                            Console.WriteLine($"Workflow {deploymentCache.WorkFlowName} crashed or stopped: {wfPhase}");
-                            // Xóa thông tin deployment khi bắm vào argo khi workflow chạy lỗi
-                            await _redisHelper.RemoveCacheAsync(startedKey);
-                            break;
-                        }
-                        return new ChallengeDeployResponeDTO
-                        {
-                            status = (int)HttpStatusCode.OK,
-                            success = true,
-                            message = "Challenge is deploying.",
-                        };
-                    case DeploymentStatus.RUNING:
+                       var wfPhase = await _k8SHealthService.GetWorkflowStatus(deploymentCache.WorkFlowName);
+                       // Kiểm tra trạng thái của workflow (Argo) nếu wf không ở trạng thái pending, running, succeeded thì coi như thất bại và xóa cache (startedKey)
+                       if (wfPhase is not (WorkflowPhase.Pending or WorkflowPhase.Running or WorkflowPhase.Succeeded))
+                       {
+                           Console.WriteLine($"Workflow {deploymentCache.WorkFlowName} crashed or stopped: {wfPhase}");
+                           // Xóa thông tin deployment khi bắm vào argo khi workflow chạy lỗi
+                           await _redisHelper.RemoveCacheAsync(startedKey);
+                           break;
+                       }
+                       return new ChallengeDeployResponeDTO
+                       {
+                           status = (int)HttpStatusCode.OK,
+                           success = true,
+                           message = "Challenge is deploying.",
+                       };
+                   case DeploymentStatus.RUNING:
 
-                        var podName = deploymentCache.NameSpace;
+                       var podName = deploymentCache.NameSpace;
 
-                        var podStatus = await _k8SHealthService.CheckPodAliveInCache(podName);
-                        //var podStatus = true;
-                        if (!podStatus)
-                        {
-                            return new ChallengeDeployResponeDTO
-                            {
-                                status = (int)HttpStatusCode.OK,
-                                success = true,
-                                message = "Challenge is deploying.",
-                            };
-                        }
+                       var podStatus = await _k8SHealthService.CheckPodAliveInCache(podName);
+                       //var podStatus = true;
+                       if (!podStatus)
+                       {
+                           return new ChallengeDeployResponeDTO
+                           {
+                               status = (int)HttpStatusCode.OK,
+                               success = true,
+                               message = "Challenge is deploying.",
+                           };
+                       }
 
-                        int timeLeft = 0;
-                        if (deploymentCache.EndTime.HasValue)
-                        {
-                            timeLeft  = (int)(deploymentCache.EndTime.Value - DateTime.Now).TotalMinutes;
-                        }
-                        return new ChallengeDeployResponeDTO
-                        {
-                            status = (int)HttpStatusCode.OK,
-                            success = true,
-                            message = "Challenge is already deployed.",
-                            challenge_url = deploymentCache.DeploymentDomainName,
-                            time_limit = timeLeft,
-                        };
-                    default:
-                        await Console.Out.WriteLineAsync($"Unknown deployment status: {deploymentCache.Status}");
-                        break;
-                }
+                       int timeLeft = 0;
+                       if (deploymentCache.EndTime.HasValue)
+                       {
+                           timeLeft  = (int)(deploymentCache.EndTime.Value - DateTime.Now).TotalMinutes;
+                       }
+                       return new ChallengeDeployResponeDTO
+                       {
+                           status = (int)HttpStatusCode.OK,
+                           success = true,
+                           message = "Challenge is already deployed.",
+                           challenge_url = deploymentCache.DeploymentDomainName,
+                           time_limit = timeLeft,
+                       };
+                   default:
+                       await Console.Out.WriteLineAsync($"Unknown deployment status: {deploymentCache.Status}");
+                       break;
+               }
             }
             #endregion
 
@@ -413,6 +413,7 @@ namespace DeploymentCenter.Services
             }
         }
 
+        // Hiện tại argo chưa bắn trạng thái của workflow sau khi chạy, nên tạm thời chưa dùng đến hàm này
         private async Task<BaseResponseDTO> HandleMessageStartChallenge(WorkflowStatusDTO message)
         {
 
