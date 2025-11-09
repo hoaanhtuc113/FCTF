@@ -28,15 +28,15 @@ namespace ContestantBE.Attribute
             {
                 if (_ctfTimeHelper.CtfEnded())
                 {
-                    if (_ctfTimeHelper.ViewAfterCtf() != null)
-                    {
-                        return;
-                    }
-                    else
-                    {
+                    // if (_ctfTimeHelper.ViewAfterCtf() != null)
+                    // {
+                    //     return;
+                    // }
+                    // else
+                    // {
                         context.Result = new JsonResult(new { error = $"{_configHelper.CtfName()} has ended" }) { StatusCode = 403 };
                         return;
-                    }
+                    // }
                 }
                 if (!_ctfTimeHelper.CtfStarted())
                 {
