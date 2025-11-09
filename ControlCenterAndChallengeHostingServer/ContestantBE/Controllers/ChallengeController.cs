@@ -8,6 +8,7 @@ using ResourceShared;
 using ResourceShared.Attribute;
 using ResourceShared.Configs;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.DTOs.Deployments;
 using ResourceShared.DTOs.File;
 using ResourceShared.Extensions;
 using ResourceShared.Models;
@@ -489,22 +490,31 @@ namespace ContestantBE.Controllers
             var limit_challenges = _configHelper.LimitChallenges();
             await Console.Out.WriteLineAsync($"[LIMIT CHECK] limit_challenges config: {limit_challenges}, TeamId: {user.TeamId.Value}");
             
-            var pods = await _redisHelper.GetFromCacheAsync<List<ResourceShared.DTOs.Deployments.PodInfo>>(ResourceShared.Configs.RedisConfigs.PodsInfoKey);
+            var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
             await Console.Out.WriteLineAsync($"[LIMIT CHECK] Total pods in cache: {pods?.Count ?? 0}");
             
-            if (pods != null)
-            {
-                var teamPods = pods.Where(p => p.TeamId == user.TeamId.Value).ToList();
-                await Console.Out.WriteLineAsync($"[LIMIT CHECK] Team {user.TeamId.Value} has {teamPods.Count} running challenges");
+            var teamPods = pods!.Where(p => p.TeamId == user.TeamId.Value).Count();
+            await Console.Out.WriteLineAsync($"[LIMIT CHECK] Team {user.TeamId.Value} has {teamPods} running challenges");
                 
-                if (teamPods.Count >= limit_challenges)
-                {
-                    return BadRequest(new 
-                    { 
-                        error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
-                    });
-                }
+            if (teamPods >= limit_challenges)
+            {
+                return BadRequest(new 
+                { 
+                    error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
+                });
             }
+            pods!.Add(new PodInfo
+            {
+                Namespace = "N/A",
+                TeamId = user.TeamId.Value,
+                ChallengeId = challenge.Id,
+                Ready = false,
+                Status = "Pending",
+                Age = "N/A",
+                Name = "N/A",
+            });
+            await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
+
 
             var response =  await _challengeServices.ChallengeStart(challenge, user);
             return response.status switch
