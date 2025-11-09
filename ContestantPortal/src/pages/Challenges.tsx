@@ -1360,7 +1360,7 @@ function ChallengeDetailPanel({
           html: `
             <div class="font-mono text-left text-sm">
               <div class="text-red-400 mb-2">[!] Deploy failed</div>
-              <div class="text-gray-400">> ${data.message || 'Unknown error'}</div>
+              <div class="text-gray-400">> ${data.message||data.error || 'Unknown error'}</div>
               <div class="text-gray-500 mt-2">> Status: ${response.status}</div>
             </div>
           `,
@@ -1994,7 +1994,7 @@ const getFileName = (filePath : string) => {
     } catch (error) {
       console.error("Failed to unlock hint:", error);
       const errorResponse = error && typeof error === 'object' && 'response' in error 
-        ? (error as any).response?.data?.errors 
+        ? (error as any).response?.errors 
         : {};
       return { success: false, errors: errorResponse || {} };
     }
