@@ -2012,7 +2012,7 @@ const getFileName = (filePath : string) => {
     } catch (error) {
       console.error("Failed to unlock hint:", error);
       const errorResponse = error && typeof error === 'object' && 'response' in error 
-        ? (error as any).response?.errors 
+        ? (error as any).response?.error
         : {};
       return { success: false, errors: errorResponse || {} };
     }
@@ -2149,7 +2149,26 @@ const getFileName = (filePath : string) => {
           }
         } else {
           // Handle errors
-          if (response.errors?.score) {
+          // Check for direct error message (string format)
+          if (response.error) {
+            Swal.fire({
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-yellow-400 mb-2">[!] Hint Locked</div>
+                  <div class="text-gray-400">> ${response.error}</div>
+                </div>
+              `,
+              icon: "warning",
+              iconColor: '#fbbf24',
+              confirmButtonText: "OK",
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#fbbf24' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-yellow-500/30',
+                confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+              },
+            });
+          } else if (response.errors?.score) {
             Swal.fire({
               html: `
                 <div class="font-mono text-left text-sm">
