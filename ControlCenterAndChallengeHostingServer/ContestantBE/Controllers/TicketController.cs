@@ -62,5 +62,18 @@ namespace ContestantBE.Controllers
             var result = await _ticketService.GetAllTickets(userId, status, type, search, page, per_page);
             return Ok(result);
         }
+
+        [HttpDelete("tickets/{ticketId}")]
+        [DuringCtfTimeOnly]
+        public async Task<IActionResult> DeleteTicket(int ticketId)
+        {
+            var user = HttpContext.GetCurrentUser();
+            if (user == null) return Unauthorized(new { message = "Unauthorized" });
+
+            var result = await _ticketService.DeleteTicket(ticketId, user.Id);
+            if (!result.Success) return BadRequest(new { message = result.Message });
+            
+            return Ok(new { message = result.Message });
+        }
     }
 }

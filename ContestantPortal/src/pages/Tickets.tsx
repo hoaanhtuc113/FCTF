@@ -11,6 +11,8 @@ import {
   Search,
   Add,
   Close,
+  Delete,
+  Visibility,
 } from '@mui/icons-material';
 import Swal from 'sweetalert2';
 
@@ -118,6 +120,51 @@ export function Tickets() {
 
   const handleTicketClick = (ticketId: string) => {
     navigate(`/tickets/${ticketId}`);
+  };
+
+  const handleDeleteTicket = async (ticketId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click event
+    
+    const result = await Swal.fire({
+      html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-yellow-400 mb-2">[?] Delete Ticket</div>
+          <div class="text-gray-400">> Are you sure you want to delete this ticket?</div>
+          <div class="text-gray-400">> This action cannot be undone</div>
+        </div>
+      `,
+      icon: 'warning',
+      iconColor: '#fbbf24',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      customClass: {
+        popup: 'rounded-lg border border-yellow-500/30',
+        confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
+      },
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetchWithAuth(API_ENDPOINTS.TICKET.DELETE(ticketId), {
+          method: 'DELETE',
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showAlert('Ticket deleted successfully', 'success');
+          fetchTickets(); // Refresh list
+        } else {
+          showAlert(data.message || 'Failed to delete ticket', 'error');
+        }
+      } catch (error) {
+        console.error('Error deleting ticket:', error);
+        showAlert('Failed to delete ticket', 'error');
+      }
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -312,19 +359,37 @@ export function Tickets() {
                     {ticket.date}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTicketClick(ticket.id);
-                      }}
-                      className={`px-3 py-1 rounded border font-bold font-mono text-xs transition ${
-                        theme === 'dark'
-                          ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
-                          : 'border-orange-300 text-orange-600 hover:bg-orange-50'
-                      }`}
-                    >
-                      {'[>]'} VIEW
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTicketClick(ticket.id);
+                        }}
+                        className={`px-3 py-1 rounded border font-bold font-mono text-xs transition flex items-center gap-1 ${
+                          theme === 'dark'
+                            ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
+                            : 'border-orange-300 text-orange-600 hover:bg-orange-50'
+                        }`}
+                        title="View ticket details"
+                      >
+                        <Visibility fontSize="small" />
+                        VIEW
+                      </button>
+                      {/* Show delete button only for open tickets without reply */}
+                      {ticket.status.toLowerCase() === 'open' && !ticket.replier_message && (
+                        <button
+                          onClick={(e) => handleDeleteTicket(ticket.id, e)}
+                          className={`p-2 rounded transition ${
+                            theme === 'dark'
+                              ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300'
+                              : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+                          }`}
+                          title="Delete ticket"
+                        >
+                          <Delete fontSize="small" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

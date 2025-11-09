@@ -10,5 +10,6 @@ namespace ContestantBE.Interfaces
         Task<List<TicketResponseDTO>> GetTicketsByUser(User user);
         Task<TicketResponseDTO?> GetTicketById(int ticketId);
         Task<PaginatedTicketsDTO> GetAllTickets(int? userId, string? status, string? type, string? search, int page, int perPage);
+        Task<BaseResponseDTO<bool>> DeleteTicket(int ticketId, int userId);
     }
 }
