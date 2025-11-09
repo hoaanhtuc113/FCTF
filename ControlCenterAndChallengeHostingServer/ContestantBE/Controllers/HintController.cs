@@ -44,7 +44,7 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> PostUnlock([FromBody] UnlockRequestDto req)
         {
             var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { success = false, message = "Unauthorized" });
+            if (user == null) return Unauthorized(new { success = false, error = "Unauthorized" });
 
             try
             {
