@@ -102,10 +102,14 @@ export function Challenges() {
 
   // Check if challenge prerequisites are met
   const checkPrerequisites = async (challenge: Challenge): Promise<{ locked: boolean; unmetPrereqs: PrerequisiteChallenge[] }> => {
+    console.log(`[Prerequisites Check] Challenge ${challenge.id}:`, challenge.requirements);
+    
     if (!challenge.requirements?.prerequisites || challenge.requirements.prerequisites.length === 0) {
+      console.log(`[Prerequisites Check] Challenge ${challenge.id} has no prerequisites`);
       return { locked: false, unmetPrereqs: [] };
     }
 
+    console.log(`[Prerequisites Check] Challenge ${challenge.id} prerequisites:`, challenge.requirements.prerequisites);
     const unmetPrereqs: PrerequisiteChallenge[] = [];
     
     for (const prereqId of challenge.requirements.prerequisites) {
@@ -207,10 +211,24 @@ export function Challenges() {
       setLoadingChallenges(true);
       const data = await challengeService.getChallengesByTopic(categoryName);
       const challengeList = Array.isArray(data) ? data : [];
-      setChallenges(challengeList);
+      
+      // Parse requirements string to object if needed
+      const parsedChallenges = challengeList.map(challenge => {
+        if (challenge.requirements && typeof challenge.requirements === 'string') {
+          try {
+            challenge.requirements = JSON.parse(challenge.requirements);
+          } catch (e) {
+            console.error(`Failed to parse requirements for challenge ${challenge.id}:`, e);
+            challenge.requirements = null;
+          }
+        }
+        return challenge;
+      });
+      
+      setChallenges(parsedChallenges);
       
       // Load prerequisites info for challenges with requirements
-      await loadPrerequisitesInfo(challengeList);
+      await loadPrerequisitesInfo(parsedChallenges);
       
       setLoadingChallenges(false);
     } catch (err) {
