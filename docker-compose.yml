@@ -81,6 +81,7 @@ services:
       - PRIVATE_KEY=${PRIVATE_KEY}
       - DEPLOYMENT_SERVICE_API=${DEPLOYMENT_SERVICE_API}
       - NFS_MOUNT_PATH=${NFS_MOUNT_PATH}
+      - TCP_DOMAIN=${TCP_DOMAIN}
     volumes:
       - ${NFS_MOUNT_PATH}:${NFS_MOUNT_PATH}
     depends_on:
@@ -114,6 +115,7 @@ services:
       - POW_DIFFICULTY_SECONDS=${POW_DIFFICULTY_SECONDS}
       - WORKER_SERVICE_INTERVAL=${WORKER_SERVICE_INTERVAL}
       - KUBECONFIG=/root/.kube/config
+      - TCP_DOMAIN=${TCP_DOMAIN}
     volumes:
     - /home/manhhuy/.kube/config:/root/.kube/config:ro
     depends_on:

@@ -480,17 +480,22 @@ namespace DeploymentCenter.Services
                 if (deploystatus == Enums.DeploymentStatus.SUCCEEDED)
                 {
                     challenge.State = Enums.ChallengeState.VISIBLE;
+                    deploystatus = Enums.DeploymentStatus.DEPLOY_SUCCEEDED;
+                }else if (deploystatus == Enums.DeploymentStatus.FAILED)
+                {
+                    deploystatus = Enums.DeploymentStatus.DEPLOY_FAILED;
+                    challenge.State = Enums.ChallengeState.HIDDEN;
                 }
 
                 //var log = await _k8SHealthService.GetWorkflowLogs(message.WorkFlowName);
-                
+
                 var History = new DeployHistory
-                {
-                    ChallengeId = message.ChallengeId.Value,
-                    DeployStatus = deploystatus,
-                    DeployAt = DateTime.UtcNow,
-                    LogContent =  message.WorkFlowName
-                };
+                    {
+                        ChallengeId = message.ChallengeId.Value,
+                        DeployStatus = deploystatus,
+                        DeployAt = DateTime.UtcNow,
+                        LogContent =  message.WorkFlowName
+                    };
 
                 _dbContext.Challenges.Update(challenge);
                 await _dbContext.DeployHistories.AddAsync(History);
