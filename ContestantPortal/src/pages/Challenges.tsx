@@ -102,10 +102,14 @@ export function Challenges() {
 
   // Check if challenge prerequisites are met
   const checkPrerequisites = async (challenge: Challenge): Promise<{ locked: boolean; unmetPrereqs: PrerequisiteChallenge[] }> => {
+    console.log(`[Prerequisites Check] Challenge ${challenge.id}:`, challenge.requirements);
+    
     if (!challenge.requirements?.prerequisites || challenge.requirements.prerequisites.length === 0) {
+      console.log(`[Prerequisites Check] Challenge ${challenge.id} has no prerequisites`);
       return { locked: false, unmetPrereqs: [] };
     }
 
+    console.log(`[Prerequisites Check] Challenge ${challenge.id} prerequisites:`, challenge.requirements.prerequisites);
     const unmetPrereqs: PrerequisiteChallenge[] = [];
     
     for (const prereqId of challenge.requirements.prerequisites) {
@@ -207,10 +211,24 @@ export function Challenges() {
       setLoadingChallenges(true);
       const data = await challengeService.getChallengesByTopic(categoryName);
       const challengeList = Array.isArray(data) ? data : [];
-      setChallenges(challengeList);
+      
+      // Parse requirements string to object if needed
+      const parsedChallenges = challengeList.map(challenge => {
+        if (challenge.requirements && typeof challenge.requirements === 'string') {
+          try {
+            challenge.requirements = JSON.parse(challenge.requirements);
+          } catch (e) {
+            console.error(`Failed to parse requirements for challenge ${challenge.id}:`, e);
+            challenge.requirements = null;
+          }
+        }
+        return challenge;
+      });
+      
+      setChallenges(parsedChallenges);
       
       // Load prerequisites info for challenges with requirements
-      await loadPrerequisitesInfo(challengeList);
+      await loadPrerequisitesInfo(parsedChallenges);
       
       setLoadingChallenges(false);
     } catch (err) {
@@ -1360,7 +1378,7 @@ function ChallengeDetailPanel({
           html: `
             <div class="font-mono text-left text-sm">
               <div class="text-red-400 mb-2">[!] Deploy failed</div>
-              <div class="text-gray-400">> ${data.message || 'Unknown error'}</div>
+              <div class="text-gray-400">> ${data.message||data.error || 'Unknown error'}</div>
               <div class="text-gray-500 mt-2">> Status: ${response.status}</div>
             </div>
           `,
@@ -1994,7 +2012,7 @@ const getFileName = (filePath : string) => {
     } catch (error) {
       console.error("Failed to unlock hint:", error);
       const errorResponse = error && typeof error === 'object' && 'response' in error 
-        ? (error as any).response?.data?.errors 
+        ? (error as any).response?.error
         : {};
       return { success: false, errors: errorResponse || {} };
     }
@@ -2131,7 +2149,26 @@ const getFileName = (filePath : string) => {
           }
         } else {
           // Handle errors
-          if (response.errors?.score) {
+          // Check for direct error message (string format)
+          if (response.error) {
+            Swal.fire({
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-yellow-400 mb-2">[!] Hint Locked</div>
+                  <div class="text-gray-400">> ${response.error}</div>
+                </div>
+              `,
+              icon: "warning",
+              iconColor: '#fbbf24',
+              confirmButtonText: "OK",
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#fbbf24' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-yellow-500/30',
+                confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+              },
+            });
+          } else if (response.errors?.score) {
             Swal.fire({
               html: `
                 <div class="font-mono text-left text-sm">

@@ -10,11 +10,13 @@ namespace ContestantBE.Services
     {
         private readonly AppDbContext _context;
         private readonly ScoreHelper _scoreHelper;
+        private readonly ConfigHelper _configHelper;
 
-        public HintService(AppDbContext context, ScoreHelper scoreHelper)
+        public HintService(AppDbContext context, ScoreHelper scoreHelper, ConfigHelper configHelper)
         {
             _context = context;
             _scoreHelper = scoreHelper;
+            _configHelper = configHelper;
         }
 
         private List<int> GetPrerequisites(string? requirementsJson)
@@ -31,7 +33,10 @@ namespace ContestantBE.Services
                     foreach (var item in prereqElement.EnumerateArray())
                     {
                         if (item.TryGetInt32(out int value))
+                        {
                             result.Add(value);
+                        }
+
                     }
                 }
             }
@@ -101,14 +106,65 @@ namespace ContestantBE.Services
             var target = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == req.Target);
             if (target == null) return null;
 
+            // Check prerequisites
+            var prerequisites = GetPrerequisites(target.Requirements);
+            if (prerequisites.Count > 0)
+            {
+                // Get the IDs of all hints that the user has unlocked
+                var allUnlocks = await _context.Unlocks
+                    .Where(u => u.UserId == user.Id && u.Type == "hints")
+                    .Select(u => u.Target)
+                    .ToListAsync();
+                var unlockIds = new HashSet<int>(allUnlocks.Where(t => t.HasValue).Select(t => t.Value));
+
+                // Get the IDs of all free hints (cost = 0 or null)
+                var freeHints = await _context.Hints
+                    .Where(h => h.Cost == null || h.Cost == 0)
+                    .Select(h => h.Id)
+                    .ToListAsync();
+                var freeIds = new HashSet<int>(freeHints);
+
+                // Add free hints to unlocked IDs
+                unlockIds.UnionWith(freeIds);
+
+                // Filter out hint IDs that don't exist
+                var allHintIds = await _context.Hints
+                    .Select(h => h.Id)
+                    .ToListAsync();
+                var allHintIdsSet = new HashSet<int>(allHintIds);
+                
+                var prereqs = new HashSet<int>(prerequisites);
+                prereqs.IntersectWith(allHintIdsSet);
+
+                // Check if user has unlocked all required hints
+                if (!prereqs.IsSubsetOf(unlockIds))
+                {
+                    throw new InvalidOperationException("You must unlock other hints before accessing this hint");
+                }
+            }
+
             var userCheck = await _context.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == user.Id);
             var score = await _scoreHelper.GetTeamScore(userCheck.Team, admin: true);
 
             if (target.Cost != null && target.Cost > score)
                 throw new InvalidOperationException("Not enough points to unlock this hint");
 
-            var existing = await _context.Unlocks
-                .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.UserId == user.Id);
+            // Check if already unlocked based on mode (Team Mode or User Mode)
+            Unlock? existing;
+            if (_configHelper.IsTeamsMode())
+            {
+                Console.WriteLine("Team mode");
+                // Team Mode: Check by TeamId
+                existing = await _context.Unlocks
+                    .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.TeamId == user.TeamId);
+            }
+            else
+            {
+                // User Mode: Check by UserId
+                existing = await _context.Unlocks
+                    .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.UserId == user.Id);
+            }
+            
             if (existing != null)
                 throw new InvalidOperationException("Already unlocked");
 
