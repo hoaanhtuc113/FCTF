@@ -12,17 +12,24 @@ namespace ResourceShared.Utils
     public class ConfigHelper
     {
         private readonly AppDbContext _db;
+        private readonly IMemoryCache _cache;
+        private const string CacheKeyPrefix = "Config_";
+        private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(5);
 
-        public ConfigHelper(AppDbContext db)
+        public ConfigHelper(AppDbContext db, IMemoryCache cache)
         {
             _db = db;
+            _cache = cache;
         }
-        public T GetConfig<T>(object key, T defaultValue = default)
+        public T? GetConfig<T>(object key, T? defaultValue = default)
         {
             if (key is Enum enumKey)
                 key = enumKey.ToString();
 
-            var value = GetConfig(key.ToString());
+            if (key == null)
+                return defaultValue;
+
+            var value = GetConfig(key.ToString()!);
 
             if (value is KeyNotFoundException || value == null)
                 return defaultValue;
@@ -39,21 +46,40 @@ namespace ResourceShared.Utils
 
         public object GetConfig(string key)
         {
+            if (string.IsNullOrEmpty(key))
+                return new KeyNotFoundException();
 
-            var config = _db.Configs.FirstOrDefault(c => c.Key == key);
+            // Try to get from cache first
+            var cacheKey = CacheKeyPrefix + key;
+            if (_cache.TryGetValue(cacheKey, out object? cachedValue))
+            {
+                return cachedValue ?? new KeyNotFoundException();
+            }
+
+            // If not in cache, query database
+            var config = _db.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
+            object result;
+            
             if (config != null && !string.IsNullOrEmpty(config.Value))
             {
                 string value = config.Value;
 
                 if (int.TryParse(value, out int intVal))
-                    return intVal;
-
-                if (bool.TryParse(value, out bool boolVal))
-                    return boolVal;
-
-                return value;
+                    result = intVal;
+                else if (bool.TryParse(value, out bool boolVal))
+                    result = boolVal;
+                else
+                    result = value;
             }
-            return new KeyNotFoundException();
+            else
+            {
+                result = new KeyNotFoundException();
+            }
+
+            // Cache the result
+            _cache.Set(cacheKey, result, CacheExpiration);
+            
+            return result;
         }
         private long ToLong(object val,int defaultValue=3)
         {
@@ -71,10 +97,10 @@ namespace ResourceShared.Utils
         }
         public object CtfName()
         {
-            return GetConfig("ctf_name", "CTF");
+            return GetConfig("ctf_name", "CTF") ?? "CTF";
         }
 
-        public string UserMode()
+        public string? UserMode()
         {
             return GetConfig<string>("user_mode");
         }
