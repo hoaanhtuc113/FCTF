@@ -79,9 +79,20 @@
                           }).ToListAsync();
         }
 
-        public async Task<TicketResponseDTO?> GetTicketById(int ticketId)
+        public async Task<BaseResponseDTO<TicketResponseDTO>> GetTicketById(int ticketId, int userId)
         {
-            return await (from t in _context.Tickets
+            // First check if ticket exists
+            var ticketEntity = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
+            
+            if (ticketEntity == null)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
+            
+            // Check if user is the owner
+            if (ticketEntity.AuthorId != userId)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("You don't have permission to view this ticket");
+            
+            // Get full ticket data with joins
+            var ticket = await (from t in _context.Tickets
                           join a in _context.Users on t.AuthorId equals a.Id
                           join r in _context.Users on t.ReplierId equals r.Id into replierJoin
                           from r in replierJoin.DefaultIfEmpty()
@@ -98,6 +109,11 @@
                               ReplierName = r != null ? r.Name : null,
                               ReplierMessage = t.ReplierMessage
                           }).FirstOrDefaultAsync();
+            
+            if (ticket == null)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
+            
+            return BaseResponseDTO<TicketResponseDTO>.Ok(ticket);
         }
 
         public async Task<PaginatedTicketsDTO> GetAllTickets(int? userId, string? status, string? type, string? search, int page, int perPage)
