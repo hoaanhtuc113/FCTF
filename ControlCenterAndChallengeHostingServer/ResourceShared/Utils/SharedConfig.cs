@@ -12,6 +12,7 @@ namespace ResourceShared.Utils
         /// </summary>
         /// <exception cref="Exception">Exception sẽ được throw khi có vấn đề với file appsetting (Thiếu config, không đúng kiểu dữ liệu,...)</exception>
         public static string PRIVATE_KEY = "";
+        public static string TCP_DOMAIN = "";
 
         public static IConfiguration configuration = BuildConfiguration();
 
@@ -34,6 +35,7 @@ namespace ResourceShared.Utils
         {
             RedisConfigs.ConnectionString = configuration["REDIS_CONNECTION"] ?? throw new Exception("Can't read RedisConnectionString");
             PRIVATE_KEY = configuration["PRIVATE_KEY"] ?? throw new Exception("Can't read PrivateKey");
+            TCP_DOMAIN = configuration["TCP_DOMAIN"] ?? throw new Exception("Can't read TCP_DOMAIN");
         }
     }
 }

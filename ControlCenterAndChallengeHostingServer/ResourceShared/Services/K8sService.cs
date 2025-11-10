@@ -373,7 +373,7 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.BadRequest
                     };
 
-                var challengeDomain = $"Host: challenge-zg9uj3rfagfja19tzq.fctf.cloud {port}";
+                var challengeDomain = $"Host: {SharedConfig.TCP_DOMAIN} {port}";
 
                 // Cập nhật DeploymentInfo
                 deploymentCache.Status = DeploymentStatus.RUNING;
