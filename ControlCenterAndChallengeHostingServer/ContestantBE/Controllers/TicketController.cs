@@ -49,19 +49,31 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetTicketById(int ticketId)
         {
-            var ticket = await _ticketService.GetTicketById(ticketId);
-            if (ticket == null) return NotFound(new { message = "Ticket not found" });
-            return Ok(ticket);
-        }
-
-        [HttpGet("tickets")]
-        [DuringCtfTimeOnly]
-        public async Task<IActionResult> GetAllTickets([FromQuery] int? userId, [FromQuery] string? status,
-            [FromQuery] string? type, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int per_page = 10)
-        {
-            var result = await _ticketService.GetAllTickets(userId, status, type, search, page, per_page);
+            var user = HttpContext.GetCurrentUser();
+            if (user == null) return Unauthorized(new { message = "Unauthorized !" });
+            
+            var result = await _ticketService.GetTicketById(ticketId, user.Id);
+            
+            if (!result.Success)
+            {
+                // Check if it's a permission issue based on the message
+                if (result.Message.Contains("permission"))
+                    return StatusCode(401, new { message = result.Message });
+                
+                return NotFound(new { message = result.Message });
+            }
+            
             return Ok(result);
         }
+
+        // [HttpGet("tickets")]
+        // [DuringCtfTimeOnly]
+        // public async Task<IActionResult> GetAllTickets([FromQuery] int? userId, [FromQuery] string? status,
+        //     [FromQuery] string? type, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int per_page = 10)
+        // {
+        //     var result = await _ticketService.GetAllTickets(userId, status, type, search, page, per_page);
+        //     return Ok(result);
+        // }
 
         [HttpDelete("tickets/{ticketId}")]
         [DuringCtfTimeOnly]

@@ -8,7 +8,7 @@ namespace ContestantBE.Interfaces
     {
         Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, string? tokenValue);
         Task<List<TicketResponseDTO>> GetTicketsByUser(User user);
-        Task<TicketResponseDTO?> GetTicketById(int ticketId);
+        Task<BaseResponseDTO<TicketResponseDTO>> GetTicketById(int ticketId, int userId);
         Task<PaginatedTicketsDTO> GetAllTickets(int? userId, string? status, string? type, string? search, int page, int perPage);
         Task<BaseResponseDTO<bool>> DeleteTicket(int ticketId, int userId);
     }

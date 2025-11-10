@@ -31,6 +31,8 @@ namespace ResourceShared.Middlewares
                 return;
             }
 
+            User authenticatedUser = null;
+
             try
             {
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
@@ -50,6 +52,7 @@ namespace ResourceShared.Middlewares
                             var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
                             if (user != null)
                             {
+                                authenticatedUser = user;
                                 context.Items["CurrentUser"] = user;
                             }
                         }
@@ -59,6 +62,15 @@ namespace ResourceShared.Middlewares
             catch (Exception ex)
             {
                 Console.WriteLine($"[AuthMiddleware] Error: {ex.Message}\n{ex.StackTrace}");
+            }
+
+            // If RequireAuth is set but user is not authenticated, return 401
+            if (requireAuth && authenticatedUser == null)
+            {
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync("{\"message\":\"Unauthorized\"}");
+                return;
             }
 
             await _next(context);
