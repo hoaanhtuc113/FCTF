@@ -2356,8 +2356,7 @@ const getFileName = (filePath : string) => {
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     
-    // Calculate optimal scale to fit PDF in container
-    // We need to wait a bit for the PDF to render to get its dimensions
+    // Calculate optimal scale to fit PDF width in container
     setTimeout(() => {
       if (pdfContainerRef.current) {
         const container = pdfContainerRef.current;
@@ -2374,6 +2373,9 @@ const getFileName = (filePath : string) => {
           // Clamp between 0.5 and 2.0 for reasonable limits
           const finalScale = Math.max(0.5, Math.min(2.0, optimalScale));
           setPdfScale(finalScale);
+        } else {
+          // Fallback to 1.0 if can't find PDF page
+          setPdfScale(1.0);
         }
       }
     }, 100);
@@ -3048,7 +3050,13 @@ const getFileName = (filePath : string) => {
                     </Typography>
                   </div>
                 ) : pdfBlob ? (
-                  <div>
+                  <div 
+                    style={{ 
+                      transform: `scale(${pdfScale})`,
+                      transformOrigin: 'center top',
+                      display: 'inline-block'
+                    }}
+                  >
                     <Document
                       file={pdfBlob}
                       onLoadSuccess={onDocumentLoadSuccess}
@@ -3087,7 +3095,6 @@ const getFileName = (filePath : string) => {
                         pageNumber={pageNumber} 
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
-                        scale={pdfScale}
                         loading={
                           <div className="flex items-center justify-center p-8">
                             <CircularProgress sx={{ color: '#fb923c' }} size={40} />
