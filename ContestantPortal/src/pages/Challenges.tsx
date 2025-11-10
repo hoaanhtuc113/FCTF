@@ -2515,24 +2515,32 @@ const getFileName = (filePath : string) => {
                   [FILES]
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {challenge.files.map((file, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleDownloadFile(file)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${
-                        file.toLowerCase().includes('.pdf')
-                          ? theme === 'dark'
-                            ? 'bg-red-900/20 text-red-400 border-red-700 hover:bg-red-900/30'
-                            : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
-                          : theme === 'dark'
-                          ? 'bg-blue-900/20 text-blue-400 border-blue-700 hover:bg-blue-900/30'
-                          : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                      }`}
-                    >
-                      {file.toLowerCase().includes('.pdf') ? <PictureAsPdf sx={{ fontSize: 14 }} /> : <FaDownload size={12} />}
-                      {getFileName(file)}
-                    </button>
-                  ))}
+                  {challenge.files.map((file, index) => {
+                    const isPdf = file.toLowerCase().includes('.pdf');
+                    // Count PDF files before this one to get correct Detail number
+                    const pdfIndex = isPdf 
+                      ? challenge.files!.slice(0, index).filter(f => f.toLowerCase().includes('.pdf')).length + 1
+                      : 0;
+                    
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleDownloadFile(file)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${
+                          isPdf
+                            ? theme === 'dark'
+                              ? 'bg-red-900/20 text-red-400 border-red-700 hover:bg-red-900/30'
+                              : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+                            : theme === 'dark'
+                            ? 'bg-blue-900/20 text-blue-400 border-blue-700 hover:bg-blue-900/30'
+                            : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                        }`}
+                      >
+                        {isPdf ? <PictureAsPdf sx={{ fontSize: 14 }} /> : <FaDownload size={12} />}
+                        {isPdf ? `Detail ${pdfIndex}` : getFileName(file)}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
