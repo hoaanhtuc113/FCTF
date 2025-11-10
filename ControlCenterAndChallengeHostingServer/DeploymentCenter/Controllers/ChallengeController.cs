@@ -2,6 +2,7 @@
 using DeploymentCenter.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
 using Sprache;
@@ -15,9 +16,11 @@ namespace DeploymentCenter.Controllers
     {
 
         private readonly IDeployService _deployService;
-        public ChallengeController(IDeployService deployService)
+        private readonly AppDbContext _dbContext;
+        public ChallengeController(IDeployService deployService, AppDbContext dbContext)
         {
             _deployService = deployService;
+            _dbContext = dbContext;
         }
 
         [HttpPost("start")]
@@ -64,6 +67,44 @@ namespace DeploymentCenter.Controllers
                 (int)HttpStatusCode.BadRequest => BadRequest(response),
                 (int)HttpStatusCode.NotFound => NotFound(response),
                 _ => StatusCode((int)response.status, response)
+            };
+        }
+
+        [HttpPost("stop-all")]
+        [RequireSecretKey]
+        public async Task<IActionResult> StopAllChallenges([FromBody] ChallengeStartStopReqDTO challengeStopReq)
+        {
+            var user = _dbContext.Users.FirstOrDefault(u => u.Id == challengeStopReq.userId);
+            if (user == null || user.Type != "admin")
+            {
+                return BadRequest(new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.BadRequest,
+                    success = false,
+                    message = "Unauthorized request."
+                });
+            }
+            var response = await _deployService.StopAll();
+            return response.HttpStatusCode switch
+            {
+                HttpStatusCode.OK => Ok(response),
+                HttpStatusCode.BadRequest => BadRequest(response),
+                _ => StatusCode((int)response.HttpStatusCode, response)
+            };
+        }
+
+        [HttpPost("deployment-logs/{workflowName}")]
+        [RequireSecretKey]
+        public async Task<IActionResult> GetDeploymentLogs(string workflowName,[FromBody] ChallengeStartStopReqDTO challengeStopReq)
+        {
+           
+            var response = await _deployService.GetDeploymentLogs(workflowName);
+            return response.HttpStatusCode switch
+            {
+                HttpStatusCode.OK => Ok(response),
+                HttpStatusCode.BadRequest => BadRequest(response),
+                HttpStatusCode.NotFound => NotFound(response),
+                _ => StatusCode((int)response.HttpStatusCode, response)
             };
         }
     }

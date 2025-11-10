@@ -34,6 +34,7 @@ from CTFd.utils.connector.multiservice_connector import (
     challenge_start,
     create_secret_key,
     force_stop,
+    force_stop_all,
     generate_cache_attempt_key,
     generate_cache_key,
     get_team_id_and_cache_key,
@@ -51,40 +52,6 @@ redis_client = redis.StrictRedis(
     encoding="utf-8",
     decode_responses=True
 )
-
-
-def remove_from_cache_by_challenge_id(cache_key, challenge_id):
-    # Retrieve the list
-    cached_list = redis_client.lrange(cache_key, 0, -1)
-    
-    if not cached_list:
-        print(f"No cache found for key: {cache_key}")
-        return
-    
-    # Deserialize and filter out the matching item
-    filtered_list = []
-    removed = False
-    for item in cached_list:
-        value = json.loads(item)
-        if value.get("challenge_id") == challenge_id:
-            removed = True
-            continue
-        filtered_list.append(value)
-
-    if not removed:
-        print(f"Challenge ID {challenge_id} not found in cache: {cache_key}")
-        return
-    
-    # Clear the original list
-    redis_client.delete(cache_key)
-
-    # Push the filtered items back to the list
-    for value in filtered_list:
-        redis_client.rpush(cache_key, json.dumps(value))
-
-    print(f"Removed challenge_id {challenge_id} from cache: {cache_key}")
-
-
    
 @challenge.route("/api/challenge/start", methods=["POST"])
 @during_ctf_time_only
@@ -191,61 +158,21 @@ def stop_challenge_by_admin():
             400,
         )
 
-@challenge.route("/api/challenge/stop-by-user", methods=["POST"])
+@challenge.route("/api/challenge/stop-all", methods=["DELETE"])
 @bypass_csrf_protection
-def stop_challenge_by_user():
-    data = request.get_json() or request.form.to_dict()
-    challenge_id = data.get("challenge_id")
-
-    if not challenge_id:
-        return jsonify({"error": "ChallengeId is required"}), 400
-
-    generatedToken = get_token_from_header()
-    token = Tokens.query.filter_by(value=generatedToken).first()
-    if not token:
-        return jsonify({"error": "Token not found"}), 404
-    else:
-        user_id = token.user_id
-        if not user_id:
-            return jsonify({"error": "Please login"}), 400
-
+def stop_all_challenges():
+    user_id = session["id"]
+    print("useriddddd" +str(user_id))
     user = Users.query.filter_by(id=user_id).first()
 
     if not user:
-        return jsonify({"error": "User Not found"}), 404
+        return jsonify({"error": "User Not found"}), 403
 
-    team_id = user.team_id
-    if not team_id :
-        return jsonify({"err or": "User no join team"}), 400
-        
-    challenge = Challenges.query.filter_by(id=challenge_id).first()
+    if user.type == "user":
+        return jsonify({"error": "Permission denied"}), 400
 
-    if not challenge:
-        return jsonify({"error": "Challenge not found"}), 400
-
-    cache_key = generate_cache_key(challenge_id, team_id)
-
-    if not redis_client.exists(cache_key):
-        return (
-            jsonify(
-                {
-                    "error": "Challenge not started or already stopped, no active cache found."
-                }
-            ),
-            400,
-        )
     try:
-        force_stop(cache_key=cache_key, challenge_id=challenge_id,team_id=team_id)
-        return (
-            jsonify(
-                {
-                    "isSuccess": True,
-                    "status": "Stopped",
-                    "message": "Stop challenge success",
-                }
-            ),
-            200,
-        )
+        return force_stop_all(user_id=user_id)
 
     except requests.exceptions.RequestException as e:
         print(f"Error during stop challenge: {e}")
@@ -255,7 +182,7 @@ def stop_challenge_by_user():
         )
 
 
-@challenge.route("/api/challenge/get-all-instance", methods=["POST"])
+@challenge.route("/api/challenge/get-all-instance", methods=["POST", "GET"])
 @bypass_csrf_protection
 def get_all_instance():
     try:
@@ -263,6 +190,12 @@ def get_all_instance():
         user = get_current_user()
         if not user or not is_admin():
             return jsonify({"error": "Permission denied"}), 403
+        
+        # Get pagination and sorting parameters
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 25, type=int)
+        sort_by = request.args.get("sort_by", "time_finished")  # Default sort by time
+        sort_order = request.args.get("sort_order", "desc")  # Default descending
         
         pattern = "challenge_url_*_*"
         cursor = 0
@@ -331,7 +264,8 @@ def get_all_instance():
                     "user_name": user.name if user else "Unknown User",
                     "user_id": value.get("user_id"),
                     "challenge_url": value.get("challenge_url"),
-                    "time_finished": finished_time  # dạng ISO 8601
+                    "time_finished": finished_time,  # dạng ISO 8601
+                    "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
                 })
             else:
                 normal_cases.append({
@@ -342,12 +276,48 @@ def get_all_instance():
                     "team_id": team_id,
                     "user_id": value.get("user_id"),
                     "challenge_url": value.get("challenge_url"),
-                    "time_finished": finished_time  # dạng ISO 8601
+                    "time_finished": finished_time,  # dạng ISO 8601
+                    "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
                 })
+
+        # Combine all data
+        all_data = special_cases + normal_cases
+        
+        # Sort data
+        reverse = (sort_order == "desc")
+        if sort_by == "challenge_name":
+            all_data.sort(key=lambda x: x.get("challenge_name", "").lower(), reverse=reverse)
+        elif sort_by == "team_name":
+            all_data.sort(key=lambda x: x.get("team_name", "").lower(), reverse=reverse)
+        elif sort_by == "user_name":
+            all_data.sort(key=lambda x: x.get("user_name", "").lower(), reverse=reverse)
+        elif sort_by == "time_finished":
+            all_data.sort(key=lambda x: x.get("time_finished_timestamp", 0), reverse=reverse)
+        elif sort_by == "challenge_id":
+            all_data.sort(key=lambda x: x.get("challenge_id", 0), reverse=reverse)
+        
+        # Calculate pagination
+        total_items = len(all_data)
+        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_data = all_data[start_idx:end_idx]
+        
+        # Remove timestamp field from response
+        for item in paginated_data:
+            item.pop("time_finished_timestamp", None)
 
         return jsonify({
             "success": True,
-            "data": special_cases + normal_cases,
+            "data": paginated_data,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_prev": page > 1,
+                "has_next": page < total_pages
+            }
         }), 200
 
     except Exception as e:

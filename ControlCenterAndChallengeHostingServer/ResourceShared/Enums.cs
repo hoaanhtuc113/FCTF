@@ -46,8 +46,8 @@ namespace ResourceShared
             public const string PROCESS = "pending";
             public const string RUNING = "running";
 
-            public const string FAILED = "failed";
-            public const string SUCCEEDED = "succeeded";
+            public const string FAILED = "Failed";
+            public const string SUCCEEDED = "Succeeded";
 
             public const string PENDING_DEPLOY = "PENDING_DEPLOY";
             public const string DEPLOY_FAILED = "DEPLOY_FAILED";

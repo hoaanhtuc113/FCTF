@@ -40,8 +40,11 @@
         <div class="row">
             <div class="col-md-12">
                 <h3>Log Content</h3>
-                <div class="form-control" rows="10" readonly style="height: 50vh; overflow: auto;">
-                    {{ log_content|safe if log_content is not none else 'No logs available' }}
+                <div class="form-control" rows="10" id="log-content" readonly style="height: 50vh; overflow: auto; white-space: pre-wrap; font-family: monospace;">
+                    <div class="text-center" id="log-loading">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>Loading logs...</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -51,4 +54,38 @@
         </div>
         {% endif %}
     </div>
+{% endblock %}
+
+{% block scripts %}
+   <script>
+        var deployed_id = {{ deployed_challenge.id if deployed_challenge else 'null' }};
+        
+        function fetchLogs() {
+            if (!deployed_id) {
+                return;
+            }
+            
+            // Show loading spinner
+            document.getElementById('log-content').innerHTML = '<div class="text-center" id="log-loading"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading logs...</p></div>';
+            
+            fetch(`/deploy_History/${deployed_id}/logs`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    if (data.success) {
+                        document.getElementById('log-content').innerText = data.data.logs;
+                    } else {
+                        document.getElementById('log-content').innerText = 'Failed to fetch logs: ' + (data.message || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    document.getElementById('log-content').innerText = 'Error fetching logs: ' + error.message;
+                });
+        }
+        
+        if (deployed_id) {
+            fetchLogs();
+        }
+   </script>
 {% endblock %}

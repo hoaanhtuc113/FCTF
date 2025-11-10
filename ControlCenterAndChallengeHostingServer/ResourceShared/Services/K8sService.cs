@@ -14,6 +14,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using static ResourceShared.Enums;
@@ -27,6 +28,7 @@ namespace ResourceShared.Services
         Task<bool> CheckPodAliveInCache(string podName);
         Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge");
         Task<bool> DeleteNamespace(string namespaceName);
+        Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge");
         Task<int?> GetNodePort(string namespaceName);
         Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, DeploymentInfo deploymentCache);
 
@@ -155,6 +157,65 @@ namespace ResourceShared.Services
             {
                 await Console.Error.WriteLineAsync($"[Delete Namespace] Error deleting namespace '{namespaceName}': {ex.Message}");
                 return false;
+            }
+        }
+
+        public async Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge")
+        {
+            await Console.Out.WriteLineAsync($"[Delete All Namespaces] Deleting all namespaces with label: {labelSelector}");
+            
+            int successCount = 0;
+            int failCount = 0;
+            var errors = new List<string>();
+
+            try
+            {
+                // List all namespaces with the specified label
+                var namespaces = await _kubernetes.CoreV1.ListNamespaceAsync(labelSelector: labelSelector);
+                
+                if (namespaces.Items.Count == 0)
+                {
+                    await Console.Out.WriteLineAsync("[Delete All Namespaces] No namespaces found with the specified label.");
+                    return (0, 0, errors);
+                }
+
+                await Console.Out.WriteLineAsync($"[Delete All Namespaces] Found {namespaces.Items.Count} namespaces to delete.");
+
+                // Delete each namespace
+                foreach (var ns in namespaces.Items)
+                {
+                    var namespaceName = ns.Metadata.Name;
+                    try
+                    {
+                        await Console.Out.WriteLineAsync($"[Delete All Namespaces] Deleting namespace: {namespaceName}");
+                        await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
+                        successCount++;
+                        await Console.Out.WriteLineAsync($"[Delete All Namespaces] Successfully deleted namespace: {namespaceName}");
+                    }
+                    catch (k8s.Autorest.HttpOperationException ex)
+                    {
+                        failCount++;
+                        var error = $"Failed to delete namespace '{namespaceName}': {ex.Response.Content}";
+                        errors.Add(error);
+                        await Console.Error.WriteLineAsync($"[Delete All Namespaces] {error}");
+                    }
+                    catch (Exception ex)
+                    {
+                        failCount++;
+                        var error = $"Error deleting namespace '{namespaceName}': {ex.Message}";
+                        errors.Add(error);
+                        await Console.Error.WriteLineAsync($"[Delete All Namespaces] {error}");
+                    }
+                }
+
+                await Console.Out.WriteLineAsync($"[Delete All Namespaces] Completed. Success: {successCount}, Failed: {failCount}");
+                return (successCount, failCount, errors);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[Delete All Namespaces] Critical error: {ex.Message}");
+                errors.Add($"Critical error while listing namespaces: {ex.Message}");
+                return (successCount, failCount, errors);
             }
         }
 
@@ -400,23 +461,33 @@ namespace ResourceShared.Services
             }
         }
 
-
         public async Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo")
         {
             var sb = new StringBuilder();
 
+            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]");
+
+            // Lấy tất cả pod thuộc workflow
             var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(
                 namespaceParameter: namespaceName,
                 labelSelector: $"workflows.argoproj.io/workflow={workflowName}"
             );
 
-            foreach (var pod in pods.Items)
-            {
-                sb.AppendLine($"==============================");
-                sb.AppendLine($"Pod: {pod.Metadata.Name}");
-                sb.AppendLine($"==============================");
+            // Chỉ lấy pod có tên chứa "build-and-push"
+            var targetPods = pods.Items
+                .Where(p => p.Metadata?.Name != null && p.Metadata.Name.Contains("build-and-push"))
+                .ToList();
 
-                // Lấy danh sách container
+            if (!targetPods.Any())
+                return $"[No build-and-push pod found in workflow {workflowName}]";
+
+            foreach (var pod in targetPods)
+            {
+                sb.AppendLine("==============================");
+                sb.AppendLine($"Pod: {pod.Metadata.Name}");
+                sb.AppendLine("==============================");
+
+                // Lấy danh sách container (init + chính)
                 var containerNames = new List<string>();
                 if (pod.Spec.InitContainers != null)
                     containerNames.AddRange(pod.Spec.InitContainers.Select(c => c.Name));
@@ -442,12 +513,12 @@ namespace ResourceShared.Services
 
                         if (!string.IsNullOrWhiteSpace(logText))
                         {
-                            foreach (var line in logText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
-                                sb.AppendLine($"{pod.Metadata.Name}: {line}");
+                            var cleanText = ansiRegex.Replace(logText, string.Empty);
+                            sb.AppendLine(cleanText.TrimEnd());
                         }
                         else
                         {
-                            sb.AppendLine($"{pod.Metadata.Name}: [no logs]");
+                            sb.AppendLine("[no logs]");
                         }
                     }
                     catch (Exception ex)
