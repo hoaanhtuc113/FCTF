@@ -29,9 +29,12 @@ namespace ContestantBE.Services
 
             if (user == null || !SHA256Helper.VerifyPassword(loginDto.password, user.Password) || user.Type != "user")
             {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("Invalid credentials or unauthorized user type");
+                return BaseResponseDTO<AuthResponseDTO>.Fail("Invalid username or password");
             }
-
+            if ((user.Hidden ?? false) || (user.Banned ?? false))
+            {
+                return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
+            }
             var dateTime = DateTime.Now.AddDays(1);
             var token = await TokenHelper.GenerateUserToken(_context, user, dateTime, "Login token");
 

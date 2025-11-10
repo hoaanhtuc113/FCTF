@@ -79,9 +79,20 @@
                           }).ToListAsync();
         }
 
-        public async Task<TicketResponseDTO?> GetTicketById(int ticketId)
+        public async Task<BaseResponseDTO<TicketResponseDTO>> GetTicketById(int ticketId, int userId)
         {
-            return await (from t in _context.Tickets
+            // First check if ticket exists
+            var ticketEntity = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
+            
+            if (ticketEntity == null)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
+            
+            // Check if user is the owner
+            if (ticketEntity.AuthorId != userId)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("You don't have permission to view this ticket");
+            
+            // Get full ticket data with joins
+            var ticket = await (from t in _context.Tickets
                           join a in _context.Users on t.AuthorId equals a.Id
                           join r in _context.Users on t.ReplierId equals r.Id into replierJoin
                           from r in replierJoin.DefaultIfEmpty()
@@ -98,6 +109,11 @@
                               ReplierName = r != null ? r.Name : null,
                               ReplierMessage = t.ReplierMessage
                           }).FirstOrDefaultAsync();
+            
+            if (ticket == null)
+                return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
+            
+            return BaseResponseDTO<TicketResponseDTO>.Ok(ticket);
         }
 
         public async Task<PaginatedTicketsDTO> GetAllTickets(int? userId, string? status, string? type, string? search, int page, int perPage)
@@ -144,6 +160,27 @@
                 .ToListAsync();
 
             return new PaginatedTicketsDTO { Tickets = tickets, Total = total };
+        }
+
+        public async Task<BaseResponseDTO<bool>> DeleteTicket(int ticketId, int userId)
+        {
+            var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
+            
+            if (ticket == null)
+                return BaseResponseDTO<bool>.Fail("Ticket not found");
+            
+            // Check if user owns this ticket
+            if (ticket.AuthorId != userId)
+                return BaseResponseDTO<bool>.Fail("You don't have permission to delete this ticket");
+            
+            // Check if ticket has been replied (ReplierMessage is not null/empty or Status is not "open")
+            if (!string.IsNullOrEmpty(ticket.ReplierMessage) || ticket.Status?.ToLower() != "open")
+                return BaseResponseDTO<bool>.Fail("Cannot delete ticket that has been replied or closed");
+            
+            _context.Tickets.Remove(ticket);
+            await _context.SaveChangesAsync();
+            
+            return BaseResponseDTO<bool>.Ok(true, "Ticket deleted successfully");
         }
 
         private TicketResponseDTO MapToDto(Ticket ticket, string authorName, string? replierName, string? teamName)

@@ -45,8 +45,8 @@ export function TicketDetail() {
       const response = await fetchWithAuth(API_ENDPOINTS.TICKET.DETAIL(id!));
       const data = await response.json();
       
-      if (data) {
-        setTicket(data);
+      if (data.data) {
+        setTicket(data.data);
       }
     } catch (error) {
       console.error('Error fetching ticket:', error);
