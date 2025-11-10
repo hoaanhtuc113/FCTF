@@ -294,7 +294,7 @@ function loadChalTemplate(challenge) {
             }).length;
 
           if (hasFiles) {
-            const data = { challenge: challenge_id, type: "challenge" };
+            const data = { challenge_id: challenge_id, type: "challenge" };
             try {
               const uploadResult = await helpers.files.upload(form, data);
               console.log("File upload successful", uploadResult);
