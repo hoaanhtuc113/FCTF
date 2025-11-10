@@ -252,47 +252,47 @@ namespace ContestantBE.Controllers
            if(challenge.State ==  "hidden") return NotFound();
            if(challenge.State ==  "locked") return Forbid();
 
-           // Check prerequisites from Requirements JSON
-           if (!string.IsNullOrEmpty(challenge.Requirements))
-           {
-               try
-               {
-                   var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
+        //    // Check prerequisites from Requirements JSON
+        //    if (!string.IsNullOrEmpty(challenge.Requirements))
+        //    {
+        //        try
+        //        {
+        //            var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
                    
-                   if (requirementsObj?.prerequisites != null && requirementsObj.prerequisites.Count > 0)
-                   {
-                       var solve_ids = (await _context.Solves
-                                       .Where(s => s.UserId == user.Id)
-                                       .Select(s => s.ChallengeId)
-                                       .OrderBy(id => id)
-                                       .ToListAsync()).ToHashSet();
+        //            if (requirementsObj?.prerequisites != null && requirementsObj.prerequisites.Count > 0)
+        //            {
+        //                var solve_ids = (await _context.Solves
+        //                                .Where(s => s.UserId == user.Id)
+        //                                .Select(s => s.ChallengeId)
+        //                                .OrderBy(id => id)
+        //                                .ToListAsync()).ToHashSet();
 
-                       var all_challenge_ids = (await _context.Challenges
-                                               .AsNoTracking()
-                                               .Select(c => c.Id)
-                                               .ToListAsync()).ToHashSet();
+        //                var all_challenge_ids = (await _context.Challenges
+        //                                        .AsNoTracking()
+        //                                        .Select(c => c.Id)
+        //                                        .ToListAsync()).ToHashSet();
                        
-                       // Convert prereq ids to nullable ints to match solve_ids (IEnumerable<int?>)
-                       var prereqs = requirementsObj.prerequisites
-                                           .Where(id => all_challenge_ids.Contains(id))
-                                           .Select(id => (int?)id)
-                                           .ToHashSet();
+        //                // Convert prereq ids to nullable ints to match solve_ids (IEnumerable<int?>)
+        //                var prereqs = requirementsObj.prerequisites
+        //                                    .Where(id => all_challenge_ids.Contains(id))
+        //                                    .Select(id => (int?)id)
+        //                                    .ToHashSet();
 
-                       if (!solve_ids.IsSupersetOf(prereqs))
-                       {
-                           return StatusCode(StatusCodes.Status403Forbidden, new
-                           {
-                               success = false,
-                               message = "You don't have the permission to access this challenge. Complete the required challenges first."
-                           });
-                       }
-                   }
-               }
-               catch (Exception ex)
-               {
-                   await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
-               }
-           }
+        //                if (!solve_ids.IsSupersetOf(prereqs))
+        //                {
+        //                    return StatusCode(StatusCodes.Status403Forbidden, new
+        //                    {
+        //                        success = false,
+        //                        message = "You don't have the permission to access this challenge. Complete the required challenges first."
+        //                    });
+        //                }
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+        //        }
+        //    }
 
 
             var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);

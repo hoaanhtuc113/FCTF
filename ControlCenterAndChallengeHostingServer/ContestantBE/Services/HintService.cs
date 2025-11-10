@@ -10,11 +10,13 @@ namespace ContestantBE.Services
     {
         private readonly AppDbContext _context;
         private readonly ScoreHelper _scoreHelper;
+        private readonly ConfigHelper _configHelper;
 
-        public HintService(AppDbContext context, ScoreHelper scoreHelper)
+        public HintService(AppDbContext context, ScoreHelper scoreHelper, ConfigHelper configHelper)
         {
             _context = context;
             _scoreHelper = scoreHelper;
+            _configHelper = configHelper;
         }
 
         private List<int> GetPrerequisites(string? requirementsJson)
@@ -147,8 +149,22 @@ namespace ContestantBE.Services
             if (target.Cost != null && target.Cost > score)
                 throw new InvalidOperationException("Not enough points to unlock this hint");
 
-            var existing = await _context.Unlocks
-                .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.UserId == user.Id);
+            // Check if already unlocked based on mode (Team Mode or User Mode)
+            Unlock? existing;
+            if (_configHelper.IsTeamsMode())
+            {
+                Console.WriteLine("Team mode");
+                // Team Mode: Check by TeamId
+                existing = await _context.Unlocks
+                    .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.TeamId == user.TeamId);
+            }
+            else
+            {
+                // User Mode: Check by UserId
+                existing = await _context.Unlocks
+                    .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.UserId == user.Id);
+            }
+            
             if (existing != null)
                 throw new InvalidOperationException("Already unlocked");
 
