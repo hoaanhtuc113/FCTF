@@ -52,8 +52,12 @@ namespace ResourceShared.Middlewares
                             var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
                             if (user != null)
                             {
-                                authenticatedUser = user;
-                                context.Items["CurrentUser"] = user;
+                                // Check if user is Hidden or Banned before setting as authenticated
+                                if ((user.Hidden != true) && (user.Banned != true))
+                                {
+                                    authenticatedUser = user;
+                                    context.Items["CurrentUser"] = user;
+                                }
                             }
                         }
                     }
