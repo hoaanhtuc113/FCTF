@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     LIST: '/ticket/tickets-user',
     CREATE: '/ticket/sendticket',
     DETAIL: (id: string) => `/ticket/tickets/${id}`,
+    DELETE: (id: string) => `/ticket/tickets/${id}`,
   },
   USER: {
     PROFILE: '/users/profile',
