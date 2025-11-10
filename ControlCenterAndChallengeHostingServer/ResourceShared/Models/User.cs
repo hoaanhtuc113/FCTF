@@ -25,9 +25,9 @@ public partial class User
 
     public string? Country { get; set; }
 
-    public bool? Hidden { get; set; }
+    public bool? Hidden { get; set; } = false;
 
-    public bool? Banned { get; set; }
+    public bool? Banned { get; set; } = false;
 
     public bool? Verified { get; set; }
 

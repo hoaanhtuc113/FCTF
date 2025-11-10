@@ -35,7 +35,10 @@ export function Login() {
       toast.success('auth_success');
       navigate('/dashboard');
     } catch (err) {
-      toast.error('auth_failed');
+      console.log(err);
+      // Display error message from backend 
+      const errorMessage = err instanceof Error ? err.message : 'auth_failed';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
