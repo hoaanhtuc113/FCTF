@@ -1,8 +1,11 @@
-from flask import Blueprint, render_template, abort, request, flash, redirect, url_for, jsonify  # type: ignore
+from flask import Blueprint, render_template, abort, request, flash, redirect, url_for, jsonify, session  # type: ignore
 
 from CTFd.models import Challenges, db, Users, DeployedChallenge
 from CTFd.utils.decorators import admins_only, admin_or_challenge_writer_only_or_jury,is_jury,is_admin
 from CTFd.utils.user import authed
+from CTFd.utils.connector.multiservice_connector import (
+    get_workflow_logs
+)
 
 challengeHistory = Blueprint("challengeHistory", __name__)
 
@@ -70,3 +73,21 @@ def view_deploy_history_details(id):
             deployed_challenge=deployed_challenge,
             log_content=log_content,
         )
+
+@challengeHistory.route("/deploy_History/<int:id>/logs", methods=["Get"])
+@admin_or_challenge_writer_only_or_jury
+def get_deploy_logs(id):
+    deployed_challenge = DeployedChallenge.query.filter(DeployedChallenge.id == id).first()
+    user_id = session["id"]
+    user = Users.query.filter_by(id=user_id).first()
+
+    if not user:
+        return jsonify({"error": "User Not found"}), 403
+
+    if user.type == "user":
+        return jsonify({"error": "Permission denied"}), 400
+
+    if not deployed_challenge:
+        return jsonify({"success": False, "log_content": "Deploy record not found."}), 404
+
+    return get_workflow_logs(deployed_challenge.challenge_id, deployed_challenge.log_content, user_id)

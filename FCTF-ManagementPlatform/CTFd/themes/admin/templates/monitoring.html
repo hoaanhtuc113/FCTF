@@ -25,6 +25,10 @@
 	/* Action Button */
 	.action-section {
 		margin-bottom: 1.5rem;
+		padding: 1rem;
+		background: #ffffff;
+		border: 1px solid #e8e8e8;
+		border-radius: 8px;
 	}
 	
 	.btn-load {
@@ -40,8 +44,38 @@
 	.btn-load:hover {
 		background-color: #e85d2a;
 		border-color: #e85d2a;
+		color: #ffffff;
 		transform: translateY(-2px);
 		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+	
+	.btn-danger {
+		padding: 0.65rem 1.5rem;
+		font-weight: 600;
+		border-radius: 6px;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-danger:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+	}
+	
+	.btn-danger:disabled {
+		opacity: 0.65;
+		cursor: not-allowed;
+		transform: none;
+		box-shadow: none;
+	}
+	
+	/* Spinner animation */
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+	
+	.fa-spin {
+		animation: spin 1s linear infinite;
 	}
 	
 	/* Table Styles */
@@ -114,6 +148,50 @@
 		transform: translateY(-2px);
 		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
 	}
+	
+	/* Pagination Styles */
+	.clean-pagination {
+		margin: 0;
+	}
+	
+	.clean-pagination .page-link {
+		border: 1px solid #dee2e6;
+		color: #495057;
+		padding: 0.5rem 0.75rem;
+		margin: 0 0.15rem;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+	}
+	
+	.clean-pagination .page-link:hover {
+		background: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.clean-pagination .page-item.active .page-link {
+		background: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.clean-pagination .page-item.disabled .page-link {
+		background: #f8f9fa;
+		color: #6c757d;
+		cursor: not-allowed;
+	}
+	
+	.clean-info-text {
+		color: #6c757d;
+		font-size: 0.9rem;
+	}
+	
+	.clean-highlight {
+		color: #ff6b35;
+		font-weight: 500;
+	}
+	
+
 </style>
 {% endblock %}
 
@@ -126,38 +204,71 @@
 	</div>
 
 	<div class="container monitoring-container">
-		<!-- Action Button -->
-		<div class="action-section">
-			<button onclick="loadData()" class="btn btn-load">
-				<i class="fas fa-sync-alt"></i> Load Data
-			</button>
+		<!-- Action Buttons -->
+		<div class="mb-3 d-flex justify-content-between align-items-center">
+			<div>
+				<button onclick="loadData()" class="btn btn-load mr-2">
+					<i class="fas fa-sync-alt"></i> Refresh Data
+				</button>
+			</div>
+			<div>
+				<button onclick="DeleteAll()" class="btn btn-danger">
+					<i class="fas fa-trash-alt"></i> Stop All
+				</button>
+			</div>
 		</div>
 
 		<!-- Table -->
 		<div class="monitoring-table-wrapper">
 			<table id="challengeTable" class="table monitoring-table mb-0">
-			<table id="challengeTable" class="table monitoring-table mb-0">
 				<thead>
 					<tr>
-						<th>Challenge Name</th>
-						<th>Team Name</th>
-						<th>User Name</th>
-						<th>Challenge URL</th>
-						<th>Action</th>
+						<th class="sort-col text-center">ID</th>
+						<th class="sort-col text-center">Challenge Name</th>
+						<th class="sort-col text-center">Team Name</th>
+						<th class="sort-col text-center">User Name</th>
+						<th class="text-center">Challenge URL</th>
+						<th class="sort-col text-center">Time Finished</th>
+						<th class="text-center">Action</th>
 					</tr>
 				</thead>
-				<tbody>
+				<tbody class="small">
 					<!-- Dynamic rows go here -->
 				</tbody>
 			</table>
+		</div>
+		
+		<!-- Pagination Controls -->
+		<div class="row mt-3" id="paginationContainer">
+			<div class="col-12">
+				<div class="d-flex justify-content-between align-items-center">
+					<div class="clean-info-text" role="status" aria-live="polite">
+						Page <span class="clean-highlight" id="currentPage">1</span> of <span class="clean-highlight" id="totalPages">1</span> • <span id="totalItems">0</span> total
+					</div>
+					<nav aria-label="Instance pagination">
+						<ul class="clean-pagination pagination mb-0" id="paginationControls">
+							<!-- Pagination buttons will be inserted here -->
+						</ul>
+					</nav>
+				</div>
+			</div>
 		</div>
 	</div>
 </div>
 
 <script>
-	async function loadData() {
-		const response = await fetch("/api/challenge/get-all-instance", {
-			method: "POST"
+	let currentPage = 1;
+	let perPage = 25;
+	let sortBy = "time_finished";
+	let sortOrder = "desc";
+	let paginationData = null;
+
+	async function loadData(page = 1) {
+		currentPage = page;
+		
+		const url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`;
+		const response = await fetch(url, {
+			method: "GET"
 		});
 
 		const result = await response.json();
@@ -165,22 +276,106 @@
 		tbody.innerHTML = "";
 
 		if (result.success) {
+			paginationData = result.pagination;
+			
 			result.data.forEach(row => {
 				const tr = document.createElement("tr");
 
 				tr.innerHTML = `
-					<td>${row.challenge_name}</td>
-					<td>${row.team_name}</td>
-					<td>${row.user_name ?? "N/A"}</td>
-					<td><a href="${row.challenge_url}" target="_blank">${row.challenge_url}</a></td>
-					<td><button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-stop">Stop</button></td>
+					<td class="text-center">${row.challenge_id}</td>
+					<td class="text-center">${row.challenge_name}</td>
+					<td class="text-center">${row.team_name}</td>
+					<td class="text-center">${row.user_name ?? "N/A"}</td>
+					<td class="text-center"><a href="${row.challenge_url}" class="text-decoration-none" target="_blank">${row.challenge_url}</a></td>
+					<td class="text-center">${row.time_finished
+						? new Date(row.time_finished).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
+						: "N/A"}</td>
+					<td class="text-center">${row.challenge_url ? `<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop">Stop</button>` : "Processing"}</td>
 				`;
 
 				tbody.appendChild(tr);
 			});
+			
+			// Update pagination info and controls
+			updatePagination();
 		} else {
 			alert("Error loading data: " + result.error);
 		}
+	}
+	
+	function updatePagination() {
+		if (!paginationData) return;
+		
+		// Update info text
+		document.getElementById("currentPage").textContent = paginationData.page;
+		document.getElementById("totalPages").textContent = paginationData.total_pages;
+		document.getElementById("totalItems").textContent = paginationData.total_items;
+		
+		// Build pagination controls
+		const paginationControls = document.getElementById("paginationControls");
+		paginationControls.innerHTML = "";
+		
+		// Previous button
+		const prevLi = document.createElement("li");
+		prevLi.className = `page-item ${!paginationData.has_prev ? 'disabled' : ''}`;
+		prevLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${currentPage - 1}); return false;">&laquo;</a>`;
+		paginationControls.appendChild(prevLi);
+		
+		// Page numbers
+		const totalPages = paginationData.total_pages;
+		let startPage = Math.max(1, currentPage - 2);
+		let endPage = Math.min(totalPages, currentPage + 2);
+		
+		if (currentPage <= 3) {
+			endPage = Math.min(5, totalPages);
+		}
+		if (currentPage >= totalPages - 2) {
+			startPage = Math.max(1, totalPages - 4);
+		}
+		
+		// First page
+		if (startPage > 1) {
+			const firstLi = document.createElement("li");
+			firstLi.className = "page-item";
+			firstLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(1); return false;">1</a>`;
+			paginationControls.appendChild(firstLi);
+			
+			if (startPage > 2) {
+				const ellipsisLi = document.createElement("li");
+				ellipsisLi.className = "page-item disabled";
+				ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+				paginationControls.appendChild(ellipsisLi);
+			}
+		}
+		
+		// Page number buttons
+		for (let i = startPage; i <= endPage; i++) {
+			const pageLi = document.createElement("li");
+			pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+			pageLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${i}); return false;">${i}</a>`;
+			paginationControls.appendChild(pageLi);
+		}
+		
+		// Last page
+		if (endPage < totalPages) {
+			if (endPage < totalPages - 1) {
+				const ellipsisLi = document.createElement("li");
+				ellipsisLi.className = "page-item disabled";
+				ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+				paginationControls.appendChild(ellipsisLi);
+			}
+			
+			const lastLi = document.createElement("li");
+			lastLi.className = "page-item";
+			lastLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${totalPages}); return false;">${totalPages}</a>`;
+			paginationControls.appendChild(lastLi);
+		}
+		
+		// Next button
+		const nextLi = document.createElement("li");
+		nextLi.className = `page-item ${!paginationData.has_next ? 'disabled' : ''}`;
+		nextLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${currentPage + 1}); return false;">&raquo;</a>`;
+		paginationControls.appendChild(nextLi);
 	}
 
 	loadData(); // Initial load
@@ -211,6 +406,50 @@
 				alert("Network or server error: " + error.message);
 			}
 
+	}
+
+	async function DeleteAll() {
+		// Show confirmation dialog
+		const confirmed = confirm(
+			"Are you sure you want to stop all running challenge instances?\n\n" +
+			"This action will stop all active challenges for all teams and cannot be undone."
+		);
+
+		if (!confirmed) {
+			return; // User cancelled
+		}
+
+		// Get button element and disable it
+		const deleteAllBtn = event.target.closest('button');
+		const originalContent = deleteAllBtn.innerHTML;
+		
+		// Disable button and show spinner
+		deleteAllBtn.disabled = true;
+		deleteAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping All...';
+
+		try {
+			const response = await fetch("/api/challenge/stop-all", {
+				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json"
+				}
+			});
+
+			if (response.ok) {
+				const result = await response.json();
+				alert("All challenges stopped successfully.");
+				loadData(); // Refresh the list
+			} else {
+				const result = await response.json();
+				alert("Failed to stop all challenges: " + (result.error || "Unknown error"));
+			}
+		} catch (error) {
+			alert("Network or server error: " + error.message);
+		} finally {
+			// Re-enable button and restore original content
+			deleteAllBtn.disabled = false;
+			deleteAllBtn.innerHTML = originalContent;
+		}
 	}
 </script>
 

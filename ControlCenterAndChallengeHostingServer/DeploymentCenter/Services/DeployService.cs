@@ -14,6 +14,7 @@ using StackExchange.Redis;
 using System.Net;
 using System.Net.WebSockets;
 using System.Security.AccessControl;
+using System.Text;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
@@ -23,8 +24,10 @@ namespace DeploymentCenter.Services
     {
         Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO challengeStartReq);
         Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO challengeStartReq);
+        Task<BaseResponseDTO> StopAll();
         Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
         Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
+        Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
     }
     public class DeployService : IDeployService
     {
@@ -308,6 +311,71 @@ namespace DeploymentCenter.Services
             }
         }
 
+
+        public async Task<BaseResponseDTO> StopAll()
+        {
+            await Console.Out.WriteLineAsync("Stopping all challenges...");
+            try
+            {
+                // Use K8s API to delete all challenge namespaces by label selector
+                var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge");
+
+                // Clear all cache entries
+                await Console.Out.WriteLineAsync("Clearing Redis cache...");
+                
+                // Get all pods to clear their cache entries
+                var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
+                
+                if (pods != null && pods.Any())
+                {
+                    foreach (var pod in pods)
+                    {
+                        try
+                        {
+                            var deployInfoKey = ChallengeHelper.GetCacheKey(pod.ChallengeId, pod.TeamId);
+                            var argoWNameKey = ChallengeHelper.GetArgoWName(pod.ChallengeId, pod.TeamId);
+                            
+                            await _redisHelper.RemoveCacheAsync(deployInfoKey);
+                            await _redisHelper.RemoveCacheAsync(argoWNameKey);
+                        }
+                        catch (Exception ex)
+                        {
+                            await Console.Error.WriteLineAsync($"Error clearing cache for Challenge {pod.ChallengeId}, Team {pod.TeamId}: {ex.Message}");
+                        }
+                    }
+                }
+                
+                // Clear the entire pods list
+                await _redisHelper.RemoveCacheAsync(RedisConfigs.PodsInfoKey);
+                
+                await Console.Out.WriteLineAsync("Redis cache cleared.");
+
+                var message = $"Stopped {successCount} challenge namespace(s) successfully.";
+                if (failCount > 0)
+                {
+                    message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
+                }
+
+                await Console.Out.WriteLineAsync(message);
+
+                return new BaseResponseDTO
+                {
+                    Success = failCount == 0,
+                    Message = message,
+                    HttpStatusCode = failCount == 0 ? HttpStatusCode.OK : HttpStatusCode.PartialContent
+                };
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Error during stopping all challenges: {ex.Message}");
+                return new BaseResponseDTO
+                {
+                    Success = false,
+                    Message = $"Error during stopping all challenges: {ex.Message}",
+                    HttpStatusCode = HttpStatusCode.InternalServerError
+                };
+            }
+        }
         public async Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq)
         {
 
@@ -414,13 +482,14 @@ namespace DeploymentCenter.Services
                     challenge.State = Enums.ChallengeState.VISIBLE;
                 }
 
-                var log = await _k8SHealthService.GetWorkflowLogs(message.WorkFlowName);
+                //var log = await _k8SHealthService.GetWorkflowLogs(message.WorkFlowName);
+                
                 var History = new DeployHistory
                 {
                     ChallengeId = message.ChallengeId.Value,
                     DeployStatus = deploystatus,
                     DeployAt = DateTime.UtcNow,
-                    LogContent = log
+                    LogContent =  message.WorkFlowName
                 };
 
                 _dbContext.Challenges.Update(challenge);
@@ -478,6 +547,43 @@ namespace DeploymentCenter.Services
                 HttpStatusCode = HttpStatusCode.OK,
                 Message = "Start challenge workflow success"
             };
+        }
+
+        public async Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName)
+        {
+            try
+            {
+                var log = await _k8SHealthService.GetWorkflowLogs(workflowName);
+                if (log == null)
+                {
+                    return new BaseResponseDTO<DeploymentLogsDTO>
+                    {
+                        Success = false,
+                        HttpStatusCode = HttpStatusCode.NotFound,
+                        Message = "Logs not found"
+                    };
+                }
+
+                return new BaseResponseDTO<DeploymentLogsDTO>
+                {
+                    Success = true,
+                    HttpStatusCode = HttpStatusCode.OK,
+                    Data = new DeploymentLogsDTO
+                    {
+                        WorkflowName = workflowName,
+                        Logs = log
+                    }
+                };
+            }catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Error retrieving deployment logs: {ex.Message}");
+                return new BaseResponseDTO<DeploymentLogsDTO>
+                {
+                    Success = false,
+                    HttpStatusCode = HttpStatusCode.InternalServerError,
+                    Message = "Error retrieving deployment logs"
+                };
+            }
         }
     }
 }

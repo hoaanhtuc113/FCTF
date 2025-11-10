@@ -197,7 +197,8 @@ def challenge_start(payload, headers, api_start):
         '''
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to API: {e}")
-        return format_response({"message": "Connection url failed", "success": False, "status": 400})      
+        return format_response({"message": "Connection url failed", "success": False, "status": 400}) 
+
 def force_stop(cache_key, challenge_id, team_id):
     team_name = "Preview"
 
@@ -227,6 +228,32 @@ def force_stop(cache_key, challenge_id, team_id):
         #     redis_client.delete(cache_key)
         # else:
         #     raise Exception(response.get("message"))
+
+        return response_data
+    except requests.exceptions.RequestException as e:
+        raise Exception(e)
+
+def force_stop_all(user_id):
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY, unix_time, {
+            "challengeId": 0,
+            "teamId": -1,
+            "userId": user_id
+        }
+    )
+    payload = {
+        "challengeId": 0,
+        "teamId": -1,
+        "userId": user_id,
+        "unixTime": unix_time,
+    }
+    headers = {"Secretkey": secret_key}
+    stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/stop-all"
+    try:
+        response = requests.post(stop_url,  headers=headers,json=payload)
+        response_data = response.json()
+        print(f"Force stop all response: {response_data}")
 
         return response_data
     except requests.exceptions.RequestException as e:
@@ -414,12 +441,6 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                     "exposedPort": expose_port,
                 }
 
-                challenge.require_deploy = True
-                challenge.deploy_status = "PENDING_DEPLOY"
-                challenge.state = "hidden"
-                challenge.image_link = json.dumps(object_image)
-                db.session.commit()
-
                 payload, headers, api_url = prepare_up_challenge_payload(challenge.id,dockerfile_path, image_tag)
                 print(f"Uploading challenge to deployment service with challenge path {dockerfile_path}, image tag:  {image_tag}")
                 response = requests.post(api_url, headers=headers, json=payload)
@@ -445,6 +466,12 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                     return {"success": False, "error": "Error getting workflow status"}, 500
 
                 print(f"Workflow phase: {workflow_phase}, Estimated duration: {estimated_duration} seconds")
+
+                challenge.require_deploy = True
+                challenge.deploy_status = "PENDING_DEPLOY"
+                challenge.state = "hidden"
+                challenge.image_link = json.dumps(object_image)
+                db.session.commit()
                 return {
                     "success": True,
                     "message": "Challenge folder uploaded successfully",
@@ -514,6 +541,36 @@ def get_workflow_status(workflow_name):
     except Exception as e:
         print(f"Error getting workflow status: {e}")
         return None, None, None
+
+def get_workflow_logs(challenge_id, workflow_name, user_id):
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY, unix_time, {
+            "challengeId": challenge_id,
+            "teamId": -1,
+            "userId": user_id
+        }
+    )
+    payload = {
+        "challengeId": challenge_id,
+        "teamId": -1,
+        "userId": user_id,
+        "unixTime": unix_time,
+    }
+    headers = {"Secretkey": secret_key}
+    
+    if not workflow_name:
+        return jsonify({"success": False, "message": "Workflow name not found for challenge"}), 404
+
+    stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/deployment-logs/{workflow_name}"
+    try:
+        response = requests.post(stop_url,  headers=headers,json=payload)
+        response_data = response.json()
+        print(f"Get deployment logs response: {response_data}")
+
+        return response_data
+    except requests.exceptions.RequestException as e:
+        raise Exception(e)
 
 def start_challenge_status_checking(challenge_id, team_id):
     unix_time = str(int(time.time()))
