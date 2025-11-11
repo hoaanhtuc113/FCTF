@@ -359,10 +359,6 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.NotFound
                     };
 
-                var timeLimit = challenge.TimeLimit ?? -1;
-                var timeFinished = DateTime.Now.AddMinutes(timeLimit);
-                var cacheExpired = timeLimit > 0 ? TimeSpan.FromMinutes(timeLimit) : (TimeSpan?)null;
-
                 // Lấy port và domain
                 var port = await GetNodePort(podName);
                 if (port == null)
@@ -374,6 +370,17 @@ namespace ResourceShared.Services
                     };
 
                 var challengeDomain = $"Host: {SharedConfig.TCP_DOMAIN} {port}";
+
+                var timeLimit = challenge.TimeLimit ?? -1;
+                var timeFinished = DateTime.Now.AddMinutes(timeLimit);
+                var cacheExpired = timeLimit > 0 ? TimeSpan.FromMinutes(timeLimit) : (TimeSpan?)null;
+
+                // Set đúng cho các lần loop sau, không đổi time finished nếu đã có và còn hiệu lực
+                if (deploymentCache.EndTime is DateTime end && end > DateTime.Now)
+                {
+                    timeFinished = end;
+                    cacheExpired = end - DateTime.Now;
+                }
 
                 // Cập nhật DeploymentInfo
                 deploymentCache.Status = DeploymentStatus.RUNING;
