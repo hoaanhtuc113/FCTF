@@ -240,7 +240,8 @@ class DataMigrator:
             inserted = 0
             updated = 0
             unchanged = 0
-            batch_size = 100
+            #note
+            batch_size = 5000
             batch_data = []
             
             for row in rows:
