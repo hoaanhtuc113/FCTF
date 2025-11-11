@@ -3,7 +3,7 @@
 # Script quản lý triển khai và vận hành hệ thống FCTF
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
-PROJECT_ROOT="/home/manhhuy/FCTF"
+PROJECT_ROOT="/home/ubuntu/FCTF-Platform-Deploy"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -240,7 +240,7 @@ IMAGE_REPO=fctf
 DOCKER_USERNAME=quachuoiscontainer
 
 # Cấu hình dùng chung
-PRIVATE_KEY=emdungdepzai
+PRIVATE_KEY=REDACTED
 SECRET_KEY=emdungdepzai
 ARGO_WORKFLOWS_URL=https://argo-zmn0zjiwmju.fctf.cloud/api/v1/workflows/argo
 ARGO_WORKFLOWS_TOKEN=REDACTED
