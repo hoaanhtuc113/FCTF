@@ -1,0 +1,352 @@
+{
+  "tasks": [
+    {
+      "name": "brackets",
+      "source": { "table": "brackets", "pk": ["id"] },
+      "target": { "table": "brackets", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "name": { "from": "name" },
+        "description": { "from": "description" },
+        "type": { "from": "type" }
+      }
+    },
+
+    {
+      "name": "config",
+      "source": { "table": "config", "pk": ["id"] },
+      "target": { "table": "config", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "key": { "from": "key" },
+        "value": { "from": "value" }
+      }
+    },
+
+    {
+    
+      "name": "pages",
+      "source": { "table": "pages", "pk": ["id"] },
+      "target": { "table": "pages", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "title": { "from": "title" },
+        "route": { "from": "route" },
+        "content": { "from": "content" },
+        "draft": { "from": "draft" },
+        "hidden": { "from": "hidden" },
+        "auth_required": { "from": "auth_required" },
+        "format": { "from": "format" },
+        "link_target": { "from": "link_target" }
+      }
+    },
+
+    {
+      "name": "teams",
+      "source": { "table": "teams", "pk": ["id"] },
+      "target": { "table": "teams", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "columns": {
+        "id": { "from": "id" },
+        "oauth_id": { "from": "oauth_id" },
+        "name": { "from": "name" },
+        "email": { "from": "email" },
+        "password": { "from": "password" },
+        "secret": { "from": "secret" },
+        "website": { "from": "website" },
+        "affiliation": { "from": "affiliation" },
+        "country": { "from": "country" },
+        "bracket_id": { "from": "bracket_id" },
+        "hidden": { "from": "hidden" },
+        "banned": { "from": "banned" },
+        "captain_id": { "from": "captain_id" },
+        "created": { "from": "created" }
+      }
+    },
+
+    {
+      "name": "users",
+      "source": { "table": "users", "pk": ["id"] },
+      "target": { "table": "users", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "columns": {
+        "id": { "from": "id" },
+        "oauth_id": { "from": "oauth_id" },
+        "name": { "from": "name" },
+        "password": { "from": "password" },
+        "email": { "from": "email" },
+        "type": { "from": "type" },
+        "secret": { "from": "secret" },
+        "website": { "from": "website" },
+        "affiliation": { "from": "affiliation" },
+        "country": { "from": "country" },
+        "hidden": { "from": "hidden" },
+        "banned": { "from": "banned" },
+        "verified": { "from": "verified" },
+        "team_id": { "from": "team_id" },
+        "created": { "from": "created" },
+        "language": { "from": "language" },
+        "bracket_id": { "from": "bracket_id" }
+      }
+    },
+    {
+      "name": "challenges",
+      "source": { "table": "challenges", "pk": ["id"] },
+      "target": { "table": "challenges", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "columns": {
+        "id": { "from": "id" },
+        "name": { "from": "name" },
+        "description": { "from": "description" },
+        "max_attempts": { "from": "max_attempts" },
+        "value": { "from": "value" },
+        "category": { "from": "category" },
+        "type": { "from": "type" },
+        "state": { "from": "state" },
+        "requirements": { "from": "requirements" },
+        "connection_info": { "from": "connection_info" },
+        "next_id": { "from": "next_id" },
+        "require_deploy" : { "const": 0 },
+        "deploy_status" : { "const": "CREATED" },
+        "user_id": { "const": 1 }
+      }
+    },
+
+    {
+      "name": "dynamic_challenge",
+      "source": { "table": "dynamic_challenge", "pk": ["id"] },
+      "target": { "table": "dynamic_challenge", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "columns": {
+        "id": { "from": "id" },
+        "initial": { "from": "initial" },
+        "minimum": { "from": "minimum" },
+        "decay": { "from": "decay" },
+        "function": { "from": "function" }
+      }
+    },
+    { 
+      "name": "flags",  
+      "source": { "table": "flags", "pk": ["id"] },
+      "target": { "table": "flags", "pk": ["id"] },
+      "mode": "upsert", 
+      "columns": { 
+        "id": { "from": "id" }, 
+        "challenge_id": { "from": "challenge_id" }, 
+        "type": { "from": "type" }, 
+        "content": { "from": "content" }, 
+        "data": { "from": "data" } 
+      } 
+    },
+    {
+      "name": "hints",
+      "source": { "table": "hints", "pk": ["id"] },
+      "target": { "table": "hints", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "challenge_id": { "from": "challenge_id" },
+        "content": { "from": "content" },
+        "cost": { "from": "cost" },
+        "requirements": { "from": "requirements" },
+        "type": { "from": "type" }
+      }
+    },
+    { 
+      "name": "tags", 
+      "source": { "table": "tags", "pk": ["id"] },
+      "target": { "table": "tags", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": { 
+        "id": { "from": "id" }, 
+        "challenge_id": { "from": "challenge_id" }, 
+        "value": { "from": "value" } 
+      }
+    },
+    { 
+      "name": "topics", 
+      "source": { "table": "topics", "pk": ["id"] }, 
+      "target": { "table": "topics", "pk": ["id"] }, 
+      "mode": "upsert", 
+      "columns": { 
+        "id": { "from": "id" }, 
+        "value": { "from": "value" } 
+      }
+    },
+    {
+      "name": "challenge_topics",
+      "source": { "table": "challenge_topics", "pk": ["id"] },
+      "target": { "table": "challenge_topics", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "columns": {
+        "id": { "from": "id" },
+        "challenge_id": { "from": "challenge_id" },
+        "topic_id": { "from": "topic_id" }
+      }
+    },
+    {
+      "name": "submissions",
+      "source": { "table": "submissions", "pk": ["id"] },
+      "target": { "table": "submissions", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "columns": {
+        "id": { "from": "id" },
+        "challenge_id": { "from": "challenge_id" },
+        "user_id": { "from": "user_id" },
+        "team_id": { "from": "team_id" },
+        "ip": { "from": "ip" },
+        "provided": { "from": "provided" },
+        "type": { "from": "type" },
+        "date": { "from": "date" }
+      }
+    },
+    { 
+      "name": "solves", 
+      "source": { "table": "solves", "pk": ["id"] }, 
+      "target": { "table": "solves", "pk": ["id"] }, 
+      "mode": "upsert", 
+      "columns": { 
+        "id": { "from": "id" }, 
+        "challenge_id": { "from": "challenge_id" }, 
+        "user_id": { "from": "user_id" }, 
+        "team_id": { "from": "team_id" } 
+      } 
+    },
+    {
+      "name": "unlocks",
+      "source": { "table": "unlocks", "pk": ["id"] },
+      "target": { "table": "unlocks", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "user_id": { "from": "user_id" },
+        "team_id": { "from": "team_id" },
+        "target": { "from": "target" },
+        "date": { "from": "date" },
+        "type": { "from": "type" }
+      }
+    },
+    {
+      "name": "awards",
+      "source": { "table": "awards", "pk": ["id"] },
+      "target": { "table": "awards", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "user_id": { "from": "user_id" },
+        "team_id": { "from": "team_id" },
+        "type": { "from": "type" },
+        "name": { "from": "name" },
+        "description": { "from": "description" },
+        "date": { "from": "date" },
+        "value": { "from": "value" },
+        "category": { "from": "category" },
+        "icon": { "from": "icon" },
+        "requirements": { "from": "requirements" }
+      }
+    },
+    {
+      "name": "comments",
+      "source": { "table": "comments", "pk": ["id"] },
+      "target": { "table": "comments", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "type": { "from": "type" },
+        "content": { "from": "content" },
+        "date": { "from": "date" },
+        "author_id": { "from": "author_id" },
+        "challenge_id": { "from": "challenge_id" },
+        "user_id": { "from": "user_id" },
+        "team_id": { "from": "team_id" },
+        "page_id": { "from": "page_id" }
+      }
+    },
+    {
+      "name": "fields",
+      "source": { "table": "fields", "pk": ["id"] },
+      "target": { "table": "fields", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "name": { "from": "name" },
+        "type": { "from": "type" },
+        "field_type": { "from": "field_type" },
+        "description": { "from": "description" },
+        "required": { "from": "required" },
+        "public": { "from": "public" },
+        "editable": { "from": "editable" }
+      }
+    },
+    {
+      "name": "field_entries",
+      "source": { "table": "field_entries", "pk": ["id"] },
+      "target": { "table": "field_entries", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "type" : { "from": "type" },
+        "field_id": { "from": "field_id" },
+        "value": { "from": "value"},
+        "user_id": { "from": "user_id" },
+        "team_id": { "from": "team_id" }
+      }
+    },
+    {
+      "name": "files",
+      "source": { "table": "files", "pk": ["id"] },
+      "target": { "table": "files", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "type": { "from": "type" },
+        "location": { "from": "location" },
+        "challenge_id": { "from": "challenge_id" },
+        "page_id": { "from": "page_id" },
+        "sha1sum": { "from": "sha1sum" }
+      }
+    },
+    {
+      "name": "tracking",
+      "source": { "table": "tracking", "pk": ["id"] },
+      "target": { "table": "tracking", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "type": { "from": "type" },
+        "ip": { "from": "ip" },
+        "user_id": { "from": "user_id" },
+        "date": { "from": "date" }
+      }
+    },
+    {
+      "name":"unlocks",
+      "source": { "table": "unlocks", "pk": ["id"] },
+      "target": { "table": "unlocks", "pk": ["id"] },
+      "mode": "upsert",
+      "columns": {
+        "id": { "from": "id" },
+        "user_id": { "from": "user_id" },
+        "team_id": { "from": "team_id" },
+        "target": { "from": "target" },
+        "date": { "from": "date" },
+        "type": { "from": "type" }
+      }
+    }
+  ]
+}

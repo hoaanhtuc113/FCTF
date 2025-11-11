@@ -1,0 +1,224 @@
+from sqlalchemy import Table, select, insert, update, delete, text
+from sqlalchemy.exc import SQLAlchemyError
+from datetime import datetime
+
+class DataMigrator:
+    """Handle data migration between databases"""
+    
+    def __init__(self, db_config):
+        self.db_config = db_config
+        self.stats = {
+            'total_tasks': 0,
+            'completed_tasks': 0,
+            'failed_tasks': 0,
+            'total_rows': 0,
+            'inserted_rows': 0,
+            'updated_rows': 0,
+            'errors': []
+        }
+    
+    def migrate(self, direction):
+        """
+        Migrate data based on direction
+        direction: 'kctf_to_ctfd' or 'ctfd_to_kctf'
+        """
+        print(f"\n{'='*60}")
+        print(f"Starting migration: {direction.upper().replace('_', ' ')}")
+        print(f"{'='*60}\n")
+        
+        # Load mapping configuration
+        try:
+            mapping_config = self.db_config.load_mapping(direction)
+        except Exception as e:
+            print(f"Error loading mapping: {e}")
+            return False
+        
+        # Get source and target sessions
+        if direction == 'kctf_to_ctfd':
+            source_session = self.db_config.get_kctf_session()
+            target_session = self.db_config.get_ctfd_session()
+            source_engine = self.db_config.kctf_engine
+            target_engine = self.db_config.ctfd_engine
+        else:
+            source_session = self.db_config.get_ctfd_session()
+            target_session = self.db_config.get_kctf_session()
+            source_engine = self.db_config.ctfd_engine
+            target_engine = self.db_config.kctf_engine
+        
+        tasks = mapping_config.get('tasks', [])
+        self.stats['total_tasks'] = len(tasks)
+        
+        try:
+            for task in tasks:
+                print(f"\n{'─'*60}")
+                print(f"Processing task: {task['name']}")
+                print(f"{'─'*60}")
+                
+                success = self._process_task(
+                    task, 
+                    source_session, 
+                    target_session,
+                    source_engine,
+                    target_engine
+                )
+                
+                if success:
+                    self.stats['completed_tasks'] += 1
+                else:
+                    self.stats['failed_tasks'] += 1
+            
+            # Print summary
+            self._print_summary()
+            
+            return self.stats['failed_tasks'] == 0
+            
+        except Exception as e:
+            print(f"\n✗ Migration failed: {e}")
+            self.stats['errors'].append(str(e))
+            return False
+        finally:
+            source_session.close()
+            target_session.close()
+    
+    def _process_task(self, task, source_session, target_session, source_engine, target_engine):
+        """Process a single migration task"""
+        try:
+            task_name = task['name']
+            source_table_name = task['source']['table']
+            target_table_name = task['target']['table']
+            mode = task.get('mode', 'upsert')
+            columns_mapping = task['columns']
+            
+            # Execute pre-SQL if exists
+            pre_sql = task.get('preSQL', [])
+            for sql in pre_sql:
+                try:
+                    target_session.execute(text(sql))
+                    target_session.commit()
+                except Exception as e:
+                    print(f"  Warning: Pre-SQL execution: {e}")
+            
+            # Reflect source table
+            source_table = Table(
+                source_table_name, 
+                self.db_config.kctf_metadata if source_engine == self.db_config.kctf_engine else self.db_config.ctfd_metadata,
+                autoload_with=source_engine
+            )
+            
+            # Reflect target table
+            target_table = Table(
+                target_table_name,
+                self.db_config.ctfd_metadata if target_engine == self.db_config.ctfd_engine else self.db_config.kctf_metadata,
+                autoload_with=target_engine
+            )
+            
+            # Read source data
+            stmt = select(source_table)
+            result = source_session.execute(stmt)
+            rows = result.fetchall()
+            
+            print(f"  Found {len(rows)} rows in source table '{source_table_name}'")
+            self.stats['total_rows'] += len(rows)
+            
+            if len(rows) == 0:
+                print(f"  ✓ No data to migrate")
+                return True
+            
+            # Process each row
+            inserted = 0
+            updated = 0
+            
+            for row in rows:
+                try:
+                    # Map columns from source to target
+                    target_data = {}
+                    for target_col, mapping in columns_mapping.items():
+                        if 'from' in mapping:
+                            # Get value from source column
+                            source_col = mapping['from']
+                            if hasattr(row, source_col):
+                                target_data[target_col] = getattr(row, source_col)
+                        elif 'const' in mapping:
+                            # Use constant value
+                            target_data[target_col] = mapping['const']
+                    
+                    # Execute insert/update based on mode
+                    if mode == 'insert':
+                        stmt = insert(target_table).values(**target_data)
+                        target_session.execute(stmt)
+                        inserted += 1
+                    elif mode == 'upsert':
+                        # Check if record exists
+                        pk_cols = task['target']['pk']
+                        pk_values = {col: target_data[col] for col in pk_cols if col in target_data}
+                        
+                        # Build WHERE clause
+                        where_clause = True
+                        for col, val in pk_values.items():
+                            where_clause = where_clause & (target_table.c[col] == val)
+                        
+                        check_stmt = select(target_table).where(where_clause)
+                        exists = target_session.execute(check_stmt).fetchone()
+                        
+                        if exists:
+                            # Update
+                            stmt = update(target_table).where(where_clause).values(**target_data)
+                            target_session.execute(stmt)
+                            updated += 1
+                        else:
+                            # Insert
+                            stmt = insert(target_table).values(**target_data)
+                            target_session.execute(stmt)
+                            inserted += 1
+                
+                except Exception as e:
+                    error_msg = f"Error processing row in '{task_name}': {e}"
+                    print(f"  ✗ {error_msg}")
+                    self.stats['errors'].append(error_msg)
+                    continue
+            
+            # Commit transaction
+            target_session.commit()
+            
+            # Execute post-SQL if exists
+            post_sql = task.get('postSQL', [])
+            for sql in post_sql:
+                try:
+                    target_session.execute(text(sql))
+                    target_session.commit()
+                except Exception as e:
+                    print(f"  Warning: Post-SQL execution: {e}")
+            
+            self.stats['inserted_rows'] += inserted
+            self.stats['updated_rows'] += updated
+            
+            print(f"  ✓ Task completed: {inserted} inserted, {updated} updated")
+            return True
+            
+        except Exception as e:
+            target_session.rollback()
+            error_msg = f"Task '{task_name}' failed: {e}"
+            print(f"  ✗ {error_msg}")
+            self.stats['errors'].append(error_msg)
+            return False
+    
+    def _print_summary(self):
+        """Print migration summary"""
+        print(f"\n{'='*60}")
+        print("MIGRATION SUMMARY")
+        print(f"{'='*60}")
+        print(f"Total tasks:      {self.stats['total_tasks']}")
+        print(f"Completed tasks:  {self.stats['completed_tasks']}")
+        print(f"Failed tasks:     {self.stats['failed_tasks']}")
+        print(f"Total rows:       {self.stats['total_rows']}")
+        print(f"Inserted rows:    {self.stats['inserted_rows']}")
+        print(f"Updated rows:     {self.stats['updated_rows']}")
+        
+        if self.stats['errors']:
+            print(f"\nErrors ({len(self.stats['errors'])}):")
+            for i, error in enumerate(self.stats['errors'][:10], 1):
+                print(f"  {i}. {error}")
+            if len(self.stats['errors']) > 10:
+                print(f"  ... and {len(self.stats['errors']) - 10} more errors")
+        
+        print(f"{'='*60}\n")
