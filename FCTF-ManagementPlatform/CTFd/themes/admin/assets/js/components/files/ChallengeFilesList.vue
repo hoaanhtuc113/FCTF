@@ -102,7 +102,7 @@ export default {
       }
       
       let data = {
-        challenge: this.$props.challenge_id,
+        challenge_id: this.$props.challenge_id,
         type: "challenge",
       };
       let form = this.$refs.FileUploadForm;
