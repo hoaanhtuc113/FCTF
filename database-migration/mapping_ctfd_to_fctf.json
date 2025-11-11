@@ -333,20 +333,6 @@
         "user_id": { "from": "user_id" },
         "date": { "from": "date" }
       }
-    },
-    {
-      "name":"unlocks",
-      "source": { "table": "unlocks", "pk": ["id"] },
-      "target": { "table": "unlocks", "pk": ["id"] },
-      "mode": "upsert",
-      "columns": {
-        "id": { "from": "id" },
-        "user_id": { "from": "user_id" },
-        "team_id": { "from": "team_id" },
-        "target": { "from": "target" },
-        "date": { "from": "date" },
-        "type": { "from": "type" }
-      }
     }
   ]
 }
