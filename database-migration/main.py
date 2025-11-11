@@ -104,9 +104,7 @@ def clean_ctfd_database(db_config):
             print(f"✓ Database '{db_name}' dropped successfully")
             
             # Recreate empty database
-            conn.execute(text(f"CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
-            conn.commit()
-            print(f"✓ Database '{db_name}' recreated (empty)")
+           
         
         engine.dispose()
         

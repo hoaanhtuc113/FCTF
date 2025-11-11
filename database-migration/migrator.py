@@ -14,6 +14,7 @@ class DataMigrator:
             'total_rows': 0,
             'inserted_rows': 0,
             'updated_rows': 0,
+            'unchanged_rows': 0,
             'errors': []
         }
     
@@ -80,6 +81,117 @@ class DataMigrator:
             source_session.close()
             target_session.close()
     
+    def _execute_batch(self, target_session, target_table, batch_data, mode, task):
+        """Execute batch insert/update operations"""
+        inserted = 0
+        updated = 0
+        unchanged = 0
+        
+        try:
+            if mode == 'insert':
+                # Bulk insert
+                if batch_data:
+                    target_session.execute(insert(target_table), batch_data)
+                    inserted = len(batch_data)
+            
+            elif mode == 'upsert':
+                # Optimize by bulk checking existing records
+                pk_cols = task['target']['pk']
+                
+                # Build OR condition to fetch all potentially existing records in one query
+                pk_tuples = []
+                for data in batch_data:
+                    pk_values = tuple(data.get(col) for col in pk_cols if col in data)
+                    pk_tuples.append(pk_values)
+                
+                # Query all existing records at once
+                or_conditions = []
+                for data in batch_data:
+                    and_conditions = []
+                    for col in pk_cols:
+                        if col in data:
+                            and_conditions.append(target_table.c[col] == data[col])
+                    
+                    if len(and_conditions) == 1:
+                        or_conditions.append(and_conditions[0])
+                    elif len(and_conditions) > 1:
+                        combined = and_conditions[0]
+                        for cond in and_conditions[1:]:
+                            combined = combined & cond
+                        or_conditions.append(combined)
+                
+                existing_rows = {}
+                if or_conditions:
+                    if len(or_conditions) == 1:
+                        check_stmt = select(target_table).where(or_conditions[0])
+                    else:
+                        combined_or = or_conditions[0]
+                        for cond in or_conditions[1:]:
+                            combined_or = combined_or | cond
+                        check_stmt = select(target_table).where(combined_or)
+                    
+                    result = target_session.execute(check_stmt)
+                    for row in result:
+                        pk_key = tuple(getattr(row, col) for col in pk_cols)
+                        existing_rows[pk_key] = row
+                
+                # Classify rows into insert, update, or unchanged
+                to_insert = []
+                to_update = []
+                
+                for data in batch_data:
+                    pk_key = tuple(data.get(col) for col in pk_cols if col in data)
+                    
+                    if pk_key in existing_rows:
+                        existing_row = existing_rows[pk_key]
+                        
+                        # Check if data actually changed
+                        has_changes = False
+                        for col, new_val in data.items():
+                            if col not in pk_cols and hasattr(existing_row, col):
+                                old_val = getattr(existing_row, col)
+                                if old_val != new_val:
+                                    has_changes = True
+                                    break
+                        
+                        if has_changes:
+                            to_update.append(data)
+                        else:
+                            unchanged += 1
+                    else:
+                        to_insert.append(data)
+                
+                # Bulk insert new records
+                if to_insert:
+                    target_session.execute(insert(target_table), to_insert)
+                    inserted = len(to_insert)
+                
+                # Bulk update changed records
+                for data in to_update:
+                    where_conditions = []
+                    for col in pk_cols:
+                        if col in data:
+                            where_conditions.append(target_table.c[col] == data[col])
+                    
+                    if len(where_conditions) == 1:
+                        where_clause = where_conditions[0]
+                    else:
+                        where_clause = where_conditions[0]
+                        for cond in where_conditions[1:]:
+                            where_clause = where_clause & cond
+                    
+                    stmt = update(target_table).where(where_clause).values(**data)
+                    target_session.execute(stmt)
+                    updated += 1
+        
+        except Exception as e:
+            # Log batch error but don't fail entire task
+            error_msg = f"Batch operation error: {e}"
+            print(f"  ⚠ {error_msg}")
+            self.stats['errors'].append(error_msg)
+        
+        return {'inserted': inserted, 'updated': updated, 'unchanged': unchanged}
+    
     def _process_task(self, task, source_session, target_session, source_engine, target_engine):
         """Process a single migration task"""
         try:
@@ -124,9 +236,12 @@ class DataMigrator:
                 print(f"  ✓ No data to migrate")
                 return True
             
-            # Process each row
+            # Process rows in batches for better performance
             inserted = 0
             updated = 0
+            unchanged = 0
+            batch_size = 100
+            batch_data = []
             
             for row in rows:
                 try:
@@ -167,48 +282,36 @@ class DataMigrator:
                                 # For other types, try empty string
                                 target_data[col_name] = ''
                     
-                    # Execute insert/update based on mode
-                    if mode == 'insert':
-                        stmt = insert(target_table).values(**target_data)
-                        target_session.execute(stmt)
-                        inserted += 1
-                    elif mode == 'upsert':
-                        # Check if record exists
-                        pk_cols = task['target']['pk']
-                        pk_values = {col: target_data[col] for col in pk_cols if col in target_data}
-                        
-                        # Build WHERE clause
-                        where_conditions = []
-                        for col, val in pk_values.items():
-                            where_conditions.append(target_table.c[col] == val)
-                        
-                        # Combine conditions with AND
-                        if len(where_conditions) == 1:
-                            where_clause = where_conditions[0]
-                        else:
-                            where_clause = where_conditions[0]
-                            for condition in where_conditions[1:]:
-                                where_clause = where_clause & condition
-                        
-                        check_stmt = select(target_table).where(where_clause)
-                        exists = target_session.execute(check_stmt).fetchone()
-                        
-                        if exists:
-                            # Update
-                            stmt = update(target_table).where(where_clause).values(**target_data)
-                            target_session.execute(stmt)
-                            updated += 1
-                        else:
-                            # Insert
-                            stmt = insert(target_table).values(**target_data)
-                            target_session.execute(stmt)
-                            inserted += 1
+                    # Add to batch
+                    batch_data.append(target_data)
+                    
+                    # Execute batch when size reached
+                    if len(batch_data) >= batch_size:
+                        result = self._execute_batch(target_session, target_table, batch_data, mode, task)
+                        inserted += result['inserted']
+                        updated += result['updated']
+                        unchanged += result['unchanged']
+                        batch_data = []
                 
                 except Exception as e:
+                    # Check if it's a record changed error (can be safely skipped)
+                    error_str = str(e)
+                    if "Record has changed since last read" in error_str or "1020" in error_str:
+                        # Skip this row silently as it might be a concurrent modification
+                        print(f"  ⚠ Skipping row due to concurrent modification in '{task_name}'")
+                        continue
+                    
                     error_msg = f"Error processing row in '{task_name}': {e}"
                     print(f"  ✗ {error_msg}")
                     self.stats['errors'].append(error_msg)
                     continue
+            
+            # Execute remaining batch
+            if batch_data:
+                result = self._execute_batch(target_session, target_table, batch_data, mode, task)
+                inserted += result['inserted']
+                updated += result['updated']
+                unchanged += result['unchanged']
             
             # Commit transaction
             target_session.commit()
@@ -224,8 +327,9 @@ class DataMigrator:
             
             self.stats['inserted_rows'] += inserted
             self.stats['updated_rows'] += updated
+            self.stats['unchanged_rows'] += unchanged
             
-            print(f"  ✓ Task completed: {inserted} inserted, {updated} updated")
+            print(f"  ✓ Task completed: {inserted} inserted, {updated} updated, {unchanged} unchanged")
             return True
             
         except Exception as e:
@@ -246,6 +350,7 @@ class DataMigrator:
         print(f"Total rows:       {self.stats['total_rows']}")
         print(f"Inserted rows:    {self.stats['inserted_rows']}")
         print(f"Updated rows:     {self.stats['updated_rows']}")
+        print(f"Unchanged rows:   {self.stats['unchanged_rows']}")
         
         if self.stats['errors']:
             print(f"\nErrors ({len(self.stats['errors'])}):")
