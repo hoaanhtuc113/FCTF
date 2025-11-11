@@ -133,6 +133,10 @@ class DataMigrator:
                     # Map columns from source to target
                     target_data = {}
                     for target_col, mapping in columns_mapping.items():
+                        # Skip if column doesn't exist in target table
+                        if target_col not in target_table.c:
+                            continue
+                            
                         if 'from' in mapping:
                             # Get value from source column
                             source_col = mapping['from']
@@ -141,6 +145,27 @@ class DataMigrator:
                         elif 'const' in mapping:
                             # Use constant value
                             target_data[target_col] = mapping['const']
+                    
+                    # Add default values for required columns not in mapping
+                    for col_name, col in target_table.c.items():
+                        # Skip if already mapped
+                        if col_name in target_data:
+                            continue
+                        
+                        # Check if column is NOT NULL and has no default
+                        if not col.nullable and col.default is None and col.server_default is None:
+                            # Set default based on type
+                            if str(col.type).startswith('VARCHAR') or str(col.type).startswith('TEXT'):
+                                target_data[col_name] = ''
+                            elif str(col.type).startswith('INT') or str(col.type).startswith('BIGINT'):
+                                target_data[col_name] = 0
+                            elif str(col.type).startswith('FLOAT') or str(col.type).startswith('DECIMAL'):
+                                target_data[col_name] = 0.0
+                            elif str(col.type).startswith('BOOL'):
+                                target_data[col_name] = False
+                            else:
+                                # For other types, try empty string
+                                target_data[col_name] = ''
                     
                     # Execute insert/update based on mode
                     if mode == 'insert':
@@ -153,9 +178,17 @@ class DataMigrator:
                         pk_values = {col: target_data[col] for col in pk_cols if col in target_data}
                         
                         # Build WHERE clause
-                        where_clause = True
+                        where_conditions = []
                         for col, val in pk_values.items():
-                            where_clause = where_clause & (target_table.c[col] == val)
+                            where_conditions.append(target_table.c[col] == val)
+                        
+                        # Combine conditions with AND
+                        if len(where_conditions) == 1:
+                            where_clause = where_conditions[0]
+                        else:
+                            where_clause = where_conditions[0]
+                            for condition in where_conditions[1:]:
+                                where_clause = where_clause & condition
                         
                         check_stmt = select(target_table).where(where_clause)
                         exists = target_session.execute(check_stmt).fetchone()
