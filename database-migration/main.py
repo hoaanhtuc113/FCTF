@@ -29,6 +29,7 @@ def print_menu():
 │  [1] KCTF → CTFd                                          │
 │  [2] CTFd → KCTF                                          │
 │  [3] Test Database Connections                            │
+│  [4] Clean CTFd Database (DROP ALL TABLES)                │
 │  [0] Exit                                                 │
 └───────────────────────────────────────────────────────────┘
     """
@@ -46,6 +47,73 @@ def test_connections(db_config):
         print("\n✓ All database connections are working!")
     else:
         print("\n✗ Some database connections failed!")
+    
+    input("\nPress Enter to continue...")
+
+def clean_ctfd_database(db_config):
+    """Drop CTFd database"""
+    print(f"\n{'='*60}")
+    print(f"⚠️  DANGER: DROP CTFd DATABASE")
+    print(f"{'='*60}")
+    print("\nThis operation will:")
+    print("  • DROP the entire CTFd database")
+    print("  • DELETE ALL TABLES and DATA permanently")
+    print("  • This action CANNOT be undone!")
+    print("\n⚠️  WARNING: Make sure you have backed up your database!")
+    
+    # Triple confirmation
+    print("\nType 'DROP DATABASE' to confirm (case-sensitive):")
+    confirm1 = input("> ").strip()
+    
+    if confirm1 != 'DROP DATABASE':
+        print("\n✗ Operation cancelled - confirmation text did not match")
+        input("\nPress Enter to continue...")
+        return
+    
+    print("\nAre you absolutely sure? Type 'YES' to proceed:")
+    confirm2 = input("> ").strip().upper()
+    
+    if confirm2 != 'YES':
+        print("\n✗ Operation cancelled by user")
+        input("\nPress Enter to continue...")
+        return
+    
+    try:
+        print("\n" + "="*60)
+        print("DROPPING CTFd DATABASE")
+        print("="*60 + "\n")
+        
+        # Get database name from URL
+        from sqlalchemy.engine.url import make_url
+        db_url = make_url(db_config.ctfd_url)
+        db_name = db_url.database
+        
+        print(f"Database: {db_name}")
+        print(f"Host: {db_url.host}:{db_url.port}")
+        print("\nDropping database...")
+        
+        # Create connection without database selection
+        from sqlalchemy import create_engine, text
+        base_url = f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}:{db_url.port}/"
+        engine = create_engine(base_url)
+        
+        with engine.connect() as conn:
+            # Drop database
+            conn.execute(text(f"DROP DATABASE IF EXISTS `{db_name}`"))
+            conn.commit()
+            print(f"✓ Database '{db_name}' dropped successfully")
+            
+            # Recreate empty database
+            conn.execute(text(f"CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+            conn.commit()
+            print(f"✓ Database '{db_name}' recreated (empty)")
+        
+        engine.dispose()
+        
+        print("\n✓ CTFd database cleaned successfully!")
+        
+    except Exception as e:
+        print(f"\n✗ Error cleaning database: {e}")
     
     input("\nPress Enter to continue...")
 
@@ -125,6 +193,10 @@ def main():
             elif choice == '3':
                 # Test connections
                 test_connections(db_config)
+                
+            elif choice == '4':
+                # Clean CTFd database
+                clean_ctfd_database(db_config)
                 
             elif choice == '0':
                 # Exit
