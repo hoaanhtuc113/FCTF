@@ -23,38 +23,47 @@ namespace ResourceShared.Middlewares
 
         public async Task InvokeAsync(HttpContext context, AppDbContext db)
         {
-            if (context.User.Identity?.IsAuthenticated == true)
+            var endpoint = context.GetEndpoint();
+            var authorizeAttribute = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+            
+            // Only check for endpoints with [Authorize]
+            if (authorizeAttribute != null && context.User.Identity?.IsAuthenticated == true)
             {
-                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                          ?? context.User.FindFirstValue("userId");
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                if (int.TryParse(userId, out var id))
+                // Validate userId exists and can be parsed to int
+                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var id))
                 {
-                    var user = await db.Users
-                        .Where(u => u.Id == id)
-                        .Select(u => new { u.Banned, u.Hidden })
-                        .FirstOrDefaultAsync();
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Invalid user token.");
+                    return;
+                }
 
-                    if (user == null)
-                    {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await context.Response.WriteAsync("User not found.");
-                        return;
-                    }
+                // Check user status in database
+                var user = await db.Users
+                    .Where(u => u.Id == id)
+                    .Select(u => new { u.Banned, u.Hidden })
+                    .FirstOrDefaultAsync();
 
-                    if (user.Banned == true)
-                    {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        await context.Response.WriteAsync("Account banned.");
-                        return;
-                    }
+                if (user == null)
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("User not found.");
+                    return;
+                }
 
-                    if (user.Hidden == true)
-                    {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        await context.Response.WriteAsync("Account hidden.");
-                        return;
-                    }
+                if (user.Banned == true)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsync("Account banned.");
+                    return;
+                }
+
+                if (user.Hidden == true)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsync("Account hidden.");
+                    return;
                 }
             }
 
