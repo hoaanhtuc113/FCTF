@@ -139,7 +139,7 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
         {
             var teamId =  int.Parse(User.FindFirstValue("teamId"));
-            Console.WriteLine($"[ListChallengesByCategoryName] teamId: {teamId}, category_name: {category_name}");
+            //Console.WriteLine($"[ListChallengesByCategoryName] teamId: {teamId}, category_name: {category_name}");
 
             var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId);
             return Ok(new
