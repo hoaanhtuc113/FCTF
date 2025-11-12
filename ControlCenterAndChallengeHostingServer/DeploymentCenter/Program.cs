@@ -70,8 +70,9 @@ namespace DeploymentCenter
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-            app.UseMiddleware<TokenAuthenticationMiddleware>();
+            app.UseAuthentication();
             app.UseAuthorization();
+            app.UseMiddleware<TokenAuthenticationMiddleware>();
             app.MapControllers();
             app.Run();
         }
