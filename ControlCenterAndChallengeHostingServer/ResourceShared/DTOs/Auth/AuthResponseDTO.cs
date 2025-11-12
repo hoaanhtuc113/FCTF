@@ -13,6 +13,11 @@ namespace ResourceShared.DTOs.Auth
         public string token { get; set; } = string.Empty;
 
     }
+    public class AuthInfo
+    {
+        public int userId { get; set; }
+        public int teamId { get; set; }
+    }
     public class TeamResponse
     {
         public int id { get; set; }

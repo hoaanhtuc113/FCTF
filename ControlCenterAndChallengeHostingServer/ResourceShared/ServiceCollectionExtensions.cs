@@ -48,6 +48,7 @@ namespace ResourceShared
             services.AddScoped<RedisHelper>();
             services.AddScoped<IK8sService, K8sService>();
             services.AddScoped<IArgoWorkFlowService, ArgoWorkFlowService>();
+            services.AddScoped<TokenHelper>();
             return services;
         }
     }
