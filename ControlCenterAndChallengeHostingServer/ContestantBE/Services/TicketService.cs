@@ -58,13 +58,13 @@
             return BaseResponseDTO<TicketResponseDTO>.Ok(MapToDto(newTicket, user.Name, null, null), "Send ticket successfully");
         }
 
-        public async Task<List<TicketResponseDTO>> GetTicketsByUser(User user)
+        public async Task<List<TicketResponseDTO>> GetTicketsByUser(int user)
         {
             return await (from t in _context.Tickets
                           join a in _context.Users on t.AuthorId equals a.Id
                           join r in _context.Users on t.ReplierId equals r.Id into replierJoin
                           from r in replierJoin.DefaultIfEmpty()
-                          where t.AuthorId == user.Id
+                          where t.AuthorId == user
                           select new TicketResponseDTO
                           {
                               Id = t.Id,

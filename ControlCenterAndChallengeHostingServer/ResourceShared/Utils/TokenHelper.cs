@@ -30,7 +30,7 @@ namespace ResourceShared.Utils
                 userId = user.Id,
                 teamId = user.TeamId ?? 0
             };
-            var value = CreateToken<AuthInfo>(authInfo, expireMinutes: 60 * 24 * 7); // 7 days
+            var value = CreateToken(authInfo, expireMinutes: 60 * 24 * 7); // 7 days
             var token = new Token
             {
                 UserId = user.Id,
@@ -45,11 +45,14 @@ namespace ResourceShared.Utils
             return token;
         }
 
-        public string CreateToken<T>(T payload, int expireMinutes = 60)
+        public string CreateToken(AuthInfo payload, int expireMinutes = 60)
         {
             var claims = payload!.GetType()
                 .GetProperties()
-                .Select(p => new Claim(p.Name, p.GetValue(payload)?.ToString() ?? ""));
+                .Select(p => new Claim(p.Name, p.GetValue(payload)?.ToString() ?? ""))
+                .ToList();
+            
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, payload.userId.ToString()));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

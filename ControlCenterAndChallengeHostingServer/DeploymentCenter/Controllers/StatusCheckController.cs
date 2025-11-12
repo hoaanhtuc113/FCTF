@@ -1,5 +1,6 @@
 ﻿using DeploymentCenter.Middlewares;
 using DeploymentCenter.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
 using System.Net.WebSockets;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace HealthCheckService.Controllers
@@ -38,20 +40,10 @@ namespace HealthCheckService.Controllers
         }
 
         [HttpPost("start")]
-        [RequireAuth]
+        [Authorize]
         public async Task<ChallengeDeployResponeDTO> StartChallengeChecking([FromBody] ChallengCheckStatusReqDTO statusReq)
         {
-            var user = HttpContext.GetCurrentUser();
-
-            if (user == null)
-            {
-                return new ChallengeDeployResponeDTO
-                {
-                    success = false,
-                    message = "Unauthorized",
-                    status = (int)HttpStatusCode.Unauthorized
-                };
-            }
+            var teamId = User.FindFirstValue("teamId");
 
             if (statusReq == null || statusReq.challengeId <= 0)
             {
@@ -62,7 +54,7 @@ namespace HealthCheckService.Controllers
                     status = (int)HttpStatusCode.BadRequest
                 };
             }
-            statusReq.teamId = user.TeamId.Value;
+            statusReq.teamId = int.Parse(teamId);
             var data = await _deployService.StatusCheck(statusReq);
 
             return data;

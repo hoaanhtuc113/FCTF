@@ -5,6 +5,7 @@ using ResourceShared.Attribute;
 using ResourceShared.Models;
 using System;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace ResourceShared.Middlewares
@@ -20,61 +21,50 @@ namespace ResourceShared.Middlewares
             _scopeFactory = scopeFactory;
         }
 
-        public async Task Invoke(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, AppDbContext db)
         {
             var endpoint = context.GetEndpoint();
-            var requireAuth = endpoint?.Metadata.GetMetadata<RequireAuthAttribute>() != null;
-
-            if (!requireAuth)
+            var authorizeAttribute = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+            
+            // Only check for endpoints with [Authorize]
+            if (authorizeAttribute != null && context.User.Identity?.IsAuthenticated == true)
             {
-                await _next(context);
-                return;
-            }
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            User authenticatedUser = null;
-
-            try
-            {
-                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-
-                if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+                // Validate userId exists and can be parsed to int
+                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var id))
                 {
-                    var token = authHeader.Substring("Bearer ".Length).Trim();
-
-                    using var scope = _scopeFactory.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                    if (!string.IsNullOrEmpty(token))
-                    {
-                        var tokenAuth = await db.Tokens.FirstOrDefaultAsync(t => t.Value == token);
-                        if (tokenAuth != null)
-                        {
-                            var user = await db.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == tokenAuth.UserId);
-                            if (user != null)
-                            {
-                                // Check if user is Hidden or Banned before setting as authenticated
-                                if ((user.Hidden != true) && (user.Banned != true))
-                                {
-                                    authenticatedUser = user;
-                                    context.Items["CurrentUser"] = user;
-                                }
-                            }
-                        }
-                    }
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Invalid user token.");
+                    return;
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AuthMiddleware] Error: {ex.Message}\n{ex.StackTrace}");
-            }
+                //Console.WriteLine($"Authenticated user ID: {id}");
+                // Check user status in database
+                var user = await db.Users
+                    .Where(u => u.Id == id)
+                    .Select(u => new { u.Banned, u.Hidden })
+                    .FirstOrDefaultAsync();
 
-            // If RequireAuth is set but user is not authenticated, return 401
-            if (requireAuth && authenticatedUser == null)
-            {
-                context.Response.StatusCode = 401;
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync("{\"message\":\"Unauthorized\"}");
-                return;
+                if (user == null)
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("User not found.");
+                    return;
+                }
+
+                if (user.Banned == true)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsync("Account banned.");
+                    return;
+                }
+
+                if (user.Hidden == true)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsync("Account hidden.");
+                    return;
+                }
             }
 
             await _next(context);

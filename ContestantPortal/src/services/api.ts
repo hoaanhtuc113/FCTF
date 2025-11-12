@@ -18,7 +18,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}, API 
     headers,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401||response.status === 403) {
     authService.logout();
     window.location.href = '/login';
   }
@@ -50,7 +50,7 @@ export async function downloadFile(url: string): Promise<Blob> {
     headers,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401||response.status === 403) {
     authService.logout();
     window.location.href = '/login';
   }

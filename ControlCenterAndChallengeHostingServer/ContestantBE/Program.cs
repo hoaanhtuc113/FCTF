@@ -83,11 +83,11 @@ namespace ContestantBE
             builder.Services.AddScoped<INotificationServices, NotificationServices>();
             builder.Services.AddScoped<IUserServices, UserServices>();
             builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
-
-            // DI services from ResourceShared
-            builder.Services.AddResourceShared();
             //Init config from ControlConfig, SharedConfig
             new ContestantBEConfigHelper().InitConfig();
+            // DI services from ResourceShared
+            builder.Services.AddResourceShared();
+            
            
 
             builder.Services.AddCors(options =>
@@ -107,10 +107,10 @@ namespace ContestantBE
             app.UseCors("AllowAll");                   
             app.UseSwagger();                    
             app.UseSwaggerUI();
-            app.UseOutputCache();                
+            app.UseOutputCache();
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.UseMiddleware<TokenAuthenticationMiddleware>();
-            app.UseAuthorization();             
-            app.UseTokenAuthentication();
             app.MapControllers();                 
 
             app.Run();

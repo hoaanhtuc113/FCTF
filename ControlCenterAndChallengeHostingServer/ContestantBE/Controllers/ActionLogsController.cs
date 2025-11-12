@@ -1,23 +1,16 @@
-﻿using System;
-using ResourceShared.Extensions;
-using ContestantBE.Services;
-using Microsoft.AspNetCore.Http;
+﻿using ContestantBE.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.ActionLogs;
-using ResourceShared.Models;
-using System.Net;
-using System.Net.WebSockets;
-using System.Threading.Tasks;
-using ContestantBE.Attribute;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using ResourceShared.Attribute;
+using ResourceShared.Extensions;
+using System;
+using System.Security.Claims;
 
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class ActionLogsController : ControllerBase
     {
         private IActionLogsServices _actionLogsServices;
@@ -64,15 +57,7 @@ namespace ContestantBE.Controllers
             {
                 return BadRequest(ModelState);
             }
-            var user = HttpContext.GetCurrentUser();
-            if (user == null)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    message = "User not found"
-                });
-            }
+            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (req.ChallengeId <= 0)
             {
@@ -85,12 +70,21 @@ namespace ContestantBE.Controllers
 
             try
             {
-                var log = await _actionLogsServices.SaveActionLogs(req, user.Id);
-                return Ok(new
+                if(int.TryParse(id, out var userId))
                 {
-                    success = true,
-                    data = log,
+                    var log = await _actionLogsServices.SaveActionLogs(req, userId);
+                    return Ok(new
+                    {
+                        success = true,
+                        data = log,
+                    });
+                }
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Invalid user ID"
                 });
+
             }
             catch (Exception ex)
             {
