@@ -38,7 +38,7 @@ namespace ResourceShared.Middlewares
                     await context.Response.WriteAsync("Invalid user token.");
                     return;
                 }
-
+                //Console.WriteLine($"Authenticated user ID: {id}");
                 // Check user status in database
                 var user = await db.Users
                     .Where(u => u.Id == id)
