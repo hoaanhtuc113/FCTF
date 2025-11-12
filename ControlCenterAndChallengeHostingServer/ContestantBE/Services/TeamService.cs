@@ -4,6 +4,7 @@ using ResourceShared.DTOs;
 using ResourceShared.DTOs.Team;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using System.Security.Claims;
 
 namespace ContestantBE.Services
 {
@@ -102,8 +103,11 @@ namespace ContestantBE.Services
             return BaseResponseDTO.Ok("Successfully joined the team!");
         }
 
-        public async Task<TeamScoreDTO?> GetTeamScore(User user)
+        public async Task<TeamScoreDTO?> GetTeamScore(int userId)
         {
+            var user = await _context.Users
+                                         .Include(u => u.Team)
+                                         .FirstOrDefaultAsync(u => u.Id == userId);
             var team = await _context.Teams
                 .Include(t => t.Users)
                 .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
@@ -136,8 +140,11 @@ namespace ContestantBE.Services
             };
         }
 
-        public async Task<List<SubmissionDto>> GetTeamSolves(User user)
+        public async Task<List<SubmissionDto>> GetTeamSolves(int userId)
         {
+            var user = await _context.Users
+                             .Include(u => u.Team)
+                             .FirstOrDefaultAsync(u => u.Id == userId);
             var team = await _context.Teams
                 .Include(t => t.Users)
                 .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));

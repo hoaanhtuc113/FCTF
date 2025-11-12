@@ -1,13 +1,15 @@
-﻿using ResourceShared.Extensions;
+﻿using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared.Attribute;
 using ResourceShared.DTOs.Team;
+using ResourceShared.Extensions;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using ContestantBE.Attribute;
-using ResourceShared.Attribute;
+using System.Security.Claims;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
@@ -46,26 +48,24 @@ namespace ContestantBE.Controllers
         }
 
         [HttpGet("contestant")]
-        [RequireAuth]
+        [Authorize]
         public async Task<IActionResult> GetScoreTeam()
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { success = false, message = "Unauthorized" });
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var teamScore = await _teamService.GetTeamScore(user);
+            var teamScore = await _teamService.GetTeamScore(userId);
             if (teamScore == null) return NotFound(new { success = false, message = "Team not found" });
 
             return Ok(new { success = true, data = teamScore });
         }
 
         [HttpGet("solves")]
-        [RequireAuth]
+        [Authorize]
         public async Task<IActionResult> GetSolvesTeam()
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { success = false, message = "Unauthorized" });
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var solves = await _teamService.GetTeamSolves(user);
+            var solves = await _teamService.GetTeamSolves(userId);
             return Ok(new { success = true, data = solves, meta = new { count = solves.Count } });
         }
     }

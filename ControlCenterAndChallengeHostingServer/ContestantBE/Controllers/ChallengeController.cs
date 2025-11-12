@@ -1,6 +1,8 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Services;
 using ContestantBE.Utils;
+using k8s.KubeConfigModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,13 +20,14 @@ using StackExchange.Redis;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
+using System.Security.Claims;
 using YamlDotNet.Core.Tokens;
 
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class ChallengeController : ControllerBase
     {
 
@@ -51,7 +54,10 @@ namespace ContestantBE.Controllers
         {
             try
             {
-                var user = HttpContext.GetCurrentUser();
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var user = await _context.Users
+                                        .Include(u => u.Team)
+                                        .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
 
                 if (user == null)
                 {
@@ -106,21 +112,10 @@ namespace ContestantBE.Controllers
         [HttpGet("by-topic")]
         public async Task<IActionResult> GetByTopic()
         {
-            var user = HttpContext.GetCurrentUser();
-
-            if (user == null)
-            {
-                return NotFound(new { error = "Token not found"});
-            }
-
-            if (user.Banned == true)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, new
-                {
-                    message = "You have been banned from CTFd",
-                    success = false
-                });
-            }
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _context.Users
+                                        .Include(u => u.Team)
+                                        .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
             try
             {
                 var result = await _challengeServices.GetTopic(user);
@@ -143,14 +138,10 @@ namespace ContestantBE.Controllers
         [HttpGet("list_challenge/{category_name}")]
         public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
         {
-            var user = HttpContext.GetCurrentUser();
+            var teamId =  int.Parse(User.FindFirstValue("teamId"));
+            //Console.WriteLine($"[ListChallengesByCategoryName] teamId: {teamId}, category_name: {category_name}");
 
-            if (user == null)
-            {
-                return NotFound(new { error = "Token not found" });
-            }
-
-            var challenges = await _challengeServices.GetChallengeByCategories(category_name, user.TeamId);
+            var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId);
             return Ok(new
             {
                 success = true,
@@ -162,10 +153,12 @@ namespace ContestantBE.Controllers
         [HttpPost("attempt")]
         public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
         {
-           var user = HttpContext.GetCurrentUser();
-           if (user == null) return NotFound(new { error = "User not found" });
+           var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+           var user = await _context.Users
+                                        .Include(u => u.Team)
+                                        .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
 
-           if(request.ChallengeId == 0)  return BadRequest(new { error = "ChallengeId is required" });
+            if (request.ChallengeId == 0)  return BadRequest(new { error = "ChallengeId is required" });
 
            var challenge = await _context.Challenges
                                            .FirstOrDefaultAsync(c => c.Id == request.ChallengeId);
@@ -469,8 +462,10 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return NotFound(new { error = "Please login" });
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _context.Users
+                                         .Include(u => u.Team)
+                                         .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
             if (challenge == null) return NotFound(new { error = "Challenge not found" });
@@ -533,8 +528,10 @@ namespace ContestantBE.Controllers
             {
                 return BadRequest(new { error = "ChallengeId is required" });
             }
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return NotFound(new { error = "Please login" });
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _context.Users
+                                         .Include(u => u.Team)
+                                         .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
             if (user.TeamId == null || user.Team == null)
             {
                 return BadRequest(new { error = "User no join team" });
