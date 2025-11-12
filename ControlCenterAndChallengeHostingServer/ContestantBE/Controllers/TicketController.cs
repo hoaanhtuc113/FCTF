@@ -1,20 +1,22 @@
 ﻿using ContestantBE.Attribute;
-using ResourceShared.Extensions;
 using ContestantBE.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.Attribute;
 using ResourceShared.DTOs.Team;
 using ResourceShared.DTOs.Ticket;
+using ResourceShared.Extensions;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using System.Security.Claims;
 
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
@@ -38,10 +40,9 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetTicketByUser()
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { message = "Unauthorized" });
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var tickets = await _ticketService.GetTicketsByUser(user);
+            var tickets = await _ticketService.GetTicketsByUser(userId);
             return Ok(new { tickets });
         }
 
@@ -49,10 +50,9 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetTicketById(int ticketId)
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { message = "Unauthorized !" });
-            
-            var result = await _ticketService.GetTicketById(ticketId, user.Id);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var result = await _ticketService.GetTicketById(ticketId, userId);
             
             if (!result.Success)
             {
@@ -79,10 +79,9 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> DeleteTicket(int ticketId)
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { message = "Unauthorized" });
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var result = await _ticketService.DeleteTicket(ticketId, user.Id);
+            var result = await _ticketService.DeleteTicket(ticketId, userId);
             if (!result.Success) return BadRequest(new { message = result.Message });
             
             return Ok(new { message = result.Message });

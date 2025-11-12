@@ -1,15 +1,17 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.Attribute;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Extensions;
+using System.Security.Claims;
 
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class HintController : ControllerBase
     {
         private readonly IHintService _hintService;
@@ -23,8 +25,8 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
         {
-            var user = HttpContext.GetCurrentUser();
-            var hint = await _hintService.GetHintById(id, user, preview);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var hint = await _hintService.GetHintById(id, userId, preview);
             if (hint == null) return NotFound(new { message = "Hint not found" });
             return Ok(new { success = true, data = hint });
         }
@@ -33,9 +35,8 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetHintByChallengeId(int id)
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { message = "Unauthorized" });
-            var data = await _hintService.GetHintsByChallengeId(id, user);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var data = await _hintService.GetHintsByChallengeId(id, userId);
             return Ok(new { success = true, hints = data });
         }
 
@@ -43,12 +44,11 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> PostUnlock([FromBody] UnlockRequestDto req)
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null) return Unauthorized(new { success = false, error = "Unauthorized" });
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             try
             {
-                var result = await _hintService.UnlockHint(req, user);
+                var result = await _hintService.UnlockHint(req, userId);
                 return Ok(new { success = true, data = result });
             }
             catch (InvalidOperationException ex)
