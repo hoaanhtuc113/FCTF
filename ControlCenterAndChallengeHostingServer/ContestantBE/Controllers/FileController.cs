@@ -1,5 +1,6 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.Attribute;
@@ -8,12 +9,13 @@ using ResourceShared.Extensions;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using System.IO;
+using System.Security.Claims;
 
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class FilesController : ControllerBase
     {
         private readonly IFileService _fileService;
@@ -31,24 +33,13 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetFile([FromQuery] string path, [FromQuery] string token)
         {
-            var user = HttpContext.GetCurrentUser();
-            if (user == null || user is not User currentUser)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    errors = new
-                    {
-                        user = "User not found"
-                    }
-                });
-            }
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             if (string.IsNullOrWhiteSpace(path))
             {
                 return BadRequest(new { success = false, message = "Missing 'path' parameter" });
             }
             await Console.Out.WriteLineAsync($"GetFileAsync: {path}");
-            var result = await _fileService.GetFileAsync(path,token,user.Id);
+            var result = await _fileService.GetFileAsync(path,token, userId);
 
             if (!result.Success)
             {

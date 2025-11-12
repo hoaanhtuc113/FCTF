@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using System.Security.Claims;
 
 namespace ContestantBE.Services
 {
@@ -44,13 +45,15 @@ namespace ContestantBE.Services
             return result;
         }
 
-        public async Task<HintResponseDTO?> GetHintById(int id, User? user, bool preview)
+        public async Task<HintResponseDTO?> GetHintById(int id, int? userId, bool preview)
         {
             var hint = await _context.Hints.FindAsync(id);
             if (hint == null) return null;
 
             var prerequisites = GetPrerequisites(hint.Requirements);
-
+            var user = await _context.Users
+                                         .Include(u => u.Team)
+                                         .FirstOrDefaultAsync(u => u.Id == userId);
             // Nếu user null và có cost hoặc yêu cầu
             if (user == null && (hint.Cost != null && prerequisites.Count > 0))
             {
@@ -87,7 +90,7 @@ namespace ContestantBE.Services
             };
         }
 
-        public async Task<HintListDTO> GetHintsByChallengeId(int challengeId, User user)
+        public async Task<HintListDTO> GetHintsByChallengeId(int challengeId, int user)
         {
             var hints = await _context.Hints.Where(h => h.ChallengeId == challengeId).ToListAsync();
             return new HintListDTO
@@ -101,11 +104,13 @@ namespace ContestantBE.Services
             };
         }
 
-        public async Task<UnlockResponseDTO?> UnlockHint(UnlockRequestDto req, User user)
+        public async Task<UnlockResponseDTO?> UnlockHint(UnlockRequestDto req, int userId)
         {
             var target = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == req.Target);
             if (target == null) return null;
-
+            var user = await _context.Users
+                                         .Include(u => u.Team)
+                                         .FirstOrDefaultAsync(u => u.Id == userId);
             // Check prerequisites
             var prerequisites = GetPrerequisites(target.Requirements);
             if (prerequisites.Count > 0)
