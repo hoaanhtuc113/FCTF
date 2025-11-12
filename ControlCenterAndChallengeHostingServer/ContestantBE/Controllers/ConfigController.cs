@@ -5,11 +5,12 @@ using ResourceShared.Models;
 using ResourceShared.Utils;
 using ContestantBE.Attribute;
 using ResourceShared.Attribute;
+using Microsoft.AspNetCore.Authorization;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class ConfigController : ControllerBase
     {
         private readonly AppDbContext _context;

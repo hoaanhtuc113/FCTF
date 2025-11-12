@@ -32,14 +32,14 @@ namespace DeploymentCenter
                     new MySqlServerVersion(new Version(10, 11, 0))
                 )
             );
-           
+           new DeploymentCenterConfigHelper().InitConfig();
             builder.Services.AddControllers();
             builder.Services.AddResourceShared();
             builder.Services.AddScoped<IDeployService, DeployService>();
             builder.Services.AddSingleton<IGetPodsJob, GetPodsJob>();
             builder.Services.AddHostedService<PodsWorkerService>();
             // DI services from ResourceShared
-            new DeploymentCenterConfigHelper().InitConfig();
+            
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();

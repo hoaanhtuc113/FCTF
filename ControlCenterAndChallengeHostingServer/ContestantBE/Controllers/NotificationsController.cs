@@ -7,11 +7,12 @@ using ResourceShared.Models;
 using System.Threading.Tasks;
 using ContestantBE.Attribute;
 using ResourceShared.Attribute;
+using Microsoft.AspNetCore.Authorization;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class NotificationsController : ControllerBase
     {
         private INotificationServices _notification;

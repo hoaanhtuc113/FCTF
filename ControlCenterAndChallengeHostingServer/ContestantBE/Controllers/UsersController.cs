@@ -1,15 +1,18 @@
-﻿using ResourceShared.Extensions;
+﻿using ContestantBE.Attribute;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using ResourceShared.DTOs.User;
-using ResourceShared.Models;
-using ContestantBE.Attribute;
+using Microsoft.EntityFrameworkCore;
 using ResourceShared.Attribute;
+using ResourceShared.DTOs.User;
+using ResourceShared.Extensions;
+using ResourceShared.Models;
+using System.Security.Claims;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [RequireAuth]
+    [Authorize]
     public class UsersController : ControllerBase
     {
 
@@ -21,7 +24,10 @@ namespace ContestantBE.Controllers
         [HttpGet("profile")]
         public IActionResult GetProfile()
         {
-            var user = HttpContext.GetCurrentUser();
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user =  _context.Users
+                             .Include(u => u.Team)
+                             .FirstOrDefault(u => u.Id == userId);
             if (user == null || user is not User currentUser)
             {
                 return NotFound(new

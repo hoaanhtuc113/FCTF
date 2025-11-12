@@ -1,5 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using ResourceShared.Configs;
 using ResourceShared.Services;
 using ResourceShared.Utils;
@@ -10,7 +13,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 namespace ResourceShared
 {
     public static class ServiceCollectionExtensions
@@ -49,6 +51,21 @@ namespace ResourceShared
             services.AddScoped<IK8sService, K8sService>();
             services.AddScoped<IArgoWorkFlowService, ArgoWorkFlowService>();
             services.AddScoped<TokenHelper>();
+            var keyBytes = Encoding.UTF8.GetBytes(SharedConfig.PRIVATE_KEY);
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opt =>
+            {
+                opt.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
+                };
+            });
+
+            //services.AddAuthorization();
             return services;
         }
     }
