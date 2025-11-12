@@ -10,10 +10,11 @@ namespace ContestantBE.Services
     public class AuthService : IAuthService
     {
         private readonly AppDbContext _context;
-
-        public AuthService(AppDbContext context)
+        private TokenHelper TokenHelper;
+        public AuthService(AppDbContext context, TokenHelper tokenHelper)
         {
             _context = context;
+            TokenHelper = tokenHelper;
         }
 
         public async Task<BaseResponseDTO<AuthResponseDTO>> LoginContestant(LoginDTO loginDto)
@@ -36,7 +37,7 @@ namespace ContestantBE.Services
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
             }
             var dateTime = DateTime.Now.AddDays(1);
-            var token = await TokenHelper.GenerateUserToken(_context, user, dateTime, "Login token");
+            var token = await TokenHelper.GenerateUserToken(user, dateTime, "Login token");
 
             if (user.Team == null)
             {
