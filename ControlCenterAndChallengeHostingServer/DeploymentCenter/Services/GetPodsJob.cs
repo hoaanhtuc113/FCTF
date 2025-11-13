@@ -29,12 +29,17 @@ namespace DeploymentCenter.Services
 
             try
             {
-                var runningPods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
+                var runningPods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new();
                 //K8S-NOTE:comment this state for runing in local with out k8s cubeconfig 
-                var pods = await _k8SHealthService.GetPodsByLabel();
+                var currentPods = await _k8SHealthService.GetPodsByLabel();
+                var liveNamespaces = currentPods.Select(p => p.Namespace).ToHashSet();
 
-                // Lấy danh sách pod không còn chạy
-                var deadPods = runningPods?.ExceptBy(pods.Select(p => (p.ChallengeId, p.TeamId)), p =>(p.ChallengeId, p.TeamId)).ToList();
+                // Những pod trong redis nhưng namespace không còn trong K8s
+                var deadPods = runningPods
+                    .Where(p => !liveNamespaces.Contains(p.Namespace))
+                    .ToList();
+
+                await Console.Out.WriteLineAsync($"Found {deadPods?.Count ?? 0} dead pods & {currentPods?.Count ?? 0} alive pods");
 
                 // Xử lý các pod không còn chạy xóa cache liên quan
                 foreach (var deadPod in deadPods ?? Enumerable.Empty<PodInfo>())
@@ -47,7 +52,7 @@ namespace DeploymentCenter.Services
                     await _redisHelper.RemoveCacheAsync(runnedKey);
                     await Console.Out.WriteLineAsync($"Removed cache keys: {startedKey}, {runnedKey}");
                 }
-                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
+                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, currentPods);
             }
             catch (Exception ex)
             {

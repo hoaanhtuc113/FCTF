@@ -43,8 +43,8 @@ namespace ResourceShared
 
         public static class DeploymentStatus
         {
-            public const string PROCESS = "pending";
-            public const string RUNING = "running";
+            public const string PROCESS = "Pending";
+            public const string RUNING = "Running";
 
             public const string FAILED = "Failed";
             public const string SUCCEEDED = "Succeeded";
@@ -52,6 +52,21 @@ namespace ResourceShared
             public const string PENDING_DEPLOY = "PENDING_DEPLOY";
             public const string DEPLOY_FAILED = "DEPLOY_FAILED";
             public const string DEPLOY_SUCCEEDED = "DEPLOY_SUCCEEDED";
+        }
+
+        public static class DeploymentReason
+        {
+            public const string WAITING = "Waiting";
+            public const string TERMINATED = "Terminated";
+            public const string TIMEOUT = "TIMEOUT";
+            public const string CONTAINER_CREATING = "ContainerCreating";
+            public const string IMAGE_PULL_BACK_OFF = "ImagePullBackOff";
+            public const string ERR_IMAGE_PULL = "ErrImagePull";
+            public const string INVALID_IMAGE_NAME = "InvalidImageName";
+            public const string CRASH_LOOP_BACK_OFF = "CrashLoopBackOff";
+            public const string CREATE_CONTAINER_CONFIG_ERROR = "CreateContainerConfigError";
+            public const string CREATE_CONTAINER_ERROR = "CreateContainerError";
+            public const string OOM_KILLED = "OOMKilled";
         }
 
         public static class ArgoMessageType
@@ -63,6 +78,7 @@ namespace ResourceShared
         public enum WorkflowPhase
         {
             Pending,
+            Waiting,
             Running,
             Succeeded,
             Failed,
