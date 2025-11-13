@@ -89,7 +89,7 @@ namespace ResourceShared.Services
                 var ready = pod.Status.Conditions?.Any(c => c.Type == "Ready" && c.Status == "True") == true;
 
                 await Console.Out.WriteLineAsync($"[Check Pod Alive] Pod: {podName}, Phase={phase}, Ready={ready}");
-                if (phase == "Running" && ready) return true;
+                if (phase == DeploymentStatus.RUNING && ready) return true;
 
                 var log = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(pod.Metadata.Name, namespaceName);
                 await Console.Error.WriteLineAsync($"[Check Pod Alive] Pod Logs:\n{log}");
@@ -221,7 +221,7 @@ namespace ResourceShared.Services
 
         public async Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge")
         {
-            var result = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
+            var podsResult = new List<PodInfo>();
 
             try
             {
@@ -238,13 +238,12 @@ namespace ResourceShared.Services
                     foreach (var cs in csList)
                     {
                         if (cs.State?.Waiting != null)
-                            status = cs.State.Waiting.Reason ?? "Waiting";
+                            status = cs.State.Waiting.Reason ?? DeploymentReason.WAITING;
                         else if (cs.State?.Terminated != null)
-                            status = cs.State.Terminated.Reason ?? "Terminated";
+                            status = cs.State.Terminated.Reason ?? DeploymentReason.TERMINATED;
                         else if (cs.State?.Running != null)
-                            status = "Running";
+                            status = DeploymentStatus.RUNING;
                     }
-
 
                     string age = "";
                     if (pod.Status?.StartTime != null)
@@ -254,59 +253,54 @@ namespace ResourceShared.Services
                         else if (diff.TotalHours >= 1) age = $"{(int)diff.TotalHours}h";
                         else age = $"{(int)diff.TotalMinutes}m";
                     }
-                    var (_teamId, _challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
-                  
 
-                    if (result.FirstOrDefault(p => p.TeamId == _teamId && p.ChallengeId == _challengeId) is var existingPod && existingPod != null)
+                    var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+
+                    var isStuck = IsPodStuck(pod);
+                    if (isStuck)
                     {
-                        existingPod.Namespace = ns;
-                        existingPod.Name = name;
-                        existingPod.Ready = ready;
-                        existingPod.Status = status;
-                        existingPod.Age = age;
-                    }
-                    else
-                    {
-                        result.Add(new PodInfo
+                        await Console.Out.WriteLineAsync($"[STUCK] Pod {name} in Namespace {ns} is stuck with status '{status}'. Attempting to delete namespace.");
+
+                        var deleted = await DeleteNamespace(ns);
+
+                        if (deleted)
                         {
-                            Namespace = ns,
-                            TeamId = _teamId,
-                            ChallengeId = _challengeId,
-                            Name = name,
-                            Ready = ready,
-                            Status = status,
-                            Age = age
-                        });
+                            await _redisHelper.RemoveCacheAsync(ChallengeHelper.GetArgoWName(challengeId, teamId));
+                            await _redisHelper.RemoveCacheAsync(ChallengeHelper.GetCacheKey(challengeId, teamId));
+
+                            await Console.Out.WriteLineAsync($"[STUCK] Cleared Redis for team={teamId}, challenge={challengeId}");
+                        }
+
+                        continue;
                     }
 
-                    await Console.Out.WriteLineAsync($"[GetPods] {ns}/{name} → {status} (Ready={ready})");
-
-                    if (status == "Running" && ready && !string.IsNullOrEmpty(ns))
+                    podsResult.Add(new PodInfo
                     {
-                        try
-                        {
-                            var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
-                            var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
-                            var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+                        Namespace = ns,
+                        TeamId = teamId,
+                        ChallengeId = challengeId,
+                        Name = name,
+                        Ready = ready,
+                        Status = status,
+                        Age = age
+                    });
 
-                            if (deploymentCache != null)
-                                await HandleChallengeRunning(challengeId, teamId, deploymentCache.NameSpace, deploymentCache);
-                        }
-                        catch (Exception ex)
-                        {
-                            await Console.Error.WriteLineAsync($"[Get Pods By Label] Parse or handle error for {ns}: {ex.Message}");
-                        }
+                    if (status == DeploymentStatus.RUNING && ready)
+                    {
+                        var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
+                        var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+
+                        if (deploymentCache != null)
+                            await HandleChallengeRunning(challengeId, teamId, deploymentCache.NameSpace, deploymentCache);
                     }
                 }
-
-                await  Console.Out.WriteLineAsync($"[Get Pods By Label] Found {result.Count} challenge pods: {JsonSerializer.Serialize(result)}");
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync($"[Get Pods By Label] Error listing challenge pods: {ex.Message}");
+                await Console.Error.WriteLineAsync($"[GetPodsByLabel] Error: {ex.Message}");
             }
 
-            return result;
+            return podsResult; 
         }
 
         public async Task<int?> GetNodePort(string namespaceName)
@@ -540,5 +534,60 @@ namespace ResourceShared.Services
             }
             return sb.ToString();
         }
+
+
+        private bool IsPodStuck(V1Pod pod)
+        {
+            var cs = pod.Status?.ContainerStatuses?.FirstOrDefault();
+            var reason = "";
+            var ageMinutes = 0;
+
+            if (pod.Status?.StartTime != null)
+                ageMinutes = (int)(DateTime.UtcNow - pod.Status.StartTime.Value).TotalMinutes;
+
+            if (cs != null)
+            {
+                if (cs.State?.Waiting != null)
+                    reason = cs.State.Waiting.Reason ?? DeploymentReason.WAITING;
+
+                if (cs.State?.Terminated != null)
+                    reason = cs.State.Terminated.Reason ?? DeploymentReason.TERMINATED;
+            }
+
+            var restartCount = cs?.RestartCount ?? 0;
+            var phase = pod.Status?.Phase ?? "Unknown";
+
+            // Pod phase failed
+            if (phase == DeploymentStatus.FAILED)
+                return true;
+
+            // Critical reasons that never recover
+            string[] fatalReasons = new[]
+            {
+                DeploymentReason.IMAGE_PULL_BACK_OFF, DeploymentReason.ERR_IMAGE_PULL, DeploymentReason.INVALID_IMAGE_NAME,
+                DeploymentReason.CREATE_CONTAINER_CONFIG_ERROR, DeploymentReason.CREATE_CONTAINER_ERROR
+            };
+            if (fatalReasons.Contains(reason))
+                return true;
+
+            // CrashLoopBackOff nhiều lần
+            if (reason == DeploymentReason.CRASH_LOOP_BACK_OFF && restartCount > 2)
+                return true;
+
+            // OOMKilled nhiều lần
+            if (reason == DeploymentReason.OOM_KILLED && restartCount > 2)
+                return true;
+
+            // ContainerCreating quá lâu
+            if (reason == DeploymentReason.CONTAINER_CREATING && ageMinutes > 5)
+                return true;
+
+            // Running nhưng không ready > 2 phút
+            if (phase == DeploymentStatus.RUNING && !(cs?.Ready ?? true) && ageMinutes > 2)
+                return true;
+
+            return false;
+        }
+
     }
 }
