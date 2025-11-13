@@ -89,11 +89,16 @@ namespace DeploymentCenter.Services
                        }
 
                        int timeLeft = 0;
-                       if (deploymentCache.EndTime.HasValue)
-                       {
-                           timeLeft  = (int)(deploymentCache.EndTime.Value - DateTime.Now).TotalMinutes;
-                       }
-                       return new ChallengeDeployResponeDTO
+                        if (deploymentCache.EndTime > 0)
+                        {
+                            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                            long remainMs = deploymentCache.EndTime - now;
+                            if (remainMs < 0) remainMs = 0;
+
+                            timeLeft = (int)(remainMs / 1000 / 60);
+                        }
+                        return new ChallengeDeployResponeDTO
                        {
                            status = (int)HttpStatusCode.OK,
                            success = true,
@@ -166,27 +171,8 @@ namespace DeploymentCenter.Services
 
                 var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
 
-                if (pods.FirstOrDefault(p => p.TeamId == startReq.teamId && p.ChallengeId == startReq.challengeId) is var existingPod && existingPod != null)
-                {
-                    existingPod.Namespace = appName;
-                    existingPod.Ready = false;
-                    existingPod.Status = "Pending";
-                    existingPod.Age = "N/A";
-                    existingPod.Name = "N/A";
-                }
-                else
-                {
-                    pods.Add(new PodInfo
-                    {
-                        Namespace = appName,
-                        TeamId = startReq.teamId,
-                        ChallengeId = startReq.challengeId,
-                        Ready = false,
-                        Status = "Pending",
-                        Age = "N/A",
-                        Name = "N/A",
-                    });
-                }
+                // Xóa pending pod (đã được thêm bởi StartChallenge) vì giờ đang deploy thật
+                var updatedPods = pods.Where(p => !(p.IsPending && p.TeamId == startReq.teamId && p.ChallengeId == startReq.challengeId)).ToList();
 
                   
 
@@ -213,7 +199,9 @@ namespace DeploymentCenter.Services
                 Để bên admin có thể xem được thông tin này
                 */
                 await _redisHelper.SetCacheAsync(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId), chalDeploy, TimeSpan.FromHours(1));
-                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
+                
+                // Lưu lại pods đã xóa pending pod
+                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, updatedPods);
 
                 //var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId));
                 //await Console.Out.WriteLineAsync($"Deployment info save success: {JsonSerializer.Serialize(checkCache)}");
@@ -397,7 +385,6 @@ namespace DeploymentCenter.Services
                 await Console.Out.WriteLineAsync($"Data from Redis for key {startedKey}: {JsonSerializer.Serialize(deploymentCache)}");
                 if (deploymentCache == null)
                 {
-                    await Console.Out.WriteLineAsync($"No deployment info found in cache for key: {startedKey} ");
                     return new ChallengeDeployResponeDTO
                     {
                         success = false,

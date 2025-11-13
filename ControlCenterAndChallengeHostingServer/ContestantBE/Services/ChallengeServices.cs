@@ -113,7 +113,7 @@ namespace ContestantBE.Services
                 if (cached_value.challenge_id == challenge.Id)
                 {
                     var time_finished = cached_value.time_finished;
-                    var time_remaining = time_finished - (int)DateTimeOffset.Now.ToUnixTimeSeconds();
+                    var time_remaining = time_finished - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                     if (time_remaining < 0) time_remaining = 0;
 
 
@@ -394,12 +394,12 @@ namespace ContestantBE.Services
 
         public async Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId)
         {
-            var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
-            var teamPods = pods.Where(p => p.TeamId == teamId).ToList();
+            var allPods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
+            var teamPods = allPods.Where(p => p.TeamId == teamId).ToList();
             
             var instances = new List<ChallengeInstanceDTO>();
             
-            foreach (var pod in teamPods)
+            foreach (var pod in allPods)
             {
                 var challenge = await _dbContext.Challenges
                     .FirstOrDefaultAsync(c => c.Id == pod.ChallengeId);
