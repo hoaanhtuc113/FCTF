@@ -57,12 +57,12 @@ export function Instances() {
     }
   };
 
-  // useEffect(() => {
-  //   fetchInstances();
-  //   // Refresh every 5 seconds
-  //   const interval = setInterval(fetchInstances, 5000);
-  //   return () => clearInterval(interval);
-  // }, []);
+  useEffect(() => {
+    fetchInstances();
+    // Refresh every 5 seconds
+    // const interval = setInterval(fetchInstances, 5000);
+    // return () => clearInterval(interval);
+  }, []);
 
   const handleStop = async (challengeId: number, challengeName: string) => {
     const result = await Swal.fire({
