@@ -149,6 +149,29 @@ namespace ContestantBE.Controllers
             });
         }
 
+        [HttpGet("instances")]
+        public async Task<IActionResult> GetAllInstances()
+        {
+            try
+            {
+                var teamId = int.Parse(User.FindFirstValue("teamId"));
+                var instances = await _challengeServices.GetAllInstances(teamId);
+                return Ok(new
+                {
+                    success = true,
+                    data = instances
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
+
         [DuringCtfTimeOnly]
         [HttpPost("attempt")]
         public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)

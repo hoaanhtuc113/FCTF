@@ -17,6 +17,7 @@ const PublicScoreboard = lazy(() => import('./pages/PublicScoreboard').then(modu
 const Tickets = lazy(() => import('./pages/Tickets').then(module => ({ default: module.Tickets })));
 const TicketDetail = lazy(() => import('./pages/TicketDetail').then(module => ({ default: module.TicketDetail })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
+const Instances = lazy(() => import('./pages/Instances').then(module => ({ default: module.Instances })));
 
 // Inner component to use theme context
 function AppRoutes() {
@@ -43,6 +44,14 @@ function AppRoutes() {
               />
               <Route
                 path="/challenges"
+                element={
+                  <PrivateRoute>
+                    <Layout><Challenges /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/challenge/:id"
                 element={
                   <PrivateRoute>
                     <Layout><Challenges /></Layout>
@@ -78,6 +87,14 @@ function AppRoutes() {
                 element={
                   <PrivateRoute>
                     <Layout><Profile /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/instances"
+                element={
+                  <PrivateRoute>
+                    <Layout><Instances /></Layout>
                   </PrivateRoute>
                 }
               />
