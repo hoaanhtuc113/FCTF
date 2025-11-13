@@ -180,6 +180,7 @@ namespace DeploymentCenter.Services
                     {
                         Namespace = appName,
                         TeamId = startReq.teamId,
+                        ChallengeId = startReq.challengeId,
                         Ready = false,
                         Status = "Pending",
                         Age = "N/A",
