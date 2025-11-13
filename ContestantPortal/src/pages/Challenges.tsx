@@ -1322,11 +1322,59 @@ function ChallengeDetailPanel({
             }
           }
         } else {
-          // Not started or no URL yet
+          // Not started - but check if we have deployment state before cleaning up
           const deploymentKey = `deployment_${challenge.id}`;
           const healthCheckKey = `healthcheck_${challenge.id}`;
-          localStorage.removeItem(deploymentKey);
-          localStorage.removeItem(healthCheckKey);
+          const savedDeployment = localStorage.getItem(deploymentKey);
+          const savedHealthCheck = localStorage.getItem(healthCheckKey);
+          
+          // If we have saved deployment/health check state, it means we're in the middle of deploying
+          // Don't clean up - the deployment might just not be reflected in API yet
+          if (savedHealthCheck || savedDeployment) {
+            const stateData = savedHealthCheck 
+              ? JSON.parse(savedHealthCheck) 
+              : (savedDeployment ? JSON.parse(savedDeployment) : null);
+            
+            if (stateData) {
+              const elapsed = (Date.now() - stateData.startTime) / 1000;
+              
+              // If within timeout, keep the state and resume health checking
+              if (elapsed < 100) {
+                console.log('[fetchChallengeStatus] API says not started, but we have saved state. Resuming health check...');
+                
+                // Ensure both keys exist
+                if (!savedHealthCheck) {
+                  localStorage.setItem(healthCheckKey, JSON.stringify({
+                    startTime: stateData.startTime,
+                    challengeId: challenge.id
+                  }));
+                }
+                
+                setIsHealthChecking(true);
+                setIsDeploymentInProgress(true);
+                setIsStarting(false);
+                setIsPodHealthy(false);
+                setIsChallengeStarted(false);
+                setUrl(null);
+                
+                // Resume health check if not running
+                if (!healthCheckRunningRef.current) {
+                  setTimeout(() => {
+                    startHealthCheckLoop();
+                  }, 100);
+                }
+                
+                return; // Don't clean up
+              } else {
+                // Timed out - clean up
+                console.log('[fetchChallengeStatus] Deployment state timed out');
+                localStorage.removeItem(deploymentKey);
+                localStorage.removeItem(healthCheckKey);
+              }
+            }
+          }
+          
+          // No saved state or timed out - clean up UI
           setIsDeploymentInProgress(false);
           setIsStarting(false);
           setIsHealthChecking(false);
@@ -1340,23 +1388,9 @@ function ChallengeDetailPanel({
 
   const handleStartChallenge = async () => {
     setIsStarting(true);
-    setIsDeploymentInProgress(true);
     
-    // Save deployment state to localStorage
     const deploymentKey = `deployment_${challenge.id}`;
     const healthCheckKey = `healthcheck_${challenge.id}`;
-    const startTime = Date.now();
-    
-    localStorage.setItem(deploymentKey, JSON.stringify({
-      isDeploying: true,
-      startTime: startTime
-    }));
-    
-    // Save health check state
-    localStorage.setItem(healthCheckKey, JSON.stringify({
-      startTime: startTime,
-      challengeId: challenge.id
-    }));
     
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START, {
@@ -1369,10 +1403,24 @@ function ChallengeDetailPanel({
 
       // Case 1: URL is ready immediately
       if (response.status === 200 && data.success === true && data.challenge_url != null) {
+        setIsDeploymentInProgress(true);
+        // Save deployment state AFTER successful response
+        localStorage.setItem(deploymentKey, JSON.stringify({
+          isDeploying: true,
+          startTime: Date.now()
+        }));
+        
+        // Save health check state AFTER successful response
+        localStorage.setItem(healthCheckKey, JSON.stringify({
+          startTime: Date.now(),
+          challengeId: challenge.id
+        }));
+        
         // Set URL immediately
         setIsChallengeStarted(true);
         setUrl(data.challenge_url);
         setIsStarting(false);
+        setIsDeploymentInProgress(false);
         
         // Set health checking state to show spinner
         setIsHealthChecking(true);
@@ -1402,10 +1450,24 @@ function ChallengeDetailPanel({
       }
       // Case 2: Success but URL is null - deploying, need to wait
       else if (response.status === 200 && data.success === true && data.challenge_url == null) {
+        setIsDeploymentInProgress(true);
+        // Save deployment state AFTER successful response
+        localStorage.setItem(deploymentKey, JSON.stringify({
+          isDeploying: true,
+          startTime: Date.now()
+        }));
+        
+        // Save health check state AFTER successful response
+        localStorage.setItem(healthCheckKey, JSON.stringify({
+          startTime: Date.now(),
+          challengeId: challenge.id
+        }));
+        
         // Set challenge as started with message from backend
         setIsChallengeStarted(true);
         setUrl(data.message || 'Deploying challenge...');
         setIsStarting(false);
+        setIsDeploymentInProgress(false);
         
         // Set health checking state to show spinner
         setIsHealthChecking(true);
