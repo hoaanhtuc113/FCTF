@@ -21,60 +21,73 @@ namespace ResourceShared.Utils
 
         public async Task<int> GetUserScore(User user, bool admin = false)
         {
-            using var dbContext = new AppDbContext(dbOptions);
-
             DateTime? freeze = null;
             if (!admin)
             {
-                var freezeConfig = await dbContext.Configs.FirstOrDefaultAsync(c => c.Key == "freeze");
+                var freezeConfig = await _context.Configs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Key == "freeze");
                 if (freezeConfig != null && int.TryParse(freezeConfig.Value, out var freezeTs))
                     freeze = DateTimeOffset.FromUnixTimeSeconds(freezeTs).UtcDateTime;
             }
 
-            // Use a single query to get both solves and awards
-            var userScoreData = await dbContext.Users
-                .Where(u => u.Id == user.Id)
-                .Select(u => new
-                {
-                    SolvesScore = dbContext.Solves
-                        .Where(s => s.UserId == u.Id && (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
-                        .Sum(s => (int?)(s.Challenge != null ? s.Challenge.Value : 0) ?? 0),
-                    AwardsScore = dbContext.Awards
-                        .Where(a => a.UserId == u.Id && (!freeze.HasValue || a.Date < freeze.Value))
-                        .Sum(a => (int?)a.Value ?? 0)
-                })
-                .FirstOrDefaultAsync();
+            // Single query to calculate both scores
+            var solvesScore = await _context.Solves
+                .AsNoTracking()
+                .Where(s => s.UserId == user.Id && (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
+                .SumAsync(s => (int?)(s.Challenge != null ? s.Challenge.Value : 0) ?? 0);
 
-            if (userScoreData == null)
-                return 0;
+            var awardsScore = await _context.Awards
+                .AsNoTracking()
+                .Where(a => a.UserId == user.Id && (!freeze.HasValue || a.Date < freeze.Value))
+                .SumAsync(a => (int?)a.Value ?? 0);
 
-            return userScoreData.SolvesScore + userScoreData.AwardsScore;
+            return solvesScore + awardsScore;
         }
 
         public async Task<int?> GetUserPlace(User user, bool admin = false)
         {
-            using var dbContext = new AppDbContext(dbOptions);
-
             DateTime? freeze = null;
             if (!admin)
             {
-                var freezeConfig = await dbContext.Configs.FirstOrDefaultAsync(c => c.Key == "freeze");
+                var freezeConfig = await _context.Configs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Key == "freeze");
                 if (freezeConfig != null && int.TryParse(freezeConfig.Value, out var freezeTs))
                     freeze = DateTimeOffset.FromUnixTimeSeconds(freezeTs).UtcDateTime;
             }
 
-            var scores = await dbContext.Users
-                .Select(u => new
-                {
-                    u.Id,
-                    Score =
-                        (dbContext.Solves.Where(s => s.UserId == u.Id && (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
-                                  .Sum(s => (int?)s.Challenge.Value) ?? 0)
-                      +
-                        (dbContext.Awards.Where(a => a.UserId == u.Id && (!freeze.HasValue || a.Date < freeze.Value))
-                                  .Sum(a => (int?)a.Value) ?? 0)
-                })
+            // Get all user IDs first
+            var userIds = await _context.Users
+                .AsNoTracking()
+                .Select(u => u.Id)
                 .ToListAsync();
+
+            // Calculate solves in bulk
+            var solvesScores = await _context.Solves
+                .AsNoTracking()
+                .Where(s => userIds.Contains(s.UserId.Value) && 
+                           (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
+                .GroupBy(s => s.UserId)
+                .Select(g => new { UserId = g.Key.Value, Score = g.Sum(s => (int?)(s.Challenge.Value) ?? 0) })
+                .ToDictionaryAsync(x => x.UserId, x => x.Score);
+
+            // Calculate awards in bulk
+            var awardsScores = await _context.Awards
+                .AsNoTracking()
+                .Where(a => userIds.Contains(a.UserId.Value) && 
+                           (!freeze.HasValue || a.Date < freeze.Value))
+                .GroupBy(a => a.UserId)
+                .Select(g => new { UserId = g.Key.Value, Score = g.Sum(a => (int?)a.Value ?? 0) })
+                .ToDictionaryAsync(x => x.UserId, x => x.Score);
+
+            // Combine scores in memory
+            var scores = userIds.Select(id => new
+            {
+                Id = id,
+                Score = (solvesScores.ContainsKey(id) ? solvesScores[id] : 0) +
+                       (awardsScores.ContainsKey(id) ? awardsScores[id] : 0)
+            }).ToList();
 
             var standings = scores
                 .OrderByDescending(x => x.Score)
@@ -87,18 +100,19 @@ namespace ResourceShared.Utils
 
         public async Task<int> GetTeamScore(Team team, bool admin = false)
         {
-            using var dbContext = new AppDbContext(dbOptions);
-
             DateTime? freeze = null;
             if (!admin)
             {
-                var freezeConfig = await dbContext.Configs.FirstOrDefaultAsync(c => c.Key == "freeze");
+                var freezeConfig = await _context.Configs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Key == "freeze");
                 if (freezeConfig != null && int.TryParse(freezeConfig.Value, out var freezeTs))
                     freeze = DateTimeOffset.FromUnixTimeSeconds(freezeTs).UtcDateTime;
             }
 
             // First get team member IDs to simplify the query
-            var teamMemberIds = await dbContext.Users
+            var teamMemberIds = await _context.Users
+                .AsNoTracking()
                 .Where(u => u.TeamId == team.Id)
                 .Select(u => u.Id)
                 .ToListAsync();
@@ -106,15 +120,16 @@ namespace ResourceShared.Utils
             if (!teamMemberIds.Any())
                 return 0;
 
-            // Calculate solves score
-            var solvesScore = await dbContext.Solves
+            // Calculate solves score (remove unnecessary Include)
+            var solvesScore = await _context.Solves
+                .AsNoTracking()
                 .Where(s => teamMemberIds.Contains(s.UserId.Value) &&
                            (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
-                .Include(s => s.Challenge)
                 .SumAsync(s => (int?)(s.Challenge != null ? s.Challenge.Value : 0) ?? 0);
 
             // Calculate awards score
-            var awardsScore = await dbContext.Awards
+            var awardsScore = await _context.Awards
+                .AsNoTracking()
                 .Where(a => teamMemberIds.Contains(a.UserId.Value) &&
                            (!freeze.HasValue || a.Date < freeze.Value))
                 .SumAsync(a => (int?)a.Value ?? 0);
@@ -124,9 +139,8 @@ namespace ResourceShared.Utils
 
         public async Task<List<Solf>> GetUserSolves(User user, bool admin = false)
         {
-            using var dbContext = new AppDbContext(dbOptions);
-
-            var query = dbContext.Solves
+            var query = _context.Solves
+                .AsNoTracking()
                 .Where(s => s.UserId == user.Id)
                 .OrderByDescending(s => s.IdNavigation.Date)
                 .AsQueryable();
@@ -143,10 +157,9 @@ namespace ResourceShared.Utils
 
         public async Task<List<Solf>> GetTeamSolves(Team team, bool admin = false)
         {
-            using var dbContext = new AppDbContext(dbOptions);
-
             // First get team member IDs to avoid complex navigation in LINQ
-            var teamMemberIds = await dbContext.Users
+            var teamMemberIds = await _context.Users
+                .AsNoTracking()
                 .Where(u => u.TeamId == team.Id)
                 .Select(u => u.Id)
                 .ToListAsync();
@@ -154,7 +167,8 @@ namespace ResourceShared.Utils
             if (!teamMemberIds.Any())
                 return new List<Solf>();
 
-            var query = dbContext.Solves
+            var query = _context.Solves
+                .AsNoTracking()
                 .Include(s => s.IdNavigation)
                 .Include(s => s.Challenge)
                 .Include(s => s.User)
@@ -176,18 +190,19 @@ namespace ResourceShared.Utils
 
         public async Task<int?> GetTeamPlace(Team team, bool admin = false)
         {
-            using var dbContext = new AppDbContext(dbOptions);
-
             DateTime? freeze = null;
             if (!admin)
             {
-                var freezeConfig = await dbContext.Configs.FirstOrDefaultAsync(c => c.Key == "freeze");
+                var freezeConfig = await _context.Configs
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Key == "freeze");
                 if (freezeConfig != null && int.TryParse(freezeConfig.Value, out var freezeTs))
                     freeze = DateTimeOffset.FromUnixTimeSeconds(freezeTs).UtcDateTime;
             }
 
-            // Get all teams with their member IDs first
-            var teamsWithMembers = await dbContext.Teams
+            // Get all teams with their member IDs in one query
+            var teamsWithMembers = await _context.Teams
+                .AsNoTracking()
                 .Select(t => new
                 {
                     TeamId = t.Id,
@@ -195,30 +210,35 @@ namespace ResourceShared.Utils
                 })
                 .ToListAsync();
 
-            var teamScores = new List<(int TeamId, int Score)>();
+            // Get all user IDs
+            var allUserIds = teamsWithMembers.SelectMany(t => t.MemberIds).Distinct().ToList();
 
-            // Calculate scores for each team
-            foreach (var teamInfo in teamsWithMembers)
-            {
-                if (!teamInfo.MemberIds.Any())
-                {
-                    teamScores.Add((teamInfo.TeamId, 0));
-                    continue;
-                }
+            // Calculate solves in bulk for ALL teams at once
+            var solvesScores = await _context.Solves
+                .AsNoTracking()
+                .Where(s => allUserIds.Contains(s.UserId.Value) &&
+                           (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
+                .GroupBy(s => s.UserId)
+                .Select(g => new { UserId = g.Key.Value, Score = g.Sum(s => (int?)(s.Challenge.Value) ?? 0) })
+                .ToDictionaryAsync(x => x.UserId, x => x.Score);
 
-                var solvesScore = await dbContext.Solves
-                    .Where(s => teamInfo.MemberIds.Contains(s.UserId.Value) &&
-                               (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
-                    .Include(s => s.Challenge)
-                    .SumAsync(s => (int?)(s.Challenge != null ? s.Challenge.Value : 0) ?? 0);
+            // Calculate awards in bulk for ALL teams at once
+            var awardsScores = await _context.Awards
+                .AsNoTracking()
+                .Where(a => allUserIds.Contains(a.UserId.Value) &&
+                           (!freeze.HasValue || a.Date < freeze.Value))
+                .GroupBy(a => a.UserId)
+                .Select(g => new { UserId = g.Key.Value, Score = g.Sum(a => (int?)a.Value ?? 0) })
+                .ToDictionaryAsync(x => x.UserId, x => x.Score);
 
-                var awardsScore = await dbContext.Awards
-                    .Where(a => teamInfo.MemberIds.Contains(a.UserId.Value) &&
-                               (!freeze.HasValue || a.Date < freeze.Value))
-                    .SumAsync(a => (int?)a.Value ?? 0);
-
-                teamScores.Add((teamInfo.TeamId, solvesScore + awardsScore));
-            }
+            // Calculate team scores in memory
+            var teamScores = teamsWithMembers.Select(teamInfo => {
+                var score = teamInfo.MemberIds.Sum(memberId =>
+                    (solvesScores.ContainsKey(memberId) ? solvesScores[memberId] : 0) +
+                    (awardsScores.ContainsKey(memberId) ? awardsScores[memberId] : 0)
+                );
+                return (TeamId: teamInfo.TeamId, Score: score);
+            }).ToList();
 
             var standings = teamScores
                 .OrderByDescending(x => x.Score)
