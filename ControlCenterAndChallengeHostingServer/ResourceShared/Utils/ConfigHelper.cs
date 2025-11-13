@@ -12,14 +12,10 @@ namespace ResourceShared.Utils
     public class ConfigHelper
     {
         private readonly AppDbContext _db;
-        private readonly IMemoryCache _cache;
-        private const string CacheKeyPrefix = "Config_";
-        private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(5);
 
-        public ConfigHelper(AppDbContext db, IMemoryCache cache)
+        public ConfigHelper(AppDbContext db)
         {
             _db = db;
-            _cache = cache;
         }
         public T? GetConfig<T>(object key, T? defaultValue = default)
         {
@@ -46,15 +42,6 @@ namespace ResourceShared.Utils
 
         public object GetConfig(string key)
         {
-            if (string.IsNullOrEmpty(key))
-                return new KeyNotFoundException();
-
-            // Try to get from cache first
-            var cacheKey = CacheKeyPrefix + key;
-            if (_cache.TryGetValue(cacheKey, out object? cachedValue))
-            {
-                return cachedValue ?? new KeyNotFoundException();
-            }
 
             // If not in cache, query database
             var config = _db.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
@@ -76,8 +63,7 @@ namespace ResourceShared.Utils
                 result = new KeyNotFoundException();
             }
 
-            // Cache the result
-            _cache.Set(cacheKey, result, CacheExpiration);
+            
             
             return result;
         }
