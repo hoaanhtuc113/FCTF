@@ -15,5 +15,6 @@ namespace ResourceShared.DTOs.Deployments
         public bool Ready { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Age { get; set; } = string.Empty;
+        public bool IsPending { get; set; } = false;
     }
 }
