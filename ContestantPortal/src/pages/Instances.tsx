@@ -3,7 +3,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
-import { Terminal, Stop, OpenInNew } from '@mui/icons-material';
+import { Terminal } from '@mui/icons-material';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
