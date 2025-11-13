@@ -1,6 +1,7 @@
 import { Typography, CircularProgress, Box, Tabs, Tab } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { challengeService } from '../services/challengeService';
 import { useTheme } from '../context/ThemeContext';
 import { 
@@ -65,6 +66,7 @@ interface Challenge {
   captain_only_start?: boolean;
   captain_only_submit?: boolean;
   requirements?: ChallengeRequirements | null;
+  pod_status?: string | null;
 }
 
 interface PrerequisiteChallenge {
@@ -82,6 +84,7 @@ interface Hint {
 
 export function Challenges() {
   const { theme } = useTheme();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -190,9 +193,17 @@ export function Challenges() {
         const data = await challengeService.getCategories();
         setCategories(Array.isArray(data) ? data : []);
         
+        // Check URL params for category
+        const categoryParam = searchParams.get('category');
+        
         if (data.length > 0) {
-          setSelectedCategory(data[0].topic_name);
-          await fetchChallenges(data[0].topic_name);
+          // Use category from URL if available, otherwise use first category
+          const initialCategory = categoryParam && data.find(c => c.topic_name === categoryParam)
+            ? categoryParam
+            : data[0].topic_name;
+          
+          setSelectedCategory(initialCategory);
+          await fetchChallenges(initialCategory);
         }
         
         setLoading(false);
@@ -205,6 +216,21 @@ export function Challenges() {
 
     fetchDataAsync();
   }, []);
+  
+  // Separate effect to handle opening challenge from URL params (only on mount)
+  useEffect(() => {
+    const challengeParam = searchParams.get('challenge');
+    if (challengeParam && challenges.length > 0 && isContestActive && !selectedChallenge) {
+      const challengeId = parseInt(challengeParam, 10);
+      if (!isNaN(challengeId)) {
+        const challenge = challenges.find(c => c.id === challengeId);
+        if (challenge) {
+          // Call the click handler without updating URL to avoid loop
+          handleChallengeClickInternal(challenge);
+        }
+      }
+    }
+  }, [challenges, isContestActive]);
 
   const fetchChallenges = async (categoryName: string) => {
     try {
@@ -246,7 +272,8 @@ export function Challenges() {
     await fetchChallenges(categoryName);
   };
 
-  const handleChallengeClick = async (challenge: Challenge) => {
+  // Internal function to load challenge details without updating URL
+  const handleChallengeClickInternal = async (challenge: Challenge) => {
     if (!isContestActive) return;
     
     // Check if challenge has prerequisites
@@ -305,6 +332,18 @@ export function Challenges() {
     }
   };
 
+  // Public function called by UI - updates URL and calls internal function
+  const handleChallengeClick = async (challenge: Challenge) => {
+    // Update URL with category and challenge (only when user clicks, not from URL param)
+    setSearchParams({
+      category: selectedCategory,
+      challenge: challenge.id.toString()
+    }, { replace: true }); // Use replace to avoid adding to history stack
+    
+    // Call internal function to load challenge
+    await handleChallengeClickInternal(challenge);
+  };
+
   const getCategoryIcon = (name: string) => {
     const iconMap: { [key: string]: React.JSX.Element } = {
       'Web': <Security className="text-lg" />,
@@ -343,16 +382,17 @@ export function Challenges() {
 
   return (
     <div className="flex gap-4 min-h-[70vh]">
-      {/* Column 1: Categories - Show when no challenge selected OR when showCategories is true */}
-      <AnimatePresence>
-        {(!selectedChallenge || showCategories) && (
-          <motion.div
-            initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: 'auto' }}
-            exit={{ opacity: 0, width: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex-shrink-0"
-          >
+      {/* Column 1: Categories - Always show, control via opacity */}
+      <motion.div
+        initial={false}
+        animate={{ 
+          opacity: (!selectedChallenge || showCategories) ? 1 : 0,
+          width: (!selectedChallenge || showCategories) ? 'auto' : 0,
+          marginRight: (!selectedChallenge || showCategories) ? '1rem' : 0
+        }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="flex-shrink-0 overflow-hidden"
+      >
             <div className={`w-48 rounded-lg border p-3 ${
               theme === 'dark'
                 ? 'bg-gray-800 border-gray-700'
@@ -430,8 +470,6 @@ export function Challenges() {
               )}
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Column 2: Challenge List */}
       <div 
@@ -572,7 +610,11 @@ export function Challenges() {
             <ChallengeDetailPanel 
               challenge={selectedChallenge} 
               theme={theme}
-              onClose={() => setSelectedChallenge(null)}
+              onClose={() => {
+                setSelectedChallenge(null);
+                // Clear challenge param from URL, keep category (use replace to avoid history entry)
+                setSearchParams({ category: selectedCategory }, { replace: true });
+              }}
               onFlagSuccess={refreshChallengeData} // Pass refresh function
             />
           </motion.div>
@@ -879,6 +921,33 @@ function ChallengeListItem({
                     : 'bg-orange-100 text-orange-700 border border-orange-300'
                 }`}>
                   [~] deploying...
+                </span>
+              )}
+              
+              {/* Pod status badge */}
+              {challenge.pod_status && (
+                <span className={`px-2 py-0.5 rounded ${
+                  challenge.pod_status === 'Running'
+                    ? theme === 'dark'
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-green-100 text-green-700 border border-green-300'
+                    : challenge.pod_status === 'Pending'
+                    ? theme === 'dark'
+                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                    : challenge.pod_status === 'Failed'
+                    ? theme === 'dark'
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-red-100 text-red-700 border border-red-300'
+                    : challenge.pod_status === 'Succeeded'
+                    ? theme === 'dark'
+                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                      : 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : theme === 'dark'
+                    ? 'bg-gray-700 text-gray-400 border border-gray-600'
+                    : 'bg-gray-100 text-gray-600 border border-gray-300'
+                }`}>
+                  [⚡] {challenge.pod_status}
                 </span>
               )}
             </div>

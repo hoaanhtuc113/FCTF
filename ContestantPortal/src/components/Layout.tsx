@@ -26,6 +26,7 @@ import {
   EmojiEvents,
   SupportAgent,
   Notifications,
+  ViewList,
 } from '@mui/icons-material';
 import type { ReactNode } from 'react';
 
@@ -64,6 +65,7 @@ export function Layout({ children }: LayoutProps) {
   const tabs = [
     { label: 'Home', path: '/dashboard', icon: <Home fontSize="small" /> },
     { label: 'Challenges', path: '/challenges', icon: <Security fontSize="small" /> },
+    { label: 'Instances', path: '/instances', icon: <ViewList fontSize="small" /> },
     { label: 'Scoreboard', path: '/scoreboard', icon: <EmojiEvents fontSize="small" /> },
     { label: 'Tickets', path: '/tickets', icon: <SupportAgent fontSize="small" /> },
   ];

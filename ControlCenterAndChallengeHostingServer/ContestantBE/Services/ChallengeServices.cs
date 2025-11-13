@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using ResourceShared;
+using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.File;
@@ -15,7 +16,7 @@ using StackExchange.Redis;
 using System.Net;
 using System.Reflection.PortableExecutable;
 using System.Text.Json;
-
+using ResourceShared.DTOs.Deployments;
 namespace ContestantBE.Services
 {
     public interface IChallengeServices
@@ -27,6 +28,7 @@ namespace ContestantBE.Services
         Task<List<TopicDTO>> GetTopic(User user);
 
         Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id);
+        Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId);
     }
 
     public class ChallengeServices : IChallengeServices
@@ -155,7 +157,8 @@ namespace ContestantBE.Services
         {
             var challenges = await _dbContext.Challenges.Where(c => c.Category == category_name && c.State != Enums.ChallengeState.HIDDEN)
                 .ToListAsync();
-
+            var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
+            var teamPods = pods!.Where(p => p.TeamId == team_id).ToList();
             var topics_data = new List<ChallengeByCategoryDTO>();
             foreach (var challenge in challenges)
             {
@@ -175,6 +178,17 @@ namespace ContestantBE.Services
                     }
                 }
 
+                // Check pod status if challenge requires deployment
+                string? podStatus = null;
+                if (challenge.RequireDeploy == true)
+                {
+                    var pod = teamPods.FirstOrDefault(p => p.ChallengeId == challenge.Id);
+                    if (pod != null)
+                    {
+                        podStatus = pod.Status;
+                    }
+                }
+
                 topics_data.Add(new ChallengeByCategoryDTO
                 {
                     id = challenge.Id,
@@ -187,6 +201,7 @@ namespace ContestantBE.Services
                     type = challenge.Type,
                     requirements = requirementsObj,
                     solve_by_myteam = sovle_id != null ? true : false,
+                    pod_status = podStatus,
                 });
             }
 
@@ -375,6 +390,36 @@ namespace ContestantBE.Services
                     message = "Connection url failed"
                 };
             }
+        }
+
+        public async Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId)
+        {
+            var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
+            var teamPods = pods.Where(p => p.TeamId == teamId).ToList();
+            
+            var instances = new List<ChallengeInstanceDTO>();
+            
+            foreach (var pod in teamPods)
+            {
+                var challenge = await _dbContext.Challenges
+                    .FirstOrDefaultAsync(c => c.Id == pod.ChallengeId);
+                
+                if (challenge != null)
+                {
+                    instances.Add(new ChallengeInstanceDTO
+                    {
+                        challenge_id = pod.ChallengeId,
+                        challenge_name = challenge.Name,
+                        category = challenge.Category,
+                        status = pod.Status,
+                        pod_name = pod.Name,
+                        ready = pod.Ready,
+                        age = pod.Age
+                    });
+                }
+            }
+            
+            return instances;
         }
     }
 }
