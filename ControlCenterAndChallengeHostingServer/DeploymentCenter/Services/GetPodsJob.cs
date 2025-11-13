@@ -1,8 +1,11 @@
 ﻿using ResourceShared.Configs;
+using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
+using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
+using System.Text.Json;
 
 namespace DeploymentCenter.Services
 {
@@ -29,17 +32,28 @@ namespace DeploymentCenter.Services
 
             try
             {
-                var runningPods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new();
+                var cachedPods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new();
+                
                 //K8S-NOTE:comment this state for runing in local with out k8s cubeconfig 
                 var currentPods = await _k8SHealthService.GetPodsByLabel();
                 var liveNamespaces = currentPods.Select(p => p.Namespace).ToHashSet();
 
-                // Những pod trong redis nhưng namespace không còn trong K8s
+                // Tách pending và running pods từ cache
+                var pendingPods = cachedPods.Where(p => p.IsPending).ToList();
+                var runningPods = cachedPods.Where(p => !p.IsPending).ToList();
+                
+                // Những running pod trong cache nhưng không còn trong K8s → dead
                 var deadPods = runningPods
                     .Where(p => !liveNamespaces.Contains(p.Namespace))
                     .ToList();
-
-                await Console.Out.WriteLineAsync($"Found {deadPods?.Count ?? 0} dead pods & {currentPods?.Count ?? 0} alive pods");
+                
+                // Pending pods đã xuất hiện trong K8s → xóa khỏi pending (currentPods đã có rồi)
+                var stillPendingPods = pendingPods
+                    .Where(p => !liveNamespaces.Contains(p.Namespace))
+                    .ToList();
+                
+                var promotedCount = pendingPods.Count - stillPendingPods.Count;
+                await Console.Out.WriteLineAsync($"Found {deadPods?.Count ?? 0} dead pods, {currentPods?.Count ?? 0} alive pods, {promotedCount} pending→running");
 
                 // Xử lý các pod không còn chạy xóa cache liên quan
                 foreach (var deadPod in deadPods ?? Enumerable.Empty<PodInfo>())
@@ -48,11 +62,16 @@ namespace DeploymentCenter.Services
                     var startedKey = ChallengeHelper.GetArgoWName(deadPod.ChallengeId, deadPod.TeamId);
                     var runnedKey = ChallengeHelper.GetCacheKey(deadPod.ChallengeId, deadPod.TeamId);
 
+                    await Console.Out.WriteLineAsync($"Removed cache keys: {startedKey}, {JsonSerializer.Serialize(_redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey))}");
+                    await Console.Out.WriteLineAsync($"Removed cache keys: {runnedKey}, {JsonSerializer.Serialize(_redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(runnedKey))}");
                     await _redisHelper.RemoveCacheAsync(startedKey);
                     await _redisHelper.RemoveCacheAsync(runnedKey);
-                    await Console.Out.WriteLineAsync($"Removed cache keys: {startedKey}, {runnedKey}");
+
                 }
-                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, currentPods);
+                
+                // Merge: currentPods (running from K8s) + stillPendingPods (chưa deploy xong)
+                var finalPods = (currentPods ?? new List<PodInfo>()).Concat(stillPendingPods).ToList();
+                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, finalPods);
             }
             catch (Exception ex)
             {
