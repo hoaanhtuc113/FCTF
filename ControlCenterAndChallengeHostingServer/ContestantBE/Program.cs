@@ -101,7 +101,6 @@ namespace ContestantBE
             builder.Services.AddOutputCache();
 
 
-            await Console.Out.WriteLineAsync("Config server done, run application....");
             var app = builder.Build();
             app.UseRouting();                    
             app.UseCors("AllowAll");                   
@@ -113,6 +112,7 @@ namespace ContestantBE
             app.UseMiddleware<TokenAuthenticationMiddleware>();
             app.MapControllers();                 
 
+            await Console.Out.WriteLineAsync("Config server done, run application....");
             app.Run();
         }
     }
