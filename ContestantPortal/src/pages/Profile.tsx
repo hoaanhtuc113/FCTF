@@ -199,69 +199,49 @@ export function Profile() {
       return;
     }
 
+    // Check password criteria
+    const allCriteriaMet = Object.values(passwordCriteria).every(Boolean);
+    if (!allCriteriaMet) {
+      showAlert('Password does not meet all security requirements.', 'error');
+      return;
+    }
+
     setIsChangingPassword(true);
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.USER.PROFILE, {
-        method: 'PATCH',
+      const response = await fetchWithAuth(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+        method: 'POST',
         body: JSON.stringify({
-          password: newPassword,
-          confirm: oldPassword,
+          oldPassword,
+          newPassword,
+          confirmPassword,
         }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
-        showAlert('Password updated successfully!', 'success');
+      if (response.ok && data.message) {
+        showAlert('Password changed successfully!', 'success');
         setShowPasswordModal(false);
         setPasswordData({
           oldPassword: '',
           newPassword: '',
           confirmPassword: '',
         });
+        setPasswordCriteria({
+          minLength: false,
+          uppercase: false,
+          lowercase: false,
+          number: false,
+          specialChar: false,
+        });
       } else {
-        showAlert(data.errors || 'Unexpected error occurred.', 'error');
+        showAlert(data.message || 'Failed to change password.', 'error');
       }
     } catch (error: any) {
-      if (error.response) {
-        const { status, data } = error.response;
-        if (status === 400 && data?.errors) {
-          handlePasswordErrors(data.errors);
-        } else {
-          showAlert('An unexpected error occurred.', 'error');
-        }
-      } else {
-        showAlert('A network error occurred. Please check your connection.', 'error');
-      }
+      console.error('Change password error:', error);
+      showAlert('An error occurred while changing password. Please try again.', 'error');
     } finally {
       setIsChangingPassword(false);
-    }
-  };
-
-  const handlePasswordErrors = (errors: any) => {
-    const errorMessage = typeof errors === 'string' ? errors : errors.confirm || 'An error occurred';
-    
-    switch (errorMessage) {
-      case "Both 'password' and 'confirm' fields are required.":
-        showAlert('Please provide both current and new passwords.', 'error');
-        break;
-      case 'Password does not meet the required criteria.':
-        showAlert(
-          'Your new password doesn\'t match the required criteria. ' +
-          'It must contain at least one letter (uppercase or lowercase), ' +
-          'at least one digit, at least one special character (@$!%*#?&), ' +
-          'and be at least 8 characters long.',
-          'error'
-        );
-        break;
-      case 'Password and confirm must not be the same.':
-        showAlert('New password must be different from old password.', 'error');
-        break;
-      case 'Authentication failed.':
-        showAlert('Authentication failed. Please log in again.', 'error');
-        break;
-      default:
-        showAlert(errorMessage, 'error');
     }
   };
 
