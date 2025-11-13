@@ -309,8 +309,8 @@ export function Challenges() {
     
     try {
       // Set loading state and show skeleton
+      // Don't set selectedChallenge to null to prevent category panel from flickering
       setLoadingChallengeDetail(true);
-      setSelectedChallenge(null);
       
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
         method: 'GET'
