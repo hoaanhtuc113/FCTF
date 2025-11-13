@@ -8,7 +8,7 @@
         public int TeamId { get; set; }
         public int DeploymentPort { get; set; } 
         public string DeploymentDomainName { get; set; } = string.Empty;
-        public DateTime? EndTime { get; set; }
+        public long EndTime { get; set; }
         public string? Status { get; set; }
     }
 }

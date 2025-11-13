@@ -282,7 +282,8 @@ namespace ResourceShared.Services
                         Name = name,
                         Ready = ready,
                         Status = status,
-                        Age = age
+                        Age = age,
+                        IsPending = false  // Pods từ K8s là running, không phải pending
                     });
 
                     if (status == DeploymentStatus.RUNING && ready)
@@ -366,21 +367,28 @@ namespace ResourceShared.Services
                 var challengeDomain = $"Host: {SharedConfig.TCP_DOMAIN} {port}";
 
                 var timeLimit = challenge.TimeLimit ?? -1;
-                var timeFinished = DateTime.Now.AddMinutes(timeLimit);
-                var cacheExpired = timeLimit > 0 ? TimeSpan.FromMinutes(timeLimit) : (TimeSpan?)null;
+                //var timeFinished = DateTimeOffset.UtcNow.AddMinutes(timeLimit).UtcDateTime;
+                //var cacheExpired = timeLimit > 0 ? TimeSpan.FromMinutes(timeLimit) : (TimeSpan?)null;
+                var nowUtc = DateTimeOffset.UtcNow;
+                var timeFinished = nowUtc.AddMinutes(timeLimit);
+                var cacheExpired = timeLimit > 0
+                    ? TimeSpan.FromMinutes(timeLimit)
+                    : (TimeSpan?)null;
 
                 // Set đúng cho các lần loop sau, không đổi time finished nếu đã có và còn hiệu lực
-                if (deploymentCache.EndTime is DateTime end && end > DateTime.Now)
+                if (deploymentCache.EndTime > nowUtc.ToUnixTimeMilliseconds())
                 {
-                    timeFinished = end;
-                    cacheExpired = end - DateTime.Now;
+                    //timeFinished = end;
+                    //cacheExpired = end - DateTime.Now;
+                    timeFinished = DateTimeOffset.FromUnixTimeMilliseconds(deploymentCache.EndTime);
+                    cacheExpired = timeFinished - nowUtc;
                 }
 
                 // Cập nhật DeploymentInfo
                 deploymentCache.Status = DeploymentStatus.RUNING;
                 deploymentCache.DeploymentDomainName = challengeDomain;
                 deploymentCache.DeploymentPort = port.Value;
-                deploymentCache.EndTime = timeFinished;
+                deploymentCache.EndTime = timeFinished.ToUnixTimeMilliseconds();
 
                 var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
                 await _redisHelper.SetCacheAsync(startedKey, deploymentCache, cacheExpired);
@@ -392,7 +400,7 @@ namespace ResourceShared.Services
                 {
                     chalDeploy.status = DeploymentStatus.RUNING;
                     chalDeploy.challenge_url = challengeDomain;
-                    chalDeploy.time_finished = new DateTimeOffset(timeFinished).ToUnixTimeSeconds();
+                    chalDeploy.time_finished =  timeFinished.ToUnixTimeMilliseconds();
                     await _redisHelper.SetCacheAsync(chalDeployKey, chalDeploy, cacheExpired);
                 }
 
@@ -582,8 +590,8 @@ namespace ResourceShared.Services
             if (reason == DeploymentReason.CONTAINER_CREATING && ageMinutes > 5)
                 return true;
 
-            // Running nhưng không ready > 2 phút
-            if (phase == DeploymentStatus.RUNING && !(cs?.Ready ?? true) && ageMinutes > 2)
+            // Running nhưng không ready > 2 phút (nếu không có container status thì coi như not ready)
+            if (phase == DeploymentStatus.RUNING && !(cs?.Ready ?? false) && ageMinutes > 2)
                 return true;
 
             return false;

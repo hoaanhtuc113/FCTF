@@ -509,28 +509,32 @@ namespace ContestantBE.Controllers
             await Console.Out.WriteLineAsync($"[LIMIT CHECK] limit_challenges config: {limit_challenges}, TeamId: {user.TeamId.Value}");
             
             var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
-            await Console.Out.WriteLineAsync($"[LIMIT CHECK] Total pods in cache: {pods?.Count ?? 0}");
             
-            var teamPods = pods!.Where(p => p.TeamId == user.TeamId.Value).Count();
-            await Console.Out.WriteLineAsync($"[LIMIT CHECK] Team {user.TeamId.Value} has {teamPods} running challenges");
+            var totalTeamPods = pods.Count(p => p.TeamId == user.TeamId.Value);
+            
+            await Console.Out.WriteLineAsync($"[LIMIT CHECK] Team {user.TeamId.Value} has {totalTeamPods} challenges (running + pending)");
                 
-            if (teamPods >= limit_challenges)
+            if (totalTeamPods >= limit_challenges)
             {
                 return BadRequest(new 
                 { 
                     error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
                 });
             }
-            pods!.Add(new PodInfo
+            
+            // Thêm vào pods list với IsPending=true để tránh race condition với GetPodsJob
+            var pendingPod = new PodInfo
             {
-                Namespace = "N/A",
+                Namespace = ChallengeHelper.GetDeploymentAppName(user.TeamId.Value, challenge.Id, challenge.Name),
                 TeamId = user.TeamId.Value,
                 ChallengeId = challenge.Id,
                 Ready = false,
                 Status = "Pending",
-                Age = "N/A",
-                Name = "N/A",
-            });
+                Age = "0s",
+                Name = $"Pending-{user.TeamId.Value}-{challenge.Id}",
+                IsPending = true
+            };
+            pods.Add(pendingPod);
             await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
 
 
