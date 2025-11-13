@@ -4,6 +4,7 @@ export const API_ENDPOINTS = {
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
     ME: '/auth/me',
+    CHANGE_PASSWORD: '/auth/change-password',
   },
   CONFIG: {
     DATE_CONFIG: '/Config/get_date_config',
