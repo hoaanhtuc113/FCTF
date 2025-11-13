@@ -59,5 +59,43 @@ namespace ContestantBE.Services
 
             return BaseResponseDTO<AuthResponseDTO>.Ok(authResponse,"Login successful");
         }
+
+        public async Task<BaseResponseDTO<string>> ChangePassword(int userId, ChangePasswordDTO changePasswordDto)
+        {
+            // Validate input
+            if (string.IsNullOrEmpty(changePasswordDto.oldPassword) || 
+                string.IsNullOrEmpty(changePasswordDto.newPassword) || 
+                string.IsNullOrEmpty(changePasswordDto.confirmPassword))
+            {
+                return BaseResponseDTO<string>.Fail("All password fields are required");
+            }
+
+            // Check if new password matches confirm password
+            if (changePasswordDto.newPassword != changePasswordDto.confirmPassword)
+            {
+                return BaseResponseDTO<string>.Fail("New password and confirm password do not match");
+            }
+
+            // Get user from database
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            
+            if (user == null)
+            {
+                return BaseResponseDTO<string>.Fail("User not found");
+            }
+
+            // Verify old password
+            if (!SHA256Helper.VerifyPassword(changePasswordDto.oldPassword, user.Password))
+            {
+                return BaseResponseDTO<string>.Fail("Old password is incorrect");
+            }
+
+            // Hash new password and update
+            user.Password = SHA256Helper.HashPasswordPythonStyle(changePasswordDto.newPassword);
+            
+            await _context.SaveChangesAsync();
+
+            return BaseResponseDTO<string>.Ok("Password changed successfully", "Password changed successfully");
+        }
     }
 }
