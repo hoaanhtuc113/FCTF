@@ -1,4 +1,5 @@
 using ContestantBE.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -12,6 +13,7 @@ using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Collections.Concurrent;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 
 
@@ -46,6 +48,37 @@ namespace ContestantBE.Controllers
                 user = result.Data
             });
 
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDTO changePasswordDto)
+        {
+            // Get userId from JWT token claims
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid user token"
+                });
+            }
+
+            var result = await _authService.ChangePassword(userId, changePasswordDto);
+
+            if (!result.Success)
+            {
+                return BadRequest(new
+                {
+                    message = result.Message
+                });
+            }
+
+            return Ok(new
+            {
+                message = result.Message
+            });
         }
 
     }
