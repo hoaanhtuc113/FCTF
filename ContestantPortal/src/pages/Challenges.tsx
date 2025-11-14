@@ -1628,6 +1628,11 @@ function ChallengeDetailPanel({
           localStorage.removeItem(deploymentKey);
           localStorage.removeItem(healthCheckKey);
           
+          // Refresh challenge data to update pod_status and call category refresh
+          if (onFlagSuccess) {
+            await onFlagSuccess();
+          }
+          
           // Health check success - show notification
           const notificationKey = `deployment_notification_${challenge.id}`;
           localStorage.setItem(notificationKey, JSON.stringify({
