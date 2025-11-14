@@ -376,11 +376,11 @@ namespace ResourceShared.Services
                     : (TimeSpan?)null;
 
                 // Set đúng cho các lần loop sau, không đổi time finished nếu đã có và còn hiệu lực
-                if (deploymentCache.EndTime > nowUtc.ToUnixTimeMilliseconds())
+                if (deploymentCache.EndTime > nowUtc.ToUnixTimeSeconds())
                 {
                     //timeFinished = end;
                     //cacheExpired = end - DateTime.Now;
-                    timeFinished = DateTimeOffset.FromUnixTimeMilliseconds(deploymentCache.EndTime);
+                    timeFinished = DateTimeOffset.FromUnixTimeSeconds(deploymentCache.EndTime);
                     cacheExpired = timeFinished - nowUtc;
                 }
 
@@ -388,7 +388,7 @@ namespace ResourceShared.Services
                 deploymentCache.Status = DeploymentStatus.RUNING;
                 deploymentCache.DeploymentDomainName = challengeDomain;
                 deploymentCache.DeploymentPort = port.Value;
-                deploymentCache.EndTime = timeFinished.ToUnixTimeMilliseconds();
+                deploymentCache.EndTime = timeFinished.ToUnixTimeSeconds();
 
                 var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
                 await _redisHelper.SetCacheAsync(startedKey, deploymentCache, cacheExpired);
@@ -400,7 +400,7 @@ namespace ResourceShared.Services
                 {
                     chalDeploy.status = DeploymentStatus.RUNING;
                     chalDeploy.challenge_url = challengeDomain;
-                    chalDeploy.time_finished =  timeFinished.ToUnixTimeMilliseconds();
+                    chalDeploy.time_finished =  timeFinished.ToUnixTimeSeconds();
                     await _redisHelper.SetCacheAsync(chalDeployKey, chalDeploy, cacheExpired);
                 }
 

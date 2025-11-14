@@ -36,7 +36,7 @@ namespace DeploymentCenter
             builder.Services.AddControllers();
             builder.Services.AddResourceShared();
             builder.Services.AddScoped<IDeployService, DeployService>();
-            builder.Services.AddSingleton<IGetPodsJob, GetPodsJob>();
+            builder.Services.AddScoped<IGetPodsJob, GetPodsJob>();
             builder.Services.AddHostedService<PodsWorkerService>();
             // DI services from ResourceShared
             

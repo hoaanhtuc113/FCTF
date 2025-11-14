@@ -249,9 +249,10 @@ def get_all_instance():
 
             # Chuyển time_finished sang chuỗi thời gian ISO
             raw_timestamp = value.get("time_finished")
+            # Backend now returns seconds directly
             finished_time = (
                 datetime.fromtimestamp(raw_timestamp).isoformat()
-                if raw_timestamp is not None
+                if raw_timestamp is not None and raw_timestamp > 0
                 else None
             )
             
