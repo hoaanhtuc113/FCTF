@@ -998,6 +998,7 @@ function ChallengeDetailPanel({
   const cooldownTimerRef = useRef<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const healthCheckRunningRef = useRef<boolean>(false);
+  const stopChallengeRunningRef = useRef<boolean>(false);
 
   // Filter PDF files
   const pdfFiles = challenge.files?.filter(file => file.toLowerCase().includes('.pdf')) || [];
@@ -1167,6 +1168,9 @@ function ChallengeDetailPanel({
       });
       const data = await response.json();
       if (data.data) {
+        // Log pod_status for debugging
+        console.log('[fetchChallengeStatus] Challenge:', challenge.name, 'pod_status:', data.data.pod_status);
+        
         // Set challenge started status from API
         setIsChallengeStarted(data.is_started || false);
         
@@ -1178,6 +1182,25 @@ function ChallengeDetailPanel({
           setTimeRemaining(data.time_remaining); // Convert minutes to seconds
         } else {
           setTimeRemaining(null); // Show --:-- when no URL
+        }
+        
+        // If pod_status is not Running and challenge was started, reset state
+        if (data.data.pod_status && data.data.pod_status !== 'Running' && isChallengeStarted) {
+          console.log('[fetchChallengeStatus] Pod is not running anymore, resetting challenge state');
+          setIsChallengeStarted(false);
+          setUrl(null);
+          setTimeRemaining(null);
+          setIsPodHealthy(false);
+          setIsHealthChecking(false);
+          setIsDeploymentInProgress(false);
+          
+          // Clear timer
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          
+          return; // Exit early since pod is not running
         }
         
         // If challenge is started and has URL
@@ -1741,7 +1764,42 @@ function ChallengeDetailPanel({
   };
 
   const handleStopChallenge = async () => {
+    // Prevent duplicate stop requests
+    if (stopChallengeRunningRef.current) {
+      console.log('[Stop Challenge] Already stopping, ignoring duplicate request');
+      return;
+    }
+
+    // Show confirmation dialog
+    const result = await Swal.fire({
+      html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-yellow-400 mb-2">[?] Stop Challenge</div>
+          <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+          <div class="text-gray-400">> Confirm stop instance?</div>
+        </div>
+      `,
+      icon: 'question',
+      iconColor: '#fbbf24',
+      showCancelButton: true,
+      confirmButtonText: 'Stop',
+      cancelButtonText: 'Cancel',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#fbbf24' : '#000000',
+      customClass: {
+        popup: 'rounded-lg border border-yellow-500/30',
+        confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
+        cancelButton: 'bg-gray-600 hover:bg-gray-700 text-white font-mono px-4 py-2 rounded',
+      }
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    stopChallengeRunningRef.current = true;
     setIsStopping(true);
+    
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
         method: 'POST',
@@ -1763,21 +1821,45 @@ function ChallengeDetailPanel({
           timerRef.current = null;
         }
         
+        // Refresh challenge data to update pod_status and call category refresh
+        if (onFlagSuccess) {
+          await onFlagSuccess();
+        }
+        
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-orange-400 mb-2">[-] Challenge stopped</div>
-              <div class="text-gray-400">> Connection closed</div>
+              <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
+              <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+              <div class="text-gray-400">> Instance terminated successfully</div>
             </div>
           `,
-          icon: 'info',
-          iconColor: '#fb923c',
+          icon: 'success',
+          iconColor: '#22c55e',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#fb923c' : '#000000',
-          timer: 1500,
+          color: theme === 'dark' ? '#22c55e' : '#000000',
+          timer: 2000,
           showConfirmButton: false,
           customClass: {
-            popup: 'rounded-lg border border-orange-500/30',
+            popup: 'rounded-lg border border-green-500/30',
+          },
+        });
+      } else {
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-red-400 mb-2">[!] Stop Failed</div>
+              <div class="text-gray-400">> ${data.message || 'Unknown error'}</div>
+            </div>
+          `,
+          icon: 'error',
+          iconColor: '#ef4444',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
           },
         });
       }
@@ -1786,13 +1868,16 @@ function ChallengeDetailPanel({
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
-            <div class="text-red-400">[!] Stop failed</div>
+            <div class="text-red-400 mb-2">[!] Connection Error</div>
+            <div class="text-gray-400">> Failed to stop challenge</div>
+            <div class="text-gray-400">> Please try again</div>
           </div>
         `,
         icon: 'error',
-        iconColor: '#ff006e',
+        iconColor: '#ef4444',
         confirmButtonText: 'OK',
         background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
         customClass: {
           popup: 'rounded-lg border border-red-500/30',
           confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
@@ -1800,6 +1885,7 @@ function ChallengeDetailPanel({
       });
     } finally {
       setIsStopping(false);
+      stopChallengeRunningRef.current = false;
     }
   };
 
