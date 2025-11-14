@@ -91,12 +91,16 @@ namespace ResourceShared
 
         public static string GetDeploymentStatus(string status)
         {
-            return status.ToLower() switch
-            {
-                DeploymentStatus.FAILED => DeploymentStatus.DEPLOY_FAILED,
-                DeploymentStatus.SUCCEEDED => DeploymentStatus.DEPLOY_SUCCEEDED,
-                _ => DeploymentStatus.PENDING_DEPLOY,
-            };
+            if (string.IsNullOrWhiteSpace(status))
+                return DeploymentStatus.PENDING_DEPLOY;
+
+            if (status.Equals(DeploymentStatus.FAILED, StringComparison.OrdinalIgnoreCase))
+                return DeploymentStatus.DEPLOY_FAILED;
+
+            if (status.Equals(DeploymentStatus.SUCCEEDED, StringComparison.OrdinalIgnoreCase))
+                return DeploymentStatus.DEPLOY_SUCCEEDED;
+
+            return DeploymentStatus.PENDING_DEPLOY;
         }
     }
 }
