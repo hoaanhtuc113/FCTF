@@ -113,7 +113,7 @@ namespace ContestantBE.Services
                 if (cached_value.challenge_id == challenge.Id)
                 {
                     var time_finished = cached_value.time_finished;
-                    var time_remaining = time_finished - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    var time_remaining = time_finished - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     if (time_remaining < 0) time_remaining = 0;
 
 
@@ -399,7 +399,7 @@ namespace ContestantBE.Services
             
             var instances = new List<ChallengeInstanceDTO>();
             
-            foreach (var pod in allPods)
+            foreach (var pod in teamPods)
             {
                 var challenge = await _dbContext.Challenges
                     .FirstOrDefaultAsync(c => c.Id == pod.ChallengeId);

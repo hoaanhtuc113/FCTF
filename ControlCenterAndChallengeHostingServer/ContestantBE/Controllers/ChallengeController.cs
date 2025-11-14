@@ -521,7 +521,12 @@ namespace ContestantBE.Controllers
                     error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
                 });
             }
-            
+
+            if (pods.Any(p => p.TeamId == user.TeamId.Value && p.ChallengeId == challenge.Id))
+            {
+                return BadRequest(new { error = "You have already started this challenge" });
+            }
+
             // Thêm vào pods list với IsPending=true để tránh race condition với GetPodsJob
             var pendingPod = new PodInfo
             {

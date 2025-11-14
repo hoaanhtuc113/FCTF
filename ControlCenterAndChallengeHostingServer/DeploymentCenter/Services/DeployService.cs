@@ -91,12 +91,12 @@ namespace DeploymentCenter.Services
                        int timeLeft = 0;
                         if (deploymentCache.EndTime > 0)
                         {
-                            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-                            long remainMs = deploymentCache.EndTime - now;
-                            if (remainMs < 0) remainMs = 0;
+                            long remainSec = deploymentCache.EndTime - now;
+                            if (remainSec < 0) remainSec = 0;
 
-                            timeLeft = (int)(remainMs / 1000 / 60);
+                            timeLeft = (int)(remainSec / 60);
                         }
                         return new ChallengeDeployResponeDTO
                        {
@@ -256,36 +256,28 @@ namespace DeploymentCenter.Services
                         message = "No deployment cache info found for the specified challenge and team."
                     };
                 }
+                // ưu tiên xóa cache trước rồi mới xóa k8s tránh trường hợp xóa k8s lỗi mà cache vẫn còn
+                await _redisHelper.RemoveCacheAsync(deployInfo);
+                await _redisHelper.RemoveCacheAsync(argoWNameKey);
+                if (pods != null)
+                {
+                    var podToRemove = pods.FirstOrDefault(p => p.TeamId == stopReq.teamId && p.ChallengeId == stopReq.challengeId);
+                    if (podToRemove != null)
+                    {
+                        pods.Remove(podToRemove);
+                        await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
+                    }
+                }
+
                 //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
                 var isDelete = await _k8SHealthService.DeleteNamespace(checkCache.NameSpace);
-                //var isDelete = true;
-                if (isDelete)
-                {
-                    await _redisHelper.RemoveCacheAsync(deployInfo);
-                    await _redisHelper.RemoveCacheAsync(argoWNameKey);
-                    if (pods != null)
-                    {
-                        var podToRemove = pods.FirstOrDefault(p => p.TeamId == stopReq.teamId && p.ChallengeId == stopReq.challengeId);
-                        if (podToRemove != null)
-                        {
-                            pods.Remove(podToRemove);
-                            await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
-                        }
-                    }
-                    return new ChallengeDeployResponeDTO
-                    {
-                        status = (int)HttpStatusCode.OK,
-                        success = true,
-                        message = "Challenge stopped and resources cleaned up successfully."
-                    };
-                }
-              
                 return new ChallengeDeployResponeDTO
                 {
-                    status = (int)HttpStatusCode.InternalServerError,
-                    success = false,
-                    message = "Failed to delete challenge resources."
+                    status = (int)HttpStatusCode.OK,
+                    success = true,
+                    message = "Challenge stopped and resources cleaned up successfully."
                 };
+
                 
             }
             catch (Exception ex)
