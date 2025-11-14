@@ -3,7 +3,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
-import { Terminal } from '@mui/icons-material';
+import { Terminal, Refresh } from '@mui/icons-material';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,11 +22,16 @@ export function Instances() {
   const navigate = useNavigate();
   const [instances, setInstances] = useState<ChallengeInstance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [stoppingIds, setStoppingIds] = useState<Set<number>>(new Set());
 
-  const fetchInstances = async () => {
+  const fetchInstances = async (showRefreshing = false) => {
     try {
-      setLoading(true);
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.INSTANCES, {
         method: 'GET'
       });
@@ -54,7 +59,12 @@ export function Instances() {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    await fetchInstances(true);
   };
 
   useEffect(() => {
@@ -194,11 +204,29 @@ export function Instances() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className={`text-2xl font-mono font-bold mb-2 ${
-          theme === 'dark' ? 'text-white' : 'text-gray-900'
-        }`}>
-          [#] Running Instances
-        </h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className={`text-2xl font-mono font-bold ${
+            theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            [#] Running Instances
+          </h1>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className={`flex items-center gap-2 px-4 py-2 rounded font-mono text-sm border transition-colors ${
+              refreshing
+                ? theme === 'dark'
+                  ? 'bg-gray-700 border-gray-600 text-gray-500 cursor-not-allowed'
+                  : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
+                : theme === 'dark'
+                ? 'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30'
+                : 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200'
+            }`}
+          >
+            <Refresh className={`text-lg ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? '[REFRESHING...]' : '[REFRESH]'}
+          </button>
+        </div>
         <p className={`font-mono text-sm ${
           theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
         }`}>
