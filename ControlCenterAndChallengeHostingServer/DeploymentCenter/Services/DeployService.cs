@@ -315,28 +315,30 @@ namespace DeploymentCenter.Services
                 // Get all pods to clear their cache entries
                 var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
                 
-                if (pods != null && pods.Any())
-                {
-                    foreach (var pod in pods)
-                    {
-                        try
-                        {
-                            var deployInfoKey = ChallengeHelper.GetCacheKey(pod.ChallengeId, pod.TeamId);
-                            var argoWNameKey = ChallengeHelper.GetArgoWName(pod.ChallengeId, pod.TeamId);
+                //if (pods != null && pods.Any())
+                //{
+                //    foreach (var pod in pods)
+                //    {
+                //        try
+                //        {
+                //            var deployInfoKey = ChallengeHelper.GetCacheKey(pod.ChallengeId, pod.TeamId);
+                //            var argoWNameKey = ChallengeHelper.GetArgoWName(pod.ChallengeId, pod.TeamId);
                             
-                            await _redisHelper.RemoveCacheAsync(deployInfoKey);
-                            await _redisHelper.RemoveCacheAsync(argoWNameKey);
-                        }
-                        catch (Exception ex)
-                        {
-                            await Console.Error.WriteLineAsync($"Error clearing cache for Challenge {pod.ChallengeId}, Team {pod.TeamId}: {ex.Message}");
-                        }
-                    }
-                }
+                //            await _redisHelper.RemoveCacheAsync(deployInfoKey);
+                //            await _redisHelper.RemoveCacheAsync(argoWNameKey);
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            await Console.Error.WriteLineAsync($"Error clearing cache for Challenge {pod.ChallengeId}, Team {pod.TeamId}: {ex.Message}");
+                //        }
+                //    }
+                //}
                 
                 // Clear the entire pods list
                 await _redisHelper.RemoveCacheAsync(RedisConfigs.PodsInfoKey);
-                
+                await _redisHelper.RemoveCacheByPattern("challenge_url_*");
+                await _redisHelper.RemoveCacheByPattern("start-challenge-*");
+
                 await Console.Out.WriteLineAsync("Redis cache cleared.");
 
                 var message = $"Stopped {successCount} challenge namespace(s) successfully.";

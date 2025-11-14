@@ -141,6 +141,31 @@ namespace SocialSync.Shared.Utils
                 }
             }
 
+            public async Task<bool> RemoveCacheByPattern(string pattern)
+            {
+                try
+                {
+                    var keys = GetKeysByPattern(pattern);
+
+                    if (!keys.Any())
+                    {
+                        return true;
+                    }
+
+                    foreach (var batch in keys.Chunk(100))
+                    {
+                        var tasks = batch.Select(k => _cache.KeyDeleteAsync(k));
+                        await Task.WhenAll(tasks);
+                    }
+
+                    return true;
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+            }
+
             public async Task<bool> KeyExistsAsync(string key)
             {
                 try
