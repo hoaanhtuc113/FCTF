@@ -27,6 +27,7 @@ import {
   ChallengeDetailSkeleton 
 } from '../components/Skeleton';
 import { authService } from '../services/authService';
+import { challengeTimerService } from '../services/challengeTimerService';
 
 // Setup PDF worker
 // Setup PDF worker - Use jsDelivr CDN (supports CORS)
@@ -1126,9 +1127,30 @@ function ChallengeDetailPanel({
           if (prev && prev <= 1) {
             if (timerRef.current) clearInterval(timerRef.current);
             
-            // Auto stop challenge when time runs out
+            // Auto stop challenge when time runs out - no confirmation needed
             if (challenge.require_deploy && url) {
-              handleStopChallenge();
+              // Show toast notification
+              Swal.fire({
+                html: `
+                  <div class="font-mono text-left text-sm">
+                    <div class="text-orange-400 mb-2">[⏱] Time's Up!</div>
+                    <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
+                    <div class="text-gray-400">> Stopping instance automatically...</div>
+                  </div>
+                `,
+                icon: 'info',
+                iconColor: '#fb923c',
+                background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                color: theme === 'dark' ? '#fb923c' : '#000000',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+              });
+
+              // Auto stop without confirmation
+              autoStopChallengeOnTimeout();
             }
             
             return 0;
@@ -1146,6 +1168,41 @@ function ChallengeDetailPanel({
       }
     };
   }, [isChallengeStarted, timeRemaining]);
+
+  // Listen for global auto-stop events from other pages
+  useEffect(() => {
+    const handleAutoStop = (event: any) => {
+      const { challengeId } = event.detail;
+      
+      // If this is the challenge that was auto-stopped, update UI
+      if (challengeId === challenge.id) {
+        console.log('[Global Auto-Stop Event] Updating UI for challenge:', challenge.name);
+        setIsChallengeStarted(false);
+        setUrl(null);
+        setTimeRemaining(null);
+        setIsPodHealthy(false);
+        setIsHealthChecking(false);
+        setIsDeploymentInProgress(false);
+        
+        // Clear timer
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        
+        // Refresh challenge data
+        if (onFlagSuccess) {
+          onFlagSuccess();
+        }
+      }
+    };
+
+    window.addEventListener('challengeAutoStopped', handleAutoStop);
+    
+    return () => {
+      window.removeEventListener('challengeAutoStopped', handleAutoStop);
+    };
+  }, [challenge.id, challenge.name, onFlagSuccess]);
 
   const fetchHints = async () => {
     try {
@@ -1179,7 +1236,15 @@ function ChallengeDetailPanel({
         
         // Only set time remaining if we have URL (challenge is deployed)
         if (data.challenge_url && data.time_remaining) {
-          setTimeRemaining(data.time_remaining); // Convert minutes to seconds
+          setTimeRemaining(data.time_remaining);
+          
+          // Start global timer for cross-page auto-stop (if not already running)
+          challengeTimerService.startTimer(
+            challenge.id,
+            challenge.name,
+            data.time_remaining,
+            challenge.require_deploy || false
+          );
         } else {
           setTimeRemaining(null); // Show --:-- when no URL
         }
@@ -1199,6 +1264,9 @@ function ChallengeDetailPanel({
             clearInterval(timerRef.current);
             timerRef.current = null;
           }
+          
+          // Stop global timer
+          challengeTimerService.stopTimer(challenge.id);
           
           return; // Exit early since pod is not running
         }
@@ -1451,23 +1519,23 @@ function ChallengeDetailPanel({
         // Start health check in background
         startHealthCheckLoop();
         
-        // Show success message
+        // Show success message with URL - this is the ONLY popup users see
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-orange-400 mb-2">[+] Challenge URL ready</div>
-              <div class="text-gray-400">> URL: ${data.challenge_url}</div>
+              <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
+              <div class="text-gray-400 mb-2">> URL: ${data.challenge_url}</div>
               <div class="text-yellow-400 mt-2">> Health check in progress...</div>
             </div>
           `,
           icon: 'success',
-          iconColor: '#fb923c',
+          iconColor: '#22c55e',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#fb923c' : '#000000',
-          timer: 3000,
+          color: theme === 'dark' ? '#22c55e' : '#000000',
+          timer: 5000,
           showConfirmButton: false,
           customClass: {
-            popup: 'rounded-lg border border-orange-500/30',
+            popup: 'rounded-lg border border-green-500/30',
           },
         });
       }
@@ -1614,7 +1682,16 @@ function ChallengeDetailPanel({
           
           // Set time remaining when healthy (convert minutes to seconds)
           if (data.time_remaining || data.time_limit) {
-            setTimeRemaining(data.time_remaining || data.time_limit * 60);
+            const timeInSeconds = data.time_remaining || data.time_limit * 60;
+            setTimeRemaining(timeInSeconds);
+            
+            // Start global timer for cross-page auto-stop
+            challengeTimerService.startTimer(
+              challenge.id,
+              challenge.name,
+              timeInSeconds,
+              challenge.require_deploy || false
+            );
           }
           
           setIsHealthChecking(false);
@@ -1633,7 +1710,8 @@ function ChallengeDetailPanel({
             await onFlagSuccess();
           }
           
-          // Health check success - show notification
+          // Note: No popup here - the "Challenge URL ready" popup from handleStartChallenge is already showing
+          // Only store notification data for potential future use
           const notificationKey = `deployment_notification_${challenge.id}`;
           localStorage.setItem(notificationKey, JSON.stringify({
             challengeId: challenge.id,
@@ -1643,26 +1721,6 @@ function ChallengeDetailPanel({
             message: 'Challenge is ready!',
             timestamp: Date.now()
           }));
-          
-          // Show success notification
-          Swal.fire({
-            html: `
-              <div class="font-mono text-left text-sm">
-                <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
-                <div class="text-gray-400">> URL: ${data.challenge_url}</div>
-                <div class="text-orange-400 mt-2">> Pod is healthy</div>
-              </div>
-            `,
-            icon: 'success',
-            iconColor: '#22c55e',
-            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-            color: theme === 'dark' ? '#22c55e' : '#000000',
-            timer: 3000,
-            showConfirmButton: false,
-            customClass: {
-              popup: 'rounded-lg border border-green-500/30',
-            },
-          });
           
           return true; // Stop loop - SUCCESS
         }
@@ -1768,6 +1826,73 @@ function ChallengeDetailPanel({
     await checkStatus();
   };
 
+  // Auto stop challenge on timeout without confirmation
+  const autoStopChallengeOnTimeout = async () => {
+    if (stopChallengeRunningRef.current) {
+      console.log('[Auto Stop] Already stopping, ignoring duplicate request');
+      return;
+    }
+
+    stopChallengeRunningRef.current = true;
+    setIsStopping(true);
+
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
+        method: 'POST',
+        body: JSON.stringify({
+          challengeId: challenge.id,
+        })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setIsChallengeStarted(false);
+        setUrl(null);
+        setTimeRemaining(null);
+        setIsPodHealthy(false);
+        
+        // Clear timer
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        
+        // Stop global timer
+        challengeTimerService.stopTimer(challenge.id);
+        
+        // Refresh challenge data to update pod_status and call category refresh
+        if (onFlagSuccess) {
+          await onFlagSuccess();
+        }
+        
+        // Show success toast
+        Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-green-400 mb-2">[✓] Auto Stopped</div>
+              <div class="text-gray-400">> Challenge: ${challenge.name}</div>
+              <div class="text-gray-400">> Time limit reached</div>
+            </div>
+          `,
+          icon: 'success',
+          iconColor: '#22c55e',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#22c55e' : '#000000',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+        });
+      }
+    } catch (error) {
+      console.error('Auto stop challenge error:', error);
+    } finally {
+      setIsStopping(false);
+      stopChallengeRunningRef.current = false;
+    }
+  };
+
   const handleStopChallenge = async () => {
     // Prevent duplicate stop requests
     if (stopChallengeRunningRef.current) {
@@ -1825,6 +1950,9 @@ function ChallengeDetailPanel({
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
+        
+        // Stop global timer
+        challengeTimerService.stopTimer(challenge.id);
         
         // Refresh challenge data to update pod_status and call category refresh
         if (onFlagSuccess) {
