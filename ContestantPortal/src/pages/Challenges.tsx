@@ -2096,12 +2096,30 @@ function ChallengeDetailPanel({
           await onFlagSuccess();
         }
         
-        // If challenge requires deploy and was started, stop it automatically
+        // If challenge requires deploy and was started, stop it automatically without confirmation
         if (challenge.require_deploy && isChallengeStarted && url) {
           try {
-            await handleStopChallenge();
+            // Stop challenge without showing confirmation dialog
+            
+              // Update UI state
+              setIsChallengeStarted(false);
+              setUrl(null);
+              setTimeRemaining(null);
+              setIsPodHealthy(false);
+              
+              // Clear local timer
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+              }
+              
+              // Cancel global auto-stop timer
+              challengeTimerService.stopTimer(challenge.id);
+              
+              console.log('[Auto Stop After Solve] Challenge stopped successfully');
+            
           } catch (error) {
-            console.error('Error stopping challenge after solve:', error);
+            console.error('[Auto Stop After Solve] Error stopping challenge:', error);
           }
         }
       } else if (data?.data?.status === 'incorrect') {
