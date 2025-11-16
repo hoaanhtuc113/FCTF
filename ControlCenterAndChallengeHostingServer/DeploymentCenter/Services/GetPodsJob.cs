@@ -36,42 +36,50 @@ namespace DeploymentCenter.Services
                 
                 //K8S-NOTE:comment this state for runing in local with out k8s cubeconfig 
                 var currentPods = await _k8SHealthService.GetPodsByLabel();
+                //var liveNamespaces = currentPods.Select(p => p.Namespace).ToHashSet();
+
                 var liveNamespaces = currentPods.Select(p => p.Namespace).ToHashSet();
-
-                // Tách pending và running pods từ cache
-                var pendingPods = cachedPods.Where(p => p.IsPending).ToList();
-                var runningPods = cachedPods.Where(p => !p.IsPending).ToList();
-                
-                // Những running pod trong cache nhưng không còn trong K8s → dead
-                var deadPods = runningPods
+                var stoppedPods = cachedPods
                     .Where(p => !liveNamespaces.Contains(p.Namespace))
                     .ToList();
-                
-                // Pending pods đã xuất hiện trong K8s → xóa khỏi pending (currentPods đã có rồi)
-                var stillPendingPods = pendingPods
-                    .Where(p => !liveNamespaces.Contains(p.Namespace))
-                    .ToList();
-                
-                var promotedCount = pendingPods.Count - stillPendingPods.Count;
-                await Console.Out.WriteLineAsync($"Found {deadPods?.Count ?? 0} dead pods, {currentPods?.Count ?? 0} alive pods, {promotedCount} pending→running");
 
-                // Xử lý các pod không còn chạy xóa cache liên quan
-                foreach (var deadPod in deadPods ?? Enumerable.Empty<PodInfo>())
+                foreach (var stoppedPod in stoppedPods)
                 {
-                    await Console.Out.WriteLineAsync($"Pod {deadPod.Name} in Namespace {deadPod.Namespace} is no longer running. Removing from cache.");
-                    var startedKey = ChallengeHelper.GetArgoWName(deadPod.ChallengeId, deadPod.TeamId);
-                    var runnedKey = ChallengeHelper.GetCacheKey(deadPod.ChallengeId, deadPod.TeamId);
-
-                    await Console.Out.WriteLineAsync($"Removed cache keys: {startedKey}, {JsonSerializer.Serialize(_redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey))}");
-                    await Console.Out.WriteLineAsync($"Removed cache keys: {runnedKey}, {JsonSerializer.Serialize(_redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(runnedKey))}");
-                    await _redisHelper.RemoveCacheAsync(startedKey);
+                    await Console.Out.WriteLineAsync($"Pod {stoppedPod.Name} in Namespace {stoppedPod.Namespace} is no longer running. Removing from cache.");
+                    var runnedKey = ChallengeHelper.GetCacheKey(stoppedPod.ChallengeId, stoppedPod.TeamId);
                     await _redisHelper.RemoveCacheAsync(runnedKey);
-
                 }
-                
-                // Merge: currentPods (running from K8s) + stillPendingPods (chưa deploy xong)
-                var finalPods = (currentPods ?? new List<PodInfo>()).Concat(stillPendingPods).ToList();
-                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, finalPods);
+                //// Tách pending và running pods từ cache
+                //var pendingPods = cachedPods.Where(p => p.IsPending).ToList();
+                //var runningPods = cachedPods.Where(p => !p.IsPending).ToList();
+
+                //// Những running pod trong cache nhưng không còn trong K8s → dead
+                //var deadPods = runningPods
+                //    .Where(p => !liveNamespaces.Contains(p.Namespace))
+                //    .ToList();
+
+                //// Pending pods đã xuất hiện trong K8s → xóa khỏi pending (currentPods đã có rồi)
+                //var stillPendingPods = pendingPods
+                //    .Where(p => !liveNamespaces.Contains(p.Namespace))
+                //    .ToList();
+
+                //var promotedCount = pendingPods.Count - stillPendingPods.Count;
+                //await Console.Out.WriteLineAsync($"Found {deadPods?.Count ?? 0} dead pods, {currentPods?.Count ?? 0} alive pods, {promotedCount} pending→running");
+
+                //// Xử lý các pod không còn chạy xóa cache liên quan
+                //foreach (var deadPod in deadPods ?? Enumerable.Empty<PodInfo>())
+                //{
+                //    await Console.Out.WriteLineAsync($"Pod {deadPod.Name} in Namespace {deadPod.Namespace} is no longer running. Removing from cache.");
+                //    var runnedKey = ChallengeHelper.GetCacheKey(deadPod.ChallengeId, deadPod.TeamId);
+
+                //    await Console.Out.WriteLineAsync($"Removed cache keys: {runnedKey}, {JsonSerializer.Serialize(_redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(runnedKey))}");
+                //    await _redisHelper.RemoveCacheAsync(runnedKey);
+
+                //}
+
+                //// Merge: currentPods (running from K8s) + stillPendingPods (chưa deploy xong)
+                //var finalPods = (currentPods ?? new List<PodInfo>()).Concat(stillPendingPods).ToList();
+                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, currentPods);
             }
             catch (Exception ex)
             {

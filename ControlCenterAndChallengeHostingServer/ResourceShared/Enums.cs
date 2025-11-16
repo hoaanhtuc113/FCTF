@@ -43,7 +43,8 @@ namespace ResourceShared
 
         public static class DeploymentStatus
         {
-            public const string PROCESS = "Pending";
+            public const string INITIAL = "Initial";
+            public const string PENDING = "Pending";
             public const string RUNING = "Running";
 
             public const string FAILED = "Failed";

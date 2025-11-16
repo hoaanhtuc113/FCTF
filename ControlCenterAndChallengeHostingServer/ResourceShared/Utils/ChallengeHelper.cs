@@ -75,7 +75,7 @@ namespace ResourceShared.Utils
 
         public static string GetCacheKey(int challengeId, int teamId)
         {
-          return $"challenge_url_{challengeId}_{teamId}";
+          return $"deploy_challenge_{challengeId}_{teamId}";
         }
         public static string GenerateCacheAttemptKey(int challengeId, int teamId)
         {
@@ -83,12 +83,6 @@ namespace ResourceShared.Utils
             using var md5 = MD5.Create();
             var hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(rawKey));
             return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-        }
-
-        public static string GetArgoWName(int chalId, int teamId)
-        {
-            var team = teamId == -1 ? "preview" : $"team{teamId}";
-            return $"start-challenge-{chalId}-{team}".ToLower().Replace(" ", "-"); ;
         }
 
         public static string GetDeploymentAppName(int teamId, int challengeId,string challengeName)

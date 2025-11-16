@@ -141,6 +141,43 @@ namespace SocialSync.Shared.Utils
                 }
             }
 
+            public async Task<List<T>> GetCacheByPatternAsync<T>(string pattern)
+            {
+                var result = new List<T>();
+
+                try
+                {
+                    var endpoints = _cache.Multiplexer.GetEndPoints();
+                    foreach (var endpoint in endpoints)
+                    {
+                        var server = _cache.Multiplexer.GetServer(endpoint);
+                        if (!server.IsConnected) continue;
+
+                        var keys = server.Keys(pattern: pattern).ToList();
+                        if (!keys.Any()) continue;
+
+                        var redisKeys = keys.Select(k => (RedisKey)k).ToArray();
+                        var values = await _cache.StringGetAsync(redisKeys);
+
+                        foreach (var value in values)
+                        {
+                            if (!value.IsNullOrEmpty)
+                            {
+                                var item = JsonConvert.DeserializeObject<T>(value);
+                                if (item != null)
+                                    result.Add(item);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Redis] Pattern read failed: {ex.Message}");
+                }
+
+                return result;
+            }
+
             public async Task<bool> RemoveCacheByPattern(string pattern)
             {
                 try
@@ -165,6 +202,7 @@ namespace SocialSync.Shared.Utils
                     return false;
                 }
             }
+
 
             public async Task<bool> KeyExistsAsync(string key)
             {
