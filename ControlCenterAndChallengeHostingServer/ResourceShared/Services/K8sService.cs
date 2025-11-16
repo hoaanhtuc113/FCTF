@@ -30,8 +30,7 @@ namespace ResourceShared.Services
         Task<bool> DeleteNamespace(string namespaceName);
         Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge");
         Task<int?> GetNodePort(string namespaceName);
-        Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, DeploymentInfo deploymentCache);
-
+        Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache);
         Task<WorkflowPhase> GetWorkflowStatus(string wfName, string namespaceName = "argo");
         Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo");
     }
@@ -265,7 +264,6 @@ namespace ResourceShared.Services
 
                         if (deleted)
                         {
-                            await _redisHelper.RemoveCacheAsync(ChallengeHelper.GetArgoWName(challengeId, teamId));
                             await _redisHelper.RemoveCacheAsync(ChallengeHelper.GetCacheKey(challengeId, teamId));
 
                             await Console.Out.WriteLineAsync($"[STUCK] Cleared Redis for team={teamId}, challenge={challengeId}");
@@ -283,16 +281,16 @@ namespace ResourceShared.Services
                         Ready = ready,
                         Status = status,
                         Age = age,
-                        IsPending = false  // Pods từ K8s là running, không phải pending
+                        IsPending = false
                     });
 
                     if (status == DeploymentStatus.RUNING && ready)
                     {
-                        var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
-                        var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+                        var deploymentKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
+                        var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
 
                         if (deploymentCache != null)
-                            await HandleChallengeRunning(challengeId, teamId, deploymentCache.NameSpace, deploymentCache);
+                            await HandleChallengeRunning(challengeId, teamId, deploymentCache._namespace, deploymentCache);
                     }
                 }
             }
@@ -340,7 +338,7 @@ namespace ResourceShared.Services
             }
         }
 
-        public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId,int teamId,string podName, DeploymentInfo deploymentCache)
+        public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId,int teamId,string podName, ChallengeDeploymentCacheDTO deploymentCache)
         {
             try
             {
@@ -376,32 +374,20 @@ namespace ResourceShared.Services
                     : (TimeSpan?)null;
 
                 // Set đúng cho các lần loop sau, không đổi time finished nếu đã có và còn hiệu lực
-                if (deploymentCache.EndTime > nowUtc.ToUnixTimeSeconds())
+                if (deploymentCache.time_finished > nowUtc.ToUnixTimeSeconds())
                 {
-                    //timeFinished = end;
-                    //cacheExpired = end - DateTime.Now;
-                    timeFinished = DateTimeOffset.FromUnixTimeSeconds(deploymentCache.EndTime);
+                    timeFinished = DateTimeOffset.FromUnixTimeSeconds(deploymentCache.time_finished);
                     cacheExpired = timeFinished - nowUtc;
                 }
 
-                // Cập nhật DeploymentInfo
-                deploymentCache.Status = DeploymentStatus.RUNING;
-                deploymentCache.DeploymentDomainName = challengeDomain;
-                deploymentCache.DeploymentPort = port.Value;
-                deploymentCache.EndTime = timeFinished.ToUnixTimeSeconds();
-
-                var startedKey = ChallengeHelper.GetArgoWName(challengeId, teamId);
-                await _redisHelper.SetCacheAsync(startedKey, deploymentCache, cacheExpired);
-
-                // Cập nhật ChallengeDeploymentCacheDTO
                 var chalDeployKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
-                var chalDeploy = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(chalDeployKey);
-                if (chalDeploy != null)
+
+                if (deploymentCache != null)
                 {
-                    chalDeploy.status = DeploymentStatus.RUNING;
-                    chalDeploy.challenge_url = challengeDomain;
-                    chalDeploy.time_finished =  timeFinished.ToUnixTimeSeconds();
-                    await _redisHelper.SetCacheAsync(chalDeployKey, chalDeploy, cacheExpired);
+                    deploymentCache.status = DeploymentStatus.RUNING;
+                    deploymentCache.challenge_url = challengeDomain;
+                    deploymentCache.time_finished =  timeFinished.ToUnixTimeSeconds();
+                    await _redisHelper.SetCacheAsync(chalDeployKey, deploymentCache, cacheExpired);
                 }
 
                 return new ChallengeDeployResponeDTO

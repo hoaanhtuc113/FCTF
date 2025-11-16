@@ -45,27 +45,33 @@ namespace DeploymentCenter.Services
         public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
         {
             await Console.Out.WriteLineAsync($"Start challenge ID: {startReq.challengeId}, Team ID: {startReq.teamId}");
-            var startedKey = ChallengeHelper.GetArgoWName(startReq.challengeId, startReq.teamId);
+            var deploymentKey = ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId);
+
             // Get cache: thông tin deployment, kiểm tra đã từng gửi vào argo chưa
-            var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
-            await Console.Out.WriteLineAsync($"Data from Redis for key {startedKey}: {JsonSerializer.Serialize(deploymentCache)}");
+            var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey) ?? new ChallengeDeploymentCacheDTO();
+            await Console.Out.WriteLineAsync($"Data from Redis for key {deploymentKey}: {JsonSerializer.Serialize(deploymentCache)}");
 
             #region Xử lý khi đã có cache deployment - đã từng gửi request deploy lên argo workflow
             if (deploymentCache != null)
             {
-               switch (deploymentCache.Status)
+               switch (deploymentCache.status)
                {
-                   case DeploymentStatus.PROCESS:
+                   case DeploymentStatus.PENDING:
 
-                       var wfPhase = await _k8SHealthService.GetWorkflowStatus(deploymentCache.WorkFlowName);
-                       // Kiểm tra trạng thái của workflow (Argo) nếu wf không ở trạng thái pending, running, succeeded thì coi như thất bại và xóa cache (startedKey)
-                       if (wfPhase is not (WorkflowPhase.Pending or WorkflowPhase.Running or WorkflowPhase.Succeeded))
+                       if (!string.IsNullOrEmpty(deploymentCache.workflow_name))
                        {
-                           Console.WriteLine($"Workflow {deploymentCache.WorkFlowName} crashed or stopped: {wfPhase}");
-                           // Xóa thông tin deployment khi bắm vào argo khi workflow chạy lỗi
-                           await _redisHelper.RemoveCacheAsync(startedKey);
-                           break;
+                           var wfPhase = await _k8SHealthService.GetWorkflowStatus(deploymentCache.workflow_name);
+
+                           // Kiểm tra trạng thái của workflow (Argo) nếu wf không ở trạng thái pending, running, succeeded thì coi như thất bại và xóa cache (deploymentKey)
+                           if (wfPhase is not (WorkflowPhase.Pending or WorkflowPhase.Running or WorkflowPhase.Succeeded))
+                           {
+                               Console.WriteLine($"Workflow {deploymentCache.workflow_name} crashed or stopped: {wfPhase}");
+                               // Xóa thông tin deployment khi bắm vào argo khi workflow chạy lỗi
+                               await _redisHelper.RemoveCacheAsync(deploymentKey);
+                               break;
+                           }
                        }
+                       
                        return new ChallengeDeployResponeDTO
                        {
                            status = (int)HttpStatusCode.OK,
@@ -74,26 +80,29 @@ namespace DeploymentCenter.Services
                        };
                    case DeploymentStatus.RUNING:
 
-                       var podName = deploymentCache.NameSpace;
+                        var podName = deploymentCache._namespace;
 
-                       var podStatus = await _k8SHealthService.CheckPodAliveInCache(podName);
-                       //var podStatus = true;
-                       if (!podStatus)
-                       {
-                           return new ChallengeDeployResponeDTO
-                           {
-                               status = (int)HttpStatusCode.OK,
-                               success = true,
-                               message = "Challenge is deploying.",
-                           };
-                       }
+                        if (!string.IsNullOrEmpty(podName))
+                        {
+                            var podStatus = await _k8SHealthService.CheckPodAliveInCache(podName);
+                            //var podStatus = true;
+                            if (!podStatus)
+                            {
+                                return new ChallengeDeployResponeDTO
+                                {
+                                    status = (int)HttpStatusCode.OK,
+                                    success = true,
+                                    message = "Challenge is deploying.",
+                                };
+                            }
+                        }
 
                        int timeLeft = 0;
-                        if (deploymentCache.EndTime > 0)
+                        if (deploymentCache.time_finished > 0)
                         {
                             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-                            long remainSec = deploymentCache.EndTime - now;
+                            long remainSec = deploymentCache.time_finished - now;
                             if (remainSec < 0) remainSec = 0;
 
                             timeLeft = (int)(remainSec / 60);
@@ -102,12 +111,12 @@ namespace DeploymentCenter.Services
                        {
                            status = (int)HttpStatusCode.OK,
                            success = true,
-                           message = "Challenge is already deployed.",
-                           challenge_url = deploymentCache.DeploymentDomainName,
+                           message = "Challenge is running.",
+                           challenge_url = deploymentCache.challenge_url,
                            time_limit = timeLeft,
                        };
                    default:
-                       await Console.Out.WriteLineAsync($"Unknown deployment status: {deploymentCache.Status}");
+                       await Console.Out.WriteLineAsync($"Unknown deployment status: {deploymentCache.status}");
                        break;
                }
             }
@@ -169,42 +178,16 @@ namespace DeploymentCenter.Services
                     }
                 }
 
-                var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
+                deploymentCache.challenge_id = startReq.challengeId;
+                deploymentCache.user_id = startReq.userId.Value;
+                deploymentCache.team_id = startReq.teamId;
+                deploymentCache._namespace = appName;
+                deploymentCache.workflow_name = workflowName ?? string.Empty;
+                deploymentCache.status = DeploymentStatus.PENDING;
+                deploymentCache.time_finished = 0;
 
-                // Xóa pending pod (đã được thêm bởi StartChallenge) vì giờ đang deploy thật
-                var updatedPods = pods.Where(p => !(p.IsPending && p.TeamId == startReq.teamId && p.ChallengeId == startReq.challengeId)).ToList();
-
-                  
-
-                ChallengeDeploymentCacheDTO chalDeploy = new ChallengeDeploymentCacheDTO
-                {
-                    challenge_id = startReq.challengeId,
-                    user_id = startReq.userId.Value,
-                    status = DeploymentStatus.PROCESS,
-                    time_finished = -1
-                };
                 // khi nào thực sự lên thì cập nhật lại status và time_finished, challenge_url
-
-                // Save cache: thông tin deployment khi bắm vào argo 
-                await _redisHelper.SetCacheAsync(startedKey, new DeploymentInfo
-                {
-                    Status = DeploymentStatus.PROCESS,
-                    ChallengeId = startReq.challengeId,
-                    TeamId = startReq.teamId,
-                    NameSpace = appName,
-                    WorkFlowName = workflowName ?? string.Empty,
-                });
-                /*
-                Save cache: thông tin tạm thông tin deployment với trạng thái processing và thời gian kết thúc -1 
-                Để bên admin có thể xem được thông tin này
-                */
-                await _redisHelper.SetCacheAsync(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId), chalDeploy, TimeSpan.FromHours(1));
-                
-                // Lưu lại pods đã xóa pending pod
-                await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, updatedPods);
-
-                //var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId));
-                //await Console.Out.WriteLineAsync($"Deployment info save success: {JsonSerializer.Serialize(checkCache)}");
+                await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromHours(1));
 
                 return new ChallengeDeployResponeDTO
                 {
@@ -216,6 +199,8 @@ namespace DeploymentCenter.Services
             }
             catch (HttpRequestException ex)
             {
+                await  _redisHelper.RemoveCacheAsync(deploymentKey);
+
                 await Console.Error.WriteLineAsync($"Error connecting to API: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -226,6 +211,8 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
+                await _redisHelper.RemoveCacheAsync(deploymentKey);
+
                 await Console.Error.WriteLineAsync($"Unexpected error: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -241,14 +228,13 @@ namespace DeploymentCenter.Services
             await Console.Out.WriteLineAsync($"Stop challenge ID: {stopReq.challengeId}, Team ID: {stopReq.teamId}");
             try
             {
-                var deployInfo = ChallengeHelper.GetCacheKey(stopReq.challengeId, stopReq.teamId);
-                var argoWNameKey = ChallengeHelper.GetArgoWName(stopReq.challengeId, stopReq.teamId);
-                var checkCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(argoWNameKey);
+                var deploymentKey = ChallengeHelper.GetCacheKey(stopReq.challengeId, stopReq.teamId);
+                var deployInfo = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
                 var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
 
-                if (checkCache == null || argoWNameKey == null) 
+                if (deploymentKey == null || deployInfo == null) 
                 {
-                    await Console.Error.WriteLineAsync($"No deployment cache info found for with cache key {checkCache} and {argoWNameKey} ");
+                    await Console.Error.WriteLineAsync($"No deployment cache info found for with cache key {deploymentKey} ");
                     return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.NotFound,
@@ -257,8 +243,7 @@ namespace DeploymentCenter.Services
                     };
                 }
                 // ưu tiên xóa cache trước rồi mới xóa k8s tránh trường hợp xóa k8s lỗi mà cache vẫn còn
-                await _redisHelper.RemoveCacheAsync(deployInfo);
-                await _redisHelper.RemoveCacheAsync(argoWNameKey);
+                await _redisHelper.RemoveCacheAsync(deploymentKey);
                 if (pods != null)
                 {
                     var podToRemove = pods.FirstOrDefault(p => p.TeamId == stopReq.teamId && p.ChallengeId == stopReq.challengeId);
@@ -270,7 +255,7 @@ namespace DeploymentCenter.Services
                 }
 
                 //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
-                var isDelete = await _k8SHealthService.DeleteNamespace(checkCache.NameSpace);
+                var isDelete = await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.OK,
@@ -328,8 +313,7 @@ namespace DeploymentCenter.Services
                 
                 // Clear the entire pods list
                 await _redisHelper.RemoveCacheAsync(RedisConfigs.PodsInfoKey);
-                await _redisHelper.RemoveCacheByPattern("challenge_url_*");
-                await _redisHelper.RemoveCacheByPattern("start-challenge-*");
+                await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
 
                 await Console.Out.WriteLineAsync("Redis cache cleared.");
 
@@ -372,11 +356,11 @@ namespace DeploymentCenter.Services
             //};
             try
             {
-                var startedKey = ChallengeHelper.GetArgoWName(statusReq.challengeId, statusReq.teamId);
+                var deploymentKey = ChallengeHelper.GetCacheKey(statusReq.challengeId, statusReq.teamId);
 
-                var deploymentCache = await _redisHelper.GetFromCacheAsync<DeploymentInfo>(startedKey);
+                var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
 
-                await Console.Out.WriteLineAsync($"Data from Redis for key {startedKey}: {JsonSerializer.Serialize(deploymentCache)}");
+                await Console.Out.WriteLineAsync($"Data from Redis for key {deploymentKey}: {JsonSerializer.Serialize(deploymentCache)}");
                 if (deploymentCache == null)
                 {
                     return new ChallengeDeployResponeDTO
@@ -387,14 +371,14 @@ namespace DeploymentCenter.Services
                     };
                 }
 
-                var podName = deploymentCache.NameSpace;
+                var podName = deploymentCache._namespace;
 
                 var podStatus = await _k8SHealthService.CheckPodAliveInCache(podName);
 
                 if (podStatus)
                 {
                     // Nếu pod đang chạy thì lấy thông tin domain, port ... lưu vào cache và trả về cho client 
-                    var result = await _k8SHealthService.HandleChallengeRunning(statusReq.challengeId,deploymentCache.TeamId, podName,deploymentCache);
+                    var result = await _k8SHealthService.HandleChallengeRunning(statusReq.challengeId,deploymentCache.team_id, podName,deploymentCache);
                     return result;
                 }
                 return new ChallengeDeployResponeDTO
