@@ -5,6 +5,7 @@ using ResourceShared;
 using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.DTOs.Deployments;
 using ResourceShared.DTOs.File;
 using ResourceShared.DTOs.Topic;
 using ResourceShared.Models;
@@ -16,13 +17,13 @@ using StackExchange.Redis;
 using System.Net;
 using System.Reflection.PortableExecutable;
 using System.Text.Json;
-using ResourceShared.DTOs.Deployments;
+using static ResourceShared.Enums;
+
 namespace ContestantBE.Services
 {
     public interface IChallengeServices
     {
         Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user);
-
         Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user);
         Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
         Task<List<TopicDTO>> GetTopic(User user);
@@ -157,8 +158,7 @@ namespace ContestantBE.Services
         {
             var challenges = await _dbContext.Challenges.Where(c => c.Category == category_name && c.State != Enums.ChallengeState.HIDDEN)
                 .ToListAsync();
-            var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
-            var teamPods = pods!.Where(p => p.TeamId == team_id).ToList();
+
             var topics_data = new List<ChallengeByCategoryDTO>();
             foreach (var challenge in challenges)
             {
@@ -178,15 +178,13 @@ namespace ContestantBE.Services
                     }
                 }
 
+                var deploymentCacheKey = ChallengeHelper.GetCacheKey(challenge.Id, team_id.Value);
+                var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentCacheKey);
                 // Check pod status if challenge requires deployment
                 string? podStatus = null;
-                if (challenge.RequireDeploy == true)
+                if (challenge.RequireDeploy == true && deploymentCache != null)
                 {
-                    var pod = teamPods.FirstOrDefault(p => p.ChallengeId == challenge.Id);
-                    if (pod != null)
-                    {
-                        podStatus = pod.Status;
-                    }
+                    podStatus = deploymentCache.status;
                 }
 
                 topics_data.Add(new ChallengeByCategoryDTO
@@ -394,27 +392,29 @@ namespace ContestantBE.Services
 
         public async Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId)
         {
-            var allPods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
-            var teamPods = allPods.Where(p => p.TeamId == teamId).ToList();
-            
+            //var allPods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
+            //var teamPods = allPods.Where(p => p.TeamId == teamId).ToList();
+
+            var teamDeployments = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{teamId}");
+
             var instances = new List<ChallengeInstanceDTO>();
             
-            foreach (var pod in teamPods)
+            foreach (var instance in teamDeployments)
             {
                 var challenge = await _dbContext.Challenges
-                    .FirstOrDefaultAsync(c => c.Id == pod.ChallengeId);
+                    .FirstOrDefaultAsync(c => c.Id == instance.challenge_id);
                 
                 if (challenge != null)
                 {
                     instances.Add(new ChallengeInstanceDTO
                     {
-                        challenge_id = pod.ChallengeId,
+                        challenge_id = instance.challenge_id,
                         challenge_name = challenge.Name,
                         category = challenge.Category,
-                        status = pod.Status,
-                        pod_name = pod.Name,
-                        ready = pod.Ready,
-                        age = pod.Age
+                        status = instance.status,
+                        pod_name = "N/A",
+                        ready = instance.status == DeploymentStatus.RUNING ? true : false,
+                        age = instance.time_finished.ToString()
                     });
                 }
             }

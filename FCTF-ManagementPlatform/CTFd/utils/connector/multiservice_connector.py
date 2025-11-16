@@ -70,7 +70,7 @@ def create_secret_key(private_key: str, unix_time: int, data: dict) -> str:
 
 
 def generate_cache_key(challenge_id, team_id):
-    raw_key = f"challenge_url_{challenge_id}_{team_id}"
+    raw_key = f"deploy_challenge_{challenge_id}_{team_id}"
     return raw_key
 
 def get_workflow_key(challenge_id):
@@ -296,7 +296,7 @@ def redeploy(challenge_id):
         return jsonify({"error": "Connection failed"})
     
 def delete_cached_files(challenge_id):
-    raw_key_pattern = f"challenge_url_{challenge_id}_*"
+    raw_key_pattern = f"deploy_challenge_{challenge_id}_*"
     keys_to_delete = redis_client.scan_iter(raw_key_pattern)
     deleted_count = 0
     for key in keys_to_delete:

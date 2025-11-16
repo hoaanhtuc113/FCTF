@@ -189,6 +189,15 @@ export function Instances() {
     }
   };
 
+  const parseUnixTimeToDate = (unixTime: string) => {
+    const unixTimeInt = parseInt(unixTime);
+    if (isNaN(unixTimeInt) || unixTimeInt <= 0) {
+      return 'N/A';
+    }
+    const date = new Date(unixTimeInt * 1000);
+    return date.toLocaleString();
+  }
+
   if (loading) {
     return (
       <Box className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -289,7 +298,7 @@ export function Instances() {
                       {instance.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4">{instance.age}</td>
+                  <td className="py-3 px-4">{parseUnixTimeToDate(instance.age)}</td>
                   <td className="py-3 px-4">
                     <div className="flex justify-end gap-2">
                       <button
