@@ -197,7 +197,7 @@ def get_all_instance():
         sort_by = request.args.get("sort_by", "time_finished")  # Default sort by time
         sort_order = request.args.get("sort_order", "desc")  # Default descending
         
-        pattern = "challenge_url_*_*"
+        pattern = "deploy_challenge_*_*"
         cursor = 0
         matching_keys = []
 
@@ -229,7 +229,7 @@ def get_all_instance():
                 continue
 
             # Tách challenge_id và team_id từ key
-            match = re.match(r"challenge_url_(\d+)_(-?\d+)", key_str)
+            match = re.match(r"deploy_challenge_(\d+)_(-?\d+)", key_str)
             if not match:
                 continue
 

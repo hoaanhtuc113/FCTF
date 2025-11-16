@@ -22,6 +22,7 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Security.Claims;
 using YamlDotNet.Core.Tokens;
+using static ResourceShared.Enums;
 
 namespace ContestantBE.Controllers
 {
@@ -268,47 +269,47 @@ namespace ContestantBE.Controllers
            if(challenge.State ==  "hidden") return NotFound();
            if(challenge.State ==  "locked") return Forbid();
 
-        //    // Check prerequisites from Requirements JSON
-        //    if (!string.IsNullOrEmpty(challenge.Requirements))
-        //    {
-        //        try
-        //        {
-        //            var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
+           // Check prerequisites from Requirements JSON
+           if (!string.IsNullOrEmpty(challenge.Requirements))
+           {
+               try
+               {
+                   var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
                    
-        //            if (requirementsObj?.prerequisites != null && requirementsObj.prerequisites.Count > 0)
-        //            {
-        //                var solve_ids = (await _context.Solves
-        //                                .Where(s => s.UserId == user.Id)
-        //                                .Select(s => s.ChallengeId)
-        //                                .OrderBy(id => id)
-        //                                .ToListAsync()).ToHashSet();
+                   if (requirementsObj?.prerequisites != null && requirementsObj.prerequisites.Count > 0)
+                   {
+                       var solve_ids = (await _context.Solves
+                                       .Where(s => s.TeamId == user.TeamId)
+                                       .Select(s => s.ChallengeId)
+                                       .OrderBy(id => id)
+                                       .ToListAsync()).ToHashSet();
 
-        //                var all_challenge_ids = (await _context.Challenges
-        //                                        .AsNoTracking()
-        //                                        .Select(c => c.Id)
-        //                                        .ToListAsync()).ToHashSet();
+                       var all_challenge_ids = (await _context.Challenges
+                                               .AsNoTracking()
+                                               .Select(c => c.Id)
+                                               .ToListAsync()).ToHashSet();
                        
-        //                // Convert prereq ids to nullable ints to match solve_ids (IEnumerable<int?>)
-        //                var prereqs = requirementsObj.prerequisites
-        //                                    .Where(id => all_challenge_ids.Contains(id))
-        //                                    .Select(id => (int?)id)
-        //                                    .ToHashSet();
+                       // Convert prereq ids to nullable ints to match solve_ids (IEnumerable<int?>)
+                       var prereqs = requirementsObj.prerequisites
+                                           .Where(id => all_challenge_ids.Contains(id))
+                                           .Select(id => (int?)id)
+                                           .ToHashSet();
 
-        //                if (!solve_ids.IsSupersetOf(prereqs))
-        //                {
-        //                    return StatusCode(StatusCodes.Status403Forbidden, new
-        //                    {
-        //                        success = false,
-        //                        message = "You don't have the permission to access this challenge. Complete the required challenges first."
-        //                    });
-        //                }
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
-        //        }
-        //    }
+                       if (!solve_ids.IsSupersetOf(prereqs))
+                       {
+                           return StatusCode(StatusCodes.Status403Forbidden, new
+                           {
+                               success = false,
+                               message = "You don't have the permission to access this challenge. Complete the required challenges first."
+                           });
+                       }
+                   }
+               }
+               catch (Exception ex)
+               {
+                   await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+               }
+           }
 
 
             var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);
@@ -397,10 +398,10 @@ namespace ContestantBE.Controllers
                             await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
                         }
                     }                 
-                    var startedKey = ChallengeHelper.GetArgoWName(challenge.Id, user.TeamId.Value);
+                    var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
                    
                     // Auto stop challenge if require_deploy and cache exists
-                    if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(startedKey))
+                    if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
                     {
                         try
                         {
@@ -495,13 +496,61 @@ namespace ContestantBE.Controllers
             var user = await _context.Users
                                          .Include(u => u.Team)
                                          .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
+            if(user.Team == null || user.TeamId == null) return NotFound(new { error = "Team not found" });
+
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
             if (challenge == null) return NotFound(new { error = "Challenge not found" });
-
-            if(user.Team == null || user.TeamId == null) return NotFound(new { error = "Team not found" });
-
             if(!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy"});
+            if(challenge.State == ChallengeState.HIDDEN) return BadRequest(new { error = "This challenge is not available for deployment"});
+
+
+            // Check prerequisites from Requirements JSON
+            if (!string.IsNullOrEmpty(challenge.Requirements))
+            {
+                try
+                {
+                    var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
+                    
+                    if (requirementsObj?.prerequisites != null && requirementsObj.prerequisites.Count > 0)
+                    {
+                        var solve_ids = (await _context.Solves
+                                        .Where(s => s.TeamId == user.TeamId)
+                                        .Select(s => s.ChallengeId)
+                                        .OrderBy(id => id)
+                                        .ToListAsync()).ToHashSet();
+
+                        var all_challenge_ids = (await _context.Challenges
+                                                .AsNoTracking()
+                                                .Select(c => c.Id)
+                                                .ToListAsync()).ToHashSet();
+                        
+                        // Convert prereq ids to nullable ints to match solve_ids (IEnumerable<int?>)
+                        var prereqs = requirementsObj.prerequisites
+                                            .Where(id => all_challenge_ids.Contains(id))
+                                            .Select(id => (int?)id)
+                                            .ToHashSet();
+
+                        if (!solve_ids.IsSupersetOf(prereqs))
+                        {
+                            return StatusCode(StatusCodes.Status403Forbidden, new
+                            {
+                                error = "You don't have the permission to start this challenge. Please complete the required challenges first."
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+                }
+            }
+
+            var submission = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId).AsNoTracking().ToArrayAsync();
+            if( challenge.MaxAttempts > 0 && submission.Count() >= challenge.MaxAttempts)
+            {
+                return BadRequest(new { error = "Your team has reached the maximum number of attempts for this challenge. You cannot start this challenge." });
+            }
 
             // Check captain_only_start_challenge config (stored as "1" or "0" in database)
             var captainOnlyStart = _configHelper.GetConfig<bool>("captain_only_start_challenge", true);
@@ -512,15 +561,8 @@ namespace ContestantBE.Controllers
 
             // Check limit_challenges - maximum concurrent challenges per team
             var limit_challenges = _configHelper.LimitChallenges();
-            await Console.Out.WriteLineAsync($"[LIMIT CHECK] limit_challenges config: {limit_challenges}, TeamId: {user.TeamId.Value}");
-            
-            var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey) ?? new List<PodInfo>();
-            
-            var totalTeamPods = pods.Count(p => p.TeamId == user.TeamId.Value);
-            
-            await Console.Out.WriteLineAsync($"[LIMIT CHECK] Team {user.TeamId.Value} has {totalTeamPods} challenges (running + pending)");
-                
-            if (totalTeamPods >= limit_challenges)
+            var totalChallengeStart = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{user.TeamId}");
+            if (totalChallengeStart.Count >= limit_challenges)
             {
                 return BadRequest(new 
                 { 
@@ -528,25 +570,21 @@ namespace ContestantBE.Controllers
                 });
             }
 
-            if (pods.Any(p => p.TeamId == user.TeamId.Value && p.ChallengeId == challenge.Id))
+            var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
+            if (await _redisHelper.KeyExistsAsync(deploymentKey))
             {
                 return BadRequest(new { error = "You have already started this challenge" });
             }
 
-            // Thêm vào pods list với IsPending=true để tránh race condition với GetPodsJob
-            var pendingPod = new PodInfo
+            ChallengeDeploymentCacheDTO challengeDeploymentCacheDTO = new ChallengeDeploymentCacheDTO
             {
-                Namespace = ChallengeHelper.GetDeploymentAppName(user.TeamId.Value, challenge.Id, challenge.Name),
-                TeamId = user.TeamId.Value,
-                ChallengeId = challenge.Id,
-                Ready = false,
-                Status = "Pending",
-                Age = "0s",
-                Name = $"Pending-{user.TeamId.Value}-{challenge.Id}",
-                IsPending = true
+                challenge_id = challenge.Id,
+                team_id = user.TeamId.Value,
+                status = DeploymentStatus.INITIAL,
+                user_id = user.Id,
             };
-            pods.Add(pendingPod);
-            await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
+
+            await _redisHelper.SetCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey, challengeDeploymentCacheDTO);
 
 
             var response =  await _challengeServices.ChallengeStart(challenge, user);
