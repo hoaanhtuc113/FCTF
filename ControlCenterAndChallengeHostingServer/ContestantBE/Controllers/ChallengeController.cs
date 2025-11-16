@@ -390,6 +390,12 @@ namespace ContestantBE.Controllers
 
                         _context.Solves.Add(solf);
                         await _context.SaveChangesAsync();
+                        
+                        // Handle dynamic challenge value calculation
+                        if (challenge.Type == "dynamic")
+                        {
+                            await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
+                        }
                     }                 
                     var startedKey = ChallengeHelper.GetArgoWName(challenge.Id, user.TeamId.Value);
                    
