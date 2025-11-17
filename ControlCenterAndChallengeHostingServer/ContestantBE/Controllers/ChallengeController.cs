@@ -205,7 +205,7 @@ namespace ContestantBE.Controllers
            {
               return Forbid();
            }
-
+           request.Submission = request.Submission?.Trim();
            var team = user.Team;
 
            // Check captain_only_submit_challenge config
@@ -419,7 +419,8 @@ namespace ContestantBE.Controllers
                         data = new
                         {
                             status = "correct",
-                            message = attempt.message
+                            message = attempt.message,
+                            value = challenge.Value
                         }
                     });
                 }

@@ -109,7 +109,6 @@ namespace ResourceShared.Utils
                 
                 if (challenge == null || challenge.DynamicChallenge == null)
                 {
-                    Console.WriteLine($"[DynamicChallengeHelper] Challenge {challengeId} not found or not dynamic");
                     return challenge?.Value ?? 0;
                 }
                 
@@ -118,11 +117,7 @@ namespace ResourceShared.Utils
                 // Count number of solves (excluding hidden and banned users)
                 var solveCount = await GetSolveCount(context, challengeId);
                 
-                Console.WriteLine($"[DynamicChallengeHelper] Challenge: {challenge.Name} (ID: {challengeId})");
-                Console.WriteLine($"[DynamicChallengeHelper] Solve count: {solveCount}");
-                Console.WriteLine($"[DynamicChallengeHelper] Before: Value={challenge.Value}");
-                Console.WriteLine($"[DynamicChallengeHelper] Config: Initial={dynamicChallenge.Initial}, Minimum={dynamicChallenge.Minimum}, Decay={dynamicChallenge.Decay}, Function={dynamicChallenge.Function}");
-                
+                  
                 // Calculate new value based on function type
                 int newValue;
                 string function = dynamicChallenge.Function ?? "logarithmic";
@@ -141,9 +136,6 @@ namespace ResourceShared.Utils
                 
                 challenge.Value = newValue;
                 await context.SaveChangesAsync();
-                
-                Console.WriteLine($"[DynamicChallengeHelper] After: New value={newValue}");
-                
                 return newValue;
             }
             catch (Exception ex)
