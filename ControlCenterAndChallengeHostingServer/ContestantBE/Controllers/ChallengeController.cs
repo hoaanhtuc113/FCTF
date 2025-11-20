@@ -364,7 +364,7 @@ namespace ContestantBE.Controllers
                 }
 
                 AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
-
+                var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
                 if (attempt.status)
                 {
                     if (_ctfTimeHelper.CtfTime())
@@ -398,7 +398,6 @@ namespace ContestantBE.Controllers
                             await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
                         }
                     }                 
-                    var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
                    
                     // Auto stop challenge if require_deploy and cache exists
                     if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
@@ -449,6 +448,19 @@ namespace ContestantBE.Controllers
                         if (!string.IsNullOrEmpty(message) && !"!().;?[]{}".Contains(message[^1]))
                         {
                             message += ".";
+                        }
+
+                        // Auto stop challenge if no attempts left
+                        if (attemptsLeft <= 0 && challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
+                        {
+                            try
+                            {
+                                await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                            }
+                            catch (Exception ex)
+                            {
+                                await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                            }
                         }
 
                         return Ok(new
@@ -550,6 +562,12 @@ namespace ContestantBE.Controllers
             if( challenge.MaxAttempts > 0 && submission.Count() >= challenge.MaxAttempts)
             {
                 return BadRequest(new { error = "Your team has reached the maximum number of attempts for this challenge. You cannot start this challenge." });
+            }
+
+            var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            if (solve != null)
+            {
+                return BadRequest(new { error = "Your team has already solved this challenge. You cannot start this challenge." });
             }
 
             // Check captain_only_start_challenge config (stored as "1" or "0" in database)
