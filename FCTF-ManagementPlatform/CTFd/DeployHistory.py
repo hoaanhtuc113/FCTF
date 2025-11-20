@@ -4,7 +4,8 @@ from CTFd.models import Challenges, db, Users, DeployedChallenge
 from CTFd.utils.decorators import admins_only, admin_or_challenge_writer_only_or_jury,is_jury,is_admin
 from CTFd.utils.user import authed
 from CTFd.utils.connector.multiservice_connector import (
-    get_workflow_logs
+    get_workflow_logs,
+    get_challenge_pod_logs
 )
 
 challengeHistory = Blueprint("challengeHistory", __name__)
@@ -91,3 +92,24 @@ def get_deploy_logs(id):
         return jsonify({"success": False, "log_content": "Deploy record not found."}), 404
 
     return get_workflow_logs(deployed_challenge.challenge_id, deployed_challenge.log_content, user_id)
+
+@challengeHistory.route("/deploy_History/<int:challenge_id>/pods-logs", methods=["GET"])
+@admin_or_challenge_writer_only_or_jury
+def get_pods_logs(challenge_id):
+    user_id = session["id"]
+    user = Users.query.filter_by(id=user_id).first()
+
+    if not user:
+        return jsonify({"error": "User Not found"}), 403
+
+    if user.type == "user":
+        return jsonify({"error": "Permission denied"}), 400
+
+    team_id = user.team_id if user.team_id is not None else -1
+    logs = get_challenge_pod_logs(challenge_id, team_id)
+
+    return render_template(
+        "admin/challenges/pod_logs.html",
+        challenge_id=challenge_id,
+        log_content=logs,
+    )

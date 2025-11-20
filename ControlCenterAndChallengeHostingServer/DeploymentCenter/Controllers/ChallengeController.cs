@@ -107,5 +107,20 @@ namespace DeploymentCenter.Controllers
                 _ => StatusCode((int)response.HttpStatusCode, response)
             };
         }
+
+        [HttpPost("pod-logs")]
+        [RequireSecretKey]
+        public async Task<IActionResult> GetPodLogs([FromBody] ChallengeStartStopReqDTO challengeReq)
+        {
+            Console.WriteLine($"GetPodLogs: Received request for challenge ID: {challengeReq.challengeId}, Team ID: {challengeReq.teamId}");
+            var response = await _deployService.GetPodLogs(challengeReq);
+            return response.HttpStatusCode switch
+            {
+                HttpStatusCode.OK => Ok(response),
+                HttpStatusCode.BadRequest => BadRequest(response),
+                HttpStatusCode.NotFound => NotFound(response),
+                _ => StatusCode((int)response.HttpStatusCode, response)
+            };
+        } 
     }
 }
