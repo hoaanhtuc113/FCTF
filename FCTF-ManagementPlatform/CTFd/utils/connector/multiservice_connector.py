@@ -158,43 +158,6 @@ def challenge_start(payload, headers, api_start):
 
         print("Response start data: " + json.dumps(res_data))
         return res_data
-        '''
-        message = res_data.get("message")
-        if res_data.get("success") == "true":
-            challenge_url = res_data.get("challenge_url")
-            time_finished = datetime.now() + timedelta(minutes=challenge_time)
-            db.session.commit()
-            if challenge_time == -1 or team.id == -1:
-                cache_expiry = None
-            else:
-                cache_expiry = challenge_time * 60
-            
-            try:
-                redis_client.set(
-                    cache_key,
-                    json.dumps(
-                        {"challenge_url": challenge_url, "user_id": user_id, "challenge_id": challenge_id, "time_finished": int(time_finished.timestamp())}
-                    ),
-                    ex=cache_expiry,
-                )
-                print(f"Cache saved: {cache_key} -> challenge_url: {challenge_url}, time_finished: {time_finished}")
-                if challenge_time != -1:
-                    threading.Timer(
-                        max(30, challenge_time * 60),
-                        lambda: force_stop(cache_key, challenge_id, team.id),
-                    ).start()
-            except Exception as e:
-                print(f"Error saving to Redis: {e}")
-                return jsonify({"error": "Failed to save cache"}), 400
-            return format_response({"status": 200, "success": True, "challenge_url": challenge_url, "message": message})
-        else:
-            if res_data.get("data"):
-                message += "<br><br>Running challenge is: "
-                challenge = Challenges.query.filter_by(id=challenge_id).first()
-                if challenge is not None:
-                    message += f"<b>{challenge.name}</b>"
-            return format_response({"message": message, "success": False, "status": 200})
-        '''
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to API: {e}")
         return format_response({"message": "Connection url failed", "success": False, "status": 400}) 
@@ -571,6 +534,44 @@ def get_workflow_logs(challenge_id, workflow_name, user_id):
         return response_data
     except requests.exceptions.RequestException as e:
         raise Exception(e)
+
+def get_challenge_pod_logs(challenge_id, team_id):
+    if team_id is None:
+        team_id = -1
+
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY, unix_time, {
+            "challengeId": challenge_id,
+            "teamId": team_id,
+        }
+    )
+    payload = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+        "unixTime": unix_time,
+    }
+    headers = {"SecretKey": secret_key}
+    logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/pod-logs"
+    try:
+        response = requests.post(logs_url, headers=headers, json=payload)
+        print(f"Get pod logs response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            # Extract logs from the nested data structure
+            if response_data.get("success") and "data" in response_data:
+                logs = response_data["data"].get("logs", "")
+                return logs
+            return response_data.get("logs", "")
+        else:
+            print(f"Get pod logs failed: {response.text}")
+            response_data = response.json()
+            logs = response_data.get("message", "")
+            return logs
+    except requests.exceptions.RequestException as e:
+        print(f"Error getting pod logs: {e}")
+        return str(e)
 
 def start_challenge_status_checking(challenge_id, team_id):
     unix_time = str(int(time.time()))
