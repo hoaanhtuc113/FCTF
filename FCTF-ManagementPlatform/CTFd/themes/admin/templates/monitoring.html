@@ -149,6 +149,25 @@
 		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
 	}
 	
+	/* Info Button */
+	.btn-info {
+		padding: 0.375rem 0.75rem;
+		font-size: 0.875rem;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-info:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+	}
+	
+	/* Filter controls height consistency */
+	#teamFilter,
+	#challengeSearch {
+		height: 38px;
+	}
+	
 	/* Pagination Styles */
 	.clean-pagination {
 		margin: 0;
@@ -204,6 +223,25 @@
 	</div>
 
 	<div class="container monitoring-container">
+		<!-- Filters and Search -->
+		<div class="mb-3">
+			<div class="row">
+				<div class="col-md-3">
+					<select id="teamFilter" class="form-control" onchange="handleSearch()">
+						<option value="">All Teams</option>
+					</select>
+				</div>
+				<div class="col-md-7">
+					<input type="text" id="challengeSearch" class="form-control" placeholder="Search by challenge name..." onkeyup="handleSearch()">
+				</div>
+				<div class="col-md-2">
+					<button onclick="clearFilters()" class="btn btn-info">
+						<i class="fas fa-times"></i> Clear
+					</button>
+				</div>
+			</div>
+		</div>
+		
 		<!-- Action Buttons -->
 		<div class="mb-3 d-flex justify-content-between align-items-center">
 			<div>
@@ -262,11 +300,45 @@
 	let sortBy = "time_finished";
 	let sortOrder = "desc";
 	let paginationData = null;
+	let searchTimeout = null;
+
+	// Populate teams dropdown from data
+	function populateTeams(teams) {
+		const teamFilter = document.getElementById("teamFilter");
+		const currentValue = teamFilter.value;
+		
+		// Clear existing options except "All Teams"
+		teamFilter.innerHTML = '<option value="">All Teams</option>';
+		
+		// Add team options from the provided list
+		teams.forEach(teamName => {
+			const option = document.createElement("option");
+			option.value = teamName;
+			option.textContent = teamName;
+			teamFilter.appendChild(option);
+		});
+		
+		// Restore previous selection if exists
+		if (currentValue && teams.includes(currentValue)) {
+			teamFilter.value = currentValue;
+		}
+	}
 
 	async function loadData(page = 1) {
 		currentPage = page;
 		
-		const url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`;
+		const challengeSearch = document.getElementById("challengeSearch").value.trim();
+		const teamFilter = document.getElementById("teamFilter").value.trim();
+		
+		let url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`;
+		
+		if (challengeSearch) {
+			url += `&challenge_name=${encodeURIComponent(challengeSearch)}`;
+		}
+		if (teamFilter) {
+			url += `&team_name=${encodeURIComponent(teamFilter)}`;
+		}
+		
 		const response = await fetch(url, {
 			method: "GET"
 		});
@@ -278,6 +350,11 @@
 		if (result.success) {
 			paginationData = result.pagination;
 			
+			// Populate teams dropdown with unique teams from response
+			if (result.teams) {
+				populateTeams(result.teams);
+			}
+			
 			result.data.forEach(row => {
 				const tr = document.createElement("tr");
 
@@ -286,11 +363,15 @@
 					<td class="text-center">${row.challenge_name}</td>
 					<td class="text-center">${row.team_name}</td>
 					<td class="text-center">${row.user_name ?? "N/A"}</td>
-					<td class="text-center"><a href="${row.challenge_url}" class="text-decoration-none" target="_blank">${row.challenge_url}</a></td>
+					<td class="text-center">
+						${row.challenge_url ? `<a href="${row.challenge_url}" class="text-decoration-none" target="_blank">${row.challenge_url}</a>` : "Processing . . ."}</td>
 					<td class="text-center">${row.time_finished
 						? new Date(row.time_finished).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
 						: "N/A"}</td>
-					<td class="text-center">${row.challenge_url ? `<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop">Stop</button>` : "Processing"}</td>
+					<td class="text-center text-nowrap">
+						<button onclick="window.location.href='/deploy_History/${row.challenge_id}/pods-logs'" class="btn btn-sm btn-info d-inline-block">Logs</button>
+						${row.challenge_url ? `<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block ml-1">Stop</button>` : ""}
+					</td>
 				`;
 
 				tbody.appendChild(tr);
@@ -301,6 +382,19 @@
 		} else {
 			alert("Error loading data: " + result.error);
 		}
+	}
+	
+	function handleSearch() {
+		clearTimeout(searchTimeout);
+		searchTimeout = setTimeout(() => {
+			loadData(1); // Reset to first page when searching
+		}, 300);
+	}
+	
+	function clearFilters() {
+		document.getElementById("challengeSearch").value = "";
+		document.getElementById("teamFilter").value = "";
+		loadData(1);
 	}
 	
 	function updatePagination() {

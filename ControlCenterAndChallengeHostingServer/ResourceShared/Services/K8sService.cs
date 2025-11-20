@@ -33,6 +33,7 @@ namespace ResourceShared.Services
         Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache);
         Task<WorkflowPhase> GetWorkflowStatus(string wfName, string namespaceName = "argo");
         Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo");
+        Task<string> GetPodLogs(string namespaceName, string podName);
     }
     public class K8sService : IK8sService
     {
@@ -581,6 +582,60 @@ namespace ResourceShared.Services
                 return true;
 
             return false;
+        }
+
+        public async Task<string> GetPodLogs(string namespaceName, string podName)
+        {
+            try
+            {
+                var stream = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(
+                    name: podName,
+                    namespaceParameter: namespaceName
+                );
+
+                using var reader = new StreamReader(stream);
+                var logs = await reader.ReadToEndAsync();
+
+                if (string.IsNullOrWhiteSpace(logs))
+                    return "No logs available.";
+
+                return NormalizeLog(logs);
+            }
+            catch (Exception ex)
+            {
+                return $"Error retrieving logs: {ex.Message}";
+            }
+        }
+
+        public static string NormalizeLog(string raw)
+        {
+            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]");
+            var clean = ansiRegex.Replace(raw, string.Empty);
+
+            var sb = new StringBuilder();
+            var lines = clean.Split('\n');
+
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim(); 
+
+                if (string.IsNullOrWhiteSpace(trimmed))
+                    continue;
+
+                if (trimmed.StartsWith("warn:", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("info:", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("fail:", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
+                {
+                    sb.AppendLine(trimmed);
+                }
+                else
+                {
+                    sb.AppendLine("      " + trimmed);
+                }
+            }
+
+            return sb.ToString().TrimStart().TrimEnd();
         }
 
     }
