@@ -197,6 +197,10 @@ def get_all_instance():
         sort_by = request.args.get("sort_by", "time_finished")  # Default sort by time
         sort_order = request.args.get("sort_order", "desc")  # Default descending
         
+        # Get filter and search parameters
+        team_filter = request.args.get("team_name", "").strip().lower()
+        challenge_search = request.args.get("challenge_name", "").strip().lower()
+        
         pattern = "deploy_challenge_*_*"
         cursor = 0
         matching_keys = []
@@ -284,6 +288,16 @@ def get_all_instance():
         # Combine all data
         all_data = special_cases + normal_cases
         
+        # Extract unique team names for filtering
+        unique_teams = sorted(list(set(item.get("team_name", "") for item in all_data if item.get("team_name"))))
+        
+        # Apply filters
+        if team_filter:
+            all_data = [item for item in all_data if team_filter in item.get("team_name", "").lower()]
+        
+        if challenge_search:
+            all_data = [item for item in all_data if challenge_search in item.get("challenge_name", "").lower()]
+        
         # Sort data
         reverse = (sort_order == "desc")
         if sort_by == "challenge_name":
@@ -311,6 +325,7 @@ def get_all_instance():
         return jsonify({
             "success": True,
             "data": paginated_data,
+            "teams": unique_teams,
             "pagination": {
                 "page": page,
                 "per_page": per_page,

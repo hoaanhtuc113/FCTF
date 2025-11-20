@@ -28,6 +28,7 @@ namespace DeploymentCenter.Services
         Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq);
         Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
         Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
+        Task<BaseResponseDTO<PodLogsDTO>> GetPodLogs(ChallengeStartStopReqDTO challengeReq);
     }
     public class DeployService : IDeployService
     {
@@ -553,6 +554,48 @@ namespace DeploymentCenter.Services
                     Success = false,
                     HttpStatusCode = HttpStatusCode.InternalServerError,
                     Message = "Error retrieving deployment logs"
+                };
+            }
+        }
+
+        public async Task<BaseResponseDTO<PodLogsDTO>> GetPodLogs(ChallengeStartStopReqDTO challengeReq)
+        {
+            try
+            {
+                var currentPods = await _k8SHealthService.GetPodsByLabel();
+                var deployInfo = currentPods.FirstOrDefault(p => p.TeamId == challengeReq.teamId && p.ChallengeId == challengeReq.challengeId);
+                Console.WriteLine($"GetPodLogs: Found deployInfo: {JsonSerializer.Serialize(deployInfo)}");
+                if (deployInfo == null)
+                {
+                    return new BaseResponseDTO<PodLogsDTO>
+                    {
+                        Success = false,
+                        HttpStatusCode = HttpStatusCode.NotFound,
+                        Message = "Pod not found"
+                    };
+                }
+
+                var log = await _k8SHealthService.GetPodLogs(deployInfo.Namespace, deployInfo.Name);
+                Console.WriteLine($"GetPodLogs: Retrieved logs for pod {log}");
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = true,
+                    HttpStatusCode = HttpStatusCode.OK,
+                    Data = new PodLogsDTO
+                    {
+                        PodName = deployInfo.Name,
+                        Logs = log
+                    }
+                };
+
+            }catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Error retrieving pod logs: {ex.Message}");
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = false,
+                    HttpStatusCode = HttpStatusCode.InternalServerError,
+                    Message = "Error retrieving pod logs"
                 };
             }
         }
