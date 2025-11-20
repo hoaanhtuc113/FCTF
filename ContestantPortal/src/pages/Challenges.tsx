@@ -2075,7 +2075,7 @@ function ChallengeDetailPanel({
             <div class="font-mono text-left text-sm">
               <div class="text-green-400 mb-2">[+] FLAG CORRECT</div>
               <div class="text-gray-400">> Challenge solved</div>
-              <div class="text-gray-400">> +${challenge.value} points</div>
+              <div class="text-gray-400">> +${data?.data?.value || challenge.value} points</div>
             </div>
           `,
           icon: 'success',
