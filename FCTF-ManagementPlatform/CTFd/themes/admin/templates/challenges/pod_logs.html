@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+	{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+{% endblock %}
+
+{% block content %}
+    <div class="jumbotron">
+        <div class="container">
+            <h1>Pod Logs for Challenge ID {{ challenge_id }}</h1>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h3>Log Content</h3>
+                <div class="form-control" rows="10" id="log-content" readonly style="height: 70vh; overflow: auto; white-space: pre-wrap; font-family: monospace;">
+                    {{ log_content }}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
