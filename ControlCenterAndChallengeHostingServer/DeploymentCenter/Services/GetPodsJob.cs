@@ -45,6 +45,7 @@ namespace DeploymentCenter.Services
 
                 foreach (var stoppedPod in stoppedPods)
                 {
+                    if (stoppedPod.TeamId <= 0) continue;
                     await Console.Out.WriteLineAsync($"Pod {stoppedPod.Name} in Namespace {stoppedPod.Namespace} is no longer running. Removing from cache.");
                     var runnedKey = ChallengeHelper.GetCacheKey(stoppedPod.ChallengeId, stoppedPod.TeamId);
                     await _redisHelper.RemoveCacheAsync(runnedKey);
