@@ -396,7 +396,8 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                 if challenge.state != "hidden":
                     print("Sending notification...")
                     post_notification(notification_data)
-                image_tag = f"challenge-{challenge.id}-{safe_folder_name}"
+                unix_time = str(int(time.time()))
+                image_tag = f"challenge-{challenge.id}-{safe_folder_name}-{unix_time}"
                 image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}:{image_tag}"
 
                 object_image = {

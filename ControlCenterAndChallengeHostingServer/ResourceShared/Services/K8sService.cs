@@ -260,8 +260,12 @@ namespace ResourceShared.Services
                     if (isStuck)
                     {
                         await Console.Out.WriteLineAsync($"[STUCK] Pod {name} in Namespace {ns} is stuck with status '{status}'. Attempting to delete namespace.");
-
-                        var deleted = await DeleteNamespace(ns);
+                        
+                        var deleted = false;
+                        if(teamId > 0)
+                        {
+                            deleted = await DeleteNamespace(ns);
+                        }
 
                         if (deleted)
                         {
