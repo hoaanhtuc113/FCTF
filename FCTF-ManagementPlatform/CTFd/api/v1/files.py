@@ -93,7 +93,7 @@ class FilesList(Resource):
     def post(self):
         files = request.files.getlist("file")
         deploy_file = request.files.get("deploy_file")
-        require_deploy = request.form.get("require_deploy") is not None
+        require_deploy = request.form.get("require_deploy") in ["on", "true", "True", "1"]
         expose_port = request.form.get("expose_port")
         challenge_id = request.form.to_dict().get("challenge_id")
         temp_file_path = ""
