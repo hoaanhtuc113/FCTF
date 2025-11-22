@@ -25,9 +25,9 @@ namespace ContestantBE.Services
     {
         Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user);
         Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user);
+        Task<ChallengeDeployResponeDTO> CheckChallengeStatus(int challengeId, int teamId);
         Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
         Task<List<TopicDTO>> GetTopic(User user);
-
         Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id);
         Task<List<ChallengeInstanceDTO>> GetAllInstances(int teamId);
     }
@@ -420,6 +420,63 @@ namespace ContestantBE.Services
             }
             
             return instances;
+        }
+
+        public async Task<ChallengeDeployResponeDTO> CheckChallengeStatus(int challengeId, int teamId)
+        {
+             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var data = new Dictionary<string, string> 
+            {
+                { "challengeId", challengeId.ToString() },
+                { "teamId", teamId.ToString()},
+            };
+            var parammeters = new ChallengCheckStatusReqDTO
+            {
+                challengeId = challengeId,
+                teamId = teamId,
+                unixTime = unixTime.ToString()
+            };
+            var secretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
+            var headers = new Dictionary<string, string>
+            {
+                { "SecretKey", secretKey }
+            };
+            try
+            {
+                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantBEConfigHelper.DeploymentCenterAPI);
+                var body = await multiServiceConnector.ExecuteRequest("/api/statuscheck/start", Method.Post, parammeters, headers);
+                if (body == null)
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.BadRequest,
+                        success = false,
+                        message = "No response from server when checking challenge status"
+                    };
+
+                var result = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(body);
+                if (result == null)
+                {
+                    Console.Out.WriteLineAsync("Failed to deserialize response");
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.InternalServerError,
+                        success = false,
+                        message = "Failed to parse server response"
+                    };
+                }
+                Console.Out.WriteLineAsync($"Status response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
+                return result;
+            }
+            catch(HttpRequestException e)
+            {
+                Console.Out.WriteLineAsync($"Error connecting to API: {e.Message}");
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.BadGateway,
+                    success = false,
+                    message = "Connection url failed"
+                };
+            }
         }
     }
 }

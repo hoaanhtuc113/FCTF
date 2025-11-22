@@ -2,7 +2,6 @@ import { API_ENDPOINTS } from '../config/endpoints';
 import { fetchWithAuth } from './api';
 
 
-const API_DEPLOYMENT_URL = import.meta.env.VITE_DEPLOYMENT_API_URL || import.meta.env.VITE_API_URL;
 
 interface HealthCheckState {
   challengeId: number;
@@ -128,8 +127,7 @@ class HealthCheckService {
             challengeId: challengeId,
             teamId: state.teamId,
           }),
-        },
-        API_DEPLOYMENT_URL
+        }
       );
 
       const data = await response.json();
