@@ -663,5 +663,50 @@ namespace ContestantBE.Controllers
                 }); 
             }
         }
+
+        [HttpPost("check-status")]
+        public async Task<IActionResult> CheckChallengeStatus([FromBody] ChallengCheckStatusReqDTO statusReq)
+        {
+            if (statusReq == null || statusReq.challengeId <= 0)
+            {
+                return BadRequest(new ChallengeDeployResponeDTO
+                {
+                    success = false,
+                    message = "Invalid request parameters",
+                    status = (int)HttpStatusCode.BadRequest
+                });
+            }
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _context.Users
+                                         .Include(u => u.Team)
+                                         .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
+            if (user.TeamId == null || user.Team == null)
+            {
+                return BadRequest(new ChallengeDeployResponeDTO
+                {
+                    success = false,
+                    message = "User no join team",
+                    status = (int)HttpStatusCode.BadRequest
+                });
+            }
+
+            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == statusReq.challengeId);
+
+            if (challenge == null) return BadRequest(new ChallengeDeployResponeDTO
+            {
+                success = false,
+                message = "Challenge not found",
+                status = (int)HttpStatusCode.BadRequest
+            });
+
+            var response = await _challengeServices.CheckChallengeStatus(challenge.Id, user.TeamId.Value);
+            return response.status switch
+            {
+                (int)HttpStatusCode.OK => Ok(response),
+                (int)HttpStatusCode.BadRequest => BadRequest(response),
+                (int)HttpStatusCode.NotFound => NotFound(response),
+                _ => StatusCode((int)response.status, response)
+            };
+        }
     }
 }
