@@ -17,7 +17,7 @@ export const API_ENDPOINTS = {
     START: '/challenge/start',
     STOP: '/challenge/stop-by-user',
     CHECK_CACHE: '/challenge/check_cache',
-    START_CHECKING: '/statuscheck/start',
+    START_CHECKING: '/challenge/check-status',
     INSTANCES: '/challenge/instances',
   },
   HINTS: {

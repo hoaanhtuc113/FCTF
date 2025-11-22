@@ -40,12 +40,10 @@ namespace HealthCheckService.Controllers
         }
 
         [HttpPost("start")]
-        [Authorize]
+        [RequireSecretKey]
         public async Task<ChallengeDeployResponeDTO> StartChallengeChecking([FromBody] ChallengCheckStatusReqDTO statusReq)
         {
-            var teamId = User.FindFirstValue("teamId");
-
-            if (statusReq == null || statusReq.challengeId <= 0)
+            if (statusReq == null || statusReq.challengeId <= 0 || statusReq.teamId <= 0)
             {
                 return new ChallengeDeployResponeDTO
                 {
@@ -54,7 +52,6 @@ namespace HealthCheckService.Controllers
                     status = (int)HttpStatusCode.BadRequest
                 };
             }
-            statusReq.teamId = int.Parse(teamId);
             var data = await _deployService.StatusCheck(statusReq);
 
             return data;
