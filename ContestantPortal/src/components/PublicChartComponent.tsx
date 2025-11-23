@@ -110,8 +110,26 @@ export default function PublicChartComponent({ data }: PublicChartComponentProps
       )
     )].sort((a, b) => a - b);
 
+    // Add starting point: 5 minutes before first solve, all teams at 0
+    const startingPoints = [];
+    if (allDates.length > 0) {
+      const firstSolveTime = allDates[0];
+      const startTime = firstSolveTime - 5 * 60 * 1000; // 5 minutes before
+      
+      const startPoint: any = {
+        time: dayjs(startTime).format("DD/MM HH:mm"),
+        timestamp: startTime,
+      };
+      
+      teams.forEach(team => {
+        startPoint[team.name] = 0;
+      });
+      
+      startingPoints.push(startPoint);
+    }
+
     // Create data points
-    return allDates.map(timestamp => {
+    const dataPoints = allDates.map(timestamp => {
       const point: any = {
         time: dayjs(timestamp).format("DD/MM HH:mm"),
         timestamp,
@@ -128,6 +146,9 @@ export default function PublicChartComponent({ data }: PublicChartComponentProps
 
       return point;
     });
+
+    // Combine starting point with actual data
+    return [...startingPoints, ...dataPoints];
   }, [data]);
 
   const teamNames = useMemo(() => {
