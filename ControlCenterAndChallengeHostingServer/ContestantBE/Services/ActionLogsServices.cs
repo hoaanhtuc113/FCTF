@@ -8,6 +8,7 @@ namespace ContestantBE.Services
     {
 
         Task<List<ActionLogsDTO>> GetActionLogs();
+        Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId);
         Task<ActionLogsDTO> SaveActionLogs(ActionLogsReq req, int userId);
     }
     public class ActionLogsServices : IActionLogsServices
@@ -22,6 +23,25 @@ namespace ContestantBE.Services
         public async Task<List<ActionLogsDTO>> GetActionLogs()
         {
             var data = await _context.ActionLogs.Include(al => al.User)
+                                                        .OrderByDescending(x => x.ActionDate)
+                                                        .Select(al => new ActionLogsDTO
+                                                        {
+                                                            ActionId = al.ActionId,
+                                                            ActionType = al.ActionType,
+                                                            ActionDate = al.ActionDate,
+                                                            ActionDetail = al.ActionDetail,
+                                                            TopicName = al.TopicName,
+                                                            UserId = al.UserId,
+                                                            UserName = al.User != null ? al.User.Name : ""
+                                                        })
+                                                        .ToListAsync();
+
+            return data;
+        }
+        public async Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId)
+        {
+            var data = await _context.ActionLogs.Include(al => al.User)
+                                                        .Where(al => al.User != null && al.User.TeamId == teamId)
                                                         .OrderByDescending(x => x.ActionDate)
                                                         .Select(al => new ActionLogsDTO
                                                         {

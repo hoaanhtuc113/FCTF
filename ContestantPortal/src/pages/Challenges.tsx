@@ -28,6 +28,8 @@ import {
 } from '../components/Skeleton';
 import { authService } from '../services/authService';
 import { challengeTimerService } from '../services/challengeTimerService';
+import { actionLogService } from '../services/actionLogService';
+import { actionType } from '../constants/ActionLogConstant';
 
 // Setup PDF worker
 // Setup PDF worker - Use jsDelivr CDN (supports CORS)
@@ -317,6 +319,13 @@ export function Challenges() {
         method: 'GET'
       });
       const data = await response.json();
+      
+      // Log access challenge action
+      actionLogService.logAction(
+        actionType.ACCESS_CHALLENGE, 
+        `Tiếp cận thử thách ${challenge.name}`,
+        challenge.id
+      );
       
       // Preserve value and solves from the list since API detail doesn't return them
       setSelectedChallenge({
@@ -1519,6 +1528,13 @@ function ChallengeDetailPanel({
         // Start health check in background
         startHealthCheckLoop();
         
+        // Log start challenge action
+        actionLogService.logAction(
+          actionType.START_CHALLENGE,
+          `Khởi động thử thách ${challenge.name}`,
+          challenge.id
+        );
+        
         // Show success message with URL - this is the ONLY popup users see
         Swal.fire({
           html: `
@@ -1565,6 +1581,13 @@ function ChallengeDetailPanel({
         
         // Start health check in background
         startHealthCheckLoop();
+        
+        // Log start challenge action
+        actionLogService.logAction(
+          actionType.START_CHALLENGE,
+          `Khởi động thử thách ${challenge.name}`,
+          challenge.id
+        );
         
         // Show deploying message
         Swal.fire({
@@ -2070,6 +2093,13 @@ function ChallengeDetailPanel({
       const data = await response.json();
       
       if (data?.data?.status === 'correct') {
+        // Log correct flag action
+        actionLogService.logAction(
+          actionType.CORRECT_FLAG,
+          `Nộp cờ đúng cho thử thách ${challenge.name}`,
+          challenge.id
+        );
+        
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2123,6 +2153,13 @@ function ChallengeDetailPanel({
           }
         }
       } else if (data?.data?.status === 'incorrect') {
+        // Log incorrect flag action
+        actionLogService.logAction(
+          actionType.INCORRECT_FLAG,
+          `Nộp cờ sai cho thử thách ${challenge.name}`,
+          challenge.id
+        );
+        
         const attemptsLeft = challenge.max_attempts > 0 
           ? challenge.max_attempts - (challenge.attemps || 0) - 1 
           : '∞';
@@ -2469,6 +2506,13 @@ const getFileName = (filePath : string) => {
         const response = await HintUnlocks(hintId);
         
         if (response?.success) {
+          // Log unlock hint action
+          actionLogService.logAction(
+            actionType.UNLOCK_HINT,
+            `Mở khóa trợ giúp cho thử thách ${challenge.name}`,
+            challenge.id
+          );
+          
           // Fetch hint details again after unlock
           const updatedHintDetails = await FetchHintDetails(hintId);
           
