@@ -15,7 +15,7 @@ export function ActionLogs() {
   const [logs, setLogs] = useState<ActionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState<number | 'all'>('all');
   const [topicFilter, setTopicFilter] = useState<string>('all');
