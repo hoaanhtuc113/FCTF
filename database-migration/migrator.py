@@ -1,6 +1,52 @@
 from sqlalchemy import Table, select, insert, update, delete, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, OperationalError, DBAPIError
 from datetime import datetime
+import time
+from functools import wraps
+
+def retry_on_connection_error(max_retries=3, delay=2):
+    """
+    Decorator to retry database operations on connection errors
+    max_retries: Maximum number of retry attempts
+    delay: Delay in seconds between retries
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (OperationalError, DBAPIError) as e:
+                    last_exception = e
+                    error_msg = str(e).lower()
+                    
+                    # Check if it's a connection/timeout error
+                    if any(keyword in error_msg for keyword in [
+                        'timeout', 'lost connection', 'server has gone away',
+                        'connection refused', 'can\'t connect', 'broken pipe'
+                    ]):
+                        if attempt < max_retries - 1:
+                            print(f"\n⚠ Connection error (attempt {attempt + 1}/{max_retries}): {e}")
+                            print(f"  Retrying in {delay} seconds...")
+                            time.sleep(delay)
+                            continue
+                        else:
+                            print(f"\n✗ Connection failed after {max_retries} attempts")
+                            raise
+                    else:
+                        # Not a connection error, don't retry
+                        raise
+                except Exception as e:
+                    # Other exceptions, don't retry
+                    raise
+            
+            # If we get here, all retries failed
+            raise last_exception
+        
+        return wrapper
+    return decorator
 
 class DataMigrator:
     """Handle data migration between databases"""
@@ -81,6 +127,7 @@ class DataMigrator:
             source_session.close()
             target_session.close()
     
+    @retry_on_connection_error(max_retries=3, delay=2)
     def _execute_batch(self, target_session, target_table, batch_data, mode, task):
         """Execute batch insert/update operations"""
         inserted = 0
@@ -192,6 +239,7 @@ class DataMigrator:
         
         return {'inserted': inserted, 'updated': updated, 'unchanged': unchanged}
     
+    @retry_on_connection_error(max_retries=3, delay=2)
     def _process_task(self, task, source_session, target_session, source_engine, target_engine):
         """Process a single migration task"""
         try:

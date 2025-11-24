@@ -22,9 +22,29 @@ class DatabaseConfig:
         if not self.ctfd_url:
             raise ValueError("DB_CTFD_URL not found in environment variables")
         
-        # Create engines
-        self.kctf_engine = create_engine(self.kctf_url, echo=False)
-        self.ctfd_engine = create_engine(self.ctfd_url, echo=False)
+        # Create engines with timeout settings
+        self.kctf_engine = create_engine(
+            self.kctf_url, 
+            echo=False,
+            pool_pre_ping=True,  # Test connection before using
+            pool_recycle=3600,   # Recycle connections after 1 hour
+            connect_args={
+                'connect_timeout': 10,  # Connection timeout: 10 seconds
+                'read_timeout': 60,     # Read timeout: 30 seconds
+                'write_timeout': 60     # Write timeout: 30 seconds
+            }
+        )
+        self.ctfd_engine = create_engine(
+            self.ctfd_url, 
+            echo=False,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            connect_args={
+                'connect_timeout': 10,
+                'read_timeout': 60,
+                'write_timeout': 60
+            }
+        )
         
         # Create session makers
         self.KCTFSession = sessionmaker(bind=self.kctf_engine)
