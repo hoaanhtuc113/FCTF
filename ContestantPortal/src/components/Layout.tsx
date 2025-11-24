@@ -27,6 +27,7 @@ import {
   SupportAgent,
   Notifications,
   ViewList,
+  History,
 } from '@mui/icons-material';
 import type { ReactNode } from 'react';
 
@@ -67,6 +68,7 @@ export function Layout({ children }: LayoutProps) {
     { label: 'Challenges', path: '/challenges', icon: <Security fontSize="small" /> },
     { label: 'Instances', path: '/instances', icon: <ViewList fontSize="small" /> },
     { label: 'Scoreboard', path: '/scoreboard', icon: <EmojiEvents fontSize="small" /> },
+    { label: 'Action Logs', path: '/action-logs', icon: <History fontSize="small" /> },
     { label: 'Tickets', path: '/tickets', icon: <SupportAgent fontSize="small" /> },
   ];
 

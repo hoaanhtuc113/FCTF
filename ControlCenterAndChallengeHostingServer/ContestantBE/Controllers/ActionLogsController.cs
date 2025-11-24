@@ -50,6 +50,37 @@ namespace ContestantBE.Controllers
             }
         }
 
+        [HttpGet("get-logs-team")]
+        public async Task<IActionResult> GetActionLogsTeam()
+        {
+            try {
+                var teamId =  int.Parse(User.FindFirstValue("teamId")); 
+                var logs_with_details = await _actionLogsServices.GetActionLogsTeam(teamId);
+
+                if (logs_with_details == null || logs_with_details.Count == 0)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "No action logs found."
+                    });
+                }
+                return Ok(new
+                {
+                    success = true,
+                    data = logs_with_details
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = ex.Message
+                });
+            }
+        }
+
         [HttpPost("save-logs")]
         public async Task<IActionResult> PostActionLogs([FromBody] ActionLogsReq req)
         {
