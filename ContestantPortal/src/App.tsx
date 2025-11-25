@@ -18,6 +18,7 @@ const Tickets = lazy(() => import('./pages/Tickets').then(module => ({ default: 
 const TicketDetail = lazy(() => import('./pages/TicketDetail').then(module => ({ default: module.TicketDetail })));
 const Profile = lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
 const Instances = lazy(() => import('./pages/Instances').then(module => ({ default: module.Instances })));
+const ActionLogsPage = lazy(() => import('./pages/ActionLogsPage').then(module => ({ default: module.ActionLogsPage })));
 
 // Inner component to use theme context
 function AppRoutes() {
@@ -95,6 +96,14 @@ function AppRoutes() {
                 element={
                   <PrivateRoute>
                     <Layout><Instances /></Layout>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/action-logs"
+                element={
+                  <PrivateRoute>
+                    <Layout><ActionLogsPage /></Layout>
                   </PrivateRoute>
                 }
               />
