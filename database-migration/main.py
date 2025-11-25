@@ -192,9 +192,9 @@ def main():
                 # Test connections
                 test_connections(db_config)
                 
-            elif choice == '4':
-                # Clean CTFd database
-                clean_ctfd_database(db_config)
+            # elif choice == '4':
+            #     # Clean CTFd database
+            #     clean_ctfd_database(db_config)
                 
             elif choice == '0':
                 # Exit
