@@ -35,7 +35,7 @@ export const API_ENDPOINTS = {
     PROFILE: '/users/profile',
   },
   ACTION_LOGS: {
-    GET: '/ActionLogs/get-logs',
+    GET: '/ActionLogs/get-logs-team',
     POST: '/ActionLogs/save-logs',
   },
   FLAGS: {
