@@ -235,32 +235,38 @@ def dump_csv_with_passwords(field=None, q=None):
     
     users = query.all()
 
-    for user, team in users:
-        new_pass = "".join(secrets.choice(charset) for _ in range(12))
-        # hashed = hash_password(new_pass)
-        # if isinstance(hashed, bytes):
-        #     hashed = hashed.decode("utf-8")
-        user.password = new_pass
-        db.session.flush()
+    import concurrent.futures
 
-        # (tuỳ chọn) kiểm tra ngay lập tức
-        ok = verify_password(new_pass, user.password)
-        if not ok:
-            print("new_pass:", repr(new_pass))
-            print("hash:", repr(user.password))
-            print("type(hash):", type(user.password))
-            print("verify_password(new_pass, hash):", verify_password(new_pass, user.password))
-            raise RuntimeError(f"Verify failed for user_id={user.id}")
+    from passlib.hash import bcrypt_sha256
+    def hash_and_prepare(user_team):
+        user, team = user_team
+        new_pass = "".join(secrets.choice(charset) for _ in range(12))
+        hashed = bcrypt_sha256.using(rounds=4).hash(str(new_pass))
+        if isinstance(hashed, bytes):
+            hashed = hashed.decode("utf-8")
+        return (user.id, hashed, user.name, user.email, user.team_id or "", team.name if team else "", new_pass)
+
+    # Dùng ThreadPoolExecutor để hash song song
+    results = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for res in executor.map(hash_and_prepare, users):
+            results.append(res)
+
+    # Update DB và ghi file CSV
+    for user_id, hashed, name, email, team_id, team_name, new_pass in results:
+        db.session.execute(
+            db.text("UPDATE users SET password = :password WHERE id = :user_id"),
+            {"password": hashed, "user_id": user_id}
+        )
         writer.writerow([
-            user.name,
-            user.email,
-            user.team_id or "",
-            team.name if team else "",
+            name,
+            email,
+            team_id,
+            team_name,
             new_pass
         ])
 
     db.session.commit()
-
     output.seek(0)
     return io.BytesIO(output.getvalue().encode("utf-8"))
 

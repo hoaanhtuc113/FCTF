@@ -46,8 +46,8 @@ namespace ResourceShared.Utils
             if (string.IsNullOrWhiteSpace(passlibHash) || !passlibHash.StartsWith("$bcrypt-sha256$"))
                 throw new ArgumentException("Not a passlib bcrypt_sha256 hash.", nameof(passlibHash));
 
-            var v2 = new Regex(@"\$bcrypt-sha256\$v=2,t=(?<type>2[ab]),r=(?<rounds>\d{2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
-            var v1 = new Regex(@"\$bcrypt-sha256\$(?<type>2[ab]),(?<rounds>\d{2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
+            var v2 = new Regex(@"\$bcrypt-sha256\$v=2,t=(?<type>2[ab]),r=(?<rounds>\d{1,2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
+            var v1 = new Regex(@"\$bcrypt-sha256\$(?<type>2[ab]),(?<rounds>\d{1,2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
 
             Match m = v2.Match(passlibHash);
             int version = 2;
@@ -63,7 +63,8 @@ namespace ResourceShared.Utils
             string salt22 = m.Groups["salt"].Value;  
             string digest31 = m.Groups["digest"].Value;
 
-            string innerBcryptHash = $"${type}${rounds}${salt22}{digest31}";
+            string roundsPadded = rounds.PadLeft(2, '0');
+            string innerBcryptHash = $"${type}${roundsPadded}${salt22}{digest31}";
             string prehashedBase64 = version == 2
                 ? HmacSha256Base64(message: plaintext, keyAscii: salt22)   // v=2 uses HMAC-SHA256 with key = salt string
                 : Sha256Base64(plaintext);                                 // v=1 used plain SHA256
