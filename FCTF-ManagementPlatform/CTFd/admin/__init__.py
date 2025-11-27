@@ -155,6 +155,10 @@ def import_csv():
         success = load_users_csv(reader)
     elif csv_type == "users_and_teams":
         success = load_users_and_teams_csv(reader)
+    elif csv_type == "teams":
+        success = load_teams_csv(reader)
+    elif csv_type == "challenges":
+        success = load_challenges_csv(reader)
     else:
         # Handle other CSV types
 
