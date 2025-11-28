@@ -30,8 +30,8 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> CreateTicketByUser([FromBody] CreateTicketRequestDTO request)
         {
-            var token = HttpContext.Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "");
-            var result = await _ticketService.CreateTicket(request, token);
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var result = await _ticketService.CreateTicket(request, userId);
             if (!result.Success) return BadRequest(new { message = result.Message });
             return Created("", result.Data);
         }

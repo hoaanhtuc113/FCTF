@@ -15,16 +15,9 @@
             _context = context;
         }
 
-        public async Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, string? tokenValue)
+        public async Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, int userId)
         {
-            if (string.IsNullOrEmpty(tokenValue))
-                return BaseResponseDTO<TicketResponseDTO>.Fail("generatedToken is required");
-            
-
-            var token = await _context.Tokens.FirstOrDefaultAsync(t => t.Value == tokenValue);
-            if (token == null) return BaseResponseDTO<TicketResponseDTO>.Fail("Token not found");
-
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == token.UserId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return BaseResponseDTO<TicketResponseDTO>.Fail("User not found");
 
             if (string.IsNullOrWhiteSpace(request.title) ||
