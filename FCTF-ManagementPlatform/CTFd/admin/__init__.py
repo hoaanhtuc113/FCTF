@@ -150,17 +150,22 @@ def import_csv():
         except UnicodeDecodeError:
             csvdata = raw.decode("latin-1")
     csvfile = StringIO(csvdata)
+    reader = csv.DictReader(csvfile)
     if csv_type == "users":
-        success = load_users_csv(csvfile)
+        success = load_users_csv(reader)
     elif csv_type == "users_and_teams":
-        success = load_users_and_teams_csv(csvfile)
+        success = load_users_and_teams_csv(reader)
+    elif csv_type == "teams":
+        success = load_teams_csv(reader)
+    elif csv_type == "challenges":
+        success = load_challenges_csv(reader)
     else:
         # Handle other CSV types
 
         success = False  # or load other types if implemented
     if success is True:
-        for user in g.created_users:
-            user_created_notification(user['email'], user['name'], user['password'])
+        # for user in g.created_users:
+        #     user_created_notification(user['email'], user['name'], user['password'])
         return redirect(url_for("admin.config"))
     else:
         return jsonify(success), 500
