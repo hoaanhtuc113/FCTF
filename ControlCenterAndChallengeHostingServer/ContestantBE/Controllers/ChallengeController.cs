@@ -263,7 +263,7 @@ namespace ContestantBE.Controllers
                
            }
 
-           var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.UserId == user.Id && s.Type == "incorrect")
+           var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
                                        .CountAsync();
 
            if(challenge.State ==  "hidden") return NotFound();
@@ -343,7 +343,7 @@ namespace ContestantBE.Controllers
                     }
                 });
             }           
-            var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.UserId == user.Id);
+            var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
 
             //Challenge not solved yet
             if (solve == null)
