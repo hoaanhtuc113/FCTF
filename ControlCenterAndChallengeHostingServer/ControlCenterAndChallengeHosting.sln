@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContestantBE", "ContestantB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeploymentCenter", "DeploymentCenter\DeploymentCenter.csproj", "{4A17FD1C-D4DB-639E-BFBF-09ADB40C4189}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTest", "D:\CapStoneProject\ControlCenterAndChallengeHostingServer\UnitTest\UnitTest.csproj", "{A81371FC-2CE1-4D88-A01D-EF0959D4F9AA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{4A17FD1C-D4DB-639E-BFBF-09ADB40C4189}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4A17FD1C-D4DB-639E-BFBF-09ADB40C4189}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4A17FD1C-D4DB-639E-BFBF-09ADB40C4189}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A81371FC-2CE1-4D88-A01D-EF0959D4F9AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A81371FC-2CE1-4D88-A01D-EF0959D4F9AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A81371FC-2CE1-4D88-A01D-EF0959D4F9AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A81371FC-2CE1-4D88-A01D-EF0959D4F9AA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
