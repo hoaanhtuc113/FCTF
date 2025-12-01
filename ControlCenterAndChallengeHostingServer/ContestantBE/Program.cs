@@ -104,8 +104,6 @@ namespace ContestantBE
             var app = builder.Build();
             app.UseRouting();                    
             app.UseCors("AllowAll");                   
-            app.UseSwagger();                    
-            app.UseSwaggerUI();
             app.UseOutputCache();
             app.UseAuthentication();
             app.UseAuthorization();
