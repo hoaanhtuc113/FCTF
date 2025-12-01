@@ -268,8 +268,6 @@ namespace ContestantBE.Controllers
                
            }
 
-           var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.UserId == user.Id && s.Type == "incorrect")
-                                       .CountAsync();
 
            if(challenge.State ==  "hidden") return NotFound();
            if(challenge.State ==  "locked") return Forbid();
@@ -317,63 +315,162 @@ namespace ContestantBE.Controllers
            }
 
 
-            var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);
-            var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
-            if (kpm >= kpm_limit)
+            // var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);
+            // var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
+            // if (kpm >= kpm_limit)
+            // {
+
+            //     if (_ctfTimeHelper.CtfTime())
+            //     {
+            //         var summit_fail = new Submission
+            //         {
+            //             UserId = user.Id,
+            //             TeamId = user.TeamId,
+            //             ChallengeId = challenge.Id,
+            //             Ip = _userHelper.GetIP(HttpContext),
+            //             Provided = request.Submission,
+            //             Type = Enums.SubmissionTypes.INCORRECT,
+            //         };
+
+            //         _context.Submissions.Add(summit_fail);
+            //         await _context.SaveChangesAsync();
+            //     }
+            //     return StatusCode(StatusCodes.Status429TooManyRequests, new
+            //     {
+            //         success = true,
+            //         data = new
+            //         {
+            //             status = "ratelimited",
+            //             message = "You're submitting flags too fast. Slow down.",
+            //             cooldown = 0
+            //         }
+            //     });
+            // }           
+            // Quick pre-check without lock (optimize for common case: already solved)
+            var solvePreCheck = await _context.Solves.AsNoTracking().FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            if (solvePreCheck != null)
             {
-
-                if (_ctfTimeHelper.CtfTime())
-                {
-                    var summit_fail = new Submission
-                    {
-                        UserId = user.Id,
-                        TeamId = user.TeamId,
-                        ChallengeId = challenge.Id,
-                        Ip = _userHelper.GetIP(HttpContext),
-                        Provided = request.Submission,
-                        Type = Enums.SubmissionTypes.INCORRECT,
-                    };
-
-                    _context.Submissions.Add(summit_fail);
-                    await _context.SaveChangesAsync();
-                }
-                return StatusCode(StatusCodes.Status429TooManyRequests, new
+                return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        status = "ratelimited",
-                        message = "You're submitting flags too fast. Slow down.",
-                        cooldown = 0
+                        status = "already_solved",
+                        message = "You or your teammate already solved this"
                     }
                 });
-            }           
-            var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.UserId == user.Id);
+            }
 
-            //Challenge not solved yet
-            if (solve == null)
+            // Quick check max attempts without lock
+            if (_redLockFactory != null)
             {
-                var max_tries = challenge.MaxAttempts;
-                // max_attempts = 0 means unlimited, only check if > 0
-                if(max_tries.HasValue && max_tries > 0 && fails >= max_tries)
+                string lockResourceCheck = $"attempt_check_{challenge.Id}_team_{user.TeamId}";
+                var redlockCheck = await _redLockFactory.CreateLockAsync(lockResourceCheck, TimeSpan.FromSeconds(3));
+                
+                if (redlockCheck != null && redlockCheck.IsAcquired)
                 {
-                    return BadRequest(new
+                    try
                     {
-                        success = true,
-                        data = new
+                        var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                                       .CountAsync();
+                        var max_tries = challenge.MaxAttempts;
+                        
+                        Console.WriteLine($"[Attempt] ChallengeId: {challenge.Id}, TeamId: {user.TeamId}, Fails: {fails}, MaxTries: {max_tries}");
+                        
+                        if (max_tries.HasValue && max_tries > 0 && fails >= max_tries)
                         {
-                            status = "incorrect",
-                            message = "You have 0 tries remaining"
+                            return BadRequest(new
+                            {
+                                success = true,
+                                data = new
+                                {
+                                    status = "incorrect",
+                                    message = "You have 0 tries remaining"
+                                }
+                            });
                         }
-                    });
-                }
-
-                AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
-                var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
-                if (attempt.status)
-                {
-                    if (_ctfTimeHelper.CtfTime())
+                    }
+                    finally
                     {
+                        await redlockCheck.DisposeAsync();
+                    }
+                }
+            }
+
+            // Attempt the challenge (outside lock - CPU intensive)
+            AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
+            var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
+
+            // Handle correct attempt with short lock for DB write
+            if (attempt.status)
+            {
+                if (_ctfTimeHelper.CtfTime())
+                {
+                    // Short lock for critical section: check + insert solve
+                    if (_redLockFactory != null)
+                    {
+                        string lockResourceSave = $"attempt_save_{challenge.Id}_team_{user.TeamId}";
+                        var redlockSave = await _redLockFactory.CreateLockAsync(lockResourceSave, TimeSpan.FromSeconds(5));
+                        
+                        if (redlockSave == null || !redlockSave.IsAcquired)
+                        {
+                            return StatusCode(StatusCodes.Status423Locked, new { error = "Server busy saving result. Please check solve status." });
+                        }
+
+                        try
+                        {
+                            // Double-check not already solved inside lock
+                            var solveCheck = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+                            if (solveCheck != null)
+                            {
+                                return Ok(new
+                                {
+                                    success = true,
+                                    data = new
+                                    {
+                                        status = "already_solved",
+                                        message = "You or your teammate already solved this"
+                                    }
+                                });
+                            }
+
+                            var summit_success = new Submission
+                            {
+                                UserId = user.Id,
+                                TeamId = user.TeamId,
+                                ChallengeId = challenge.Id,
+                                Ip = _userHelper.GetIP(HttpContext),
+                                Provided = request.Submission,
+                                Type = Enums.SubmissionTypes.CORRECT,
+                            };
+                            _context.Submissions.Add(summit_success);
+                            await _context.SaveChangesAsync();
+
+                            var solf = new Solf
+                            {
+                                Id = summit_success.Id,
+                                UserId = user.Id,
+                                TeamId = user.TeamId,
+                                ChallengeId = challenge.Id,
+                            };
+
+                            _context.Solves.Add(solf);
+                            await _context.SaveChangesAsync();
+                            
+                            // Handle dynamic challenge value calculation
+                            if (challenge.Type == "dynamic")
+                            {
+                                await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
+                            }
+                        }
+                        finally
+                        {
+                            await redlockSave.DisposeAsync();
+                        }
+                    }
+                    else
+                    {
+                        // Fallback without lock
                         var summit_success = new Submission
                         {
                             UserId = user.Id,
@@ -397,114 +494,106 @@ namespace ContestantBE.Controllers
                         _context.Solves.Add(solf);
                         await _context.SaveChangesAsync();
                         
-                        // Handle dynamic challenge value calculation
                         if (challenge.Type == "dynamic")
                         {
                             await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
                         }
-                    }                 
-                   
-                    // Auto stop challenge if require_deploy and cache exists
-                    if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
-                    {
-                        try
-                        {
-                            await _challengeServices.ForceStopChallenge(challenge.Id, user);
-                        }
-                        catch (Exception ex)
-                        {
-                            await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
-                        }
                     }
-
-                    return Ok(new
-                    {
-                        success = true,
-                        data = new
-                        {
-                            status = "correct",
-                            message = attempt.message,
-                            value = challenge.Value
-                        }
-                    });
-                }
-                else
+                }                 
+               
+                // Auto stop challenge if require_deploy and cache exists
+                if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
                 {
-                    if (_ctfTimeHelper.CtfTime())
+                    try
                     {
-                        var summit_fail = new Submission
-                        {
-                            UserId = user.Id,
-                            TeamId = user.TeamId,
-                            ChallengeId = challenge.Id,
-                            Ip = _userHelper.GetIP(HttpContext),
-                            Provided = request.Submission,
-                            Type = Enums.SubmissionTypes.INCORRECT,
-                        };
-                        _context.Submissions.Add(summit_fail);
-                        await _context.SaveChangesAsync();
+                        await _challengeServices.ForceStopChallenge(challenge.Id, user);
                     }
-
-
-                    if (max_tries.HasValue && max_tries.Value > 0)
+                    catch (Exception ex)
                     {
-                        var attemptsLeft = max_tries.Value - fails - 1;
-                        var triesStr = attemptsLeft == 1 ? "try" : "tries";
-                        var message = attempt.message;
-                        if (!string.IsNullOrEmpty(message) && !"!().;?[]{}".Contains(message[^1]))
-                        {
-                            message += ".";
-                        }
-
-                        // Auto stop challenge if no attempts left
-                        if (attemptsLeft <= 0 && challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
-                        {
-                            try
-                            {
-                                await _challengeServices.ForceStopChallenge(challenge.Id, user);
-                            }
-                            catch (Exception ex)
-                            {
-                                await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
-                            }
-                        }
-
-                        return Ok(new
-                        {
-                            success = true,
-                            data = new
-                            {
-                                status = "incorrect",
-                                message = $"{message} You have {attemptsLeft} {triesStr} remaining.",
-                                cooldown = challenge.Cooldown ?? 0
-                            }
-                        });
+                        await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
                     }
-                    return Ok(new
-                    {
-                        success = true,
-                        data = new
-                        {
-                            status = "incorrect",
-                            message = attempt.message,
-                            cooldown = challenge.Cooldown ?? 0
-                        }
-                    });
                 }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "correct",
+                        message = attempt.message,
+                        value = challenge.Value
+                    }
+                });
             }
-            else
+
+            // Handle incorrect attempt (no lock needed - just insert)
+            if (_ctfTimeHelper.CtfTime())
+            {
+                var summit_fail = new Submission
+                {
+                    UserId = user.Id,
+                    TeamId = user.TeamId,
+                    ChallengeId = challenge.Id,
+                    Ip = _userHelper.GetIP(HttpContext),
+                    Provided = request.Submission,
+                    Type = Enums.SubmissionTypes.INCORRECT,
+                };
+                _context.Submissions.Add(summit_fail);
+                await _context.SaveChangesAsync();
+            }
+
+            var max_tries_check = challenge.MaxAttempts;
+            if (!max_tries_check.HasValue || max_tries_check.Value <= 0)
             {
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        status = "already_solved",
-                        message = "You or your teammate already solved this"
+                        status = "incorrect",
+                        message = attempt.message,
+                        cooldown = challenge.Cooldown ?? 0
                     }
                 });
             }
+
+            // Calculate remaining attempts
+            var failsCount = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                               .CountAsync();
+            var attemptsLeft = max_tries_check.Value - failsCount - 1;
+            var triesStr = attemptsLeft == 1 ? "try" : "tries";
+            var message = attempt.message;
+            
+            if (!string.IsNullOrEmpty(message) && !"!().;?[]{}".Contains(message[^1]))
+            {
+                message += ".";
+            }
+
+            // Auto stop challenge if no attempts left
+            if (attemptsLeft <= 0 && challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
+            {
+                try
+                {
+                    await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                }
+            }
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    status = "incorrect",
+                    message = $"{message} You have {attemptsLeft} {triesStr} remaining.",
+                    cooldown = challenge.Cooldown ?? 0
+                }
+            });
         }
+        
 
         [HttpPost("start")]
         [DuringCtfTimeOnly]
