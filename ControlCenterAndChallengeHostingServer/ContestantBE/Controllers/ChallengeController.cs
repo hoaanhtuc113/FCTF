@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RedLockNet.SERedis;
 using ResourceShared;
 using ResourceShared.Attribute;
 using ResourceShared.Configs;
@@ -38,8 +39,10 @@ namespace ContestantBE.Controllers
         private readonly UserHelper _userHelper;
         private readonly IChallengeServices _challengeServices;
         private readonly RedisHelper _redisHelper;
+        private readonly RedisLockHelper _redisLockHelper;
+        private readonly RedLockFactory _redLockFactory;
         public ChallengeController(AppDbContext context, CtfTimeHelper ctfTimeHelper ,ConfigHelper configHelper , UserHelper userHelper, 
-                             IChallengeServices challengeServices, RedisHelper redisHelper)
+                     IChallengeServices challengeServices, RedisHelper redisHelper, RedisLockHelper redisLockHelper, RedLockFactory redLockFactory)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
@@ -47,6 +50,8 @@ namespace ContestantBE.Controllers
             _userHelper = userHelper;
             _challengeServices = challengeServices;
             _redisHelper = redisHelper;
+            _redisLockHelper = redisLockHelper;
+            _redLockFactory = redLockFactory;
         }
 
         [HttpGet("{id}")]
@@ -231,7 +236,8 @@ namespace ContestantBE.Controllers
                var cooldownKey = $"submission_cooldown_{challenge.Id}_{user.TeamId.Value}";
             
                
-               var lastSubmissionTime = await _redisHelper.GetFromCacheAsync<long?>(cooldownKey);
+               var lastSubmissionTime = await _redisHelper.
+               <long?>(cooldownKey);
                
                
                if (lastSubmissionTime.HasValue && lastSubmissionTime.Value > 0)
@@ -263,7 +269,7 @@ namespace ContestantBE.Controllers
                
            }
 
-           var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.UserId == user.Id && s.Type == "incorrect")
+           var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
                                        .CountAsync();
 
            if(challenge.State ==  "hidden") return NotFound();
@@ -580,30 +586,103 @@ namespace ContestantBE.Controllers
 
             // Check limit_challenges - maximum concurrent challenges per team
             var limit_challenges = _configHelper.LimitChallenges();
-            var totalChallengeStart = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{user.TeamId}");
-            if (totalChallengeStart.Count >= limit_challenges)
+
+            // Acquire distributed RedLock per team to avoid race where multiple requests pass the count check concurrently
+            string lockResource = $"deploy_challenge_team_{user.TeamId}";
+            TimeSpan lockTtl = TimeSpan.FromSeconds(5);
+            await Console.Out.WriteLineAsync($"LOCK RESOURCE: {lockResource} + Time : {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+            if (_redLockFactory != null)
             {
-                return BadRequest(new 
-                { 
-                    error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
-                });
+                // try to acquire redlock (short critical section)
+                var redlock = await _redLockFactory.CreateLockAsync(lockResource, lockTtl);
+                if (redlock == null || !redlock.IsAcquired)
+                {
+                    return StatusCode(StatusCodes.Status423Locked, new { error = "Server busy processing other start requests. Please try again shortly." });
+                }
+
+                try
+                {
+                    var totalChallengeStart = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{user.TeamId}");
+                    if (totalChallengeStart.Count >= limit_challenges)
+                    {
+                        return BadRequest(new 
+                        { 
+                            error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
+                        });
+                    }
+
+                    var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
+                    if (await _redisHelper.KeyExistsAsync(deploymentKey))
+                    {
+                        return BadRequest(new { error = "You have already started this challenge" });
+                    }
+
+                    ChallengeDeploymentCacheDTO challengeDeploymentCacheDTO = new ChallengeDeploymentCacheDTO
+                    {
+                        challenge_id = challenge.Id,
+                        team_id = user.TeamId.Value,
+                        status = DeploymentStatus.INITIAL,
+                        user_id = user.Id,
+                    };
+
+                    await _redisHelper.SetCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey, challengeDeploymentCacheDTO);
+                }
+                finally
+                {
+                    await redlock.DisposeAsync();
+                }
             }
-
-            var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
-            if (await _redisHelper.KeyExistsAsync(deploymentKey))
+            else
             {
-                return BadRequest(new { error = "You have already started this challenge" });
+                // fallback to previous best-effort behavior using RedisLockHelper
+                string lockKey = $"lock:deploy_challenge_team_{user.TeamId}";
+                string lockToken = Guid.NewGuid().ToString();
+                bool lockAcquired = false;
+                if (_redisLockHelper != null)
+                {
+                    lockAcquired = await _redisLockHelper.AcquireWithRetry(lockKey, lockToken, TimeSpan.FromSeconds(5), retry: 10, delayMs: 50);
+                }
+
+                if (_redisLockHelper != null && !lockAcquired)
+                {
+                    return StatusCode(StatusCodes.Status423Locked, new { error = "Server busy processing other start requests. Please try again shortly." });
+                }
+
+                try
+                {
+                    var totalChallengeStart = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{user.TeamId}");
+                    if (totalChallengeStart.Count >= limit_challenges)
+                    {
+                        return BadRequest(new 
+                        { 
+                            error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
+                        });
+                    }
+
+                    var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
+                    if (await _redisHelper.KeyExistsAsync(deploymentKey))
+                    {
+                        return BadRequest(new { error = "You have already started this challenge" });
+                    }
+
+                    ChallengeDeploymentCacheDTO challengeDeploymentCacheDTO = new ChallengeDeploymentCacheDTO
+                    {
+                        challenge_id = challenge.Id,
+                        team_id = user.TeamId.Value,
+                        status = DeploymentStatus.INITIAL,
+                        user_id = user.Id,
+                    };
+
+                    await _redisHelper.SetCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey, challengeDeploymentCacheDTO);
+                }
+                finally
+                {
+                    if (_redisLockHelper != null && lockAcquired)
+                    {
+                        await _redisLockHelper.ReleaseLock(lockKey, lockToken);
+                    }
+                }
             }
-
-            ChallengeDeploymentCacheDTO challengeDeploymentCacheDTO = new ChallengeDeploymentCacheDTO
-            {
-                challenge_id = challenge.Id,
-                team_id = user.TeamId.Value,
-                status = DeploymentStatus.INITIAL,
-                user_id = user.Id,
-            };
-
-            await _redisHelper.SetCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey, challengeDeploymentCacheDTO);
 
 
             var response =  await _challengeServices.ChallengeStart(challenge, user);
