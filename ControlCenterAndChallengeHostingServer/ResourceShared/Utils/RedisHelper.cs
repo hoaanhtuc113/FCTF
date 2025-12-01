@@ -216,6 +216,12 @@ namespace SocialSync.Shared.Utils
                 }
 
             }
+
+            // Get the underlying Redis database for advanced operations (INCR, DECR, etc.)
+            public Task<IDatabase> GetDatabaseAsync()
+            {
+                return Task.FromResult(_cache);
+            }
         }
     }
 }
