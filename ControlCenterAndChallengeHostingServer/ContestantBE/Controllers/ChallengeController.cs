@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RedLockNet.SERedis;
 using ResourceShared;
 using ResourceShared.Attribute;
 using ResourceShared.Configs;
@@ -38,8 +39,42 @@ namespace ContestantBE.Controllers
         private readonly UserHelper _userHelper;
         private readonly IChallengeServices _challengeServices;
         private readonly RedisHelper _redisHelper;
+        private readonly RedisLockHelper _redisLockHelper;
+        private readonly RedLockFactory _redLockFactory;
+        
+        // Helper method: Increment and check KPM using Redis atomic INCR
+        private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int limit)
+        {
+            if (limit <= 0) return (false, 0);
+            
+            var kpmKey = $"kpm_check_{userId}";
+            var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
+            var kpmWithMinuteKey = $"{kpmKey}_{currentMinute}";
+            
+            // Use Redis INCR - atomic operation (thread-safe)
+            var redis = await _redisHelper.GetDatabaseAsync();
+            var newCount = await redis.StringIncrementAsync(kpmWithMinuteKey);
+            
+            // Always set TTL to ensure key expires at end of current minute + 1 minute buffer
+            // This prevents keys from persisting indefinitely if TTL fails on first increment
+            var ttl = await redis.KeyTimeToLiveAsync(kpmWithMinuteKey);
+            if (!ttl.HasValue || ttl.Value.TotalSeconds < 0)
+            {
+                // Key has no TTL or already expired, set it for 90 seconds (current minute + 30s buffer)
+                await redis.KeyExpireAsync(kpmWithMinuteKey, TimeSpan.FromSeconds(90));
+            }
+            
+            // Check if exceeded limit
+            if (newCount > limit)
+            {
+                return (true, (int)newCount);
+            }
+            
+            return (false, (int)newCount);
+        }
+        
         public ChallengeController(AppDbContext context, CtfTimeHelper ctfTimeHelper ,ConfigHelper configHelper , UserHelper userHelper, 
-                             IChallengeServices challengeServices, RedisHelper redisHelper)
+                     IChallengeServices challengeServices, RedisHelper redisHelper, RedisLockHelper redisLockHelper, RedLockFactory redLockFactory)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
@@ -47,6 +82,8 @@ namespace ContestantBE.Controllers
             _userHelper = userHelper;
             _challengeServices = challengeServices;
             _redisHelper = redisHelper;
+            _redisLockHelper = redisLockHelper;
+            _redLockFactory = redLockFactory;
         }
 
         [HttpGet("{id}")]
@@ -259,12 +296,9 @@ namespace ContestantBE.Controllers
                }             
                 // First submission for this challenge+team - set cooldown timestamp
                 var newTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                await _redisHelper.SetCacheAsync<long>(cooldownKey, newTimestamp, TimeSpan.FromMinutes(10));
-               
+                await _redisHelper.SetCacheAsync<long>(cooldownKey, newTimestamp, TimeSpan.FromMinutes(10));              
            }
 
-           var fails = await _context.Submissions.Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
-                                       .CountAsync();
 
            if(challenge.State ==  "hidden") return NotFound();
            if(challenge.State ==  "locked") return Forbid();
@@ -312,45 +346,32 @@ namespace ContestantBE.Controllers
            }
 
 
-            var kpm = await ChallengeHelper.GetWrongSubmissionsPerMinute(_context, user.Id);
-            var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
-            if (kpm >= kpm_limit)
+ 
+            // Pre-check 1: Already solved (no lock - read-only, common case)
+            var solvePreCheck = await _context.Solves.AsNoTracking().FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            if (solvePreCheck != null)
             {
-
-                if (_ctfTimeHelper.CtfTime())
-                {
-                    var summit_fail = new Submission
-                    {
-                        UserId = user.Id,
-                        TeamId = user.TeamId,
-                        ChallengeId = challenge.Id,
-                        Ip = _userHelper.GetIP(HttpContext),
-                        Provided = request.Submission,
-                        Type = Enums.SubmissionTypes.INCORRECT,
-                    };
-
-                    _context.Submissions.Add(summit_fail);
-                    await _context.SaveChangesAsync();
-                }
-                return StatusCode(StatusCodes.Status429TooManyRequests, new
+                return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        status = "ratelimited",
-                        message = "You're submitting flags too fast. Slow down.",
-                        cooldown = 0
+                        status = "already_solved",
+                        message = "You or your teammate already solved this"
                     }
                 });
-            }           
-            var solve = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            }
 
-            //Challenge not solved yet
-            if (solve == null)
+            // Pre-check 2: Max attempts exceeded (no lock - optimistic check)
+            int? currentFailsPreCheck = null;
+            if (challenge.MaxAttempts.HasValue && challenge.MaxAttempts.Value > 0)
             {
-                var max_tries = challenge.MaxAttempts;
-                // max_attempts = 0 means unlimited, only check if > 0
-                if(max_tries.HasValue && max_tries > 0 && fails >= max_tries)
+                currentFailsPreCheck = await _context.Submissions
+                    .AsNoTracking()
+                    .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                    .CountAsync();
+                    
+                if (currentFailsPreCheck >= challenge.MaxAttempts.Value)
                 {
                     return BadRequest(new
                     {
@@ -362,13 +383,82 @@ namespace ContestantBE.Controllers
                         }
                     });
                 }
+            }
 
-                AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
-                var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
-                if (attempt.status)
+            // Attempt the challenge (outside lock - CPU intensive, parallel execution OK)
+            AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
+            var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
+
+            // Handle correct attempt - CRITICAL SECTION with minimal lock
+            if (attempt.status)
+            {
+                if (_ctfTimeHelper.CtfTime())
                 {
-                    if (_ctfTimeHelper.CtfTime())
+                    // Distributed lock: prevent double-solve from concurrent requests
+                    if (_redLockFactory != null)
                     {
+                        string lockResource = $"attempt_{challenge.Id}_team_{user.TeamId}";
+                        var redlock = await _redLockFactory.CreateLockAsync(lockResource, TimeSpan.FromSeconds(5));
+                        
+                        if (redlock == null || !redlock.IsAcquired)
+                        {
+                            return StatusCode(StatusCodes.Status423Locked, new { error = "Server busy processing submission. Please check solve status." });
+                        }
+
+                        try
+                        {
+                            // Re-validate inside lock (race condition protection)
+                            var solveCheck = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+                            if (solveCheck != null)
+                            {
+                                return Ok(new
+                                {
+                                    success = true,
+                                    data = new
+                                    {
+                                        status = "already_solved",
+                                        message = "You or your teammate already solved this"
+                                    }
+                                });
+                            }
+
+                            var summit_success = new Submission
+                            {
+                                UserId = user.Id,
+                                TeamId = user.TeamId,
+                                ChallengeId = challenge.Id,
+                                Ip = _userHelper.GetIP(HttpContext),
+                                Provided = request.Submission,
+                                Type = Enums.SubmissionTypes.CORRECT,
+                            };
+                            _context.Submissions.Add(summit_success);
+                            await _context.SaveChangesAsync();
+
+                            var solf = new Solf
+                            {
+                                Id = summit_success.Id,
+                                UserId = user.Id,
+                                TeamId = user.TeamId,
+                                ChallengeId = challenge.Id,
+                            };
+
+                            _context.Solves.Add(solf);
+                            await _context.SaveChangesAsync();
+                            
+                            // Handle dynamic challenge value calculation
+                            if (challenge.Type == "dynamic")
+                            {
+                                await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
+                            }
+                        }
+                        finally
+                        {
+                            await redlock.DisposeAsync();
+                        }
+                    }
+                    else
+                    {
+                        // Fallback without lock
                         var summit_success = new Submission
                         {
                             UserId = user.Id,
@@ -392,114 +482,169 @@ namespace ContestantBE.Controllers
                         _context.Solves.Add(solf);
                         await _context.SaveChangesAsync();
                         
-                        // Handle dynamic challenge value calculation
                         if (challenge.Type == "dynamic")
                         {
                             await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
                         }
-                    }                 
-                   
-                    // Auto stop challenge if require_deploy and cache exists
-                    if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
-                    {
-                        try
-                        {
-                            await _challengeServices.ForceStopChallenge(challenge.Id, user);
-                        }
-                        catch (Exception ex)
-                        {
-                            await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
-                        }
                     }
+                }                 
+               
+                // Auto stop challenge if require_deploy and cache exists
+                if (challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
+                {
+                    try
+                    {
+                        await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                    }
+                    catch (Exception ex)
+                    {
+                        await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                    }
+                }
 
-                    return Ok(new
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "correct",
+                        message = attempt.message,
+                        value = challenge.Value
+                    }
+                });
+            }
+
+            // Handle incorrect attempt with rate limit + max attempts validation
+            if (_ctfTimeHelper.CtfTime())
+            {
+                var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
+                
+                // Phase 1: Check KPM with Redis (lightweight, no DB query)
+                var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, kpm_limit);
+                if (kpmExceeded)
+                {
+                    return StatusCode(StatusCodes.Status429TooManyRequests, new
                     {
                         success = true,
                         data = new
                         {
-                            status = "correct",
-                            message = attempt.message,
-                            value = challenge.Value
+                            status = "ratelimited",
+                            message = $"You're submitting flags too fast. Slow down. ({kpmCount}/{kpm_limit} attempts in last minute)",
+                            cooldown = 0
                         }
                     });
                 }
-                else
+                
+                var hasMaxAttempts = challenge.MaxAttempts.HasValue && challenge.MaxAttempts.Value > 0;
+                
+                // Phase 2: Max attempts validation using Redis Lua script (atomic operation)
+                if (hasMaxAttempts)
                 {
-                    if (_ctfTimeHelper.CtfTime())
+                    var attemptKey = $"attempt_count_{challenge.Id}_{user.TeamId}";
+                    
+                    // Calculate smart sync threshold (1.5x maxAttempts)
+                    var smartSyncThreshold = (long)(challenge.MaxAttempts.Value * 1.5);
+                    
+                    // Get actual DB count for smart sync (only used if counter is corrupted)
+                    var actualDbCount = await _context.Submissions
+                        .AsNoTracking()
+                        .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                        .CountAsync();
+                    
+                    // Execute Lua script: atomic smart sync + pre-check + INCR + double-check
+                    // Returns -1 if exceeded, otherwise returns new count
+                    var result = await _redisHelper.CheckAndIncrementAttemptsAsync(
+                        attemptKey,
+                        challenge.MaxAttempts.Value,
+                        smartSyncThreshold,
+                        actualDbCount
+                    );
+                    
+                    if (result == -1)
                     {
-                        var summit_fail = new Submission
-                        {
-                            UserId = user.Id,
-                            TeamId = user.TeamId,
-                            ChallengeId = challenge.Id,
-                            Ip = _userHelper.GetIP(HttpContext),
-                            Provided = request.Submission,
-                            Type = Enums.SubmissionTypes.INCORRECT,
-                        };
-                        _context.Submissions.Add(summit_fail);
-                        await _context.SaveChangesAsync();
-                    }
-
-
-                    if (max_tries.HasValue && max_tries.Value > 0)
-                    {
-                        var attemptsLeft = max_tries.Value - fails - 1;
-                        var triesStr = attemptsLeft == 1 ? "try" : "tries";
-                        var message = attempt.message;
-                        if (!string.IsNullOrEmpty(message) && !"!().;?[]{}".Contains(message[^1]))
-                        {
-                            message += ".";
-                        }
-
-                        // Auto stop challenge if no attempts left
-                        if (attemptsLeft <= 0 && challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
-                        {
-                            try
-                            {
-                                await _challengeServices.ForceStopChallenge(challenge.Id, user);
-                            }
-                            catch (Exception ex)
-                            {
-                                await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
-                            }
-                        }
-
-                        return Ok(new
+                        // Exceeded limit - reject without DB insert
+                        return BadRequest(new
                         {
                             success = true,
                             data = new
                             {
                                 status = "incorrect",
-                                message = $"{message} You have {attemptsLeft} {triesStr} remaining.",
-                                cooldown = challenge.Cooldown ?? 0
+                                message = "You have 0 tries remaining"
                             }
                         });
                     }
-                    return Ok(new
-                    {
-                        success = true,
-                        data = new
-                        {
-                            status = "incorrect",
-                            message = attempt.message,
-                            cooldown = challenge.Cooldown ?? 0
-                        }
-                    });
+                    
+                    // Within limit - update cached count for response message
+                    currentFailsPreCheck = (int)result;
                 }
+                
+                // Save incorrect submission to DB (only if within limit)
+                var summit_fail = new Submission
+                {
+                    UserId = user.Id,
+                    TeamId = user.TeamId,
+                    ChallengeId = challenge.Id,
+                    Ip = _userHelper.GetIP(HttpContext),
+                    Provided = request.Submission,
+                    Type = Enums.SubmissionTypes.INCORRECT,
+                };
+                _context.Submissions.Add(summit_fail);
+                await _context.SaveChangesAsync();
             }
-            else
+
+            var max_tries_check = challenge.MaxAttempts;
+            if (!max_tries_check.HasValue || max_tries_check.Value <= 0)
             {
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        status = "already_solved",
-                        message = "You or your teammate already solved this"
+                        status = "incorrect",
+                        message = attempt.message,
+                        cooldown = challenge.Cooldown ?? 0
                     }
                 });
             }
+
+            // Calculate remaining attempts (use cached count if available)
+            var failsCount = currentFailsPreCheck ?? await _context.Submissions
+                .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                .CountAsync();
+            var attemptsLeft = max_tries_check.Value - failsCount;
+            var triesStr = attemptsLeft == 1 ? "try" : "tries";
+            var message = attempt.message;
+            
+            if (!string.IsNullOrEmpty(message) && !"!().;?[]{}".Contains(message[^1]))
+            {
+                message += ".";
+            }
+
+            // Auto stop challenge if no attempts left
+            if (attemptsLeft <= 0 && challenge.RequireDeploy && await _redisHelper.KeyExistsAsync(deploymentKey))
+            {
+                try
+                {
+                    await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                }
+            }
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    status = "incorrect",
+                    message = $"{message} You have {attemptsLeft} {triesStr} remaining.",
+                    cooldown = challenge.Cooldown ?? 0
+                }
+            });
         }
+        
 
         [HttpPost("start")]
         [DuringCtfTimeOnly]

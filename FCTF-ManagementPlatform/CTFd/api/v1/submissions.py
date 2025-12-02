@@ -2,6 +2,7 @@ from typing import List
 
 from flask import request
 from flask_restx import Namespace, Resource
+import redis
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
@@ -11,6 +12,7 @@ from CTFd.api.v1.schemas import (
 )
 from CTFd.cache import clear_challenges, clear_standings
 from CTFd.constants import RawEnum
+from CTFd.constants.envvars import REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
 from CTFd.models import Solves, Submissions, Tokens, Users, db
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.utils.decorators import admins_only
@@ -23,6 +25,16 @@ submissions_namespace = Namespace(
 
 SubmissionModel = sqlalchemy_to_pydantic(Submissions)
 TransientSubmissionModel = sqlalchemy_to_pydantic(Submissions, exclude=["id"])
+
+# Initialize Redis client
+redis_client = redis.StrictRedis(
+    host=f"{REDIS_HOST}",
+    port=int(REDIS_PORT),
+    password=REDIS_PASS,
+    db=int(REDIS_DB),
+    encoding="utf-8",
+    decode_responses=True
+)
 
 
 class SubmissionDetailedSuccessResponse(APIDetailedSuccessResponse):
@@ -229,7 +241,21 @@ class Submission(Resource):
         },
     )
     def delete(self, submission_id):
-        submission = Submissions.query.filter_by(id=submission_id).first_or_404()
+        submission = Submissions.query.filter_by(id=submission_id).first_or_404()    
+        # Decrement Redis attempt counter if submission type is "incorrect"
+        if submission.type == "incorrect" and submission.challenge_id and submission.team_id:
+            attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"           
+            try:
+                # Check if key exists first
+                key_exists = redis_client.exists(attempt_key)                   
+                if key_exists:
+                    new_count = redis_client.decr(attempt_key)
+                    if new_count <= 0:
+                        redis_client.delete(attempt_key)                   
+            except Exception as e:
+                # Log error but don't fail the deletion
+                print(f"[DELETE SUBMISSION] Error decrementing Redis counter for {attempt_key}: {e}")
+        
         db.session.delete(submission)
         db.session.commit()
         db.session.close()
