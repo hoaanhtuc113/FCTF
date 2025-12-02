@@ -395,6 +395,19 @@ namespace ResourceShared.Services
                     await _redisHelper.SetCacheAsync(chalDeployKey, deploymentCache, cacheExpired);
                 }
 
+                int realTtlSeconds = cacheExpired.HasValue
+                    ? (int)cacheExpired.Value.TotalSeconds
+                    : 60;
+
+                if (realTtlSeconds <= 0) realTtlSeconds = 60;
+
+                await _redisHelper.AtomicUpdateExpiration(
+                    teamId.ToString(),
+                    chalDeployKey,
+                    challengeId.ToString(),
+                    realTtlSeconds
+                );
+
                 return new ChallengeDeployResponeDTO
                 {
                     success = true,
