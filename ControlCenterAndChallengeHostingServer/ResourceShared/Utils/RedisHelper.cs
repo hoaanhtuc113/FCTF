@@ -1,5 +1,8 @@
 ﻿using Newtonsoft.Json;
+using ResourceShared;
+using ResourceShared.Utils;
 using StackExchange.Redis;
+using static ResourceShared.Enums;
 namespace SocialSync.Shared.Utils
 {
     namespace ResourceShared.Utils
@@ -215,6 +218,188 @@ namespace SocialSync.Shared.Utils
                     return false;
                 }
 
+            }
+
+            /// <summary>
+            /// 1. HÀM START (Controller gọi):
+            /// Kiểm tra limit, giữ chỗ (Reservation) trong ZSET với thời gian tạm (Provisioning TTL).
+            /// </summary>
+            /// <param name="teamId">ID Team</param>
+            /// <param name="deploymentKey">Key chứa data JSON</param>
+            /// <param name="challengeId">Unique ID của bài thi (dùng làm member trong ZSET)</param>
+            /// <param name="maxLimit">Giới hạn số bài thi tối đa</param>
+            /// <param name="deploymentValue">Data JSON</param>
+            /// <param name="provisioningTtl">Thời gian giữ chỗ tạm thời (Mặc định 300s = 5 phút)</param>
+            /// <returns>
+            /// 0: Success (Thành công)
+            /// 1: Limit Exceeded (Hết lượt)
+            /// 2: Already Exists (Đang chạy rồi)
+            /// </returns>
+            public async Task<DeploymentCheckResult> AtomicCheckAndCreateDeploymentZSet(
+                string teamId, 
+                string deploymentKey, 
+                string challengeId, 
+                long maxLimit, 
+                string deploymentValue, 
+                int provisioningTtl = 300) 
+            {
+                var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
+                
+                // Score tạm thời = Hiện tại + 5 phút
+                // Nếu sau 5 phút Worker không gia hạn, Redis tự coi là hết hạn và cho phép ghi đè.
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var tempScore = now + provisioningTtl; 
+
+                var script = @"
+                    local zsetKey = KEYS[1]
+                    local deploymentKey = KEYS[2]
+                    
+                    local uniqueId = ARGV[1]
+                    local maxLimit = tonumber(ARGV[2])
+                    local deploymentValue = ARGV[3]
+                    local tempScore = tonumber(ARGV[4])
+                    local now = tonumber(ARGV[5])
+                    local provisioningTtl = tonumber(ARGV[6])
+
+                    -- A. SELF-HEALING: Tự động dọn dẹp các deployment đã hết hạn/lỗi
+                    -- (Bao gồm cả những cái 'đặt gạch' quá 5 phút mà K8s không phản hồi)
+                    redis.call('ZREMRANGEBYSCORE', zsetKey, '-inf', now)
+
+                    -- B. Check Idempotency: Nếu ID này đang chạy và còn hạn -> Báo lỗi
+                    if redis.call('ZSCORE', zsetKey, uniqueId) then
+                        return 2 -- Already Exists
+                    end
+
+                    -- C. Check Limit: Đếm số lượng thực tế đang sống
+                    local currentCount = redis.call('ZCARD', zsetKey)
+                    if currentCount >= maxLimit then
+                        return 1 -- Limit Exceeded
+                    end
+
+                    -- D. Create Reservation (Đặt gạch)
+                    -- Lưu data JSON với TTL tạm thời
+                    redis.call('SETEX', deploymentKey, provisioningTtl, deploymentValue)
+                    
+                    -- Thêm vào ZSET với Score tạm thời
+                    redis.call('ZADD', zsetKey, tempScore, uniqueId)
+                    
+                    -- Gia hạn sự sống cho cái danh sách ZSET
+                    redis.call('EXPIRE', zsetKey, 1800)
+
+                    return 0 -- Success
+                ";
+
+                try 
+                {
+                    var result = await _cache.ScriptEvaluateAsync(
+                        script,
+                        keys: new RedisKey[] { zsetKey, deploymentKey },
+                        values: new RedisValue[] { challengeId, maxLimit, deploymentValue, tempScore, now, provisioningTtl }
+                    );
+                    return (DeploymentCheckResult)(int)result;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Redis] Start Failed: {ex.Message}");
+                    throw;
+                }
+            }
+
+            /// <summary>
+            /// Hàm này dành cho WORKER.
+            /// Khi K8s Pod đã Ready, gọi hàm này để gia hạn thời gian sống chính thức (ví dụ 2h).
+            /// </summary>
+            /// <param name="teamId">ID của Team</param>
+            /// <param name="deploymentKey">Key chứa data JSON</param>
+            /// <param name="challengeId">ID bài thi (Unique ID trong ZSET)</param>
+            /// <param name="realTtlSeconds">Thời gian sống thực tế (ví dụ 7200s = 2h)</param>
+            public async Task<bool> AtomicUpdateExpiration(string teamId, string deploymentKey, string challengeId, int realTtlSeconds)
+            {
+                var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
+                
+                // Tính thời gian hết hạn mới (Unix Timestamp)
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var realExpiryScore = now + realTtlSeconds;
+
+                var script = @"
+                    local zsetKey = KEYS[1]
+                    local deploymentKey = KEYS[2]
+                    local uniqueId = ARGV[1]
+                    local realExpiryScore = tonumber(ARGV[2])
+                    local realTtl = tonumber(ARGV[3])
+
+                    -- 1. SAFETY CHECK: Kiểm tra xem challenge này còn trong danh sách không?
+                    -- (Phòng trường hợp K8s deploy quá lâu > 5 phút, Redis đã tự dọn dẹp rồi)
+                    -- Nếu không còn trong ZSET, ta không được phép hồi sinh nó (tránh zombie).
+                    if redis.call('ZSCORE', zsetKey, uniqueId) == false then
+                        return 0 -- Failed: Đã bị timeout, coi như deploy thất bại
+                    end
+
+                    -- 2. UPDATE SCORE: Cập nhật thời gian hết hạn CHÍNH THỨC trong ZSET
+                    redis.call('ZADD', zsetKey, realExpiryScore, uniqueId)
+
+                    -- 3. UPDATE TTL: Cập nhật thời gian sống cho key data
+                    redis.call('EXPIRE', deploymentKey, realTtl)
+
+                    -- 4. MAINTENANCE: Gia hạn sự sống cho cả cái danh sách ZSET
+                    redis.call('EXPIRE', zsetKey, realTtl + 3600)
+
+                    return 1 -- Success
+                ";
+
+                try
+                {
+                    var result = await _cache.ScriptEvaluateAsync(
+                        script,
+                        keys: new RedisKey[] { zsetKey, deploymentKey },
+                        values: new RedisValue[] { challengeId, realExpiryScore, realTtlSeconds }
+                    );
+                    
+                    return (int)result == (int)DeploymentCheckResult.Pass;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Redis] Update Expiration Failed: {ex.Message}");
+                    return false;
+                }
+            }
+
+            /// <summary>
+            /// 3. HÀM REMOVE (Dùng chung cho cả Controller và Worker):
+            /// - User bấm Stop.
+            /// - Start bị lỗi (Rollback).
+            /// - Worker phát hiện Pod Crash/Deleted.
+            /// </summary>
+            public async Task<bool> AtomicRemoveDeploymentZSet(string teamId, string deploymentKey, string challengeId)
+            {
+                var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
+
+                var script = @"
+                    local zsetKey = KEYS[1]
+                    local deploymentKey = KEYS[2]
+                    local uniqueId = ARGV[1]
+
+                    -- Xóa data JSON
+                    redis.call('DEL', deploymentKey)
+
+                    -- Xóa khỏi danh sách quản lý ZSET
+                    return redis.call('ZREM', zsetKey, uniqueId)
+                ";
+
+                try
+                {
+                    await _cache.ScriptEvaluateAsync(
+                        script,
+                        keys: new RedisKey[] { zsetKey, deploymentKey },
+                        values: new RedisValue[] { challengeId }
+                    );
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Redis] Remove Failed: {ex.Message}");
+                    return false;
+                }
             }
         }
     }

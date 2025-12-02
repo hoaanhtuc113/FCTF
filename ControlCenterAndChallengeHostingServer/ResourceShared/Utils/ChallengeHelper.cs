@@ -77,6 +77,12 @@ namespace ResourceShared.Utils
         {
           return $"deploy_challenge_{challengeId}_{teamId}";
         }
+
+        public static string GetZSetKKey(int teamId)
+        {
+            return $"active_deploys_team_{teamId}";
+        }
+
         public static string GenerateCacheAttemptKey(int challengeId, int teamId)
         {
             var rawKey = $"challenge_status_{challengeId}_{teamId}";

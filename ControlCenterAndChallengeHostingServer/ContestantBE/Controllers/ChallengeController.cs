@@ -586,112 +586,101 @@ namespace ContestantBE.Controllers
             // Check limit_challenges - maximum concurrent challenges per team
             var limit_challenges = _configHelper.LimitChallenges();
 
-            // Acquire distributed RedLock per team to avoid race where multiple requests pass the count check concurrently
-            string lockResource = $"deploy_challenge_team_{user.TeamId}";
-            TimeSpan lockTtl = TimeSpan.FromSeconds(5);
-            await Console.Out.WriteLineAsync($"LOCK RESOURCE: {lockResource} + Time : {DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
-            if (_redLockFactory != null)
+            var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
+            var teamIdStr = user.TeamId.Value.ToString();
+            var challengeIdStr = challenge.Id.ToString();
+            var cacheDto = new ChallengeDeploymentCacheDTO
             {
-                // try to acquire redlock (short critical section)
-                var redlock = await _redLockFactory.CreateLockAsync(lockResource, lockTtl);
-                if (redlock == null || !redlock.IsAcquired)
-                {
-                    return StatusCode(StatusCodes.Status423Locked, new { error = "Server busy processing other start requests. Please try again shortly." });
-                }
-
-                try
-                {
-                    var totalChallengeStart = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{user.TeamId}");
-                    if (totalChallengeStart.Count >= limit_challenges)
-                    {
-                        return BadRequest(new 
-                        { 
-                            error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
-                        });
-                    }
-
-                    var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
-                    if (await _redisHelper.KeyExistsAsync(deploymentKey))
-                    {
-                        return BadRequest(new { error = "You have already started this challenge" });
-                    }
-
-                    ChallengeDeploymentCacheDTO challengeDeploymentCacheDTO = new ChallengeDeploymentCacheDTO
-                    {
-                        challenge_id = challenge.Id,
-                        team_id = user.TeamId.Value,
-                        status = DeploymentStatus.INITIAL,
-                        user_id = user.Id,
-                    };
-
-                    await _redisHelper.SetCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey, challengeDeploymentCacheDTO);
-                }
-                finally
-                {
-                    await redlock.DisposeAsync();
-                }
-            }
-            else
-            {
-                // fallback to previous best-effort behavior using RedisLockHelper
-                string lockKey = $"lock:deploy_challenge_team_{user.TeamId}";
-                string lockToken = Guid.NewGuid().ToString();
-                bool lockAcquired = false;
-                if (_redisLockHelper != null)
-                {
-                    lockAcquired = await _redisLockHelper.AcquireWithRetry(lockKey, lockToken, TimeSpan.FromSeconds(5), retry: 10, delayMs: 50);
-                }
-
-                if (_redisLockHelper != null && !lockAcquired)
-                {
-                    return StatusCode(StatusCodes.Status423Locked, new { error = "Server busy processing other start requests. Please try again shortly." });
-                }
-
-                try
-                {
-                    var totalChallengeStart = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{user.TeamId}");
-                    if (totalChallengeStart.Count >= limit_challenges)
-                    {
-                        return BadRequest(new 
-                        { 
-                            error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges. Please stop a running challenge before starting a new one." 
-                        });
-                    }
-
-                    var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
-                    if (await _redisHelper.KeyExistsAsync(deploymentKey))
-                    {
-                        return BadRequest(new { error = "You have already started this challenge" });
-                    }
-
-                    ChallengeDeploymentCacheDTO challengeDeploymentCacheDTO = new ChallengeDeploymentCacheDTO
-                    {
-                        challenge_id = challenge.Id,
-                        team_id = user.TeamId.Value,
-                        status = DeploymentStatus.INITIAL,
-                        user_id = user.Id,
-                    };
-
-                    await _redisHelper.SetCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey, challengeDeploymentCacheDTO);
-                }
-                finally
-                {
-                    if (_redisLockHelper != null && lockAcquired)
-                    {
-                        await _redisLockHelper.ReleaseLock(lockKey, lockToken);
-                    }
-                }
-            }
-
-
-            var response =  await _challengeServices.ChallengeStart(challenge, user);
-            return response.status switch
-            {
-                (int)HttpStatusCode.OK => Ok(response),
-                (int)HttpStatusCode.BadRequest => BadRequest(response),
-                (int)HttpStatusCode.NotFound => NotFound(response),
-                _ => StatusCode((int)response.status, response)
+                challenge_id = challenge.Id,
+                team_id = user.TeamId.Value,
+                status = DeploymentStatus.INITIAL,
+                user_id = user.Id,
             };
+            string deploymentValue = System.Text.Json.JsonSerializer.Serialize(cacheDto);
+            await Console.Out.WriteLineAsync($"[Deploy] Attempting reservation for Team {user.TeamId}, Challenge {challenge.Id} : {DateTimeOffset.Now.ToUnixTimeMilliseconds()}");
+
+            DeploymentCheckResult redisResult = await _redisHelper.AtomicCheckAndCreateDeploymentZSet(
+                                teamId: teamIdStr,
+                                deploymentKey: deploymentKey,
+                                challengeId: challengeIdStr,
+                                maxLimit: limit_challenges,
+                                deploymentValue: deploymentValue,
+                                provisioningTtl: 300
+                            );
+
+            switch (redisResult)
+            {
+                case DeploymentCheckResult.LimitExceeded:
+                    return BadRequest(new { error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges." });
+                case DeploymentCheckResult.AlreadyExists: 
+                    var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey) ?? new ChallengeDeploymentCacheDTO();
+                    
+                    switch (deploymentCache.status)
+                    {
+                        case DeploymentStatus.INITIAL:
+                            return BadRequest(new { error = "Your previous challenge deployment is still in progress. Please wait until it is completed before starting a new one." });
+                        case DeploymentStatus.PENDING:
+                            return Ok (new ChallengeDeployResponeDTO
+                            {
+                                status = (int)HttpStatusCode.OK,
+                                success = true,
+                                message = "Challenge is deploying.",
+                            });
+                        case DeploymentStatus.RUNING:
+                            int timeLeft = 0;
+                            if (deploymentCache.time_finished > 0)
+                            {
+                                long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+                                long remainSec = deploymentCache.time_finished - now;
+                                if (remainSec < 0) remainSec = 0;
+
+                                timeLeft = (int)(remainSec / 60);
+                            }
+                            return  Ok(new ChallengeDeployResponeDTO
+                            {
+                                status = (int)HttpStatusCode.OK,
+                                success = true,
+                                message = "Challenge is running.",
+                                challenge_url = deploymentCache.challenge_url,
+                                time_limit = timeLeft,
+                            });
+                        default:
+                            return BadRequest(new { error = "You have already started this challenge." });
+                    }
+                case DeploymentCheckResult.Pass:
+                    break; 
+                default:
+                    return StatusCode(500, new { error = "Unexpected Redis error." });
+            }
+
+            try
+            {
+                var response = await _challengeServices.ChallengeStart(challenge, user);
+                if (response.status != (int)HttpStatusCode.OK)
+                {
+                    await Console.Out.WriteLineAsync($"[Rollback] Service failed ({response.status}). Reverting Redis for {deploymentKey}");
+                    // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
+                    await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
+                }
+                return response.status switch
+                {
+                    (int)HttpStatusCode.OK => Ok(response),
+                    (int)HttpStatusCode.BadRequest => BadRequest(response),
+                    (int)HttpStatusCode.NotFound => NotFound(response),
+                    _ => StatusCode((int)response.status, response)
+                };
+            }
+            catch (Exception e)
+            {
+                await Console.Out.WriteLineAsync($"[Rollback] Exception during start challenge: {e.Message}. Reverting Redis for {deploymentKey}");
+                await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
+                return BadRequest(new
+                {
+                    error = "Failed to connect to start API",
+                    error_detail = e.ToString(),
+                });
+            }
         }
 
         [HttpPost("stop-by-user")]

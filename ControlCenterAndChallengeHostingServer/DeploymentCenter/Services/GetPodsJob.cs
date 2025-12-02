@@ -48,7 +48,12 @@ namespace DeploymentCenter.Services
                     if (stoppedPod.TeamId <= 0) continue;
                     await Console.Out.WriteLineAsync($"Pod {stoppedPod.Name} in Namespace {stoppedPod.Namespace} is no longer running. Removing from cache.");
                     var runnedKey = ChallengeHelper.GetCacheKey(stoppedPod.ChallengeId, stoppedPod.TeamId);
-                    await _redisHelper.RemoveCacheAsync(runnedKey);
+                    //await _redisHelper.RemoveCacheAsync(runnedKey);
+                    await _redisHelper.AtomicRemoveDeploymentZSet(
+                        stoppedPod.TeamId.ToString(),
+                        runnedKey,
+                        stoppedPod.ChallengeId.ToString()
+                    );
                 }
                 //// Tách pending và running pods từ cache
                 //var pendingPods = cachedPods.Where(p => p.IsPending).ToList();
