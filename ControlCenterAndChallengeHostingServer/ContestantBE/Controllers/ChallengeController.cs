@@ -534,114 +534,52 @@ namespace ContestantBE.Controllers
                 
                 var hasMaxAttempts = challenge.MaxAttempts.HasValue && challenge.MaxAttempts.Value > 0;
                 
-                // Phase 2: Lock only if max_attempts is configured (per challenge+team)
-                if (_redLockFactory != null && hasMaxAttempts)
+                // Phase 2: Max attempts validation using Redis atomic INCR (same pattern as KPM check)
+                if (hasMaxAttempts)
                 {
-                    string lockResource = $"attempt_{challenge.Id}_team_{user.TeamId}";
-                    var redlock = await _redLockFactory.CreateLockAsync(lockResource, TimeSpan.FromSeconds(2));
+                    var attemptKey = $"attempt_count_{challenge.Id}_{user.TeamId}";
+                    var redis = await _redisHelper.GetDatabaseAsync();
                     
-                    if (redlock == null || !redlock.IsAcquired)
+                    // Atomic increment - thread-safe, no race condition possible
+                    var newCount = await redis.StringIncrementAsync(attemptKey);
+                    
+                    // Set TTL on first increment (24 hours for auto-cleanup)
+                    if (newCount == 1)
                     {
-                        return StatusCode(StatusCodes.Status423Locked, new
+                        await redis.KeyExpireAsync(attemptKey, TimeSpan.FromHours(24));
+                    }
+                    
+                    // Check if exceeded max attempts
+                    if (newCount > challenge.MaxAttempts.Value)
+                    {
+                        // Exceeded - reject without DB insert
+                        return BadRequest(new
                         {
-                            success = false,
+                            success = true,
                             data = new
                             {
-                                status = "locked",
-                                message = "Server busy. Please try again."
+                                status = "incorrect",
+                                message = "You have 0 tries remaining"
                             }
                         });
                     }
-
-                    try
-                    {
-                        // Start transaction for atomic check-and-insert
-                        using var transaction = await _context.Database.BeginTransactionAsync();
-                        
-                        try
-                        {
-                            // Critical: Always re-query inside lock (ignore pre-check)
-                            var currentFails = await _context.Submissions
-                                .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
-                                .CountAsync();
-                            
-                            if (currentFails >= challenge.MaxAttempts.Value)
-                            {
-                                await transaction.RollbackAsync();
-                                return BadRequest(new
-                                {
-                                    success = true,
-                                    data = new
-                                    {
-                                        status = "incorrect",
-                                        message = "You have 0 tries remaining"
-                                    }
-                                });
-                            }
-
-                            var summit_fail = new Submission
-                            {
-                                UserId = user.Id,
-                                TeamId = user.TeamId,
-                                ChallengeId = challenge.Id,
-                                Ip = _userHelper.GetIP(HttpContext),
-                                Provided = request.Submission,
-                                Type = Enums.SubmissionTypes.INCORRECT,
-                            };
-                            _context.Submissions.Add(summit_fail);
-                            await _context.SaveChangesAsync();
-                            
-                            // Double-check after insert: verify total count doesn't exceed limit
-                            var finalCount = await _context.Submissions
-                                .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
-                                .CountAsync();
-                            
-                            if (finalCount > challenge.MaxAttempts.Value)
-                            {
-                                // Race condition detected - rollback this submission
-                                await transaction.RollbackAsync();
-                                return BadRequest(new
-                                {
-                                    success = true,
-                                    data = new
-                                    {
-                                        status = "incorrect",
-                                        message = "You have 0 tries remaining"
-                                    }
-                                });
-                            }
-                            
-                            await transaction.CommitAsync();
-                            
-                            // Update cached count
-                            currentFailsPreCheck = finalCount;
-                        }
-                        catch
-                        {
-                            await transaction.RollbackAsync();
-                            throw;
-                        }
-                    }
-                    finally
-                    {
-                        await redlock.DisposeAsync();
-                    }
+                    
+                    // Within limit - update cached count for response message
+                    currentFailsPreCheck = (int)newCount;
                 }
-                else
+                
+                // Save incorrect submission to DB (only if within limit)
+                var summit_fail = new Submission
                 {
-                    // No max attempts - no lock needed
-                    var summit_fail = new Submission
-                    {
-                        UserId = user.Id,
-                        TeamId = user.TeamId,
-                        ChallengeId = challenge.Id,
-                        Ip = _userHelper.GetIP(HttpContext),
-                        Provided = request.Submission,
-                        Type = Enums.SubmissionTypes.INCORRECT,
-                    };
-                    _context.Submissions.Add(summit_fail);
-                    await _context.SaveChangesAsync();
-                }
+                    UserId = user.Id,
+                    TeamId = user.TeamId,
+                    ChallengeId = challenge.Id,
+                    Ip = _userHelper.GetIP(HttpContext),
+                    Provided = request.Submission,
+                    Type = Enums.SubmissionTypes.INCORRECT,
+                };
+                _context.Submissions.Add(summit_fail);
+                await _context.SaveChangesAsync();
             }
 
             var max_tries_check = challenge.MaxAttempts;
