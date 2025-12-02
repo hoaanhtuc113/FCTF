@@ -241,13 +241,13 @@ class Submission(Resource):
         },
     )
     def delete(self, submission_id):
-        submission = Submissions.query.filter_by(id=submission_id).first_or_404()     
+        submission = Submissions.query.filter_by(id=submission_id).first_or_404()    
         # Decrement Redis attempt counter if submission type is "incorrect"
         if submission.type == "incorrect" and submission.challenge_id and submission.team_id:
             attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"           
             try:
                 # Check if key exists first
-                key_exists = redis_client.exists(attempt_key)               
+                key_exists = redis_client.exists(attempt_key)                   
                 if key_exists:
                     new_count = redis_client.decr(attempt_key)
                     if new_count <= 0:
