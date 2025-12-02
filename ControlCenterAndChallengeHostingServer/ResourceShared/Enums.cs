@@ -103,5 +103,13 @@ namespace ResourceShared
 
             return DeploymentStatus.PENDING_DEPLOY;
         }
+
+        public enum DeploymentCheckResult
+        {
+            Locked = -1,
+            Pass = 0,
+            LimitExceeded = 1,
+            AlreadyExists = 2
+        }
     }
 }

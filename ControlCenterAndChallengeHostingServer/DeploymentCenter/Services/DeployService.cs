@@ -73,12 +73,12 @@ namespace DeploymentCenter.Services
                            }
                        }
                        
-                       return new ChallengeDeployResponeDTO
-                       {
-                           status = (int)HttpStatusCode.OK,
-                           success = true,
-                           message = "Challenge is deploying.",
-                       };
+                        return new ChallengeDeployResponeDTO
+                        {
+                            status = (int)HttpStatusCode.OK,
+                            success = true,
+                            message = "Challenge is deploying.",
+                        };
                    case DeploymentStatus.RUNING:
 
                         var podName = deploymentCache._namespace;
@@ -98,7 +98,7 @@ namespace DeploymentCenter.Services
                             }
                         }
 
-                       int timeLeft = 0;
+                        int timeLeft = 0;
                         if (deploymentCache.time_finished > 0)
                         {
                             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -179,13 +179,16 @@ namespace DeploymentCenter.Services
                     }
                 }
 
-                deploymentCache.challenge_id = startReq.challengeId;
-                deploymentCache.user_id = startReq.userId.Value;
-                deploymentCache.team_id = startReq.teamId;
-                deploymentCache._namespace = appName;
-                deploymentCache.workflow_name = workflowName ?? string.Empty;
-                deploymentCache.status = DeploymentStatus.PENDING;
-                deploymentCache.time_finished = 0;
+                deploymentCache = new ChallengeDeploymentCacheDTO
+                {
+                    challenge_id = startReq.challengeId,
+                    user_id = startReq.userId.Value,
+                    team_id = startReq.teamId,
+                    _namespace = appName,
+                    workflow_name = workflowName ?? string.Empty,
+                    status = DeploymentStatus.PENDING,
+                    time_finished = 0
+                };
 
                 // khi nào thực sự lên thì cập nhật lại status và time_finished, challenge_url
                 await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromHours(1));
@@ -253,10 +256,14 @@ namespace DeploymentCenter.Services
                         pods.Remove(podToRemove);
                         await _redisHelper.SetCacheAsync(RedisConfigs.PodsInfoKey, pods);
                     }
-                }
+                } 
 
-                //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
                 var isDelete = await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
+                await _redisHelper.AtomicRemoveDeploymentZSet(
+                        stopReq.teamId.ToString(),
+                        deploymentKey,
+                        stopReq.challengeId.ToString()
+                    );
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.OK,
@@ -315,6 +322,7 @@ namespace DeploymentCenter.Services
                 // Clear the entire pods list
                 await _redisHelper.RemoveCacheAsync(RedisConfigs.PodsInfoKey);
                 await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
+                await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
 
                 await Console.Out.WriteLineAsync("Redis cache cleared.");
 
