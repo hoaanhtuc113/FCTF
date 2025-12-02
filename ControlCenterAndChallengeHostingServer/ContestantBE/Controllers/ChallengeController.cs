@@ -47,7 +47,7 @@ namespace ContestantBE.Controllers
         {
             if (limit <= 0) return (false, 0);
             
-            var kpmKey = $"kpm_{userId}";
+            var kpmKey = $"kpm_check_{userId}";
             var currentMinute = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 60;
             var kpmWithMinuteKey = $"{kpmKey}_{currentMinute}";
             
@@ -55,10 +55,13 @@ namespace ContestantBE.Controllers
             var redis = await _redisHelper.GetDatabaseAsync();
             var newCount = await redis.StringIncrementAsync(kpmWithMinuteKey);
             
-            // Set TTL on first increment
-            if (newCount == 1)
+            // Always set TTL to ensure key expires at end of current minute + 1 minute buffer
+            // This prevents keys from persisting indefinitely if TTL fails on first increment
+            var ttl = await redis.KeyTimeToLiveAsync(kpmWithMinuteKey);
+            if (!ttl.HasValue || ttl.Value.TotalSeconds < 0)
             {
-                await redis.KeyExpireAsync(kpmWithMinuteKey, TimeSpan.FromMinutes(2));
+                // Key has no TTL or already expired, set it for 90 seconds (current minute + 30s buffer)
+                await redis.KeyExpireAsync(kpmWithMinuteKey, TimeSpan.FromSeconds(90));
             }
             
             // Check if exceeded limit
@@ -534,25 +537,32 @@ namespace ContestantBE.Controllers
                 
                 var hasMaxAttempts = challenge.MaxAttempts.HasValue && challenge.MaxAttempts.Value > 0;
                 
-                // Phase 2: Max attempts validation using Redis atomic INCR (same pattern as KPM check)
+                // Phase 2: Max attempts validation using Redis Lua script (atomic operation)
                 if (hasMaxAttempts)
                 {
                     var attemptKey = $"attempt_count_{challenge.Id}_{user.TeamId}";
-                    var redis = await _redisHelper.GetDatabaseAsync();
                     
-                    // Atomic increment - thread-safe, no race condition possible
-                    var newCount = await redis.StringIncrementAsync(attemptKey);
+                    // Calculate smart sync threshold (1.5x maxAttempts)
+                    var smartSyncThreshold = (long)(challenge.MaxAttempts.Value * 1.5);
                     
-                    // Set TTL on first increment (24 hours for auto-cleanup)
-                    if (newCount == 1)
+                    // Get actual DB count for smart sync (only used if counter is corrupted)
+                    var actualDbCount = await _context.Submissions
+                        .AsNoTracking()
+                        .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                        .CountAsync();
+                    
+                    // Execute Lua script: atomic smart sync + pre-check + INCR + double-check
+                    // Returns -1 if exceeded, otherwise returns new count
+                    var result = await _redisHelper.CheckAndIncrementAttemptsAsync(
+                        attemptKey,
+                        challenge.MaxAttempts.Value,
+                        smartSyncThreshold,
+                        actualDbCount
+                    );
+                    
+                    if (result == -1)
                     {
-                        await redis.KeyExpireAsync(attemptKey, TimeSpan.FromHours(24));
-                    }
-                    
-                    // Check if exceeded max attempts
-                    if (newCount > challenge.MaxAttempts.Value)
-                    {
-                        // Exceeded - reject without DB insert
+                        // Exceeded limit - reject without DB insert
                         return BadRequest(new
                         {
                             success = true,
@@ -565,7 +575,7 @@ namespace ContestantBE.Controllers
                     }
                     
                     // Within limit - update cached count for response message
-                    currentFailsPreCheck = (int)newCount;
+                    currentFailsPreCheck = (int)result;
                 }
                 
                 // Save incorrect submission to DB (only if within limit)
