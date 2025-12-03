@@ -49,7 +49,7 @@ namespace ContestantBE.Services
         {
             var hint = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == id);
             if (hint == null) return null;
-            if (hint.Challenge.State.Equals("visible"))
+            if (!hint.Challenge.State.Equals("visible"))
             {
                 return null;
             }
@@ -97,7 +97,7 @@ namespace ContestantBE.Services
         {
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
             if (challenge == null) return null;
-            if (challenge.State.Equals("visible"))
+            if (!challenge.State.Equals("visible"))
             {
                 return null;
             }
@@ -117,7 +117,7 @@ namespace ContestantBE.Services
         {
             var target = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == req.Target);
             if (target == null) return null;
-            if (target.Challenge.State.Equals("visible"))
+            if (!target.Challenge.State.Equals("visible"))
             {
                 return null;
             }
