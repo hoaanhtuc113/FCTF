@@ -393,36 +393,24 @@ namespace ContestantBE.Controllers
             if (attempt.status)
             {
                 if (_ctfTimeHelper.CtfTime())
-                {
-                    // Distributed lock: prevent double-solve from concurrent requests
-                    if (_redLockFactory != null)
+                {             
+                    // Re-validate inside lock (race condition protection)
+                    var solveCheck = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+                    if (solveCheck != null)
                     {
-                        string lockResource = $"attempt_{challenge.Id}_team_{user.TeamId}";
-                        var redlock = await _redLockFactory.CreateLockAsync(lockResource, TimeSpan.FromSeconds(5));
-                        
-                        if (redlock == null || !redlock.IsAcquired)
+                        return Ok(new
                         {
-                            return StatusCode(StatusCodes.Status423Locked, new { error = "Server busy processing submission. Please check solve status." });
-                        }
-
-                        try
-                        {
-                            // Re-validate inside lock (race condition protection)
-                            var solveCheck = await _context.Solves.FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
-                            if (solveCheck != null)
+                            success = true,
+                            data = new
                             {
-                                return Ok(new
-                                {
-                                    success = true,
-                                    data = new
-                                    {
-                                        status = "already_solved",
-                                        message = "You or your teammate already solved this"
-                                    }
-                                });
+                                status = "already_solved",
+                                message = "You or your teammate already solved this"
                             }
-
-                            var summit_success = new Submission
+                        });
+                    }
+                    try
+                    {
+                        var summit_success = new Submission
                             {
                                 UserId = user.Id,
                                 TeamId = user.TeamId,
@@ -432,8 +420,9 @@ namespace ContestantBE.Controllers
                                 Type = Enums.SubmissionTypes.CORRECT,
                             };
                             _context.Submissions.Add(summit_success);
-                            await _context.SaveChangesAsync();
-
+                            await _context.SaveChangesAsync(); 
+                        try
+                        {
                             var solf = new Solf
                             {
                                 Id = summit_success.Id,
@@ -441,52 +430,36 @@ namespace ContestantBE.Controllers
                                 TeamId = user.TeamId,
                                 ChallengeId = challenge.Id,
                             };
-
                             _context.Solves.Add(solf);
                             await _context.SaveChangesAsync();
+                        }
+                        catch (Exception solfEx)
+                        {                                  
+                            _context.Submissions.Remove(summit_success);
+                            await _context.SaveChangesAsync();
                             
-                            // Handle dynamic challenge value calculation
-                            if (challenge.Type == "dynamic")
+                            return StatusCode(StatusCodes.Status500InternalServerError, new
                             {
-                                await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
-                            }
-                        }
-                        finally
-                        {
-                            await redlock.DisposeAsync();
+                                success = false,
+                                error = "Failed to record solve. Please try again."
+                            });
                         }
                     }
-                    else
+                    catch(Exception ex)
                     {
-                        // Fallback without lock
-                        var summit_success = new Submission
+                        await Console.Out.WriteLineAsync($"[Error] Submission save failed for challenge {challenge.Id}, team {user.TeamId}: {ex.Message}");
+                        return StatusCode(StatusCodes.Status500InternalServerError, new
                         {
-                            UserId = user.Id,
-                            TeamId = user.TeamId,
-                            ChallengeId = challenge.Id,
-                            Ip = _userHelper.GetIP(HttpContext),
-                            Provided = request.Submission,
-                            Type = Enums.SubmissionTypes.CORRECT,
-                        };
-                        _context.Submissions.Add(summit_success);
-                        await _context.SaveChangesAsync();
-
-                        var solf = new Solf
-                        {
-                            Id = summit_success.Id,
-                            UserId = user.Id,
-                            TeamId = user.TeamId,
-                            ChallengeId = challenge.Id,
-                        };
-
-                        _context.Solves.Add(solf);
-                        await _context.SaveChangesAsync();
-                        
-                        if (challenge.Type == "dynamic")
-                        {
-                            await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
-                        }
+                            success = false,
+                            error = "Failed to record submission. Please try again."
+                        });
+                    }    
+                    // Handle dynamic challenge value calculation
+                    if (challenge.Type == "dynamic")
+                    {
+                        await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
                     }
+                        
                 }                 
                
                 // Auto stop challenge if require_deploy and cache exists
