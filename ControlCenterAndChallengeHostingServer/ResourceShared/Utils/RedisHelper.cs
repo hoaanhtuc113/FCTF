@@ -238,38 +238,37 @@ namespace SocialSync.Shared.Utils
                     local smartSyncThreshold = tonumber(ARGV[2])
                     local actualDbCount = tonumber(ARGV[3])
                     local ttlSeconds = tonumber(ARGV[4])
-                    
+
                     local currentCount = redis.call('GET', key)
-                    
-                    if currentCount then
+
+                    -- Case 1: Key missing → restore from DB
+                    if not currentCount then
+                        redis.call('SET', key, actualDbCount)
+                        redis.call('EXPIRE', key, ttlSeconds)
+                        currentCount = actualDbCount
+                    else
                         currentCount = tonumber(currentCount)
                         
-                        -- Smart sync: If counter corrupted (> threshold), reset to DB
-                        if currentCount > smartSyncThreshold then
-                            redis.call('SET', key, actualDbCount)
+                        -- Ensure TTL exists
+                        local keyttl = redis.call('TTL', key)
+                        if keyttl < 0 then
                             redis.call('EXPIRE', key, ttlSeconds)
-                            currentCount = actualDbCount
-                        end
-                        
-                        -- Pre-check: Reject if already at limit (prevent spam)
-                        if currentCount >= maxAttempts then
-                            return -1
                         end
                     end
-                    
+
+                    -- Pre-check + INCR + double-check
+                    if currentCount >= maxAttempts then
+                        return -1
+                    end
+
                     -- Atomic increment
                     local newCount = redis.call('INCR', key)
-                    
-                    -- Set TTL on first increment
-                    if newCount == 1 then
-                        redis.call('EXPIRE', key, ttlSeconds)
-                    end
-                    
-                    -- Double-check after increment (race edge case)
+
+                    -- Double check after increment
                     if newCount > maxAttempts then
                         return -1
                     end
-                    
+
                     return newCount
                 ";
 
