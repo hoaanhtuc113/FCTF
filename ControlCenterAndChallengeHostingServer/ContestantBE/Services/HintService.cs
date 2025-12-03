@@ -47,9 +47,12 @@ namespace ContestantBE.Services
 
         public async Task<HintResponseDTO?> GetHintById(int id, int? userId, bool preview)
         {
-            var hint = await _context.Hints.FindAsync(id);
+            var hint = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == id);
             if (hint == null) return null;
-
+            if (hint.Challenge.State.Equals("visible"))
+            {
+                return null;
+            }
             var prerequisites = GetPrerequisites(hint.Requirements);
             var user = await _context.Users
                                          .Include(u => u.Team)
@@ -90,8 +93,14 @@ namespace ContestantBE.Services
             };
         }
 
-        public async Task<HintListDTO> GetHintsByChallengeId(int challengeId, int user)
+        public async Task<HintListDTO?> GetHintsByChallengeId(int challengeId, int user)
         {
+            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
+            if (challenge == null) return null;
+            if (challenge.State.Equals("visible"))
+            {
+                return null;
+            }
             var hints = await _context.Hints.Where(h => h.ChallengeId == challengeId).ToListAsync();
             return new HintListDTO
             {
@@ -108,6 +117,10 @@ namespace ContestantBE.Services
         {
             var target = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == req.Target);
             if (target == null) return null;
+            if (target.Challenge.State.Equals("visible"))
+            {
+                return null;
+            }
             var user = await _context.Users
                                          .Include(u => u.Team)
                                          .FirstOrDefaultAsync(u => u.Id == userId);
