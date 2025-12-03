@@ -268,6 +268,22 @@ class ChallengeList(Resource):
     def post(self):
         data = request.form or request.get_json()
 
+        # Trim name and category fields
+        if "name" in data:
+            data["name"] = data["name"].strip()
+        if "category" in data:
+            data["category"] = data["category"].strip()
+
+        # Validate name and category are not empty after trim
+        if not data.get("name"):
+            return {"success": False, "errors": {"name": ["Name cannot be empty"]}}, 400
+        if not data.get("category"):
+            return {"success": False, "errors": {"category": ["Category cannot be empty"]}}, 400
+        
+        # Validate category max length
+        if len(data.get("category", "")) > 20:
+            return {"success": False, "errors": {"category": ["Category must be 20 characters or less"]}}, 400
+
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         response = schema.load(data)
