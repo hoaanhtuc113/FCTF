@@ -248,6 +248,16 @@ namespace ResourceShared.Utils
             var current = standings.FirstOrDefault(x => x.TeamId == team.Id);
             return current?.Place;
         }
+        private long ToLong(object val)
+        {
+            if (val == null) return 0;
+            if (long.TryParse(val.ToString(), out var result))
+            {
+                return result;
+            }
+
+            return 0;
+        }
         public async Task<List<StandingDto>> GetStandings(
             int? count = null,
             int? bracketId = null,
@@ -255,9 +265,9 @@ namespace ResourceShared.Utils
         {
             using var _context = new AppDbContext(dbOptions);
 
-            var freeze = configHelper.GetConfig<long?>("freeze");
-            DateTime? freezeUtc = freeze.HasValue
-                ? DateTimeOffset.FromUnixTimeSeconds(freeze.Value).UtcDateTime
+            var freeze = ToLong(configHelper.GetConfig("freeze"));
+            DateTime? freezeUtc = freeze > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(freeze).UtcDateTime
                 : null;
 
             var userMode = configHelper.GetConfig<string>("user_mode") ?? "teams";
