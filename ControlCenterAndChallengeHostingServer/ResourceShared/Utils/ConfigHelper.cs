@@ -11,11 +11,11 @@ namespace ResourceShared.Utils
 {
     public class ConfigHelper
     {
-        private readonly AppDbContext _db;
+        private readonly DbContextOptions<AppDbContext> _dbOptions;
 
-        public ConfigHelper(AppDbContext db)
+        public ConfigHelper(DbContextOptions<AppDbContext> dbOptions)
         {
-            _db = db;
+            _dbOptions = dbOptions;
         }
         public T? GetConfig<T>(object key, T? defaultValue = default)
         {
@@ -42,30 +42,30 @@ namespace ResourceShared.Utils
 
         public object GetConfig(string key)
         {
-
-            // If not in cache, query database
-            var config = _db.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
-            object result;
-            
-            if (config != null && !string.IsNullOrEmpty(config.Value))
+            using (var context = new AppDbContext(_dbOptions))
             {
-                string value = config.Value;
+                // If not in cache, query database
+                var config = context.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
+                object result;
+                
+                if (config != null && !string.IsNullOrEmpty(config.Value))
+                {
+                    string value = config.Value;
 
-                if (int.TryParse(value, out int intVal))
-                    result = intVal;
-                else if (bool.TryParse(value, out bool boolVal))
-                    result = boolVal;
+                    if (int.TryParse(value, out int intVal))
+                        result = intVal;
+                    else if (bool.TryParse(value, out bool boolVal))
+                        result = boolVal;
+                    else
+                        result = value;
+                }
                 else
-                    result = value;
-            }
-            else
-            {
-                result = new KeyNotFoundException();
-            }
+                {
+                    result = new KeyNotFoundException();
+                }
 
-            
-            
-            return result;
+                return result;
+            }
         }
         private long ToLong(object val,int defaultValue=3)
         {

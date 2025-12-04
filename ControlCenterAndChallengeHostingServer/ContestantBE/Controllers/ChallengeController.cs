@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using RedLockNet.SERedis;
 using ResourceShared;
 using ResourceShared.Attribute;
 using ResourceShared.Configs;
@@ -40,7 +39,6 @@ namespace ContestantBE.Controllers
         private readonly IChallengeServices _challengeServices;
         private readonly RedisHelper _redisHelper;
         private readonly RedisLockHelper _redisLockHelper;
-        private readonly RedLockFactory _redLockFactory;
         
         // Helper method: Increment and check KPM using Redis atomic INCR
         private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int limit)
@@ -74,7 +72,7 @@ namespace ContestantBE.Controllers
         }
         
         public ChallengeController(AppDbContext context, CtfTimeHelper ctfTimeHelper ,ConfigHelper configHelper , UserHelper userHelper, 
-                     IChallengeServices challengeServices, RedisHelper redisHelper, RedisLockHelper redisLockHelper, RedLockFactory redLockFactory)
+                     IChallengeServices challengeServices, RedisHelper redisHelper, RedisLockHelper redisLockHelper)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
@@ -83,7 +81,6 @@ namespace ContestantBE.Controllers
             _challengeServices = challengeServices;
             _redisHelper = redisHelper;
             _redisLockHelper = redisLockHelper;
-            _redLockFactory = redLockFactory;
         }
 
         [HttpGet("{id}")]
