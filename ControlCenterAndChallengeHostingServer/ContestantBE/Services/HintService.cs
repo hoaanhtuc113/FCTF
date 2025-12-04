@@ -12,12 +12,14 @@ namespace ContestantBE.Services
         private readonly AppDbContext _context;
         private readonly ScoreHelper _scoreHelper;
         private readonly ConfigHelper _configHelper;
+        private readonly RedisLockHelper _redisLockHelper;
 
-        public HintService(AppDbContext context, ScoreHelper scoreHelper, ConfigHelper configHelper)
+        public HintService(AppDbContext context, ScoreHelper scoreHelper, ConfigHelper configHelper, RedisLockHelper redisLockHelper)
         {
             _context = context;
             _scoreHelper = scoreHelper;
             _configHelper = configHelper;
+            _redisLockHelper = redisLockHelper;
         }
 
         private List<int> GetPrerequisites(string? requirementsJson)
@@ -161,64 +163,86 @@ namespace ContestantBE.Services
                 }
             }
 
-            var userCheck = await _context.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == user.Id);
-            var score = await _scoreHelper.GetTeamScore(userCheck.Team, admin: true);
+            // Use distributed lock to prevent race condition across multiple backend replicas
+            // Lock key is based on team/user to allow parallel unlocks for different teams
+            var lockKey = _configHelper.IsTeamsMode() 
+                ? $"hint:unlock:team:{user.TeamId}" 
+                : $"hint:unlock:user:{user.Id}";
+            var lockToken = Guid.NewGuid().ToString();
+            var lockExpiry = TimeSpan.FromSeconds(10); // Max time to complete unlock operation
 
-            if (target.Cost != null && target.Cost > score)
-                throw new InvalidOperationException("Not enough points to unlock this hint");
+            bool acquired = await _redisLockHelper.AcquireLock(lockKey, lockToken, lockExpiry);
+            if (!acquired)
+                throw new InvalidOperationException("Another unlock operation is in progress. Please try again.");
 
-            // Check if already unlocked based on mode (Team Mode or User Mode)
-            Unlock? existing;
-            if (_configHelper.IsTeamsMode())
+            try
             {
-                Console.WriteLine("Team mode");
-                // Team Mode: Check by TeamId
-                existing = await _context.Unlocks
-                    .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.TeamId == user.TeamId);
+                // Check if already unlocked based on mode (Team Mode or User Mode)
+                Unlock? existing;
+                if (_configHelper.IsTeamsMode())
+                {
+                    Console.WriteLine("Team mode");
+                    // Team Mode: Check by TeamId
+                    existing = await _context.Unlocks
+                        .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.TeamId == user.TeamId);
+                }
+                else
+                {
+                    // User Mode: Check by UserId
+                    existing = await _context.Unlocks
+                        .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.UserId == user.Id);
+                }
+                
+                if (existing != null)
+                    throw new InvalidOperationException("Already unlocked");
+
+                // Check score inside lock to prevent TOCTOU race
+                var userCheck = await _context.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == user.Id);
+                var score = await _scoreHelper.GetTeamScore(userCheck.Team, admin: true);
+
+                if (target.Cost != null && target.Cost > score)
+                    throw new InvalidOperationException("Not enough points to unlock this hint");
+
+                var unlock = new Unlock
+                {
+                    Target = req.Target,
+                    Type = req.Type,
+                    UserId = user.Id,
+                    TeamId = user.TeamId,
+                    Date = DateTime.UtcNow
+                };
+                _context.Unlocks.Add(unlock);
+                await _context.SaveChangesAsync();
+
+                var award = new Award
+                {
+                    UserId = user.Id,
+                    TeamId = user.TeamId,
+                    Name = "Hint " + target.ChallengeId,
+                    Description = "Hint for " + target.Challenge.Name,
+                    Value = -target.Cost.GetValueOrDefault(),
+                    Category = "hint",
+                    Date = DateTime.UtcNow
+                };
+                _context.Awards.Add(award);
+
+                await _context.SaveChangesAsync();
+
+                return new UnlockResponseDTO
+                {
+                    Id = unlock.Id,
+                    Type = unlock.Type,
+                    Target = unlock.Target,
+                    TeamId = unlock.TeamId,
+                    UserId = unlock.UserId,
+                    Date = unlock.Date
+                };
             }
-            else
+            finally
             {
-                // User Mode: Check by UserId
-                existing = await _context.Unlocks
-                    .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.UserId == user.Id);
+                // Always release lock, even if operation fails
+                await _redisLockHelper.ReleaseLock(lockKey, lockToken);
             }
-            
-            if (existing != null)
-                throw new InvalidOperationException("Already unlocked");
-
-            var unlock = new Unlock
-            {
-                Target = req.Target,
-                Type = req.Type,
-                UserId = user.Id,
-                TeamId = user.TeamId,
-                Date = DateTime.UtcNow
-            };
-            _context.Unlocks.Add(unlock);
-
-            var award = new Award
-            {
-                UserId = user.Id,
-                TeamId = user.TeamId,
-                Name = "Hint " + target.ChallengeId,
-                Description = "Hint for " + target.Challenge.Name,
-                Value = -target.Cost.GetValueOrDefault(),
-                Category = "hint",
-                Date = DateTime.UtcNow
-            };
-            _context.Awards.Add(award);
-
-            await _context.SaveChangesAsync();
-
-            return new UnlockResponseDTO
-            {
-                Id = unlock.Id,
-                Type = unlock.Type,
-                Target = unlock.Target,
-                TeamId = unlock.TeamId,
-                UserId = unlock.UserId,
-                Date = unlock.Date
-            };
         }
     }
 }
