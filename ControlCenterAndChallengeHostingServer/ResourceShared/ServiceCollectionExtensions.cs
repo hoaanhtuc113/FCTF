@@ -47,6 +47,7 @@ namespace ResourceShared
 
                 return multiplexer;
             });
+            
             services.AddScoped<RedisHelper>();
             services.AddSingleton<RedisLockHelper>();
             services.AddScoped<IK8sService, K8sService>();
