@@ -302,28 +302,32 @@ export function Instances() {
                   <td className="py-3 px-4">
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => handleNavigateToChallenge(instance.challenge_id, instance.category)}
-                        className={`p-2 rounded transition-colors ${
-                          theme === 'dark'
-                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
-                            : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
-                        }`}
-                        title="Open challenge"
-                      >
-                        [GO TO CHALLENGE]
-                      </button>
-                      <button
-                        onClick={() => handleStop(instance.challenge_id, instance.challenge_name)}
-                        disabled={stoppingIds.has(instance.challenge_id)}
-                        className={`p-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                          theme === 'dark'
-                            ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
-                            : 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
-                        }`}
-                        title="Stop challenge"
-                      >
-                                [STOP CHALLENGE]
-                      </button>
+                            onClick={() => handleNavigateToChallenge(instance.challenge_id, instance.category)}
+                            className={`p-2 rounded transition-colors ${
+                              theme === 'dark'
+                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                                : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
+                            }`}
+                            title="Open challenge"
+                          >
+                            [GO TO CHALLENGE]
+                          </button>
+                      {instance.status === 'Running' && (
+                        <>
+                          <button
+                            onClick={() => handleStop(instance.challenge_id, instance.challenge_name)}
+                            disabled={stoppingIds.has(instance.challenge_id)}
+                            className={`p-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              theme === 'dark'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
+                                : 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
+                            }`}
+                            title="Stop challenge"
+                          >
+                            [STOP CHALLENGE]
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

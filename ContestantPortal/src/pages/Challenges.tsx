@@ -923,8 +923,8 @@ function ChallengeListItem({
                 </span>
               )}
               
-              {/* Deployment status badge */}
-              {isDeploying && (
+              {/* Status badge - show deployment status or pod status, not both */}
+              {isDeploying ? (
                 <span className={`px-2 py-0.5 rounded animate-pulse ${
                   theme === 'dark'
                     ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
@@ -932,10 +932,7 @@ function ChallengeListItem({
                 }`}>
                   [~] deploying...
                 </span>
-              )}
-              
-              {/* Pod status badge */}
-              {challenge.pod_status && (
+              ) : challenge.pod_status && (
                 <span className={`px-2 py-0.5 rounded ${
                   challenge.pod_status === 'Running'
                     ? theme === 'dark'
@@ -1686,7 +1683,7 @@ function ChallengeDetailPanel({
     
     healthCheckRunningRef.current = true;
     console.log('[Health Check] Starting new health check loop');
-    const maxAttempts = 100;
+    const maxAttempts = 20;
     
     // Restore attempts from localStorage if exists
     const healthCheckKey = `healthcheck_${challenge.id}`;
@@ -1823,8 +1820,8 @@ function ChallengeDetailPanel({
         }
         
         // Continue checking silently
-        console.log('[Health Check] Pod not ready yet. Waiting 1s...');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        console.log('[Health Check] Pod not ready yet. Waiting 5s...');
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
         return checkStatus(); // Recursive call
         
       } catch (error) {
@@ -1832,7 +1829,7 @@ function ChallengeDetailPanel({
         
         // Continue trying even on error
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 5000));
           return checkStatus();
         }
         
@@ -3312,7 +3309,7 @@ const getFileName = (filePath : string) => {
                   ) : (
                     <button
                       onClick={handleStartChallenge}
-                      disabled={isStarting}
+                      disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
                       style={{
                         fontFamily: 'monospace',
                         fontSize: '13px',
@@ -3323,8 +3320,8 @@ const getFileName = (filePath : string) => {
                         backgroundColor: '#4ade80',
                         color: '#000',
                         borderRadius: '4px',
-                        cursor: isStarting ? 'not-allowed' : 'pointer',
-                        opacity: isStarting ? 0.5 : 1,
+                        cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
+                        opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
                         transition: 'all 0.2s',
                         display: 'flex',
                         alignItems: 'center',
@@ -3332,13 +3329,13 @@ const getFileName = (filePath : string) => {
                         gap: '8px',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isStarting) {
+                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
                           e.currentTarget.style.backgroundColor = '#22c55e';
                           e.currentTarget.style.borderColor = '#22c55e';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!isStarting) {
+                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
                           e.currentTarget.style.backgroundColor = '#4ade80';
                           e.currentTarget.style.borderColor = '#4ade80';
                         }
@@ -3359,7 +3356,7 @@ const getFileName = (filePath : string) => {
                   // Show Stop button when URL exists (challenge is fully ready)
                   <button
                     onClick={handleStopChallenge}
-                    disabled={isStopping}
+                    disabled={isStopping || challenge.pod_status === 'Deleting'}
                     className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
                       theme === 'dark'
                         ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
