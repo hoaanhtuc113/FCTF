@@ -1338,7 +1338,8 @@ function ChallengeDetailPanel({
                 // Save health check state
                 localStorage.setItem(healthCheckKey, JSON.stringify({
                   startTime: deploymentData.startTime,
-                  challengeId: challenge.id
+                  challengeId: challenge.id,
+                  attempts: 0
                 }));
                 
                 setIsHealthChecking(true);
@@ -1389,7 +1390,8 @@ function ChallengeDetailPanel({
                 if (!savedHealthCheck) {
                   localStorage.setItem(healthCheckKey, JSON.stringify({
                     startTime: healthCheckData.startTime,
-                    challengeId: challenge.id
+                    challengeId: challenge.id,
+                    attempts: 0
                   }));
                 }
                 
@@ -1446,7 +1448,8 @@ function ChallengeDetailPanel({
                 if (!savedHealthCheck) {
                   localStorage.setItem(healthCheckKey, JSON.stringify({
                     startTime: stateData.startTime,
-                    challengeId: challenge.id
+                    challengeId: challenge.id,
+                    attempts: 0
                   }));
                 }
                 
@@ -1513,7 +1516,8 @@ function ChallengeDetailPanel({
         // Save health check state AFTER successful response
         localStorage.setItem(healthCheckKey, JSON.stringify({
           startTime: Date.now(),
-          challengeId: challenge.id
+          challengeId: challenge.id,
+          attempts: 0
         }));
         
         // Set URL immediately
@@ -1567,7 +1571,8 @@ function ChallengeDetailPanel({
         // Save health check state AFTER successful response
         localStorage.setItem(healthCheckKey, JSON.stringify({
           startTime: Date.now(),
-          challengeId: challenge.id
+          challengeId: challenge.id,
+          attempts: 0
         }));
         
         // Set challenge as started with message from backend
@@ -1682,12 +1687,39 @@ function ChallengeDetailPanel({
     healthCheckRunningRef.current = true;
     console.log('[Health Check] Starting new health check loop');
     const maxAttempts = 100;
+    
+    // Restore attempts from localStorage if exists
+    const healthCheckKey = `healthcheck_${challenge.id}`;
+    const savedHealthCheck = localStorage.getItem(healthCheckKey);
     let attempts = 0;
+    
+    if (savedHealthCheck) {
+      try {
+        const healthCheckData = JSON.parse(savedHealthCheck);
+        attempts = healthCheckData.attempts || 0;
+        console.log(`[Health Check] Restored attempts from localStorage: ${attempts}`);
+      } catch (error) {
+        console.error('[Health Check] Error parsing saved attempts:', error);
+      }
+    }
     
     const checkStatus = async (): Promise<boolean> => {
       try {
         attempts++;
         console.log(`[Health Check] Attempt ${attempts}/${maxAttempts}`);
+        
+        // Save current attempts to localStorage
+        const healthCheckKey = `healthcheck_${challenge.id}`;
+        const savedHealthCheck = localStorage.getItem(healthCheckKey);
+        if (savedHealthCheck) {
+          try {
+            const healthCheckData = JSON.parse(savedHealthCheck);
+            healthCheckData.attempts = attempts;
+            localStorage.setItem(healthCheckKey, JSON.stringify(healthCheckData));
+          } catch (error) {
+            console.error('[Health Check] Error updating attempts:', error);
+          }
+        }
 
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START_CHECKING, {
           method: 'POST',
