@@ -8,8 +8,6 @@ using ResourceShared.Services;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
-using RedLockNet.SERedis;
-using RedLockNet.SERedis.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,15 +47,7 @@ namespace ResourceShared
 
                 return multiplexer;
             });
-            // register RedLock factory using the existing ConnectionMultiplexer
-            services.AddSingleton(sp =>
-            {
-                var multiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
-                // wrap multiplexer for RedLock
-                var redlockMultiplexers = new List<RedLockMultiplexer> { new RedLockMultiplexer(multiplexer) };
-                var factory = RedLockFactory.Create(redlockMultiplexers);
-                return factory;
-            });
+            
             services.AddScoped<RedisHelper>();
             services.AddSingleton<RedisLockHelper>();
             services.AddScoped<IK8sService, K8sService>();

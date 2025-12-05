@@ -20,7 +20,16 @@ namespace ContestantBE.Services
             _scoreHelper = scoreHelper;
             _mode = _configHelper.UserMode() ?? "teams";
         }
+        private long ToLong(object val)
+        {
+            if (val == null) return 0;
+            if (long.TryParse(val.ToString(), out var result))
+            {
+                return result;
+            }
 
+            return 0;
+        }
         private int? GetAccountId(Solf solve) =>
             _mode == "teams" ? solve.TeamId : solve.UserId;
 
@@ -31,7 +40,6 @@ namespace ContestantBE.Services
         {
             var standings = await _scoreHelper.GetStandings(count, bracketId);
             var accountIds = standings.Select(t => t.AccountId).ToList();
-
             IQueryable<Solf> solvesQuery;
             IQueryable<Award> awardsQuery;
 
@@ -47,10 +55,10 @@ namespace ContestantBE.Services
             }
 
             // Freeze logic
-            var freeze = _configHelper.GetConfig<long?>("freeze");
-            if (freeze.HasValue)
+            var freeze = ToLong(_configHelper.GetConfig("freeze"));
+            if (freeze > 0)
             {
-                var freezeUtc = DateTimeOffset.FromUnixTimeSeconds(freeze.Value).UtcDateTime;
+                var freezeUtc = DateTimeOffset.FromUnixTimeSeconds(freeze).UtcDateTime;
                 solvesQuery = solvesQuery.Where(s => s.IdNavigation.Date < freezeUtc);
                 awardsQuery = awardsQuery.Where(a => a.Date < freezeUtc);
             }

@@ -16,33 +16,38 @@ namespace ResourceShared.Utils
     public class TokenHelper
     {
         private readonly string SecretKey = SharedConfig.PRIVATE_KEY;
-        private readonly AppDbContext _context;
-        public TokenHelper(AppDbContext context)
+        private readonly DbContextOptions<AppDbContext> _dbOptions;
+        
+        public TokenHelper(DbContextOptions<AppDbContext> dbOptions)
         {
-            _context = context;
+            _dbOptions = dbOptions;
         }
-        public async Task<Token> GenerateUserToken( User user,
+        
+        public async Task<Token> GenerateUserToken(User user,
                                                   DateTime? expiration = null,
                                                   string description = null)
-        {   
-            AuthInfo authInfo = new AuthInfo
+        {
+            using (var context = new AppDbContext(_dbOptions))
             {
-                userId = user.Id,
-                teamId = user.TeamId ?? 0
-            };
-            var value = CreateToken(authInfo, expireMinutes: 60 * 24 * 7); // 7 days
-            var token = new Token
-            {
-                UserId = user.Id,
-                Expiration = expiration,
-                Description = description,
-                Value = value,
-                Type = Enums.UserType.User
-            };
+                AuthInfo authInfo = new AuthInfo
+                {
+                    userId = user.Id,
+                    teamId = user.TeamId ?? 0
+                };
+                var value = CreateToken(authInfo, expireMinutes: 60 * 24 * 7); // 7 days
+                var token = new Token
+                {
+                    UserId = user.Id,
+                    Expiration = expiration,
+                    Description = description,
+                    Value = value,
+                    Type = Enums.UserType.User
+                };
 
-            _context.Tokens.Add(token);
-            await _context.SaveChangesAsync();
-            return token;
+                context.Tokens.Add(token);
+                await context.SaveChangesAsync();
+                return token;
+            }
         }
 
         public string CreateToken(AuthInfo payload, int expireMinutes = 60)
