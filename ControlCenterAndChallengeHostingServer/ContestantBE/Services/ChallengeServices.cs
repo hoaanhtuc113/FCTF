@@ -110,6 +110,19 @@ namespace ContestantBE.Services
             if (await _redisHelper.KeyExistsAsync(cache_key))
             {
                 var cached_value = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(cache_key);
+                if (cached_value == null)
+                {
+                    return new BaseResponseDTO<ChallengeByIdDTO>
+                    {
+                        HttpStatusCode = HttpStatusCode.OK,
+                        Data = new ChallengeByIdDTO
+                        {
+                            challenge = challenge_data,
+                            is_started = false
+                        }
+                    };
+                }
+
                 var user_chal = _dbContext.Users.FirstOrDefault(u => u.Id == cached_value.user_id);
                 if (cached_value.challenge_id == challenge.Id)
                 {
@@ -132,15 +145,7 @@ namespace ContestantBE.Services
                     };
                 }
 
-                return new BaseResponseDTO<ChallengeByIdDTO>
-                {
-                    HttpStatusCode = HttpStatusCode.OK,
-                    Data = new ChallengeByIdDTO
-                    {
-                        challenge = challenge_data,
-                        is_started = false
-                    }
-                };
+
             }
             return new BaseResponseDTO<ChallengeByIdDTO>
             {
@@ -287,7 +292,7 @@ namespace ContestantBE.Services
                 MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantBEConfigHelper.DeploymentCenterAPI);
                 var body = await multiServiceConnector.ExecuteRequest("/api/challenge/start", Method.Post, parammeters, headers);
                 await Console.Out.WriteLineAsync($"Response Line51 is {body}");
-                if(body == null)
+                if (body == null)
                     return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.BadRequest,
@@ -308,7 +313,7 @@ namespace ContestantBE.Services
                 }
                 await Console.Out.WriteLineAsync($"Start response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
                 return result;
-                
+
             }
             catch (HttpRequestException ex)
             {
@@ -332,10 +337,10 @@ namespace ContestantBE.Services
             }
         }
 
-        public async Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId,User user)
+        public async Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user)
         {
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var data = new Dictionary<string, string> 
+            var data = new Dictionary<string, string>
             {
                 { "challengeId", challengeId.ToString() },
                 { "teamId", user.TeamId.ToString()},
@@ -378,7 +383,7 @@ namespace ContestantBE.Services
                 await Console.Out.WriteLineAsync($"Stop response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
                 return result;
             }
-            catch(HttpRequestException e)
+            catch (HttpRequestException e)
             {
                 await Console.Out.WriteLineAsync($"Error connecting to API: {e.Message}");
                 return new ChallengeDeployResponeDTO
@@ -398,12 +403,12 @@ namespace ContestantBE.Services
             var teamDeployments = await _redisHelper.GetCacheByPatternAsync<ChallengeDeploymentCacheDTO>($"deploy_challenge_*_{teamId}");
 
             var instances = new List<ChallengeInstanceDTO>();
-            
+
             foreach (var instance in teamDeployments)
             {
                 var challenge = await _dbContext.Challenges
                     .FirstOrDefaultAsync(c => c.Id == instance.challenge_id);
-                
+
                 if (challenge != null)
                 {
                     instances.Add(new ChallengeInstanceDTO
@@ -413,19 +418,19 @@ namespace ContestantBE.Services
                         category = challenge.Category,
                         status = instance.status,
                         pod_name = "N/A",
-                        ready = instance.status == DeploymentStatus.RUNING ? true : false,
+                        ready = instance.ready,
                         age = instance.time_finished.ToString()
                     });
                 }
             }
-            
+
             return instances;
         }
 
         public async Task<ChallengeDeployResponeDTO> CheckChallengeStatus(int challengeId, int teamId)
         {
-             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var data = new Dictionary<string, string> 
+            var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var data = new Dictionary<string, string>
             {
                 { "challengeId", challengeId.ToString() },
                 { "teamId", teamId.ToString()},
@@ -456,7 +461,7 @@ namespace ContestantBE.Services
                 var result = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(body);
                 if (result == null)
                 {
-                    Console.Out.WriteLineAsync("Failed to deserialize response");
+                    await Console.Out.WriteLineAsync("Failed to deserialize response");
                     return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.InternalServerError,
@@ -464,12 +469,12 @@ namespace ContestantBE.Services
                         message = "Failed to parse server response"
                     };
                 }
-                Console.Out.WriteLineAsync($"Status response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
+                await Console.Out.WriteLineAsync($"Status response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
                 return result;
             }
-            catch(HttpRequestException e)
+            catch (HttpRequestException e)
             {
-                Console.Out.WriteLineAsync($"Error connecting to API: {e.Message}");
+                await Console.Out.WriteLineAsync($"Error connecting to API: {e.Message}");
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.BadGateway,

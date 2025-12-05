@@ -75,7 +75,7 @@ namespace ResourceShared.Utils
 
         public static string GetCacheKey(int challengeId, int teamId)
         {
-          return $"deploy_challenge_{challengeId}_{teamId}";
+            return $"deploy_challenge_{challengeId}_{teamId}";
         }
 
         public static string GetZSetKKey(int teamId)
@@ -91,7 +91,7 @@ namespace ResourceShared.Utils
             return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
 
-        public static string GetDeploymentAppName(int teamId, int challengeId,string challengeName)
+        public static string GetDeploymentAppName(int teamId, int challengeId, string challengeName)
         {
             var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var challName = ParseAlphaNumeric(challengeName);
@@ -138,11 +138,11 @@ namespace ResourceShared.Utils
             return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
-        public static (object payload, string appName) BuildArgoPayload(Challenge challenge, int teamId, ChallengeImageDTO challengeImage, 
+        public static (object payload, string appName) BuildArgoPayload(Challenge challenge, int teamId, ChallengeImageDTO challengeImage,
                     string cpu_limit, string cpu_request, string memory_limt, string memory_request, string pow_difficulty)
         {
             var isTemp = true;
-            if(challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
+            if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
             {
                 //isTemp = false;
 
@@ -154,7 +154,7 @@ namespace ResourceShared.Utils
             return (new
             {
                 resourceKind = "WorkflowTemplate",
-                resourceName = "start-chal-v2-template",
+                resourceName = SharedConfig.START_CHALLENGE_TEMPLATE,
                 submitOptions = new
                 {
                     entryPoint = "main",
@@ -168,7 +168,7 @@ namespace ResourceShared.Utils
                         $"MEMORY_LIMIT={memory_limt}",
                         $"MEMORY_REQUEST={memory_request}",
                         $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
-                        $"CHALLENGE_TIMEOUT={challenge.TimeLimit}m",
+                        $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
                         $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
                     }
                 }
@@ -178,10 +178,10 @@ namespace ResourceShared.Utils
 
 
         //get_wrong_submissions_per_minute
-        public static async Task<int> GetWrongSubmissionsPerMinute(AppDbContext db,int accountId)
+        public static async Task<int> GetWrongSubmissionsPerMinute(AppDbContext db, int accountId)
         {
             var oneMinAgo = DateTime.UtcNow.AddMinutes(-1);
-            return  await db.Submissions.Where(s => s.UserId == accountId && s.Type == Enums.SubmissionTypes.INCORRECT && s.Date >= oneMinAgo).CountAsync();
+            return await db.Submissions.Where(s => s.UserId == accountId && s.Type == Enums.SubmissionTypes.INCORRECT && s.Date >= oneMinAgo).CountAsync();
         }
 
         public static async Task<int> GetWrongSubmissionsPerHour(AppDbContext db, int accountId)
@@ -205,7 +205,8 @@ namespace ResourceShared.Utils
                             message = "Correct"
                         };
                     }
-                } catch (FlagException e)
+                }
+                catch (FlagException e)
                 {
                     return new AttemptDTO
                     {

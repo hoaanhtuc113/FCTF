@@ -236,6 +236,7 @@ REDIS_DB=0
 DATABASE_PORT=3306
 DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
 UPLOAD_PROVIDER=nfs
+UP_CHALLENGE_TEMPLATE=up-challenge-template
 IMAGE_REPO=fctf
 DOCKER_USERNAME=quachuoiscontainer
 
@@ -254,12 +255,14 @@ DB_CONNECTION=Server=db;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;
 REDIS_CONNECTION=cache:6379
 #REDIS_CONNECTION=dbzmn0zjiwmju.fctf.cloud:30379,password=Fctf2025@,defaultDatabase=0
 
+START_CHALLENGE_TEMPLATE=start-chal-v2-template
 CPU_LIMIT=300m
 CPU_REQUEST=300m
 MEMORY_LIMIT=256Mi
 MEMORY_REQUEST=256Mi
 POW_DIFFICULTY_SECONDS=5 #protect DDOS attack
 WORKER_SERVICE_INTERVAL=20 #seconds
+CONTESTANT_BE_API=http://172.31.177.154:5010
 EOF
 
     echo "Đã cập nhật cấu hình cho môi trường $env."

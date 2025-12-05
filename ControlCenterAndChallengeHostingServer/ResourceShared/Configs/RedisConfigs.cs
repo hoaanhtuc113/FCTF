@@ -13,6 +13,6 @@ namespace ResourceShared.Configs
         public static string RedisDeployKey = "CS_Deploy_Chal_";
         public static string RedisChallengeDeploymentListKey = "CS_Challenge_Deployment_List";
         public static string RedisStartedChallengeKey = "Started_Challenge";
-        public static string PodsInfoKey = "Pods_Info";
+        //public static string PodsInfoKey = "Pods_Info";
     }
 }
