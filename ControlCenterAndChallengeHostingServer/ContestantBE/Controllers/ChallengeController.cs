@@ -875,7 +875,7 @@ namespace ContestantBE.Controllers
                 status = (int)HttpStatusCode.BadRequest
             });
 
-            var response = await _challengeServices.CheckChallengeStatus(challenge.Id, user.TeamId.Value);
+            var response = await _challengeServices.CheckChallengeStart(challenge.Id, user.TeamId.Value);
             return response.status switch
             {
                 (int)HttpStatusCode.OK => Ok(response),

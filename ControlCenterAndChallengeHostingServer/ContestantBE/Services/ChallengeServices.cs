@@ -26,6 +26,7 @@ namespace ContestantBE.Services
         Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user);
         Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user);
         Task<ChallengeDeployResponeDTO> CheckChallengeStatus(int challengeId, int teamId);
+        Task<ChallengeDeployResponeDTO> CheckChallengeStart(int challengeId, int teamId);
         Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user);
         Task<List<TopicDTO>> GetTopic(User user);
         Task<List<ChallengeByCategoryDTO>> GetChallengeByCategories(string cacategory_name, int? team_id);
@@ -480,6 +481,68 @@ namespace ContestantBE.Services
                     status = (int)HttpStatusCode.BadGateway,
                     success = false,
                     message = "Connection url failed"
+                };
+            }
+        }
+
+        public async Task<ChallengeDeployResponeDTO> CheckChallengeStart(int challengeId, int teamId)
+        {
+            try
+            {
+                var deploymentKey = ChallengeHelper.GetCacheKey(challengeId,teamId);
+
+                var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
+
+                await Console.Out.WriteLineAsync($"[StatusCheck] Initial cache for key {deploymentKey}: {System.Text.Json.JsonSerializer.Serialize(deploymentCache)}");
+                if (deploymentCache == null)
+                {
+                    return new ChallengeDeployResponeDTO
+                    {
+                        success = false,
+                        message = "No deployment info found.",
+                        status = (int)HttpStatusCode.NotFound
+                    };
+                }
+
+                var challenge = await _dbContext.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
+                if (challenge == null)
+                {
+                    return new ChallengeDeployResponeDTO
+                    {
+                        success = false,
+                        message = "Challenge not found.",
+                        status = (int)HttpStatusCode.NotFound
+                    };
+                }
+
+                if (deploymentCache.status == Enums.DeploymentStatus.RUNING && deploymentCache.ready)
+                {
+                    
+                    var result = new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.OK,
+                        success = true,
+                        message = "Pod is running.",
+                        challenge_url = deploymentCache.challenge_url,
+                        time_limit = challenge.TimeLimit ?? -1,
+                    };
+                    return result;
+                }
+                return new ChallengeDeployResponeDTO
+                {
+                    success = false,
+                    message = "Pod is not running.",
+                    status = (int)HttpStatusCode.OK
+                };
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Error during status check: {ex.Message}");
+                return new ChallengeDeployResponeDTO
+                {
+                    success = false,
+                    message = "Error during status check.",
+                    status = (int)HttpStatusCode.InternalServerError,
                 };
             }
         }
