@@ -29,28 +29,55 @@ namespace ResourceShared.Utils
         {
             using (var context = new AppDbContext(_dbOptions))
             {
+                // Tạo UUID unique cho mỗi lần login
+                var tokenUuid = Guid.NewGuid().ToString();
+                
                 AuthInfo authInfo = new AuthInfo
                 {
                     userId = user.Id,
                     teamId = user.TeamId ?? 0
                 };
-                var value = CreateToken(authInfo, expireMinutes: 60 * 24 * 7); // 7 days
-                var token = new Token
+                var value = CreateToken(authInfo, tokenUuid, expireMinutes: 60 * 24 * 7); // 7 days
+                
+                // Kiểm tra xem user đã có token chưa
+                var existingToken = await context.Tokens
+                    .FirstOrDefaultAsync(t => t.UserId == user.Id && t.Type == Enums.UserType.User);
+                
+                if (existingToken != null)
                 {
-                    UserId = user.Id,
-                    Expiration = expiration,
-                    Description = description,
-                    Value = value,
-                    Type = Enums.UserType.User
-                };
-
-                context.Tokens.Add(token);
-                await context.SaveChangesAsync();
-                return token;
+                    // Update token hiện tại với UUID mới
+                    existingToken.Value = tokenUuid; // Chỉ lưu UUID
+                    existingToken.Expiration = expiration;
+                    existingToken.Description = description;
+                    context.Tokens.Update(existingToken);
+                    await context.SaveChangesAsync();
+                    
+                    // Trả về token với JWT value (không phải UUID)
+                    existingToken.Value = value;
+                    return existingToken;
+                }
+                else
+                {
+                    // Tạo token mới
+                    var token = new Token
+                    {
+                        UserId = user.Id,
+                        Expiration = expiration,
+                        Description = description,
+                        Value = tokenUuid, // Lưu UUID vào DB
+                        Type = Enums.UserType.User
+                    };
+                    context.Tokens.Add(token);
+                    await context.SaveChangesAsync();
+                    
+                    // Trả về token với JWT value
+                    token.Value = value;
+                    return token;
+                }
             }
         }
 
-        public string CreateToken(AuthInfo payload, int expireMinutes = 60)
+        public string CreateToken(AuthInfo payload, string tokenUuid, int expireMinutes = 60)
         {
             var claims = payload!.GetType()
                 .GetProperties()
@@ -58,6 +85,9 @@ namespace ResourceShared.Utils
                 .ToList();
             
             claims.Add(new Claim(ClaimTypes.NameIdentifier, payload.userId.ToString()));
+            
+            // Thêm UUID claim để phân biệt mỗi lần đăng nhập
+            claims.Add(new Claim("tokenUuid", tokenUuid));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
