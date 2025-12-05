@@ -401,6 +401,78 @@ namespace SocialSync.Shared.Utils
                     return false;
                 }
             }
+
+            // Get the underlying Redis database for advanced operations (INCR, DECR, etc.)
+            public Task<IDatabase> GetDatabaseAsync()
+            {
+                return Task.FromResult(_cache);
+            }
+
+            // Lua script for atomic max attempts validation with smart sync
+            // Returns: -1 if exceeded limit, otherwise returns new count after increment
+            public async Task<long> CheckAndIncrementAttemptsAsync(string key, long maxAttempts, long smartSyncThreshold, int actualDbCount)
+            {
+                // Lua script that atomically:
+                // 1. Gets current count
+                // 2. If count > threshold, reset to DB count (smart sync)
+                // 3. If count >= maxAttempts, return -1 (reject)
+                // 4. Otherwise INCR and return new count
+                var luaScript = @"
+                    local key = KEYS[1]
+                    local maxAttempts = tonumber(ARGV[1])
+                    local smartSyncThreshold = tonumber(ARGV[2])
+                    local actualDbCount = tonumber(ARGV[3])
+                    local ttlSeconds = tonumber(ARGV[4])
+
+                    local currentCount = redis.call('GET', key)
+
+                    -- Case 1: Key missing → restore from DB
+                    if not currentCount then
+                        redis.call('SET', key, actualDbCount)
+                        redis.call('EXPIRE', key, ttlSeconds)
+                        currentCount = actualDbCount
+                    else
+                        currentCount = tonumber(currentCount)
+                        
+                        -- Ensure TTL exists
+                        local keyttl = redis.call('TTL', key)
+                        if keyttl < 0 then
+                            redis.call('EXPIRE', key, ttlSeconds)
+                        end
+                    end
+
+                    -- Pre-check + INCR + double-check
+                    if currentCount >= maxAttempts then
+                        return -1
+                    end
+
+                    -- Atomic increment
+                    local newCount = redis.call('INCR', key)
+
+                    -- Double check after increment
+                    if newCount > maxAttempts then
+                        return -1
+                    end
+
+                    return newCount
+                ";
+
+                try
+                {
+                    var result = await _cache.ScriptEvaluateAsync(
+                        luaScript,
+                        new RedisKey[] { key },
+                        new RedisValue[] { maxAttempts, smartSyncThreshold, actualDbCount, 86400 } // 24h TTL
+                    );
+
+                    return (long)result;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Redis Lua] Error executing attempts check script: {ex.Message}");
+                    throw;
+                }
+            }
         }
     }
 }

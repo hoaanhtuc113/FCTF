@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Filters;
 using ResourceShared.Extensions;
 using ResourceShared.Utils;
+using System.Security.Claims;
 
 namespace ContestantBE.Attribute
 {
@@ -40,7 +41,7 @@ namespace ContestantBE.Attribute
                 }
                 if (!_ctfTimeHelper.CtfStarted())
                 {
-                    if (_configHelper.IsTeamsMode() && context.HttpContext.GetCurrentUser().TeamId == null)
+                    if (_configHelper.IsTeamsMode() && context.HttpContext.User.FindFirstValue("teamId") == null)
                     {
                         context.Result = new JsonResult(new { error = "You must join a team to participate in this CTF" }) { StatusCode = 403 };
                         return;
