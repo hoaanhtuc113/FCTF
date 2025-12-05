@@ -11,12 +11,13 @@ namespace ResourceShared
 
         public static class UserType
         {
+            public const string Admin = "admin";
             public const string User = "user";
         }
 
         public static class Mode
         {
-            public  const string User = "users";
+            public const string User = "users";
             public const string Team = "teams";
         }
 
@@ -46,6 +47,8 @@ namespace ResourceShared
             public const string INITIAL = "Initial";
             public const string PENDING = "Pending";
             public const string RUNING = "Running";
+            public const string STOPPED = "Stopped";
+            public const string DELETING = "Deleting";
 
             public const string FAILED = "Failed";
             public const string SUCCEEDED = "Succeeded";

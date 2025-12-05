@@ -25,6 +25,7 @@ services:
       - UPLOAD_PROVIDER=${UPLOAD_PROVIDER}
       - IMAGE_REPO=${IMAGE_REPO}
       - DOCKER_USERNAME=${DOCKER_USERNAME}
+      - UP_CHALLENGE_TEMPLATE=${UP_CHALLENGE_TEMPLATE}
     volumes:
       - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
       - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads
@@ -82,6 +83,7 @@ services:
       - DEPLOYMENT_SERVICE_API=${DEPLOYMENT_SERVICE_API}
       - NFS_MOUNT_PATH=${NFS_MOUNT_PATH}
       - TCP_DOMAIN=${TCP_DOMAIN}
+      - START_CHALLENGE_TEMPLATE=${START_CHALLENGE_TEMPLATE}
     volumes:
       - ${NFS_MOUNT_PATH}:${NFS_MOUNT_PATH}
     depends_on:
@@ -108,16 +110,45 @@ services:
       - PRIVATE_KEY=${PRIVATE_KEY}
       - ARGO_WORKFLOWS_URL=${ARGO_WORKFLOWS_URL}
       - ARGO_WORKFLOWS_TOKEN=${ARGO_WORKFLOWS_TOKEN}
+      - START_CHALLENGE_TEMPLATE=${START_CHALLENGE_TEMPLATE}
       - CPU_LIMIT=${CPU_LIMIT}
       - CPU_REQUEST=${CPU_REQUEST}
       - MEMORY_LIMIT=${MEMORY_LIMIT}
       - MEMORY_REQUEST=${MEMORY_REQUEST}
       - POW_DIFFICULTY_SECONDS=${POW_DIFFICULTY_SECONDS}
-      - WORKER_SERVICE_INTERVAL=${WORKER_SERVICE_INTERVAL}
       - KUBECONFIG=/root/.kube/config
       - TCP_DOMAIN=${TCP_DOMAIN}
     volumes:
     - /home/manhhuy/.kube/config:/root/.kube/config:ro
+    depends_on:
+      - db
+      - cache
+    networks:
+      - default
+
+  deployment-worker:
+    build:
+      context: ./ControlCenterAndChallengeHostingServer
+      dockerfile: DeploymentListener/Dockerfile
+    restart: always
+    ports:
+      - "5030:5030"
+    environment:
+      # ASP.NET
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=http://+:5030
+      # Database & Cache
+      - DB_CONNECTION=${DB_CONNECTION}
+      - REDIS_CONNECTION=${REDIS_CONNECTION}
+      # Worker Config
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - TCP_DOMAIN=${TCP_DOMAIN}
+      - CONTESTANT_BE_API=${CONTESTANT_BE_API}
+      - WORKER_SERVICE_INTERVAL=${WORKER_SERVICE_INTERVAL}
+      - START_CHALLENGE_TEMPLATE=${START_CHALLENGE_TEMPLATE}
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - /home/manhhuy/.kube/config:/root/.kube/config:ro
     depends_on:
       - db
       - cache

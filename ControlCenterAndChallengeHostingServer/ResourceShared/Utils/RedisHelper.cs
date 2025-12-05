@@ -236,19 +236,19 @@ namespace SocialSync.Shared.Utils
             /// 2: Already Exists (Đang chạy rồi)
             /// </returns>
             public async Task<DeploymentCheckResult> AtomicCheckAndCreateDeploymentZSet(
-                string teamId, 
-                string deploymentKey, 
-                string challengeId, 
-                long maxLimit, 
-                string deploymentValue, 
-                int provisioningTtl = 300) 
+                string teamId,
+                string deploymentKey,
+                string challengeId,
+                long maxLimit,
+                string deploymentValue,
+                int provisioningTtl = 300)
             {
                 var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
-                
+
                 // Score tạm thời = Hiện tại + 5 phút
                 // Nếu sau 5 phút Worker không gia hạn, Redis tự coi là hết hạn và cho phép ghi đè.
                 var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                var tempScore = now + provisioningTtl; 
+                var tempScore = now + provisioningTtl;
 
                 var script = @"
                     local zsetKey = KEYS[1]
@@ -289,7 +289,7 @@ namespace SocialSync.Shared.Utils
                     return 0 -- Success
                 ";
 
-                try 
+                try
                 {
                     var result = await _cache.ScriptEvaluateAsync(
                         script,
@@ -313,11 +313,12 @@ namespace SocialSync.Shared.Utils
             /// <param name="deploymentKey">Key chứa data JSON</param>
             /// <param name="challengeId">ID bài thi (Unique ID trong ZSET)</param>
             /// <param name="realTtlSeconds">Thời gian sống thực tế (ví dụ 7200s = 2h)</param>
-            public async Task<bool> AtomicUpdateExpiration(string teamId, string deploymentKey, string challengeId, int realTtlSeconds)
+            /// <param name="deploymentValue">Data JSON cập nhật mới (tránh race condition)</param>
+            public async Task<bool> AtomicUpdateExpiration(string teamId, string deploymentKey, string challengeId, int realTtlSeconds, string? deploymentValue = null)
             {
-                var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
-                
-                // Tính thời gian hết hạn mới (Unix Timestamp)
+                var teamIdInt = int.Parse(teamId);
+                var zsetKey = ChallengeHelper.GetZSetKKey(teamIdInt);
+
                 var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 var realExpiryScore = now + realTtlSeconds;
 
@@ -327,7 +328,21 @@ namespace SocialSync.Shared.Utils
                     local uniqueId = ARGV[1]
                     local realExpiryScore = tonumber(ARGV[2])
                     local realTtl = tonumber(ARGV[3])
+                    local deploymentValue = ARGV[4]
+                    local teamId = tonumber(ARGV[5])
 
+                    -- TRƯỜNG HỢP ĐẶC BIỆT: teamId <= 0 // Preview
+                    -- Chỉ cần cập nhật deploymentKey, bỏ qua SAFETY CHECK và UPDATE SCORE
+                    if teamId <= 0 then
+                        if deploymentValue ~= '' then
+                            redis.call('SETEX', deploymentKey, realTtl, deploymentValue)
+                        else
+                            redis.call('EXPIRE', deploymentKey, realTtl)
+                        end
+                        return 1 -- Success
+                    end
+
+                    -- TRƯỜNG HỢP BÌNH THƯỜNG: teamId > 0
                     -- 1. SAFETY CHECK: Kiểm tra xem challenge này còn trong danh sách không?
                     -- (Phòng trường hợp K8s deploy quá lâu > 5 phút, Redis đã tự dọn dẹp rồi)
                     -- Nếu không còn trong ZSET, ta không được phép hồi sinh nó (tránh zombie).
@@ -338,8 +353,12 @@ namespace SocialSync.Shared.Utils
                     -- 2. UPDATE SCORE: Cập nhật thời gian hết hạn CHÍNH THỨC trong ZSET
                     redis.call('ZADD', zsetKey, realExpiryScore, uniqueId)
 
-                    -- 3. UPDATE TTL: Cập nhật thời gian sống cho key data
-                    redis.call('EXPIRE', deploymentKey, realTtl)
+                    -- 3. UPDATE DATA: Cập nhật data JSON mới (nếu có) để tránh race condition
+                    if deploymentValue ~= '' then
+                        redis.call('SETEX', deploymentKey, realTtl, deploymentValue)
+                    else
+                        redis.call('EXPIRE', deploymentKey, realTtl)
+                    end
 
                     -- 4. MAINTENANCE: Gia hạn sự sống cho cả cái danh sách ZSET
                     redis.call('EXPIRE', zsetKey, realTtl + 3600)
@@ -352,9 +371,9 @@ namespace SocialSync.Shared.Utils
                     var result = await _cache.ScriptEvaluateAsync(
                         script,
                         keys: new RedisKey[] { zsetKey, deploymentKey },
-                        values: new RedisValue[] { challengeId, realExpiryScore, realTtlSeconds }
+                        values: new RedisValue[] { challengeId, realExpiryScore, realTtlSeconds, deploymentValue ?? "", teamIdInt }
                     );
-                    
+
                     return (int)result == (int)DeploymentCheckResult.Pass;
                 }
                 catch (Exception ex)

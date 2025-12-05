@@ -12,6 +12,7 @@ HOST_CACHE = os.environ.get("HOST_CACHE", None)  # Giá trị mặc định là 
 PRIVATE_KEY = os.environ.get("PRIVATE_KEY", None)  # Giá trị mặc định là None nếu không được cung cấp
 ARGO_WORKFLOWS_URL = os.environ.get("ARGO_WORKFLOWS_URL", None)
 ARGO_WORKFLOWS_TOKEN = os.environ.get("ARGO_WORKFLOWS_TOKEN", None)
+UP_CHALLENGE_TEMPLATE = os.environ.get("UP_CHALLENGE_TEMPLATE", "up-challenge-template")
 
 # Redis
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
