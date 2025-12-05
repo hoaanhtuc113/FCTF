@@ -12,7 +12,7 @@ namespace ResourceShared.DTOs.Challenge
         public int status { get; set; }
         public bool success { get; set; }
         public string? message { get; set; }
-        public object? challenge_url { get; set; }
+        public string? challenge_url { get; set; }
         public int time_limit { get; set; }
     }
 }

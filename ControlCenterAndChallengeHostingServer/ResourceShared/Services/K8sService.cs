@@ -22,14 +22,16 @@ using File = System.IO.File;
 
 namespace ResourceShared.Services
 {
+    public delegate Task OnDeploymentStatusChanged(int teamId, int challengeId, int userId, string status, string? url = null);
     public interface IK8sService
     {
         Task<bool> CheckPodAlive(string podName, string namespaceName);
         Task<bool> CheckPodAliveInCache(string podName);
-        Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge");
+        Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge", K8sService.PodEventHandler? _event = null);
         Task<bool> DeleteNamespace(string namespaceName);
         Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge");
         Task<int?> GetNodePort(string namespaceName);
+        Task StartPodWatcher(OnDeploymentStatusChanged statusHandler, string label = "ctf/kind=challenge", CancellationToken cancellationToken = default);
         Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache);
         Task<WorkflowPhase> GetWorkflowStatus(string wfName, string namespaceName = "argo");
         Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo");
@@ -40,6 +42,7 @@ namespace ResourceShared.Services
         private readonly IKubernetes _kubernetes;
         private readonly RedisHelper _redisHelper;
         private readonly AppDbContext _dbContext;
+        public delegate Task PodEventHandler(PodInfo pod);
         public K8sService(RedisHelper redisHelper, AppDbContext dbContext)
         {
             _redisHelper = redisHelper;
@@ -114,29 +117,30 @@ namespace ResourceShared.Services
 
         public async Task<bool> CheckPodAliveInCache(string podName)
         {
-            try
-            {
-                var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
+            throw new NotImplementedException();
+            //try
+            //{
+            //    var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
 
-                if (pods == null)
-                {
-                    await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache.");
-                    return false;
-                }
+            //    if (pods == null)
+            //    {
+            //        await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache.");
+            //        return false;
+            //    }
 
-                var podInfo = pods.FirstOrDefault(p => p.Name.StartsWith(podName));
-                if (podInfo != null) {
-                    await Console.Out.WriteLineAsync($"[Check Pod Alive] Pod: {podName}, Status={podInfo.Status}, Ready={podInfo.Ready}");
-                    return podInfo.Status == "Running" && podInfo.Ready;
-                }
-                await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache for prefix: {podName}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                await Console.Error.WriteLineAsync($"[Check Pod Alive] Exception checking pod {podName}: {ex.Message}");
-                return false;
-            }
+            //    var podInfo = pods.FirstOrDefault(p => p.Name.StartsWith(podName));
+            //    if (podInfo != null) {
+            //        await Console.Out.WriteLineAsync($"[Check Pod Alive] Pod: {podName}, Status={podInfo.Status}, Ready={podInfo.Ready}");
+            //        return podInfo.Status == "Running" && podInfo.Ready;
+            //    }
+            //    await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache for prefix: {podName}");
+            //    return false;
+            //}
+            //catch (Exception ex)
+            //{
+            //    await Console.Error.WriteLineAsync($"[Check Pod Alive] Exception checking pod {podName}: {ex.Message}");
+            //    return false;
+            //}
         }
 
         public async Task<bool> DeleteNamespace(string namespaceName)
@@ -163,7 +167,7 @@ namespace ResourceShared.Services
         public async Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge")
         {
             await Console.Out.WriteLineAsync($"[Delete All Namespaces] Deleting all namespaces with label: {labelSelector}");
-            
+
             int successCount = 0;
             int failCount = 0;
             var errors = new List<string>();
@@ -172,7 +176,7 @@ namespace ResourceShared.Services
             {
                 // List all namespaces with the specified label
                 var namespaces = await _kubernetes.CoreV1.ListNamespaceAsync(labelSelector: labelSelector);
-                
+
                 if (namespaces.Items.Count == 0)
                 {
                     await Console.Out.WriteLineAsync("[Delete All Namespaces] No namespaces found with the specified label.");
@@ -218,8 +222,7 @@ namespace ResourceShared.Services
                 return (successCount, failCount, errors);
             }
         }
-
-        public async Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge")
+        public async Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge", PodEventHandler? _event = null)
         {
             var podsResult = new List<PodInfo>();
 
@@ -257,23 +260,40 @@ namespace ResourceShared.Services
                     var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
 
                     var isStuck = IsPodStuck(pod);
+                    var deploymentKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
+                    var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
                     if (isStuck)
                     {
                         await Console.Out.WriteLineAsync($"[STUCK] Pod {name} in Namespace {ns} is stuck with status '{status}'. Attempting to delete namespace.");
-                        
+
                         var deleted = false;
-                        if(teamId > 0)
+                        if (teamId > 0)
                         {
                             deleted = await DeleteNamespace(ns);
                         }
 
                         if (deleted)
                         {
-                            await _redisHelper.RemoveCacheAsync(ChallengeHelper.GetCacheKey(challengeId, teamId));
+                            await _redisHelper.RemoveCacheAsync(deploymentKey);
 
                             await Console.Out.WriteLineAsync($"[STUCK] Cleared Redis for team={teamId}, challenge={challengeId}");
-                        }
 
+                            if (_event != null)
+                            {
+                                await _event(new PodInfo
+                                {
+                                    Namespace = ns,
+                                    TeamId = teamId,
+                                    ChallengeId = challengeId,
+                                    //UserId = deploymentCache?.user_id ?? 0,
+                                    Name = name,
+                                    Ready = ready,
+                                    Status = status,
+                                    Age = age,
+                                    IsPending = true,
+                                });
+                            }
+                        }
                         continue;
                     }
 
@@ -282,17 +302,16 @@ namespace ResourceShared.Services
                         Namespace = ns,
                         TeamId = teamId,
                         ChallengeId = challengeId,
+                        //UserId = deploymentCache?.user_id ?? 0,
                         Name = name,
                         Ready = ready,
                         Status = status,
                         Age = age,
-                        IsPending = false
+                        IsPending = false,
                     });
 
                     if (status == DeploymentStatus.RUNING && ready)
                     {
-                        var deploymentKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
-                        var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
 
                         if (deploymentCache != null)
                             await HandleChallengeRunning(challengeId, teamId, deploymentCache._namespace, deploymentCache);
@@ -304,7 +323,189 @@ namespace ResourceShared.Services
                 await Console.Error.WriteLineAsync($"[GetPodsByLabel] Error: {ex.Message}");
             }
 
-            return podsResult; 
+            return podsResult;
+        }
+
+        private async Task ProcessPodChangeAsync(V1Pod pod, WatchEventType eventType, OnDeploymentStatusChanged onStatusChange)
+        {
+            if (eventType is WatchEventType.Bookmark or WatchEventType.Error) return;
+            if (pod.Metadata == null) return;
+
+            var ns = pod.Metadata.NamespaceProperty ?? "unknown";
+            var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
+
+            var key = ChallengeHelper.GetCacheKey(challengeId, teamId);
+            var cache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(key);
+            var uid = pod.Metadata.Uid ?? "";
+
+            if (eventType == WatchEventType.Deleted)
+            {
+                if (cache == null)
+                {
+                    await Console.Out.WriteLineAsync($"[Watcher] Deleted orphan → send STOPPED");
+                    await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
+                    await onStatusChange.Invoke(teamId, challengeId, 0, DeploymentStatus.STOPPED, null);
+                    return;
+                }
+
+                // Đã gửi STOPPED từ Terminating → chỉ cleanup, không gửi lại
+                await Console.Out.WriteLineAsync($"[Watcher] Deleted (STOPPED already sent) → cleanup only");
+                await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
+                return;
+            }
+
+
+            if (pod.Metadata.DeletionTimestamp.HasValue)
+            {
+                if (cache == null || cache.status == DeploymentStatus.STOPPED)
+                {
+                    await Console.Out.WriteLineAsync($"[Watcher] Terminating but STOPPED already sent → ignore");
+                    return;
+                }
+
+                await Console.Out.WriteLineAsync($"[Watcher] ⚠️ Terminating → send STOPPED now");
+
+                cache.status = DeploymentStatus.STOPPED;
+
+                var json = JsonSerializer.Serialize(cache);
+
+                // Chỉ update TTL, chưa xoá ZSET (đợi Deleted xử lý cleanup)
+                await _redisHelper.AtomicUpdateExpiration(
+                    teamId.ToString(),
+                    key,
+                    challengeId.ToString(),
+                    30,
+                    json
+                );
+
+                await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.STOPPED, null);
+                return;
+            }
+
+            if (cache == null)
+            {
+                await Console.Out.WriteLineAsync($"[Watcher] Orphan pod detected: {pod.Metadata.Name}. Forcing cleanup...");
+
+                var deleted = await DeleteNamespace(ns);
+
+                if (deleted)
+                {
+                    await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
+                    await onStatusChange.Invoke(teamId, challengeId, 0, DeploymentStatus.STOPPED, null);
+                }
+
+                return;
+            }
+
+            if (cache.pod_id != uid)
+            {
+                cache.pod_id = uid;
+                cache.ready = false;
+
+                await Console.Out.WriteLineAsync($"[Watcher] Pod recreated → New UID: {uid}");
+
+                // Cập nhật atomic với TTL hiện tại (giữ nguyên expiration cũ)
+                var cacheJson = JsonSerializer.Serialize(cache);
+                var currentTtl = await _redisHelper.KeyExistsAsync(key) ? 300 : 300;
+                await _redisHelper.AtomicUpdateExpiration(
+                    teamId.ToString(),
+                    key,
+                    challengeId.ToString(),
+                    currentTtl,
+                    cacheJson
+                );
+            }
+
+            if (IsPodStuck(pod))
+            {
+                await Console.Out.WriteLineAsync($"[Watcher] Pod {pod.Metadata.Name} STUCK → Deleting namespace");
+
+                var deleted = await DeleteNamespace(ns);
+
+                if (deleted)
+                {
+                    await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
+                    await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.FAILED, null);
+                }
+                return;
+            }
+
+            var cs = pod.Status?.ContainerStatuses ?? Array.Empty<V1ContainerStatus>();
+            var ready = cs.All(c => c.Ready);
+            var status = ready ? DeploymentStatus.RUNING : pod.Status?.Phase;
+
+            if (status == DeploymentStatus.RUNING && cache.ready == true)
+                return; // ignore duplicate running events
+
+            if (ready)
+            {
+                var deployResult = await HandleChallengeRunning(challengeId, teamId, cache._namespace, cache);
+
+                await Console.Out.WriteLineAsync($"[Watcher] Pod Running Confirmed: {pod.Metadata.Name}");
+                var tempkey = ChallengeHelper.GetCacheKey(challengeId, teamId);
+                var temp = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(tempkey);
+                await Console.Out.WriteLineAsync($"[Watcher] Verified cached data: {JsonSerializer.Serialize(temp)}");
+
+                await onStatusChange.Invoke(
+                    teamId,
+                    challengeId,
+                    cache.user_id,
+                    DeploymentStatus.RUNING,
+                    deployResult?.challenge_url ?? ""
+                );
+            }
+        }
+
+        public async Task StartPodWatcher(OnDeploymentStatusChanged statusHandler, string label = "ctf/kind=challenge", CancellationToken cancellationToken = default)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await Console.Out.WriteLineAsync("[Watcher] Connecting to Kubernetes API (Async Stream)...");
+
+                    var listTask = _kubernetes.CoreV1.ListPodForAllNamespacesWithHttpMessagesAsync(
+                        labelSelector: label,
+                        watch: true,
+                        cancellationToken: cancellationToken
+                    );
+
+#pragma warning disable CS0618
+                    var watcher = listTask.WatchAsync<V1Pod, V1PodList>(
+                        onError: ex => Console.Error.WriteLine($"[Watcher Protocol Error] {ex.Message}"),
+                        cancellationToken: cancellationToken
+                    );
+#pragma warning restore CS0618
+
+                    await Console.Out.WriteLineAsync("[Watcher] Connected. Waiting for events...");
+
+                    await foreach (var (eventType, pod) in watcher)
+                    {
+                        try
+                        {
+                            await Console.Out.WriteLineAsync($"[Watcher] Event: {eventType} for Pod: {pod.Metadata?.Name}");
+                            await ProcessPodChangeAsync(pod, eventType, statusHandler);
+                        }
+                        catch (Exception ex)
+                        {
+                            await Console.Error.WriteLineAsync($"[Watcher Logic Error] {ex.Message}");
+                        }
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[Watcher Disconnected] {ex.Message}. Reconnecting in 5s...");
+                    try
+                    {
+                        await Task.Delay(5000, cancellationToken);
+                    }
+                    catch (TaskCanceledException) { break; }
+                }
+            }
         }
 
         public async Task<int?> GetNodePort(string namespaceName)
@@ -343,12 +544,12 @@ namespace ResourceShared.Services
             }
         }
 
-        public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId,int teamId,string podName, ChallengeDeploymentCacheDTO deploymentCache)
+        public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache)
         {
             try
             {
 
-                var challenge =  await _dbContext.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
+                var challenge = await _dbContext.Challenges.AsNoTracking().FirstOrDefaultAsync(c => c.Id == challengeId);
                 if (challenge == null)
                     return new ChallengeDeployResponeDTO
                     {
@@ -367,11 +568,10 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.BadRequest
                     };
 
-                var challengeDomain = $"Host: {SharedConfig.TCP_DOMAIN} {port}";
+                var challengeDomain = $"Connection string: {SharedConfig.TCP_DOMAIN} {port}";
 
                 var timeLimit = challenge.TimeLimit ?? -1;
-                //var timeFinished = DateTimeOffset.UtcNow.AddMinutes(timeLimit).UtcDateTime;
-                //var cacheExpired = timeLimit > 0 ? TimeSpan.FromMinutes(timeLimit) : (TimeSpan?)null;
+
                 var nowUtc = DateTimeOffset.UtcNow;
                 var timeFinished = nowUtc.AddMinutes(timeLimit);
                 var cacheExpired = timeLimit > 0
@@ -387,27 +587,27 @@ namespace ResourceShared.Services
 
                 var chalDeployKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
 
-                if (deploymentCache != null)
-                {
-                    deploymentCache.status = DeploymentStatus.RUNING;
-                    deploymentCache.challenge_url = challengeDomain;
-                    deploymentCache.time_finished =  timeFinished.ToUnixTimeSeconds();
-                    await _redisHelper.SetCacheAsync(chalDeployKey, deploymentCache, cacheExpired);
-                }
+                // Cập nhật deploymentCache object
+
+                deploymentCache.status = DeploymentStatus.RUNING;
+                deploymentCache.challenge_url = challengeDomain;
+                deploymentCache.time_finished = timeFinished.ToUnixTimeSeconds();
+                deploymentCache.ready = true;
 
                 int realTtlSeconds = cacheExpired.HasValue
                     ? (int)cacheExpired.Value.TotalSeconds
                     : 60;
 
                 if (realTtlSeconds <= 0) realTtlSeconds = 60;
-
+                // Atomic update: Cập nhật cả data + expiration + ZSET score trong 1 transaction
+                var deploymentJson = deploymentCache != null ? JsonSerializer.Serialize(deploymentCache) : null;
                 await _redisHelper.AtomicUpdateExpiration(
                     teamId.ToString(),
                     chalDeployKey,
                     challengeId.ToString(),
-                    realTtlSeconds
+                    realTtlSeconds,
+                    deploymentJson
                 );
-
                 return new ChallengeDeployResponeDTO
                 {
                     success = true,
@@ -419,7 +619,7 @@ namespace ResourceShared.Services
 
             }
             catch (Exception ex)
-            { 
+            {
                 await Console.Error.WriteLineAsync($"[K8sService - Handle Challenge Running] Error handling challenge running: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -634,7 +834,7 @@ namespace ResourceShared.Services
 
             foreach (var line in lines)
             {
-                var trimmed = line.Trim(); 
+                var trimmed = line.Trim();
 
                 if (string.IsNullOrWhiteSpace(trimmed))
                     continue;

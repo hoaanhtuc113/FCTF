@@ -1,13 +1,13 @@
 import { API_ENDPOINTS } from '../config/endpoints';
 import type { User, Team } from '../models/user.model';
 import type { LoginCredentials, AuthResponse } from '../models/auth.model';
-
+import { API_BASE_URL } from './api';
 class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'user_info';
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

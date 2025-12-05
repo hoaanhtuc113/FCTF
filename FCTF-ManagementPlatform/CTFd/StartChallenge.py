@@ -149,7 +149,7 @@ def stop_challenge_by_admin():
 
 
     try:
-        return force_stop(cache_key=cache_key, challenge_id=challenge_id,team_id=team_id)
+        return force_stop(user_id=user_id, challenge_id=challenge_id,team_id=team_id)
 
     except requests.exceptions.RequestException as e:
         print(f"Error during stop challenge: {e}")

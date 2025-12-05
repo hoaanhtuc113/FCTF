@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "./api";
 // Public scoreboard service - no authentication required
 export interface Solve {
   date: string;
@@ -28,7 +29,7 @@ class PublicScoreboardService {
 
   constructor() {
     // Use the API endpoint from environment or default
-    this.baseUrl = import.meta.env.VITE_API_URL;
+    this.baseUrl = API_BASE_URL;
   }
 
   async getPublicScoreboard(): Promise<ScoreboardData> {

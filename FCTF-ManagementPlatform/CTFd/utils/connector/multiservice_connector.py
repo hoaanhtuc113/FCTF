@@ -24,6 +24,7 @@ from CTFd.constants.envvars import (
     REDIS_DB,
     ARGO_WORKFLOWS_URL,
     ARGO_WORKFLOWS_TOKEN,
+    UP_CHALLENGE_TEMPLATE,
     NFS_MOUNT_PATH,
     IMAGE_REPO,
     DOCKER_USERNAME,
@@ -120,7 +121,7 @@ def prepare_up_challenge_payload(challenge_id,path, image_tag):
     }
     payload = {
         "resourceKind": "WorkflowTemplate",
-        "resourceName": "up-challenge-template",
+        "resourceName": UP_CHALLENGE_TEMPLATE,
         "submitOptions": {
             "entryPoint": "main",
             "parameters": [
@@ -162,7 +163,7 @@ def challenge_start(payload, headers, api_start):
         print(f"Error connecting to API: {e}")
         return format_response({"message": "Connection url failed", "success": False, "status": 400}) 
 
-def force_stop(cache_key, challenge_id, team_id):
+def force_stop(user_id, challenge_id, team_id):
     team_name = "Preview"
 
     team = Teams.query.filter_by(id=team_id).first()
@@ -174,11 +175,13 @@ def force_stop(cache_key, challenge_id, team_id):
         PRIVATE_KEY, unix_time, {
             "challengeId": challenge_id,
             "teamId": team_id,
+            "userId": user_id
         }
     )
     payload = {
         "challengeId": challenge_id,
         "teamId": team_id,
+        "userId": user_id,
         "unixTime": unix_time,
     }
     headers = {"Secretkey": secret_key}
