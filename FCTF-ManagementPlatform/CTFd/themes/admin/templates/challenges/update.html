@@ -8,7 +8,7 @@
 			Name<br>
 			<small class="form-text text-muted">Challenge Name</small>
 		</label>
-		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}" maxlength="40" required>
+		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}" maxlength="40" pattern=".*\S+.*" title="Challenge name cannot be empty or contain only spaces" required>
 		<small class="form-text text-muted">
 			<span id="char-count">{{ challenge.name|length if challenge.name else 0 }}</span>/40 characters
 		</small>
@@ -21,7 +21,7 @@
 			Category<br>
 			<small class="form-text text-muted">Challenge Category</small>
 		</label>
-		<input type="text" class="form-control chal-category" name="category" min="1" max="30" value="{{ challenge.category }}">
+		<input type="text" class="form-control chal-category" name="category" maxlength="30" value="{{ challenge.category }}" pattern=".*\S+.*" title="Category cannot be empty or contain only spaces" required>
 	</div>
 	{% endblock %}
 
@@ -74,7 +74,7 @@
 				This is how many points teams will receive once they solve this challenge.
 			</small>
 		</label>
-		<input type="number" class="form-control chal-value" name="value" value="{{ challenge.value }}" {% if challenge.type != 'dynamic' %}required{% endif %}>
+		<input type="number" class="form-control chal-value" name="value" value="{{ challenge.value }}" min="0" {% if challenge.type != 'dynamic' %}required{% endif %}>
 	</div>
 
 	<!-- Dynamic Value Section (will be shown when Dynamic is selected) -->
@@ -94,7 +94,7 @@
 					This is how many points the challenge was worth initially.
 				</small>
 			</label>
-			<input type="number" class="form-control chal-initial" name="initial" value="{{ challenge.initial }}" required>
+			<input type="number" class="form-control chal-initial" name="initial" value="{{ challenge.initial }}" min="0" required>
 		</div>
 
 		<div class="form-group">
@@ -132,7 +132,7 @@
 					This is the lowest that the challenge can be worth
 				</small>
 			</label>
-			<input type="number" class="form-control chal-minimum" name="minimum" value="{{ challenge.minimum }}" required>
+			<input type="number" class="form-control chal-minimum" name="minimum" value="{{ challenge.minimum }}" min="0" required>
 		</div>
 	</div>
 	{% endblock %}
@@ -185,7 +185,7 @@
 		</label>
 
 		<input type="number" class="form-control chal-attempts" name="max_attempts"
-			value="{{ challenge.max_attempts }}">
+			value="{{ challenge.max_attempts }}" min="0">
 	</div>
 	{% endblock %}
 

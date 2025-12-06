@@ -240,6 +240,33 @@ namespace ContestantBE.Controllers
               return Forbid();
            }
            request.Submission = request.Submission?.Trim();
+           
+           // Validate submission length (max 1000 characters)
+           if (string.IsNullOrEmpty(request.Submission))
+           {
+               return BadRequest(new
+               {
+                   success = false,
+                   data = new
+                   {
+                       status = "invalid",
+                       message = "Submission cannot be empty"
+                   }
+               });
+           }
+           
+           if (request.Submission.Length > 1000)
+           {
+               return BadRequest(new
+               {
+                   success = false,
+                   data = new
+                   {
+                       status = "invalid",
+                       message = "Submission exceeds maximum length of 1000 characters"
+                   }
+               });
+           }
            var team = user.Team;
 
            // Check captain_only_submit_challenge config
