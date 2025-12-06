@@ -124,7 +124,7 @@ namespace ContestantBE.Services
                     };
                 }
 
-                var user_chal = _dbContext.Users.FirstOrDefault(u => u.Id == cached_value.user_id);
+                var user_chal =  await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == cached_value.user_id);
                 if (cached_value.challenge_id == challenge.Id)
                 {
                     var time_finished = cached_value.time_finished;

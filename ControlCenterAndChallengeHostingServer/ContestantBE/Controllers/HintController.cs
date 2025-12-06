@@ -52,7 +52,7 @@ namespace ContestantBE.Controllers
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var teamId =  int.Parse(User.FindFirstValue("teamId"));
 
-            if(teamId == 0 || teamId == 0)
+            if(teamId == 0 || userId == 0)
             {
                 return Unauthorized(new { success = false, error = "Permission denied" });
             }

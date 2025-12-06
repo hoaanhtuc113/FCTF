@@ -124,7 +124,7 @@ namespace DeploymentCenter.Services
             #endregion
 
 
-            var challenge = _dbContext.Challenges.FirstOrDefault(c => c.Id == startReq.challengeId);
+            var challenge =  await _dbContext.Challenges.FirstOrDefaultAsync(c => c.Id == startReq.challengeId);
             if (challenge == null)
                 return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.NotFound, success = false, message = "Challenge not found." };
 
@@ -248,7 +248,7 @@ namespace DeploymentCenter.Services
                 }
 
 
-                var user = _dbContext.Users.FirstOrDefault(u => u.Id == stopReq.userId);
+                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == stopReq.userId);
 
                 // Admin force delete: xóa namespace và cache ngay lập tức
                 if (user != null && user.Type == Enums.UserType.Admin)
