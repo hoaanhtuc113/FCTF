@@ -74,7 +74,7 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> StopAllChallenges([FromBody] ChallengeStartStopReqDTO challengeStopReq)
         {
-            var user = _dbContext.Users.FirstOrDefault(u => u.Id == challengeStopReq.userId);
+            var user =  await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == challengeStopReq.userId);
             if (user == null || user.Type != "admin")
             {
                 return BadRequest(new ChallengeDeployResponeDTO

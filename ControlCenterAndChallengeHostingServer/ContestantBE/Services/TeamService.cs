@@ -84,14 +84,14 @@ namespace ContestantBE.Services
             if (user.TeamId != null)
                 return BaseResponseDTO.Fail( "You are already in a team");
 
-            var team = _context.Teams.FirstOrDefault(t => t.Name == request.teamName);
+            var team = await _context.Teams.FirstOrDefaultAsync(t => t.Name == request.teamName);
             if (team == null || !SHA256Helper.VerifyPassword(request.teamPassword, team.Password))
                 return BaseResponseDTO.Fail( "Wrong team name or password");
 
             int teamSizeLimit = _configHelper.GetConfig("team_size", 0);
             if (teamSizeLimit > 0)
             {
-                int teamSize = _context.Users.Count(u => u.TeamId == team.Id);
+                int teamSize = await _context.Users.CountAsync(u => u.TeamId == team.Id);
                 if (teamSize >= teamSizeLimit)
                     return BaseResponseDTO.Fail( $"{team.Name} has reached the team size limit of {teamSizeLimit}");
             }

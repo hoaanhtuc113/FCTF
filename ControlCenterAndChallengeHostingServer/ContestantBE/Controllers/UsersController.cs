@@ -22,12 +22,12 @@ namespace ContestantBE.Controllers
         }
 
         [HttpGet("profile")]
-        public IActionResult GetProfile()
+        public async Task<IActionResult> GetProfile()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var user =  _context.Users
+            var user = await _context.Users
                              .Include(u => u.Team)
-                             .FirstOrDefault(u => u.Id == userId);
+                             .FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null || user is not User currentUser)
             {
                 return NotFound(new
