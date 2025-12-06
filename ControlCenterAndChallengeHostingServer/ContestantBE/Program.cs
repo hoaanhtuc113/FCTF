@@ -77,6 +77,7 @@ namespace ContestantBE
             builder.Services.AddScoped<CtfTimeHelper>();
             builder.Services.AddScoped<ScoreHelper>();
             builder.Services.AddScoped<UserHelper>();
+            builder.Services.AddHttpContextAccessor();
           
             builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
             builder.Services.AddScoped<IFileService, FileService>();

@@ -2091,6 +2091,39 @@ function ChallengeDetailPanel({
       return;
     }
 
+    // Check submission length (max 1000 characters)
+    if (answer.length > 1000) {
+      Swal.fire({
+        html: `<div class="font-mono text-sm text-red-400">[!] Submission exceeds maximum length of 1000 characters</div>`,
+        icon: 'error',
+        iconColor: '#ef4444',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
+      });
+      return;
+    }
+
+    // Check for emoji/icons in submission
+    // const emojiRegex = /[\u{1F300}-\u{1F9FF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}|\u{FE00}-\u{FE0F}|\u{1F600}-\u{1F64F}|\u{1F680}-\u{1F6FF}|\u{1F1E0}-\u{1F1FF}]/u;
+    // if (emojiRegex.test(answer)) {
+    //   Swal.fire({
+    //     html: `<div class="font-mono text-sm text-red-400">[!] Submission cannot contain emoji or special icons</div>`,
+    //     icon: 'error',
+    //     iconColor: '#ef4444',
+    //     confirmButtonText: 'OK',
+    //     background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+    //     customClass: {
+    //       popup: 'rounded-lg border border-red-500/30',
+    //       confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+    //     },
+    //   });
+    //   return;
+    // }
+
     // Check if captain_only_submit is enabled and user is not captain
     if (challenge.captain_only_submit && !challenge.is_captain) {
       Swal.fire({
@@ -2305,6 +2338,44 @@ function ChallengeDetailPanel({
           customClass: {
             popup: 'rounded-lg border border-yellow-500/30',
             confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+          },
+        });
+      } else if (data?.data?.status === 'invalid') {
+        // Handle invalid submission (length > 1000 or contains emoji)
+        await Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-red-400 mb-2">[!] Invalid Submission</div>
+              <div class="text-gray-400">> ${data.data.message || 'Invalid flag format'}</div>
+            </div>
+          `,
+          icon: 'error',
+          iconColor: '#ef4444',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+          },
+        });
+      } else {
+        // Handle any other error responses
+        await Swal.fire({
+          html: `
+            <div class="font-mono text-left text-sm">
+              <div class="text-red-400 mb-2">[!] Error</div>
+              <div class="text-gray-400">> ${data?.data?.message || data?.message || data?.error || 'Unknown error'}</div>
+            </div>
+          `,
+          icon: 'error',
+          iconColor: '#ef4444',
+          confirmButtonText: 'OK',
+          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+          color: theme === 'dark' ? '#ef4444' : '#000000',
+          customClass: {
+            popup: 'rounded-lg border border-red-500/30',
+            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
           },
         });
       }
