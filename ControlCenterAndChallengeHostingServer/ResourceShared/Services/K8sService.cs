@@ -678,7 +678,7 @@ namespace ResourceShared.Services
         {
             var sb = new StringBuilder();
 
-            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]");
+            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]",RegexOptions.None,TimeSpan.FromMilliseconds(200));
 
             // Lấy tất cả pod thuộc workflow
             var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(
@@ -826,7 +826,7 @@ namespace ResourceShared.Services
 
         public static string NormalizeLog(string raw)
         {
-            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]");
+            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]",RegexOptions.None,TimeSpan.FromMilliseconds(200));
             var clean = ansiRegex.Replace(raw, string.Empty);
 
             var sb = new StringBuilder();

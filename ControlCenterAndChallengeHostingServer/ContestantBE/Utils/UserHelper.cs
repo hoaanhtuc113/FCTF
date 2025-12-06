@@ -36,7 +36,7 @@ namespace ContestantBE.Utils
             bool found = false;
             foreach (var addr in route.AsEnumerable().Reverse())
             {
-                if (!Regex.IsMatch(addr, combined))
+                if (!Regex.IsMatch(addr, combined,RegexOptions.None,TimeSpan.FromMilliseconds(100)))
                 {
                     remoteAddr = addr;
                     found = true;
