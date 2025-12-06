@@ -28,26 +28,26 @@ namespace ResourceShared.Utils
             return JsonSerializer.Deserialize<T>(json);
         }
 
-        public static string Sign(string value, string salt = "itsdangerous.Signer", char sep = '.')
-        {
-            var valBytes = Encoding.UTF8.GetBytes(value);
-            var key = DeriveKey(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(salt));
-            var sig = HmacSha1(key, valBytes);
-            return value + sep + B64Url(sig);
-        }
+        // public static string Sign(string value, string salt = "itsdangerous.Signer", char sep = '.')
+        // {
+        //     var valBytes = Encoding.UTF8.GetBytes(value);
+        //     var key = DeriveKey(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(salt));
+        //     var sig = HmacSha1(key, valBytes);
+        //     return value + sep + B64Url(sig);
+        // }
 
-        public static string Unsign(string signed, string salt = "itsdangerous.Signer", char sep = '.')
-        {
-            var idx = signed.LastIndexOf(sep);
-            if (idx < 0) throw new InvalidOperationException("No separator");
-            var value = signed.Substring(0, idx);
-            var sigB64 = signed.Substring(idx + 1);
-            var key = DeriveKey(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(salt));
-            var expect = B64Url(HmacSha1(key, Encoding.UTF8.GetBytes(value)));
-            if (!CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(sigB64), Encoding.ASCII.GetBytes(expect)))
-                throw new InvalidOperationException("BadSignature");
-            return value;
-        }
+        // public static string Unsign(string signed, string salt = "itsdangerous.Signer", char sep = '.')
+        // {
+        //     var idx = signed.LastIndexOf(sep);
+        //     if (idx < 0) throw new InvalidOperationException("No separator");
+        //     var value = signed.Substring(0, idx);
+        //     var sigB64 = signed.Substring(idx + 1);
+        //     var key = DeriveKey(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(salt));
+        //     var expect = B64Url(HmacSha1(key, Encoding.UTF8.GetBytes(value)));
+        //     if (!CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(sigB64), Encoding.ASCII.GetBytes(expect)))
+        //         throw new InvalidOperationException("BadSignature");
+        //     return value;
+        // }
      
         public static string TimestampSign(string value, string secret, string salt = "itsdangerous", char sep = '.')
         {

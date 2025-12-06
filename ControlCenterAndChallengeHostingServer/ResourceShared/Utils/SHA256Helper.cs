@@ -46,8 +46,8 @@ namespace ResourceShared.Utils
             if (string.IsNullOrWhiteSpace(passlibHash) || !passlibHash.StartsWith("$bcrypt-sha256$"))
                 throw new ArgumentException("Not a passlib bcrypt_sha256 hash.", nameof(passlibHash));
 
-            var v2 = new Regex(@"\$bcrypt-sha256\$v=2,t=(?<type>2[ab]),r=(?<rounds>\d{1,2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
-            var v1 = new Regex(@"\$bcrypt-sha256\$(?<type>2[ab]),(?<rounds>\d{1,2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$");
+            var v2 = new Regex(@"\$bcrypt-sha256\$v=2,t=(?<type>2[ab]),r=(?<rounds>\d{1,2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$", RegexOptions.None, TimeSpan.FromMilliseconds(100));
+            var v1 = new Regex(@"\$bcrypt-sha256\$(?<type>2[ab]),(?<rounds>\d{1,2})\$(?<salt>[./A-Za-z0-9]{22})\$(?<digest>[./A-Za-z0-9]{31})$", RegexOptions.None, TimeSpan.FromMilliseconds(100));
 
             Match m = v2.Match(passlibHash);
             int version = 2;
