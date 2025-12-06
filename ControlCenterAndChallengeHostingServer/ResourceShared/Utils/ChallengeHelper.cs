@@ -83,13 +83,13 @@ namespace ResourceShared.Utils
             return $"active_deploys_team_{teamId}";
         }
 
-        public static string GenerateCacheAttemptKey(int challengeId, int teamId)
-        {
-            var rawKey = $"challenge_status_{challengeId}_{teamId}";
-            using var md5 = MD5.Create();
-            var hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(rawKey));
-            return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-        }
+        // public static string GenerateCacheAttemptKey(int challengeId, int teamId)
+        // {
+        //     var rawKey = $"challenge_status_{challengeId}_{teamId}";
+        //     using var md5 = MD5.Create();
+        //     var hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(rawKey));
+        //     return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        // }
 
         public static string GetDeploymentAppName(int teamId, int challengeId, string challengeName)
         {
@@ -281,7 +281,7 @@ namespace ResourceShared.Utils
             try
             {
                 var opts = (data == "case_insensitive") ? RegexOptions.IgnoreCase : RegexOptions.None;
-                var m = Regex.Match(provided ?? "", saved, opts);
+                var m = Regex.Match(provided ?? "", saved, opts,TimeSpan.FromMilliseconds(100));
                 return m.Success && m.Value == provided;
             }
             catch (ArgumentException ex)
