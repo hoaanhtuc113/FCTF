@@ -34,6 +34,8 @@ from CTFd.utils.user import get_current_team, get_current_user, is_admin,is_jury
 from CTFd.utils.uploads import upload_file
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, PRIVATE_KEY
 from CTFd.plugins import bypass_csrf_protection
+from CTFd.constants import status_challenge
+
 
 
 @admin.route("/admin/challenges")
@@ -120,7 +122,12 @@ def challenges_detail(challenge_id):
         .all()
     )
     flags = Flags.query.filter_by(challenge_id=challenge.id).all()
-    deploys = DeployedChallenge.query.filter_by(challenge_id=challenge.id).all()
+    deploys = DeployedChallenge.query.filter_by(challenge_id=challenge.id).order_by(DeployedChallenge.id.desc()).all()
+    isDeploySuccess = False
+    if deploys:
+        last_deploy = deploys[0]
+        if last_deploy and last_deploy.deploy_status == "DEPLOY_SUCCESS":
+            isDeploySuccess = True
 
     expose_port = ""
     if challenge.image_link:
@@ -159,6 +166,7 @@ def challenges_detail(challenge_id):
         solves=solves,
         flags=flags,
         deploys=len(deploys),
+        isDeploySuccess=isDeploySuccess,
         is_detail=is_detail,
         ctf_is_active=ctf_is_active
     )
