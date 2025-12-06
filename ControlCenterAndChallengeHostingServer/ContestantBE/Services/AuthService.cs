@@ -1,4 +1,5 @@
 ﻿using ContestantBE.Interfaces;
+using ContestantBE.Utils;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Auth;
@@ -11,10 +12,14 @@ namespace ContestantBE.Services
     {
         private readonly AppDbContext _context;
         private TokenHelper TokenHelper;
-        public AuthService(AppDbContext context, TokenHelper tokenHelper)
+        private readonly UserHelper _userHelper;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public AuthService(AppDbContext context, TokenHelper tokenHelper, UserHelper userHelper, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             TokenHelper = tokenHelper;
+            _userHelper = userHelper;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<BaseResponseDTO<AuthResponseDTO>> LoginContestant(LoginDTO loginDto)
@@ -47,7 +52,33 @@ namespace ContestantBE.Services
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("you don't have a team yet");
             }
-
+            
+            // Kiểm tra xem user đã có tracking với IP này chưa
+            var userIp = _userHelper.GetIP(_httpContextAccessor.HttpContext);
+            var existingTracking = await _context.Trackings
+                .FirstOrDefaultAsync(t => t.UserId == user.Id && t.Ip == userIp);
+            
+            if (existingTracking != null)
+            {
+                // Update date nếu đã có
+                existingTracking.Date = DateTime.Now;
+                _context.Trackings.Update(existingTracking);
+            }
+            else
+            {
+                // Tạo tracking mới
+                var tracking = new Tracking
+                {
+                    Type = null,
+                    Ip = userIp,
+                    UserId = user.Id,
+                    Date = DateTime.Now
+                };
+                _context.Trackings.Add(tracking);
+            }
+            
+            await _context.SaveChangesAsync();
+            
             var authResponse = new AuthResponseDTO
             {
                 id = user.Id,

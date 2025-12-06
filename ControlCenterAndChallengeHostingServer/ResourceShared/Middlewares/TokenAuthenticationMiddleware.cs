@@ -51,7 +51,21 @@ namespace ResourceShared.Middlewares
                     await context.Response.WriteAsync("User not found.");
                     return;
                 }
-
+                var tokens = await db.Tokens
+                    .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
+                    .FirstOrDefaultAsync();
+                if( tokens == null)
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Token not found.");
+                    return;
+                }
+                if(tokens.Value == null || !tokens.Value.Equals(context.User.FindFirstValue("tokenUuid")))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Invalid user token");
+                    return;
+                }
                 if (user.Banned == true)
                 {
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
