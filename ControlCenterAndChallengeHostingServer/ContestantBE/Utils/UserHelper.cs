@@ -49,6 +49,12 @@ namespace ContestantBE.Utils
                 remoteAddr = context.Connection.RemoteIpAddress?.ToString();
             }
 
+            // Remove IPv6 prefix ::ffff: if present (IPv4-mapped IPv6 address)
+            if (!string.IsNullOrEmpty(remoteAddr) && remoteAddr.StartsWith("::ffff:"))
+            {
+                remoteAddr = remoteAddr.Substring(7);
+            }
+
             return remoteAddr ?? "unknown";
         }
     }
