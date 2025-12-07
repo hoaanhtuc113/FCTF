@@ -221,6 +221,8 @@ namespace ContestantBE.Controllers
 
             if (challenge == null) return NotFound(new { error = "Challenge not found" });
 
+            await Console.Out.WriteLineAsync($"[Requesst Attempt Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name} with flag {request.Submission}");
+
             if (_configHelper.GetConfig<bool>("paused", false))
             {
                 return StatusCode(StatusCodes.Status403Forbidden, new
@@ -364,7 +366,7 @@ namespace ContestantBE.Controllers
                 }
                 catch (Exception ex)
                 {
-                    await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
                 }
             }
 
@@ -470,7 +472,7 @@ namespace ContestantBE.Controllers
                     }
                     catch (Exception ex)
                     {
-                        await Console.Out.WriteLineAsync($"[Error] Submission save failed for challenge {challenge.Id}, team {user.TeamId}: {ex.Message}");
+                        await Console.Error.WriteLineAsync($"[Error] Submission save failed for challenge {challenge.Id}, team {user.TeamId}: {ex.Message}");
                         return StatusCode(StatusCodes.Status500InternalServerError, new
                         {
                             success = false,
@@ -494,7 +496,7 @@ namespace ContestantBE.Controllers
                     }
                     catch (Exception ex)
                     {
-                        await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                        await Console.Error.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
                     }
                 }
 
@@ -625,7 +627,7 @@ namespace ContestantBE.Controllers
                 }
                 catch (Exception ex)
                 {
-                    await Console.Out.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
                 }
             }
 
@@ -646,6 +648,7 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
+            
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _context.Users
                                          .Include(u => u.Team)
@@ -696,7 +699,7 @@ namespace ContestantBE.Controllers
                 }
                 catch (Exception ex)
                 {
-                    await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
                 }
             }
 
@@ -719,6 +722,8 @@ namespace ContestantBE.Controllers
                 return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });
             }
 
+            await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name}");
+
             // Check limit_challenges - maximum concurrent challenges per team
             var limit_challenges = _configHelper.LimitChallenges();
 
@@ -733,7 +738,6 @@ namespace ContestantBE.Controllers
                 user_id = user.Id,
             };
             string deploymentValue = System.Text.Json.JsonSerializer.Serialize(cacheDto);
-            await Console.Out.WriteLineAsync($"[Deploy] Attempting reservation for Team {user.TeamId}, Challenge {challenge.Id} : {DateTimeOffset.Now.ToUnixTimeMilliseconds()}");
 
             DeploymentCheckResult redisResult = await _redisHelper.AtomicCheckAndCreateDeploymentZSet(
                                 teamId: teamIdStr,
@@ -747,8 +751,10 @@ namespace ContestantBE.Controllers
             switch (redisResult)
             {
                 case DeploymentCheckResult.LimitExceeded:
+                    await Console.Out.WriteLineAsync($" Team {user.TeamId} had limit exceeded from challenge {challenge.Name}");
                     return BadRequest(new { error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges." });
                 case DeploymentCheckResult.AlreadyExists:
+                    await Console.Out.WriteLineAsync($" Team {user.TeamId} had already deploy from challenge {challenge.Name}");
                     var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey) ?? new ChallengeDeploymentCacheDTO();
 
                     switch (deploymentCache.status)
@@ -795,8 +801,8 @@ namespace ContestantBE.Controllers
                 var response = await _challengeServices.ChallengeStart(challenge, user);
                 if (response.status != (int)HttpStatusCode.OK)
                 {
-                    await Console.Out.WriteLineAsync($"[Rollback] Service failed ({response.status}). Reverting Redis for {deploymentKey}");
                     // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
+                    await Console.Error.WriteLineAsync($"[Rollback] Team {user.TeamId} start challenge failed: {response.message}.");
                     await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
                 }
                 return response.status switch
@@ -809,7 +815,7 @@ namespace ContestantBE.Controllers
             }
             catch (Exception e)
             {
-                await Console.Out.WriteLineAsync($"[Rollback] Exception during start challenge: {e.Message}. Reverting Redis for {deploymentKey}");
+                await Console.Error.WriteLineAsync($"[Rollback] Exception during start challenge: {e.Message}. Reverting Redis for {deploymentKey}");
                 await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
                 return BadRequest(new
                 {
@@ -847,6 +853,8 @@ namespace ContestantBE.Controllers
 
             try
             {
+                await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name}");
+
                 var response = await _challengeServices.ForceStopChallenge(challenge.Id, user);
                 return response.status switch
                 {
@@ -858,7 +866,7 @@ namespace ContestantBE.Controllers
             }
             catch (HttpRequestException e)
             {
-                await Console.Out.WriteLineAsync($"Error during stop challenge: {e.Message}");
+                await Console.Error.WriteLineAsync($"Error during stop challenge: {e.Message}");
                 return BadRequest(new
                 {
                     error = "Failed to connect to stop API",

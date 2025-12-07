@@ -140,8 +140,7 @@ namespace ResourceShared.Utils
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DynamicChallengeHelper] Error: {ex.Message}");
-                Console.WriteLine($"[DynamicChallengeHelper] StackTrace: {ex.StackTrace}");
+                await Console.Error.WriteLineAsync($"[DynamicChallengeHelper] Error: {ex.Message}");
                 throw;
             }
         }

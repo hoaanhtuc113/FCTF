@@ -43,7 +43,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ GetWorkflowStatus error: {ex.Message}");
+                Console.Error.WriteLine($"GetWorkflowStatus error: {ex.Message}");
                 return null;
             }
         }

@@ -18,7 +18,6 @@ namespace DeploymentListener.Services
 {
     public interface IGetPodsJob
     {
-        Task RunAsync(CancellationToken ct);
         Task StartWatchingAsync(CancellationToken ct);
     }
 
@@ -34,20 +33,13 @@ namespace DeploymentListener.Services
             _scopeFactory = scopeFactory;
         }
 
-        public Task RunAsync(CancellationToken ct)
-        {
-            throw new NotImplementedException();
-        }
-
         public async Task StartWatchingAsync(CancellationToken ct)
         {
-            await Console.Out.WriteLineAsync("GetPodsJob (Watcher Mode) is starting...");
 
             OnDeploymentStatusChanged statusHandler = async (teamId, challengeId, userId, status, url) =>
             {
                 if (teamId <= 0)
                 {
-                    await Console.Out.WriteLineAsync($"[SignalR] Not User, skipping notification.");
                     return;
                 }
                 using (var scope = _scopeFactory.CreateScope())
@@ -60,6 +52,7 @@ namespace DeploymentListener.Services
                         var challengeName = challenge?.Name ?? "Unknown Challenge";
                         var timeLimit = challenge?.TimeLimit ?? -1;
 
+                        Console.WriteLine($"[Watcher] Challenge {challengeName} (ID: {challengeId}) for Team {teamId} changed status to {status}");
                         var message = status switch
                         {
                             DeploymentStatus.RUNING => "Challenge deployed successfully.",
@@ -67,33 +60,7 @@ namespace DeploymentListener.Services
                             DeploymentStatus.STOPPED => "Challenge deployment has been stopped.",
                             _ => ""
                         };
-
-                        //var deploymentEvent = new DeploymentEventDTO
-                        //{
-                        //    EventType = status,
-                        //    ChallengeId = challengeId,
-                        //    ChallengeName = challengeName,
-                        //    TeamId = teamId,
-                        //    UserId = userId,
-                        //    Message = message,
-                        //    ChallengeUrl = url ?? "",
-                        //    TimeLimit = timeLimit,
-                        //};
-
-                        //await Console.Out.WriteLineAsync($"[SignalR] Sending {status} to team-{teamId}");
-
-                        //MultiServiceConnector multiServiceConnector = new MultiServiceConnector(DeploymentListenerConfigHelper.CONTESTANT_BE_API);
-                        //var headers = new Dictionary<string, string> { { "X-Internal-Key", DeploymentListenerConfigHelper.PRIVATE_KEY } };
-
-                        //await Console.Out.WriteLineAsync($"[Internal API] Pushing deployment to {DeploymentListenerConfigHelper.CONTESTANT_BE_API}/api/internal/push");
-                        //var result = await multiServiceConnector.ExecuteRequest(
-                        //    "/api/internal/push",
-                        //    Method.Post,
-                        //    deploymentEvent,
-                        //    headers
-                        //);
-
-                        //await Console.Out.WriteLineAsync($"[Internal API] Deployment event pushed for team-{teamId}, response: {result}");
+                      
                     }
                     catch (Exception ex)
                     {

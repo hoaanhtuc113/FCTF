@@ -108,14 +108,11 @@ export function Challenges() {
 
   // Check if challenge prerequisites are met
   const checkPrerequisites = async (challenge: Challenge): Promise<{ locked: boolean; unmetPrereqs: PrerequisiteChallenge[] }> => {
-    console.log(`[Prerequisites Check] Challenge ${challenge.id}:`, challenge.requirements);
     
     if (!challenge.requirements?.prerequisites || challenge.requirements.prerequisites.length === 0) {
-      console.log(`[Prerequisites Check] Challenge ${challenge.id} has no prerequisites`);
       return { locked: false, unmetPrereqs: [] };
     }
 
-    console.log(`[Prerequisites Check] Challenge ${challenge.id} prerequisites:`, challenge.requirements.prerequisites);
     const unmetPrereqs: PrerequisiteChallenge[] = [];
     
     for (const prereqId of challenge.requirements.prerequisites) {
@@ -1182,7 +1179,6 @@ function ChallengeDetailPanel({
       
       // If this is the challenge that was auto-stopped, update UI
       if (challengeId === challenge.id) {
-        console.log('[Global Auto-Stop Event] Updating UI for challenge:', challenge.name);
         setIsChallengeStarted(false);
         setUrl(null);
         setTimeRemaining(null);
@@ -1232,7 +1228,6 @@ function ChallengeDetailPanel({
       const data = await response.json();
       if (data.data) {
         // Log pod_status for debugging
-        console.log('[fetchChallengeStatus] Challenge:', challenge.name, 'pod_status:', data.data.pod_status);
         
         // Set challenge started status from API
         setIsChallengeStarted(data.is_started || false);
@@ -1257,7 +1252,6 @@ function ChallengeDetailPanel({
         
         // If pod_status is not Running and challenge was started, reset state
         if (data.data.pod_status && data.data.pod_status !== 'Running' && isChallengeStarted) {
-          console.log('[fetchChallengeStatus] Pod is not running anymore, resetting challenge state');
           setIsChallengeStarted(false);
           setUrl(null);
           setTimeRemaining(null);
@@ -1302,7 +1296,6 @@ function ChallengeDetailPanel({
               const elapsed = (Date.now() - healthCheckData.startTime) / 1000;
               if (elapsed < 300) {
                 // Health check still valid - resume it
-                console.log('[fetchChallengeStatus] Resuming health check from savedHealthCheck...');
                 setIsHealthChecking(true);
                 setIsDeploymentInProgress(true);
                 setIsStarting(false);
@@ -1316,7 +1309,6 @@ function ChallengeDetailPanel({
                 }
               } else {
                 // Health check timed out - clean up
-                console.log('[fetchChallengeStatus] Health check timed out');
                 localStorage.removeItem(deploymentKey);
                 localStorage.removeItem(healthCheckKey);
                 setIsHealthChecking(false);
@@ -1330,7 +1322,6 @@ function ChallengeDetailPanel({
               const elapsed = (Date.now() - deploymentData.startTime) / 1000;
               
               if (elapsed < 300) {
-                console.log('[fetchChallengeStatus] Starting health check from old deployment state...');
                 
                 // Save health check state
                 localStorage.setItem(healthCheckKey, JSON.stringify({
@@ -1381,7 +1372,6 @@ function ChallengeDetailPanel({
               const elapsed = (Date.now() - healthCheckData.startTime) / 1000;
               
               if (elapsed < 300) {
-                console.log('[fetchChallengeStatus] Resuming health check - no URL yet. Setting UI to health checking state...');
                 
                 // Ensure health check state is saved
                 if (!savedHealthCheck) {
@@ -1408,7 +1398,6 @@ function ChallengeDetailPanel({
                 }
               } else {
                 // Timed out
-                console.log('[fetchChallengeStatus] Deployment timed out - no URL');
                 localStorage.removeItem(deploymentKey);
                 localStorage.removeItem(healthCheckKey);
                 setIsChallengeStarted(false);
@@ -1439,7 +1428,6 @@ function ChallengeDetailPanel({
               
               // If within timeout, keep the state and resume health checking
               if (elapsed < 100) {
-                console.log('[fetchChallengeStatus] API says not started, but we have saved state. Resuming health check...');
                 
                 // Ensure both keys exist
                 if (!savedHealthCheck) {
@@ -1467,7 +1455,6 @@ function ChallengeDetailPanel({
                 return; // Don't clean up
               } else {
                 // Timed out - clean up
-                console.log('[fetchChallengeStatus] Deployment state timed out');
                 localStorage.removeItem(deploymentKey);
                 localStorage.removeItem(healthCheckKey);
               }
@@ -1673,16 +1660,13 @@ function ChallengeDetailPanel({
 
   // Health check loop function - runs silently in background
   const startHealthCheckLoop = async () => {
-    console.log('[Health Check] startHealthCheckLoop called');
     
     // Prevent duplicate health check loops
     if (healthCheckRunningRef.current) {
-      console.log('[Health Check] Already running, skipping duplicate start');
       return;
     }
     
     healthCheckRunningRef.current = true;
-    console.log('[Health Check] Starting new health check loop');
     const maxAttempts = 20;
     
     // Restore attempts from localStorage if exists
@@ -1694,7 +1678,6 @@ function ChallengeDetailPanel({
       try {
         const healthCheckData = JSON.parse(savedHealthCheck);
         attempts = healthCheckData.attempts || 0;
-        console.log(`[Health Check] Restored attempts from localStorage: ${attempts}`);
       } catch (error) {
         console.error('[Health Check] Error parsing saved attempts:', error);
       }
@@ -1703,7 +1686,6 @@ function ChallengeDetailPanel({
     const checkStatus = async (): Promise<boolean> => {
       try {
         attempts++;
-        console.log(`[Health Check] Attempt ${attempts}/${maxAttempts}`);
         
         // Save current attempts to localStorage
         const healthCheckKey = `healthcheck_${challenge.id}`;
@@ -1727,7 +1709,6 @@ function ChallengeDetailPanel({
         });
         const data = await response.json();
         if (data.success == true && data.challenge_url) {    
-          console.log('[Health Check] Pod is healthy! Stopping health check.');
           
           // Update URL with actual challenge URL (replace message if it was set)
           setUrl(data.challenge_url);
@@ -1779,7 +1760,6 @@ function ChallengeDetailPanel({
         
         // Max attempts reached
         if (attempts >= maxAttempts) {
-          console.log('[Health Check] Max attempts reached. Stopping.');
           setIsHealthChecking(false);
           setIsPodHealthy(false);
           setIsDeploymentInProgress(false);
@@ -1820,7 +1800,6 @@ function ChallengeDetailPanel({
         }
         
         // Continue checking silently
-        console.log('[Health Check] Pod not ready yet. Waiting 5s...');
         await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
         return checkStatus(); // Recursive call
         
@@ -1881,7 +1860,6 @@ function ChallengeDetailPanel({
   // Auto stop challenge on timeout without confirmation
   const autoStopChallengeOnTimeout = async () => {
     if (stopChallengeRunningRef.current) {
-      console.log('[Auto Stop] Already stopping, ignoring duplicate request');
       return;
     }
 
@@ -1948,7 +1926,6 @@ function ChallengeDetailPanel({
   const handleStopChallenge = async () => {
     // Prevent duplicate stop requests
     if (stopChallengeRunningRef.current) {
-      console.log('[Stop Challenge] Already stopping, ignoring duplicate request');
       return;
     }
 
@@ -2208,7 +2185,6 @@ function ChallengeDetailPanel({
               // Cancel global auto-stop timer
               challengeTimerService.stopTimer(challenge.id);
               
-              console.log('[Auto Stop After Solve] Challenge stopped successfully');
             
           } catch (error) {
             console.error('[Auto Stop After Solve] Error stopping challenge:', error);

@@ -284,7 +284,6 @@ class ChallengeList(Resource):
         if len(data.get("category", "")) > 20:
             return {"success": False, "errors": {"category": ["Category must be 20 characters or less"]}}, 400
 
-        # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         response = schema.load(data)
         if response.errors:
@@ -510,13 +509,11 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
-        print(f"Patch data: {data}")
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         data["user_id"] = session["id"]
         response = schema.load(data)
         scoringType = data.get("scoring-type-radio")
-        print(f"Scoring type: {scoringType}")
 
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
@@ -524,10 +521,7 @@ class Challenge(Resource):
         user_id = session["id"]
         user = Users.query.filter_by(id=user_id).first()
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
-        
-        # Debugging logs
-        print(f"Challenge user_id: {challenge.user_id}")
-        print(f"Current user's user_id: {user_id}")
+        print(f"Challenge {challenge.name} has been updated by user {user_id} ({user.type})")
 
         if user.type == "admin":
             data["user_id"] = challenge.user_id

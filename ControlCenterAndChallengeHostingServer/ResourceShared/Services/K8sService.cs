@@ -61,7 +61,6 @@ namespace ResourceShared.Services
                 _kubernetes = new Kubernetes(config);
 
                 var version = _kubernetes.Version.GetCode();
-                Console.WriteLine($"[K8sService] Try to local kubeconfig: Connected to K8s API v{version.Major}.{version.Minor}");
             }
 
             _dbContext=dbContext;
@@ -86,16 +85,13 @@ namespace ResourceShared.Services
                     return false;
                 }
 
-                await Console.Out.WriteLineAsync($"[Check Pod Alive] Found pod: {JsonSerializer.Serialize(pod)}");
 
                 var phase = pod.Status?.Phase ?? "Unknown";
                 var ready = pod.Status.Conditions?.Any(c => c.Type == "Ready" && c.Status == "True") == true;
 
-                await Console.Out.WriteLineAsync($"[Check Pod Alive] Pod: {podName}, Phase={phase}, Ready={ready}");
                 if (phase == DeploymentStatus.RUNING && ready) return true;
 
                 var log = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(pod.Metadata.Name, namespaceName);
-                await Console.Error.WriteLineAsync($"[Check Pod Alive] Pod Logs:\n{log}");
                 return false;
             }
             catch (k8s.Autorest.HttpOperationException ex)
@@ -145,7 +141,6 @@ namespace ResourceShared.Services
 
         public async Task<bool> DeleteNamespace(string namespaceName)
         {
-            await Console.Out.WriteLineAsync($"[Delete Namespace] Deleting namespace: {namespaceName}");
             try
             {
                 var result = await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
@@ -191,7 +186,6 @@ namespace ResourceShared.Services
                     var namespaceName = ns.Metadata.Name;
                     try
                     {
-                        await Console.Out.WriteLineAsync($"[Delete All Namespaces] Deleting namespace: {namespaceName}");
                         await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
                         successCount++;
                         await Console.Out.WriteLineAsync($"[Delete All Namespaces] Successfully deleted namespace: {namespaceName}");
@@ -264,7 +258,6 @@ namespace ResourceShared.Services
                     var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
                     if (isStuck)
                     {
-                        await Console.Out.WriteLineAsync($"[STUCK] Pod {name} in Namespace {ns} is stuck with status '{status}'. Attempting to delete namespace.");
 
                         var deleted = false;
                         if (teamId > 0)
@@ -276,7 +269,6 @@ namespace ResourceShared.Services
                         {
                             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-                            await Console.Out.WriteLineAsync($"[STUCK] Cleared Redis for team={teamId}, challenge={challengeId}");
 
                             if (_event != null)
                             {
@@ -342,14 +334,12 @@ namespace ResourceShared.Services
             {
                 if (cache == null)
                 {
-                    await Console.Out.WriteLineAsync($"[Watcher] Deleted orphan → send STOPPED");
                     await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
                     await onStatusChange.Invoke(teamId, challengeId, 0, DeploymentStatus.STOPPED, null);
                     return;
                 }
 
                 // Đã gửi STOPPED từ Terminating → chỉ cleanup, không gửi lại
-                await Console.Out.WriteLineAsync($"[Watcher] Deleted (STOPPED already sent) → cleanup only");
                 await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
                 return;
             }
@@ -359,11 +349,9 @@ namespace ResourceShared.Services
             {
                 if (cache == null || cache.status == DeploymentStatus.STOPPED)
                 {
-                    await Console.Out.WriteLineAsync($"[Watcher] Terminating but STOPPED already sent → ignore");
                     return;
                 }
 
-                await Console.Out.WriteLineAsync($"[Watcher] ⚠️ Terminating → send STOPPED now");
 
                 cache.status = DeploymentStatus.STOPPED;
 
@@ -384,7 +372,6 @@ namespace ResourceShared.Services
 
             if (cache == null)
             {
-                await Console.Out.WriteLineAsync($"[Watcher] Orphan pod detected: {pod.Metadata.Name}. Forcing cleanup...");
 
                 var deleted = await DeleteNamespace(ns);
 
@@ -402,7 +389,6 @@ namespace ResourceShared.Services
                 cache.pod_id = uid;
                 cache.ready = false;
 
-                await Console.Out.WriteLineAsync($"[Watcher] Pod recreated → New UID: {uid}");
 
                 // Cập nhật atomic với TTL hiện tại (giữ nguyên expiration cũ)
                 var cacheJson = JsonSerializer.Serialize(cache);
@@ -418,7 +404,6 @@ namespace ResourceShared.Services
 
             if (IsPodStuck(pod))
             {
-                await Console.Out.WriteLineAsync($"[Watcher] Pod {pod.Metadata.Name} STUCK → Deleting namespace");
 
                 var deleted = await DeleteNamespace(ns);
 
@@ -441,11 +426,8 @@ namespace ResourceShared.Services
             {
                 var deployResult = await HandleChallengeRunning(challengeId, teamId, cache._namespace, cache);
 
-                await Console.Out.WriteLineAsync($"[Watcher] Pod Running Confirmed: {pod.Metadata.Name}");
                 var tempkey = ChallengeHelper.GetCacheKey(challengeId, teamId);
                 var temp = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(tempkey);
-                await Console.Out.WriteLineAsync($"[Watcher] Verified cached data: {JsonSerializer.Serialize(temp)}");
-
                 await onStatusChange.Invoke(
                     teamId,
                     challengeId,
@@ -462,7 +444,6 @@ namespace ResourceShared.Services
             {
                 try
                 {
-                    await Console.Out.WriteLineAsync("[Watcher] Connecting to Kubernetes API (Async Stream)...");
 
                     var listTask = _kubernetes.CoreV1.ListPodForAllNamespacesWithHttpMessagesAsync(
                         labelSelector: label,
@@ -477,13 +458,10 @@ namespace ResourceShared.Services
                     );
 #pragma warning restore CS0618
 
-                    await Console.Out.WriteLineAsync("[Watcher] Connected. Waiting for events...");
-
                     await foreach (var (eventType, pod) in watcher)
                     {
                         try
                         {
-                            await Console.Out.WriteLineAsync($"[Watcher] Event: {eventType} for Pod: {pod.Metadata?.Name}");
                             await ProcessPodChangeAsync(pod, eventType, statusHandler);
                         }
                         catch (Exception ex)
@@ -534,7 +512,6 @@ namespace ResourceShared.Services
                 }
 
                 var nodePort = portSpec.NodePort;
-                await Console.Out.WriteLineAsync($"[Get Node Port] Namespace '{namespaceName}' NodePort = {nodePort}");
                 return nodePort;
             }
             catch (Exception ex)
@@ -651,25 +628,22 @@ namespace ResourceShared.Services
                     if (!string.IsNullOrEmpty(phaseStr) &&
                         Enum.TryParse(phaseStr, true, out WorkflowPhase phase))
                     {
-                        Console.WriteLine($"[K8sService] Workflow {wfName} phase: {phase}");
                         return phase;
                     }
 
-                    Console.WriteLine($"[K8sService] Unknown workflow phase value: {phaseStr}");
                     return WorkflowPhase.Unknown;
                 }
 
-                Console.WriteLine($"[K8sService] Workflow {wfName} has no status.phase field.");
                 return WorkflowPhase.Unknown;
             }
             catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                Console.WriteLine($"[K8sService] Workflow {wfName} not found in namespace {namespaceName}");
+                await Console.Error.WriteLineAsync($"[K8sService] Workflow not found: {wfName}");
                 return WorkflowPhase.Unknown;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[K8sService] Error while getting workflow status for {wfName}: {ex.Message}");
+                await Console.Error.WriteLineAsync($"[K8sService] Error while getting workflow status for {wfName}: {ex.Message}");
                 return WorkflowPhase.Unknown;
             }
         }

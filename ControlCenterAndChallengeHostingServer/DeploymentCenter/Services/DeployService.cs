@@ -45,12 +45,10 @@ namespace DeploymentCenter.Services
 
         public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
         {
-            await Console.Out.WriteLineAsync($"Start challenge ID: {startReq.challengeId}, Team ID: {startReq.teamId}");
             var deploymentKey = ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId);
 
             // Get cache: thông tin deployment, kiểm tra đã từng gửi vào argo chưa
             var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
-            await Console.Out.WriteLineAsync($"Data from Redis for key {deploymentKey}: {JsonSerializer.Serialize(deploymentCache)}");
 
             #region Xử lý khi đã có cache deployment - đã từng gửi request deploy lên argo workflow
             if (deploymentCache != null)
@@ -66,7 +64,6 @@ namespace DeploymentCenter.Services
                             // Kiểm tra trạng thái của workflow (Argo) nếu wf không ở trạng thái pending, running, succeeded thì coi như thất bại và xóa cache (deploymentKey)
                             if (wfPhase is not (WorkflowPhase.Pending or WorkflowPhase.Running or WorkflowPhase.Succeeded))
                             {
-                                Console.WriteLine($"Workflow {deploymentCache.workflow_name} crashed or stopped: {wfPhase}");
                                 // Xóa thông tin deployment khi bắm vào argo khi workflow chạy lỗi
                                 await _redisHelper.RemoveCacheAsync(deploymentKey);
                                 break;
@@ -154,7 +151,6 @@ namespace DeploymentCenter.Services
                 MultiServiceConnector multiServiceConnector = new MultiServiceConnector(api);
                 var response = await multiServiceConnector.ExecuteRequest(api, Method.Post, payload, headers);
 
-                await Console.Out.WriteLineAsync($"Response from Argo Workflows API: {response}");
                 if (response == null)
                 {
                     await Console.Out.WriteLineAsync("No response from Argo Workflows API");
@@ -175,7 +171,7 @@ namespace DeploymentCenter.Services
                     }
                     catch
                     {
-                        Console.WriteLine("Unable to parse workflow name from response.");
+                        await Console.Error.WriteLineAsync("Unable to parse workflow name from response.");
                     }
                 }
 
@@ -192,7 +188,6 @@ namespace DeploymentCenter.Services
 
 
                 await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(5));
-                await Console.Out.WriteLineAsync($"[Start] Created initial cache for {deploymentKey} with status PENDING");
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.OK,
@@ -229,7 +224,6 @@ namespace DeploymentCenter.Services
 
         public async Task<ChallengeDeployResponeDTO> Stop(ChallengeStartStopReqDTO stopReq)
         {
-            await Console.Out.WriteLineAsync($"Stop challenge ID: {stopReq.challengeId}, Team ID: {stopReq.teamId}");
             try
             {
                 var deploymentKey = ChallengeHelper.GetCacheKey(stopReq.challengeId, stopReq.teamId);
@@ -238,7 +232,6 @@ namespace DeploymentCenter.Services
 
                 if (deploymentKey == null || deployInfo == null)
                 {
-                    await Console.Error.WriteLineAsync($"No deployment cache info found for with cache key {deploymentKey} ");
                     return new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.NotFound,
@@ -282,7 +275,6 @@ namespace DeploymentCenter.Services
                     cacheJson
                 );
 
-                await Console.Out.WriteLineAsync($"Set DELETING status for {deploymentKey}, TTL=60s, now deleting namespace...");
 
                 // Delete namespace - watcher sẽ bắn STOPPED event khi nhận Terminating
                 var isDelete = await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
@@ -318,36 +310,10 @@ namespace DeploymentCenter.Services
                 var (successCount, failCount, errors) = await _k8SHealthService.DeleteAllChallengeNamespaces("ctf/kind=challenge");
 
                 // Clear all cache entries
-                await Console.Out.WriteLineAsync("Clearing Redis cache...");
-
-                // Get all pods to clear their cache entries
-                //var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
-
-                //if (pods != null && pods.Any())
-                //{
-                //    foreach (var pod in pods)
-                //    {
-                //        try
-                //        {
-                //            var deployInfoKey = ChallengeHelper.GetCacheKey(pod.ChallengeId, pod.TeamId);
-                //            var argoWNameKey = ChallengeHelper.GetArgoWName(pod.ChallengeId, pod.TeamId);
-
-                //            await _redisHelper.RemoveCacheAsync(deployInfoKey);
-                //            await _redisHelper.RemoveCacheAsync(argoWNameKey);
-                //        }
-                //        catch (Exception ex)
-                //        {
-                //            await Console.Error.WriteLineAsync($"Error clearing cache for Challenge {pod.ChallengeId}, Team {pod.TeamId}: {ex.Message}");
-                //        }
-                //    }
-                //}
-
                 // Clear the entire pods list
-                //await _redisHelper.RemoveCacheAsync(RedisConfigs.PodsInfoKey);
                 await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
                 await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
 
-                await Console.Out.WriteLineAsync("Redis cache cleared.");
 
                 var message = $"Stopped {successCount} challenge namespace(s) successfully.";
                 if (failCount > 0)
@@ -355,7 +321,6 @@ namespace DeploymentCenter.Services
                     message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
                 }
 
-                await Console.Out.WriteLineAsync(message);
 
                 return new BaseResponseDTO
                 {
@@ -378,21 +343,12 @@ namespace DeploymentCenter.Services
         public async Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq)
         {
 
-            //K8S-NOTE: this state for runing in local with out k8s cubeconfig 
-            //return new ChallengeDeployResponeDTO
-            //{
-            //    success = true,
-            //    message = "Challenge status checking started",
-            //    status = (int)HttpStatusCode.OK,
-            //    challenge_url = "http://demo-domain-for-testing.com"
-            //};
             try
             {
                 var deploymentKey = ChallengeHelper.GetCacheKey(statusReq.challengeId, statusReq.teamId);
 
                 var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
 
-                await Console.Out.WriteLineAsync($"[StatusCheck] Initial cache for key {deploymentKey}: {JsonSerializer.Serialize(deploymentCache)}");
                 if (deploymentCache == null)
                 {
                     return new ChallengeDeployResponeDTO
@@ -456,13 +412,12 @@ namespace DeploymentCenter.Services
 
         private async Task<BaseResponseDTO> HandleMessageUpChallenge(WorkflowStatusDTO message)
         {
-            await Console.Out.WriteLineAsync($"Message Up Challenge {JsonSerializer.Serialize(message)}");
             try
             {
+                await Console.Out.WriteLineAsync($"Recieve Message From Argo: ChallengeId={message.ChallengeId}, Status={message.Status}, WorkFlowName={message.WorkFlowName}");
                 var challenge = await _dbContext.Challenges.FirstOrDefaultAsync(c => c.Id == message.ChallengeId);
                 if (challenge == null)
                 {
-                    await Console.Error.WriteLineAsync($"Recieve Message From Argo: challenge with ID {message.ChallengeId} not found.");
                     return new BaseResponseDTO
                     {
                         Success = false,
@@ -597,7 +552,6 @@ namespace DeploymentCenter.Services
             {
                 var currentPods = await _k8SHealthService.GetPodsByLabel();
                 var deployInfo = currentPods.FirstOrDefault(p => p.TeamId == challengeReq.teamId && p.ChallengeId == challengeReq.challengeId);
-                Console.WriteLine($"GetPodLogs: Found deployInfo: {JsonSerializer.Serialize(deployInfo)}");
                 if (deployInfo == null)
                 {
                     return new BaseResponseDTO<PodLogsDTO>
@@ -609,7 +563,6 @@ namespace DeploymentCenter.Services
                 }
 
                 var log = await _k8SHealthService.GetPodLogs(deployInfo.Namespace, deployInfo.Name);
-                Console.WriteLine($"GetPodLogs: Retrieved logs for pod {log}");
                 return new BaseResponseDTO<PodLogsDTO>
                 {
                     Success = true,

@@ -180,7 +180,7 @@ namespace ContestantBE.Services
                     }
                     catch (Exception ex)
                     {
-                        await Console.Out.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
+                        await Console.Error.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
                     }
                 }
 
@@ -289,10 +289,8 @@ namespace ContestantBE.Services
                 {
                     { "SecretKey", generatedSecretKey }
                 };
-                await Console.Out.WriteLineAsync($"Starting challenge {challenge.Id} for team {user.TeamId} by user {user.Id}");
                 MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantBEConfigHelper.DeploymentCenterAPI);
                 var body = await multiServiceConnector.ExecuteRequest("/api/challenge/start", Method.Post, parammeters, headers);
-                await Console.Out.WriteLineAsync($"Response Line51 is {body}");
                 if (body == null)
                     return new ChallengeDeployResponeDTO
                     {
@@ -312,13 +310,12 @@ namespace ContestantBE.Services
                         message = "Failed to parse server response"
                     };
                 }
-                await Console.Out.WriteLineAsync($"Start response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
                 return result;
 
             }
             catch (HttpRequestException ex)
             {
-                await Console.Out.WriteLineAsync($"Error connecting to API: {ex.Message}");
+                await Console.Error.WriteLineAsync($"Error connecting to API: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.BadGateway,
@@ -328,7 +325,7 @@ namespace ContestantBE.Services
             }
             catch (Exception ex)
             {
-                await Console.Out.WriteLineAsync($"Unexpected error: {ex.Message}");
+                await Console.Error.WriteLineAsync($"Unexpected error: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.InternalServerError,
@@ -381,7 +378,6 @@ namespace ContestantBE.Services
                         message = "Failed to parse server response"
                     };
                 }
-                await Console.Out.WriteLineAsync($"Stop response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
                 return result;
             }
             catch (HttpRequestException e)
@@ -470,12 +466,11 @@ namespace ContestantBE.Services
                         message = "Failed to parse server response"
                     };
                 }
-                await Console.Out.WriteLineAsync($"Status response: success={result.success}, message={result.message}, challenge_url={result.challenge_url}");
                 return result;
             }
             catch (HttpRequestException e)
             {
-                await Console.Out.WriteLineAsync($"Error connecting to API: {e.Message}");
+                await Console.Error.WriteLineAsync($"Error connecting to API: {e.Message}");
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.BadGateway,
@@ -493,7 +488,6 @@ namespace ContestantBE.Services
 
                 var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
 
-                await Console.Out.WriteLineAsync($"[StatusCheck] Initial cache for key {deploymentKey}: {System.Text.Json.JsonSerializer.Serialize(deploymentCache)}");
                 if (deploymentCache == null)
                 {
                     return new ChallengeDeployResponeDTO

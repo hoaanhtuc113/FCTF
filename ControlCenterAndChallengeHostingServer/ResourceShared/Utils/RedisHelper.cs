@@ -175,7 +175,7 @@ namespace SocialSync.Shared.Utils
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Redis] Pattern read failed: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[Redis] Pattern read failed: {ex.Message}");
                 }
 
                 return result;
@@ -300,7 +300,7 @@ namespace SocialSync.Shared.Utils
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Redis] Start Failed: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[Redis] Start Failed: {ex.Message}");
                     throw;
                 }
             }
@@ -378,7 +378,7 @@ namespace SocialSync.Shared.Utils
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Redis] Update Expiration Failed: {ex.Message}");
+                    await Console.Out.WriteLineAsync($"[Redis] Update Expiration Failed: {ex.Message}");
                     return false;
                 }
             }
@@ -416,7 +416,7 @@ namespace SocialSync.Shared.Utils
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Redis] Remove Failed: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[Redis] Remove Failed: {ex.Message}");
                     return false;
                 }
             }
@@ -488,7 +488,7 @@ namespace SocialSync.Shared.Utils
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Redis Lua] Error executing attempts check script: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[Redis Lua] Error executing attempts check script: {ex.Message}");
                     throw;
                 }
             }

@@ -41,6 +41,7 @@ namespace ContestantBE.Controllers
                     message = result.Message,
                 });
             }
+            await Console.Out.WriteLineAsync($"[Auth] Account {loginDto.username} login success");
 
             return Ok(new
             {
@@ -66,7 +67,7 @@ namespace ContestantBE.Controllers
             }
 
             var result = await _authService.ChangePassword(userId, changePasswordDto);
-
+            await Console.Out.WriteLineAsync($"[Auth] Account {userIdClaim} change password");
             if (!result.Success)
             {
                 return BadRequest(new
