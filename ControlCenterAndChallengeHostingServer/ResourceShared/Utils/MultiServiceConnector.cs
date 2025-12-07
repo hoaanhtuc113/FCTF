@@ -155,7 +155,6 @@ namespace ResourceShared.Utils
                     request.AddHeader(h.Key, h.Value);
 
             var resp = await client.ExecuteAsync(request);
-            await Console.Out.WriteLineAsync($"Response :{resp.StatusCode}");
             if (!resp.IsSuccessful)
                 throw new Exception($"[{(int)resp.StatusCode}] {resp.StatusDescription}\n{resp.Content}");
 

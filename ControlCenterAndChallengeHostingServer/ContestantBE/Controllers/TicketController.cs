@@ -31,6 +31,8 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> CreateTicketByUser([FromBody] CreateTicketRequestDTO request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            await Console.Out.WriteLineAsync($"[Requesst Send Ticket] User {userId}: Title {request.title}, message {request.description}");
+
             var result = await _ticketService.CreateTicket(request, userId);
             if (!result.Success) return BadRequest(new { message = result.Message });
             return Created("", result.Data);
@@ -80,7 +82,7 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> DeleteTicket(int ticketId)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
+            await Console.Out.WriteLineAsync($"[Requesst Remove Ticket] User {userId}: Ticket ID {ticketId}");
             var result = await _ticketService.DeleteTicket(ticketId, userId);
             if (!result.Success) return BadRequest(new { message = result.Message });
             

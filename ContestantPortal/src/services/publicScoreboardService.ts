@@ -75,7 +75,6 @@ class PublicScoreboardService {
       }
       
       const result = await response.json();
-      console.log('Contest config from API:', result);
       
       // API returns Unix timestamps in seconds
       return {

@@ -3,6 +3,7 @@ using DeploymentCenter.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared.DTOs.Auth;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
 using Sprache;
@@ -84,6 +85,7 @@ namespace DeploymentCenter.Controllers
                     message = "Unauthorized request."
                 });
             }
+            await Console.Out.WriteLineAsync($"[Stop All] Account {user.Name} stop all challenge");
             var response = await _deployService.StopAll();
             return response.HttpStatusCode switch
             {
@@ -112,7 +114,6 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> GetPodLogs([FromBody] ChallengeStartStopReqDTO challengeReq)
         {
-            Console.WriteLine($"GetPodLogs: Received request for challenge ID: {challengeReq.challengeId}, Team ID: {challengeReq.teamId}");
             var response = await _deployService.GetPodLogs(challengeReq);
             return response.HttpStatusCode switch
             {

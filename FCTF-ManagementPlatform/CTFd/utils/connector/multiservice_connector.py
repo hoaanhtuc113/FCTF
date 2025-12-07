@@ -184,6 +184,7 @@ def force_stop(user_id, challenge_id, team_id):
         "userId": user_id,
         "unixTime": unix_time,
     }
+    print(f"User {user_id} is forcing stop challenge {challenge_id} for team {team_name} ({team_id})")
     headers = {"Secretkey": secret_key}
     stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/stop"
     try:
@@ -392,7 +393,6 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
             print(f"Warning: No exposed port found")
             return {"success": False, "error": "No exposed port found"}, 400
 
-        print(f"Docker file found at {dockerfile_path} Exposed port found: {expose_port}")
         # Update challenge status
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
@@ -409,9 +409,7 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                 }
 
                 payload, headers, api_url = prepare_up_challenge_payload(challenge.id,dockerfile_path, image_tag)
-                print(f"Uploading challenge to deployment service with challenge path {dockerfile_path}, image tag:  {image_tag}")
                 response = requests.post(api_url, headers=headers, json=payload)
-                print(f"Response Status Code: {response.status_code}")
 
                 if response.status_code != 200:
                     print(f"Error uploading challenge: {response.text}")
@@ -424,16 +422,11 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                     f"{get_workflow_key(challenge.id)}",
                     workflow_name
                 )
-
-                print(f"Challenge uploaded successfully to: {nfs_destination} with workflow: {workflow_name}")
-                print(f"Response Text: {response.text}")
-
                 workflow_phase, started_at, estimated_duration = get_workflow_status(workflow_name)
                 if workflow_phase is None:
                     return {"success": False, "error": "Error getting workflow status"}, 500
 
-                print(f"Workflow phase: {workflow_phase}, Estimated duration: {estimated_duration} seconds")
-
+                print(f"Challenge {challenge.id} deployment started with workflow {workflow_name}, started at {started_at}")
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"

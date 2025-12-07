@@ -78,6 +78,8 @@ namespace ContestantBE.Controllers
                     return BadRequest(new { success = false, error = "Challenge already solved" });
                 }
 
+                await Console.Out.WriteLineAsync($"[Requesst Unlock Hint Challenge] User {userId} : Team {teamId} : Challenge {target.Challenge.Name}");
+
                 var result = await _hintService.UnlockHint(req, userId);
                 return Ok(new { success = true, data = result });
             }

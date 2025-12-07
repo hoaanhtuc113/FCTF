@@ -32,7 +32,6 @@ class ChallengeService {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.BY_TOPIC);
       const result = await response.json();
       
-      console.log('Categories API Response:', result);
       
       // Handle different response structures
       if (result.data && Array.isArray(result.data)) {
@@ -55,7 +54,6 @@ class ChallengeService {
       );
       const result = await response.json();
       
-      console.log('Challenges API Response:', result);
       
       if (result.data && Array.isArray(result.data)) {
         return result.data;

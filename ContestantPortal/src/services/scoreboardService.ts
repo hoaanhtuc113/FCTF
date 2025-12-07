@@ -30,7 +30,6 @@ class ScoreboardService {
       
       const result = await response.json();
       
-      console.log('Scoreboard API Response:', result);
       
       // Handle different response structures
       if (result.data) {

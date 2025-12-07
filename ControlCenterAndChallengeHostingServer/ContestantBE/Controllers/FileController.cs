@@ -38,7 +38,6 @@ namespace ContestantBE.Controllers
             {
                 return BadRequest(new { success = false, message = "Missing 'path' parameter" });
             }
-            await Console.Out.WriteLineAsync($"GetFileAsync: {path}");
             var result = await _fileService.GetFileAsync(path,token, userId);
 
             if (!result.Success)

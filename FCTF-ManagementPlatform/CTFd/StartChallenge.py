@@ -87,10 +87,8 @@ def start_challenge():
     if not team_id or not challenge:
         return jsonify({"error": "Invalid team or challenge"}), 400
 
+    print("User {} from team {} is starting challenge {}".format(user_id, team_id, challenge_id))
     if challenge.require_deploy:
-        # # Check xem team đã có đội trưởng chưa và người khởi động challenge có phải đội trưởng không
-        # if(user.type == 'user' and (not team.captain_id or team.captain_id != user_id)):
-        #     return jsonify({"error": "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge."}), 400
         # Chuẩn bị payload và headers
         payload, headers, api_start = prepare_start_challenge_payload(challenge, user_id, team_id)
 

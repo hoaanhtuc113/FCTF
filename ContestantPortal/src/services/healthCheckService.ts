@@ -138,7 +138,6 @@ class HealthCheckService {
 
       // Check if pod is healthy
       if (data.success === true && data.challenge_url) {
-        console.log(`[HealthCheck] Challenge ${challengeId} is healthy!`);
         
         // Store success result
         const resultKey = `health_check_result_${challengeId}`;
@@ -173,7 +172,6 @@ class HealthCheckService {
     // Check if already checking
     const existing = localStorage.getItem(key);
     if (existing) {
-      console.log(`[HealthCheck] Already checking challenge ${challengeId}`);
       return;
     }
     
@@ -190,7 +188,6 @@ class HealthCheckService {
     localStorage.setItem(key, JSON.stringify(state));
     this.activeChecks.set(challengeId, true);
     
-    console.log(`[HealthCheck] Started health check for challenge ${challengeId}`);
   }
 
   stopHealthCheck(challengeId: number, reason: 'success' | 'timeout' | 'manual') {
@@ -198,7 +195,6 @@ class HealthCheckService {
     localStorage.removeItem(key);
     this.activeChecks.delete(challengeId);
     
-    console.log(`[HealthCheck] Stopped health check for challenge ${challengeId}, reason: ${reason}`);
     
     // If timeout, store timeout result
     if (reason === 'timeout') {

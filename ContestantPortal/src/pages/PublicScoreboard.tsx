@@ -52,7 +52,6 @@ export function PublicScoreboard() {
     const fetchConfig = async () => {
       try {
         const config = await publicScoreboardService.getContestConfig();
-        console.log('Received contest config:', config);
         
         // Convert Unix timestamps (seconds) to Date objects
         // Unix timestamp is in seconds, Date expects milliseconds
@@ -60,8 +59,6 @@ export function PublicScoreboard() {
         setContestEnd(new Date(config.end_date * 1000));
         setContestName(config.name || `FCTF ${new Date().getFullYear()}`);
         
-        console.log('Contest start:', new Date(config.start_date * 1000));
-        console.log('Contest end:', new Date(config.end_date * 1000));
       } catch (err) {
         console.error('Failed to fetch contest config:', err);
       }

@@ -61,7 +61,6 @@ class ChallengeTimerService {
   }
 
   startTimer(challengeId: number, challengeName: string, timeRemaining: number, requireDeploy: boolean) {
-    console.log(`[TimerService] Starting timer for challenge ${challengeId}, ${timeRemaining}s remaining`);
     
     const expireTime = Date.now() + (timeRemaining * 1000);
     
@@ -107,11 +106,9 @@ class ChallengeTimerService {
     }, timeUntilExpire);
 
     this.timers.set(timerData.challengeId, timeout);
-    console.log(`[TimerService] Scheduled auto-stop for challenge ${timerData.challengeId} in ${Math.floor(timeUntilExpire / 1000)}s`);
   }
 
   private async autoStopChallenge(timerData: TimerData) {
-    console.log(`[TimerService] Auto-stopping challenge ${timerData.challengeId}`);
     
     try {
       // Show toast notification
@@ -178,7 +175,6 @@ class ChallengeTimerService {
   }
 
   stopTimer(challengeId: number) {
-    console.log(`[TimerService] Stopping timer for challenge ${challengeId}`);
     
     // Clear timeout
     if (this.timers.has(challengeId)) {
@@ -212,7 +208,6 @@ class ChallengeTimerService {
       
       activeTimers.forEach(timer => {
         if (timer.expireTime <= now) {
-          console.log(`[TimerService] Found expired timer for challenge ${timer.challengeId}, triggering auto-stop`);
           this.autoStopChallenge(timer);
         }
       });

@@ -66,7 +66,6 @@ namespace ContestantBE.Services
 
                 if (!fullPath.StartsWith(_nfsMountPath, StringComparison.OrdinalIgnoreCase))
                 {
-                    await Console.Out.WriteLineAsync("Path traversal detected");
                     return new FileResult
                     {
                         Success = false,
