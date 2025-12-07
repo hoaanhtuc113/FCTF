@@ -40,12 +40,12 @@ namespace ResourceShared.Utils
             }
         }
 
-        public async Task<object> GetConfig(string key)
+        public object GetConfig(string key)
         {
             using (var context = new AppDbContext(_dbOptions))
             {
                 // If not in cache, query database
-                var config = await context.Configs.AsNoTracking().FirstOrDefaultAsync(c => c.Key == key);
+                var config = context.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
                 object result;
                 
                 if (config != null && !string.IsNullOrEmpty(config.Value))

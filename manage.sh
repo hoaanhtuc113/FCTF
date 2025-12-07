@@ -359,17 +359,17 @@ start_system() {
     sudo sysctl -p /etc/sysctl.d/00-local-userns.conf || true
 
     # Thiết lập quyền thư mục
-    if [ ! -d "$PROJECT_ROOT/ctf-directory/kctf" ]; then
-        echo "Lỗi: Thư mục ctf-directory/kctf không tồn tại."
-        exit 1
-    fi
-    sudo chmod -R 755 "$PROJECT_ROOT/ctf-directory/kctf"
+    # if [ ! -d "$PROJECT_ROOT/ctf-directory/kctf" ]; then
+    #     echo "Lỗi: Thư mục ctf-directory/kctf không tồn tại."
+    #     exit 1
+    # fi
+    # sudo chmod -R 755 "$PROJECT_ROOT/ctf-directory/kctf"
 
-    if [ ! -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
-        echo "Lỗi: Thư mục FCTF-ManagementPlatform không tồn tại."
-        exit 1
-    fi
-    sudo chmod -R 755 "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    # if [ ! -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
+    #     echo "Lỗi: Thư mục FCTF-ManagementPlatform không tồn tại."
+    #     exit 1
+    # fi
+    # sudo chmod -R 755 "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
     # Kiểm tra và dừng các tiến trình trên các cổng được sử dụng
     for port in "${PORTS[@]}"; do
@@ -409,30 +409,30 @@ start_system() {
     fi
 
     # Kích hoạt môi trường kCTF
-    if [ ! -f "$PROJECT_ROOT/ctf-directory/kctf/activate" ]; then
-        echo "Lỗi: File kctf/activate không tồn tại."
-        exit 1
-    fi
-    source "$PROJECT_ROOT/ctf-directory/kctf/activate"
+    # if [ ! -f "$PROJECT_ROOT/ctf-directory/kctf/activate" ]; then
+    #     echo "Lỗi: File kctf/activate không tồn tại."
+    #     exit 1
+    # fi
+    # source "$PROJECT_ROOT/ctf-directory/kctf/activate"
 
-    # Kiểm tra lệnh kctf
-    if ! command -v kctf &> /dev/null; then
-        echo "Lỗi: Lệnh kctf không được tìm thấy sau khi kích hoạt môi trường."
-        echo "Vui lòng kiểm tra cài đặt kCTF trong $PROJECT_ROOT/ctf-directory/kctf."
-        echo "Thử cài đặt kCTF bằng lệnh:"
-        echo "  cd $PROJECT_ROOT/ctf-directory/kctf && pip3 install -r requirements.txt"
-        exit 1
-    fi
+    # # Kiểm tra lệnh kctf
+    # if ! command -v kctf &> /dev/null; then
+    #     echo "Lỗi: Lệnh kctf không được tìm thấy sau khi kích hoạt môi trường."
+    #     echo "Vui lòng kiểm tra cài đặt kCTF trong $PROJECT_ROOT/ctf-directory/kctf."
+    #     echo "Thử cài đặt kCTF bằng lệnh:"
+    #     echo "  cd $PROJECT_ROOT/ctf-directory/kctf && pip3 install -r requirements.txt"
+    #     exit 1
+    # fi
 
     # Tạo cluster kCTF
-    if ! docker info &> /dev/null; then
-        echo "Lỗi: Không thể truy cập Docker daemon. Vui lòng chạy './manage.sh dev check-env' hoặc đăng xuất/đăng nhập lại."
-        exit 1
-    fi
-    if ! kctf cluster create local-cluster --start --type kind; then
-        echo "Lỗi: Không thể tạo cluster kCTF."
-        exit 1
-    fi
+    # if ! docker info &> /dev/null; then
+    #     echo "Lỗi: Không thể truy cập Docker daemon. Vui lòng chạy './manage.sh dev check-env' hoặc đăng xuất/đăng nhập lại."
+    #     exit 1
+    # fi
+    # if ! kctf cluster create local-cluster --start --type kind; then
+    #     echo "Lỗi: Không thể tạo cluster kCTF."
+    #     exit 1
+    # fi
 
     # Chạy FCTF-ManagementPlatform trước để khởi động Redis và MariaDB
     cd "$PROJECT_ROOT"
@@ -532,9 +532,9 @@ stop_system() {
 
 
     # Deactivate kCTF
-    if command -v deactivate &> /dev/null; then
-        deactivate
-    fi
+    # if command -v deactivate &> /dev/null; then
+    #     deactivate
+    # fi
 
     echo "Hệ thống đã được dừng."
 }
