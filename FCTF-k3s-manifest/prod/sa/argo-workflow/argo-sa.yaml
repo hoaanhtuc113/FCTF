@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo-sa
+  namespace: argo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argo-sa-cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: argo-sa
+    namespace: argo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argo-sa.service-account-token
+  namespace: argo
+  annotations:
+    kubernetes.io/service-account.name: argo-sa
+type: kubernetes.io/service-account-token

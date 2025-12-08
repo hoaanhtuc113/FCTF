@@ -1,0 +1,123 @@
+## Challenge HTTP 02 Dockerfile
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: ${CHALLENGE_NAME}
+  name: ${CHALLENGE_NAME}-svc
+spec:
+  ports:
+    - protocol: TCP
+      port: 3333
+      targetPort: ${CONTAINER_PORT}
+  selector:
+    app: ${CHALLENGE_NAME}
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${CHALLENGE_NAME}-ingress
+  namespace: ${CHALLENGE_NAME}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  rules:
+    - host: ${CHALLENGE_NAME}.challenge-zg9uj3rfagfja19tzq.fctf.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ${CHALLENGE_NAME}-svc
+                port:
+                  number: 3333
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${CHALLENGE_NAME}-job
+  namespace: ${CHALLENGE_NAME}
+spec:
+  ttlSecondsAfterFinished: ${CHALLENGE_TIMEOUT_SECONDS}
+  template:
+    metadata:
+      labels:
+        app: ${CHALLENGE_NAME}
+        ctf/kind: "challenge"
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false     # 🚫 Không gắn token API server
+      containers:
+        - name: challenge-01
+          image: "${CONTAINER_IMAGE}"
+          ports:
+            - containerPort: ${CONTAINER_PORT}
+          securityContext:
+            allowPrivilegeEscalation: false     # 🚫 Không cho escalate privilege
+            privileged: false
+            # runAsNonRoot: true                # 🚫 Không chạy root
+            # runAsUser: 1000
+            # readOnlyRootFilesystem: false     # 🔒 FS chỉ đọc
+            capabilities:
+              drop: ["ALL"] # 🚫 Bỏ mọi Linux capabilities
+          resources:
+            limits:
+              memory: "${MEMORY_LIMIT}"
+              cpu: "${CPU_LIMIT}"
+          imagePullPolicy: IfNotPresent
+        - name: challenge-02
+          image: "${CONTAINER_IMAGE_02}"
+          securityContext:
+            allowPrivilegeEscalation: false     # 🚫 Không cho escalate privilege
+            privileged: false
+            # runAsNonRoot: true                # 🚫 Không chạy root
+            # runAsUser: 1000
+            # readOnlyRootFilesystem: false     # 🔒 FS chỉ đọc
+            capabilities:
+              drop: ["ALL"] # 🚫 Bỏ mọi Linux capabilities
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "0"
+            limits:
+              memory: "64Mi"
+              cpu: "0.1"
+          imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+        - name: global-regcred
+---
+# 🚧 NetworkPolicy chặn toàn bộ outbound/inbound trừ Ingress Service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-${CHALLENGE_NAME}
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app: ${CHALLENGE_NAME}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53

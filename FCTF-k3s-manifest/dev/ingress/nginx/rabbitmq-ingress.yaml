@@ -1,0 +1,25 @@
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: rabbitmq-ingress
+#   namespace: db
+#   annotations:
+#     kubernetes.io/ingress.class: nginx
+#     cert-manager.io/cluster-issuer: letsencrypt-dev
+#     nginx.ingress.kubernetes.io/proxy-body-size: "0"
+# spec:
+#   rules:
+#     - host: rabbitmqzmn0zjiwmju.fctf.cloud
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: rabbitmq
+#                 port:
+#                   number: 15672
+#   tls:
+#     - hosts:
+#         - rabbitmqzmn0zjiwmju.fctf.cloud
+#       secretName: rabbitmq-tls

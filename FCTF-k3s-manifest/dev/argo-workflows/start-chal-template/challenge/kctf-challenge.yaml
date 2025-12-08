@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${CHALLENGE_NAME}
+  labels:
+    ctf/temporary: "${IS_TEMPORARY}"
+    ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
+    ctf/kind: "challenge"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: ${CHALLENGE_NAME}
+  name: ${CHALLENGE_NAME}-svc
+spec:
+  ports:
+    - protocol: TCP
+      port: 3333
+      targetPort: ${CONTAINER_PORT}
+  selector:
+    app: ${CHALLENGE_NAME}
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${CHALLENGE_NAME}-ingress
+  namespace: ${CHALLENGE_NAME}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  rules:
+    - host: ${CHALLENGE_NAME}.challenge-zg9uj3rfagfja19tzq.fctf.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ${CHALLENGE_NAME}-svc
+                port:
+                  number: 3333
+---
+apiVersion: kctf.dev/v1
+kind: Challenge
+metadata:
+  name: ${CHALLENGE_NAME}
+  namespace: ${CHALLENGE_NAME}
+spec:
+  image: "${CONTAINER_IMAGE}"
+  deployed: true
+  powDifficultySeconds: ${POW_DIFFICULTY_SECONDS}
+  healthcheck:
+    enabled: false
+  network:
+    public: false
+  podTemplate:
+    template:
+      spec:
+        containers:
+          - name: challenge
+            resources:
+              requests:
+                memory: "${MEMORY_REQUEST}"
+                cpu: "${CPU_REQUEST}"
+              limits:
+                memory: "${MEMORY_LIMIT}"
+                cpu: "${CPU_LIMIT}"
+        imagePullSecrets:
+          - name: global-regcred

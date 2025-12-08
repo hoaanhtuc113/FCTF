@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-backend-challenge
+  namespace: app
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-dev
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api-dev.fctf.cloud
+      secretName: api-backend-tls
+  rules:
+    - host: api-dev.fctf.cloud
+      http:
+        paths:
+          - path: /.well-known/acme-challenge/
+            pathType: Prefix
+            backend:
+              service:
+                name: dummy-service
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-backend-ingress
+  namespace: app
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.dev.fctf.cloud
+      secretName: api-backend-tls
+  rules:
+    - host: api.dev.fctf.cloud
+      http:
+        paths:
+          - path: /contestant-be(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: contestant-be-svc
+                port:
+                  number: 5010
+          - path: /deployment-center(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: deployment-center-svc
+                port:
+                  number: 5020

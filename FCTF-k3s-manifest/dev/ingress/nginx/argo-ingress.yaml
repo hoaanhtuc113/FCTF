@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argo-ingress
+  namespace: argo
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-dev
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  rules:
+    - host: argo-zmn0zjiwmju.dev.fctf.cloud
+      http:
+        paths:
+          - path: / 
+            pathType: Prefix
+            backend:
+              service:
+                name: argo-workflows-server 
+                port:
+                  number: 2746
+  tls:
+    - hosts:
+        - argo-zmn0zjiwmju.dev.fctf.cloud
+      secretName: argo-tls

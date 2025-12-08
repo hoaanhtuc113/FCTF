@@ -1,0 +1,13 @@
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: challenge-tls
+#   namespace: default
+# spec:
+#   secretName: challenge-tls
+#   dnsNames:
+#     - "*.challenge-zg9uj3rfagfja19tzq.fctf.cloud"
+#     - "challenge-zg9uj3rfagfja19tzq.fctf.cloud"
+#   issuerRef:
+#     name: letsencrypt-dev
+#     kind: ClusterIssuer

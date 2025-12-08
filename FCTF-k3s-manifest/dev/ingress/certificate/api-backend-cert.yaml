@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: api-backend-tls
+  namespace: app
+spec:
+  secretName: api-backend-tls
+  dnsNames:
+    - api.dev.fctf.cloud
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: admin-mvc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-mvc
+  template:
+    metadata:
+      labels:
+        app: admin-mvc
+    spec:
+      containers:
+        - name: admin-mvc
+          image: quachuoiscontainer/fctf:admin-mvc-dev-v3.5.0
+          ports:
+            - name: http-client
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: common-be-cm
+            - configMapRef:
+                name: admin-mvc-cm
+          resources:
+            requests:
+              cpu: 0.5
+              memory: 1Gi
+            limits:
+              cpu: 0.5
+              memory: 1Gi
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: nfs-shared-data
+              mountPath: /mnt/nfs/data
+      imagePullSecrets:
+        - name: regcred
+      volumes:
+        - name: nfs-shared-data
+          nfs:
+            server: 10.184.0.5
+            path: /srv/nfs/share
+  revisionHistoryLimit: 3

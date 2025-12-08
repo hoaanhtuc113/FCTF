@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: contestant-be
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: contestant-be
+  template:
+    metadata:
+      labels:
+        app: contestant-be
+    spec:
+      containers:
+        - name: contestant-be
+          image: quachuoiscontainer/fctf:contestant-be-dev-v3.5.0
+          ports:
+            - name: http-client
+              containerPort: 5010
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: common-be-cm
+            - configMapRef:
+                name: contestant-be-cm
+          resources:
+            requests:
+              cpu: 0.25
+              memory: 1Gi
+            limits:
+              cpu: 0.75
+              memory: 1.5Gi
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: nfs-shared-data
+              mountPath: /mnt/nfs/data
+      imagePullSecrets:
+        - name: regcred
+      volumes:
+        - name: nfs-shared-data
+          nfs:
+            server: 10.184.0.5
+            path: /srv/nfs/share
+  revisionHistoryLimit: 3

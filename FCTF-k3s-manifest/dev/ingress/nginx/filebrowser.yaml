@@ -1,0 +1,38 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: filebrowser-tls
+  namespace: storage
+spec:
+  secretName: filebrowser-tls
+  dnsNames:
+    - filebrowser-zmn0zjiwmju.dev.fctf.cloud
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: filebrowser-ingress
+  namespace: storage
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-dev
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  rules:
+    - host: filebrowser-zmn0zjiwmju.dev.fctf.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: filebrowser
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - filebrowser-zmn0zjiwmju.dev.fctf.cloud
+      secretName: filebrowser-tls

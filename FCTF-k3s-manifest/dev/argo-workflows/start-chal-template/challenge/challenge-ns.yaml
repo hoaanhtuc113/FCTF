@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${CHALLENGE_NAME}
+  labels:
+    ctf/temporary: "${IS_TEMPORARY}"
+    ctf/expireAfter: "${CHALLENGE_TIMEOUT_SECONDS}"
+    ctf/kind: "challenge"

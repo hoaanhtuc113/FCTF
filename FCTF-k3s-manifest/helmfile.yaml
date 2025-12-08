@@ -1,0 +1,74 @@
+repositories:
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: jenkins
+    url: https://charts.jenkins.io
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+  - name: rancher-latest
+    url: https://releases.rancher.com/server-charts/latest
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+releases:
+  - name: ingress-nginx
+    namespace: ingress-nginx
+    chart: ingress-nginx/ingress-nginx
+    values:
+      - ./dev/helm/nginx/nginx-values.yaml
+
+  - name: cert-manager
+    namespace: cert-manager
+    chart: jetstack/cert-manager
+    set:
+      - name: installCRDs
+        value: true
+
+  - name: jenkins
+    namespace: jenkins
+    chart: jenkins/jenkins
+    values:
+      - ./dev/helm/jenkins/jenkins-values.yaml
+
+  - name: mariadb
+    namespace: db
+    chart: bitnami/mariadb
+    values:
+      - ./dev/helm/db/mariadb/mariadb-values.yaml
+
+  - name: redis
+    namespace: db
+    chart: bitnami/redis
+    values:
+      - ./dev/helm/db/redis/redis-values.yaml
+
+  - name: rabbitmq
+    namespace: db
+    chart: bitnami/rabbitmq
+    values:
+      - ./dev/helm/db/rabbitmq/rabbitmq-values.yaml
+
+  - name: rancher
+    namespace: cattle-system
+    chart: rancher-latest/rancher
+    set:
+      - name: replicas
+        value: 1
+      - name: hostname
+        value: rancherzmn0zjiwmju.fctf.cloud
+
+  - name: loki-stack
+    namespace: monitoring
+    chart: grafana/loki-stack
+    values:
+      - ./dev/helm/monitoring/loki-stack-values.yaml
+
+  - name: prometheus
+    namespace: monitoring
+    chart: prometheus-community/kube-prometheus-stack
+    values:
+      - ./dev/helm/monitoring/prometheus-stack-values.yaml

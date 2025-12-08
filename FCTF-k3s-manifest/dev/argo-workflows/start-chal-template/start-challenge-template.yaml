@@ -1,0 +1,140 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: start-challenge-template
+  namespace: argo
+spec:
+  serviceAccountName: argo-sa
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: CHALLENGE_NAME
+      - name: CONTAINER_PORT
+      - name: CONTAINER_IMAGE
+      - name: CONTAINER_IMAGE_02
+      - name: CPU_LIMIT
+        value: "0.05"
+        description: "TEMPORARILY DISABLED"
+      - name: MEMORY_LIMIT
+        value: "64Mi"
+        description: "TEMPORARILY DISABLED"
+      - name: IS_TEMPORARY
+        value: "true"
+      - name: CHALLENGE_TIMEOUT_SECONDS
+        value: "900"
+        description: "CHALLENGE TIMEOUT IN SECONDS"
+      - name: NFS_SERVER_IP
+        value: "10.184.0.5"
+      - name: NAMESPACE_YAML_PATH
+        value: "/mnt/nfs/data/start-challenge/challenge-ns.yaml"
+      - name: CHALLENGE_YAML_PATH
+        value: "/mnt/nfs/data/start-challenge/challenge-tcp-01-dockerfile.yaml"
+        # /mnt/nfs/data/start-challenge/challenge-tcp-01-dockerfile.yaml
+        # /mnt/nfs/data/start-challenge/challenge-http-01-dockerfile.yaml
+        # /mnt/nfs/data/start-challenge/challenge-http-02-dockerfile.yaml
+  templates:
+    - name: main
+      steps:
+        - - name: deploy-challenge
+            template: deploy-challenge
+            arguments:
+              parameters:
+                - name: CHALLENGE_NAME
+                  value: "{{workflow.parameters.CHALLENGE_NAME}}"
+                - name: CONTAINER_PORT
+                  value: "{{workflow.parameters.CONTAINER_PORT}}"
+                - name: CONTAINER_IMAGE
+                  value: "{{workflow.parameters.CONTAINER_IMAGE}}"
+                - name: CONTAINER_IMAGE_02
+                  value: "{{workflow.parameters.CONTAINER_IMAGE_02}}"
+                - name: CPU_LIMIT
+                  value: "{{workflow.parameters.CPU_LIMIT}}"
+                - name: MEMORY_LIMIT
+                  value: "{{workflow.parameters.MEMORY_LIMIT}}"
+                - name: IS_TEMPORARY
+                  value: "{{workflow.parameters.IS_TEMPORARY}}"
+                - name: CHALLENGE_TIMEOUT_SECONDS
+                  value: "{{workflow.parameters.CHALLENGE_TIMEOUT_SECONDS}}"
+                - name: NFS_SERVER_IP
+                  value: "{{workflow.parameters.NFS_SERVER_IP}}"
+                - name: NAMESPACE_YAML_PATH
+                  value: "{{workflow.parameters.NAMESPACE_YAML_PATH}}"
+                - name: CHALLENGE_YAML_PATH
+                  value: "{{workflow.parameters.CHALLENGE_YAML_PATH}}"
+
+    - name: deploy-challenge
+      inputs:
+        parameters:
+          - name: CHALLENGE_NAME
+          - name: CONTAINER_PORT
+          - name: CONTAINER_IMAGE
+          - name: CONTAINER_IMAGE_02
+          - name: CPU_LIMIT
+          - name: MEMORY_LIMIT
+          - name: IS_TEMPORARY
+          - name: CHALLENGE_TIMEOUT_SECONDS
+          - name: NFS_SERVER_IP
+          - name: NAMESPACE_YAML_PATH
+          - name: CHALLENGE_YAML_PATH
+      container:
+        image: quachuoiscontainer/kubectl-cli:v0.0.3
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        resources:
+          requests:
+            memory: "0"
+            cpu: "0"
+          limits:
+            memory: "512Mi"
+            cpu: "0.25"
+        volumeMounts:
+          - name: nfs-shared-data
+            mountPath: /mnt/nfs/data
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            echo "=== Deploying Challenge with parameters ==="
+
+            # Set environment variables
+            export CHALLENGE_YAML_PATH="{{inputs.parameters.CHALLENGE_YAML_PATH}}"
+            export NAMESPACE_YAML_PATH="{{inputs.parameters.NAMESPACE_YAML_PATH}}"
+            export CHALLENGE_NAME="{{inputs.parameters.CHALLENGE_NAME}}"
+            export CONTAINER_PORT="{{inputs.parameters.CONTAINER_PORT}}"
+            export CONTAINER_IMAGE="{{inputs.parameters.CONTAINER_IMAGE}}"
+            export CONTAINER_IMAGE_02="{{inputs.parameters.CONTAINER_IMAGE_02}}"
+            export CPU_LIMIT="{{inputs.parameters.CPU_LIMIT}}"
+            export MEMORY_LIMIT="{{inputs.parameters.MEMORY_LIMIT}}"
+            export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
+            export CHALLENGE_TIMEOUT_SECONDS="{{inputs.parameters.CHALLENGE_TIMEOUT_SECONDS}}"
+
+            # Check if ${CHALLENGE_YAML_PATH} & ${NAMESPACE_YAML_PATH} exist in NFS
+            if [ ! -f "${CHALLENGE_YAML_PATH}" ] || [ ! -f "${NAMESPACE_YAML_PATH}" ]; then
+              echo "❌ ${CHALLENGE_YAML_PATH} or ${NAMESPACE_YAML_PATH} not found in NFS at ${CHALLENGE_YAML_PATH} or ${NAMESPACE_YAML_PATH}"
+              exit 1
+            fi
+
+            echo "🏷️ Applying namespace manifest ${NAMESPACE_YAML_PATH}"
+            envsubst < "${inputs.parameters.NAMESPACE_YAML_PATH}" | kubectl apply -f -
+
+            echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
+            kubectl get secret global-regcred -n argo -o yaml \
+              | sed "s/namespace: .*/namespace: ${CHALLENGE_NAME}/" \
+              | sed '/resourceVersion:/d;/uid:/d;/creationTimestamp:/d' \
+              | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
+              | kubectl apply -f -
+
+            echo "🏷️ Applying challenge manifest ${CHALLENGE_YAML_PATH}"
+            envsubst < ${CHALLENGE_YAML_PATH} | kubectl apply -f -
+
+            echo "✅ Challenge manifest submitted to cluster"
+      volumes:
+        - name: nfs-shared-data
+          nfs:
+            server: "{{inputs.parameters.NFS_SERVER_IP}}"
+            path: /srv/nfs/share

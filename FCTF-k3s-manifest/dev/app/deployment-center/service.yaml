@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: app
+  name: deployment-center-svc
+spec:
+  ports:
+    - protocol: TCP
+      port: 5020
+      targetPort: 5020
+  selector:
+    app: deployment-center
+  type: ClusterIP

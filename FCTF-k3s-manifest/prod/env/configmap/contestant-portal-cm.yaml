@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: contestant-portal-cm
+  namespace: app
+data:
+  VITE_API_URL: https://api.fctf.cloud/contestant-be/api

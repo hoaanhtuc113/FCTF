@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-listener-cm
+  namespace: app
+data:
+  ASPNETCORE_URLS: "http://+:5030"  
+  WORKER_SERVICE_INTERVAL: "20"
+  CONTESTANT_BE_API: "http://contestant-be-svc.app.svc.cluster.local:5010"

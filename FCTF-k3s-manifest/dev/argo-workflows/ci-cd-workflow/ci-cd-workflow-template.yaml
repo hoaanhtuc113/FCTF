@@ -1,0 +1,223 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: ci-cd-template
+  namespace: argo
+spec:
+  entrypoint: ci-cd
+  serviceAccountName: argo-sa
+
+  arguments:
+    parameters:
+      - name: repo-url
+        default: "https://github.com/hoaanhtuc113/FCTF.git"
+      - name: image
+        default: "registry.local/fctf:latest"
+      - name: sonar-host
+        default: "http://sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
+      - name: sonar-token
+        default: "sqp_9ba1f4c8ebafc3aabe95f249a539c853d2040a1d"
+      - name: sonar-project-key
+        default: "my-app"
+      - name: namespace
+        default: "app"
+      - name: deployment
+        default: "contestant-be"
+
+  templates:
+    # === PIPELINE DAG ===
+    - name: ci-cd
+      dag:
+        tasks:
+          - name: clone
+            template: git-clone
+
+          - name: sonar-scan
+            template: sonar-scan
+            dependencies: [clone]
+
+          - name: sonar-verify
+            template: sonar-verify
+            dependencies: [sonar-scan]
+
+          - name: trivy-scan
+            template: trivy-scan
+            dependencies: [clone]
+
+          - name: trivy-verify
+            template: trivy-verify
+            dependencies: [trivy-scan]
+
+          - name: wait-approval
+            template: manual-approval
+            dependencies: [sonar-verify, trivy-verify]
+
+          - name: cd-apply
+            template: cd-apply
+            dependencies: [wait-approval]
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: deployment
+                  value: "{{workflow.parameters.deployment}}"
+                - name: image
+                  value: "{{workflow.parameters.image}}"
+
+    # === CLONE SOURCE ===
+    - name: git-clone
+      container:
+        image: alpine/git:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - git clone {{workflow.parameters.repo-url}} /src
+        volumeMounts:
+          - name: workspace
+            mountPath: /src
+
+    # === SONARQUBE SCAN ===
+    - name: sonar-scan
+      container:
+        image: sonarsource/sonar-scanner-cli:11.5
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Running SonarQube scan..."
+            sonar-scanner \
+              -Dsonar.projectKey={{workflow.parameters.sonar-project-key}} \
+              -Dsonar.sources=. \
+              -Dsonar.host.url={{workflow.parameters.sonar-host}} \
+              -Dsonar.login={{workflow.parameters.sonar-token}}
+        workingDir: /src
+        volumeMounts:
+          - name: workspace
+            mountPath: /src
+
+    # === SONARQUBE QUALITY GATE CHECK ===
+    - name: sonar-verify
+      container:
+        image: python:3.11-alpine
+        command: ["python", "-c"]
+        args:
+          - |
+            import base64, json, os, sys, urllib.request
+
+            host = os.environ["SONAR_HOST"].rstrip("/")
+            token = os.environ["SONAR_TOKEN"]
+            project_key = os.environ["SONAR_PROJECT_KEY"]
+
+            url = f"{host}/api/qualitygates/project_status?projectKey={project_key}"
+            request = urllib.request.Request(url)
+            basic = base64.b64encode(f"{token}:".encode("utf-8")).decode("utf-8")
+            request.add_header("Authorization", f"Basic {basic}")
+
+            print(f"Checking SonarQube quality gate for project '{project_key}' at '{host}'...")
+            with urllib.request.urlopen(request) as response:
+              payload = json.load(response)
+
+            status = payload.get("projectStatus", {}).get("status", "UNKNOWN")
+            print(f"Quality gate status: {status}")
+            if status != "OK":
+              print(json.dumps(payload, indent=2))
+              sys.exit("Quality gate failed")
+            print("Quality gate passed.")
+        env:
+          - name: SONAR_HOST
+            value: "{{workflow.parameters.sonar-host}}"
+          - name: SONAR_TOKEN
+            value: "{{workflow.parameters.sonar-token}}"
+          - name: SONAR_PROJECT_KEY
+            value: "{{workflow.parameters.sonar-project-key}}"
+
+    # === TRIVY SCAN ===
+    - name: trivy-scan
+      container:
+        image: aquasec/trivy:0.67.2
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "🔍 Scanning image {{workflow.parameters.image}} ..."
+            trivy image \
+              --severity HIGH,CRITICAL \
+              --format json \
+              --output /src/trivy-report.json \
+              --exit-code 0 \
+              --no-progress \
+              {{workflow.parameters.image}}
+            echo "Trivy report written to /src/trivy-report.json"
+        volumeMounts:
+          - name: workspace
+            mountPath: /src
+
+    # === TRIVY VERIFICATION ===
+    - name: trivy-verify
+      container:
+        image: python:3.11-alpine
+        command: ["python", "-c"]
+        args:
+          - |
+            import json, os, sys
+
+            report_path = "/src/trivy-report.json"
+            if not os.path.exists(report_path):
+              sys.exit(f"Trivy report not found at {report_path}")
+
+            with open(report_path, "r", encoding="utf-8") as fh:
+              report = json.load(fh)
+
+            findings = []
+            for result in report.get("Results", []):
+              for vuln in result.get("Vulnerabilities") or []:
+                if vuln.get("Severity") in {"CRITICAL", "HIGH"}:
+                  findings.append({
+                      "Target": result.get("Target"),
+                      "PkgName": vuln.get("PkgName"),
+                      "Severity": vuln.get("Severity"),
+                      "VulnerabilityID": vuln.get("VulnerabilityID"),
+                  })
+
+            if findings:
+              print("❌ Found high-severity vulnerabilities:")
+              for item in findings[:20]:
+                print(f"- {item['Severity']} {item['VulnerabilityID']} in {item['PkgName']} ({item['Target']})")
+              remaining = len(findings) - 20
+              if remaining > 0:
+                print(f"... and {remaining} more findings.")
+              sys.exit("Trivy high-severity vulnerabilities detected")
+
+            print("✅ No HIGH or CRITICAL vulnerabilities detected by Trivy.")
+        volumeMounts:
+          - name: workspace
+            mountPath: /src
+
+    # === MANUAL APPROVAL GATE ===
+    - name: manual-approval
+      suspend:
+        message: "Awaiting manual approval before deployment. Resume this node to continue."
+
+    # === APPLY DEPLOYMENT ===
+    - name: cd-apply
+      inputs:
+        parameters:
+          - name: namespace
+          - name: deployment
+          - name: image
+      container:
+        image: bitnamilegacy/kubectl:1.33.4-debian-12-r0
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            DEPLOYMENT="{{inputs.parameters.deployment}}"
+            CONTAINER="{{inputs.parameters.deployment}}"
+            NAMESPACE="{{inputs.parameters.namespace}}"
+            IMAGE="{{inputs.parameters.image}}"
+
+            echo "🚀 Updating deployment '$DEPLOYMENT' in namespace '$NAMESPACE' with image '$IMAGE'"
+            kubectl -n $NAMESPACE set image deployment/$DEPLOYMENT $CONTAINER=$IMAGE
+            echo "⏳ Waiting for rollout..."
+            kubectl -n $NAMESPACE rollout status deployment/$DEPLOYMENT
+            echo "✅ Done!"
+
+  volumes:
+    - name: workspace
+      emptyDir: {}

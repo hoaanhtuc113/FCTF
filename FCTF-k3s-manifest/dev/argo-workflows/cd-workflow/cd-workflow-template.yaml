@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: cd-template
+  namespace: argo
+spec:
+  entrypoint: cd
+  serviceAccountName: argo-sa
+  templates:
+    - name: cd
+      inputs:
+        parameters:
+          - name: namespace
+            default: app
+          - name: deployment
+          - name: image
+      container:
+        image: bitnamilegacy/kubectl:1.33.4-debian-12-r0
+        command: [sh, -c]
+        args:
+          - |
+            DEPLOYMENT="{{inputs.parameters.deployment}}"
+            CONTAINER="{{inputs.parameters.deployment}}"
+            NAMESPACE="{{inputs.parameters.namespace}}"
+            IMAGE="{{inputs.parameters.image}}"
+
+            echo "🚀 Updating deployment '$DEPLOYMENT' in namespace '$NAMESPACE' with image '$IMAGE'"
+            kubectl -n $NAMESPACE set image deployment/$DEPLOYMENT $CONTAINER=$IMAGE
+            echo "⏳ Waiting for rollout..."
+            kubectl -n $NAMESPACE rollout status deployment/$DEPLOYMENT
+            echo "✅ Done!"

@@ -1,0 +1,58 @@
+## Challenge TCP 01 Dockerfile
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: ${CHALLENGE_NAME}
+  name: ${CHALLENGE_NAME}-svc
+  labels:
+    ctf/kind: "challenge"
+spec:
+  type: NodePort
+  selector:
+    app: ${CHALLENGE_NAME}
+  ports:
+    - name: tcp-challenge-nodeport
+      protocol: TCP
+      port: 3333
+      targetPort: ${CONTAINER_PORT}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${CHALLENGE_NAME}-job
+  namespace: ${CHALLENGE_NAME}
+spec:
+  ttlSecondsAfterFinished: ${CHALLENGE_TIMEOUT_SECONDS}
+  activeDeadlineSeconds: ${CHALLENGE_TIMEOUT_SECONDS}
+  template:
+    metadata:
+      labels:
+        app: ${CHALLENGE_NAME}
+        ctf/kind: "challenge"
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false               # 🚫 Không gắn token API server
+      containers:
+        - name: challenge-01
+          image: "${CONTAINER_IMAGE}"
+          ports:
+            - containerPort: ${CONTAINER_PORT}
+          securityContext:
+            allowPrivilegeEscalation: false             # 🚫 Không cho escalate privilege
+            privileged: false                           # 🚫 Không cho privileged 
+            runAsNonRoot: true                          # 🚫 Không chạy root
+            runAsUser: 1000                             # 🚫 Chạy với user 1000
+            readOnlyRootFilesystem: false               # 🚫 Read only root filesystem
+            capabilities: 
+              drop: ["ALL"]                             # 🚫 Bỏ mọi Linux capabilities
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "0"
+            limits:
+              memory: "64Mi"
+              cpu: "0.1"
+          imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+        - name: global-regcred

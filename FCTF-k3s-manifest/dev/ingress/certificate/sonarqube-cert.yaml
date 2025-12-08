@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sonarqube-tls
+  namespace: sonarqube
+spec:
+  secretName: sonarqube-tls
+  dnsNames:
+    - sonarqube-zmn0zjiwmju.dev.fctf.cloud
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

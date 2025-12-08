@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: deployment-center
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deployment-center
+  template:
+    metadata:
+      labels:
+        app: deployment-center
+    spec:
+      serviceAccountName: deployment-center-sa
+      containers:
+        - name: deployment-center
+          image: quachuoiscontainer/fctf:deployment-center-dev-v3.5.0
+          ports:
+            - name: http-client
+              containerPort: 5020
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: common-be-cm
+            - configMapRef:
+                name: deployment-center-cm
+          resources:
+            requests:
+              cpu: 0.25
+              memory: 512Mi
+            limits:
+              cpu: 0.5
+              memory: 1Gi
+          imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+        - name: regcred
+  revisionHistoryLimit: 3

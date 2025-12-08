@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: contestant-be-cm
+  namespace: app
+data:
+  ASPNETCORE_URLS: "http://+:5010"

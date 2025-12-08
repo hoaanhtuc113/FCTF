@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: contestant-ingress
+  namespace: app
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-dev
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  rules:
+    - host: contestant.dev.fctf.cloud 
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: contestant-portal-svc
+                port:
+                  number: 5173
+  tls:
+    - hosts:
+        - contestant.dev.fctf.cloud
+      secretName: contestant-tls

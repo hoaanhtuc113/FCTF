@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cron-job
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup-temp-namespaces
+  namespace: cron-job
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: cleanup
+          restartPolicy: Never
+          containers:
+            - name: cleaner
+              image: bitnamilegacy/kubectl:1.33.4
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "[Cleanup] 🧹 Running quick delete for expired namespaces..."
+                  kubectl get ns -l ctf/temporary=true -o json \
+                    | jq -r '
+                        .items[]
+                        | (.metadata.labels?["ctf/expireAfter"] // empty | tonumber?) as $expireAfterSeconds
+                        | select(
+                            ($expireAfterSeconds > 0)
+                            and ((now - (.metadata.creationTimestamp | fromdate)) > $expireAfterSeconds)
+                          )
+                        | .metadata.name
+                      ' \
+                    | xargs -r kubectl delete ns --ignore-not-found=true
+                  echo "[Cleanup] ✅ Done!"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cleanup
+  namespace: cron-job
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cleanup-role
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cleanup-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cleanup-role
+subjects:
+  - kind: ServiceAccount
+    name: cleanup
+    namespace: cron-job

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-center-cm
+  namespace: app
+data:
+  ASPNETCORE_URLS: "http://+:5020"  
+
+  CPU_LIMIT: "300m"
+  CPU_REQUEST: "300m"
+  MEMORY_LIMIT: "256Mi"
+  MEMORY_REQUEST: "256Mi"
+  POW_DIFFICULTY_SECONDS: "5" 
+  WORKER_SERVICE_INTERVAL: "20"

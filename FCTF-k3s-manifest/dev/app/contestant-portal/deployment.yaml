@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: contestant-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: contestant-portal
+  template:
+    metadata:
+      labels:
+        app: contestant-portal
+    spec:
+      containers:
+        - name: contestant-portal
+          image: quachuoiscontainer/fctf:contestant-portal-dev-v3.5.4
+          ports:
+            - name: http-client
+              containerPort: 80
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: contestant-portal-cm
+          resources:
+            requests:
+              cpu: 0.1
+              memory: 256Mi
+            limits:
+              cpu: 0.15
+              memory: 512Mi
+          imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+        - name: regcred
+  revisionHistoryLimit: 3

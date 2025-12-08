@@ -1,0 +1,29 @@
+# PersistentVolume (PV) - tĩnh
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-shared-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.184.0.5
+    path: /srv/nfs/share
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-storage-pvc
+  namespace: storage
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: nfs-shared-pv
+  storageClassName: ""

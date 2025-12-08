@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-mvc-cm
+  namespace: app
+data:
+  LOG_FOLDER: "/var/log/CTFd"
+  DATABASE_PORT: "3306"
+  REDIS_HOST: "redis-headless.db.svc.cluster.local"
+  HOST_CACHE: "redis-headless.db.svc.cluster.local"
+  REDIS_DB: "0"
+  REDIS_PORT: "6379"
+  REVERSE_PROXY: "true"
+  WORKERS: "1"
+  UPLOAD_PROVIDER: "nfs"
+  IMAGE_REPO: "fctf"
+  DOCKER_USERNAME: "quachuoiscontainer"

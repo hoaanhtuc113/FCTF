@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argo-tls
+  namespace: argo
+spec:
+  secretName: argo-tls
+  dnsNames:
+    - argo-zmn0zjiwmju.dev.fctf.cloud
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

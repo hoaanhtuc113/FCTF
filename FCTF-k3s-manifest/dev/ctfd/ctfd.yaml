@@ -1,0 +1,115 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ctfd
+  name: ctfd-cm
+data:
+  UPLOAD_FOLDER: "/var/uploads"
+  DATABASE_URL: "mysql+pymysql://ctfd-username:hehehehehehehehe1234@mariadb-ctfd-headless.ctfd.svc.cluster.local:3306/ctfd"
+  REDIS_URL: "redis://redis-ctfd-headless.ctfd.svc.cluster.local:6379"
+  WORKERS: "1"
+  LOG_FOLDER: "/var/log/CTFd"
+  ACCESS_LOG: "-"
+  ERROR_LOG: "-"
+  REVERSE_PROXY: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: regcred
+  namespace: ctfd
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsidXNlcm5hbWUiOiJxdWFjaHVvaXNjb250YWluZXIiLCJwYXNzd29yZCI6IkFkbWluQDEyMyIsImVtYWlsIjoid2lsbGlhbWtpZXUtZGV2b3BzQG91dGxvb2suY29tIiwiYXV0aCI6ImNYVmhZMmgxYjJselkyOXVkR0ZwYm1WeU9rRmtiV2x1UURFeU13PT0ifX19
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: ctfd
+  name: ctfd
+spec:
+  replicas: 1
+  selector: 
+    matchLabels:
+      app: ctfd
+  template:
+    metadata:
+      labels:
+        app: ctfd
+    spec:
+      containers:
+        - name: ctfd
+          image: quachuoiscontainer/fctf:ctfd-original
+          ports:
+            - name: http-client
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ctfd-cm
+          resources:
+            requests:
+              cpu: 0.2
+              memory: 512Mi
+            limits:
+              cpu: 0.2
+              memory: 512Mi
+          imagePullPolicy: Always
+      imagePullSecrets:
+        - name: regcred
+  revisionHistoryLimit: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: ctfd
+  name: ctfd
+spec:
+  ports:
+    - name: http-client
+      port: 8000
+      targetPort: 8000
+  selector:
+    app: ctfd
+---
+## Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: ctfd
+  name: ctfd-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-dev
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  rules:
+    - host: ctfd.dev.fctf.cloud
+      http:
+        paths:
+          - path: / 
+            pathType: Prefix
+            backend:
+              service:
+                name: ctfd
+                port:
+                  number: 8000
+  tls:
+    - hosts:
+        - ctfd.dev.fctf.cloud
+      secretName: ctfd-tls
+---
+# Cert
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ctfd-tls
+  namespace: ctfd
+spec:
+  secretName: ctfd-tls
+  dnsNames:
+    - ctfd.dev.fctf.cloud
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

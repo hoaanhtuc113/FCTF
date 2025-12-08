@@ -1,0 +1,125 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: start-chal-v2-template
+  namespace: argo
+  annotations:
+    workflows.argoproj.io/description: "Template to start and deploy challenge pods v2"
+spec:
+  serviceAccountName: argo-sa
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: CHALLENGE_NAME
+      - name: CONTAINER_PORT
+      - name: CONTAINER_IMAGE
+      - name: CPU_LIMIT
+        value: "0.05"
+      - name: MEMORY_LIMIT
+        value: "64Mi"
+      - name: IS_TEMPORARY
+        value: "true"
+      - name: CHALLENGE_TIMEOUT
+        value: "15m"
+      - name: NFS_SERVER_IP
+        value: "10.184.0.2"
+
+  templates:
+    - name: main
+      steps:
+        - - name: deploy-challenge-v2
+            template: deploy-challenge-v2
+            arguments:
+              parameters:
+                - name: CHALLENGE_NAME
+                  value: "{{workflow.parameters.CHALLENGE_NAME}}"
+                - name: CONTAINER_PORT
+                  value: "{{workflow.parameters.CONTAINER_PORT}}"
+                - name: CONTAINER_IMAGE
+                  value: "{{workflow.parameters.CONTAINER_IMAGE}}"
+                - name: CPU_LIMIT
+                  value: "{{workflow.parameters.CPU_LIMIT}}"
+                - name: MEMORY_LIMIT
+                  value: "{{workflow.parameters.MEMORY_LIMIT}}"
+                - name: IS_TEMPORARY
+                  value: "{{workflow.parameters.IS_TEMPORARY}}"
+                - name: CHALLENGE_TIMEOUT
+                  value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
+                - name: NFS_SERVER_IP
+                  value: "{{workflow.parameters.NFS_SERVER_IP}}"
+
+    - name: deploy-challenge-v2
+      inputs:
+        parameters:
+          - name: CHALLENGE_NAME
+          - name: CONTAINER_PORT
+          - name: CONTAINER_IMAGE
+          - name: CPU_LIMIT
+          - name: MEMORY_LIMIT
+          - name: IS_TEMPORARY
+          - name: CHALLENGE_TIMEOUT
+          - name: NFS_SERVER_IP
+      container:
+        image: quachuoiscontainer/kubectl-cli:v0.0.3
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: true
+          privileged: true
+        resources:
+          requests:
+            memory: "0"
+            cpu: "0"
+          limits:
+            memory: "512Mi"
+            cpu: "0.25"
+        volumeMounts:
+          - name: nfs-shared-data
+            mountPath: /mnt/nfs/data
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            echo "=== Deploying Challenge v2 with parameters ==="
+
+            # Set environment variables
+            export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge.yaml"
+            export CHALLENGE_NAME="{{inputs.parameters.CHALLENGE_NAME}}"
+            export CONTAINER_PORT="{{inputs.parameters.CONTAINER_PORT}}"
+            export CONTAINER_IMAGE="{{inputs.parameters.CONTAINER_IMAGE}}"
+            export CPU_LIMIT="{{inputs.parameters.CPU_LIMIT}}"
+            export MEMORY_LIMIT="{{inputs.parameters.MEMORY_LIMIT}}"
+            export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
+            export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
+
+
+            # Check if challenge.yaml exists in NFS
+            if [ ! -f "${NFS_DATA_PATH}" ]; then
+              echo "❌ challenge.yaml not found in NFS at ${NFS_DATA_PATH}"
+              echo "Please ensure the challenge template is available in NFS storage"
+              exit 1
+            fi
+
+            echo "📁 Found challenge.yaml in NFS, applying with parameters..."
+            # Ensure target namespace exists before copying secret
+            if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
+              kubectl create ns "${CHALLENGE_NAME}"
+            fi
+
+            echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
+            kubectl get secret global-regcred -n argo -o yaml \
+              | sed "s/namespace: .*/namespace: ${CHALLENGE_NAME}/" \
+              | sed '/resourceVersion:/d;/uid:/d;/creationTimestamp:/d' \
+              | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
+              | kubectl apply -f -
+
+            envsubst < ${NFS_DATA_PATH} | kubectl apply -f -
+
+            echo "✅ Challenge v2 manifest submitted to cluster"
+      volumes:
+        - name: nfs-shared-data
+          nfs:
+            server: "{{inputs.parameters.NFS_SERVER_IP}}"
+            path: /srv/nfs/share
