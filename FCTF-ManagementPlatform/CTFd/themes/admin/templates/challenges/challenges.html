@@ -431,7 +431,7 @@
                                 
                                 {% if start_page > 1 %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{% if q %}{{ url_for('admin.challenges_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.challenges_listing', page=1) }}{% endif %}">1</a>
+                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=1, field=field, q=q, category=category, type=type) }}">1</a>
                                     </li>
                                     {% if start_page > 2 %}
                                     <li class="page-item disabled">
@@ -442,7 +442,7 @@
                                 
                                 {% for page_num in range(start_page, end_page + 1) %}
                                 <li class="page-item {% if page_num == challenges.page %}active{% endif %}">
-                                    <a class="page-link" href="{% if q %}{{ url_for('admin.challenges_listing', page=page_num, field=field, q=q) }}{% else %}{{ url_for('admin.challenges_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
+                                    <a class="page-link" href="{{ url_for('admin.challenges_listing', page=page_num, field=field, q=q, category=category, type=type) }}">{{ page_num }}</a>
                                 </li>
                                 {% endfor %}
                                 
@@ -453,7 +453,7 @@
                                     </li>
                                     {% endif %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{% if q %}{{ url_for('admin.challenges_listing', page=challenges.pages, field=field, q=q) }}{% else %}{{ url_for('admin.challenges_listing', page=challenges.pages) }}{% endif %}">{{ challenges.pages }}</a>
+                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=challenges.pages, field=field, q=q, category=category, type=type) }}">{{ challenges.pages }}</a>
                                     </li>
                                 {% endif %}
                                 
