@@ -317,13 +317,6 @@ export function Challenges() {
       });
       const data = await response.json();
       
-      // Log access challenge action
-      actionLogService.logAction(
-        actionType.ACCESS_CHALLENGE, 
-        `Tiếp cận thử thách ${challenge.name}`,
-        challenge.id
-      );
-      
       // Preserve value and solves from the list since API detail doesn't return them
       setSelectedChallenge({
         ...data.data,
@@ -1743,17 +1736,52 @@ function ChallengeDetailPanel({
             await onFlagSuccess();
           }
           
-          // Note: No popup here - the "Challenge URL ready" popup from handleStartChallenge is already showing
-          // Only store notification data for potential future use
-          const notificationKey = `deployment_notification_${challenge.id}`;
-          localStorage.setItem(notificationKey, JSON.stringify({
-            challengeId: challenge.id,
-            challengeName: challenge.name,
-            status: 'success',
-            url: data.challenge_url,
-            message: 'Challenge is ready!',
-            timestamp: Date.now()
-          }));
+          // Check if user is currently viewing this challenge
+          const isViewingChallenge = window.location.pathname.includes('/challenges');
+                                      
+          
+          if (isViewingChallenge) {
+            // User is on the challenge detail page - show popup directly
+            Swal.fire({
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
+                  <div class="text-gray-400 mb-2">> ${challenge.name}</div>
+                  <div class="text-orange-400 mt-2">>${data.challenge_url}</div>
+                </div>
+              `,
+              icon: 'success',
+              iconColor: '#22c55e',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#22c55e' : '#000000',
+              toast: false,
+              position: 'center',
+              showConfirmButton: true,
+              timerProgressBar: true,
+              customClass: {
+                popup: 'rounded-lg border border-green-500/30',
+              },
+            });
+          } else {
+            // User is on different page - dispatch custom event for notification
+            const notificationData = {
+              challengeId: challenge.id,
+              challengeName: challenge.name,
+              status: 'success' as const,
+              url: data.challenge_url,
+              message: 'Challenge is ready!',
+              timestamp: Date.now()
+            };
+            
+            // Dispatch custom event for same-tab notification
+            window.dispatchEvent(new CustomEvent('deploymentNotification', { 
+              detail: notificationData 
+            }));
+            
+            // Also save to localStorage for cross-tab notification
+            const notificationKey = `deployment_notification_${challenge.id}`;
+            localStorage.setItem(notificationKey, JSON.stringify(notificationData));
+          }
           
           return true; // Stop loop - SUCCESS
         }
