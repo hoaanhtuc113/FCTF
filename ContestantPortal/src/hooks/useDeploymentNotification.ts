@@ -87,67 +87,85 @@ export function useDeploymentNotification(theme: string) {
 }
 
 function showDeploymentPopup(data: DeploymentNotification, theme: string) {
+  const handleClick = () => {
+    // Navigate to view all instances page
+    window.location.href = '/instances';
+  };
+
   if (data.status === 'success' && data.url) {
     Swal.fire({
       html: `
-        <div class="font-mono text-left text-sm">
-          <div class="text-green-400 mb-2">[+] Challenge Deploying</div>
+        <div class="font-mono text-left text-sm cursor-pointer">
+          <div class="text-green-400 mb-2">[+] Challenge Ready</div>
           <div class="text-gray-400">> ${data.challengeName}</div>
-          <div class="text-gray-400">> ${data.message}</div>
-          <div class="text-orange-400 mt-2">> ${data.url}</div>
+          <div class="text-gray-400">> ${data.message || 'Click to view instances'}</div>
         </div>
       `,
       icon: 'success',
       iconColor: '#22c55e',
-      confirmButtonText: 'OK',
       background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
       color: theme === 'dark' ? '#22c55e' : '#000000',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 4000,
+      timerProgressBar: true,
       customClass: {
-        popup: 'rounded-lg border border-green-500/30',
-        confirmButton: 'bg-green-500 hover:bg-green-600 text-black font-mono px-4 py-2 rounded',
+        popup: 'rounded-lg border border-green-500/30 cursor-pointer',
       },
-      timer: 5000,
-      showConfirmButton: true,
+      didOpen: (toast) => {
+        toast.addEventListener('click', handleClick);
+      }
     });
   } else if (data.status === 'timeout') {
     Swal.fire({
       html: `
-        <div class="font-mono text-left text-sm">
+        <div class="font-mono text-left text-sm cursor-pointer">
           <div class="text-orange-400 mb-2">[!] Deployment Timeout</div>
           <div class="text-gray-400">> ${data.challengeName}</div>
-          <div class="text-gray-400">> ${data.message || 'Pod creation taking longer than expected'}</div>
-          <div class="text-gray-400">> Please try again or contact admin</div>
+          <div class="text-gray-400">> Click to view instances</div>
         </div>
       `,
       icon: 'warning',
       iconColor: '#fb923c',
-      confirmButtonText: 'OK',
       background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
       color: theme === 'dark' ? '#fb923c' : '#000000',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 4000,
+      timerProgressBar: true,
       customClass: {
-        popup: 'rounded-lg border border-orange-500/30',
-        confirmButton: 'bg-orange-500 hover:bg-orange-600 text-white font-mono px-4 py-2 rounded',
+        popup: 'rounded-lg border border-orange-500/30 cursor-pointer',
       },
+      didOpen: (toast) => {
+        toast.addEventListener('click', handleClick);
+      }
     });
   } else if (data.status === 'error') {
     Swal.fire({
       html: `
-        <div class="font-mono text-left text-sm">
+        <div class="font-mono text-left text-sm cursor-pointer">
           <div class="text-red-400 mb-2">[!] Deployment Failed</div>
           <div class="text-gray-400">> ${data.challengeName}</div>
-          <div class="text-gray-400">> ${data.message || 'Unable to verify deployment'}</div>
-          <div class="text-gray-400">> Please try again</div>
+          <div class="text-gray-400">> Click to view instances</div>
         </div>
       `,
       icon: 'error',
       iconColor: '#ef4444',
-      confirmButtonText: 'OK',
       background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
       color: theme === 'dark' ? '#ef4444' : '#000000',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 4000,
+      timerProgressBar: true,
       customClass: {
-        popup: 'rounded-lg border border-red-500/30',
-        confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        popup: 'rounded-lg border border-red-500/30 cursor-pointer',
       },
+      didOpen: (toast) => {
+        toast.addEventListener('click', handleClick);
+      }
     });
   }
 }
