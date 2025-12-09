@@ -12,57 +12,11 @@ interface DeploymentNotification {
 
 export function useDeploymentNotification(theme: string) {
   useEffect(() => {
-    let isChecking = false; // Prevent concurrent checks
-    
-    const checkNotifications = () => {
-      // Debounce: Skip if already checking
-      if (isChecking) return;
-      isChecking = true;
-      
-      try {
-        const keys = Object.keys(localStorage);
-        const notificationKeys = keys.filter(key => key.startsWith('deployment_notification_'));
-        
-        // Early exit if no notifications
-        if (notificationKeys.length === 0) {
-          isChecking = false;
-          return;
-        }
-        
-        notificationKeys.forEach(key => {
-          const notification = localStorage.getItem(key);
-          if (notification) {
-            try {
-              const data: DeploymentNotification = JSON.parse(notification);
-              
-              // Check if notification is recent (within last 5 seconds)
-              const now = Date.now();
-              if (now - data.timestamp < 5000) {
-                // Show notification popup
-                showDeploymentPopup(data, theme);
-                
-                // Remove notification after showing
-                localStorage.removeItem(key);
-              } else {
-                // Clean up old notifications
-                localStorage.removeItem(key);
-              }
-            } catch (error) {
-              console.error('Error parsing deployment notification:', error);
-              localStorage.removeItem(key);
-            }
-          }
-        });
-      } finally {
-        isChecking = false;
-      }
+    // Listen to custom event for deployment notifications
+    const handleDeploymentNotification = (event: CustomEvent<DeploymentNotification>) => {
+      const data = event.detail;
+      showDeploymentPopup(data, theme);
     };
-
-    // Check immediately
-    checkNotifications();
-
-    // Check every 1 second for new notifications
-    const interval = setInterval(checkNotifications, 1000);
 
     // Listen to storage events from other tabs/windows
     const handleStorageChange = (e: StorageEvent) => {
@@ -77,10 +31,11 @@ export function useDeploymentNotification(theme: string) {
       }
     };
 
+    window.addEventListener('deploymentNotification', handleDeploymentNotification as EventListener);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      clearInterval(interval);
+      window.removeEventListener('deploymentNotification', handleDeploymentNotification as EventListener);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [theme]);
