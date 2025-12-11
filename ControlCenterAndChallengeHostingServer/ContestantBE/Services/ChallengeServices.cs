@@ -141,7 +141,8 @@ namespace ContestantBE.Services
                             challenge = challenge_data,
                             is_started = true,
                             challenge_url = cached_value.challenge_url,
-                            time_remaining = time_remaining
+                            time_remaining = time_remaining,
+                            pod_status = cached_value.status
                         }
                     };
                 }
@@ -414,7 +415,7 @@ namespace ContestantBE.Services
                         challenge_name = challenge.Name,
                         category = challenge.Category,
                         status = instance.status,
-                        pod_name = "N/A",
+                        challenge_url = instance.challenge_url ?? "N/A",
                         ready = instance.ready,
                         age = instance.time_finished.ToString()
                     });
