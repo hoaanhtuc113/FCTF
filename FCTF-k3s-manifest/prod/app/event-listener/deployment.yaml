@@ -13,7 +13,7 @@ spec:
       labels:
         app: event-listener
     spec:
-      serviceAccountName: event-listener-sa
+      serviceAccountName: deployment-center-sa
       containers:
         - name: event-listener
           image: quachuoiscontainer/fctf:deployment-listener-prod-v3.9.2
