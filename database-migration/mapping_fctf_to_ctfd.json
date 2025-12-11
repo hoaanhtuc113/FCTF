@@ -97,12 +97,30 @@
       }
     },
     {
+      "name": "dynamic_challenge",
+      "source": { "table": "dynamic_challenge", "pk": ["id"] },
+      "target": { "table": "dynamic_challenge", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "columns": {
+        "id": { "from": "id" },
+        "dynamic_initial": { "from": "initial" },
+        "dynamic_minimum": { "from": "minimum" },
+        "dynamic_decay": { "from": "decay" },
+        "dynamic_function": { "from": "function" }
+      }
+    },
+    {
       "name": "challenges",
       "source": { "table": "challenges", "pk": ["id"] },
       "target": { "table": "challenges", "pk": ["id"] },
       "mode": "upsert",
       "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
-      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
+      "postSQL": [
+        "UPDATE challenges c LEFT JOIN dynamic_challenge dc ON c.id = dc.id SET c.initial = dc.dynamic_initial, c.minimum = dc.dynamic_minimum, c.decay = dc.dynamic_decay, c.function = dc.dynamic_function WHERE dc.id IS NOT NULL",
+        "SET FOREIGN_KEY_CHECKS=1"
+      ],
       "columns": {
         "id": { "from": "id" },
         "name": { "from": "name" },
@@ -118,22 +136,13 @@
         "require_deploy" : { "const": 0 },
         "deploy_status" : { "const": "CREATED" },
         "user_id" : { "const": 1 },
-        "time_limit" : { "const": -1 }
-      }
-    },
-    {
-      "name": "dynamic_challenge",
-      "source": { "table": "dynamic_challenge", "pk": ["id"] },
-      "target": { "table": "dynamic_challenge", "pk": ["id"] },
-      "mode": "upsert",
-      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
-      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
-      "columns": {
-        "id": { "from": "id" },
-        "initial": { "from": "initial" },
-        "minimum": { "from": "minimum" },
-        "decay": { "from": "decay" },
-        "function": { "from": "function" }
+        "time_limit" : { "const": -1 },
+        "initial": { "const": null },
+        "minimum": { "const": null },
+        "decay": { "const": null },
+        "function": { "const": null },
+        "attribution": { "const": null },
+        "logic": { "const": "" }
       }
     },
     { 
