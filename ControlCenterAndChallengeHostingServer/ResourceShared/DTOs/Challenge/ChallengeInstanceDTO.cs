@@ -13,6 +13,7 @@ namespace ResourceShared.DTOs.Challenge
         public string category { get; set; }
         public string status { get; set; }
         public string pod_name { get; set; }
+        public string challenge_url { get; set; }
         public bool ready { get; set; }
         public string age { get; set; }
     }
