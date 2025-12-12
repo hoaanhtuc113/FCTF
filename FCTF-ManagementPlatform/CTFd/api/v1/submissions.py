@@ -18,6 +18,7 @@ from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.decorators.visibility import check_account_visibility
+from CTFd.utils.logging.audit_logger import log_audit
 
 submissions_namespace = Namespace(
     "submissions", description="Endpoint to retrieve Submission"
@@ -153,6 +154,18 @@ class SubmissionsList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        # Audit log
+        log_audit(
+            action="submission_create",
+            data={
+                "id": response.data["id"],
+                "type": response.data.get("type"),
+                "challenge_id": response.data.get("challenge_id"),
+                "user_id": response.data.get("user_id"),
+                "team_id": response.data.get("team_id"),
+            }
+        )
+
         # Delete standings cache
         clear_standings()
         # Delete challenges cache
@@ -199,6 +212,14 @@ class Submission(Resource):
     def patch(self, submission_id):
         submission = Submissions.query.filter_by(id=submission_id).first_or_404()
 
+        # Capture before state for audit
+        before_state = {
+            "type": submission.type,
+            "challenge_id": submission.challenge_id,
+            "user_id": submission.user_id,
+            "team_id": submission.team_id,
+        }
+
         req = request.get_json()
         submission_type = req.get("type")
 
@@ -227,6 +248,20 @@ class Submission(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
+        # Audit log
+        after_state = {
+            "type": response.data.get("type"),
+            "challenge_id": response.data.get("challenge_id"),
+            "user_id": response.data.get("user_id"),
+            "team_id": response.data.get("team_id"),
+        }
+        log_audit(
+            action="submission_update",
+            before=before_state,
+            after=after_state,
+            data={"id": submission_id}
+        )
+
         return {"success": True, "data": response.data}
 
     @admins_only
@@ -241,7 +276,18 @@ class Submission(Resource):
         },
     )
     def delete(self, submission_id):
-        submission = Submissions.query.filter_by(id=submission_id).first_or_404()    
+        submission = Submissions.query.filter_by(id=submission_id).first_or_404()
+        
+        # Capture submission info before deletion
+        submission_info = {
+            "id": submission.id,
+            "type": submission.type,
+            "challenge_id": submission.challenge_id,
+            "user_id": submission.user_id,
+            "team_id": submission.team_id,
+            "provided": submission.provided,
+        }
+        
         # Decrement Redis attempt counter if submission type is "incorrect"
         if submission.type == "incorrect" and submission.challenge_id and submission.team_id:
             attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"           
@@ -259,6 +305,12 @@ class Submission(Resource):
         db.session.delete(submission)
         db.session.commit()
         db.session.close()
+
+        # Audit log
+        log_audit(
+            action="submission_delete",
+            data=submission_info
+        )
 
         # Delete standings cache
         clear_standings()

@@ -8,6 +8,7 @@ using ResourceShared.Attribute;
 using ResourceShared.DTOs.Team;
 using ResourceShared.DTOs.Ticket;
 using ResourceShared.Extensions;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using System.Security.Claims;
@@ -20,10 +21,12 @@ namespace ContestantBE.Controllers
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
+        private AppLogger _userBehaviorLogger;
 
-        public TicketController(ITicketService ticketService)
+        public TicketController(ITicketService ticketService, AppLogger userBehaviorLogger)
         {
             _ticketService = ticketService;
+            _userBehaviorLogger = userBehaviorLogger;
         }
 
         [HttpPost("sendticket")]
@@ -31,6 +34,7 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> CreateTicketByUser([FromBody] CreateTicketRequestDTO request)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            _userBehaviorLogger.Log("CREATE_TICKET", userId, int.Parse(User.FindFirstValue("teamId")), new { title = request.title, description = request.description });
             await Console.Out.WriteLineAsync($"[Requesst Send Ticket] User {userId}: Title {request.title}, message {request.description}");
 
             var result = await _ticketService.CreateTicket(request, userId);
@@ -43,7 +47,7 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> GetTicketByUser()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
+            _userBehaviorLogger.Log("GET_TICKETS_BY_USER", userId, int.Parse(User.FindFirstValue("teamId")), null); 
             var tickets = await _ticketService.GetTicketsByUser(userId);
             return Ok(new { tickets });
         }
@@ -54,6 +58,7 @@ namespace ContestantBE.Controllers
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
+            _userBehaviorLogger.Log("GET_TICKET_BY_ID", userId, int.Parse(User.FindFirstValue("teamId")), new { ticket_id = ticketId });    
             var result = await _ticketService.GetTicketById(ticketId, userId);
             
             if (!result.Success)
@@ -82,6 +87,7 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> DeleteTicket(int ticketId)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            _userBehaviorLogger.Log("DELETE_TICKET", userId, int.Parse(User.FindFirstValue("teamId")), new { ticket_id = ticketId });
             await Console.Out.WriteLineAsync($"[Requesst Remove Ticket] User {userId}: Ticket ID {ticketId}");
             var result = await _ticketService.DeleteTicket(ticketId, userId);
             if (!result.Success) return BadRequest(new { message = result.Message });

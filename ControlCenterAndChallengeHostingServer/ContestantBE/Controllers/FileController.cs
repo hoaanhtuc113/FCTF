@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using ResourceShared.Attribute;
 using ResourceShared.DTOs.File;
 using ResourceShared.Extensions;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using System.IO;
@@ -19,10 +20,12 @@ namespace ContestantBE.Controllers
     public class FilesController : ControllerBase
     {
         private readonly IFileService _fileService;
+        private AppLogger _userBehaviorLogger;
 
-        public FilesController(IFileService fileService)
+        public FilesController(IFileService fileService, AppLogger userBehaviorLogger)
         {
             _fileService = fileService;
+            _userBehaviorLogger = userBehaviorLogger;
         }
 
         [HttpGet("")]
@@ -34,6 +37,8 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> GetFile([FromQuery] string path, [FromQuery] string token)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var teamId = int.Parse(User.FindFirstValue("teamId"));
+            _userBehaviorLogger.Log("GET_FILE", userId, teamId, new { file_path = path} );
             if (string.IsNullOrWhiteSpace(path))
             {
                 return BadRequest(new { success = false, message = "Missing 'path' parameter" });

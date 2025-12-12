@@ -29,6 +29,7 @@ from CTFd.utils.decorators.visibility import (
     check_score_visibility,
 )
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.user import get_current_team, get_current_user_type, is_admin
 
 teams_namespace = Namespace("teams", description="Endpoint to retrieve Teams")
@@ -165,6 +166,15 @@ class TeamList(Resource):
         db.session.add(response.data)
         db.session.commit()
 
+        log_audit(
+            action="team_create",
+            data={
+                "team_id": response.data.id,
+                "name": response.data.name,
+                "email": response.data.email
+            }
+        )
+
         response = schema.dump(response.data)
         db.session.close()
 
@@ -221,6 +231,16 @@ class TeamPublic(Resource):
     )
     def patch(self, team_id):
         team = Teams.query.filter_by(id=team_id).first_or_404()
+        
+        # Store before state for audit
+        before_state = {
+            "name": team.name,
+            "email": team.email,
+            "banned": team.banned,
+            "hidden": team.hidden,
+            "captain_id": team.captain_id
+        }
+        
         data = request.get_json()
         data["id"] = team_id
 
@@ -232,6 +252,19 @@ class TeamPublic(Resource):
 
         response = schema.dump(response.data)
         db.session.commit()
+
+        log_audit(
+            action="team_update",
+            before=before_state,
+            after={
+                "name": team.name,
+                "email": team.email,
+                "banned": team.banned,
+                "hidden": team.hidden,
+                "captain_id": team.captain_id
+            },
+            data={"team_id": team_id}
+        )
 
         clear_team_session(team_id=team.id)
         clear_standings()
@@ -249,6 +282,14 @@ class TeamPublic(Resource):
     def delete(self, team_id):
         team = Teams.query.filter_by(id=team_id).first_or_404()
         team_id = team.id
+        
+        # Store team info before deletion for audit
+        team_info = {
+            "team_id": team.id,
+            "name": team.name,
+            "email": team.email,
+            "member_count": len(team.members)
+        }
 
         for member in team.members:
             member.team_id = None
@@ -256,6 +297,12 @@ class TeamPublic(Resource):
 
         db.session.delete(team)
         db.session.commit()
+
+        log_audit(
+            action="team_delete",
+            before=team_info,
+            data={"team_id": team_id}
+        )
 
         clear_team_session(team_id=team_id)
         clear_standings()

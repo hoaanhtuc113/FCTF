@@ -5,6 +5,7 @@ using ResourceShared.DTOs;
 using ResourceShared.DTOs.Auth;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 
 namespace ContestantBE.Services
 {
@@ -14,26 +15,30 @@ namespace ContestantBE.Services
         private TokenHelper TokenHelper;
         private readonly UserHelper _userHelper;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public AuthService(AppDbContext context, TokenHelper tokenHelper, UserHelper userHelper, IHttpContextAccessor httpContextAccessor)
+        private readonly AppLogger _logger;
+        public AuthService(AppDbContext context, TokenHelper tokenHelper, UserHelper userHelper, IHttpContextAccessor httpContextAccessor, AppLogger logger)
         {
             _context = context;
             TokenHelper = tokenHelper;
             _userHelper = userHelper;
             _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
         public async Task<BaseResponseDTO<AuthResponseDTO>> LoginContestant(LoginDTO loginDto)
         {
-            // Trim input fields
-            loginDto.username = loginDto.username?.Trim();
-            loginDto.password = loginDto.password?.Trim();
-            
-            if (string.IsNullOrEmpty(loginDto.username) || string.IsNullOrEmpty(loginDto.password))
+            try
             {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("Missing username or password");
-            }
+                // Trim input fields
+                loginDto.username = loginDto.username?.Trim();
+                loginDto.password = loginDto.password?.Trim();
+                
+                if (string.IsNullOrEmpty(loginDto.username) || string.IsNullOrEmpty(loginDto.password))
+                {
+                    return BaseResponseDTO<AuthResponseDTO>.Fail("Missing username or password");
+                }
 
-            var user = await _context.Users
+                var user = await _context.Users
                 .Include(t => t.Team)
                 .FirstOrDefaultAsync(u => u.Name == loginDto.username);
 
@@ -93,17 +98,25 @@ namespace ContestantBE.Services
             };
 
             return BaseResponseDTO<AuthResponseDTO>.Ok(authResponse,"Login successful");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, data: new { username = loginDto.username });
+                return BaseResponseDTO<AuthResponseDTO>.Fail("An error occurred during login");
+            }
         }
 
         public async Task<BaseResponseDTO<string>> ChangePassword(int userId, ChangePasswordDTO changePasswordDto)
         {
-            // Trim input fields
-            changePasswordDto.oldPassword = changePasswordDto.oldPassword?.Trim();
-            changePasswordDto.newPassword = changePasswordDto.newPassword?.Trim();
-            changePasswordDto.confirmPassword = changePasswordDto.confirmPassword?.Trim();
-            
-            // Validate input
-            if (string.IsNullOrEmpty(changePasswordDto.oldPassword) || 
+            try
+            {
+                // Trim input fields
+                changePasswordDto.oldPassword = changePasswordDto.oldPassword?.Trim();
+                changePasswordDto.newPassword = changePasswordDto.newPassword?.Trim();
+                changePasswordDto.confirmPassword = changePasswordDto.confirmPassword?.Trim();
+                
+                // Validate input
+                if (string.IsNullOrEmpty(changePasswordDto.oldPassword) || 
                 string.IsNullOrEmpty(changePasswordDto.newPassword) || 
                 string.IsNullOrEmpty(changePasswordDto.confirmPassword))
             {
@@ -142,6 +155,12 @@ namespace ContestantBE.Services
             await _context.SaveChangesAsync();
 
             return BaseResponseDTO<string>.Ok("Password changed successfully", "Password changed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId);
+                return BaseResponseDTO<string>.Fail("An error occurred while changing password");
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared.Attribute;
 using ResourceShared.DTOs.User;
 using ResourceShared.Extensions;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using System.Security.Claims;
 namespace ContestantBE.Controllers
@@ -17,8 +18,10 @@ namespace ContestantBE.Controllers
     {
 
         private AppDbContext _context;
-        public UsersController(AppDbContext context) { 
+        private AppLogger _userBehaviorLogger;
+        public UsersController(AppDbContext context, AppLogger userBehaviorLogger) { 
             this._context = context;
+            this._userBehaviorLogger = userBehaviorLogger;
         }
 
         [HttpGet("profile")]
@@ -28,6 +31,7 @@ namespace ContestantBE.Controllers
             var user = await _context.Users
                              .Include(u => u.Team)
                              .FirstOrDefaultAsync(u => u.Id == userId);
+            _userBehaviorLogger.Log("GET_PROFILE", userId, int.Parse(User.FindFirstValue("teamId")), null);
             if (user == null || user is not User currentUser)
             {
                 return NotFound(new
@@ -39,6 +43,7 @@ namespace ContestantBE.Controllers
                     }
                 });
             }
+
 
             if ( (currentUser.Banned.GetValueOrDefault() || currentUser.Hidden.GetValueOrDefault()))
             {

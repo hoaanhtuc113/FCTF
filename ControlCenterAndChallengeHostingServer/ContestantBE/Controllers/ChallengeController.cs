@@ -13,6 +13,7 @@ using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
 using ResourceShared.DTOs.File;
 using ResourceShared.Extensions;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
@@ -38,7 +39,7 @@ namespace ContestantBE.Controllers
         private readonly UserHelper _userHelper;
         private readonly IChallengeServices _challengeServices;
         private readonly RedisHelper _redisHelper;
-
+        private AppLogger _userBehaviorLogger;
         // Helper method: Increment and check KPM using Redis atomic INCR
         private async Task<(bool exceeded, int current)> CheckAndIncrementKpmAsync(int userId, int limit)
         {
@@ -71,7 +72,7 @@ namespace ContestantBE.Controllers
         }
 
         public ChallengeController(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper, UserHelper userHelper,
-                     IChallengeServices challengeServices, RedisHelper redisHelper)
+                     IChallengeServices challengeServices, RedisHelper redisHelper, AppLogger userBehavior)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
@@ -79,6 +80,7 @@ namespace ContestantBE.Controllers
             _userHelper = userHelper;
             _challengeServices = challengeServices;
             _redisHelper = redisHelper;
+            _userBehaviorLogger = userBehavior;
         }
 
         [HttpGet("{id}")]
@@ -101,6 +103,7 @@ namespace ContestantBE.Controllers
                 {
                     return NotFound(new { error = "Your team has been banned" });
                 }
+                _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, user.TeamId ,new {challengeId = id });
 
                 var result = await _challengeServices.GetById(id, user);
 
@@ -151,6 +154,7 @@ namespace ContestantBE.Controllers
                                         .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
             try
             {
+                _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, user.TeamId,null);
                 var result = await _challengeServices.GetTopic(user);
                 return Ok(new
                 {
@@ -171,9 +175,10 @@ namespace ContestantBE.Controllers
         [HttpGet("list_challenge/{category_name}")]
         public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var teamId =  int.Parse(User.FindFirstValue("teamId"));
             //Console.WriteLine($"[ListChallengesByCategoryName] teamId: {teamId}, category_name: {category_name}");
-
+            _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", int.Parse(userId ?? "0") , teamId,new { category = category_name });
             var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId);
             return Ok(new
             {
@@ -187,7 +192,10 @@ namespace ContestantBE.Controllers
         {
             try
             {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var teamId = int.Parse(User.FindFirstValue("teamId"));
+
+                _userBehaviorLogger.Log("VIEW_TEAM_CHALLENGE_INSTANCES", int.Parse(userId ?? "0"), teamId, null);
                 var instances = await _challengeServices.GetAllInstances(teamId);
                 return Ok(new
                 {
@@ -223,6 +231,7 @@ namespace ContestantBE.Controllers
 
             await Console.Out.WriteLineAsync($"[Requesst Attempt Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name} with flag {request.Submission}");
 
+            _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user.Id, user.TeamId, new { challengeId = request.ChallengeId, flag = request.Submission });
             if (_configHelper.GetConfig<bool>("paused", false))
             {
                 return StatusCode(StatusCodes.Status403Forbidden, new
@@ -305,7 +314,7 @@ namespace ContestantBE.Controllers
                     if (timeElapsed < cooldownSeconds)
                     {
                         var remainingCooldown = (int)(cooldownSeconds - timeElapsed);
-
+                        _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user.Id, user.TeamId, new { challengeId = request.ChallengeId, remainingCooldown },LogLevel.Warning);
                         return StatusCode(StatusCodes.Status429TooManyRequests, new
                         {
                             success = true,
@@ -521,6 +530,7 @@ namespace ContestantBE.Controllers
                 var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, kpm_limit);
                 if (kpmExceeded)
                 {
+                    _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user.Id, user.TeamId, new { challengeId = request.ChallengeId, kpmCount, kpm_limit },LogLevel.Warning);
                     return StatusCode(StatusCodes.Status429TooManyRequests, new
                     {
                         success = true,
@@ -655,6 +665,7 @@ namespace ContestantBE.Controllers
                                          .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
             if (user.Team == null || user.TeamId == null) return NotFound(new { error = "Team not found" });
 
+            _userBehaviorLogger.Log("START_CHALLENGE", user.Id, user.TeamId, new { challengeId = challengeStartReq.challengeId });
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
             if (challenge == null) return NotFound(new { error = "Challenge not found" });
@@ -840,6 +851,7 @@ namespace ContestantBE.Controllers
             {
                 return BadRequest(new { error = "User no join team" });
             }
+            _userBehaviorLogger.Log("STOP_CHALLENGE", user.Id, user.TeamId, new { challengeId = challengeStartReq.challengeId });
 
             var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 

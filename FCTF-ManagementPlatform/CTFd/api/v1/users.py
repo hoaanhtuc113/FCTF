@@ -33,6 +33,7 @@ from CTFd.utils.decorators.visibility import (
 )
 from CTFd.utils.email import sendmail, user_created_notification
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.auth import update_user
 from CTFd.utils.user import get_current_user, get_current_user_type, is_admin
 
@@ -169,6 +170,16 @@ class UserList(Resource):
         db.session.add(response.data)
         db.session.commit()
 
+        log_audit(
+            action="user_create",
+            data={
+                "user_id": response.data.id,
+                "name": response.data.name,
+                "email": response.data.email,
+                "type": response.data.type
+            }
+        )
+
         if request.args.get("notify"):
             name = response.data.name
             email = response.data.email
@@ -228,6 +239,17 @@ class UserPublic(Resource):
     )
     def patch(self, user_id):
         user = Users.query.filter_by(id=user_id).first_or_404()
+        
+        # Store before state for audit
+        before_state = {
+            "name": user.name,
+            "email": user.email,
+            "type": user.type,
+            "banned": user.banned,
+            "hidden": user.hidden,
+            "verified": user.verified
+        }
+        
         data = request.get_json()
         data["id"] = user_id
         Tokens.query.filter_by(user_id=user_id).delete()
@@ -254,6 +276,20 @@ class UserPublic(Resource):
         db.session.commit()
         db.session.close()
 
+        log_audit(
+            action="user_update",
+            before=before_state,
+            after={
+                "name": user.name,
+                "email": user.email,
+                "type": user.type,
+                "banned": user.banned,
+                "hidden": user.hidden,
+                "verified": user.verified
+            },
+            data={"user_id": user_id}
+        )
+
         clear_user_session(user_id=user_id)
         clear_standings()
         clear_challenges()
@@ -273,6 +309,14 @@ class UserPublic(Resource):
                 400,
             )
 
+        user = Users.query.filter_by(id=user_id).first_or_404()
+        user_info = {
+            "user_id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "type": user.type
+        }
+
         Notifications.query.filter_by(user_id=user_id).delete()
         Awards.query.filter_by(user_id=user_id).delete()
         Unlocks.query.filter_by(user_id=user_id).delete()
@@ -282,6 +326,12 @@ class UserPublic(Resource):
         Users.query.filter_by(id=user_id).delete()
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="user_delete",
+            before=user_info,
+            data={"user_id": user_id}
+        )
 
         clear_user_session(user_id=user_id)
         clear_standings()

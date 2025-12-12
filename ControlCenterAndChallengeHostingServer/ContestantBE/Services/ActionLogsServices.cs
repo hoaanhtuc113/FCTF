@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.ActionLogs;
 using ResourceShared.Models;
 

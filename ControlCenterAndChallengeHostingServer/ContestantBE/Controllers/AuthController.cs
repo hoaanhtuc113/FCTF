@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Auth;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.ResponseViews;
 using ResourceShared.Utils;
@@ -24,9 +25,11 @@ namespace ContestantBE.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        public AuthController(IAuthService authService)
+        private AppLogger _userBehaviorLogger;
+        public AuthController(IAuthService authService, AppLogger userBehaviorLogger)
         {
             _authService = authService;
+            _userBehaviorLogger = userBehaviorLogger;
         }
 
         [HttpPost("login-contestant")]
@@ -41,6 +44,7 @@ namespace ContestantBE.Controllers
                     message = result.Message,
                 });
             }
+            _userBehaviorLogger.Log("LOGIN", result.Data.id, result.Data.team.id, result.Data );
             await Console.Out.WriteLineAsync($"[Auth] Account {loginDto.username} login success");
 
             return Ok(new
@@ -65,6 +69,7 @@ namespace ContestantBE.Controllers
                     message = "Invalid user token"
                 });
             }
+
 
             var result = await _authService.ChangePassword(userId, changePasswordDto);
             await Console.Out.WriteLineAsync($"[Auth] Account {userIdClaim} change password");

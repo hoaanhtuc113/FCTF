@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: admin-mvc
-          image: quachuoiscontainer/fctf:admin-mvc-prod-v3.9.2
+          image: quachuoiscontainer/fctf:admin-mvc-prod-v3.9.5
           ports:
             - name: http-client
               containerPort: 8000

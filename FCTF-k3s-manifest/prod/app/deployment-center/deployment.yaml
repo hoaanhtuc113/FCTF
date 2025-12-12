@@ -16,7 +16,7 @@ spec:
       serviceAccountName: deployment-center-sa
       containers:
         - name: deployment-center
-          image: quachuoiscontainer/fctf:deployment-center-prod-v3.9.2
+          image: quachuoiscontainer/fctf:deployment-center-prod-v3.9.5
           ports:
             - name: http-client
               containerPort: 5020

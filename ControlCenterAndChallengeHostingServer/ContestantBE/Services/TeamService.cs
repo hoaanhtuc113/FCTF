@@ -4,6 +4,7 @@ using ResourceShared.DTOs;
 using ResourceShared.DTOs.Team;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 using System.Security.Claims;
 
 namespace ContestantBE.Services
@@ -14,19 +15,23 @@ namespace ContestantBE.Services
         private readonly CtfTimeHelper _ctfTimeHelper;
         private readonly ConfigHelper _configHelper;
         private readonly ScoreHelper _scoreHelper;
+        private readonly AppLogger _logger;
 
-        public TeamService(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper, ScoreHelper scoreHelper)
+        public TeamService(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper, ScoreHelper scoreHelper, AppLogger logger)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
             _configHelper = configHelper;
             _scoreHelper = scoreHelper;
+            _logger = logger;
         }
 
         public async Task<BaseResponseDTO<TeamResponseDTO>> CreateTeam(CreateTeamRequestDTO request, User user)
         {
-            if (!_ctfTimeHelper.CtfTime() || _ctfTimeHelper.CtfEnded())
-                return BaseResponseDTO<TeamResponseDTO>.Fail( "You are not allowed to join a team at this time");
+            try
+            {
+                if (!_ctfTimeHelper.CtfTime() || _ctfTimeHelper.CtfEnded())
+                    return BaseResponseDTO<TeamResponseDTO>.Fail( "You are not allowed to join a team at this time");
 
             if (user.TeamId != null)
                 return BaseResponseDTO<TeamResponseDTO>.Fail( "You are already in a team");
@@ -74,12 +79,20 @@ namespace ContestantBE.Services
                 BracketId = team.BracketId,
                 Created = DateTime.UtcNow
             },"Team created successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, user?.Id, data: new { teamName = request.TeamName });
+                return BaseResponseDTO<TeamResponseDTO>.Fail("An error occurred while creating team");
+            }
         }
 
         public async Task<BaseResponseDTO> JoinTeam(JoinTeamRequestDTO request, User user)
         {
-            if (!_ctfTimeHelper.CtfTime() || _ctfTimeHelper.CtfEnded())
-                return BaseResponseDTO.Fail( "You are not allowed to join a team at this time");
+            try
+            {
+                if (!_ctfTimeHelper.CtfTime() || _ctfTimeHelper.CtfEnded())
+                    return BaseResponseDTO.Fail( "You are not allowed to join a team at this time");
 
             if (user.TeamId != null)
                 return BaseResponseDTO.Fail( "You are already in a team");
@@ -101,13 +114,21 @@ namespace ContestantBE.Services
             await _context.SaveChangesAsync();
 
             return BaseResponseDTO.Ok("Successfully joined the team!");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, user?.Id, data: new { teamName = request.teamName });
+                return BaseResponseDTO.Fail("An error occurred while joining team");
+            }
         }
 
         public async Task<TeamScoreDTO?> GetTeamScore(int userId)
         {
-            var user = await _context.Users
-                                         .Include(u => u.Team)
-                                         .FirstOrDefaultAsync(u => u.Id == userId);
+            try
+            {
+                var user = await _context.Users
+                                             .Include(u => u.Team)
+                                             .FirstOrDefaultAsync(u => u.Id == userId);
             var team = await _context.Teams
                 .Include(t => t.Users)
                 .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
@@ -138,13 +159,21 @@ namespace ContestantBE.Services
                 Score = await _scoreHelper.GetTeamScore(team, true),
                 ChallengeTotalScore = challenges.Sum(c => c.Value ?? 0)
             };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId);
+                return null;
+            }
         }
 
         public async Task<List<SubmissionDto>> GetTeamSolves(int userId)
         {
-            var user = await _context.Users
-                             .Include(u => u.Team)
-                             .FirstOrDefaultAsync(u => u.Id == userId);
+            try
+            {
+                var user = await _context.Users
+                                 .Include(u => u.Team)
+                                 .FirstOrDefaultAsync(u => u.Id == userId);
             var team = await _context.Teams
                 .Include(t => t.Users)
                 .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
@@ -178,6 +207,12 @@ namespace ContestantBE.Services
                     Provided =  null,
                     Ip = null
                 }).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId);
+                return new();
+            }
         }
     }
 }

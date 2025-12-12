@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 using System.Security.Claims;
 
 namespace ContestantBE.Services
@@ -13,13 +14,15 @@ namespace ContestantBE.Services
         private readonly ScoreHelper _scoreHelper;
         private readonly ConfigHelper _configHelper;
         private readonly RedisLockHelper _redisLockHelper;
+        private readonly AppLogger _logger;
 
-        public HintService(AppDbContext context, ScoreHelper scoreHelper, ConfigHelper configHelper, RedisLockHelper redisLockHelper)
+        public HintService(AppDbContext context, ScoreHelper scoreHelper, ConfigHelper configHelper, RedisLockHelper redisLockHelper, AppLogger logger)
         {
             _context = context;
             _scoreHelper = scoreHelper;
             _configHelper = configHelper;
             _redisLockHelper = redisLockHelper;
+            _logger = logger;
         }
 
         private List<int> GetPrerequisites(string? requirementsJson)
@@ -49,7 +52,9 @@ namespace ContestantBE.Services
 
         public async Task<HintResponseDTO?> GetHintById(int id, int? userId, bool preview)
         {
-            var hint = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == id);
+            try
+            {
+                var hint = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == id);
             if (hint == null) return null;
             if (!hint.Challenge.State.Equals("visible"))
             {
@@ -93,11 +98,19 @@ namespace ContestantBE.Services
                 Requirements = hint.Requirements,
                 View = view
             };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId, data: new { hintId = id });
+                return null;
+            }
         }
 
         public async Task<HintListDTO?> GetHintsByChallengeId(int challengeId, int user)
         {
-            var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
+            try
+            {
+                var challenge = await _context.Challenges.FirstOrDefaultAsync(c => c.Id == challengeId);
             if (challenge == null) return null;
             if (!challenge.State.Equals("visible"))
             {
@@ -113,11 +126,19 @@ namespace ContestantBE.Services
                     Cost = h.Cost
                 }).ToList()
             };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, user, data: new { challengeId });
+                return null;
+            }
         }
 
         public async Task<UnlockResponseDTO?> UnlockHint(UnlockRequestDto req, int userId)
         {
-            var target = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == req.Target);
+            try
+            {
+                var target = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == req.Target);
             if (target == null) return null;
             if (!target.Challenge.State.Equals("visible"))
             {
@@ -242,6 +263,12 @@ namespace ContestantBE.Services
             {
                 // Always release lock, even if operation fails
                 await _redisLockHelper.ReleaseLock(lockKey, lockToken);
+            }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId, data: new { target = req.Target, type = req.Type });
+                return null;
             }
         }
     }
