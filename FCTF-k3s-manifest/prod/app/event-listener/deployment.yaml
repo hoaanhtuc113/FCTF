@@ -16,7 +16,7 @@ spec:
       serviceAccountName: deployment-center-sa
       containers:
         - name: event-listener
-          image: quachuoiscontainer/fctf:deployment-listener-prod-v3.9.5
+          image: quachuoiscontainer/fctf:deployment-listener-prod-v3.9.6
           ports:
             - name: http-client
               containerPort: 5030

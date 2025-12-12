@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: contestant-be
-          image: quachuoiscontainer/fctf:contestant-be-dev-v3.9.11
+          image: quachuoiscontainer/fctf:contestant-be-prod-v3.9.6
           ports:
             - name: http-client
               containerPort: 5010
