@@ -3,6 +3,7 @@ using ContestantBE.Utils;
 using ResourceShared.DTOs.File;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 
 namespace ContestantBE.Services
 {
@@ -10,10 +11,12 @@ namespace ContestantBE.Services
     {
         private readonly string _nfsMountPath;
         private readonly AppDbContext _context;
-        public FileService(AppDbContext context)
+        private readonly AppLogger _logger;
+        public FileService(AppDbContext context, AppLogger logger)
         {
             _nfsMountPath = ContestantBEConfigHelper.NFS_MOUNT_PATH;
             _context = context;
+            _logger = logger;
         }
 
         private string GetContentType(string fileName)
@@ -99,6 +102,7 @@ namespace ContestantBE.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, user_id, data: new { path, token });
                 return new FileResult
                 {
                     Success = false,

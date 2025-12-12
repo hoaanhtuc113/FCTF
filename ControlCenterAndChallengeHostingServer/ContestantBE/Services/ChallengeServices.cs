@@ -11,6 +11,7 @@ using ResourceShared.DTOs.Topic;
 using ResourceShared.Models;
 using ResourceShared.ResponseViews;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
@@ -39,13 +40,15 @@ namespace ContestantBE.Services
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
         private readonly ConfigHelper _configHelper;
+        private readonly AppLogger _logger;
         public static int port = 30000;
-        public ChallengeServices(IHttpClientFactory httpFactory, AppDbContext dbContext, RedisHelper redisHelper, ConfigHelper configHelper)
+        public ChallengeServices(IHttpClientFactory httpFactory, AppDbContext dbContext, RedisHelper redisHelper, ConfigHelper configHelper, AppLogger logger)
         {
             _httpFactory = httpFactory;
             _dbContext=dbContext;
             _redisHelper=redisHelper;
             _configHelper=configHelper;
+            _logger = logger;
         }
         public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
         {
@@ -181,6 +184,7 @@ namespace ContestantBE.Services
                     }
                     catch (Exception ex)
                     {
+                        _logger.LogError(ex, null, team_id, new { challengeId = challenge.Id, requirements = challenge.Requirements });
                         await Console.Error.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
                     }
                 }
@@ -326,6 +330,7 @@ namespace ContestantBE.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, user?.Id, user?.TeamId, new { challengeId = challenge.Id });
                 await Console.Error.WriteLineAsync($"Unexpected error: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -532,6 +537,7 @@ namespace ContestantBE.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, null, teamId, new { challengeId });
                 await Console.Error.WriteLineAsync($"Error during status check: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {

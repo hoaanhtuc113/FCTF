@@ -6,6 +6,7 @@ using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using System;
 using System.Collections;
@@ -42,10 +43,12 @@ namespace ResourceShared.Services
         private readonly IKubernetes _kubernetes;
         private readonly RedisHelper _redisHelper;
         private readonly AppDbContext _dbContext;
+        private readonly AppLogger _logger;
         public delegate Task PodEventHandler(PodInfo pod);
-        public K8sService(RedisHelper redisHelper, AppDbContext dbContext)
+        public K8sService(RedisHelper redisHelper, AppDbContext dbContext, AppLogger logger)
         {
             _redisHelper = redisHelper;
+            _logger = logger;
             try
             {
                 var config = KubernetesClientConfiguration.InClusterConfig();
@@ -106,6 +109,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { podName, namespaceName });
                 await Console.Error.WriteLineAsync($"[Check Pod Alive] Exception checking pod {podName}: {ex.Message}");
                 return false;
             }
@@ -154,6 +158,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { namespaceName });
                 await Console.Error.WriteLineAsync($"[Delete Namespace] Error deleting namespace '{namespaceName}': {ex.Message}");
                 return false;
             }
@@ -199,6 +204,7 @@ namespace ResourceShared.Services
                     }
                     catch (Exception ex)
                     {
+                        _logger.LogError(ex, data: new { namespaceName });
                         failCount++;
                         var error = $"Error deleting namespace '{namespaceName}': {ex.Message}";
                         errors.Add(error);
@@ -211,6 +217,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { labelSelector });
                 await Console.Error.WriteLineAsync($"[Delete All Namespaces] Critical error: {ex.Message}");
                 errors.Add($"Critical error while listing namespaces: {ex.Message}");
                 return (successCount, failCount, errors);
@@ -312,6 +319,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { label });
                 await Console.Error.WriteLineAsync($"[GetPodsByLabel] Error: {ex.Message}");
             }
 
@@ -466,6 +474,7 @@ namespace ResourceShared.Services
                         }
                         catch (Exception ex)
                         {
+                            _logger.LogError(ex);
                             await Console.Error.WriteLineAsync($"[Watcher Logic Error] {ex.Message}");
                         }
                     }
@@ -476,6 +485,7 @@ namespace ResourceShared.Services
                 }
                 catch (Exception ex)
                 {
+                    _logger.LogError(ex, data: new { label });
                     await Console.Error.WriteLineAsync($"[Watcher Disconnected] {ex.Message}. Reconnecting in 5s...");
                     try
                     {
@@ -516,6 +526,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { namespaceName });
                 await Console.Error.WriteLineAsync($"[Get Node Port] Unable to get NodePort in namespace '{namespaceName}': {ex.Message}");
                 return null;
             }
@@ -597,6 +608,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, null, teamId, new { challengeId, podName });
                 await Console.Error.WriteLineAsync($"[K8sService - Handle Challenge Running] Error handling challenge running: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -643,6 +655,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { wfName, namespaceName });
                 await Console.Error.WriteLineAsync($"[K8sService] Error while getting workflow status for {wfName}: {ex.Message}");
                 return WorkflowPhase.Unknown;
             }
@@ -710,6 +723,7 @@ namespace ResourceShared.Services
                     }
                     catch (Exception ex)
                     {
+                        _logger.LogError(ex, data: new { podName = pod.Metadata.Name, containerName, workflowName, namespaceName });
                         sb.AppendLine($"[Get Workflow Logs] Error reading logs from container {containerName}: {ex.Message}");
                     }
 

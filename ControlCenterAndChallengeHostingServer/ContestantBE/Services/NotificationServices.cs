@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Notification;
 using ResourceShared.Models;
+using ResourceShared.Logger;
 
 namespace ContestantBE.Services
 {
@@ -13,15 +14,19 @@ namespace ContestantBE.Services
     {
 
         private AppDbContext _context;
+        private readonly AppLogger _logger;
 
-        public NotificationServices(AppDbContext context)
+        public NotificationServices(AppDbContext context, AppLogger logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<List<NotificationDTO>> GetAll()
         {
-            var notifications = await _context.Notifications.ToListAsync();
+            try
+            {
+                var notifications = await _context.Notifications.ToListAsync();
             var data = notifications.Select(n => new NotificationDTO
             {
                 Id = n.Id,
@@ -36,6 +41,12 @@ namespace ContestantBE.Services
             });
 
             return data.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex);
+                return new List<NotificationDTO>();
+            }
         }
     }
 }

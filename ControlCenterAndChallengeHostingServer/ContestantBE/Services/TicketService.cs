@@ -5,19 +5,24 @@
     using ResourceShared.DTOs;
     using ResourceShared.DTOs.Ticket;
     using ResourceShared.Models;
+    using ResourceShared.Logger;
 
     public class TicketService : ITicketService
     {
         private readonly AppDbContext _context;
+        private readonly AppLogger _logger;
 
-        public TicketService(AppDbContext context)
+        public TicketService(AppDbContext context, AppLogger logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<BaseResponseDTO<TicketResponseDTO>> CreateTicket(CreateTicketRequestDTO request, int userId)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return BaseResponseDTO<TicketResponseDTO>.Fail("User not found");
 
             if (string.IsNullOrWhiteSpace(request.title) ||
@@ -49,11 +54,19 @@
             _context.Tickets.Add(newTicket);
             await _context.SaveChangesAsync();
             return BaseResponseDTO<TicketResponseDTO>.Ok(MapToDto(newTicket, user.Name, null, null), "Send ticket successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId, data: new { title = request.title, type = request.type });
+                return BaseResponseDTO<TicketResponseDTO>.Fail("An error occurred while creating ticket");
+            }
         }
 
         public async Task<List<TicketResponseDTO>> GetTicketsByUser(int user)
         {
-            return await (from t in _context.Tickets
+            try
+            {
+                return await (from t in _context.Tickets
                           join a in _context.Users on t.AuthorId equals a.Id
                           join r in _context.Users on t.ReplierId equals r.Id into replierJoin
                           from r in replierJoin.DefaultIfEmpty()
@@ -70,12 +83,20 @@
                               ReplierName = r != null ? r.Name : null,
                               ReplierMessage = t.ReplierMessage
                           }).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, user);
+                return new List<TicketResponseDTO>();
+            }
         }
 
         public async Task<BaseResponseDTO<TicketResponseDTO>> GetTicketById(int ticketId, int userId)
         {
-            // First check if ticket exists
-            var ticketEntity = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
+            try
+            {
+                // First check if ticket exists
+                var ticketEntity = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
             
             if (ticketEntity == null)
                 return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
@@ -107,11 +128,19 @@
                 return BaseResponseDTO<TicketResponseDTO>.Fail("Ticket not found");
             
             return BaseResponseDTO<TicketResponseDTO>.Ok(ticket);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId, data: new { ticketId });
+                return BaseResponseDTO<TicketResponseDTO>.Fail("An error occurred while retrieving ticket");
+            }
         }
 
         public async Task<PaginatedTicketsDTO> GetAllTickets(int? userId, string? status, string? type, string? search, int page, int perPage)
         {
-            var query = from t in _context.Tickets
+            try
+            {
+                var query = from t in _context.Tickets
                         join a in _context.Users on t.AuthorId equals a.Id
                         join r in _context.Users on t.ReplierId equals r.Id into replierJoin
                         from r in replierJoin.DefaultIfEmpty()
@@ -153,11 +182,19 @@
                 .ToListAsync();
 
             return new PaginatedTicketsDTO { Tickets = tickets, Total = total };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, data: new { userId, status, type, search, page, perPage });
+                return new PaginatedTicketsDTO { Tickets = new List<TicketResponseDTO>(), Total = 0 };
+            }
         }
 
         public async Task<BaseResponseDTO<bool>> DeleteTicket(int ticketId, int userId)
         {
-            var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
+            try
+            {
+                var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
             
             if (ticket == null)
                 return BaseResponseDTO<bool>.Fail("Ticket not found");
@@ -174,6 +211,12 @@
             await _context.SaveChangesAsync();
             
             return BaseResponseDTO<bool>.Ok(true, "Ticket deleted successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, userId, data: new { ticketId });
+                return BaseResponseDTO<bool>.Fail("An error occurred while deleting ticket");
+            }
         }
 
         private TicketResponseDTO MapToDto(Ticket ticket, string authorName, string? replierName, string? teamName)

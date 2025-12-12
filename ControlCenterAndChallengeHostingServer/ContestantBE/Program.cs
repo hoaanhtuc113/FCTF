@@ -88,8 +88,9 @@ namespace ContestantBE
             new ContestantBEConfigHelper().InitConfig();
             // DI services from ResourceShared
             builder.Services.AddResourceShared();
-            
-           
+            builder.Logging.ClearProviders();
+            builder.Logging.AddJsonConsole();
+
 
             builder.Services.AddCors(options =>
             {

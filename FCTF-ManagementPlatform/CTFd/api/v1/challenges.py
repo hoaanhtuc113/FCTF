@@ -61,6 +61,7 @@ from CTFd.utils.decorators.visibility import (
 )
 from CTFd.utils.humanize.words import pluralize
 from CTFd.utils.logging import log
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import (
     authed,
@@ -294,6 +295,17 @@ class ChallengeList(Resource):
         challenge = challenge_class.create(request)
         response = challenge_class.read(challenge)
 
+        log_audit(
+            action="challenge_create",
+            data={
+                "challenge_id": challenge.id,
+                "name": challenge.name,
+                "category": challenge.category,
+                "type": challenge.type,
+                "value": challenge.value
+            }
+        )
+
         clear_challenges()
 
         return {"success": True, "data": response}
@@ -523,6 +535,15 @@ class Challenge(Resource):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         print(f"Challenge {challenge.name} has been updated by user {user_id} ({user.type})")
 
+        # Store before state for audit
+        before_state = {
+            "name": challenge.name,
+            "category": challenge.category,
+            "value": challenge.value,
+            "state": challenge.state,
+            "type": challenge.type
+        }
+
         if user.type == "admin":
             data["user_id"] = challenge.user_id
             pass
@@ -580,6 +601,20 @@ class Challenge(Resource):
         challenge_class = get_chal_class(challenge.type)
         challenge = challenge_class.update(challenge, request)
         response = challenge_class.read(challenge)
+        
+        log_audit(
+            action="challenge_update",
+            before=before_state,
+            after={
+                "name": challenge.name,
+                "category": challenge.category,
+                "value": challenge.value,
+                "state": challenge.state,
+                "type": challenge.type
+            },
+            data={"challenge_id": challenge_id}
+        )
+        
         print("challengeState:" + challenge.state)
         if challenge.state == "visible":
             notify_to_contestant(notif_type = "toast",
@@ -610,6 +645,17 @@ class Challenge(Resource):
         DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        
+        # Store challenge info before deletion for audit
+        challenge_info = {
+            "challenge_id": challenge.id,
+            "name": challenge.name,
+            "category": challenge.category,
+            "type": challenge.type,
+            "value": challenge.value,
+            "state": challenge.state
+        }
+        
         if challenge.require_deploy:
             delete_folder(challenge.deploy_file)
             delete_cached_files(challenge.id)
@@ -627,6 +673,12 @@ class Challenge(Resource):
         chal_class.delete(challenge)
         clear_standings()
         clear_challenges()
+        
+        log_audit(
+            action="challenge_delete",
+            before=challenge_info,
+            data={"challenge_id": challenge_id}
+        )
         
         if(challenge.state == "visible"):
             notify_to_contestant(notif_type = "toast", 

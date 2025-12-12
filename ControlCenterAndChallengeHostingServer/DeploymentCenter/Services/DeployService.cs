@@ -8,6 +8,7 @@ using ResourceShared.DTOs.Deployments;
 using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
@@ -35,12 +36,14 @@ namespace DeploymentCenter.Services
         private readonly IK8sService _k8SHealthService;
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
-        public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sService k8SHealthService)
+        private readonly AppLogger _logger;
+        public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sService k8SHealthService, AppLogger logger)
         {
             _dbContext=dbContext;
             _redisHelper=redisHelper;
             //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
             _k8SHealthService = k8SHealthService;
+            _logger = logger;
         }
 
         public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
@@ -200,6 +203,7 @@ namespace DeploymentCenter.Services
             {
                 await _redisHelper.RemoveCacheAsync(deploymentKey);
 
+                _logger.LogError(ex, null, startReq.teamId, new { challengeId = startReq.challengeId });
                 await Console.Error.WriteLineAsync($"Error connecting to API: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -212,6 +216,7 @@ namespace DeploymentCenter.Services
             {
                 await _redisHelper.RemoveCacheAsync(deploymentKey);
 
+                _logger.LogError(ex, null, startReq.teamId, new { challengeId = startReq.challengeId });
                 await Console.Error.WriteLineAsync($"Unexpected error: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -290,6 +295,7 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, null, stopReq.teamId, new { challengeId = stopReq.challengeId });
                 await Console.Error.WriteLineAsync($"Error during stopping challenge: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -331,6 +337,7 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex);
                 await Console.Error.WriteLineAsync($"Error during stopping all challenges: {ex.Message}");
                 return new BaseResponseDTO
                 {
@@ -378,6 +385,7 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, null, statusReq.teamId, new { challengeId = statusReq.challengeId });
                 await Console.Error.WriteLineAsync($"Error during status check: {ex.Message}");
                 return new ChallengeDeployResponeDTO
                 {
@@ -464,6 +472,7 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { message.ChallengeId, message.WorkFlowName, message.Status });
                 await Console.Error.WriteLineAsync($"Recieve Message From Argo Error: {ex.Message}");
                 return new BaseResponseDTO
                 {
@@ -536,6 +545,7 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { workflowName });
                 await Console.Error.WriteLineAsync($"Error retrieving deployment logs: {ex.Message}");
                 return new BaseResponseDTO<DeploymentLogsDTO>
                 {
@@ -577,6 +587,7 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
                 await Console.Error.WriteLineAsync($"Error retrieving pod logs: {ex.Message}");
                 return new BaseResponseDTO<PodLogsDTO>
                 {

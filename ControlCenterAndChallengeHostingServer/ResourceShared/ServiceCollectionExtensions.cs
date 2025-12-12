@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using ResourceShared.Configs;
+using ResourceShared.Logger;
 using ResourceShared.Services;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
@@ -66,6 +67,8 @@ namespace ResourceShared
                     IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
                 };
             });
+            services.AddSingleton<AppLogger>();
+
 
             //services.AddAuthorization();
             return services;

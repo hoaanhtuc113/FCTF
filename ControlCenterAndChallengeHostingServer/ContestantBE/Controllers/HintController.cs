@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared.Attribute;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Extensions;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using System.Security.Claims;
 using static ResourceShared.Enums;
@@ -19,11 +20,13 @@ namespace ContestantBE.Controllers
     {
         private readonly IHintService _hintService;
         private readonly  AppDbContext _context;
+        private AppLogger _userBehaviorLogger;
 
-        public HintController(IHintService hintService, AppDbContext context)
+        public HintController(IHintService hintService, AppDbContext context, AppLogger userBehaviorLogger)
         {
             _hintService = hintService;
             _context = context;
+            _userBehaviorLogger = userBehaviorLogger;
         }
 
         [HttpGet("{id}")]
@@ -31,6 +34,8 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            _userBehaviorLogger.Log("GET_HINT", userId, int.Parse(User.FindFirstValue("teamId")), new { hint_id = id, preview = preview });
             var hint = await _hintService.GetHintById(id, userId, preview);
             if (hint == null) return NotFound(new { message = "Hint not found" });
             return Ok(new { success = true, data = hint });
@@ -41,6 +46,8 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> GetHintByChallengeId(int id)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, int.Parse(User.FindFirstValue("teamId")), new { challenge_id = id });
             var data = await _hintService.GetHintsByChallengeId(id, userId);
             return Ok(new { success = true, hints = data });
         }
@@ -65,6 +72,8 @@ namespace ContestantBE.Controllers
                 {
                     return BadRequest(new { success = false, error = "Invalid challenge or hint" });
                 }
+
+                _userBehaviorLogger.Log("UNLOCK_HINT", userId, teamId, new { hint_id = req.Target, challenge_id = target.Challenge.Id });
 
                 if (target.Challenge.State == ChallengeState.HIDDEN)
                 {

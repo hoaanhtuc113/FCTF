@@ -1,4 +1,5 @@
 ﻿using ResourceShared.Utils;
+using ResourceShared.Logger;
 using RestSharp;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,12 @@ namespace ResourceShared.Services
     }
     public class ArgoWorkFlowService : IArgoWorkFlowService
     {
+        private readonly AppLogger _logger;
+
+        public ArgoWorkFlowService(AppLogger logger)
+        {
+            _logger = logger;
+        }
         public async Task<string?> GetWorkflowStatusAsync(string url, string wfName)
         {
             try
@@ -43,6 +50,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, data: new { url, wfName });
                 Console.Error.WriteLine($"GetWorkflowStatus error: {ex.Message}");
                 return null;
             }

@@ -8,6 +8,7 @@ using ResourceShared.DTOs.Deployments;
 using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
+using ResourceShared.Logger;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using System.Reflection.PortableExecutable;
@@ -26,11 +27,13 @@ namespace DeploymentListener.Services
         private readonly IK8sService _k8SHealthService;
         private readonly RedisHelper _redisHelper;
         private readonly IServiceScopeFactory _scopeFactory;
-        public GetPodsJob(IK8sService k8SHealthService, RedisHelper redisHelper, IServiceScopeFactory scopeFactory)
+        private readonly AppLogger _logger;
+        public GetPodsJob(IK8sService k8SHealthService, RedisHelper redisHelper, IServiceScopeFactory scopeFactory, AppLogger logger)
         {
             _redisHelper = redisHelper;
             _k8SHealthService = k8SHealthService;
             _scopeFactory = scopeFactory;
+            _logger = logger;
         }
 
         public async Task StartWatchingAsync(CancellationToken ct)
@@ -64,6 +67,7 @@ namespace DeploymentListener.Services
                     }
                     catch (Exception ex)
                     {
+                        _logger.LogError(ex, null, teamId, new { challengeId });
                         await Console.Error.WriteLineAsync($"[Handler Error] {ex.Message}");
                     }
                 }

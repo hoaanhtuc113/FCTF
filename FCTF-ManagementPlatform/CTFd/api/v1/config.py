@@ -14,6 +14,7 @@ from CTFd.schemas.fields import FieldSchema
 from CTFd.utils import set_config
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 
 configs_namespace = Namespace("configs", description="Endpoint to retrieve Configs")
 
@@ -97,6 +98,15 @@ class ConfigList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        # Audit log
+        log_audit(
+            action="config_create",
+            data={
+                "key": response.data.get("key"),
+                "value": response.data.get("value"),
+            }
+        )
+
         clear_config()
         clear_standings()
         clear_challenges()
@@ -112,11 +122,25 @@ class ConfigList(Resource):
         req = request.get_json()
         schema = ConfigSchema()
 
+        # Capture before state for all configs being updated
+        before_configs = {}
+        for key in req.keys():
+            existing_config = Configs.query.filter_by(key=key).first()
+            before_configs[key] = existing_config.value if existing_config else None
+
         for key, value in req.items():
             response = schema.load({"key": key, "value": value})
             if response.errors:
                 return {"success": False, "errors": response.errors}, 400
             set_config(key=key, value=value)
+
+        # Audit log
+        log_audit(
+            action="config_bulk_update",
+            before=before_configs,
+            after=req,
+            data={"count": len(req)}
+        )
 
         clear_config()
         clear_standings()
@@ -157,6 +181,10 @@ class Config(Resource):
     )
     def patch(self, config_key):
         config = Configs.query.filter_by(key=config_key).first()
+        
+        # Capture before state for audit
+        before_state = {"key": config_key, "value": config.value} if config else None
+        
         data = request.get_json()
         if config:
             schema = ConfigSchema(instance=config, partial=True)
@@ -175,6 +203,15 @@ class Config(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        # Audit log
+        after_state = {"key": config_key, "value": response.data.get("value")}
+        log_audit(
+            action="config_update",
+            before=before_state,
+            after=after_state,
+            data={"key": config_key}
+        )
+
         clear_config()
         clear_standings()
         clear_challenges()
@@ -188,10 +225,22 @@ class Config(Resource):
     )
     def delete(self, config_key):
         config = Configs.query.filter_by(key=config_key).first_or_404()
+        
+        # Capture config info before deletion
+        config_info = {
+            "key": config.key,
+            "value": config.value,
+        }
 
         db.session.delete(config)
         db.session.commit()
         db.session.close()
+
+        # Audit log
+        log_audit(
+            action="config_delete",
+            data=config_info
+        )
 
         clear_config()
         clear_standings()
