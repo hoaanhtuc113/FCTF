@@ -274,19 +274,23 @@ class UserPublic(Resource):
         # https://github.com/CTFd/CTFd/issues/1794
         response = schema.dump(response.data)
         db.session.commit()
+        
+        # Collect after_state BEFORE closing session to avoid DetachedInstanceError
+        after_state = {
+            "name": user.name,
+            "email": user.email,
+            "type": user.type,
+            "banned": user.banned,
+            "hidden": user.hidden,
+            "verified": user.verified
+        }
+        
         db.session.close()
 
         log_audit(
             action="user_update",
             before=before_state,
-            after={
-                "name": user.name,
-                "email": user.email,
-                "type": user.type,
-                "banned": user.banned,
-                "hidden": user.hidden,
-                "verified": user.verified
-            },
+            after=after_state,
             data={"user_id": user_id}
         )
 
