@@ -157,7 +157,8 @@ export function Home() {
 
         const { message, start_date, end_date } = config;
 
-        if (message === 'CTFd has not been started' && start_date) {
+        // CTF chưa bắt đầu - đếm ngược đến thời gian start
+        if ((message === 'CTFd has not been started' || message === 'CTFd is coming...') && start_date) {
           const startDate = new Date(start_date * 1000);
           if (new Date() < startDate) {
             setStatusMessage('contest_pending');
@@ -165,7 +166,9 @@ export function Home() {
             setIsContestActive(false);
             startCountdown(startDate);
           }
-        } else if (message === 'CTFd has been started' && end_date) {
+        } 
+        // CTF đang diễn ra - đếm ngược đến thời gian end
+        else if (message === 'CTFd has been started' && end_date) {
           const endDate = new Date(end_date * 1000);
           if (new Date() < endDate) {
             setIsContestActive(true);
@@ -486,7 +489,20 @@ export function Home() {
                   py: 3,
                   my: 3
                 }}>
-                  <Box sx={{ color: colors.textPrimary, fontSize: '11px', mb: 2 }}>
+                  <Box sx={{ 
+                    color: isContestActive ? colors.textPrimary : '#eab308',
+                    fontSize: '11px', 
+                    mb: 2,
+                    fontWeight: 'bold',
+                    letterSpacing: '0.1em',
+                    textAlign: 'center',
+                    animation: isContestActive ? 'none' : 'pulse 2s ease-in-out infinite',
+                    textShadow: isContestActive ? 'none' : '0 0 10px rgba(234, 179, 8, 0.5)',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0.6 }
+                    }
+                  }}>
                     [{isContestActive ? 'TIME_REMAINING' : 'COUNTDOWN_TO_START'}]
                   </Box>
                   
