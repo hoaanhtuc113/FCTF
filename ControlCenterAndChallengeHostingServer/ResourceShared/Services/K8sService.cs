@@ -1,6 +1,7 @@
 ﻿using k8s;
 using k8s.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ResourceShared.Configs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
@@ -84,7 +85,7 @@ namespace ResourceShared.Services
 
                 if (pod == null)
                 {
-                    await Console.Error.WriteLineAsync($"[Check Pod Alive] No pod found with prefix: {podName}");
+                    _logger.LogDebug("No pod found with prefix", new { podName, namespaceName });
                     return false;
                 }
 
@@ -101,16 +102,15 @@ namespace ResourceShared.Services
             {
                 if (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    await Console.Error.WriteLineAsync($"[Check Pod Alive] Pod not found: {podName}");
+                    _logger.LogDebug("Pod not found", new { podName, namespaceName });
                     return false;
                 }
-                await Console.Error.WriteLineAsync($"[Check Pod Alive] API Error: {ex.Response.ReasonPhrase}");
+                _logger.LogError(ex, data: new { podName, namespaceName, errorType = "K8sApiError" });
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { podName, namespaceName });
-                await Console.Error.WriteLineAsync($"[Check Pod Alive] Exception checking pod {podName}: {ex.Message}");
+                _logger.LogError(ex, data: new { podName, namespaceName, errorType = "CheckPodAliveException" });
                 return false;
             }
         }
@@ -148,25 +148,24 @@ namespace ResourceShared.Services
             try
             {
                 var result = await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
-                await Console.Out.WriteLineAsync($"[Delete Namespace] Namespace '{namespaceName}' deletion requested. Status: {result.Status}");
+                _logger.LogDebug("Namespace deletion requested", new { namespaceName, status = result.Status });
                 return true;
             }
             catch (k8s.Autorest.HttpOperationException ex)
             {
-                await Console.Error.WriteLineAsync($"[Delete Namespace] Failed to delete namespace '{namespaceName}': {ex.Response.Content}");
+                _logger.LogError(ex, data: new { namespaceName, responseContent = ex.Response.Content, errorType = "DeleteNamespaceHttpError" });
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { namespaceName });
-                await Console.Error.WriteLineAsync($"[Delete Namespace] Error deleting namespace '{namespaceName}': {ex.Message}");
+                _logger.LogError(ex, data: new { namespaceName, errorType = "DeleteNamespaceException" });
                 return false;
             }
         }
 
         public async Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge")
         {
-            await Console.Out.WriteLineAsync($"[Delete All Namespaces] Deleting all namespaces with label: {labelSelector}");
+            _logger.LogDebug("Deleting all namespaces with label", new { labelSelector });
 
             int successCount = 0;
             int failCount = 0;
@@ -179,11 +178,11 @@ namespace ResourceShared.Services
 
                 if (namespaces.Items.Count == 0)
                 {
-                    await Console.Out.WriteLineAsync("[Delete All Namespaces] No namespaces found with the specified label.");
+                    _logger.LogDebug("No namespaces found with the specified label", new { labelSelector });
                     return (0, 0, errors);
                 }
 
-                await Console.Out.WriteLineAsync($"[Delete All Namespaces] Found {namespaces.Items.Count} namespaces to delete.");
+                _logger.LogDebug("Found namespaces to delete", new { count = namespaces.Items.Count, labelSelector });
 
                 // Delete each namespace
                 foreach (var ns in namespaces.Items)
@@ -193,32 +192,30 @@ namespace ResourceShared.Services
                     {
                         await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
                         successCount++;
-                        await Console.Out.WriteLineAsync($"[Delete All Namespaces] Successfully deleted namespace: {namespaceName}");
+                        _logger.LogDebug("Successfully deleted namespace", new { namespaceName });
                     }
                     catch (k8s.Autorest.HttpOperationException ex)
                     {
                         failCount++;
                         var error = $"Failed to delete namespace '{namespaceName}': {ex.Response.Content}";
                         errors.Add(error);
-                        await Console.Error.WriteLineAsync($"[Delete All Namespaces] {error}");
+                        _logger.LogError(ex, data: new { namespaceName, responseContent = ex.Response.Content, errorType = "DeleteNamespaceHttpError" });
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, data: new { namespaceName });
+                        _logger.LogError(ex, data: new { namespaceName, errorType = "DeleteNamespaceException" });
                         failCount++;
                         var error = $"Error deleting namespace '{namespaceName}': {ex.Message}";
                         errors.Add(error);
-                        await Console.Error.WriteLineAsync($"[Delete All Namespaces] {error}");
                     }
                 }
 
-                await Console.Out.WriteLineAsync($"[Delete All Namespaces] Completed. Success: {successCount}, Failed: {failCount}");
+                _logger.LogDebug("Delete all namespaces completed", new { successCount, failCount, labelSelector });
                 return (successCount, failCount, errors);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { labelSelector });
-                await Console.Error.WriteLineAsync($"[Delete All Namespaces] Critical error: {ex.Message}");
+                _logger.LogError(ex, data: new { labelSelector, errorType = "DeleteAllNamespacesCriticalError" });
                 errors.Add($"Critical error while listing namespaces: {ex.Message}");
                 return (successCount, failCount, errors);
             }
@@ -319,8 +316,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { label });
-                await Console.Error.WriteLineAsync($"[GetPodsByLabel] Error: {ex.Message}");
+                _logger.LogError(ex, data: new { label, errorType = "GetPodsByLabelError" });
             }
 
             return podsResult;
@@ -448,20 +444,54 @@ namespace ResourceShared.Services
 
         public async Task StartPodWatcher(OnDeploymentStatusChanged statusHandler, string label = "ctf/kind=challenge", CancellationToken cancellationToken = default)
         {
+            string? resourceVersion = null;
+            int retryCount = 0;
+            const int maxRetryDelay = 60000;
+            const int baseRetryDelay = 5000;
+            const int watchTimeoutSeconds = 300;
+
+            bool forceResync = false;
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
+                    if (resourceVersion == null)
+                    {
+                        var initialList = await _kubernetes.CoreV1.ListPodForAllNamespacesAsync(
+                            labelSelector: label,
+                            cancellationToken: cancellationToken
+                        );
+                        resourceVersion = initialList.Metadata.ResourceVersion;
+                        _logger.LogDebug("Starting watch from resourceVersion",
+                            new { resourceVersion, label });
+                    }
 
-                    var listTask = _kubernetes.CoreV1.ListPodForAllNamespacesWithHttpMessagesAsync(
-                        labelSelector: label,
-                        watch: true,
-                        cancellationToken: cancellationToken
-                    );
+                    var listTask =
+                        _kubernetes.CoreV1.ListPodForAllNamespacesWithHttpMessagesAsync(
+                            labelSelector: label,
+                            watch: true,
+                            resourceVersion: resourceVersion,
+                            timeoutSeconds: watchTimeoutSeconds,
+                            cancellationToken: cancellationToken
+                        );
 
 #pragma warning disable CS0618
                     var watcher = listTask.WatchAsync<V1Pod, V1PodList>(
-                        onError: ex => Console.Error.WriteLine($"[Watcher Protocol Error] {ex.Message}"),
+                        onError: ex =>
+                        {
+                            _logger.LogError(ex, data: new
+                            {
+                                label,
+                                resourceVersion,
+                                errorType = "ProtocolError"
+                            });
+
+                            if (ex.Message.Contains("too old", StringComparison.OrdinalIgnoreCase))
+                            {
+                                forceResync = true;
+                            }
+                        },
                         cancellationToken: cancellationToken
                     );
 #pragma warning restore CS0618
@@ -470,30 +500,93 @@ namespace ResourceShared.Services
                     {
                         try
                         {
+                            resourceVersion = pod.Metadata.ResourceVersion;
                             await ProcessPodChangeAsync(pod, eventType, statusHandler);
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex);
-                            await Console.Error.WriteLineAsync($"[Watcher Logic Error] {ex.Message}");
+                            _logger.LogError(ex, data: new
+                            {
+                                resourceVersion,
+                                eventType,
+                                errorType = "WatcherLogicError"
+                            });
                         }
                     }
+
+                    retryCount = 0;
+
+                    if (forceResync)
+                    {
+                        _logger.LogDebug("Force resync watcher",
+                            new { label, oldResourceVersion = resourceVersion });
+
+                        resourceVersion = null;
+                        forceResync = false;
+                        continue;
+                    }
+
+                    _logger.LogDebug("Watch completed, reconnecting",
+                        new { label, resourceVersion });
                 }
                 catch (TaskCanceledException)
                 {
+                    _logger.LogDebug("Watcher cancellation requested, stopping", new { label });
                     break;
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    retryCount++;
+                    resourceVersion = null;
+
+                    var delay = Math.Min(
+                        baseRetryDelay * (int)Math.Pow(2, Math.Min(retryCount - 1, 5)),
+                        maxRetryDelay
+                    );
+
+                    delay += Random.Shared.Next(0, 1000);
+
+                    _logger.LogError(httpEx, data: new
+                    {
+                        label,
+                        retryCount,
+                        delayMs = delay,
+                        errorType = "HttpRequestException"
+                    });
+
+                    await Task.Delay(delay, cancellationToken);
+                }
+                catch (k8s.Autorest.HttpOperationException ex)
+                    when (ex.Response?.StatusCode == System.Net.HttpStatusCode.Gone)
+                {
+                    _logger.LogDebug("Watcher HTTP 410 Gone, resync",
+                        new { label, oldResourceVersion = resourceVersion });
+
+                    resourceVersion = null;
+                    retryCount = 0;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, data: new { label });
-                    await Console.Error.WriteLineAsync($"[Watcher Disconnected] {ex.Message}. Reconnecting in 5s...");
-                    try
+                    retryCount++;
+                    resourceVersion = null;
+
+                    var delay = Math.Min(
+                        baseRetryDelay * (int)Math.Pow(2, Math.Min(retryCount - 1, 5)),
+                        maxRetryDelay
+                    );
+
+                    _logger.LogError(ex, data: new
                     {
-                        await Task.Delay(5000, cancellationToken);
-                    }
-                    catch (TaskCanceledException) { break; }
+                        label,
+                        retryCount,
+                        delayMs = delay,
+                        errorType = "GenericException"
+                    });
+
+                    await Task.Delay(delay, cancellationToken);
                 }
             }
+            _logger.LogDebug("Watcher stopped", new { label });
         }
 
         public async Task<int?> GetNodePort(string namespaceName)
@@ -505,19 +598,19 @@ namespace ResourceShared.Services
                 var svc = svcs.Items.FirstOrDefault();
                 if (svc == null)
                 {
-                    await Console.Out.WriteLineAsync($"[Get Node Port] Namespace '{namespaceName}' not have any service.");
+                    _logger.LogDebug("Namespace does not have any service", new { namespaceName });
                     return null;
                 }
 
                 var portSpec = svc.Spec.Ports?.FirstOrDefault();
                 if (portSpec?.NodePort == null)
                 {
-                    await Console.Out.WriteLineAsync($"[Get Node Port] Service '{svc.Metadata?.Name}' has no NodePort assigned.");
+                    _logger.LogDebug("Service has no NodePort assigned", new { namespaceName, serviceName = svc.Metadata?.Name });
                     return null;
                 }
                 if (svc.Spec.Type != "NodePort")
                 {
-                    await Console.Out.WriteLineAsync($"[Get Node Port] Service '{svc.Metadata.Name}' not a NodePort type.");
+                    _logger.LogDebug("Service is not a NodePort type", new { namespaceName, serviceName = svc.Metadata.Name, serviceType = svc.Spec.Type });
                     return null;
                 }
 
@@ -526,8 +619,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { namespaceName });
-                await Console.Error.WriteLineAsync($"[Get Node Port] Unable to get NodePort in namespace '{namespaceName}': {ex.Message}");
+                _logger.LogError(ex, data: new { namespaceName, errorType = "GetNodePortError" });
                 return null;
             }
         }
@@ -608,8 +700,7 @@ namespace ResourceShared.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, null, teamId, new { challengeId, podName });
-                await Console.Error.WriteLineAsync($"[K8sService - Handle Challenge Running] Error handling challenge running: {ex.Message}");
+                _logger.LogError(ex, null, teamId, new { challengeId, podName, errorType = "HandleChallengeRunningError" });
                 return new ChallengeDeployResponeDTO
                 {
                     success = false,
@@ -650,13 +741,12 @@ namespace ResourceShared.Services
             }
             catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await Console.Error.WriteLineAsync($"[K8sService] Workflow not found: {wfName}");
+                _logger.LogDebug("Workflow not found", new { wfName, namespaceName });
                 return WorkflowPhase.Unknown;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { wfName, namespaceName });
-                await Console.Error.WriteLineAsync($"[K8sService] Error while getting workflow status for {wfName}: {ex.Message}");
+                _logger.LogError(ex, data: new { wfName, namespaceName, errorType = "GetWorkflowStatusError" });
                 return WorkflowPhase.Unknown;
             }
         }
@@ -723,8 +813,8 @@ namespace ResourceShared.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, data: new { podName = pod.Metadata.Name, containerName, workflowName, namespaceName });
-                        sb.AppendLine($"[Get Workflow Logs] Error reading logs from container {containerName}: {ex.Message}");
+                        _logger.LogError(ex, data: new { podName = pod.Metadata.Name, containerName, workflowName, namespaceName, errorType = "GetContainerLogsError" });
+                        sb.AppendLine($"[Error reading logs from container {containerName}: {ex.Message}]");
                     }
 
                     sb.AppendLine();
