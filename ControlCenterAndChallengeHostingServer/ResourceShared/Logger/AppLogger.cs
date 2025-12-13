@@ -37,7 +37,7 @@ namespace ResourceShared.Logger
             // }
         }
 
-        public void Log(string action, int? userId, int? teamId, object data = null, LogLevel level = LogLevel.Information)
+        public void Log(string action, int? userId, int? teamId, object? data = null, LogLevel level = LogLevel.Information)
         {
              Write(new
             {
@@ -51,7 +51,7 @@ namespace ResourceShared.Logger
             }, level: level);
         }
 
-        public void LogDebug(string message, object data = null)
+        public void LogDebug(string message, object? data = null)
         {
             Write(new
             {
@@ -63,7 +63,7 @@ namespace ResourceShared.Logger
             }, level: LogLevel.Debug);
         }
 
-        public void LogError(Exception ex, int? userId = null, int? teamId = null, object data = null, LogLevel logLevel = LogLevel.Error)
+        public void LogError(Exception ex, int? userId = null, int? teamId = null, object? data = null, LogLevel logLevel = LogLevel.Error)
         {
             Write(new
             {
@@ -79,7 +79,7 @@ namespace ResourceShared.Logger
             }, level: logLevel);
         }
 
-        public void LogAudit(string action, object before = null, object after = null, int? userId = null)
+        public void LogAudit(string action, object? before = null, object? after = null, int? userId = null)
         {
             Write(new
             {
