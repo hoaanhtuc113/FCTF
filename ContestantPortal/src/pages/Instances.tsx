@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '../config/endpoints';
 import { Terminal, Refresh } from '@mui/icons-material';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import { formatUTCToLocaleString } from '../utils/timezone';
 
 interface ChallengeInstance {
   challenge_id: number;
@@ -194,8 +195,7 @@ export function Instances() {
     if (isNaN(unixTimeInt) || unixTimeInt <= 0) {
       return 'N/A';
     }
-    const date = new Date(unixTimeInt * 1000);
-    return date.toLocaleString();
+    return formatUTCToLocaleString(unixTimeInt);
   }
 
   if (loading) {

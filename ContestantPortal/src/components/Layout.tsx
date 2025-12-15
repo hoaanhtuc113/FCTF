@@ -30,6 +30,7 @@ import {
   History,
 } from '@mui/icons-material';
 import type { ReactNode } from 'react';
+import { parseUTCToLocal, formatUTCToLocaleString, dayjs } from '../utils/timezone';
 
 interface LayoutProps {
   children: ReactNode;
@@ -189,21 +190,19 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const formatNotificationDate = (dateString: string) => {
-    // Parse the date string and convert to local timezone
-    const date = new Date(dateString);
+    const date = parseUTCToLocal(dateString);
     
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
+    if (!date.isValid()) {
       return 'Invalid date';
     }
     
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const now = dayjs();
+    const diffMs = now.diff(date);
     const diffMins = Math.floor(diffMs / 60000);
     
     // If negative (future date), just show the date
     if (diffMins < 0) {
-      return date.toLocaleString(undefined, {
+      return formatUTCToLocaleString(dateString, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -222,7 +221,7 @@ export function Layout({ children }: LayoutProps) {
     if (diffDays < 7) return `${diffDays}d ago`;
     
     // For older dates, show formatted date with time
-    return date.toLocaleString(undefined, {
+    return formatUTCToLocaleString(dateString, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

@@ -13,15 +13,7 @@ import {
   Cancel,
   HourglassEmpty,
 } from '@mui/icons-material';
-
-interface Ticket {
-  id: string;
-  title: string;
-  type: string;
-  status: string;
-  description: string;
-  date: string;
-  authorName: string;
+import { formatUTCToLocaleString } from '../utils/timezone';
   replierName?: string;
   replierMessage?: string;
 }
@@ -186,7 +178,14 @@ export function TicketDetail() {
                   <p className={`font-mono ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>
-                    {ticket.date}
+                    {formatUTCToLocaleString(ticket.date, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })}
                   </p>
                 </div>
               </div>
