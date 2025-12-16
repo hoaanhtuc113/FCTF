@@ -3,9 +3,10 @@ import { Box, CircularProgress } from '@mui/material';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
-import { Terminal, Refresh } from '@mui/icons-material';
+import { Terminal, Refresh, ContentCopy } from '@mui/icons-material';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import { formatUTCToLocaleString } from '../utils/timezone';
 
 interface ChallengeInstance {
   challenge_id: number;
@@ -13,6 +14,7 @@ interface ChallengeInstance {
   category: string;
   status: string;
   pod_name: string;
+  challenge_url: string;
   ready: boolean;
   age: string;
 }
@@ -24,6 +26,7 @@ export function Instances() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stoppingIds, setStoppingIds] = useState<Set<number>>(new Set());
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const fetchInstances = async (showRefreshing = false) => {
     try {
@@ -194,8 +197,31 @@ export function Instances() {
     if (isNaN(unixTimeInt) || unixTimeInt <= 0) {
       return 'N/A';
     }
-    const date = new Date(unixTimeInt * 1000);
-    return date.toLocaleString();
+    return formatUTCToLocaleString(unixTimeInt);
+  }
+
+  const parseAndFormatURL = (rawUrl: string, category: string) => {
+    // Remove "Connection string: " prefix
+    const cleaned = rawUrl.replace(/^Connection string:\s*/i, '').trim();
+    
+    // Split host and port
+    const parts = cleaned.split(/\s+/);
+    if (parts.length >= 2) {
+      const host = parts[0];
+      const port = parts[1];
+      
+      return `${host}:${port}`;
+    }
+    return cleaned;
+  }
+
+  const handleCopyURL = (url: string, challengeId: number) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(challengeId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch((err) => {
+      console.error('Failed to copy URL:', err);
+    });
   }
 
   if (loading) {
@@ -264,16 +290,19 @@ export function Instances() {
                   ? 'bg-gray-800 border-gray-700' 
                   : 'bg-gray-100 border-gray-300'
               } border-b`}>
-                <th className="text-left py-3 px-4 font-mono">ID</th>
-                <th className="text-left py-3 px-4 font-mono">Challenge Name</th>
-                <th className="text-left py-3 px-4 font-mono">Category</th>
-                <th className="text-left py-3 px-4 font-mono">Status</th>
-                <th className="text-left py-3 px-4 font-mono">Age</th>
-                <th className="text-right py-3 px-4 font-mono">Actions</th>
+                <th className="text-left py-3 px-2 font-mono" style={{ width: '5%' }}>ID</th>
+                <th className="text-left py-3 px-3 font-mono" style={{ width: '15%' }}>Challenge</th>
+                <th className="text-left py-3 px-2 font-mono" style={{ width: '8%' }}>Cat</th>
+                <th className="text-left py-3 px-2 font-mono" style={{ width: '8%' }}>Status</th>
+                <th className="text-left py-3 px-3 font-mono" style={{ width: '35%' }}>Connection URL</th>
+                <th className="text-left py-3 px-2 font-mono" style={{ width: '12%' }}>Age</th>
+                <th className="text-right py-3 px-2 font-mono" style={{ width: '17%' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {instances.map((instance) => (
+              {instances.map((instance) => {
+                const formattedURL = parseAndFormatURL(instance.challenge_url, instance.category);
+                return (
                 <tr 
                   key={instance.challenge_id}
                   className={`border-b transition-colors ${
@@ -282,9 +311,11 @@ export function Instances() {
                       : 'border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  <td className="py-3 px-4">{instance.challenge_id}</td>
-                  <td className="py-3 px-4 font-semibold">{instance.challenge_name}</td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-2 text-xs" style={{ width: '5%' }}>{instance.challenge_id}</td>
+                  <td className="py-3 px-3 font-semibold text-sm truncate" style={{ width: '15%' }} title={instance.challenge_name}>
+                    {instance.challenge_name}
+                  </td>
+                  <td className="py-3 px-2" style={{ width: '8%' }}>
                     <span className={`px-2 py-1 rounded text-xs border ${
                       theme === 'dark'
                         ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
@@ -293,45 +324,81 @@ export function Instances() {
                       {instance.category}
                     </span>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-2" style={{ width: '8%' }}>
                     <span className={`px-2 py-1 rounded text-xs border font-semibold ${getStatusColor(instance.status)}`}>
                       {instance.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4">{parseUnixTimeToDate(instance.age)}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex justify-end gap-2">
+                  <td className="py-3 px-3" style={{ width: '35%' }}>
+                    {instance.status === 'Running' ? (
+                      <div className="flex items-center gap-2">
+                        <code className={`text-xs break-all ${
+                          theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
+                        }`}>
+                          {formattedURL}
+                        </code>
+                        <button
+                          onClick={() => handleCopyURL(formattedURL, instance.challenge_id)}
+                          className={`px-2 py-1.5 rounded transition-colors shrink-0 flex items-center gap-1 text-xs ${
+                            copiedId === instance.challenge_id
+                              ? theme === 'dark'
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                : 'bg-green-100 text-green-700 border border-green-300'
+                              : theme === 'dark'
+                              ? 'bg-gray-700 hover:bg-gray-600 text-gray-400'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                          }`}
+                          title="Copy URL"
+                        >
+                          {copiedId === instance.challenge_id ? (
+                            <>✓ Copied</>
+                          ) : (
+                            <ContentCopy sx={{ fontSize: 14 }} />
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`text-xs italic ${
+                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                      }`}>
+                        [Not available]
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 px-2 text-xs" style={{ width: '12%' }}>{parseUnixTimeToDate(instance.age)}</td>
+                  <td className="py-3 px-2" style={{ width: '17%' }}>
+                    <div className="flex justify-end gap-1">
                       <button
                             onClick={() => handleNavigateToChallenge(instance.challenge_id, instance.category)}
-                            className={`p-2 rounded transition-colors ${
+                            className={`px-2 py-1.5 text-xs rounded transition-colors ${
                               theme === 'dark'
                                 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
                                 : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
                             }`}
                             title="Open challenge"
                           >
-                            [GO TO CHALLENGE]
+                            [GO]
                           </button>
                       {instance.status === 'Running' && (
                         <>
                           <button
                             onClick={() => handleStop(instance.challenge_id, instance.challenge_name)}
                             disabled={stoppingIds.has(instance.challenge_id)}
-                            className={`p-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                            className={`px-2 py-1.5 text-xs rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                               theme === 'dark'
                                 ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
                                 : 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
                             }`}
                             title="Stop challenge"
                           >
-                            [STOP CHALLENGE]
+                            [STOP]
                           </button>
                         </>
                       )}
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
