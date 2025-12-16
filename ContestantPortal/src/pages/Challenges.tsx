@@ -12,6 +12,7 @@ import {
   Terminal,
   Security,
   PictureAsPdf,
+  ContentCopy,
 } from '@mui/icons-material';
 import { FaDownload } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -1084,6 +1085,7 @@ function ChallengeDetailPanel({
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [cooldownTotal, setCooldownTotal] = useState<number>(0);
   const [pdfScale, setPdfScale] = useState<number>(1.0);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
@@ -2561,6 +2563,15 @@ const getFileName = (filePath : string) => {
   }
 };
 
+  const handleCopyURL = (urlToCopy: string) => {
+    navigator.clipboard.writeText(urlToCopy).then(() => {
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    }).catch((err) => {
+      console.error('Failed to copy URL:', err);
+    });
+  };
+
   const handleDownloadFile = async (filePath: string) => {
     try {
       const blob = await downloadFile(filePath);
@@ -3194,11 +3205,35 @@ const getFileName = (filePath : string) => {
                     </div>
                   ) : null}
                 </div>
-                <p className="font-mono text-xs">
+                <p className="font-mono text-xs flex items-center gap-2">
                   <span className={`font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{'>>'} </span>
                   <span className={`break-all ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
                     {url || 'Send to request to deploy successfully. Please wait a moment.'}
                   </span>
+                  {url && url !== 'Send to request to deploy successfully. Please wait a moment.' && !url.includes('Deploying') && (
+                    <button
+                      onClick={() => {
+                        const formatted = url.replace('Connection string: ', '').replace(' ', ':');
+                        handleCopyURL(formatted);
+                      }}
+                      className={`px-1.5 py-1 rounded transition-colors shrink-0 flex items-center text-xs ml-2 ${
+                        copiedUrl
+                          ? theme === 'dark'
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : 'bg-green-100 text-green-700 border border-green-300'
+                          : theme === 'dark'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-400 border border-gray-600'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600 border border-gray-300'
+                      }`}
+                      title="Copy URL"
+                    >
+                      {copiedUrl ? (
+                        <>✓</>
+                      ) : (
+                        <ContentCopy sx={{ fontSize: 12 }} />
+                      )}
+                    </button>
+                  )}
                 </p>
               </div>
             )}
