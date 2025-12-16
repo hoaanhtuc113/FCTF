@@ -64,6 +64,7 @@ kubectl get nodes
 
 ```bash
 # Cài đặt NFS server
+kubectl create namespace storage
 sudo apt update
 sudo apt install -y nfs-kernel-server nfs-common
 

@@ -28,10 +28,9 @@ spec:
                   kubectl get ns -l ctf/temporary=true -o json \
                     | jq -r '
                         .items[]
-                        | (.metadata.labels?["ctf/expireAfter"] // empty | tonumber?) as $expireAfterSeconds
                         | select(
-                            ($expireAfterSeconds > 0)
-                            and ((now - (.metadata.creationTimestamp | fromdate)) > $expireAfterSeconds)
+                            (.metadata.labels["ctf/expireAfter"] | test("m$"))
+                            and ((now - (.metadata.creationTimestamp | fromdate)) > ((.metadata.labels["ctf/expireAfter"] | sub("m$";"") | tonumber) * 60))
                           )
                         | .metadata.name
                       ' \
