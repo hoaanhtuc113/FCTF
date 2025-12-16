@@ -63,6 +63,8 @@ export function Layout({ children }: LayoutProps) {
   const [contestStatus, setContestStatus] = useState<string>('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationPage, setNotificationPage] = useState(1);
+  const notificationsPerPage = 10;
 
   const tabs = [
     { label: 'Home', path: '/dashboard', icon: <Home fontSize="small" /> },
@@ -104,6 +106,44 @@ export function Layout({ children }: LayoutProps) {
     fetchContestStatus();
   }, []);
 
+  // Get read notifications from localStorage
+  const getReadNotifications = (): Set<string> => {
+    try {
+      const stored = localStorage.getItem('readNotifications');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+
+  // Get toasted notifications from localStorage
+  const getToastedNotifications = (): Set<string> => {
+    try {
+      const stored = localStorage.getItem('toastedNotifications');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+
+  // Save read notifications to localStorage
+  const saveReadNotifications = (readIds: Set<string>) => {
+    try {
+      localStorage.setItem('readNotifications', JSON.stringify([...readIds]));
+    } catch (error) {
+      console.error('Error saving read notifications:', error);
+    }
+  };
+
+  // Save toasted notifications to localStorage
+  const saveToastedNotifications = (toastedIds: Set<string>) => {
+    try {
+      localStorage.setItem('toastedNotifications', JSON.stringify([...toastedIds]));
+    } catch (error) {
+      console.error('Error saving toasted notifications:', error);
+    }
+  };
+
   // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -112,14 +152,43 @@ export function Layout({ children }: LayoutProps) {
         const data = await response.json();
         
         if (data.success && data.data) {
+          const readIds = getReadNotifications();
+          const storedToasted = localStorage.getItem('toastedNotifications');
+          const isFirstLoad = !storedToasted; // Check if this is the first time loading
+          const toastedIds = getToastedNotifications();
+          
+          // Sort notifications by date (newest first)
           const sortedNotifications = data.data
             .map((notification: any) => ({
               ...notification,
-              isRead: false,
+              isRead: readIds.has(notification.id),
             }))
             .sort((a: Notification, b: Notification) => 
               new Date(b.date).getTime() - new Date(a.date).getTime()
             );
+          
+          if (isFirstLoad) {
+            // First time loading - mark all existing notifications as toasted without showing toast
+            const allNotificationIds = sortedNotifications.map((n: Notification) => n.id);
+            saveToastedNotifications(new Set(allNotificationIds));
+          } else {
+            // Not first load - find new notifications and show toast
+            const newNotifications = sortedNotifications.filter(
+              (n: Notification) => !toastedIds.has(n.id) && !readIds.has(n.id)
+            );
+            
+            // Show toast for new notifications
+            if (newNotifications.length > 0) {
+              newNotifications.forEach((notification: Notification) => {
+                toast.info(`[!] ${notification.title}`);
+              });
+              
+              // Mark new notifications as toasted
+              const updatedToastedIds = new Set([...toastedIds, ...newNotifications.map((n: Notification) => n.id)]);
+              saveToastedNotifications(updatedToastedIds);
+            }
+          }
+          
           setNotifications(sortedNotifications);
           setUnreadCount(sortedNotifications.filter((n: Notification) => !n.isRead).length);
         }
@@ -167,6 +236,7 @@ export function Layout({ children }: LayoutProps) {
 
   const handleNotificationOpen = (event: React.MouseEvent<HTMLElement>) => {
     setNotificationAnchorEl(event.currentTarget);
+    setNotificationPage(1); // Reset to first page when opening
   };
 
   const handleNotificationClose = () => {
@@ -180,6 +250,11 @@ export function Layout({ children }: LayoutProps) {
       )
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
+    
+    // Save to localStorage
+    const readIds = getReadNotifications();
+    readIds.add(id);
+    saveReadNotifications(readIds);
   };
 
   const markAllAsRead = () => {
@@ -187,6 +262,10 @@ export function Layout({ children }: LayoutProps) {
       prev.map((notification) => ({ ...notification, isRead: true }))
     );
     setUnreadCount(0);
+    
+    // Save all notification IDs to localStorage
+    const readIds = new Set(notifications.map(n => n.id));
+    saveReadNotifications(readIds);
   };
 
   const formatNotificationDate = (dateString: string) => {
@@ -573,13 +652,13 @@ export function Layout({ children }: LayoutProps) {
                 elevation: 0,
                 sx: {
                   mt: 1.5,
-                  minWidth: 380,
+                  width: 420,
+                  minWidth: 420,
                   maxWidth: 420,
                   borderRadius: 2,
                   backgroundColor: theme === 'dark' ? 'rgb(17, 24, 39)' : 'rgb(255, 255, 255)',
                   border: theme === 'dark' ? '1px solid rgb(55, 65, 81)' : '1px solid rgb(229, 231, 235)',
                   overflow: 'hidden',
-                  maxHeight: '500px',
                 },
               }}
             >
@@ -610,6 +689,8 @@ export function Layout({ children }: LayoutProps) {
               <Box 
                 className="overflow-y-auto"
                 sx={{
+                  height: '400px',
+                  minHeight: '400px',
                   maxHeight: '400px',
                   '&::-webkit-scrollbar': {
                     width: '6px',
@@ -632,52 +713,91 @@ export function Layout({ children }: LayoutProps) {
                     </Typography>
                   </Box>
                 ) : (
-                  notifications.slice(0, 10).map((notification) => (
-                    <Box
-                      key={notification.id}
-                      onClick={() => markAsRead(notification.id)}
-                      className={`px-4 py-3 cursor-pointer border-b transition-colors ${
-                        notification.isRead
-                          ? theme === 'dark'
-                            ? 'bg-gray-900/50 border-gray-800 opacity-60'
-                            : 'bg-gray-50/50 border-gray-100 opacity-60'
-                          : theme === 'dark'
-                          ? 'bg-gray-900 border-gray-800 hover:bg-gray-800/50'
-                          : 'bg-white border-gray-100 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <Typography className={`text-sm font-bold font-mono ${
-                          theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  notifications
+                    .slice((notificationPage - 1) * notificationsPerPage, notificationPage * notificationsPerPage)
+                    .map((notification) => (
+                      <Box
+                        key={notification.id}
+                        onClick={() => markAsRead(notification.id)}
+                        className={`px-4 py-3 cursor-pointer border-b transition-colors ${
+                          notification.isRead
+                            ? theme === 'dark'
+                              ? 'bg-gray-900/50 border-gray-800 opacity-60'
+                              : 'bg-gray-50/50 border-gray-100 opacity-60'
+                            : theme === 'dark'
+                            ? 'bg-gray-900 border-gray-800 hover:bg-gray-800/50'
+                            : 'bg-white border-gray-100 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <Typography className={`text-sm font-bold font-mono ${
+                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            {notification.isRead ? '[·]' : '[!]'} {notification.title}
+                          </Typography>
+                          <span className={`text-xs font-mono whitespace-nowrap ${
+                            theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                          }`}>
+                            {formatNotificationDate(notification.date)}
+                          </span>
+                        </div>
+                        <Typography className={`text-xs font-mono leading-relaxed ${
+                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {notification.isRead ? '[·]' : '[!]'} {notification.title}
+                          {notification.content}
                         </Typography>
-                        <span className={`text-xs font-mono whitespace-nowrap ${
-                          theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                        }`}>
-                          {formatNotificationDate(notification.date)}
-                        </span>
-                      </div>
-                      <Typography className={`text-xs font-mono leading-relaxed ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        {notification.content}
-                      </Typography>
-                    </Box>
-                  ))
+                      </Box>
+                    ))
                 )}
               </Box>
 
-              {/* Footer */}
-              {notifications.length > 10 && (
-                <Box className={`px-4 py-2 border-t text-center ${
+              {/* Pagination Footer */}
+              {notifications.length > notificationsPerPage && (
+                <Box className={`px-4 py-2 border-t flex items-center justify-between ${
                   theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
                 }`}>
                   <Typography className={`text-xs font-mono ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>
-                    [i] Showing last 10 notifications
+                    [{((notificationPage - 1) * notificationsPerPage) + 1}-{Math.min(notificationPage * notificationsPerPage, notifications.length)} / {notifications.length}]
                   </Typography>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setNotificationPage(prev => Math.max(1, prev - 1))}
+                      disabled={notificationPage === 1}
+                      className={`px-2 py-1 text-xs font-mono font-bold border rounded transition ${
+                        notificationPage === 1
+                          ? theme === 'dark'
+                            ? 'border-gray-700 text-gray-600 cursor-not-allowed'
+                            : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                          : theme === 'dark'
+                          ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
+                          : 'border-orange-300 text-orange-600 hover:bg-orange-50'
+                      }`}
+                    >
+                      {'<'}
+                    </button>
+                    <span className={`px-2 py-1 text-xs font-mono font-bold ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      {notificationPage}/{Math.ceil(notifications.length / notificationsPerPage)}
+                    </span>
+                    <button
+                      onClick={() => setNotificationPage(prev => Math.min(Math.ceil(notifications.length / notificationsPerPage), prev + 1))}
+                      disabled={notificationPage === Math.ceil(notifications.length / notificationsPerPage)}
+                      className={`px-2 py-1 text-xs font-mono font-bold border rounded transition ${
+                        notificationPage === Math.ceil(notifications.length / notificationsPerPage)
+                          ? theme === 'dark'
+                            ? 'border-gray-700 text-gray-600 cursor-not-allowed'
+                            : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                          : theme === 'dark'
+                          ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
+                          : 'border-orange-300 text-orange-600 hover:bg-orange-50'
+                      }`}
+                    >
+                      {'>'}
+                    </button>
+                  </div>
                 </Box>
               )}
             </Menu>

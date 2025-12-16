@@ -99,6 +99,9 @@ export function Challenges() {
   const [isContestActive, setIsContestActive] = useState(false);
   const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
   const [showCategories, setShowCategories] = useState(false);
+  
+  // Track processed challenge IDs to prevent double-loading
+  const processedChallengeRef = useRef<number | null>(null);
 
   // Pagination states
   const [categoryPage, setCategoryPage] = useState(1);
@@ -220,11 +223,18 @@ export function Challenges() {
   // Separate effect to handle opening challenge from URL params (only on mount)
   useEffect(() => {
     const challengeParam = searchParams.get('challenge');
-    if (challengeParam && challenges.length > 0 && isContestActive && !selectedChallenge) {
+    // Skip if already loading a challenge detail (prevents double-loading from prerequisite navigation)
+    if (challengeParam && challenges.length > 0 && isContestActive && !selectedChallenge && !loadingChallengeDetail) {
       const challengeId = parseInt(challengeParam, 10);
       if (!isNaN(challengeId)) {
+        // Skip if this challenge was already processed (prevents duplicate popup)
+        if (processedChallengeRef.current === challengeId) {
+          return;
+        }
+        
         const challenge = challenges.find(c => c.id === challengeId);
         if (challenge) {
+          processedChallengeRef.current = challengeId;
           // Call the click handler without updating URL to avoid loop
           handleChallengeClickInternal(challenge);
         }
@@ -232,7 +242,7 @@ export function Challenges() {
     }
   }, [challenges, isContestActive]);
 
-  const fetchChallenges = async (categoryName: string) => {
+  const fetchChallenges = async (categoryName: string): Promise<Challenge[]> => {
     try {
       setLoadingChallenges(true);
       const data = await challengeService.getChallengesByTopic(categoryName);
@@ -257,10 +267,12 @@ export function Challenges() {
       await loadPrerequisitesInfo(parsedChallenges);
       
       setLoadingChallenges(false);
+      return parsedChallenges;
     } catch (err) {
       console.error('Error fetching challenges:', err);
       setChallenges([]);
       setLoadingChallenges(false);
+      return [];
     }
   };
 
@@ -269,6 +281,7 @@ export function Challenges() {
     setSelectedChallenge(null);
     setChallengePage(1); // Reset challenge page when switching category
     setShowCategories(false); // Hide category overlay after selection
+    processedChallengeRef.current = null; // Reset processed challenge when switching category
     await fetchChallenges(categoryName);
   };
 
@@ -280,29 +293,106 @@ export function Challenges() {
     const unmetPrereqs = prerequisiteInfo.get(challenge.id) || [];
     
     if (unmetPrereqs.length > 0) {
-      // Show locked challenge warning
-      const prereqList = unmetPrereqs.map(p => `${p.name} (${p.category})`).join(', ');
+      // Show locked challenge warning with clickable prerequisites
+      const prereqButtons = unmetPrereqs.map(p => `
+        <div class="flex items-center justify-between p-2 rounded border ${
+          theme === 'dark' 
+            ? 'bg-gray-800/50 border-yellow-500/30 hover:bg-gray-700/50' 
+            : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
+        } cursor-pointer transition-colors mb-2" 
+        data-challenge-id="${p.id}" data-category="${p.category}">
+          <div class="flex items-center gap-2">
+            <span class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} text-xs font-semibold">
+              ${p.name}
+            </span>
+            <span class="${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-xs">
+              (${p.category})
+            </span>
+          </div>
+          <span class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} text-lg">→</span>
+        </div>
+      `).join('');
       
-      Swal.fire({
+      const result = await Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
-            <div class="text-yellow-400 mb-2">[!] Challenge Locked</div>
-            <div class="text-gray-400 mb-2">> Prerequisites required:</div>
-            <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-yellow-500/30">
-              ${prereqList}
+            <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} mb-2">[!] Challenge Locked</div>
+            <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mb-2">> Prerequisites required:</div>
+            <div class="max-h-48 overflow-y-auto">
+              ${prereqButtons}
             </div>
-            <div class="text-gray-400 mt-2">> Complete required challenges first</div>
+            <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-2 text-xs">> Click to navigate to required challenge</div>
           </div>
         `,
         icon: 'warning',
         iconColor: '#fbbf24',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'Close',
         background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
         color: theme === 'dark' ? '#fbbf24' : '#000000',
         customClass: {
           popup: 'rounded-lg border border-yellow-500/30',
           confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
         },
+        didOpen: () => {
+          // Add click handlers to prerequisite items
+          const prereqElements = document.querySelectorAll('[data-challenge-id]');
+          prereqElements.forEach((el) => {
+            el.addEventListener('click', async () => {
+              const challengeId = (el as HTMLElement).getAttribute('data-challenge-id');
+              const category = (el as HTMLElement).getAttribute('data-category');
+              
+              if (challengeId && category) {
+                // Close the modal
+                Swal.close();
+                
+                // Mark this challenge as processed immediately to prevent useEffect from triggering
+                const targetChallengeId = parseInt(challengeId);
+                processedChallengeRef.current = targetChallengeId;
+                
+                // Switch to the category and open the challenge
+                setSelectedCategory(category);
+                setLoadingChallengeDetail(true);
+                
+                // Fetch challenges and use the returned list directly (avoid stale closure)
+                const fetchedChallenges = await fetchChallenges(category);
+                
+                // Find the prerequisite challenge from the fetched list
+                const prereqChallenge = fetchedChallenges.find(c => c.id === targetChallengeId);
+                
+                if (prereqChallenge) {
+                  // Update URL params
+                  setSearchParams({
+                    category: category,
+                    challenge: challengeId
+                  }, { replace: true });
+                  
+                  // Load challenge detail directly without checking prerequisites
+                  try {
+                    const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(prereqChallenge.id), {
+                      method: 'GET'
+                    });
+                    const data = await response.json();
+                    setSelectedChallenge({
+                      ...data.data,
+                      value: prereqChallenge.value,
+                      solves: prereqChallenge.solves,
+                      requirements: prereqChallenge.requirements
+                    });
+                  } catch (error) {
+                    console.error('Error fetching challenge details:', error);
+                    setSelectedChallenge(prereqChallenge);
+                  } finally {
+                    setLoadingChallengeDetail(false);
+                  }
+                } else {
+                  // Challenge not found even after fetch
+                  console.error(`Prerequisite challenge ${challengeId} not found in category ${category}`);
+                  setLoadingChallengeDetail(false);
+                }
+              }
+            });
+          });
+        }
       });
       return;
     }
@@ -334,6 +424,9 @@ export function Challenges() {
 
   // Public function called by UI - updates URL and calls internal function
   const handleChallengeClick = async (challenge: Challenge) => {
+    // Reset processed challenge ref when user manually clicks a challenge
+    processedChallengeRef.current = null;
+    
     // Update URL with category and challenge (only when user clicks, not from URL param)
     setSearchParams({
       category: selectedCategory,
