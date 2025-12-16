@@ -9,12 +9,7 @@ import {
   Line,
   LineChart,
 } from "recharts";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import { parseUTCToLocal, formatUTCToLocal } from "../utils/timezone";
 
 interface Solve {
   date: string;
@@ -91,11 +86,10 @@ const ChartComponent = ({ data, selectedTeam = null }: ChartComponentProps) => {
   const chartData = useMemo(() => {
     const teams = Object.values(data);
 
-    // Get all unique timestamps and convert to local time
-    // Parse UTC time from DB and convert to local timezone
+    // Get all unique timestamps and convert to local timezone
     const allDates = [...new Set(
       teams.flatMap(team =>
-        team.solves.map(solve => dayjs.utc(solve.date).local().valueOf())
+        team.solves.map(solve => parseUTCToLocal(solve.date).valueOf())
       )
     )].sort((a, b) => a - b);
 
@@ -106,7 +100,7 @@ const ChartComponent = ({ data, selectedTeam = null }: ChartComponentProps) => {
       const startTime = firstSolveTime - 5 * 60 * 1000; // 5 minutes before
       
       const startPoint: any = {
-        time: dayjs(startTime).format("DD/MM HH:mm"),
+        time: formatUTCToLocal(startTime, "DD/MM HH:mm"),
         timestamp: startTime,
       };
       
@@ -120,14 +114,14 @@ const ChartComponent = ({ data, selectedTeam = null }: ChartComponentProps) => {
     // Create data points
     const dataPoints = allDates.map(timestamp => {
       const point: any = {
-        time: dayjs(timestamp).format("DD/MM HH:mm"),
+        time: formatUTCToLocal(timestamp, "DD/MM HH:mm"),
         timestamp,
       };
 
       teams.forEach(team => {
         // Calculate cumulative score up to this timestamp
         const score = team.solves
-          .filter(solve => dayjs.utc(solve.date).local().valueOf() <= timestamp)
+          .filter(solve => parseUTCToLocal(solve.date).valueOf() <= timestamp)
           .reduce((sum, solve) => sum + solve.value, 0);
         point[team.name] = score;
       });

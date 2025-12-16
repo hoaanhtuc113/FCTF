@@ -5,7 +5,7 @@ import type { ActionLog } from '../models';
 import { ACTION_TYPE_LABELS } from '../models';
 import { Typography, Box } from '@mui/material';
 import { Search, ChevronLeft, ChevronRight } from '@mui/icons-material';
-import dayjs from 'dayjs';
+import { parseUTCToLocal, formatUTCToLocal, dayjs } from '../utils/timezone';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
@@ -143,14 +143,15 @@ export function ActionLogs() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = dayjs(dateString);
+    const date = parseUTCToLocal(dateString);
+    if (!date.isValid()) return <div>Invalid date</div>;
     return (
       <div className="font-mono">
         <div className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-          {date.format('MMM DD, YYYY')}
+          {formatUTCToLocal(dateString, 'MMM DD, YYYY')}
         </div>
         <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-          {date.format('HH:mm:ss')} ({date.fromNow()})
+          {formatUTCToLocal(dateString, 'HH:mm:ss')} ({date.fromNow()})
         </div>
       </div>
     );
