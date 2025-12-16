@@ -255,7 +255,11 @@ export function PublicScoreboard() {
                     <h2 className="text-xl md:text-2xl font-bold text-orange-400 tracking-wider">LEADERBOARD</h2>
                   </div>
                   <span className="text-xs text-orange-600 font-mono">
-                    {currentTime.toLocaleTimeString()}
+                    {currentTime.toLocaleTimeString(undefined, {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })}
                   </span>
                 </div>
               </div>

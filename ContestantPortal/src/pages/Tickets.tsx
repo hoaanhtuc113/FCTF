@@ -15,6 +15,7 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import Swal from 'sweetalert2';
+import { formatUTCToLocaleString } from '../utils/timezone';
 
 interface Ticket {
   id: string;
@@ -356,7 +357,13 @@ export function Tickets() {
                   <td className={`px-4 py-3 font-mono ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>
-                    {ticket.date}
+                    {formatUTCToLocaleString(ticket.date, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
