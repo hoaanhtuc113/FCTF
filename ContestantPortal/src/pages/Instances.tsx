@@ -200,7 +200,7 @@ export function Instances() {
     return formatUTCToLocaleString(unixTimeInt);
   }
 
-  const parseAndFormatURL = (rawUrl: string, category: string) => {
+  const parseAndFormatURL = (rawUrl: string) => {
     // Remove "Connection string: " prefix
     const cleaned = rawUrl.replace(/^Connection string:\s*/i, '').trim();
     
@@ -301,7 +301,7 @@ export function Instances() {
             </thead>
             <tbody>
               {instances.map((instance) => {
-                const formattedURL = parseAndFormatURL(instance.challenge_url, instance.category);
+                const formattedURL = parseAndFormatURL(instance.challenge_url);
                 return (
                 <tr 
                   key={instance.challenge_id}
