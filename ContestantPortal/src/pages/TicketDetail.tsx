@@ -14,6 +14,15 @@ import {
   HourglassEmpty,
 } from '@mui/icons-material';
 import { formatUTCToLocaleString } from '../utils/timezone';
+
+interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  type: string;
+  authorName: string;
+  date: string;
   replierName?: string;
   replierMessage?: string;
 }

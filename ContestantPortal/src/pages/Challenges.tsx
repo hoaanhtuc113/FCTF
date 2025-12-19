@@ -314,7 +314,7 @@ export function Challenges() {
         </div>
       `).join('');
       
-      const result = await Swal.fire({
+      await Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
             <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} mb-2">[!] Challenge Locked</div>
