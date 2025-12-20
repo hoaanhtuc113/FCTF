@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Database Migration Console
-Migrate data between KCTF and CTFd databases
+Migrate data between FCTF and CTFd databases
 """
 
 import sys
@@ -14,7 +14,7 @@ def print_banner():
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║          DATABASE MIGRATION TOOL                          ║
-║          KCTF ↔ CTFd Data Transfer                        ║
+║          FCTF ↔ CTFd Data Transfer                        ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
     """
@@ -26,8 +26,8 @@ def print_menu():
 ┌───────────────────────────────────────────────────────────┐
 │  Please select migration direction:                      │
 ├───────────────────────────────────────────────────────────┤
-│  [1] KCTF → CTFd                                          │
-│  [2] CTFd → KCTF                                          │
+│  [1] FCTF → CTFd                                          │
+│  [2] CTFd → FCTF                                          │
 │  [3] Test Database Connections                            │
 │  [4] Clean CTFd Database (DROP ALL TABLES)                │
 │  [0] Exit                                                 │
@@ -117,7 +117,7 @@ def clean_ctfd_database(db_config):
 
 def confirm_migration(direction):
     """Ask for confirmation before migration"""
-    direction_text = "KCTF → CTFd" if direction == 'kctf_to_ctfd' else "CTFd → KCTF"
+    direction_text = "FCTF → CTFd" if direction == 'fctf_to_ctfd' else "CTFd → FCTF"
     
     print(f"\n{'='*60}")
     print(f"⚠  WARNING: You are about to migrate data")
@@ -169,7 +169,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Configuration error: {e}")
         print("\nPlease check:")
-        print("  • .env file exists and contains DB_KCTF_URL and DB_CTFD_URL")
+        print("  • .env file exists and contains DB_fctf_URL and DB_CTFD_URL")
         print("  • Mapping files exist (mapping_fctf_to_ctfd.json, mapping_ctfd_to_fctf.json)")
         sys.exit(1)
     
@@ -181,12 +181,12 @@ def main():
             choice = input("Enter your choice: ").strip()
             
             if choice == '1':
-                # KCTF to CTFd
-                run_migration(db_config, 'kctf_to_ctfd')
+                # fctf to CTFd
+                run_migration(db_config, 'fctf_to_ctfd')
                 
             elif choice == '2':
-                # CTFd to KCTF
-                run_migration(db_config, 'ctfd_to_kctf')
+                # CTFd to fctf
+                run_migration(db_config, 'ctfd_to_fctf')
                 
             elif choice == '3':
                 # Test connections
