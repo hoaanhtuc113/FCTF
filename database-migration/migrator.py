@@ -67,7 +67,7 @@ class DataMigrator:
     def migrate(self, direction):
         """
         Migrate data based on direction
-        direction: 'kctf_to_ctfd' or 'ctfd_to_kctf'
+        direction: 'fctf_to_ctfd' or 'ctfd_to_fctf'
         """
         print(f"\n{'='*60}")
         print(f"Starting migration: {direction.upper().replace('_', ' ')}")
@@ -81,16 +81,16 @@ class DataMigrator:
             return False
         
         # Get source and target sessions
-        if direction == 'kctf_to_ctfd':
-            source_session = self.db_config.get_kctf_session()
+        if direction == 'fctf_to_ctfd':
+            source_session = self.db_config.get_fctf_session()
             target_session = self.db_config.get_ctfd_session()
-            source_engine = self.db_config.kctf_engine
+            source_engine = self.db_config.fctf_engine
             target_engine = self.db_config.ctfd_engine
         else:
             source_session = self.db_config.get_ctfd_session()
-            target_session = self.db_config.get_kctf_session()
+            target_session = self.db_config.get_fctf_session()
             source_engine = self.db_config.ctfd_engine
-            target_engine = self.db_config.kctf_engine
+            target_engine = self.db_config.fctf_engine
         
         tasks = mapping_config.get('tasks', [])
         self.stats['total_tasks'] = len(tasks)
@@ -261,14 +261,14 @@ class DataMigrator:
             # Reflect source table
             source_table = Table(
                 source_table_name, 
-                self.db_config.kctf_metadata if source_engine == self.db_config.kctf_engine else self.db_config.ctfd_metadata,
+                self.db_config.fctf_metadata if source_engine == self.db_config.fctf_engine else self.db_config.ctfd_metadata,
                 autoload_with=source_engine
             )
             
             # Reflect target table
             target_table = Table(
                 target_table_name,
-                self.db_config.ctfd_metadata if target_engine == self.db_config.ctfd_engine else self.db_config.kctf_metadata,
+                self.db_config.ctfd_metadata if target_engine == self.db_config.ctfd_engine else self.db_config.fctf_metadata,
                 autoload_with=target_engine
             )
             
