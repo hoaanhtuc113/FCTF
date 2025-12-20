@@ -1,9 +1,28 @@
+# Trên config node
+sudo mkdir -p /etc/rancher/k3s
+sudo tee /etc/rancher/k3s/kubelet.config <<EOF
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+maxPods: 250
+EOF
+
 # cài đặt k3s master-node là ip public của server
-#curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 6443 --tls-san kubeconfig.fctf.cloud" sh -
-# ~--kubelet-arg config max pods 
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+  --disable traefik \
+  --flannel-backend=none \
+  --disable-network-policy \
+  --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
+  --write-kubeconfig-mode 644 \
+  --tls-san kubeconfig-prod.fctf.cloud" sh -
+
+## install calico
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
 
 # cài k3s worker-node là ip private của server
-#curl -sfL https://get.k3s.io | K3S_URL=https://10.184.0.6:6443 K3S_TOKEN=K10a2b69be5c830e3a2eb746e1e0e3542344e54984d1902b3c37ce19072f07201ae::server:4f39567cf6c4f01beaf94c9a7bd8ee89 sh -
+curl -sfL https://get.k3s.io | K3S_URL=https://10.184.0.5:6443 \
+  K3S_TOKEN=K10f035f8744f1b371da9acbec4f5ad5112e15c2b1a315615df8b0aa3be91d2fbf5::server:daa8a44bca99a32a069941bb834017d1 \
+  INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 
 # --------------APPLY HELM REPO AND CHARTS-----------------
 # cài nginx ingress k3s để route traffic đến các service
