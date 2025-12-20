@@ -31,11 +31,11 @@ spec:
                 name: common-secret
           resources:
             requests:
+              cpu: 0.2
+              memory: 512Mi
+            limits:
               cpu: 0.5
               memory: 1Gi
-            limits:
-              cpu: 1
-              memory: 2.5Gi
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: nfs-shared-data

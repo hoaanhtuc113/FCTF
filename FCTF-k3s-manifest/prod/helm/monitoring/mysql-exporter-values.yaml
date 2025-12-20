@@ -141,7 +141,7 @@ config:
   # extra arguments as a list of strings
   extraArgs: []
 
-collectors: {}
+collectors:
   # auto_increment.columns: false
   # binlog_size: false
   # engine_innodb_status: false
@@ -151,8 +151,8 @@ collectors: {}
   # info_schema.clientstats: false
   # info_schema.innodb_metrics: false
   # info_schema.innodb_tablespaces: false
-  # info_schema.innodb_cmp: false
-  # info_schema.innodb_cmpmem: false
+  info_schema.innodb_cmp: false
+  info_schema.innodb_cmpmem: false
   # info_schema.processlist: false
   # info_schema.processlist.min_time: 0
   # info_schema.query_response_time: false
@@ -172,7 +172,7 @@ collectors: {}
   # perf_schema.tableiowaits: false
   # perf_schema.tablelocks: false
   # perf_schema.replication_group_member_stats: false
-  # slave_status: true
+  slave_status: false
   # slave_hosts: false
   # heartbeat: false
   # heartbeat.database: heartbeat
