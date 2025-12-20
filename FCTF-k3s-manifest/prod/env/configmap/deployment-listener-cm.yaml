@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: event-listener-cm
+  name: deployment-listener-cm
   namespace: app
 data:
   ASPNETCORE_URLS: "http://+:5030"  
