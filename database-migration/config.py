@@ -11,20 +11,20 @@ class DatabaseConfig:
     """Database configuration and connection manager"""
     
     def __init__(self):
-        self.kctf_url = os.getenv('DB_KCTF_URL')
+        self.fctf_url = os.getenv('DB_FCTF_URL')
         self.ctfd_url = os.getenv('DB_CTFD_URL')
-        self.mapping_kctf_to_ctfd = os.getenv('MAPPING_KCTF_TO_CTFD', './mapping_fctf_to_ctfd.json')
-        self.mapping_ctfd_to_kctf = os.getenv('MAPPING_CTFD_TO_KCTF', './mapping_ctfd_to_fctf.json')
+        self.mapping_fctf_to_ctfd = os.getenv('MAPPING_FCTF_TO_CTFD', './mapping_fctf_to_ctfd.json')
+        self.mapping_ctfd_to_fctf = os.getenv('MAPPING_CTFD_TO_FCTF', './mapping_ctfd_to_fctf.json')
         
         # Validate configuration
-        if not self.kctf_url:
-            raise ValueError("DB_KCTF_URL not found in environment variables")
+        if not self.fctf_url:
+            raise ValueError("DB_FCTF_URL not found in environment variables")
         if not self.ctfd_url:
             raise ValueError("DB_CTFD_URL not found in environment variables")
         
         # Create engines with timeout settings
-        self.kctf_engine = create_engine(
-            self.kctf_url, 
+        self.fctf_engine = create_engine(
+            self.fctf_url, 
             echo=False,
             pool_pre_ping=True,  # Test connection before using
             pool_recycle=3600,   # Recycle connections after 1 hour
@@ -47,16 +47,16 @@ class DatabaseConfig:
         )
         
         # Create session makers
-        self.KCTFSession = sessionmaker(bind=self.kctf_engine)
+        self.FCTFSession = sessionmaker(bind=self.fctf_engine)
         self.CTFdSession = sessionmaker(bind=self.ctfd_engine)
         
         # Metadata for reflection
-        self.kctf_metadata = MetaData()
+        self.fctf_metadata = MetaData()
         self.ctfd_metadata = MetaData()
     
-    def get_kctf_session(self):
-        """Get KCTF database session"""
-        return self.KCTFSession()
+    def get_fctf_session(self):
+        """Get FCTF database session"""
+        return self.FCTFSession()
     
     def get_ctfd_session(self):
         """Get CTFd database session"""
@@ -64,10 +64,10 @@ class DatabaseConfig:
     
     def load_mapping(self, direction):
         """Load mapping configuration based on direction"""
-        if direction == 'kctf_to_ctfd':
-            mapping_file = self.mapping_kctf_to_ctfd
-        elif direction == 'ctfd_to_kctf':
-            mapping_file = self.mapping_ctfd_to_kctf
+        if direction == 'fctf_to_ctfd':
+            mapping_file = self.mapping_fctf_to_ctfd
+        elif direction == 'ctfd_to_fctf':
+            mapping_file = self.mapping_ctfd_to_fctf
         else:
             raise ValueError(f"Invalid direction: {direction}")
         
@@ -80,11 +80,11 @@ class DatabaseConfig:
     def test_connections(self):
         """Test database connections"""
         try:
-            with self.kctf_engine.connect() as conn:
+            with self.fctf_engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            print("✓ KCTF database connection successful")
+            print("✓ FCTF database connection successful")
         except Exception as e:
-            print(f"✗ KCTF database connection failed: {e}")
+            print(f"✗ FCTF database connection failed: {e}")
             return False
         
         try:
@@ -99,5 +99,5 @@ class DatabaseConfig:
     
     def close(self):
         """Close database connections"""
-        self.kctf_engine.dispose()
+        self.fctf_engine.dispose()
         self.ctfd_engine.dispose()
