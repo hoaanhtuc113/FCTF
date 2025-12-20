@@ -27,7 +27,7 @@ spec:
       - name: DEPLOYMENT_CENTER_API_ENDPOINT
         value: http://deployment-center-svc.app.svc.cluster.local:5020/api/statuscheck/message
       - name: NFS_SERVER
-        value: "10.184.0.2"
+        value: "10.184.0.5"
 
   templates:
     - name: main

@@ -22,7 +22,7 @@ spec:
       - name: CHALLENGE_TIMEOUT
         value: "15m"
       - name: NFS_SERVER_IP
-        value: "10.184.0.2"
+        value: "10.184.0.5"
 
   templates:
     - name: main

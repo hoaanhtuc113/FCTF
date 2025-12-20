@@ -4,7 +4,7 @@ metadata:
   namespace: app
   name: contestant-portal
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: contestant-portal
