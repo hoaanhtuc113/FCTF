@@ -24,17 +24,30 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  echo "[Cleanup] 🧹 Running quick delete for expired namespaces..."
-                  kubectl get ns -l ctf/temporary=true -o json \
-                    | jq -r '
-                        .items[]
-                        | select(
-                            (.metadata.labels["ctf/expireAfter"] | test("m$"))
-                            and ((now - (.metadata.creationTimestamp | fromdate)) > ((.metadata.labels["ctf/expireAfter"] | sub("m$";"") | tonumber) * 60))
-                          )
-                        | .metadata.name
-                      ' \
-                    | xargs -r kubectl delete ns --ignore-not-found=true
+                  echo "[Cleanup] 🕒 Current Time: $(date -u)"
+                  echo "[Cleanup] 🧹 Checking for expired namespaces..."
+                  
+                  # Lấy danh sách các namespace cần xóa và in ra lý do
+                  TARGETS=$(kubectl get ns -l ctf/temporary=true -o json | jq -r '
+                    .items[] | 
+                    select(.metadata.labels["ctf/expireAfter"] | test("m$")) |
+                    {
+                      name: .metadata.name,
+                      created: (.metadata.creationTimestamp | fromdate),
+                      expiry: ((.metadata.labels["ctf/expireAfter"] | sub("m$";"") | tonumber) * 60),
+                      age: (now - (.metadata.creationTimestamp | fromdate))
+                    } | 
+                    select(.age > (.expiry + 30)) | .name
+                  ')
+
+                  if [ -z "$TARGETS" ]; then
+                    echo "[Cleanup] ✨ No expired namespaces found."
+                  else
+                    for ns in $TARGETS; do
+                      echo "[Cleanup] 🗑️ Deleting expired namespace: $ns"
+                      kubectl delete ns "$ns" --ignore-not-found=true --wait=false
+                    done
+                  fi
                   echo "[Cleanup] ✅ Done!"
 ---
 apiVersion: v1

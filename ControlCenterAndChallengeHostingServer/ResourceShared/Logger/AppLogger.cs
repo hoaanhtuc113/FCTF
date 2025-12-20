@@ -51,16 +51,16 @@ namespace ResourceShared.Logger
             }, level: level);
         }
 
-        public void LogDebug(string message, object? data = null)
+        public void LogDebug(string message, object? data = null, LogLevel level = LogLevel.Debug)
         {
             Write(new
             {
-                level = LogLevel.Debug.ToString(),
+                level = level.ToString(),
                 type = "debug",
                 message,
                 data,
                 timestamp = DateTime.UtcNow.ToString("o")
-            }, level: LogLevel.Debug);
+            }, level: level);
         }
 
         public void LogError(Exception ex, int? userId = null, int? teamId = null, object? data = null, LogLevel logLevel = LogLevel.Error)

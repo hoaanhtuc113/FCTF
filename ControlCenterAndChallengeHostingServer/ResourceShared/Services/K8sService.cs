@@ -552,7 +552,7 @@ namespace ResourceShared.Services
                         retryCount,
                         delayMs = delay,
                         errorType = "HttpRequestException"
-                    });
+                    },logLevel: LogLevel.Warning);
 
                     await Task.Delay(delay, cancellationToken);
                 }
@@ -894,6 +894,7 @@ namespace ResourceShared.Services
                 if (string.IsNullOrWhiteSpace(logs))
                     return "No logs available.";
 
+                await Console.Out.WriteLineAsync($"Raw logs for pod {podName} in namespace {namespaceName}:\n{logs}");
                 return NormalizeLog(logs);
             }
             catch (Exception ex)

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: contestant-portal
-          image: quachuoiscontainer/fctf:contestant-portal-prod-v3.9.6.1
+          image: quachuoiscontainer/fctf:contestant-portal-prod-v3.10.0
           ports:
             - name: http-client
               containerPort: 80
