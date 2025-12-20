@@ -30,7 +30,7 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
-  -f ./prod/helm/nginx/nginx-values.yaml
+  -f ./helm/nginx/nginx-values.yaml
 
 # Cài cert-manager để tạo ssl cho các service (https)
 helm repo add jetstack https://charts.jetstack.io
@@ -51,14 +51,14 @@ helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 helm upgrade --install mariadb bitnami/mariadb \
   --namespace db --create-namespace \
-  -f ./prod/helm/db/mariadb/mariadb-values.yaml
+  -f ./helm/db/mariadb/mariadb-values.yaml
 
 # Cài redis
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 helm upgrade --install redis bitnami/redis \
   --namespace db --create-namespace \
-  -f ./prod/helm/db/redis/redis-values.yaml 
+  -f ./helm/db/redis/redis-values.yaml 
 
   # cài rabbitmq
 # helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -73,20 +73,20 @@ helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 helm upgrade --install loki-stack grafana/loki-stack \
   --namespace monitoring --create-namespace \
-  -f ./prod/helm/monitoring/loki-stack-values.yaml
+  -f ./helm/monitoring/loki-stack-values.yaml
 
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace \
-  -f ./prod/helm/monitoring/prometheus-stack-values.yaml
+  -f ./helm/monitoring/prometheus-stack-values.yaml
 
 # cài argo workflows
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
 helm upgrade --install argo-workflows argo/argo-workflows \
   --namespace argo --create-namespace \
-  -f ./prod/helm/argo/argo-values.yaml
+  -f ./helm/argo/argo-values.yaml
 
 #cài k8s dashboard
 helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
@@ -105,7 +105,7 @@ helm repo add utkuozdemir https://utkuozdemir.github.io/helm-charts
 helm repo update
 helm upgrade --install filebrowser utkuozdemir/filebrowser \
   --create-namespace --namespace storage \
-  -f ./prod/helm/filebrowser/values.yaml
+  -f ./helm/filebrowser/values.yaml
 
 #cài sonarqube
 # helm repo add sonarqube https://SonarSource.github.io/helm-chart-sonarqube
