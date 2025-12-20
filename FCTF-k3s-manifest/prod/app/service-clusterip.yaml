@@ -59,13 +59,13 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: app
-  name: event-listener-svc
+  name: deployment-listener-svc
 spec:
   ports:
     - protocol: TCP
       port: 5030
       targetPort: 5030
   selector:
-    app: event-listener
+    app: deployment-listener
   type: ClusterIP
 ---

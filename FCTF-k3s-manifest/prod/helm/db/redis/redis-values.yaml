@@ -445,7 +445,8 @@ master:
   ## @param master.nodeSelector Node labels for Redis(R) master pods assignment
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
   ##
-  nodeSelector: {}
+  nodeSelector: 
+    kubernetes.io/hostname: fctf-master-node-01
   ## @param master.tolerations Tolerations for Redis(R) master pods assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   ##

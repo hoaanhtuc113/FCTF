@@ -417,7 +417,8 @@ primary:
   ## @param primary.nodeSelector Node labels for MariaDB primary pods assignment
   ## Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
   ##
-  nodeSelector: {}
+  nodeSelector: 
+    kubernetes.io/hostname: fctf-master-node-01
   ## @param primary.tolerations Tolerations for MariaDB primary pods assignment
   ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   ##

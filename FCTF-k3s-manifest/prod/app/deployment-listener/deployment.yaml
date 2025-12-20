@@ -2,20 +2,20 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: app
-  name: event-listener
+  name: deployment-listener
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
-      app: event-listener
+      app: deployment-listener
   template:
     metadata:
       labels:
-        app: event-listener
+        app: deployment-listener
     spec:
-      serviceAccountName: deployment-center-sa
+      serviceAccountName: deployment-listener-sa
       containers:
-        - name: event-listener
+        - name: deployment-listener
           image: quachuoiscontainer/fctf:deployment-listener-prod-v3.10.0
           ports:
             - name: http-client
@@ -25,7 +25,7 @@ spec:
             - configMapRef:
                 name: common-be-cm
             - configMapRef:
-                name: event-listener-cm
+                name: deployment-listener-cm
             - secretRef:
                 name: common-secret
           resources:
