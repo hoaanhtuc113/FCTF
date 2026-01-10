@@ -48,7 +48,7 @@ securityContext: {}
 
 service:
   # -- Kubernetes Service type ClusterIP/NodePort
-  type: NodePort
+  type: ClusterIP
   # -- Kubernetes Service port
   port: 80
   # -- Kubernetes Service NodePort (only if type is NodePort)
