@@ -24,7 +24,7 @@ spec:
         value: "900"
         description: "CHALLENGE TIMEOUT IN SECONDS"
       - name: NFS_SERVER_IP
-        value: "10.184.0.5"
+        value: "10.184.0.2"
       - name: NAMESPACE_YAML_PATH
         value: "/mnt/nfs/data/start-challenge/challenge-ns.yaml"
       - name: CHALLENGE_YAML_PATH
