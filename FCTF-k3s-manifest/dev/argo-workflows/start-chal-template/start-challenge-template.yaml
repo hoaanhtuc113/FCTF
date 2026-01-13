@@ -5,6 +5,7 @@ metadata:
   namespace: argo
 spec:
   serviceAccountName: argo-sa
+  activeDeadlineSeconds: 300
   entrypoint: main
   arguments:
     parameters:
