@@ -14,6 +14,8 @@ spec:
         app: deployment-center
     spec:
       serviceAccountName: deployment-center-sa
+      priorityClassName: app-normal
+      preemptionPolicy: Never
       containers:
         - name: deployment-center
           image: quachuoiscontainer/fctf:deployment-center-prod-v3.10.0

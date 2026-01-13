@@ -14,6 +14,8 @@ spec:
         app: deployment-listener
     spec:
       serviceAccountName: deployment-listener-sa
+      priorityClassName: app-normal
+      preemptionPolicy: Never
       containers:
         - name: deployment-listener
           image: quachuoiscontainer/fctf:deployment-listener-prod-v3.10.0

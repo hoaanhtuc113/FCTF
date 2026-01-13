@@ -16,6 +16,8 @@ spec:
       template:
         spec:
           serviceAccountName: cleanup
+          priorityClassName: app-normal
+          preemptionPolicy: Never
           restartPolicy: Never
           containers:
             - name: cleaner

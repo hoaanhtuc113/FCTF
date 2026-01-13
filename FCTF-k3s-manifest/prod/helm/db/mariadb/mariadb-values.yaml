@@ -447,7 +447,7 @@ primary:
   ## @param primary.priorityClassName Priority class for MariaDB primary pods assignment
   ## Ref: https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
   ##
-  priorityClassName: ""
+  priorityClassName: "stateful-core"
   ## @param primary.runtimeClassName Runtime Class for MariaDB primary pods
   ## Ref: https://kubernetes.io/docs/concepts/containers/runtime-class/
   ##
@@ -876,7 +876,7 @@ secondary:
   ## @param secondary.priorityClassName Priority class for MariaDB secondary pods assignment
   ## Ref: https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
   ##
-  priorityClassName: ""
+  priorityClassName: "stateful-core"
   ## @param secondary.runtimeClassName Runtime Class for MariaDB secondary pods
   ## Ref: https://kubernetes.io/docs/concepts/containers/runtime-class/
   ##

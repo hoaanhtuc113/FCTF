@@ -13,6 +13,8 @@ spec:
       labels:
         app: contestant-portal
     spec:
+      priorityClassName: app-normal
+      preemptionPolicy: Never
       containers:
         - name: contestant-portal
           image: quachuoiscontainer/fctf:contestant-portal-prod-v3.10.0

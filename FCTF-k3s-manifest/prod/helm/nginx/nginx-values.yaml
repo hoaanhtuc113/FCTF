@@ -852,7 +852,7 @@ controller:
         pullPolicy: IfNotPresent
       # -- Provide a priority class name to the webhook patching job
       ##
-      priorityClassName: ""
+      priorityClassName: "infra-critical"
       # -- Instruct the kubelet to use the named RuntimeClass to run the pod
       runtimeClassName: ""
       podAnnotations: {}
@@ -1008,7 +1008,7 @@ controller:
       exec:
         command:
           - /wait-shutdown
-  priorityClassName: ""
+  priorityClassName: "infra-critical"
 # -- Rollback limit
 ##
 revisionHistoryLimit: 10
@@ -1226,7 +1226,7 @@ defaultBackend:
     loadBalancerSourceRanges: []
     servicePort: 80
     type: ClusterIP
-  priorityClassName: ""
+  priorityClassName: "infra-critical"
   # -- Instruct the kubelet to use the named RuntimeClass to run the pod
   runtimeClassName: ""
   # -- Labels to be added to the default backend resources

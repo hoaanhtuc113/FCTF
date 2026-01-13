@@ -39,6 +39,8 @@ spec:
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false # Không gắn token API server
+      priorityClassName: app-normal
+      preemptionPolicy: Never
       containers:
         - name: challenge
           image: "${CONTAINER_IMAGE}"

@@ -13,6 +13,8 @@ spec:
       labels:
         app: admin-mvc
     spec:
+      priorityClassName: app-normal
+      preemptionPolicy: Never
       containers:
         - name: admin-mvc
           image: quachuoiscontainer/fctf:admin-mvc-prod-v3.10.0

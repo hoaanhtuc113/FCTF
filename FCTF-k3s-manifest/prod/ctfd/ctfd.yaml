@@ -38,6 +38,8 @@ spec:
       labels:
         app: ctfd
     spec:
+      priorityClassName: stateful-core
+      preemptionPolicy: Never
       containers:
         - name: ctfd
           image: quachuoiscontainer/fctf:ctfd-original

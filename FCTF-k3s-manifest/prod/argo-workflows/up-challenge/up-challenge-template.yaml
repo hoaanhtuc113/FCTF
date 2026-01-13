@@ -58,6 +58,8 @@ spec:
           - name: DOCKER_USERNAME
           - name: DOCKER_PASSWORD
           - name: NFS_SERVER
+      priorityClassName: batch-low
+      preemptionPolicy: Never
       container:
         image: gcr.io/kaniko-project/executor:debug
         imagePullPolicy: IfNotPresent
@@ -120,6 +122,8 @@ spec:
           emptyDir: {}
 
     - name: send-message
+      priorityClassName: batch-low
+      preemptionPolicy: Never
       container:
         image: quachuoiscontainer/kubectl-cli:v0.0.3
         imagePullPolicy: IfNotPresent

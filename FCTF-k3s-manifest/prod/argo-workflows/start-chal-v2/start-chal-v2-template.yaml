@@ -60,6 +60,8 @@ spec:
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
           - name: NFS_SERVER_IP
+      priorityClassName: batch-low
+      preemptionPolicy: Never
       container:
         image: quachuoiscontainer/kubectl-cli:v0.0.3
         imagePullPolicy: IfNotPresent
