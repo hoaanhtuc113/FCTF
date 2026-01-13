@@ -7,7 +7,7 @@ metadata:
     workflows.argoproj.io/description: "Template to start and deploy challenge pods v2"
 spec:
   serviceAccountName: argo-sa
-  activeDeadlineSeconds: 300
+  activeDeadlineSeconds: 60
   entrypoint: main
   arguments:
     parameters:
