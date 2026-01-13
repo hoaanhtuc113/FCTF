@@ -8,7 +8,6 @@ metadata:
 spec:
   serviceAccountName: argo-sa
   entrypoint: main
-  activeDeadlineSeconds: 300
   arguments:
     parameters:
       - name: CHALLENGE_NAME
