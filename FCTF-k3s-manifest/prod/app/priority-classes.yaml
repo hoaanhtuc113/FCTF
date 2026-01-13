@@ -42,3 +42,11 @@ value: 10
 preemptionPolicy: Never
 globalDefault: false
 description: "Low-priority batch/automation workloads"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: lowest
+value: 1
+preemptionPolicy: Never
+globalDefault: false
