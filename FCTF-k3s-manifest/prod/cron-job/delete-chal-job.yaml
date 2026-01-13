@@ -16,7 +16,7 @@ spec:
       template:
         spec:
           serviceAccountName: cleanup
-          priorityClassName: batch-low-preemption
+          priorityClassName: app-normal-preemption
           restartPolicy: Never
           containers:
             - name: cleaner
