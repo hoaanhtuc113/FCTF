@@ -8,6 +8,7 @@ metadata:
 spec:
   serviceAccountName: argo-sa
   entrypoint: main
+  activeDeadlineSeconds: 300
   arguments:
     parameters:
       - name: CHALLENGE_NAME
@@ -49,7 +50,6 @@ spec:
                   value: "{{workflow.parameters.NFS_SERVER_IP}}"
 
     - name: deploy-challenge-v2
-      timeout: "5m"
       inputs:
         parameters:
           - name: CHALLENGE_NAME
