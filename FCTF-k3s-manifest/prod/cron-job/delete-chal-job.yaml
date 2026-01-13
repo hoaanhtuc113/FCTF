@@ -17,7 +17,6 @@ spec:
         spec:
           serviceAccountName: cleanup
           priorityClassName: app-normal
-          preemptionPolicy: PreemptLowerPriority
           restartPolicy: Never
           containers:
             - name: cleaner
