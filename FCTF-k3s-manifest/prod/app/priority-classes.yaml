@@ -50,3 +50,11 @@ metadata:
 value: 1
 preemptionPolicy: Never
 globalDefault: false
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: batch-low-preemption
+value: 10
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
