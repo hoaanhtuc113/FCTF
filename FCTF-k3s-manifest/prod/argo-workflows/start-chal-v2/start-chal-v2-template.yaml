@@ -8,6 +8,8 @@ metadata:
 spec:
   serviceAccountName: argo-sa
   activeDeadlineSeconds: 150
+  podGC:
+    strategy: OnPodCompletion
   entrypoint: main
   arguments:
     parameters:
