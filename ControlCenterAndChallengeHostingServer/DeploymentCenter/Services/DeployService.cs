@@ -190,7 +190,7 @@ namespace DeploymentCenter.Services
                 };
 
 
-                await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(5));
+                await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache);
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.OK,
