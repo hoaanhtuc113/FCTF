@@ -10,7 +10,7 @@ metadata:
   name: deployment-listener-sa-role
 rules:
   - apiGroups: [""]
-    resources: ["pods", "services", "namespaces"]
+    resources: ["pods", "services", "namespaces", "nodes"]
     verbs: ["get", "list", "watch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
