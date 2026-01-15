@@ -46,6 +46,13 @@ spec:
           image: "${CONTAINER_IMAGE}"
           ports:
             - containerPort: ${CONTAINER_PORT}
+            
+          readinessProbe:
+            tcpSocket:
+              port: ${CONTAINER_PORT}
+            periodSeconds: 3
+            failureThreshold: 3  
+
           securityContext:
             allowPrivilegeEscalation: false # Không cho escalate privilege
             privileged: false

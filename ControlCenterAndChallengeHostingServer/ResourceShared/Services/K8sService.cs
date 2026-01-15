@@ -421,12 +421,14 @@ namespace ResourceShared.Services
 
             var cs = pod.Status?.ContainerStatuses ?? Array.Empty<V1ContainerStatus>();
             var ready = cs.All(c => c.Ready);
+            var podReady = pod.Status?.Conditions?.Any(c => c.Type == "Ready" &&
+                                                            c.Status == "True") == true;
             var status = ready ? DeploymentStatus.RUNING : pod.Status?.Phase;
 
             if (status == DeploymentStatus.RUNING && cache.ready == true)
                 return; // ignore duplicate running events
 
-            if (ready)
+            if (ready && podReady)
             {
                 var deployResult = await HandleChallengeRunning(challengeId, teamId, cache._namespace, cache);
 
