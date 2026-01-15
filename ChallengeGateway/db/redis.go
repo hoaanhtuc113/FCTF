@@ -7,7 +7,7 @@ import (
 )
 
 var ctx = context.Background()
-const TokenPrefix = "host:auth:"
+const TokenPrefix = "challenge_token_"
 func InitRedis(addr string, password string) (*redis.Client, error) {
     rdb := redis.NewClient(&redis.Options{
         Addr:     addr,
