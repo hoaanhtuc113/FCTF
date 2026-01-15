@@ -111,7 +111,7 @@
 - [ControlCenterAndChallengeHostingServer](ControlCenterAndChallengeHostingServer/)
 - [ctf-directory](ctf-directory/)
 - [FCTF-ManagementPlatform](FCTF-ManagementPlatform/)
-- [manage.sh](manage.sh)
+- [manage.sh](manage.sh) 
 
 
 chuyển chủ sở hữu từ root sang user hiện tại path /etc/nginx/sites-enabled và cấp quyền truy cập cho user hiện tại quyền đọc xóa
