@@ -83,6 +83,20 @@ namespace ResourceShared.Utils
             return $"active_deploys_team_{teamId}";
         }
 
+        public static string GetChallengeTokenKey(string token)
+        {
+            return $"challenge_token_{token}";
+        }
+
+        public static string GenerateChallengeToken()
+        {
+            return Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+                .Replace("=", "")
+                .Replace("+", "")
+                .Replace("/", "")
+                .Substring(0, 16);
+        }
+
         // public static string GenerateCacheAttemptKey(int challengeId, int teamId)
         // {
         //     var rawKey = $"challenge_status_{challengeId}_{teamId}";
