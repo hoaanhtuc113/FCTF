@@ -651,7 +651,7 @@ namespace ResourceShared.Services
                 var challengeToken = ChallengeHelper.GenerateChallengeToken();
 
                 var redisChallengeTokenKey = ChallengeHelper.GetChallengeTokenKey(challengeToken);
-                var redisChallengeTokenValue = $"{podName}-svc.${podName}.svc.cluster.local:3333";
+                var redisChallengeTokenValue = $"{podName}-svc.{podName}.svc.cluster.local:3333";
 
                 var gateWayPort = 30037;
 
