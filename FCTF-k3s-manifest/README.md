@@ -23,23 +23,49 @@ sudo timedatectl set-timezone Asia/Ho_Chi_Minh
 ```
 
 ### 2. Cài đặt K3s Master Node
-**Cho Production (Cloud serrver):**
+# Trên config node
 ```bash
-# Cài K3s với domain TLS SAN
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 644 --tls-san=35.219.48.141" sh -
+sudo mkdir -p /etc/rancher/k3s
+sudo tee /etc/rancher/k3s/kubelet.config <<EOF
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+maxPods: 250
+EOF
+```
+**Cho Production (Cloud serrver):**
+# cài đặt k3s master-node là ip public của server
+```bash
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+  --disable traefik \
+  --flannel-backend=none \
+  --disable-network-policy \
+  --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
+  --write-kubeconfig-mode=644 \
+  --tls-san 34.142.167.47" sh -
+```
+
+# cài k3s worker-node là ip private của server
+```bash
+# Lấy master node token
+sudo cat /var/lib/rancher/k3s/server/node-token
+
+# Cài k3s worker-node
+# Truy cập vào worker-node và chạy lệnh này để join vào master node
+curl -sfL https://get.k3s.io | K3S_URL=https://10.184.0.2:6443 \
+  K3S_TOKEN=K1093ecca6c22d2a61c98a88ea654638744c52d46cc09ed4cf8649434312c3af985::server:27a1c0290ab435fbcbd59754dc967345 \
+  INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 ```
 
 **Cho Development (Local, WSL...):**
 ```bash
 # Cài K3s đơn giản hơn, không cần domain
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644" sh -
-```
 
-**Cài các woker-node nếu có**
-```bash
-# Cài k3s worker-node
-# Truy cập vào worker-node và chạy lệnh này để join vào master node
-curl -sfL https://get.k3s.io | K3S_URL=https://35.219.48.141:6443 K3S_TOKEN=K10b3095185665f61cb743b0e4820a6dc358d1fd7ec846de764d68c2912b0a5dffe::server:832d9f9174fcdc5a5f4b555b048ebabc sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+  --disable traefik \
+  --flannel-backend=none \
+  --disable-network-policy \
+  --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
+  --write-kubeconfig-mode=644" sh -
 ```
 
 **Kiểm tra và cấu hình kubectl:**
@@ -58,6 +84,12 @@ echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 
 # Kiểm tra cluster
 kubectl get nodes
+```
+
+## install calico
+```bash
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
 ```
 
 ### 3. Cài đặt NFS Server
@@ -124,6 +156,7 @@ kubectl get svc --all-namespaces -o custom-columns="NAMESPACE:.metadata.namespac
 # Chạy script cài đặt tự động 
 # Hoặc cài đặt từng bước: có thể vào ./helm.sh để cài từng bước bắt đầu từ # Apply helm repos
 # Đối với môi trường dev có thể bỏ qua nginx ingress và cert-manager (comment phần đó lại)
+# Vào folder FCTF-k3s-manifest/prod
 bash helm.sh
 # nếu không chạy được bash helm.sh bạn cần chuyển từ CLRF sang FL và đặt file executable sau đó chạy lại
 chmod +x helm.sh
