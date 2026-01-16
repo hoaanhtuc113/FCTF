@@ -25,8 +25,7 @@ COPY --from=builder /out/challenge-gateway ./challenge-gateway
 COPY .env.example ./
 
 USER app
-EXPOSE 1337
-ENV LISTEN_PORT=:1337
+EXPOSE 1337 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD nc -z localhost 1337 || exit 1
 

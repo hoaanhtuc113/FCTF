@@ -648,22 +648,17 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.BadRequest
                     };
 
-                var challengeToken = ChallengeHelper.GenerateChallengeToken();
+                var timeLimit = challenge.TimeLimit ?? -1;
 
-                var redisChallengeTokenKey = ChallengeHelper.GetChallengeTokenKey(challengeToken);
-                var redisChallengeTokenValue = $"{podName}-svc.{podName}.svc.cluster.local:3333";
+                var routeInfo = $"{podName}-svc.{podName}.svc.cluster.local:3333";
+                var expiry = DateTimeOffset.UtcNow.AddMinutes(
+                    timeLimit > 0 ? timeLimit : 30
+                );
+                var challengeToken = ChallengeHelper.GenerateChallengeToken(routeInfo, expiry);
 
                 var gateWayPort = 30037;
 
                 var challengeDomain = $"Connection string: {SharedConfig.TCP_DOMAIN} {gateWayPort} \n Token: {challengeToken}";
-
-                var timeLimit = challenge.TimeLimit ?? -1;
-
-                await (await _redisHelper.GetDatabaseAsync()).StringSetAsync(
-                    redisChallengeTokenKey,
-                    redisChallengeTokenValue,
-                    expiry: timeLimit > 0 ? TimeSpan.FromMinutes(timeLimit) : TimeSpan.FromMinutes(30)
-                );
 
                 var nowUtc = DateTimeOffset.UtcNow;
                 var timeFinished = nowUtc.AddMinutes(timeLimit);
