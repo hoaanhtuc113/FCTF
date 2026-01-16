@@ -51,7 +51,7 @@ sudo cat /var/lib/rancher/k3s/server/node-token
 
 # Cài k3s worker-node
 # Truy cập vào worker-node và chạy lệnh này để join vào master node
-curl -sfL https://get.k3s.io | K3S_URL=https://10.184.0.2:6443 \
+curl -sfL https://get.k3s.io | K3S_URL=https://10.148.0.14:6443 \
   K3S_TOKEN=K1093ecca6c22d2a61c98a88ea654638744c52d46cc09ed4cf8649434312c3af985::server:27a1c0290ab435fbcbd59754dc967345 \
   INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 ```
@@ -122,13 +122,21 @@ sudo exportfs -v
 ```bash
 # thường sẽ là IP đầu tiên 
 hostname -I
-# Ví dụ tôi có 10.184.0.2 
+# Ví dụ tôi có 10.148.0.14 
 # Cần sửa trong prod\storage\nfs-pv-pvc.yaml phàn spec.nfs.server ở đây thay thế bằng IP của bạn 
+# Cần sửa trong file helm.yaml phần "cài k3s worker-node là ip private của server" thay thế bằng ip server của bạn nếu cần cái node-worker
 # Tương tự những chỗ mount nfs ở các file sau  
 #    prod\app\admin-mvc\deployment.yaml 
 #    prod\app\contestant-be\deployment.yaml
 #    prod\argo-workflows\start-chal-v2\start-chal-v2-template.yaml
 #    prod\argo-workflows\up-challenge\up-challenge-template.yaml
+
+# Cấu hình nodeSelector / hostname
+# Kiểm tra hostname node trong cluster:
+kubectl get nodes
+# Cập nhật đúng tên hostname của server chứa nfs trong các file sau phần kubernetes.io/hostname
+#    prod\helm\db\mariadb\maria-values.yaml
+#    prod\helm\db\mariadb\redis-values.yaml
 
 # apply NFS PV/PVC
 kubectl apply -f ./prod/storage/nfs-pv-pvc.yaml
