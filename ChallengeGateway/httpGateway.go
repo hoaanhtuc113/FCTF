@@ -12,7 +12,7 @@ import (
 
 const (
 	httpListenAddr = ":8080"
-	challengeCookieName = "challenge_token"
+	challengeCookieName = "FCTF_Auth_Token"
 )
 
 func startHTTPGateway() {
@@ -28,67 +28,96 @@ func startHTTPGateway() {
 
 func httpGatewayHandler(w http.ResponseWriter, r *http.Request) {
 	token, cleanedPath := extractTokenFromRequest(r)
+	// If token found in URL
+	if token != "" {
+        payload, err := verifyChallengeToken(token)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
+            return
+        }
+        setTokenCookieAndRedirect(w, r, token, payload.Exp, cleanedPath)
+        return
+    }
+
+	// If no token in URL, check cookie
 	cookie, err := r.Cookie(challengeCookieName)
 	if token == "" && err == nil {
 		token = cookie.Value
 	}
 
+	//If still no token, reject
 	if token == "" {
 		http.Error(w, "missing token", http.StatusUnauthorized)
 		return
 	}
 
+	// Verify token
 	payload, err := verifyChallengeToken(token)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
 		return
 	}
-
-	if cookie == nil || cookie.Value == "" {
-		maxAge := int(payload.Exp - time.Now().Unix())
-		if maxAge < 1 {
-			maxAge = 1
-		}
-		newCookie := &http.Cookie{
-			Name:     challengeCookieName,
-			Value:    token,
-			Path:     "/",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-			MaxAge:   maxAge,
-			Secure:   r.TLS != nil,
-		}
-		http.SetCookie(w, newCookie)
-
-		cleanURL := *r.URL
-		query := cleanURL.Query()
-		for key, values := range query {
-			filtered := values[:0]
-			for _, v := range values {
-				if v != token {
-					filtered = append(filtered, v)
-				}
-			}
-			if len(filtered) == 0 {
-				query.Del(key)
-			} else {
-				query[key] = filtered
-			}
-		}
-		cleanURL.RawQuery = query.Encode()
-		if cleanedPath != "" {
-			cleanURL.Path = cleanedPath
-		}
-		http.Redirect(w, r, cleanURL.String(), http.StatusFound)
-		return
-	}
-
+	
+	
 	target := &url.URL{Scheme: "http", Host: payload.Route}
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		req.Host = target.Host
+		originalDirector(req)
+		cleanProxyCookies(req)
+	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		http.Error(w, "upstream error", http.StatusBadGateway)
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func cleanProxyCookies(req *http.Request) {
+	allCookies := req.Cookies()
+	req.Header.Del("Cookie")
+	for _, cookie := range allCookies {
+		if cookie.Name == challengeCookieName {
+			continue
+		}
+		req.AddCookie(cookie)
+	}
+}
+
+func setTokenCookieAndRedirect(w http.ResponseWriter, r *http.Request, token string, exp int64, cleanedPath string) {
+	maxAge := int(exp - time.Now().Unix())
+	if maxAge < 1 {
+		maxAge = 1
+	}
+	newCookie := &http.Cookie{
+		Name:     challengeCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   maxAge,
+		Secure:   r.TLS != nil,
+	}
+	http.SetCookie(w, newCookie)
+	redirectURL := buildCleanRedirectURL(r.URL, cleanedPath)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
+
+func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
+	cleanURL := *originalURL
+	query := cleanURL.Query()
+
+	query.Del("token")
+	query.Del("t")
+	query.Del("access_token")
+	cleanURL.RawQuery = query.Encode()
+	if cleanedPath != "" {
+		cleanURL.Path = cleanedPath
+	}
+	cleanURL.Host = ""
+	cleanURL.Scheme = ""
+
+	return cleanURL.String()
 }
 
 func extractTokenFromRequest(r *http.Request) (string, string) {

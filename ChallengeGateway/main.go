@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net"
 
 	"github.com/joho/godotenv"
 )
@@ -14,21 +12,5 @@ func main() {
 	}
 
 	startHTTPGateway()
-
-	listenPort := ":1337"
-	ln, err := net.Listen("tcp", listenPort)
-	if err != nil {
-		log.Fatalf("Error starting gateway: %v", err)
-	}
-	defer ln.Close()
-
-	fmt.Printf("[*] TCP Gateway running on port %s...\n", listenPort)
-
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			continue
-		}
-		go HandleConnection(conn)
-	}
+	startTCPGateway()
 }
