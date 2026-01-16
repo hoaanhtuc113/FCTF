@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"time"
 
 	"challenge-gateway/db" 
 	"github.com/redis/go-redis/v9"
@@ -16,7 +17,7 @@ func HandleConnection(clientConn net.Conn, rdb *redis.Client) {
 
 	challengeTarget, err := authenticateClient(clientConn, rdb)
 	if err != nil {
-		fmt.Fprintln(clientConn, "Invalid or Expired Token. Goodbye!")
+		fmt.Fprintln(clientConn, "Auth failed!")
 		fmt.Printf("[-] Auth failed: %v\n", err)
 		return
 	}
@@ -47,23 +48,32 @@ func HandleConnection(clientConn net.Conn, rdb *redis.Client) {
 
 
 func authenticateClient(conn net.Conn, rdb *redis.Client) (string, error) {
-	fmt.Fprint(conn, "\n--- CTF AUTHENTICATION ---\nPlease enter your token: ")
+    timeoutDuration := 60 * time.Second
+    conn.SetReadDeadline(time.Now().Add(timeoutDuration))
 
-	reader := bufio.NewReader(conn)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
+    fmt.Fprint(conn, "\n--- CTF AUTHENTICATION ---\nPlease enter your token (Timeout 60s): ")
 
-	token := strings.TrimSpace(input)
-	if token == "" {
-		return "", fmt.Errorf("empty token")
-	}
+    reader := bufio.NewReader(conn)
+    input, err := reader.ReadString('\n')
+    
+    if err != nil {
+        if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+            return "", fmt.Errorf("Authentication timed out")
+        }
+        return "", err
+    }
 
-	target, err := db.GetChallengeConnectionByToken(rdb, token)
-	if err != nil {
-		return "", err
-	}
+    conn.SetReadDeadline(time.Time{}) 
 
-	return target, nil
+    token := strings.TrimSpace(input)
+    if token == "" {
+        return "", fmt.Errorf("empty token")
+    }
+
+    target, err := db.GetChallengeConnectionByToken(rdb, token)
+    if err != nil {
+        return "", err
+    }
+
+    return target, nil
 }
