@@ -11,8 +11,9 @@ import (
 	"time"
 )
 
-var tcpRateLimiter *rateLimiter
-var tcpIPConnLimiter *ipConnLimiter
+var tcpRateLimiter rateLimiter
+var tcpIPConnLimiter connLimiter
+var tcpGlobalConnLimiter connLimiter
 
 func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
 	listenPort := ":1337"
@@ -42,11 +43,18 @@ func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
 			}
 
 			ip := parseRemoteIP(conn.RemoteAddr().String())
-			if tcpRateLimiter != nil && !tcpRateLimiter.Allow(ip) {
+			if tcpRateLimiter != nil && !tcpRateLimiter.Allow(context.Background(), ip) {
 				_ = conn.Close()
 				continue
 			}
-			if tcpIPConnLimiter != nil && !tcpIPConnLimiter.acquire(ip) {
+			if tcpIPConnLimiter != nil && !tcpIPConnLimiter.Acquire(context.Background(), ip) {
+				_ = conn.Close()
+				continue
+			}
+			if tcpGlobalConnLimiter != nil && !tcpGlobalConnLimiter.Acquire(context.Background(), "global") {
+				if tcpIPConnLimiter != nil {
+					tcpIPConnLimiter.Release(context.Background(), ip)
+				}
 				_ = conn.Close()
 				continue
 			}
@@ -55,7 +63,10 @@ func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
 			go func(clientIP string) {
 				defer func() { <-sem }()
 				if tcpIPConnLimiter != nil {
-					defer tcpIPConnLimiter.release(clientIP)
+					defer tcpIPConnLimiter.Release(context.Background(), clientIP)
+				}
+				if tcpGlobalConnLimiter != nil {
+					defer tcpGlobalConnLimiter.Release(context.Background(), "global")
 				}
 				HandleConnection(conn)
 			}(ip)

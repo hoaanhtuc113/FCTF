@@ -17,7 +17,7 @@ const (
 	challengeCookieName = "FCTF_Auth_Token"
 )
 
-var httpRateLimiter *rateLimiter
+var httpRateLimiter rateLimiter
 
 type ctxKey string
 
@@ -190,7 +190,7 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		ip := parseRemoteIP(r.RemoteAddr)
-		if !httpRateLimiter.Allow(ip) {
+		if !httpRateLimiter.Allow(r.Context(), ip) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}

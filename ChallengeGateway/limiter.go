@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net"
 	"os"
 	"strconv"
@@ -8,7 +9,11 @@ import (
 	"time"
 )
 
-type rateLimiter struct {
+type rateLimiter interface {
+	Allow(ctx context.Context, key string) bool
+}
+
+type localRateLimiter struct {
 	mu     sync.Mutex
 	rate   float64
 	burst  float64
@@ -16,8 +21,8 @@ type rateLimiter struct {
 	last   map[string]time.Time
 }
 
-func newRateLimiter(rate float64, burst int) *rateLimiter {
-	return &rateLimiter{
+func newLocalRateLimiter(rate float64, burst int) *localRateLimiter {
+	return &localRateLimiter{
 		rate:   rate,
 		burst:  float64(burst),
 		tokens: make(map[string]float64),
@@ -25,13 +30,22 @@ func newRateLimiter(rate float64, burst int) *rateLimiter {
 	}
 }
 
-func initLimiters(cfg gatewayConfig) {
-	httpRateLimiter = newRateLimiter(cfg.HTTPRate, cfg.HTTPBurst)
-	tcpRateLimiter = newRateLimiter(cfg.TCPRate, cfg.TCPBurst)
+func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) {
+	if redisClient != nil {
+		httpRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl")
+		tcpRateLimiter = newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl")
+		tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip")
+		tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global")
+		return
+	}
+
+	httpRateLimiter = newLocalRateLimiter(cfg.HTTPRate, cfg.HTTPBurst)
+	tcpRateLimiter = newLocalRateLimiter(cfg.TCPRate, cfg.TCPBurst)
 	tcpIPConnLimiter = newIPConnLimiter(cfg.TCPMaxConnsPerIP)
+	tcpGlobalConnLimiter = nil
 }
 
-func (rl *rateLimiter) Allow(ip string) bool {
+func (rl *localRateLimiter) Allow(ctx context.Context, ip string) bool {
 	if ip == "" {
 		return true
 	}
@@ -119,6 +133,19 @@ func (l *ipConnLimiter) release(ip string) {
 	delete(l.count, ip)
 }
 
+func (l *ipConnLimiter) Acquire(ctx context.Context, ip string) bool {
+	return l.acquire(ip)
+}
+
+func (l *ipConnLimiter) Release(ctx context.Context, ip string) {
+	l.release(ip)
+}
+
+type connLimiter interface {
+	Acquire(ctx context.Context, key string) bool
+	Release(ctx context.Context, key string)
+}
+
 type gatewayConfig struct {
 	HTTPRate         float64
 	HTTPBurst        int
@@ -126,6 +153,12 @@ type gatewayConfig struct {
 	TCPBurst         int
 	TCPMaxConns      int
 	TCPMaxConnsPerIP int
+	RedisAddr        string
+	RedisPassword    string
+	RedisDB          int
+	RedisKeyPrefix   string
+	RedisPoolSize    int
+	RedisMinIdle     int
 }
 
 func loadConfig() gatewayConfig {
@@ -136,6 +169,12 @@ func loadConfig() gatewayConfig {
 		TCPBurst:         envInt("TCP_BURST", 200),
 		TCPMaxConns:      envInt("TCP_MAX_CONNS", 4000),
 		TCPMaxConnsPerIP: envInt("TCP_MAX_CONNS_PER_IP", 80),
+		RedisAddr:        os.Getenv("REDIS_ADDR"),
+		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
+		RedisDB:          envInt("REDIS_DB", 0),
+		RedisKeyPrefix:   envString("REDIS_KEY_PREFIX", "fctf:gateway"),
+		RedisPoolSize:    envInt("REDIS_POOL_SIZE", 100),
+		RedisMinIdle:     envInt("REDIS_MIN_IDLE", 10),
 	}
 }
 
@@ -167,4 +206,12 @@ func envFloat(key string, def float64) float64 {
 		return def
 	}
 	return parsed
+}
+
+func envString(key string, def string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+	return val
 }
