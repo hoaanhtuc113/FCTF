@@ -17,7 +17,8 @@ func main() {
 	}
 
 	cfg := loadConfig()
-	initLimiters(cfg)
+	redisClient := initRedis(cfg)
+	initLimiters(cfg, redisClient)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
