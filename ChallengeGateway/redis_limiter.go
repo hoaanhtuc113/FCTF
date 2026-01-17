@@ -20,9 +20,10 @@ type redisRateLimiter struct {
 	prefix string
 	ttl    time.Duration
 	script string
+	failClosed bool
 }
 
-func newRedisRateLimiter(client redisLimiterClient, rate float64, burst int, prefix string) *redisRateLimiter {
+func newRedisRateLimiter(client redisLimiterClient, rate float64, burst int, prefix string, failClosed bool) *redisRateLimiter {
 	return &redisRateLimiter{
 		client: client,
 		rate:   rate,
@@ -30,6 +31,7 @@ func newRedisRateLimiter(client redisLimiterClient, rate float64, burst int, pre
 		prefix: prefix,
 		ttl:    10 * time.Minute,
 		script: redisRateLimitScript,
+		failClosed: failClosed,
 	}
 }
 
@@ -41,7 +43,7 @@ func (rl *redisRateLimiter) Allow(ctx context.Context, key string) bool {
 	res, err := rl.client.Eval(ctx, rl.script, []string{redisKey}, rl.rate, rl.burst, int(rl.ttl.Seconds())).Int()
 	if err != nil {
 		log.Printf("redis rate limit error: %v", err)
-		return true
+		return !rl.failClosed
 	}
 	return res == 1
 }
@@ -51,14 +53,16 @@ type redisConnLimiter struct {
 	max    int
 	prefix string
 	ttl    time.Duration
+	failClosed bool
 }
 
-func newRedisConnLimiter(client redisLimiterClient, max int, prefix string) *redisConnLimiter {
+func newRedisConnLimiter(client redisLimiterClient, max int, prefix string, failClosed bool) *redisConnLimiter {
 	return &redisConnLimiter{
 		client: client,
 		max:    max,
 		prefix: prefix,
 		ttl:    1 * time.Hour,
+		failClosed: failClosed,
 	}
 }
 
@@ -70,7 +74,7 @@ func (l *redisConnLimiter) Acquire(ctx context.Context, key string) bool {
 	res, err := l.client.Eval(ctx, redisConnAcquireScript, []string{redisKey}, l.max, int(l.ttl.Seconds())).Int()
 	if err != nil {
 		log.Printf("redis conn acquire error: %v", err)
-		return true
+		return !l.failClosed
 	}
 	return res == 1
 }
@@ -103,6 +107,9 @@ func initRedis(cfg gatewayConfig) redisLimiterClient {
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
 		log.Printf("redis unavailable: %v", err)
+		if cfg.RedisFailClosed {
+			return client
+		}
 		return nil
 	}
 

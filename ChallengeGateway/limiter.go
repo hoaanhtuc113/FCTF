@@ -32,10 +32,10 @@ func newLocalRateLimiter(rate float64, burst int) *localRateLimiter {
 
 func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) {
 	if redisClient != nil {
-		httpRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl")
-		tcpRateLimiter = newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl")
-		tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip")
-		tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global")
+		httpRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl", cfg.RedisFailClosed)
+		tcpRateLimiter = newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl", cfg.RedisFailClosed)
+		tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip", cfg.RedisFailClosed)
+		tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global", cfg.RedisFailClosed)
 		return
 	}
 
@@ -159,6 +159,7 @@ type gatewayConfig struct {
 	RedisKeyPrefix   string
 	RedisPoolSize    int
 	RedisMinIdle     int
+	RedisFailClosed  bool
 }
 
 func loadConfig() gatewayConfig {
@@ -175,6 +176,7 @@ func loadConfig() gatewayConfig {
 		RedisKeyPrefix:   envString("REDIS_KEY_PREFIX", "fctf:gateway"),
 		RedisPoolSize:    envInt("REDIS_POOL_SIZE", 100),
 		RedisMinIdle:     envInt("REDIS_MIN_IDLE", 10),
+		RedisFailClosed:  envBool("REDIS_FAIL_CLOSED", false),
 	}
 }
 
@@ -214,4 +216,16 @@ func envString(key string, def string) string {
 		return def
 	}
 	return val
+}
+
+func envBool(key string, def bool) bool {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+	parsed, err := strconv.ParseBool(val)
+	if err != nil {
+		return def
+	}
+	return parsed
 }
