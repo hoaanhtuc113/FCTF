@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -10,27 +11,67 @@ import (
 	"time"
 )
 
-func startTCPGateway() {
+var tcpRateLimiter *rateLimiter
+var tcpIPConnLimiter *ipConnLimiter
+
+func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
 	listenPort := ":1337"
 	ln, err := net.Listen("tcp", listenPort)
 	if err != nil {
 		log.Fatalf("Error starting gateway: %v", err)
 	}
-	defer ln.Close()
+
+	maxConns := cfg.TCPMaxConns
+	sem := make(chan struct{}, maxConns)
 
 	fmt.Printf("[*] TCP Gateway running on port %s...\n", listenPort)
 
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			continue
+	go func() {
+		<-ctx.Done()
+		_ = ln.Close()
+	}()
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				continue
+			}
+
+			ip := parseRemoteIP(conn.RemoteAddr().String())
+			if tcpRateLimiter != nil && !tcpRateLimiter.Allow(ip) {
+				_ = conn.Close()
+				continue
+			}
+			if tcpIPConnLimiter != nil && !tcpIPConnLimiter.acquire(ip) {
+				_ = conn.Close()
+				continue
+			}
+
+			sem <- struct{}{}
+			go func(clientIP string) {
+				defer func() { <-sem }()
+				if tcpIPConnLimiter != nil {
+					defer tcpIPConnLimiter.release(clientIP)
+				}
+				HandleConnection(conn)
+			}(ip)
 		}
-		go HandleConnection(conn)
-	}
+	}()
+
+	return ln
 }
 
 func HandleConnection(clientConn net.Conn) {
 	defer clientConn.Close()
+	log.Printf("[+] TCP connection from %s", clientConn.RemoteAddr())
+	if tcpConn, ok := clientConn.(*net.TCPConn); ok {
+		_ = tcpConn.SetKeepAlive(true)
+		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
+	}
 
 	challengeTarget, err := authenticateClient(clientConn)
 	if err != nil {
@@ -38,6 +79,7 @@ func HandleConnection(clientConn net.Conn) {
 		fmt.Printf("[-] Auth failed: %v\n", err)
 		return
 	}
+	log.Printf("[+] Auth OK for %s -> %s", clientConn.RemoteAddr(), challengeTarget)
 
 	fmt.Fprintf(clientConn, "Access Granted! Connecting to challenge...\n")
 	challengeConn, err := net.Dial("tcp", challengeTarget)
@@ -60,7 +102,7 @@ func HandleConnection(clientConn net.Conn) {
 	}()
 
 	<-done
-	fmt.Printf("[+] Session ended: %s\n", clientConn.RemoteAddr())
+	log.Printf("[+] Session ended: %s", clientConn.RemoteAddr())
 }
 
 

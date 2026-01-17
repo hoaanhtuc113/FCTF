@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -11,6 +16,27 @@ func main() {
 		log.Println("Warning: No .env file found, reading system environment variables")
 	}
 
-	startHTTPGateway()
-	startTCPGateway()
+	cfg := loadConfig()
+	initLimiters(cfg)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	httpServer := startHTTPGateway()
+	tcpListener := startTCPGateway(ctx, cfg)
+
+	<-ctx.Done()
+	log.Println("Shutting down gateways...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if httpServer != nil {
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP shutdown error: %v", err)
+		}
+	}
+	if tcpListener != nil {
+		_ = tcpListener.Close()
+	}
 }

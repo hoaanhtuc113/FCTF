@@ -27,6 +27,6 @@ COPY .env.example ./
 USER app
 EXPOSE 1337 8080
 
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD nc -z localhost 1337 || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD nc -z localhost 1337 && nc -z localhost 8080 || exit 1
 
 CMD ["./challenge-gateway"]

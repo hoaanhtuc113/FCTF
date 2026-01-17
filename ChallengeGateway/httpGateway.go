@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -11,22 +13,74 @@ import (
 )
 
 const (
-	httpListenAddr = ":8080"
+	httpListenAddr    = ":8080"
 	challengeCookieName = "FCTF_Auth_Token"
 )
 
-func startHTTPGateway() {
-	http.HandleFunc("/", httpGatewayHandler)
+var httpRateLimiter *rateLimiter
+
+type ctxKey string
+
+const targetHostKey ctxKey = "targetHost"
+
+func startHTTPGateway() *http.Server {
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		MaxIdleConns:          200,
+		MaxIdleConnsPerHost:   50,
+		IdleConnTimeout:       90 * time.Second,
+	}
+
+	proxy := &httputil.ReverseProxy{
+		Transport: transport,
+		Director: func(req *http.Request) {
+			value := req.Context().Value(targetHostKey)
+			targetHost, _ := value.(string)
+			req.URL.Scheme = "http"
+			req.URL.Host = targetHost
+			req.Host = targetHost
+			cleanProxyCookies(req)
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			log.Printf("HTTP upstream error: %v", err)
+			http.Error(w, "upstream error", http.StatusBadGateway)
+		},
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	mux.Handle("/", loggingMiddleware(rateLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpGatewayHandler(w, r, proxy)
+	}))))
+
+	server := &http.Server{
+		Addr:              httpListenAddr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 
 	go func() {
 		log.Printf("[*] HTTP Gateway running on port %s...", httpListenAddr)
-		if err := http.ListenAndServe(httpListenAddr, nil); err != nil {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP Gateway error: %v", err)
 		}
 	}()
+
+	return server
 }
 
-func httpGatewayHandler(w http.ResponseWriter, r *http.Request) {
+func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.ReverseProxy) {
 	token, cleanedPath := extractTokenFromRequest(r)
 	// If token found in URL
 	if token != "" {
@@ -59,18 +113,8 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	
-	target := &url.URL{Scheme: "http", Host: payload.Route}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		req.Host = target.Host
-		originalDirector(req)
-		cleanProxyCookies(req)
-	}
-	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		http.Error(w, "upstream error", http.StatusBadGateway)
-	}
-	proxy.ServeHTTP(w, r)
+	ctx := context.WithValue(r.Context(), targetHostKey, payload.Route)
+	proxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
 func cleanProxyCookies(req *http.Request) {
@@ -118,6 +162,40 @@ func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
 	cleanURL.Scheme = ""
 
 	return cleanURL.String()
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (sr *statusRecorder) WriteHeader(code int) {
+	sr.status = code
+	sr.ResponseWriter.WriteHeader(code)
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(recorder, r)
+		log.Printf("HTTP %s %s %d %s", r.Method, r.URL.Path, recorder.status, time.Since(start))
+	})
+}
+
+func rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if httpRateLimiter == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		ip := parseRemoteIP(r.RemoteAddr)
+		if !httpRateLimiter.Allow(ip) {
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func extractTokenFromRequest(r *http.Request) (string, string) {
