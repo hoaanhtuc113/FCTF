@@ -13,6 +13,7 @@ import (
 
 var tcpRateLimiter rateLimiter
 var tcpIPConnLimiter connLimiter
+var tcpTokenConnLimiter connLimiter
 var tcpGlobalConnLimiter connLimiter
 
 func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
@@ -84,16 +85,31 @@ func HandleConnection(clientConn net.Conn) {
 		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}
 
-	challengeTarget, err := authenticateClient(clientConn)
+	payload, token, err := authenticateClient(clientConn)
 	if err != nil {
 		fmt.Fprintln(clientConn, "Auth failed!")
 		fmt.Printf("[-] Auth failed: %v\n", err)
 		return
 	}
-	log.Printf("[+] Auth OK for %s -> %s", clientConn.RemoteAddr(), challengeTarget)
+	clientIP := parseRemoteIP(clientConn.RemoteAddr().String())
+	if tcpRateLimiter != nil {
+		key := buildRateLimitKey(token, clientIP)
+		if !tcpRateLimiter.Allow(context.Background(), key) {
+			fmt.Fprintln(clientConn, "Rate limit exceeded")
+			return
+		}
+	}
+	if tcpTokenConnLimiter != nil && token != "" {
+		if !tcpTokenConnLimiter.Acquire(context.Background(), token) {
+			fmt.Fprintln(clientConn, "Too many connections for token")
+			return
+		}
+		defer tcpTokenConnLimiter.Release(context.Background(), token)
+	}
+	log.Printf("[+] Auth OK for %s -> %s", clientConn.RemoteAddr(), payload.Route)
 
 	fmt.Fprintf(clientConn, "Access Granted! Connecting to challenge...\n")
-	challengeConn, err := net.Dial("tcp", challengeTarget)
+	challengeConn, err := net.Dial("tcp", payload.Route)
 	if err != nil {
 		fmt.Fprintf(clientConn, "[!] Could not connect to challenge server.\n")
 		return
@@ -117,7 +133,7 @@ func HandleConnection(clientConn net.Conn) {
 }
 
 
-func authenticateClient(conn net.Conn) (string, error) {
+func authenticateClient(conn net.Conn) (challengeTokenPayload, string, error) {
     timeoutDuration := 60 * time.Second
     conn.SetReadDeadline(time.Now().Add(timeoutDuration))
 
@@ -126,27 +142,25 @@ func authenticateClient(conn net.Conn) (string, error) {
     reader := bufio.NewReader(conn)
     input, err := reader.ReadString('\n')
     
-    if err != nil {
-        if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-            return "", fmt.Errorf("Authentication timed out")
-        }
-        return "", err
-    }
+	if err != nil {
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			return challengeTokenPayload{}, "", fmt.Errorf("Authentication timed out")
+		}
+		return challengeTokenPayload{}, "", err
+	}
 
     conn.SetReadDeadline(time.Time{}) 
 
     token := strings.TrimSpace(input)
     if token == "" {
-        return "", fmt.Errorf("empty token")
+        return challengeTokenPayload{}, "", fmt.Errorf("empty token")
     }
 
-	return getRouteFromChallengeToken(token)
-}
-
-func getRouteFromChallengeToken(token string) (string, error) {
 	payload, err := verifyChallengeToken(token)
 	if err != nil {
-		return "", err
+		return challengeTokenPayload{}, "", err
 	}
-	return payload.Route, nil
+
+	return payload, token, nil
 }
+

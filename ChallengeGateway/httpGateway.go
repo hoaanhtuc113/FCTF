@@ -190,7 +190,14 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		ip := parseRemoteIP(r.RemoteAddr)
-		if !httpRateLimiter.Allow(r.Context(), ip) {
+		token, _ := extractTokenFromRequest(r)
+		if token == "" {
+			if cookie, err := r.Cookie(challengeCookieName); err == nil && looksLikeToken(cookie.Value) {
+				token = cookie.Value
+			}
+		}
+		key := buildRateLimitKey(token, ip)
+		if !httpRateLimiter.Allow(r.Context(), key) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}

@@ -35,6 +35,7 @@ func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) {
 		httpRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl", cfg.RedisFailClosed)
 		tcpRateLimiter = newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl", cfg.RedisFailClosed)
 		tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip", cfg.RedisFailClosed)
+		tcpTokenConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerToken, cfg.RedisKeyPrefix+":tcp:conn:token", cfg.RedisFailClosed)
 		tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global", cfg.RedisFailClosed)
 		return
 	}
@@ -42,6 +43,7 @@ func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) {
 	httpRateLimiter = newLocalRateLimiter(cfg.HTTPRate, cfg.HTTPBurst)
 	tcpRateLimiter = newLocalRateLimiter(cfg.TCPRate, cfg.TCPBurst)
 	tcpIPConnLimiter = newIPConnLimiter(cfg.TCPMaxConnsPerIP)
+	tcpTokenConnLimiter = newIPConnLimiter(cfg.TCPMaxConnsPerToken)
 	tcpGlobalConnLimiter = nil
 }
 
@@ -92,6 +94,16 @@ func parseRemoteIP(addr string) string {
 		return ""
 	}
 	return host
+}
+
+func buildRateLimitKey(token string, ip string) string {
+	if token != "" && ip != "" {
+		return "tok:" + token + ":ip:" + ip
+	}
+	if token != "" {
+		return "tok:" + token
+	}
+	return ip
 }
 
 type ipConnLimiter struct {
@@ -153,6 +165,7 @@ type gatewayConfig struct {
 	TCPBurst         int
 	TCPMaxConns      int
 	TCPMaxConnsPerIP int
+	TCPMaxConnsPerToken int
 	RedisAddr        string
 	RedisPassword    string
 	RedisDB          int
@@ -164,12 +177,13 @@ type gatewayConfig struct {
 
 func loadConfig() gatewayConfig {
 	return gatewayConfig{
-		HTTPRate:         envFloat("HTTP_RATE", 100),
-		HTTPBurst:        envInt("HTTP_BURST", 200),
-		TCPRate:          envFloat("TCP_RATE", 50),
-		TCPBurst:         envInt("TCP_BURST", 200),
+		HTTPRate:         envFloat("HTTP_RATE", 150),
+		HTTPBurst:        envInt("HTTP_BURST", 300),
+		TCPRate:          envFloat("TCP_RATE", 5),
+		TCPBurst:         envInt("TCP_BURST", 15),
 		TCPMaxConns:      envInt("TCP_MAX_CONNS", 4000),
-		TCPMaxConnsPerIP: envInt("TCP_MAX_CONNS_PER_IP", 80),
+		TCPMaxConnsPerIP: envInt("TCP_MAX_CONNS_PER_IP", 500),
+		TCPMaxConnsPerToken: envInt("TCP_MAX_CONNS_PER_TOKEN", 15),
 		RedisAddr:        os.Getenv("REDIS_ADDR"),
 		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
 		RedisDB:          envInt("REDIS_DB", 0),
