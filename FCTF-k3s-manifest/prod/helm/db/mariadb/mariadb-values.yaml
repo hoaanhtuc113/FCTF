@@ -418,7 +418,7 @@ primary:
   ## Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
   ##
   nodeSelector: 
-    kubernetes.io/hostname: test-guideline
+    kubernetes.io/hostname: server-1-master
   ## @param primary.tolerations Tolerations for MariaDB primary pods assignment
   ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   ##
