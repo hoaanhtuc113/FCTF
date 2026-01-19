@@ -26,13 +26,13 @@ sudo timedatectl set-timezone Asia/Ho_Chi_Minh
 **Cho Production (Cloud serrver):**
 ```bash
 # Cài K3s với domain TLS SAN
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 644 --tls-san=35.219.48.141" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 644 --tls-san=35.219.48.141 --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
 ```
 
 **Cho Development (Local, WSL...):**
 ```bash
 # Cài K3s đơn giản hơn, không cần domain
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644 --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
 ```
 
 **Cài các woker-node nếu có**
