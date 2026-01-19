@@ -62,9 +62,9 @@ func startHTTPGateway() *http.Server {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.Handle("/", loggingMiddleware(rateLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/", loggingMiddleware(rateLimitMiddleware(bodySizeLimitMiddleware(cfg.HTTPMaxBodyBytes, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpGatewayHandler(w, r, proxy)
-	}))))
+	})))))
 
 	server := &http.Server{
 		Addr:              httpListenAddr,
@@ -221,6 +221,21 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func bodySizeLimitMiddleware(maxBytes int64, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if maxBytes <= 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if r.ContentLength > maxBytes {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 		next.ServeHTTP(w, r)
 	})
 }

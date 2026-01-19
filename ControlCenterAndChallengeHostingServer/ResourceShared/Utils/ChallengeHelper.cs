@@ -109,7 +109,7 @@ namespace ResourceShared.Utils
             var payloadJson = JsonSerializer.Serialize(payload);
             var payloadB64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
 
-            using var hmac = new HMACSHA256(Secret);
+            using var hmac = new HMACMD5(Secret);
             var signature = hmac.ComputeHash(Encoding.UTF8.GetBytes(payloadB64));
             var signatureB64 = Base64UrlEncode(signature);
 
