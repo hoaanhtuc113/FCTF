@@ -67,7 +67,7 @@ namespace ResourceShared.Services
                 var version = _kubernetes.Version.GetCode();
             }
 
-            _dbContext=dbContext;
+            _dbContext = dbContext;
         }
 
         public async Task<bool> CheckPodAlive(string podName, string namespaceName)
@@ -554,7 +554,7 @@ namespace ResourceShared.Services
                         retryCount,
                         delayMs = delay,
                         errorType = "HttpRequestException"
-                    },logLevel: LogLevel.Warning);
+                    }, logLevel: LogLevel.Warning);
 
                     await Task.Delay(delay, cancellationToken);
                 }
@@ -650,9 +650,17 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.BadRequest
                     };
 
-                var challengeDomain = $"Connection string: {SharedConfig.TCP_DOMAIN} {port}";
-
                 var timeLimit = challenge.TimeLimit ?? -1;
+
+                var routeInfo = $"{podName}-svc.{podName}.svc.cluster.local:3333";
+                var expiry = DateTimeOffset.UtcNow.AddMinutes(
+                    timeLimit > 0 ? timeLimit : 30
+                );
+                var challengeToken = ChallengeHelper.GenerateChallengeToken(routeInfo, expiry);
+
+                var gateWayPort = 30037;
+
+                var challengeDomain = $"Connection string: {SharedConfig.TCP_DOMAIN} {gateWayPort} \n Token: {challengeToken}";
 
                 var nowUtc = DateTimeOffset.UtcNow;
                 var timeFinished = nowUtc.AddMinutes(timeLimit);
@@ -757,7 +765,7 @@ namespace ResourceShared.Services
         {
             var sb = new StringBuilder();
 
-            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]",RegexOptions.None,TimeSpan.FromMilliseconds(200));
+            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]", RegexOptions.None, TimeSpan.FromMilliseconds(200));
 
             // Lấy tất cả pod thuộc workflow
             var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(
@@ -907,7 +915,7 @@ namespace ResourceShared.Services
 
         public static string NormalizeLog(string raw)
         {
-            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]",RegexOptions.None,TimeSpan.FromMilliseconds(200));
+            var ansiRegex = new Regex(@"\x1B\[[0-9;]*[A-Za-z]", RegexOptions.None, TimeSpan.FromMilliseconds(200));
             var clean = ansiRegex.Replace(raw, string.Empty);
 
             var sb = new StringBuilder();
