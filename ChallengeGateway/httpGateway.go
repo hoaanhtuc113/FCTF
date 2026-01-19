@@ -23,6 +23,12 @@ type ctxKey string
 
 const targetHostKey ctxKey = "targetHost"
 
+type requestInfo struct {
+	TargetHost string
+}
+
+const requestInfoKey ctxKey = "requestInfo"
+
 func startHTTPGateway() *http.Server {
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -111,8 +117,12 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 		http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
 		return
 	}
-	
-	
+
+	// Store target host in requestInfo for logging
+	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
+		info.TargetHost = payload.Route
+	}
+
 	ctx := context.WithValue(r.Context(), targetHostKey, payload.Route)
 	proxy.ServeHTTP(w, r.WithContext(ctx))
 }
@@ -178,8 +188,18 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(recorder, r)
-		log.Printf("HTTP %s %s %d %s", r.Method, r.URL.Path, recorder.status, time.Since(start))
+
+		// Create requestInfo to capture target host
+		info := &requestInfo{}
+		ctx := context.WithValue(r.Context(), requestInfoKey, info)
+
+		next.ServeHTTP(recorder, r.WithContext(ctx))
+
+		targetHost := info.TargetHost
+		if targetHost == "" {
+			targetHost = "-"
+		}
+		log.Printf("HTTP %s %s %d %s -> %s", r.Method, r.URL.Path, recorder.status, time.Since(start), targetHost)
 	})
 }
 
@@ -237,20 +257,4 @@ func extractTokenFromRequest(r *http.Request) (string, string) {
 	}
 
 	return token, cleanPath
-}
-
-func looksLikeToken(value string) bool {
-	if value == "" {
-		return false
-	}
-	if strings.Count(value, ".") != 1 {
-		return false
-	}
-	for _, r := range value {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
-			continue
-		}
-		return false
-	}
-	return len(value) >= 16
 }

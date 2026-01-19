@@ -65,3 +65,19 @@ if time.Now().Unix() > payload.Exp {
 
 	return payload, nil
 }
+
+func looksLikeToken(value string) bool {
+	if value == "" {
+		return false
+	}
+	if strings.Count(value, ".") != 1 {
+		return false
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return len(value) >= 16
+}
