@@ -41,7 +41,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --disable-network-policy \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
   --write-kubeconfig-mode=644 \
-  --tls-san 34.142.167.47" sh -
+  --tls-san 34.2.140.1" sh -
 ```
 
 # cài k3s worker-node là ip private của server
@@ -52,8 +52,8 @@ sudo cat /var/lib/rancher/k3s/server/node-token
 # Cài k3s worker-node
 # Truy cập vào worker-node và chạy lệnh này để join vào master node
 curl -sfL https://get.k3s.io | K3S_URL=https://10.148.0.8:6443 \
-  K3S_TOKEN=K1093ecca6c22d2a61c98a88ea654638744c52d46cc09ed4cf8649434312c3af985::server:27a1c0290ab435fbcbd59754dc967345 \
-  INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
+  K3S_TOKEN=K109b367746ec9f9e58a196e502f77281bd9fed2c2e1fbad52f81a2c47391883cc6::server:19978b0a58a7e1822d41c61a2c396e94 \
+  INSTALL_K3S_EXEC="agent --with-node-id --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 ```
 
 **Cho Development (Local, WSL...):**
