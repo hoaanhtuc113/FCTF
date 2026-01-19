@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -16,6 +17,18 @@ namespace ResourceShared.Utils
 {
     public static class ChallengeHelper
     {
+        private static byte[] Secret => GetSecretBytes();
+
+        private static byte[] GetSecretBytes()
+        {
+            var secret = SharedConfig.PRIVATE_KEY;
+            if (string.IsNullOrWhiteSpace(secret))
+            {
+                throw new InvalidOperationException("Missing PRIVATE_KEY");
+            }
+            return Encoding.UTF8.GetBytes(secret);
+        }
+
         public static string ModifyDescription(Challenge challenge)
         {
             var inputText = challenge.Description;
@@ -82,6 +95,33 @@ namespace ResourceShared.Utils
         {
             return $"active_deploys_team_{teamId}";
         }
+
+        public static string GenerateChallengeToken(
+            string routeInfo,
+            DateTimeOffset expiryUtc)
+        {
+            var payload = new
+            {
+                exp = expiryUtc.ToUnixTimeSeconds(),
+                route = routeInfo
+            };
+
+            var payloadJson = JsonSerializer.Serialize(payload);
+            var payloadB64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
+
+            using var hmac = new HMACMD5(Secret);
+            var signature = hmac.ComputeHash(Encoding.UTF8.GetBytes(payloadB64));
+            var signatureB64 = Base64UrlEncode(signature);
+
+            return $"{payloadB64}.{signatureB64}";
+        }
+
+        private static string Base64UrlEncode(byte[] data)
+            => Convert.ToBase64String(data)
+                .Replace("+", "-")
+                .Replace("/", "_")
+                .TrimEnd('=');
+
 
         // public static string GenerateCacheAttemptKey(int challengeId, int teamId)
         // {
@@ -281,7 +321,7 @@ namespace ResourceShared.Utils
             try
             {
                 var opts = (data == "case_insensitive") ? RegexOptions.IgnoreCase : RegexOptions.None;
-                var m = Regex.Match(provided ?? "", saved, opts,TimeSpan.FromMilliseconds(100));
+                var m = Regex.Match(provided ?? "", saved, opts, TimeSpan.FromMilliseconds(100));
                 return m.Success && m.Value == provided;
             }
             catch (ArgumentException ex)
