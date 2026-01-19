@@ -1224,6 +1224,8 @@ grafana:
   enabled: true
   namespaceOverride: ""
 
+  priorityClassName: app-normal
+
   ## ForceDeployDatasources Create datasource configmap even if grafana deployment has been disabled
   ##
   forceDeployDatasources: false
@@ -4016,7 +4018,10 @@ prometheus:
     ## Tolerations for use with node taints
     ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
     ##
-    tolerations: []
+    tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
     #  - key: "key"
     #    operator: "Equal"
     #    value: "value"
@@ -5348,7 +5353,10 @@ thanosRuler:
     ## If specified, the pod's tolerations.
     ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
     ##
-    tolerations: []
+    tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
     # - key: "key"
     #   operator: "Equal"
     #   value: "value"

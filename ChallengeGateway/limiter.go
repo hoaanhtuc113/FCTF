@@ -161,6 +161,7 @@ type connLimiter interface {
 type gatewayConfig struct {
 	HTTPRate         float64
 	HTTPBurst        int
+	HTTPMaxBodyBytes int64
 	TCPRate          float64
 	TCPBurst         int
 	TCPMaxConns      int
@@ -179,6 +180,7 @@ func loadConfig() gatewayConfig {
 	return gatewayConfig{
 		HTTPRate:         envFloat("HTTP_RATE", 150),
 		HTTPBurst:        envInt("HTTP_BURST", 300),
+		HTTPMaxBodyBytes: envInt64("HTTP_MAX_BODY_BYTES", 10<<20),
 		TCPRate:          envFloat("TCP_RATE", 5),
 		TCPBurst:         envInt("TCP_BURST", 15),
 		TCPMaxConns:      envInt("TCP_MAX_CONNS", 4000),
@@ -200,6 +202,21 @@ func envInt(key string, def int) int {
 		return def
 	}
 	parsed, err := strconv.Atoi(val)
+	if err != nil {
+		return def
+	}
+	if parsed < 1 {
+		return def
+	}
+	return parsed
+}
+
+func envInt64(key string, def int64) int64 {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+	parsed, err := strconv.ParseInt(val, 10, 64)
 	if err != nil {
 		return def
 	}
