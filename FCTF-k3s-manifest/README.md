@@ -25,21 +25,29 @@ sudo timedatectl set-timezone Asia/Ho_Chi_Minh
 ### 2. Cài đặt K3s Master Node
 **Cho Production (Cloud serrver):**
 ```bash
+
+sudo mkdir -p /etc/rancher/k3s
+sudo tee /etc/rancher/k3s/kubelet.config <<EOF
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+maxPods: 250
+EOF
+
 # Cài K3s với domain TLS SAN
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 644 --tls-san=35.219.48.141 --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 644 --tls-san=34.2.140.1 --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
 ```
 
 **Cho Development (Local, WSL...):**
 ```bash
 # Cài K3s đơn giản hơn, không cần domain
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644 --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644" sh -
 ```
 
 **Cài các woker-node nếu có**
 ```bash
 # Cài k3s worker-node
 # Truy cập vào worker-node và chạy lệnh này để join vào master node
-curl -sfL https://get.k3s.io | K3S_URL=https://35.219.48.141:6443 K3S_TOKEN=K10b3095185665f61cb743b0e4820a6dc358d1fd7ec846de764d68c2912b0a5dffe::server:832d9f9174fcdc5a5f4b555b048ebabc sh -
+curl -sfL https://get.k3s.io | K3S_URL=https://35.219.48.141:6443 K3S_TOKEN=K103423d372b84bbc3e0904027636d3e102f4ed204b7661e1402fd5a71704b3efe6::server:bc7aa9e972db97d5932c70f0d24f1900 sh -
 ```
 
 **Kiểm tra và cấu hình kubectl:**
@@ -298,6 +306,7 @@ helm uninstall redis -n db
 helm uninstall mariadb -n db
 helm uninstall cert-manager -n cert-manager
 helm uninstall ingress-nginx -n ingress-nginx
+helm uninstall rancher -n cattle-system
 
 # Xóa namespaces
 kubectl delete namespace storage argo monitoring db cert-manager ingress-nginx
