@@ -178,7 +178,7 @@ kubectl apply -f ./prod/app/deployment-listener/
 
 # Ở đây có 2 cách bạn có thể chuyển đổi qua lại
 # Apply NodePort services: Nếu Ở môi trường local, ingress domain không hoạt động. sử dụng cách này**
-kubectl apply -f ./prod/app/service-nodeport.yaml
+kubectl delete -f ./prod/app/service-nodeport.yaml
 # Apply ClusterIP services: Môi trường production có doamin
 kubectl apply -f ./prod/app/service-clusterip.yaml
 
