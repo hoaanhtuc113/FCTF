@@ -22,7 +22,6 @@ WORKDIR /app
 
 # Bring over the compiled binary (and optional env template for reference)
 COPY --from=builder /out/challenge-gateway ./challenge-gateway
-COPY .env.example ./
 
 USER app
 EXPOSE 1337 8080

@@ -4,7 +4,6 @@ metadata:
   name: challenge-gateway-cm
   namespace: app
 data:
-  PRIVATE_KEY: "replace_me"
   HTTP_RATE: "100"
   HTTP_BURST: "200"
   HTTP_MAX_BODY_BYTES: "10485760"
