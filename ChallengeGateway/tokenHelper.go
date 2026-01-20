@@ -2,7 +2,7 @@ package main
 
 import (
 	"crypto/hmac"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -35,7 +35,7 @@ func verifyChallengeToken(token string) (challengeTokenPayload, error) {
 		return challengeTokenPayload{}, fmt.Errorf("invalid signature encoding")
 	}
 
-	mac := hmac.New(md5.New, []byte(secret))
+	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write([]byte(payloadB64))
 	expected := mac.Sum(nil)
 	if !hmac.Equal(sigBytes, expected) {
