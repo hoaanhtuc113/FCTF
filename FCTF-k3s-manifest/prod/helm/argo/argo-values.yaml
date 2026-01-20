@@ -328,11 +328,11 @@ controller:
   # -- Resource limits and requests for the controller
   resources: 
     requests:
-      cpu: 0.25
+      cpu: 0.5
       memory: 1Gi
     limits:
-      cpu: 0.25
-      memory: 1Gi
+      cpu: 1
+      memory: 2Gi
 
   # -- Configure liveness [probe] for the controller
   # @default -- See [values.yaml]
@@ -371,7 +371,10 @@ controller:
   nodeSelector:
     kubernetes.io/os: linux
   # -- [Tolerations] for use with node taints
-  tolerations: []
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
   # -- Assign custom [affinity] rules
   affinity: {}
 
@@ -589,11 +592,11 @@ server:
   # -- Resource limits and requests for the server
   resources:
     requests:
-      cpu: 0.125
+      cpu: 0.25
       memory: 512Mi
     limits:
-      cpu: 0.125
-      memory: 512Mi
+      cpu: 0.5
+      memory: 1Gi
   # -- The number of server pods to run
   replicas: 1
   # -- The number of revisions to keep.
@@ -635,7 +638,10 @@ server:
     kubernetes.io/os: linux
 
   # -- [Tolerations] for use with node taints
-  tolerations: []
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
 
   # -- Assign custom [affinity] rules
   affinity: {}
