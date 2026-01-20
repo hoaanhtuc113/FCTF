@@ -29,7 +29,7 @@ type requestInfo struct {
 
 const requestInfoKey ctxKey = "requestInfo"
 
-func startHTTPGateway() *http.Server {
+func startHTTPGateway(cfg gatewayConfig) *http.Server {
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
