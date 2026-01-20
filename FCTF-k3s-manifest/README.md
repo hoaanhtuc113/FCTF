@@ -167,6 +167,8 @@ kubectl create namespace challenge
 kubectl apply -f ./prod/env/configmap/
 kubectl apply -f ./prod/env/secret/
 
+kubectl apply -f ./prod/app/priority-classes.yaml
+
 # Deploy applications
 kubectl apply -f ./prod/app/admin-mvc/
 kubectl apply -f ./prod/app/contestant-be/
