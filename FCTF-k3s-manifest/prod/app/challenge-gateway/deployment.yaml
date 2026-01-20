@@ -43,10 +43,12 @@ metadata:
 spec:
   ports:
     - protocol: TCP
+      name: tcp-1337
       port: 1337
       targetPort: 1337
       nodePort: 30037
     - protocol: TCP
+      name: http-8080
       port: 8080
       targetPort: 8080
       nodePort: 30038
