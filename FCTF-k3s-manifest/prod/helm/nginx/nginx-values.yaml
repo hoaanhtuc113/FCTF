@@ -786,6 +786,11 @@ controller:
       name: create
       # -- Deadline in seconds for the job to complete. Must be greater than 0 to enforce. If unset or 0, no deadline is enforced.
       activeDeadlineSeconds: 0
+      # -- Tolerations for secret creation pod assignment
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       # -- Security context for secret creation containers
       securityContext:
         runAsNonRoot: true
@@ -819,6 +824,11 @@ controller:
       name: patch
       # -- Deadline in seconds for the job to complete. Must be greater than 0 to enforce. If unset or 0, no deadline is enforced.
       activeDeadlineSeconds: 0
+      # -- Tolerations for webhook patch pod assignment
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       # -- Security context for webhook patch containers
       securityContext:
         runAsNonRoot: true
@@ -865,7 +875,10 @@ controller:
         enabled: false
       nodeSelector:
         kubernetes.io/os: linux
-      tolerations: []
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       # -- Labels to be added to patch job resources
       labels: {}
       # -- Security context for secret creation & webhook patch pods
