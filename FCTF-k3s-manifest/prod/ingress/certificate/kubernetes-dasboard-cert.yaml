@@ -1,12 +1,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: kubernetes-dashboard-tls
-  namespace: kubernetes-dashboard
+  name: rancher-tls
+  namespace: cattle-system
 spec:
-  secretName: kubernetes-dashboard-tls
+  secretName: rancher-tls
   dnsNames:
-    - k8s-dashboard-zmn0zjiwmju.fctf.cloud
+    - k8s-dashboard.fctf.mnhduc.site 
   issuerRef:
-    name: letsencrypt-dev
+    name: letsencrypt-dev      
     kind: ClusterIssuer

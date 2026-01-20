@@ -84,6 +84,13 @@ helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace \
   -f ./helm/monitoring/prometheus-stack-values.yaml
 
+# cài prometheus mysql exporter để giám sát mysql
+helm upgrade --install prometheus-mysql-exporter \
+  prometheus-community/prometheus-mysql-exporter \
+  --namespace monitoring \
+  --create-namespace \
+  -f ./helm/monitoring/mysql-exporter-values.yaml
+
 # cài argo workflows
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
@@ -92,10 +99,18 @@ helm upgrade --install argo-workflows argo/argo-workflows \
   -f ./helm/argo/argo-values.yaml
 
 #cài k8s dashboard
-helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+# helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+# helm repo update
+# helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
+#   --create-namespace --namespace kubernetes-dashboard
+
+# cài rancher
+helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 helm repo update
-helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
-  --create-namespace --namespace kubernetes-dashboard
+helm upgrade --install rancher rancher-latest/rancher \
+  -n cattle-system \
+  --create-namespace \
+  -f ./helm/rancher/rancher-values.yaml
 
 # helm repo add nfs-ganesha-server-and-external-provisioner https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/
 # helm repo update
