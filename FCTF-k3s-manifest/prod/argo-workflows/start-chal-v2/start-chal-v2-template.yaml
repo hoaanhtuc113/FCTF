@@ -64,6 +64,7 @@ spec:
           - name: NFS_SERVER_IP
       priorityClassName: lowest
       preemptionPolicy: Never
+      activeDeadlineSeconds: 150
       container:
         image: quachuoiscontainer/kubectl-cli:v0.0.3
         imagePullPolicy: IfNotPresent
@@ -75,10 +76,10 @@ spec:
           privileged: true
         resources:
           requests:
-            memory: "64Mi"
+            memory: "32Mi"
             cpu: "0.05"
           limits:
-            memory: "512Mi"
+            memory: "128Mi"
             cpu: "0.25"
         volumeMounts:
           - name: nfs-shared-data
