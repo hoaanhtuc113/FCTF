@@ -3,12 +3,16 @@
 ## /var/lib/rancher/k3s/server/node-token
 
 # --------------APPLY HELM REPO AND CHARTS-----------------
+# Tạo PriorityClass (cần cho ingress-nginx và một số chart khác)
+kubectl apply -f ./app/priority-classes.yaml
+
 # cài nginx ingress k3s để route traffic đến các service
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
-  -f ./helm/nginx/nginx-values.yaml
+  -f ./helm/nginx/nginx-values.yaml \
+  --wait --debug
 
 # Cài cert-manager để tạo ssl cho các service (https)
 helm repo add jetstack https://charts.jetstack.io
