@@ -1,21 +1,14 @@
-﻿using DeploymentCenter.Utils;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using ResourceShared;
-using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
-using ResourceShared.Logger;
-using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
-using StackExchange.Redis;
 using System.Net;
-using System.Net.WebSockets;
-using System.Security.AccessControl;
-using System.Text;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
