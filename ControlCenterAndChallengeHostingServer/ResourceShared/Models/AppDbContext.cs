@@ -17,6 +17,8 @@ public partial class AppDbContext : DbContext
     {
     }
 
+    public virtual DbSet<ArgoOutbox> ArgoOutboxes { get; set; }
+
     public virtual DbSet<Achievement> Achievements { get; set; }
 
     public virtual DbSet<ActionLog> ActionLogs { get; set; }
@@ -108,6 +110,11 @@ public partial class AppDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_unicode_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<ArgoOutbox>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+        });
 
         modelBuilder.Entity<Achievement>(entity =>
         {

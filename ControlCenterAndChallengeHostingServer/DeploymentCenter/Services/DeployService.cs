@@ -39,8 +39,8 @@ namespace DeploymentCenter.Services
         private readonly AppLogger _logger;
         public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sService k8SHealthService, AppLogger logger)
         {
-            _dbContext=dbContext;
-            _redisHelper=redisHelper;
+            _dbContext = dbContext;
+            _redisHelper = redisHelper;
             //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
             _k8SHealthService = k8SHealthService;
             _logger = logger;
@@ -123,93 +123,32 @@ namespace DeploymentCenter.Services
             }
             #endregion
 
-
-            var challenge =  await _dbContext.Challenges.FirstOrDefaultAsync(c => c.Id == startReq.challengeId);
-            if (challenge == null)
-                return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.NotFound, success = false, message = "Challenge not found." };
-
             try
             {
-                #region Tạo request mới tới argo workflow
-                var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
-
-                var jsonImageLink = challenge.ImageLink;
-                if (jsonImageLink == null) return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is null." };
-
-                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink);
-                if (imageObj == null) return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "Challenge image link is invalid." };
-
-                var (payload, appName) = ChallengeHelper.BuildArgoPayload(
-                        challenge,
-                        startReq.teamId,
-                        imageObj,
-                        DeploymentCenterConfigHelper.CPU_LIMIT,
-                        DeploymentCenterConfigHelper.CPU_REQUEST,
-                        DeploymentCenterConfigHelper.MEMORY_LIMIT,
-                        DeploymentCenterConfigHelper.MEMORY_REQUEST,
-                        DeploymentCenterConfigHelper.POD_START_TIMEOUT_MINUTES);
-
-                var api = DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL + "/submit";
-
-                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(api);
-                var response = await multiServiceConnector.ExecuteRequest(api, Method.Post, payload, headers);
-
-                if (response == null)
+                _dbContext.ArgoOutboxes.Add(new ArgoOutbox
                 {
-                    await Console.Out.WriteLineAsync("No response from Argo Workflows API");
-                    return new ChallengeDeployResponeDTO { status = (int)HttpStatusCode.BadRequest, success = false, message = "No response from server" };
-                }
-
-                // lấy workflow name từ response
-                string? workflowName = null;
-                if (!string.IsNullOrEmpty(response))
-                {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(response);
-                        workflowName = doc.RootElement
-                            .GetProperty("metadata")
-                            .GetProperty("name")
-                            .GetString();
-                    }
-                    catch
-                    {
-                        await Console.Error.WriteLineAsync("Unable to parse workflow name from response.");
-                    }
-                }
+                    Payload = JsonSerializer.Serialize(startReq),
+                    Expiry = DateTime.UtcNow.AddMinutes(5),
+                });
+                await _dbContext.SaveChangesAsync();
 
                 deploymentCache = new ChallengeDeploymentCacheDTO
                 {
                     challenge_id = startReq.challengeId,
-                    user_id = startReq.userId.Value,
-                    team_id = startReq.teamId,
-                    _namespace = appName,
-                    workflow_name = workflowName ?? string.Empty,
+                    user_id = startReq?.userId ?? 0,
+                    team_id = startReq?.teamId ?? 0,
+                    _namespace = string.Empty,
+                    workflow_name = string.Empty,
                     status = DeploymentStatus.PENDING,
                     time_finished = 0
                 };
 
-
-                await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache);
+                await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(5));
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.OK,
                     success = true,
                     message = "Send to request to deploy successfully. Please wait a moment.",
-                };
-                #endregion
-            }
-            catch (HttpRequestException ex)
-            {
-                await _redisHelper.RemoveCacheAsync(deploymentKey);
-
-                _logger.LogError(ex, null, startReq.teamId, new { challengeId = startReq.challengeId });
-                await Console.Error.WriteLineAsync($"Error connecting to API: {ex.Message}");
-                return new ChallengeDeployResponeDTO
-                {
-                    status = (int)HttpStatusCode.BadGateway,
-                    success = false,
-                    message = "Connect to argo workflow fail."
                 };
             }
             catch (Exception ex)
@@ -436,7 +375,7 @@ namespace DeploymentCenter.Services
 
                 var deploystatus = Enums.GetDeploymentStatus(message.Status ?? "");
 
-                challenge.DeployStatus =  deploystatus;
+                challenge.DeployStatus = deploystatus;
 
                 if (deploystatus == Enums.DeploymentStatus.SUCCEEDED)
                 {
@@ -456,7 +395,7 @@ namespace DeploymentCenter.Services
                     ChallengeId = message.ChallengeId.Value,
                     DeployStatus = deploystatus,
                     DeployAt = DateTime.UtcNow,
-                    LogContent =  message.WorkFlowName
+                    LogContent = message.WorkFlowName
                 };
 
                 _dbContext.Challenges.Update(challenge);
