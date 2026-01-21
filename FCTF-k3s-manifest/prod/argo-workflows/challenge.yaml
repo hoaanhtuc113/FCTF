@@ -6,6 +6,12 @@ metadata:
     ctf/temporary: "${IS_TEMPORARY}"
     ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
     ctf/kind: "challenge"
+    pod-security.kubernetes.io/enforce: "restricted"
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/audit: "restricted"
+    pod-security.kubernetes.io/audit-version: "latest"
+    pod-security.kubernetes.io/warn: "restricted"
+    pod-security.kubernetes.io/warn-version: "latest"
 ---
 apiVersion: v1
 kind: Service
@@ -15,7 +21,7 @@ metadata:
   labels:
     ctf/kind: "challenge"
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: ${CHALLENGE_NAME}
   ports:
@@ -23,6 +29,65 @@ spec:
       protocol: TCP
       port: 3333
       targetPort: ${CONTAINER_PORT}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: challenge-deny-all
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: challenge-allow-gateway
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app: ${CHALLENGE_NAME}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+          podSelector:
+            matchLabels:
+              app: challenge-gateway
+      ports:
+        - protocol: TCP
+          port: 3333
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: challenge-allow-dns-egress
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app: ${CHALLENGE_NAME}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
 ---
 apiVersion: batch/v1
 kind: Job
@@ -41,11 +106,19 @@ spec:
       automountServiceAccountToken: false # Không gắn token API server
       priorityClassName: batch-low
       preemptionPolicy: Never
+      runtimeClassName: gvisor
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: challenge
           image: "${CONTAINER_IMAGE}"
           ports:
             - containerPort: ${CONTAINER_PORT}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
             
           readinessProbe:
             tcpSocket:
@@ -56,19 +129,23 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false # Không cho escalate privilege
             privileged: false
-            # runAsNonRoot: true # Không chạy root
-            # runAsUser: 1000
-            # readOnlyRootFilesystem: false # (nếu muốn readonly thì chỉnh lại thành true)
+            runAsNonRoot: true # Không chạy root
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"] #  Bỏ mọi Linux capabilities
           resources:
             ## HIGH NOTATION 
             requests:
-              memory: "64Mi"
-              cpu: "0.05"
+              memory: "32Mi"
+              cpu: "0.025"
             limits:
-              memory: "256Mi"
-              cpu: "0.125"
+              memory: "128Mi"
+              cpu: "0.1"
           imagePullPolicy: IfNotPresent
       imagePullSecrets:
         - name: global-regcred
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
