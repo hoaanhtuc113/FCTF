@@ -65,8 +65,7 @@ internal class Worker : BackgroundService
             }
 
             var deploymentKey = ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId);
-
-            var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
+            bool dbUpdated = false;
             try
             {
                 using var jobScope = _scopeFactory.CreateScope();
@@ -113,7 +112,7 @@ internal class Worker : BackgroundService
                 }
 
                 // lấy workflow name từ response
-                string? workflowName = null;
+                string workflowName = string.Empty;
                 if (!string.IsNullOrEmpty(response))
                 {
                     try
@@ -122,7 +121,7 @@ internal class Worker : BackgroundService
                         workflowName = doc.RootElement
                             .GetProperty("metadata")
                             .GetProperty("name")
-                            .GetString();
+                            .GetString()!;
                     }
                     catch
                     {
@@ -130,7 +129,16 @@ internal class Worker : BackgroundService
                     }
                 }
 
-                deploymentCache = new ChallengeDeploymentCacheDTO
+                await jobDbContext.ArgoOutboxes
+                        .Where(x => x.Id == job.Id)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Completed)
+                            .SetProperty(x => x.WorkflowName, workflowName),
+                            cancellationToken: stoppingToken);
+
+                dbUpdated = true;
+
+                var deploymentCache = new ChallengeDeploymentCacheDTO
                 {
                     challenge_id = startReq.challengeId,
                     user_id = startReq?.userId ?? 0,
@@ -142,15 +150,13 @@ internal class Worker : BackgroundService
                 };
 
                 await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(2));
-                await jobDbContext.ArgoOutboxes
-                        .Where(x => x.Id == job.Id)
-                        .ExecuteUpdateAsync(setters => setters
-                            .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Completed),
-                            cancellationToken: stoppingToken);
+
             }
             catch (Exception ex)
             {
-                await _redisHelper.RemoveCacheAsync(deploymentKey);
+                if (!dbUpdated)
+                    await _redisHelper.RemoveCacheAsync(deploymentKey);
+
                 _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
                 continue;
             }
