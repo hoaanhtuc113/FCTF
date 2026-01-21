@@ -8,6 +8,7 @@ metadata:
 spec:
   serviceAccountName: argo-sa
   activeDeadlineSeconds: 200
+  timeout: "200s"
   podGC:
     strategy: OnPodCompletion
   entrypoint: main
@@ -65,6 +66,7 @@ spec:
       priorityClassName: lowest
       preemptionPolicy: Never
       activeDeadlineSeconds: 100
+      timeout: "100s"
       container:
         image: quachuoiscontainer/kubectl-cli:v0.0.3
         imagePullPolicy: IfNotPresent
