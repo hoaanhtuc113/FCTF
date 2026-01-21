@@ -46,6 +46,7 @@ internal class Worker : BackgroundService
             .Where(x => x.Expiry > DateTime.UtcNow)
             .OrderBy(x => x.CreatedAt)
             .Take(BatchSize)
+            .AsNoTracking()
             .ToListAsync(cancellationToken: stoppingToken);
 
         var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
@@ -140,10 +141,12 @@ internal class Worker : BackgroundService
                     time_finished = 0
                 };
 
-
                 await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(2));
-                job.Status = (int)ArgoOutboxStatus.Completed;
-                await jobDbContext.SaveChangesAsync(stoppingToken);
+                await jobDbContext.ArgoOutboxes
+                        .Where(x => x.Id == job.Id)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Completed),
+                            cancellationToken: stoppingToken);
             }
             catch (Exception ex)
             {
