@@ -1,4 +1,5 @@
 ﻿using DeploymentConsumer.Models;
+using Microsoft.AspNetCore.WebUtilities;
 using System;
 using System.Collections.Generic;
 using System.Net.Http.Headers;
@@ -24,23 +25,37 @@ namespace DeploymentConsumer.Services
         {
             try
             {
-                var url = $"{DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL}/workflows/argo?listOptions.fieldSelector=status.phase=Running";
+                var url = $"{DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL}/workflows/argo";
 
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN);
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN);
 
-                var response = await _httpClient.GetAsync(url, ct);
-                response.EnsureSuccessStatusCode();
+                var response = await _httpClient.SendAsync(request, ct);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync(ct);
+                    Console.WriteLine($"[Argo Error Detail]: {errorBody}");
+                    return 30;
+                }
 
                 var json = await response.Content.ReadAsStringAsync(ct);
-                var data = JsonSerializer.Deserialize<ArgoWorkflowsResponse>(json);
 
-                int count = data?.Items?.Count ?? 0;
+                var data = JsonSerializer.Deserialize<ArgoWorkflowsResponse>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                int count = data?.Items?.Count(x =>
+                    x.Status != null &&
+                    x.Status.Phase?.Equals("Running", StringComparison.OrdinalIgnoreCase) == true
+                ) ?? 0;
 
                 return count;
             }
             catch (Exception ex)
             {
-                return 30; // return maximum when error to stop
+                Console.WriteLine($"[Argo Service] Exception: {ex.Message}");
+                return 30;
             }
         }
     }
