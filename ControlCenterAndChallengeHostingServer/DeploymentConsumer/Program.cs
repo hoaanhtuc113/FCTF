@@ -24,7 +24,7 @@ var host = Host.CreateDefaultBuilder(args)
         // Shared config
         services.AddSingleton(sp =>
         {
-            var config = new SharedConfig();
+            var config = new DeploymentConsumerConfigHelper();
             config.InitConfig();
             return config;
         });
