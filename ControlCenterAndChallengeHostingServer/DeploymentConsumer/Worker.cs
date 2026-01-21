@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DeploymentConsumer.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -33,7 +34,7 @@ internal class Worker : BackgroundService
             try
             {
                 await ProcessAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(25), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(20), stoppingToken);
             }
             catch (Exception ex)
             {
@@ -47,7 +48,10 @@ internal class Worker : BackgroundService
         using var workerScope = _scopeFactory.CreateScope();
         var workerBbContext = workerScope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        List<ArgoOutbox> jobs = await workerBbContext.ArgoOutboxes
+        List<ArgoOutbox> jobs;
+        try
+        {
+            jobs = await workerBbContext.ArgoOutboxes
             .Where(x =>
                 x.Expiry > DateTime.UtcNow &&
                 (
@@ -60,6 +64,12 @@ internal class Worker : BackgroundService
             .OrderBy(x => x.CreatedAt)
             .Take(BatchSize)
             .ToListAsync(stoppingToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogCritical("Cannot connect to Database. Skipping this batch.");
+            return;
+        }
 
         var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
 

@@ -1,4 +1,4 @@
-﻿namespace DeploymentConsumer;
+﻿namespace DeploymentConsumer.Models;
 
 internal enum ArgoOutboxStatus
 {
