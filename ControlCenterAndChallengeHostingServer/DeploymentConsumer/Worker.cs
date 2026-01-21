@@ -7,7 +7,6 @@ using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
-using System.Net;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
@@ -31,8 +30,15 @@ internal class Worker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await ProcessAsync(stoppingToken);
-            await Task.Delay(TimeSpan.FromSeconds(25), stoppingToken);
+            try
+            {
+                await ProcessAsync(stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(25), stoppingToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in DeploymentConsumer Worker");
+            }
         }
     }
 
@@ -42,12 +48,18 @@ internal class Worker : BackgroundService
         var workerBbContext = workerScope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         List<ArgoOutbox> jobs = await workerBbContext.ArgoOutboxes
-            .Where(x => x.Status == (int)ArgoOutboxStatus.Pending)
-            .Where(x => x.Expiry > DateTime.UtcNow)
+            .Where(x =>
+                x.Expiry > DateTime.UtcNow &&
+                (
+                    x.Status == (int)ArgoOutboxStatus.Pending ||
+                    (x.Status == (int)ArgoOutboxStatus.Failed && x.RetryCount < 3) ||
+                    (x.Status == (int)ArgoOutboxStatus.Processing &&
+                        x.ProcessingAt < DateTime.UtcNow.AddMinutes(-5))
+                )
+            )
             .OrderBy(x => x.CreatedAt)
             .Take(BatchSize)
-            .AsNoTracking()
-            .ToListAsync(cancellationToken: stoppingToken);
+            .ToListAsync(stoppingToken);
 
         var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
 
@@ -57,6 +69,27 @@ internal class Worker : BackgroundService
 
         foreach (var job in jobs)
         {
+            var claimed = await workerBbContext.ArgoOutboxes
+                .Where(x => x.Id == job.Id &&
+                       (
+                           x.Status == (int)ArgoOutboxStatus.Pending ||
+                           x.Status == (int)ArgoOutboxStatus.Failed ||
+                           (x.Status == (int)ArgoOutboxStatus.Processing &&
+                            x.ProcessingAt < DateTime.UtcNow.AddMinutes(-5))
+                       ))
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Processing)
+                    .SetProperty(x => x.ProcessingAt, DateTime.UtcNow)
+                    .SetProperty(x => x.RetryCount,
+                            x => x.Status == (int)ArgoOutboxStatus.Processing
+                            ? x.RetryCount
+                            : x.RetryCount + 1),
+                    stoppingToken);
+
+            if (claimed == 0)
+                continue; // job đã bị worker khác hoặc vòng khác claim
+
+
             var startReq = JsonSerializer.Deserialize<ChallengeStartStopReqDTO>(job.Payload);
             if (startReq == null)
             {
@@ -65,33 +98,17 @@ internal class Worker : BackgroundService
             }
 
             var deploymentKey = ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId);
-            bool dbUpdated = false;
+            using var jobScope = _scopeFactory.CreateScope();
+            var jobDbContext = jobScope.ServiceProvider.GetRequiredService<AppDbContext>();
             try
             {
-                using var jobScope = _scopeFactory.CreateScope();
-                var jobDbContext = jobScope.ServiceProvider.GetRequiredService<AppDbContext>();
-
                 var challenge = await jobDbContext.Challenges
-                    .FirstOrDefaultAsync(c => c.Id == startReq.challengeId, cancellationToken: stoppingToken);
-                if (challenge == null)
-                {
-                    _logger.LogError("Challenge with ID {ChallengeId} not found.", startReq.challengeId);
-                    continue;
-                }
+                    .FirstOrDefaultAsync(c => c.Id == startReq.challengeId, cancellationToken: stoppingToken)
+                    ?? throw new InvalidOperationException($"Challenge {startReq.challengeId} not found");
 
-                var jsonImageLink = challenge.ImageLink;
-                if (jsonImageLink == null)
-                {
-                    _logger.LogError("Challenge image link is null for Challenge ID {ChallengeId}.", startReq.challengeId);
-                    continue;
-                }
+                var jsonImageLink = challenge.ImageLink ?? throw new InvalidOperationException("Challenge image link is null");
 
-                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink);
-                if (imageObj == null)
-                {
-                    _logger.LogError("Unable to deserialize ChallengeImageDTO for Challenge ID {ChallengeId}.", startReq.challengeId);
-                    continue;
-                }
+                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink) ?? throw new InvalidOperationException("Unable to deserialize ChallengeImageDTO for Challenge ID {ChallengeId}.");
 
                 var (payload, appName) = ChallengeHelper.BuildArgoPayload(
                         challenge,
@@ -104,39 +121,29 @@ internal class Worker : BackgroundService
                         DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES);
 
 
-                var response = await multiServiceConnector.ExecuteRequest(api, Method.Post, payload, headers);
-                if (response == null)
-                {
-                    _logger.LogError("No response from Argo Workflows API");
-                    continue;
-                }
+                var response = await multiServiceConnector.ExecuteRequest(api, Method.Post, payload, headers)
+                    ?? throw new InvalidOperationException("No response from Argo Workflows API");
 
                 // lấy workflow name từ response
                 string workflowName = string.Empty;
                 if (!string.IsNullOrEmpty(response))
                 {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(response);
-                        workflowName = doc.RootElement
-                            .GetProperty("metadata")
-                            .GetProperty("name")
-                            .GetString()!;
-                    }
-                    catch
-                    {
-                        _logger.LogError("Unable to parse workflow name from response.");
-                    }
+                    using var doc = JsonDocument.Parse(response);
+                    workflowName = doc.RootElement
+                        .GetProperty("metadata")
+                        .GetProperty("name")
+                        .GetString()!;
+
+                    if (string.IsNullOrWhiteSpace(workflowName))
+                        throw new InvalidOperationException("Workflow name is empty");
                 }
 
                 await jobDbContext.ArgoOutboxes
-                        .Where(x => x.Id == job.Id)
-                        .ExecuteUpdateAsync(setters => setters
-                            .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Completed)
-                            .SetProperty(x => x.WorkflowName, workflowName),
-                            cancellationToken: stoppingToken);
-
-                dbUpdated = true;
+                    .Where(x => x.Id == job.Id)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Completed)
+                        .SetProperty(x => x.WorkflowName, workflowName),
+                        stoppingToken);
 
                 var deploymentCache = new ChallengeDeploymentCacheDTO
                 {
@@ -154,11 +161,17 @@ internal class Worker : BackgroundService
             }
             catch (Exception ex)
             {
-                if (!dbUpdated)
-                    await _redisHelper.RemoveCacheAsync(deploymentKey);
+                await jobDbContext.ArgoOutboxes
+                    .Where(x => x.Id == job.Id)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Failed),
+                        stoppingToken);
 
-                _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
-                continue;
+                await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+                _logger.LogError(ex,
+                    "Deploy failed. ChallengeId={ChallengeId}, TeamId={TeamId}",
+                    startReq.challengeId, startReq.teamId);
             }
         }
     }
