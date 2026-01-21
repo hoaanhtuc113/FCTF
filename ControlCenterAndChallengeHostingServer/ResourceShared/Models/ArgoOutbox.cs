@@ -3,6 +3,7 @@
 public partial class ArgoOutbox
 {
     public int Id { get; set; }
+    public string WorkflowName { get; set; } = string.Empty;
     public string Payload { get; set; } = string.Empty;
     public int Status { get; set; } = 0;
     public DateTime Expiry { get; set; }
