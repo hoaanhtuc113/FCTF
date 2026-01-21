@@ -1265,3 +1265,7 @@ class ArgoOutbox(db.Model):
     status = db.Column(db.Integer, default=0)
     expiry = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    # New columns requested: workflow name, processing timestamp, and retry counter
+    workflow_name = db.Column(db.String(255), nullable=True)
+    processing_at = db.Column(db.DateTime, nullable=True)
+    retry_count = db.Column(db.Integer, default=0)
