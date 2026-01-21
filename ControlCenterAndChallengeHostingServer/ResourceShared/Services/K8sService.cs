@@ -32,7 +32,7 @@ namespace ResourceShared.Services
         Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge", K8sService.PodEventHandler? _event = null);
         Task<bool> DeleteNamespace(string namespaceName);
         Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge");
-        Task<int?> GetNodePort(string namespaceName);
+        Task<int?> GetServicePort(string namespaceName);
         Task StartPodWatcher(OnDeploymentStatusChanged statusHandler, string label = "ctf/kind=challenge", CancellationToken cancellationToken = default);
         Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache);
         Task<WorkflowPhase> GetWorkflowStatus(string wfName, string namespaceName = "argo");
@@ -591,7 +591,7 @@ namespace ResourceShared.Services
             _logger.LogDebug("Watcher stopped", new { label });
         }
 
-        public async Task<int?> GetNodePort(string namespaceName)
+        public async Task<int?> GetServicePort(string namespaceName)
         {
             try
             {
@@ -605,23 +605,17 @@ namespace ResourceShared.Services
                 }
 
                 var portSpec = svc.Spec.Ports?.FirstOrDefault();
-                if (portSpec?.NodePort == null)
+                if (portSpec == null)
                 {
-                    _logger.LogDebug("Service has no NodePort assigned", new { namespaceName, serviceName = svc.Metadata?.Name });
-                    return null;
-                }
-                if (svc.Spec.Type != "NodePort")
-                {
-                    _logger.LogDebug("Service is not a NodePort type", new { namespaceName, serviceName = svc.Metadata.Name, serviceType = svc.Spec.Type });
+                    _logger.LogDebug("Service has no ports defined", new { namespaceName, serviceName = svc.Metadata?.Name });
                     return null;
                 }
 
-                var nodePort = portSpec.NodePort;
-                return nodePort;
+                return portSpec.Port;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { namespaceName, errorType = "GetNodePortError" });
+                _logger.LogError(ex, data: new { namespaceName, errorType = "GetServicePortError" });
                 return null;
             }
         }
@@ -641,12 +635,12 @@ namespace ResourceShared.Services
                     };
 
                 // Lấy port và domain
-                var port = await GetNodePort(podName);
+                var port = await GetServicePort(podName);
                 if (port == null)
                     return new ChallengeDeployResponeDTO
                     {
                         success = false,
-                        message = "Pod NodePort not ready.",
+                        message = "Service port not ready.",
                         status = (int)HttpStatusCode.BadRequest
                     };
 
