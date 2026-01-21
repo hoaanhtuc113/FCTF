@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: deployment-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deployment-consumer
+  template:
+    metadata:
+      labels:
+        app: deployment-consumer
+    spec:
+      priorityClassName: app-normal
+      preemptionPolicy: Never
+      containers:
+        - name: deployment-consumer
+          image: quachuoiscontainer/fctf:deployment-consumer-prod-v3-refactor
+          ports:
+            - name: http-client
+              containerPort: 5040
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: common-be-cm
+            - configMapRef:
+                name: deployment-center-cm
+            - secretRef:
+                name: common-secret
+          resources:
+            requests:
+              cpu: 0.1
+              memory: 128Mi
+            limits:
+              cpu: 0.2
+              memory: 256Mi
+          imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+        - name: regcred
+  revisionHistoryLimit: 3
