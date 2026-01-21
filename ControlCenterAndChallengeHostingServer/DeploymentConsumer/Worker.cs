@@ -1,13 +1,16 @@
 ﻿using DeploymentConsumer.Models;
+using DeploymentConsumer.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ResourceShared.DTOs.Challenge;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
@@ -18,8 +21,9 @@ internal class Worker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<Worker> _logger;
     private readonly RedisHelper _redisHelper;
-    private const int BatchSize = 20;
 
+    private const int BatchSize = 20;
+    private const int MaxRunningWorkFlow = 30;
     public Worker(IServiceScopeFactory scopeFactory, ILogger<Worker> logger, RedisHelper redisHelper)
     {
         _scopeFactory = scopeFactory;
@@ -38,7 +42,7 @@ internal class Worker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in DeploymentConsumer Worker");
+                //_logger.LogError(ex, "Error in DeploymentConsumer Worker");
             }
         }
     }
@@ -47,7 +51,17 @@ internal class Worker : BackgroundService
     {
         using var workerScope = _scopeFactory.CreateScope();
         var workerBbContext = workerScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var argoService = workerScope.ServiceProvider.GetRequiredService<IArgoWorkflowService>();
 
+        var runningWorkflow = await argoService.GetRunningWorkflowsCountAsync(stoppingToken);
+
+        _logger.LogInformation($"[Worker] Current running workflows: {runningWorkflow}");
+        if (runningWorkflow >= MaxRunningWorkFlow)
+        {
+            _logger.LogInformation($"[Worker] Skipping this batch as running workflows exceed limit ({MaxRunningWorkFlow})");
+            return;
+        }
+        var avaiableSlots = MaxRunningWorkFlow - runningWorkflow;
         List<ArgoOutbox> jobs;
         try
         {
@@ -62,7 +76,7 @@ internal class Worker : BackgroundService
                 )
             )
             .OrderBy(x => x.CreatedAt)
-            .Take(BatchSize)
+            .Take(Math.Min(avaiableSlots,BatchSize))
             .ToListAsync(stoppingToken);
         }
         catch (Exception ex)
@@ -90,10 +104,7 @@ internal class Worker : BackgroundService
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(x => x.Status, (int)ArgoOutboxStatus.Processing)
                     .SetProperty(x => x.ProcessingAt, DateTime.UtcNow)
-                    .SetProperty(x => x.RetryCount,
-                            x => x.Status == (int)ArgoOutboxStatus.Processing
-                            ? x.RetryCount
-                            : x.RetryCount + 1),
+                    .SetProperty(x => x.RetryCount, x => x.RetryCount + 1),
                     stoppingToken);
 
             if (claimed == 0)
