@@ -36,7 +36,7 @@ internal class Worker : BackgroundService
             try
             {
                 await ProcessAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(20), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
             }
             catch (Exception ex)
             {
