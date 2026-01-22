@@ -174,7 +174,7 @@ internal class Worker : BackgroundService
 
                 var deploymentCache = new ChallengeDeploymentCacheDTO
                 {
-                    challenge_id = startReq.challengeId,
+                    challenge_id = startReq?.challengeId ?? 0,
                     user_id = startReq?.userId ?? 0,
                     team_id = startReq?.teamId ?? 0,
                     _namespace = appName,
@@ -183,7 +183,7 @@ internal class Worker : BackgroundService
                     time_finished = 0
                 };
 
-                await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(2));
+                await _redisHelper.AtomicUpdateExpiration(startReq?.teamId.ToString(), deploymentKey, startReq?.challengeId.ToString(), 180, JsonSerializer.Serialize(deploymentCache));
 
             }
             catch (Exception ex)
