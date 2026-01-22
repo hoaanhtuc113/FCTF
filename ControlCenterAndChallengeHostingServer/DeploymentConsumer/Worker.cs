@@ -5,12 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ResourceShared.DTOs.Challenge;
-using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
@@ -42,7 +40,7 @@ internal class Worker : BackgroundService
             }
             catch (Exception ex)
             {
-                //_logger.LogError(ex, "Error in DeploymentConsumer Worker");
+                _logger.LogError(ex, "Error in DeploymentConsumer Worker");
             }
         }
     }
@@ -50,7 +48,7 @@ internal class Worker : BackgroundService
     private async Task ProcessAsync(CancellationToken stoppingToken)
     {
         using var workerScope = _scopeFactory.CreateScope();
-        var workerBbContext = workerScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var workerDbContext = workerScope.ServiceProvider.GetRequiredService<AppDbContext>();
         var argoService = workerScope.ServiceProvider.GetRequiredService<IArgoWorkflowService>();
 
         var runningWorkflow = await argoService.GetRunningWorkflowsCountAsync(stoppingToken);
@@ -65,7 +63,7 @@ internal class Worker : BackgroundService
         List<ArgoOutbox> jobs;
         try
         {
-            jobs = await workerBbContext.ArgoOutboxes
+            jobs = await workerDbContext.ArgoOutboxes
             .Where(x =>
                 x.Expiry > DateTime.UtcNow &&
                 (
@@ -93,7 +91,7 @@ internal class Worker : BackgroundService
 
         foreach (var job in jobs)
         {
-            var claimed = await workerBbContext.ArgoOutboxes
+            var claimed = await workerDbContext.ArgoOutboxes
                 .Where(x => x.Id == job.Id &&
                        (
                            x.Status == (int)ArgoOutboxStatus.Pending ||
@@ -127,9 +125,11 @@ internal class Worker : BackgroundService
                     .FirstOrDefaultAsync(c => c.Id == startReq.challengeId, cancellationToken: stoppingToken)
                     ?? throw new InvalidOperationException($"Challenge {startReq.challengeId} not found");
 
-                var jsonImageLink = challenge.ImageLink ?? throw new InvalidOperationException("Challenge image link is null");
+                var jsonImageLink = challenge.ImageLink 
+                    ?? throw new InvalidOperationException("Challenge image link is null");
 
-                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink) ?? throw new InvalidOperationException("Unable to deserialize ChallengeImageDTO for Challenge ID {ChallengeId}.");
+                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink) 
+                    ?? throw new InvalidOperationException("Unable to deserialize ChallengeImageDTO for Challenge ID {ChallengeId}.");
 
                 var (payload, appName) = ChallengeHelper.BuildArgoPayload(
                         challenge,
