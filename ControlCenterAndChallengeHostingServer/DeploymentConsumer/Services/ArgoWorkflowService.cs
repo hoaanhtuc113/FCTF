@@ -25,9 +25,7 @@ namespace DeploymentConsumer.Services
         {
             try
             {
-                var url = $"{DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL}/workflows/argo";
-
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                using var request = new HttpRequestMessage(HttpMethod.Get, DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN);
 
                 var response = await _httpClient.SendAsync(request, ct);

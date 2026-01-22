@@ -6,8 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ResourceShared;
 using ResourceShared.Models;
-using ResourceShared.Utils;
-using System.Net.Http.Headers;
 
 Env.Load();
 new DeploymentConsumerConfigHelper().InitConfig();
