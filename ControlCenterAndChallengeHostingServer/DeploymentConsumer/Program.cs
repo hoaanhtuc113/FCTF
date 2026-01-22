@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ResourceShared;
 using ResourceShared.Models;
+using ResourceShared.Services.RabbitMQ;
 
 Env.Load();
 new DeploymentConsumerConfigHelper().InitConfig();
@@ -18,7 +19,7 @@ var host = Host.CreateDefaultBuilder(args)
                 mySqlOptions => mySqlOptions.EnableRetryOnFailure(5))
         );
 
-
+        // Register ArgoWorkflowService with custom HttpClient configuration
         services.AddHttpClient<IArgoWorkflowService, ArgoWorkflowService>(client =>
         {
             //Timeout 
@@ -28,6 +29,16 @@ var host = Host.CreateDefaultBuilder(args)
         {
             // remove ssl certificate validation
             ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+        });
+        // Register DeploymentConsumerService consumer
+        services.AddSingleton<IDeploymentConsumerService>(sp =>
+        {
+            var host = "";
+            var user = "";
+            var pass = "";
+            var port = 0;
+
+            return new DeploymentConsumerService(host, user, pass, port);
         });
 
         services.AddResourceShared();
