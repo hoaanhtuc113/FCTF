@@ -183,8 +183,12 @@ internal class Worker : BackgroundService
                     time_finished = 0
                 };
 
-                await _redisHelper.AtomicUpdateExpiration(startReq?.teamId.ToString(), deploymentKey, startReq?.challengeId.ToString(), 180, JsonSerializer.Serialize(deploymentCache));
-
+                await _redisHelper.AtomicUpdateExpiration(
+                    startReq?.teamId.ToString() ?? string.Empty,
+                    deploymentKey,
+                    startReq?.challengeId.ToString() ?? string.Empty,
+                    realTtlSeconds: 180,
+                    JsonSerializer.Serialize(deploymentCache));
             }
             catch (Exception ex)
             {
