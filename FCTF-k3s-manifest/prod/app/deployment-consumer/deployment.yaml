@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-consumer
-          image: quachuoiscontainer/fctf:deployment-consumer-prod-v3-refactor
+          image: quachuoiscontainer/fctf:deployment-consumer-v3-refactor
           ports:
             - name: http-client
               containerPort: 5040
