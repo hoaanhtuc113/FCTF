@@ -36,7 +36,7 @@ internal class Worker : BackgroundService
             try
             {
                 await ProcessAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(20), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
             }
             catch (Exception ex)
             {
@@ -59,10 +59,12 @@ internal class Worker : BackgroundService
             _logger.LogInformation($"[Worker] Skipping this batch as running workflows exceed limit ({MaxRunningWorkFlow})");
             return;
         }
-        var avaiableSlots = MaxRunningWorkFlow - runningWorkflow;
+        var availableSlots = MaxRunningWorkFlow - runningWorkflow;
         List<ArgoOutbox> jobs;
         try
         {
+            var take = Math.Max(0, Math.Min(availableSlots, BatchSize));
+
             jobs = await workerDbContext.ArgoOutboxes
             .Where(x =>
                 x.Expiry > DateTime.UtcNow &&
@@ -74,8 +76,10 @@ internal class Worker : BackgroundService
                 )
             )
             .OrderBy(x => x.CreatedAt)
-            .Take(Math.Min(avaiableSlots,BatchSize))
+            .Take(take)
             .ToListAsync(stoppingToken);
+
+            _logger.LogInformation($"[Worker] Fetched {jobs.Count} jobs from ArgoOutbox.");
         }
         catch (Exception ex)
         {
@@ -105,6 +109,8 @@ internal class Worker : BackgroundService
                     .SetProperty(x => x.RetryCount, x => x.RetryCount + 1),
                     stoppingToken);
 
+            _logger.LogInformation($"[Worker] Claimed job ID {job.Id}, rows affected: {claimed}");
+
             if (claimed == 0)
                 continue; // job đã bị worker khác hoặc vòng khác claim
 
@@ -125,10 +131,10 @@ internal class Worker : BackgroundService
                     .FirstOrDefaultAsync(c => c.Id == startReq.challengeId, cancellationToken: stoppingToken)
                     ?? throw new InvalidOperationException($"Challenge {startReq.challengeId} not found");
 
-                var jsonImageLink = challenge.ImageLink 
+                var jsonImageLink = challenge.ImageLink
                     ?? throw new InvalidOperationException("Challenge image link is null");
 
-                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink) 
+                var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink)
                     ?? throw new InvalidOperationException("Unable to deserialize ChallengeImageDTO for Challenge ID {ChallengeId}.");
 
                 var (payload, appName) = ChallengeHelper.BuildArgoPayload(
@@ -168,7 +174,7 @@ internal class Worker : BackgroundService
 
                 var deploymentCache = new ChallengeDeploymentCacheDTO
                 {
-                    challenge_id = startReq.challengeId,
+                    challenge_id = startReq?.challengeId ?? 0,
                     user_id = startReq?.userId ?? 0,
                     team_id = startReq?.teamId ?? 0,
                     _namespace = appName,
@@ -177,8 +183,12 @@ internal class Worker : BackgroundService
                     time_finished = 0
                 };
 
-                await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(2));
-
+                await _redisHelper.AtomicUpdateExpiration(
+                    startReq?.teamId.ToString() ?? string.Empty,
+                    deploymentKey,
+                    startReq?.challengeId.ToString() ?? string.Empty,
+                    realTtlSeconds: 180,
+                    JsonSerializer.Serialize(deploymentCache));
             }
             catch (Exception ex)
             {
