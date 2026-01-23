@@ -6,6 +6,7 @@ using ResourceShared.DTOs.Deployments;
 using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Services;
+using ResourceShared.Services.RabbitMQ;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using System.Net;
@@ -30,13 +31,15 @@ namespace DeploymentCenter.Services
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
         private readonly AppLogger _logger;
-        public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sService k8SHealthService, AppLogger logger)
+        private readonly IDeploymentProducerService _deploymentProducerService;
+        public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sService k8SHealthService, AppLogger logger, IDeploymentProducerService deploymentProducerService)
         {
             _dbContext = dbContext;
             _redisHelper = redisHelper;
             //K8S-NOTE: comment this state for runing in local with out k8s cubeconfig 
             _k8SHealthService = k8SHealthService;
             _logger = logger;
+            _deploymentProducerService = deploymentProducerService;
         }
 
         public async Task<ChallengeDeployResponeDTO> Start(ChallengeStartStopReqDTO startReq)
@@ -118,12 +121,13 @@ namespace DeploymentCenter.Services
 
             try
             {
-                _dbContext.ArgoOutboxes.Add(new ArgoOutbox
-                {
-                    Payload = JsonSerializer.Serialize(startReq),
-                    Expiry = DateTime.UtcNow.AddMinutes(5),
-                });
-                await _dbContext.SaveChangesAsync();
+                //_dbContext.ArgoOutboxes.Add(new ArgoOutbox
+                //{
+                //    Payload = JsonSerializer.Serialize(startReq),
+                //    Expiry = DateTime.UtcNow.AddMinutes(5),
+                //});
+                //await _dbContext.SaveChangesAsync();
+                await _deploymentProducerService.EnqueueDeploymentAsync(startReq);
 
                 deploymentCache = new ChallengeDeploymentCacheDTO
                 {

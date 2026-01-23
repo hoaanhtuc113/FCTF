@@ -7,6 +7,7 @@ using ResourceShared;
 using ResourceShared.Configs;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
+using ResourceShared.Services.RabbitMQ;
 using StackExchange.Redis;
 
 namespace DeploymentCenter
@@ -59,7 +60,16 @@ namespace DeploymentCenter
                 context.Request.EnableBuffering();
                 await next();
             });
-            
+            // Register DeploymentConsumerService consumer
+            builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
+            {
+                var host = "";
+                var user = "";
+                var pass = "";
+                var port = 0;
+
+                return new DeploymentProducerService(host, user, pass, port);
+            });
             app.UseRouting();
             app.UseCors("AllowAll");
             // Configure the HTTP request pipeline.
