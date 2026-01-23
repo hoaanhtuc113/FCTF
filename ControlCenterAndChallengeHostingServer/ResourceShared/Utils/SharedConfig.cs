@@ -15,6 +15,12 @@ namespace ResourceShared.Utils
         public static string TCP_DOMAIN = "";
         public static string START_CHALLENGE_TEMPLATE = "";
 
+        // RabbitMQ configuration (can be overridden by environment variables or .env)
+        public static string RABBIT_HOST = "";
+        public static string RABBIT_USERNAME = "";
+        public static string RABBIT_PASSWORD = "";
+        public static int RABBIT_PORT = 5672;
+
         public static IConfiguration configuration = BuildConfiguration();
 
 
@@ -38,6 +44,12 @@ namespace ResourceShared.Utils
             PRIVATE_KEY = configuration["PRIVATE_KEY"] ?? throw new Exception("Can't read PrivateKey");
             TCP_DOMAIN = configuration["TCP_DOMAIN"] ?? throw new Exception("Can't read TCP_DOMAIN");
             START_CHALLENGE_TEMPLATE = configuration["START_CHALLENGE_TEMPLATE"] ?? throw new Exception("Can't read START_CHALLENGE_TEMPLATE");
+
+            // Read RabbitMQ settings (use sensible defaults when env vars are missing)
+            RABBIT_HOST = configuration["RABBIT_HOST"] ?? "localhost";
+            RABBIT_USERNAME = configuration["RABBIT_USERNAME"] ?? "guest";
+            RABBIT_PASSWORD = configuration["RABBIT_PASSWORD"] ?? "guest";
+            RABBIT_PORT = int.TryParse(configuration["RABBIT_PORT"], out var p) ? p : 5672;
         }
     }
 }

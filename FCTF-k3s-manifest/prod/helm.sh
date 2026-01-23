@@ -47,7 +47,7 @@ helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 helm upgrade --install rabbitmq bitnami/rabbitmq \
   --namespace db --create-namespace \
-  -f ./dev/helm/db/rabbitmq/rabbitmq-values.yaml \
+  -f ./prod/helm/db/rabbitmq/rabbitmq-values.yaml \
   --set global.security.allowInsecureImages=true
 
 # cài monitoring stack (prometheus, grafana, loki, promtail)

@@ -8,6 +8,7 @@ using ResourceShared.Configs;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
 using ResourceShared.Services.RabbitMQ;
+using ResourceShared.Utils;
 using StackExchange.Redis;
 
 namespace DeploymentCenter
@@ -63,10 +64,11 @@ namespace DeploymentCenter
             // Register DeploymentConsumerService consumer
             builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
             {
-                var host = "";
-                var user = "";
-                var pass = "";
-                var port = 0;
+                // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
+                var host = SharedConfig.RABBIT_HOST;
+                var user = SharedConfig.RABBIT_USERNAME;
+                var pass = SharedConfig.RABBIT_PASSWORD;
+                var port = SharedConfig.RABBIT_PORT;
 
                 return new DeploymentProducerService(host, user, pass, port);
             });
