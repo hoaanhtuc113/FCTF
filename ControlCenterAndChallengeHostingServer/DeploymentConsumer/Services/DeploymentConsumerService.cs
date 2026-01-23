@@ -48,6 +48,13 @@ namespace ResourceShared.Services.RabbitMQ
             if (_channel == null || !_channel.IsOpen)
             {
                 _channel = await _connection.CreateChannelAsync();
+                
+                // Declare exchange, queue and binding to ensure they exist
+                // This makes the consumer idempotent and independent of producer startup order
+                await _channel.ExchangeDeclareAsync("deployment_exchange", ExchangeType.Direct, durable: true);
+                await _channel.QueueDeclareAsync(QueueName, durable: true, exclusive: false, autoDelete: false);
+                await _channel.QueueBindAsync(QueueName, "deployment_exchange", routingKey: "deploy");
+                
                 await _channel.BasicQosAsync(0, 40, false);
 
                 var consumer = new AsyncEventingBasicConsumer(_channel);

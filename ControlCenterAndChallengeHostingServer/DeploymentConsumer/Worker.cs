@@ -64,7 +64,8 @@ internal class Worker : BackgroundService
         }
         var availableSlots = MaxRunningWorkFlow - runningWorkflow;
         List<DequeuedMessage> messages = await queueService.DequeueAvailableBatchAsync(Math.Min(availableSlots,BatchSize));
-        
+
+        _logger.LogInformation($"[Worker] Dequeued {messages.Count} messages for processing");
 
         var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
 
