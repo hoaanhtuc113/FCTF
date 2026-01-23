@@ -12,3 +12,7 @@ data:
   ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
   TCP_DOMAIN: "challenge.fctf.mnhduc.site"
   START_CHALLENGE_TEMPLATE: "start-chal-v2-template"
+  # RabbitMQ configuration (password stored in Secret)
+  RABBIT_HOST: "rabbitmq.app.svc.cluster.local"
+  RABBIT_USERNAME: "user"
+  RABBIT_PORT: "5672"

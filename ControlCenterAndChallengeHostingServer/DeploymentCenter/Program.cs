@@ -53,14 +53,6 @@ namespace DeploymentCenter
                 );
             });
 
-            var app = builder.Build();
-            
-            // Enable buffering for all requests để có thể đọc body nhiều lần
-            app.Use(async (context, next) =>
-            {
-                context.Request.EnableBuffering();
-                await next();
-            });
             // Register DeploymentConsumerService consumer
             builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
             {
@@ -71,6 +63,15 @@ namespace DeploymentCenter
                 var port = SharedConfig.RABBIT_PORT;
 
                 return new DeploymentProducerService(host, user, pass, port);
+            });
+
+            var app = builder.Build();
+            
+            // Enable buffering for all requests để có thể đọc body nhiều lần
+            app.Use(async (context, next) =>
+            {
+                context.Request.EnableBuffering();
+                await next();
             });
             app.UseRouting();
             app.UseCors("AllowAll");
