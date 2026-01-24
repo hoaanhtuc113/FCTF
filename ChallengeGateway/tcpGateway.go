@@ -106,10 +106,11 @@ func HandleConnection(clientConn net.Conn) {
 		}
 		defer tcpTokenConnLimiter.Release(context.Background(), token)
 	}
-	log.Printf("[+] Auth OK for %s -> %s", clientConn.RemoteAddr(), payload.Route)
+	host := expandRoute(payload.Route)
+	log.Printf("[+] Auth OK for %s -> %s", clientConn.RemoteAddr(), host)
 
 	fmt.Fprintf(clientConn, "Access Granted! Connecting to challenge...\n")
-	challengeConn, err := net.Dial("tcp", payload.Route)
+	challengeConn, err := net.Dial("tcp", host)
 	if err != nil {
 		fmt.Fprintf(clientConn, "[!] Could not connect to challenge server.\n")
 		return

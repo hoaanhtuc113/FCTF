@@ -17,6 +17,8 @@ public partial class AppDbContext : DbContext
     {
     }
 
+    public virtual DbSet<ArgoOutbox> ArgoOutboxes { get; set; }
+
     public virtual DbSet<Achievement> Achievements { get; set; }
 
     public virtual DbSet<ActionLog> ActionLogs { get; set; }
@@ -108,6 +110,46 @@ public partial class AppDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_unicode_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<ArgoOutbox>(entity =>
+        {
+            entity.ToTable("argo_outbox");
+
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.Property(e => e.Id)
+                .HasColumnType("int(11)")
+                .HasColumnName("id");
+
+            entity.Property(e => e.WorkflowName)
+                .HasMaxLength(255)
+                .HasColumnName("workflow_name");
+
+            entity.Property(e => e.Payload)
+                .HasColumnType("json")
+                .IsRequired()
+                .HasColumnName("payload");
+
+            entity.Property(e => e.Status)
+                .HasColumnType("int(11)")
+                .HasColumnName("status");
+
+            entity.Property(e => e.RetryCount)
+                .HasColumnType("int(11)")
+                .HasColumnName("retry_count");
+
+            entity.Property(e => e.ProcessingAt)
+                .HasColumnType("datetime")
+                .HasColumnName("processing_at");
+
+            entity.Property(e => e.Expiry)
+                .HasColumnType("datetime")
+                .HasColumnName("expiry");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("created_at");
+        });
 
         modelBuilder.Entity<Achievement>(entity =>
         {
