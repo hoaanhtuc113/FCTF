@@ -118,12 +118,13 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 		return
 	}
 
-	// Store target host in requestInfo for logging
+	// Expand route if needed and store target host in requestInfo for logging
+	host := expandRoute(payload.Route)
 	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
-		info.TargetHost = payload.Route
+		info.TargetHost = host
 	}
 
-	ctx := context.WithValue(r.Context(), targetHostKey, payload.Route)
+	ctx := context.WithValue(r.Context(), targetHostKey, host)
 	proxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
