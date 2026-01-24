@@ -144,7 +144,7 @@ internal class Worker : BackgroundService
                     startReq?.teamId.ToString() ?? string.Empty,
                     deploymentKey,
                     startReq?.challengeId.ToString() ?? string.Empty,
-                    realTtlSeconds: 180,
+                    realTtlSeconds: 300,
                     JsonSerializer.Serialize(deploymentCache));
             }
             catch (Exception ex)
