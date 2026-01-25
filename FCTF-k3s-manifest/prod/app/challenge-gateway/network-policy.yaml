@@ -24,15 +24,8 @@ spec:
         - protocol: TCP
           port: 8080
   egress:
-    # Allow to DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
+    # Allow DNS (UDP/TCP 53 to any)
+    - ports:
         - protocol: UDP
           port: 53
         - protocol: TCP
