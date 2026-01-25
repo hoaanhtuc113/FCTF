@@ -181,6 +181,8 @@ kubectl apply -f ./prod/app/contestant-be/
 kubectl apply -f ./prod/app/contestant-portal/
 kubectl apply -f ./prod/app/deployment-center/
 kubectl apply -f ./prod/app/deployment-listener/
+kubectl apply -f ./prod/app/challenge-gateway/
+kubectl apply -f ./prod/app/deployment-consumer/
 
 # Ở đây có 2 cách bạn có thể chuyển đổi qua lại
 # Apply NodePort services: Nếu Ở môi trường local, ingress domain không hoạt động. sử dụng cách này**
