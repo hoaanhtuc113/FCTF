@@ -4,7 +4,8 @@
 
 # --------------APPLY HELM REPO AND CHARTS-----------------
 # Tạo PriorityClass (cần cho ingress-nginx và một số chart khác)
-kubectl apply -f ./app/priority-classes.yaml
+kubectl apply -f ./priority-classes.yaml
+kubectl apply -f ./runtime-class.yaml
 
 # cài nginx ingress k3s để route traffic đến các service
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx

@@ -20,10 +20,6 @@ spec:
       - name: IMAGE_REPO
         value: fctf
       - name: IMAGE_TAG
-      - name: DOCKER_USERNAME
-        value: quachuoiscontainer
-      - name: DOCKER_PASSWORD
-        value: Admin@123
       - name: DEPLOYMENT_CENTER_API_ENDPOINT
         value: http://deployment-center-svc.app.svc.cluster.local:5020/api/statuscheck/message
       - name: NFS_SERVER
@@ -42,10 +38,6 @@ spec:
                   value: "{{workflow.parameters.IMAGE_REPO}}"
                 - name: IMAGE_TAG
                   value: "{{workflow.parameters.IMAGE_TAG}}"
-                - name: DOCKER_USERNAME
-                  value: "{{workflow.parameters.DOCKER_USERNAME}}"
-                - name: DOCKER_PASSWORD
-                  value: "{{workflow.parameters.DOCKER_PASSWORD}}"
                 - name: NFS_SERVER
                   value: "{{workflow.parameters.NFS_SERVER}}"
 
@@ -55,8 +47,6 @@ spec:
           - name: CHALLENGE_PATH
           - name: IMAGE_REPO
           - name: IMAGE_TAG
-          - name: DOCKER_USERNAME
-          - name: DOCKER_PASSWORD
           - name: NFS_SERVER
       priorityClassName: lowest
       preemptionPolicy: Never
@@ -71,9 +61,15 @@ spec:
           privileged: true
         env:
           - name: DOCKER_USERNAME
-            value: "{{inputs.parameters.DOCKER_USERNAME}}"
+            valueFrom:
+              secretKeyRef:
+                name: docker-registry-creds
+                key: username
           - name: DOCKER_PASSWORD
-            value: "{{inputs.parameters.DOCKER_PASSWORD}}"
+            valueFrom:
+              secretKeyRef:
+                name: docker-registry-creds
+                key: password
         resources:
           requests:
             memory: "512Mi"
@@ -135,11 +131,14 @@ spec:
             memory: "512Mi"
             cpu: "0.25"
         securityContext:
-          runAsUser: 0
-          runAsGroup: 0
-          runAsNonRoot: false
-          allowPrivilegeEscalation: true
-          privileged: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         command: ["/bin/sh", "-c"]
         args:
           - |

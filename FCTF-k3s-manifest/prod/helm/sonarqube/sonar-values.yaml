@@ -325,11 +325,19 @@ initSysctl:
   # all initContainers use SonarQube image by default, but you can override it by setting the image field (ex image: ubuntu:24.04)
   # image:
   securityContext:
-    # Compatible with podSecurity standard privileged
-    privileged: true
-    # if run without root permissions, error "sysctl: permission denied on key xxx, ignoring"
+    # SECURITY: Using SYS_ADMIN capability instead of privileged: true
+    # SYS_ADMIN is required for sysctl commands, but less permissive than full privileged mode
+    privileged: false
+    # runAsUser: 0 is still required - sysctl commands need root
     runAsUser: 0
+    runAsNonRoot: false
     readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: true  # Required for SYS_ADMIN capability
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop: ["ALL"]
+      add: ["SYS_ADMIN"]
   # resources: {}
 
 # This should not be required anymore, used to chown/chmod folder created by faulty CSI driver that are not applying properly POSIX fsgroup.
