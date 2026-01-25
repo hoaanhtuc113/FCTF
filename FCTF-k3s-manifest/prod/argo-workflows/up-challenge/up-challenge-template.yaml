@@ -106,9 +106,9 @@ spec:
             /kaniko/executor \
               --dockerfile=Dockerfile \
               --context=dir://$CHALLENGE_DIR \
-              --destination={{inputs.parameters.DOCKER_USERNAME}}/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}} \
+              --destination=$DOCKER_USERNAME/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}
 
-            echo "✅ Image pushed: {{inputs.parameters.DOCKER_USERNAME}}/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}"
+            echo "✅ Image pushed: $DOCKER_USERNAME/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}"
       volumes:
         - name: nfs-shared-data
           nfs:
