@@ -71,11 +71,14 @@ spec:
         image: quachuoiscontainer/kubectl-cli:v0.0.3
         imagePullPolicy: IfNotPresent
         securityContext:
-          runAsUser: 0
-          runAsGroup: 0
-          runAsNonRoot: false
-          allowPrivilegeEscalation: true
-          privileged: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         resources:
           requests:
             memory: "32Mi"
