@@ -60,6 +60,10 @@ spec:
           - name: NFS_SERVER
       priorityClassName: lowest
       preemptionPolicy: Never
+      # Fix for Kaniko i/o timeout: Use Host Network
+      podSpecPatch: |
+        hostNetwork: true
+        dnsPolicy: ClusterFirstWithHostNet
       container:
         image: gcr.io/kaniko-project/executor:debug
         imagePullPolicy: IfNotPresent
