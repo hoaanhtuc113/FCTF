@@ -9,17 +9,21 @@ spec:
   serviceAccountName: argo-sa
   entrypoint: main
   ttlStrategy:
-    secondsAfterSuccess: 604800     # 7 days
-    secondsAfterFailure: 1209600    # 14 days
+    secondsAfterSuccess: 604800   # 7 days
+    secondsAfterFailure: 1209600  # 14 days
   onExit: send-message
-
   arguments:
     parameters:
       - name: CHALLENGE_PATH
+        description: "Relative path under /nfs/share/data/challenge to the challenge directory"
       - name: CHALLENGE_ID
       - name: IMAGE_REPO
         value: fctf
       - name: IMAGE_TAG
+      - name: DOCKER_USERNAME
+        value: quachuoiscontainer
+      - name: DOCKER_PASSWORD
+        value: Admin@123
       - name: DEPLOYMENT_CENTER_API_ENDPOINT
         value: http://deployment-center-svc.app.svc.cluster.local:5020/api/statuscheck/message
       - name: NFS_SERVER
@@ -38,142 +42,121 @@ spec:
                   value: "{{workflow.parameters.IMAGE_REPO}}"
                 - name: IMAGE_TAG
                   value: "{{workflow.parameters.IMAGE_TAG}}"
+                - name: DOCKER_USERNAME
+                  value: "{{workflow.parameters.DOCKER_USERNAME}}"
+                - name: DOCKER_PASSWORD
+                  value: "{{workflow.parameters.DOCKER_PASSWORD}}"
                 - name: NFS_SERVER
                   value: "{{workflow.parameters.NFS_SERVER}}"
 
-    # ======================================================
-    # BUILD & PUSH IMAGE (KANIKO)
-    # ======================================================
     - name: build-and-push
       inputs:
         parameters:
           - name: CHALLENGE_PATH
           - name: IMAGE_REPO
           - name: IMAGE_TAG
+          - name: DOCKER_USERNAME
+          - name: DOCKER_PASSWORD
           - name: NFS_SERVER
       priorityClassName: lowest
       preemptionPolicy: Never
-
       container:
         image: gcr.io/kaniko-project/executor:debug
         imagePullPolicy: IfNotPresent
-
-        # Kaniko REQUIRE root + writable FS
         securityContext:
           runAsUser: 0
           runAsGroup: 0
           runAsNonRoot: false
-          privileged: true
           allowPrivilegeEscalation: true
-
-        # Production-safe resources (tested range)
+          privileged: true
+        env:
+          - name: DOCKER_USERNAME
+            value: "{{inputs.parameters.DOCKER_USERNAME}}"
+          - name: DOCKER_PASSWORD
+            value: "{{inputs.parameters.DOCKER_PASSWORD}}"
         resources:
           requests:
-            cpu: "500m"
-            memory: "1Gi"
+            memory: "512Mi"
+            cpu: "0.2"
           limits:
-            cpu: "2"
-            memory: "4Gi"
-
-        env:
-          - name: DOCKER_CONFIG
-            value: /kaniko/.docker
-
+            memory: "2Gi"
+            cpu: "1"
         volumeMounts:
           - name: nfs-shared-data
             mountPath: /nfs/share/data
-            readOnly: true
           - name: docker-config
             mountPath: /kaniko/.docker
-            readOnly: true
-
         command: ["/busybox/sh", "-c"]
         args:
           - |
-            set -euo pipefail
-
+            set -e
             echo "=== Building and pushing image with Kaniko ==="
-
-            CHALLENGE_DIR="/nfs/share/data/{{inputs.parameters.CHALLENGE_PATH}}"
+            export CHALLENGE_DIR="/nfs/share/data/{{inputs.parameters.CHALLENGE_PATH}}"
+            export DOCKER_CONFIG=/kaniko/.docker
+            mkdir -p "$DOCKER_CONFIG"
 
             if [ ! -d "$CHALLENGE_DIR" ]; then
               echo "❌ Challenge directory not found: $CHALLENGE_DIR"
               exit 1
             fi
 
-            if [ ! -f "$CHALLENGE_DIR/Dockerfile" ]; then
-              echo "❌ Dockerfile not found in $CHALLENGE_DIR"
-              exit 1
-            fi
+            echo "📁 Using build context: $CHALLENGE_DIR"
 
-            echo "📁 Build context: $CHALLENGE_DIR"
-            cd "$CHALLENGE_DIR"
+            AUTH_BASE64=$(printf "%s:%s" "$DOCKER_USERNAME" "$DOCKER_PASSWORD" | base64)
+            cat > "$DOCKER_CONFIG/config.json" <<EOF
+            {"auths": {"https://index.docker.io/v1/": {"auth": "$AUTH_BASE64", "username": "$DOCKER_USERNAME", "password": "$DOCKER_PASSWORD"}}}
+            EOF
 
             /kaniko/executor \
               --dockerfile=Dockerfile \
-              --context=dir://. \
-              --custom-platform=linux/amd64 \
-              --snapshot-mode=redo \
-              --verbosity=info \
-              --destination=quachuoiscontainer/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}
+              --context=dir://$CHALLENGE_DIR \
+              --destination={{inputs.parameters.DOCKER_USERNAME}}/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}} \
 
-            echo "✅ Image pushed: quachuoiscontainer/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}"
-
+            echo "✅ Image pushed: {{inputs.parameters.DOCKER_USERNAME}}/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}"
       volumes:
         - name: nfs-shared-data
           nfs:
             server: "{{inputs.parameters.NFS_SERVER}}"
             path: /srv/nfs/share
-
         - name: docker-config
-          secret:
-            secretName: global-regcred
-            items:
-              - key: .dockerconfigjson
-                path: config.json
+          emptyDir: {}
 
-    # ======================================================
-    # ON EXIT: SEND STATUS
-    # ======================================================
     - name: send-message
       priorityClassName: lowest
       preemptionPolicy: Never
-
       container:
         image: quachuoiscontainer/kubectl-cli:v0.0.3
         imagePullPolicy: IfNotPresent
-
-        # HARDENED (safe – no write needed)
-        securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
-          runAsNonRoot: true
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          privileged: false
-          capabilities:
-            drop: ["ALL"]
-
         resources:
           requests:
-            cpu: "50m"
-            memory: "64Mi"
-          limits:
-            cpu: "250m"
             memory: "256Mi"
-
+            cpu: "0.125"
+          limits:
+            memory: "512Mi"
+            cpu: "0.25"
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: true
+          privileged: true
         command: ["/bin/sh", "-c"]
         args:
           - |
-            set +e
-
+            set +e  # Don't exit on error - we want to send message even if log collection fails
+            echo "=========================================="
+            echo "=== SEND-MESSAGE TEMPLATE EXECUTED ==="
+            echo "=== This should run on workflow exit ==="
+            echo "=========================================="
+            echo "=== Collecting workflow logs (always executed on success or failure) ==="
             WORKFLOW_NAME="{{workflow.name}}"
             WORKFLOW_STATUS="{{workflow.status}}"
             WORKFLOW_TYPE="up"
             CHALLENGE_ID="{{workflow.parameters.CHALLENGE_ID}}"
             ENDPOINT="{{workflow.parameters.DEPLOYMENT_CENTER_API_ENDPOINT}}"
 
-            echo "Posting workflow status to deployment center"
+            echo "Posting status to: ${ENDPOINT}"
+            echo "Workflow: ${WORKFLOW_NAME}, Challenge ID: ${CHALLENGE_ID}, Status: ${WORKFLOW_STATUS}"
 
             curl -sS -X POST "${ENDPOINT}" \
               -H 'Content-Type: application/json' \
@@ -182,4 +165,4 @@ spec:
                 "ChallengeId": '"${CHALLENGE_ID}"',
                 "Status": "'"${WORKFLOW_STATUS}"'",
                 "Type": "'"${WORKFLOW_TYPE}"'"
-              }' || true
+              }' || echo "Warning: Failed to send message to deployment center"
