@@ -1,4 +1,4 @@
-﻿using k8s;
+using k8s;
 using k8s.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -624,7 +624,6 @@ namespace ResourceShared.Services
         {
             try
             {
-
                 var challenge = await _dbContext.Challenges.AsNoTracking().FirstOrDefaultAsync(c => c.Id == challengeId);
                 if (challenge == null)
                     return new ChallengeDeployResponeDTO
@@ -634,27 +633,12 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.NotFound
                     };
 
-                // Lấy port và domain
-                var port = await GetServicePort(podName);
-                if (port == null)
-                    return new ChallengeDeployResponeDTO
-                    {
-                        success = false,
-                        message = "Service port not ready.",
-                        status = (int)HttpStatusCode.BadRequest
-                    };
-
                 var timeLimit = challenge.TimeLimit ?? -1;
 
-                var routeInfo = $"{podName}-svc.{podName}.svc.cluster.local:3333";
                 var expiry = DateTimeOffset.UtcNow.AddMinutes(
                     timeLimit > 0 ? timeLimit : 30
                 );
-                var challengeToken = ChallengeHelper.GenerateChallengeToken(routeInfo, expiry);
-
-                var gateWayPort = 30037;
-
-                var challengeDomain = $"Connection string: {SharedConfig.TCP_DOMAIN} {gateWayPort} \n Token: {challengeToken}";
+                var challengeDomain = ChallengeHelper.GenerateChallengeToken(podName, expiry);
 
                 var nowUtc = DateTimeOffset.UtcNow;
                 var timeFinished = nowUtc.AddMinutes(timeLimit);

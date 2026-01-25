@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DeploymentConsumer": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

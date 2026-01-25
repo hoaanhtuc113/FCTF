@@ -66,6 +66,20 @@ if time.Now().Unix() > payload.Exp {
 	return payload, nil
 }
 
+// expandRoute builds the full k8s service host when the route is provided
+// as a simple pod name (e.g., "podName"). If the route already contains
+// a dot, colon or slash it is returned unchanged.
+func expandRoute(route string) string {
+	if route == "" {
+		return route
+	}
+	if strings.ContainsAny(route, ":./") || strings.Contains(route, ".") || strings.Contains(route, ":") || strings.Contains(route, "/") {
+		return route
+	}
+	// Default to the cluster-local service name and port
+	return fmt.Sprintf("%s-svc.%s.svc.cluster.local:3333", route, route)
+}
+
 func looksLikeToken(value string) bool {
 	if value == "" {
 		return false
