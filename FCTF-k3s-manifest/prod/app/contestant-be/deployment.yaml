@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: contestant-be
-          image: quachuoiscontainer/fctf:contestant-be-prod-v3.10.0
+          image: quachuoiscontainer/fctf:contestant-be-prod-v3.10.1
           ports:
             - name: http-client
               containerPort: 5010
@@ -36,7 +36,7 @@ spec:
             limits:
               cpu: 0.5
               memory: 1.5Gi
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           volumeMounts:
             - name: nfs-shared-data
               mountPath: /mnt/nfs/data

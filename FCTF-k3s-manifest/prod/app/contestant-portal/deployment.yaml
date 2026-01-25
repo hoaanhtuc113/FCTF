@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: contestant-portal
-          image: quachuoiscontainer/fctf:contestant-portal-prod-v3.10.0
+          image: quachuoiscontainer/fctf:contestant-portal-prod-v3.10.1
           ports:
             - name: http-client
               containerPort: 80
@@ -32,7 +32,7 @@ spec:
             limits:
               cpu: 0.15
               memory: 150Mi
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
       imagePullSecrets:
         - name: regcred
   revisionHistoryLimit: 3

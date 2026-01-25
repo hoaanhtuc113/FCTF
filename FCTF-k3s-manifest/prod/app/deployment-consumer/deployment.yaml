@@ -17,11 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-consumer
-          image: quachuoiscontainer/fctf:deployment-consumer-v3-refactor
-          ports:
-            - name: http-client
-              containerPort: 5040
-              protocol: TCP
+          image: quachuoiscontainer/fctf:deployment-consumer-prod-v3.10.1
           envFrom:
             - configMapRef:
                 name: common-be-cm
@@ -36,7 +32,7 @@ spec:
             limits:
               cpu: 0.2
               memory: 256Mi
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
       imagePullSecrets:
         - name: regcred
   revisionHistoryLimit: 3

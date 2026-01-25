@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: challenge-gateway
-          image: quachuoiscontainer/fctf:gateway-v4-demo
+          image: quachuoiscontainer/fctf:challenge-gateway-prod-v3.10.1
           envFrom:
             - configMapRef:
                 name: common-be-cm
@@ -30,7 +30,7 @@ spec:
             limits:
               cpu: 0.3
               memory: 64Mi
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
       imagePullSecrets:
         - name: regcred
   revisionHistoryLimit: 3

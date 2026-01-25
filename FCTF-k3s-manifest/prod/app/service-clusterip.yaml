@@ -69,17 +69,3 @@ spec:
     app: deployment-listener
   type: ClusterIP
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: app
-  name: deployment-consumer-svc
-spec:
-  ports:
-    - protocol: TCP
-      port: 5040
-      targetPort: 5040
-  selector:
-    app: deployment-consumer
-  type: ClusterIP
----

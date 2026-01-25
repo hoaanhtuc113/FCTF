@@ -18,7 +18,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-listener
-          image: quachuoiscontainer/fctf:deployment-listener-prod-v3.10.0
+          image: quachuoiscontainer/fctf:deployment-listener-prod-v3.10.1
           ports:
             - name: http-client
               containerPort: 5030
@@ -37,7 +37,7 @@ spec:
             limits:
               cpu: 0.2
               memory: 256Mi
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
       imagePullSecrets:
         - name: regcred
   revisionHistoryLimit: 3
