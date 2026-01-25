@@ -1256,3 +1256,16 @@ class Brackets(db.Model):
     name = db.Column(db.String(255))
     description = db.Column(db.Text)
     type = db.Column(db.String(80))
+
+
+class ArgoOutbox(db.Model):
+    __tablename__ = "argo_outbox"
+    id = db.Column(db.Integer, primary_key=True)
+    payload = db.Column(db.JSON, nullable=False)
+    status = db.Column(db.Integer, default=0)
+    expiry = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    # New columns requested: workflow name, processing timestamp, and retry counter
+    workflow_name = db.Column(db.String(255), nullable=True)
+    processing_at = db.Column(db.DateTime, nullable=True)
+    retry_count = db.Column(db.Integer, default=0)
