@@ -6,12 +6,12 @@ metadata:
     ctf/temporary: "${IS_TEMPORARY}"
     ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
     ctf/kind: "challenge"
-    pod-security.kubernetes.io/enforce: "restricted"
-    pod-security.kubernetes.io/enforce-version: "latest"
-    pod-security.kubernetes.io/audit: "restricted"
-    pod-security.kubernetes.io/audit-version: "latest"
-    pod-security.kubernetes.io/warn: "restricted"
-    pod-security.kubernetes.io/warn-version: "latest"
+    #pod-security.kubernetes.io/enforce: "restricted"
+    #pod-security.kubernetes.io/enforce-version: "latest"
+    #pod-security.kubernetes.io/audit: "restricted"
+    #pod-security.kubernetes.io/audit-version: "latest"
+    #pod-security.kubernetes.io/warn: "restricted"
+    #pod-security.kubernetes.io/warn-version: "latest"
 ---
 apiVersion: v1
 kind: Service
@@ -165,7 +165,7 @@ spec:
       preemptionPolicy: Never
       runtimeClassName: gvisor
       securityContext:
-        runAsNonRoot: true
+        #runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -184,8 +184,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             privileged: false
-            runAsUser: 1000
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             capabilities:
               drop: ["ALL"]
           resources:
