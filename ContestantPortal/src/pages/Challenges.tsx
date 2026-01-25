@@ -4,10 +4,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { challengeService } from '../services/challengeService';
 import { useTheme } from '../context/ThemeContext';
-import { 
-  LockOpen, 
-  Lock, 
-  Timer, 
+import {
+  LockOpen,
+  Lock,
+  Timer,
   Check,
   Terminal,
   Security,
@@ -22,10 +22,11 @@ import remarkGfm from 'remark-gfm';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { fetchWithAuth, downloadFile } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
-import { 
-  CategorySkeleton, 
-  ChallengeListSkeleton, 
-  ChallengeDetailSkeleton 
+import { getBaseGateway, getHttpPort, getTcpPort } from '../services/envService';
+import {
+  CategorySkeleton,
+  ChallengeListSkeleton,
+  ChallengeDetailSkeleton
 } from '../components/Skeleton';
 import { authService } from '../services/authService';
 import { challengeTimerService } from '../services/challengeTimerService';
@@ -100,7 +101,7 @@ export function Challenges() {
   const [isContestActive, setIsContestActive] = useState(false);
   const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
   const [showCategories, setShowCategories] = useState(false);
-  
+
   // Track processed challenge IDs to prevent double-loading
   const processedChallengeRef = useRef<number | null>(null);
 
@@ -112,24 +113,24 @@ export function Challenges() {
 
   // Check if challenge prerequisites are met
   const checkPrerequisites = async (challenge: Challenge): Promise<{ locked: boolean; unmetPrereqs: PrerequisiteChallenge[] }> => {
-    
+
     if (!challenge.requirements?.prerequisites || challenge.requirements.prerequisites.length === 0) {
       return { locked: false, unmetPrereqs: [] };
     }
 
     const unmetPrereqs: PrerequisiteChallenge[] = [];
-    
+
     for (const prereqId of challenge.requirements.prerequisites) {
       try {
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(prereqId), {
           method: 'GET'
         });
         const data = await response.json();
-        
+
         // API response structure: { message: true, data: { id, name, category, solve_by_myteam, ... } }
         if (data.data) {
           const isSolved = data.data.solve_by_myteam || false;
-          
+
           if (!isSolved) {
             unmetPrereqs.push({
               id: prereqId,
@@ -150,7 +151,7 @@ export function Challenges() {
   // Load prerequisites info for all challenges
   const loadPrerequisitesInfo = async (challengeList: Challenge[]) => {
     const prereqMap = new Map<number, PrerequisiteChallenge[]>();
-    
+
     for (const challenge of challengeList) {
       if (challenge.requirements?.prerequisites) {
         const { unmetPrereqs } = await checkPrerequisites(challenge);
@@ -159,7 +160,7 @@ export function Challenges() {
         }
       }
     }
-    
+
     setPrerequisiteInfo(prereqMap);
   };
 
@@ -190,26 +191,26 @@ export function Challenges() {
     const fetchDataAsync = async () => {
       try {
         setLoading(true);
-        
+
         const config = await challengeService.getContestStatus();
         setIsContestActive(config?.isActive || false);
 
         const data = await challengeService.getCategories();
         setCategories(Array.isArray(data) ? data : []);
-        
+
         // Check URL params for category
         const categoryParam = searchParams.get('category');
-        
+
         if (data.length > 0) {
           // Use category from URL if available, otherwise use first category
           const initialCategory = categoryParam && data.find(c => c.topic_name === categoryParam)
             ? categoryParam
             : data[0].topic_name;
-          
+
           setSelectedCategory(initialCategory);
           await fetchChallenges(initialCategory);
         }
-        
+
         setLoading(false);
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -220,7 +221,7 @@ export function Challenges() {
 
     fetchDataAsync();
   }, []);
-  
+
   // Separate effect to handle opening challenge from URL params (only on mount)
   useEffect(() => {
     const challengeParam = searchParams.get('challenge');
@@ -232,7 +233,7 @@ export function Challenges() {
         if (processedChallengeRef.current === challengeId) {
           return;
         }
-        
+
         const challenge = challenges.find(c => c.id === challengeId);
         if (challenge) {
           processedChallengeRef.current = challengeId;
@@ -248,7 +249,7 @@ export function Challenges() {
       setLoadingChallenges(true);
       const data = await challengeService.getChallengesByTopic(categoryName);
       const challengeList = Array.isArray(data) ? data : [];
-      
+
       // Parse requirements string to object if needed
       const parsedChallenges = challengeList.map(challenge => {
         if (challenge.requirements && typeof challenge.requirements === 'string') {
@@ -261,12 +262,12 @@ export function Challenges() {
         }
         return challenge;
       });
-      
+
       setChallenges(parsedChallenges);
-      
+
       // Load prerequisites info for challenges with requirements
       await loadPrerequisitesInfo(parsedChallenges);
-      
+
       setLoadingChallenges(false);
       return parsedChallenges;
     } catch (err) {
@@ -289,17 +290,16 @@ export function Challenges() {
   // Internal function to load challenge details without updating URL
   const handleChallengeClickInternal = async (challenge: Challenge) => {
     if (!isContestActive) return;
-    
+
     // Check if challenge has prerequisites
     const unmetPrereqs = prerequisiteInfo.get(challenge.id) || [];
-    
+
     if (unmetPrereqs.length > 0) {
       // Show locked challenge warning with clickable prerequisites
       const prereqButtons = unmetPrereqs.map(p => `
-        <div class="flex items-center justify-between p-2 rounded border ${
-          theme === 'dark' 
-            ? 'bg-gray-800/50 border-yellow-500/30 hover:bg-gray-700/50' 
-            : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
+        <div class="flex items-center justify-between p-2 rounded border ${theme === 'dark'
+          ? 'bg-gray-800/50 border-yellow-500/30 hover:bg-gray-700/50'
+          : 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
         } cursor-pointer transition-colors mb-2" 
         data-challenge-id="${p.id}" data-category="${p.category}">
           <div class="flex items-center gap-2">
@@ -313,7 +313,7 @@ export function Challenges() {
           <span class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} text-lg">→</span>
         </div>
       `).join('');
-      
+
       await Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
@@ -341,32 +341,32 @@ export function Challenges() {
             el.addEventListener('click', async () => {
               const challengeId = (el as HTMLElement).getAttribute('data-challenge-id');
               const category = (el as HTMLElement).getAttribute('data-category');
-              
+
               if (challengeId && category) {
                 // Close the modal
                 Swal.close();
-                
+
                 // Mark this challenge as processed immediately to prevent useEffect from triggering
                 const targetChallengeId = parseInt(challengeId);
                 processedChallengeRef.current = targetChallengeId;
-                
+
                 // Switch to the category and open the challenge
                 setSelectedCategory(category);
                 setLoadingChallengeDetail(true);
-                
+
                 // Fetch challenges and use the returned list directly (avoid stale closure)
                 const fetchedChallenges = await fetchChallenges(category);
-                
+
                 // Find the prerequisite challenge from the fetched list
                 const prereqChallenge = fetchedChallenges.find(c => c.id === targetChallengeId);
-                
+
                 if (prereqChallenge) {
                   // Update URL params
                   setSearchParams({
                     category: category,
                     challenge: challengeId
                   }, { replace: true });
-                  
+
                   // Load challenge detail directly without checking prerequisites
                   try {
                     const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(prereqChallenge.id), {
@@ -397,17 +397,17 @@ export function Challenges() {
       });
       return;
     }
-    
+
     try {
       // Set loading state and show skeleton
       // Don't set selectedChallenge to null to prevent category panel from flickering
       setLoadingChallengeDetail(true);
-      
+
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
         method: 'GET'
       });
       const data = await response.json();
-      
+
       // Preserve value and solves from the list since API detail doesn't return them
       setSelectedChallenge({
         ...data.data,
@@ -427,13 +427,13 @@ export function Challenges() {
   const handleChallengeClick = async (challenge: Challenge) => {
     // Reset processed challenge ref when user manually clicks a challenge
     processedChallengeRef.current = null;
-    
+
     // Update URL with category and challenge (only when user clicks, not from URL param)
     setSearchParams({
       category: selectedCategory,
       challenge: challenge.id.toString()
     }, { replace: true }); // Use replace to avoid adding to history stack
-    
+
     // Call internal function to load challenge
     await handleChallengeClickInternal(challenge);
   };
@@ -479,7 +479,7 @@ export function Challenges() {
       {/* Column 1: Categories - Always show, control via opacity */}
       <motion.div
         initial={false}
-        animate={{ 
+        animate={{
           opacity: (!selectedChallenge || showCategories) ? 1 : 0,
           width: (!selectedChallenge || showCategories) ? 'auto' : 0,
           marginRight: (!selectedChallenge || showCategories) ? '1rem' : 0
@@ -487,46 +487,42 @@ export function Challenges() {
         transition={{ duration: 0.2, ease: "easeOut" }}
         className="flex-shrink-0 overflow-hidden"
       >
-            <div className={`w-48 rounded-lg border p-3 ${
-              theme === 'dark'
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-white border-gray-300'
+        <div className={`w-48 rounded-lg border p-3 ${theme === 'dark'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-300'
+          }`}>
+          <div className={`mb-3 pb-2 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
             }`}>
-              <div className={`mb-3 pb-2 border-b ${
-                theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
+            <Typography variant="h6" className={`font-bold font-mono text-xs ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
               }`}>
-                <Typography variant="h6" className={`font-bold font-mono text-xs ${
-                  theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
-                }`}>
-                  [CATEGORIES]
-                </Typography>
-              </div>
-          
-              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                {loading ? (
-                  <>
-                    <CategorySkeleton />
-                    <CategorySkeleton />
-                    <CategorySkeleton />
-                    <CategorySkeleton />
-                    <CategorySkeleton />
-                  </>
-                ) : (
-                  categories
-                    .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
-                    .map((category) => (
+              [CATEGORIES]
+            </Typography>
+          </div>
+
+          <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+            {loading ? (
+              <>
+                <CategorySkeleton />
+                <CategorySkeleton />
+                <CategorySkeleton />
+                <CategorySkeleton />
+                <CategorySkeleton />
+              </>
+            ) : (
+              categories
+                .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
+                .map((category) => (
                   <button
                     key={category.topic_name}
                     onClick={() => handleCategoryClick(category.topic_name)}
-                    className={`w-full text-left px-2 py-1.5 rounded transition-colors flex items-center justify-between text-xs ${
-                      selectedCategory === category.topic_name
+                    className={`w-full text-left px-2 py-1.5 rounded transition-colors flex items-center justify-between text-xs ${selectedCategory === category.topic_name
                         ? theme === 'dark'
                           ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                           : 'bg-orange-50 text-orange-700 border border-orange-300'
                         : theme === 'dark'
-                        ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
-                        : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
-                    }`}
+                          ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
+                          : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                      }`}
                   >
                     <div className="flex items-center gap-1.5">
                       {getCategoryIcon(category.topic_name)}
@@ -534,54 +530,50 @@ export function Challenges() {
                         <div className="font-bold text-xs font-mono">
                           {category.topic_name.toUpperCase()}
                         </div>
-                        <div className={`text-xs font-mono ${
-                          selectedCategory === category.topic_name
+                        <div className={`text-xs font-mono ${selectedCategory === category.topic_name
                             ? theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
                             : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                        }`}>
+                          }`}>
                           {category.challenge_count} challs
                         </div>
                       </div>
                     </div>
-                    
+
                     {selectedCategory === category.topic_name && (
                       <span className="text-orange-500 text-xs">●</span>
                     )}
                   </button>
                 ))
-                )}
-              </div>
+            )}
+          </div>
 
-              {categories.length > categoriesPerPage && (
-                <div className="mt-3 pt-2 border-t border-gray-700">
-                  <TerminalPagination
-                    currentPage={categoryPage}
-                    totalPages={Math.ceil(categories.length / categoriesPerPage)}
-                    onPageChange={setCategoryPage}
-                    theme={theme}
-                  />
-                </div>
-              )}
+          {categories.length > categoriesPerPage && (
+            <div className="mt-3 pt-2 border-t border-gray-700">
+              <TerminalPagination
+                currentPage={categoryPage}
+                totalPages={Math.ceil(categories.length / categoriesPerPage)}
+                onPageChange={setCategoryPage}
+                theme={theme}
+              />
             </div>
-          </motion.div>
+          )}
+        </div>
+      </motion.div>
 
       {/* Column 2: Challenge List */}
-      <div 
-        className={`transition-all duration-300 ${
-          selectedChallenge 
+      <div
+        className={`transition-all duration-300 ${selectedChallenge
             ? (showCategories ? 'w-72' : 'w-80')
             : 'flex-1'
-        }`}
+          }`}
       >
         {!isContestActive && (
-          <div className={`mb-4 p-3 rounded border ${
-            theme === 'dark'
+          <div className={`mb-4 p-3 rounded border ${theme === 'dark'
               ? 'bg-orange-900/20 border-orange-500/30'
               : 'bg-orange-50 border-orange-300'
-          }`}>
-            <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${
-              theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
             }`}>
+            <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
+              }`}>
               <Lock fontSize="small" />
               [!] CONTEST NOT ACTIVE
             </Typography>
@@ -596,29 +588,24 @@ export function Challenges() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <div className={`mb-4 pb-3 border-b ${
-              selectedChallenge ? 'flex items-center justify-between' : ''
-            } ${
-              theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
-            }`}>
+            <div className={`mb-4 pb-3 border-b ${selectedChallenge ? 'flex items-center justify-between' : ''
+              } ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
+              }`}>
               {selectedChallenge && (
                 <button
                   onClick={() => setShowCategories(!showCategories)}
-                  className={`p-1.5 rounded transition-colors border ${
-                    theme === 'dark'
+                  className={`p-1.5 rounded transition-colors border ${theme === 'dark'
                       ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
                       : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
-                  }`}
+                    }`}
                   title={showCategories ? "Hide Categories" : "Show Categories"}
                 >
                   BACK
                 </button>
               )}
-              <h1 className={`text-xl font-bold font-mono ${
-                selectedChallenge ? 'flex-1 text-center' : ''
-              } ${
-                theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
-              }`}>
+              <h1 className={`text-xl font-bold font-mono ${selectedChallenge ? 'flex-1 text-center' : ''
+                } ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
+                }`}>
                 [{selectedCategory.toUpperCase()}]
               </h1>
             </div>
@@ -641,16 +628,16 @@ export function Challenges() {
                   {challenges
                     .slice((challengePage - 1) * challengesPerPage, challengePage * challengesPerPage)
                     .map((challenge) => (
-                    <ChallengeListItem
-                      key={challenge.id}
-                      challenge={challenge}
-                      isContestActive={isContestActive}
-                      onClick={() => handleChallengeClick(challenge)}
-                      isSelected={selectedChallenge?.id === challenge.id}
-                      isLocked={(prerequisiteInfo.get(challenge.id) || []).length > 0}
-                      prerequisites={prerequisiteInfo.get(challenge.id) || []}
-                    />
-                  ))}
+                      <ChallengeListItem
+                        key={challenge.id}
+                        challenge={challenge}
+                        isContestActive={isContestActive}
+                        onClick={() => handleChallengeClick(challenge)}
+                        isSelected={selectedChallenge?.id === challenge.id}
+                        isLocked={(prerequisiteInfo.get(challenge.id) || []).length > 0}
+                        prerequisites={prerequisiteInfo.get(challenge.id) || []}
+                      />
+                    ))}
                 </div>
 
                 {/* Challenges Pagination */}
@@ -670,9 +657,8 @@ export function Challenges() {
             ) : (
               <Box className="text-center py-12">
                 <Lock className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} sx={{ fontSize: 48 }} />
-                <Typography className={`font-mono mt-3 text-sm ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
-                }`}>
+                <Typography className={`font-mono mt-3 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
                   {'> NO CHALLENGES FOUND'}
                 </Typography>
               </Box>
@@ -701,8 +687,8 @@ export function Challenges() {
             exit={{ opacity: 0, x: 20 }}
             className="flex-1"
           >
-            <ChallengeDetailPanel 
-              challenge={selectedChallenge} 
+            <ChallengeDetailPanel
+              challenge={selectedChallenge}
               theme={theme}
               onClose={() => {
                 setSelectedChallenge(null);
@@ -739,7 +725,7 @@ function TerminalPagination({
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
-    
+
     if (totalPages <= 7) {
       // Show all pages if 7 or less
       for (let i = 1; i <= totalPages; i++) {
@@ -748,27 +734,27 @@ function TerminalPagination({
     } else {
       // Always show first page
       pages.push(1);
-      
+
       if (currentPage > 3) {
         pages.push('...');
       }
-      
+
       // Show pages around current page
       const start = Math.max(2, currentPage - 1);
       const end = Math.min(totalPages - 1, currentPage + 1);
-      
+
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
-      
+
       if (currentPage < totalPages - 2) {
         pages.push('...');
       }
-      
+
       // Always show last page
       pages.push(totalPages);
     }
-    
+
     return pages;
   };
 
@@ -776,9 +762,8 @@ function TerminalPagination({
     <div className="flex flex-col gap-2">
       {/* Page info */}
       {totalItems && (
-        <div className={`text-xs font-mono text-center ${
-          theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-        }`}>
+        <div className={`text-xs font-mono text-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+          }`}>
           [{startItem}-{endItem} / {totalItems}]
         </div>
       )}
@@ -789,15 +774,14 @@ function TerminalPagination({
         <button
           onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${
-            currentPage === 1
+          className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${currentPage === 1
               ? theme === 'dark'
                 ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
                 : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
               : theme === 'dark'
-              ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
-              : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
-          }`}
+                ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
+                : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
+            }`}
         >
           {'[<]'}
         </button>
@@ -806,23 +790,21 @@ function TerminalPagination({
         {getPageNumbers().map((page, index) => (
           <React.Fragment key={index}>
             {page === '...' ? (
-              <span className={`px-2 py-1 text-xs font-mono ${
-                theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
-              }`}>
+              <span className={`px-2 py-1 text-xs font-mono ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+                }`}>
                 ...
               </span>
             ) : (
               <button
                 onClick={() => onPageChange(page as number)}
-                className={`min-w-[32px] px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${
-                  currentPage === page
+                className={`min-w-[32px] px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${currentPage === page
                     ? theme === 'dark'
                       ? 'bg-orange-500/20 border-orange-500 text-orange-400'
                       : 'bg-orange-50 border-orange-400 text-orange-600'
                     : theme === 'dark'
-                    ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
-                }`}
+                      ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
+                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  }`}
               >
                 {page}
               </button>
@@ -834,15 +816,14 @@ function TerminalPagination({
         <button
           onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${
-            currentPage === totalPages
+          className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${currentPage === totalPages
               ? theme === 'dark'
                 ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
                 : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
               : theme === 'dark'
-              ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
-              : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
-          }`}
+                ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
+                : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
+            }`}
         >
           {'[>]'}
         </button>
@@ -868,10 +849,10 @@ function ChallengeListItem({
   prerequisites?: PrerequisiteChallenge[];
 }) {
   const { theme } = useTheme();
-  
+
   // Check if this challenge is deploying
   const [isDeploying, setIsDeploying] = React.useState(false);
-  
+
   React.useEffect(() => {
     const deploymentKey = `deployment_${challenge.id}`;
     const checkDeploymentStatus = () => {
@@ -890,13 +871,13 @@ function ChallengeListItem({
         setIsDeploying(false);
       }
     };
-    
+
     // Check immediately
     checkDeploymentStatus();
-    
+
     // Check every 2 seconds
     const interval = setInterval(checkDeploymentStatus, 2000);
-    
+
     return () => clearInterval(interval);
   }, [challenge.id]);
 
@@ -908,25 +889,23 @@ function ChallengeListItem({
 
   return (
     <div
-      className={`relative border rounded transition-colors ${
-        !isContestActive || isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-      } ${
-        isSelected
-          ? theme === 'dark' 
-            ? 'border-orange-500 bg-orange-900/20' 
+      className={`relative border rounded transition-colors ${!isContestActive || isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+        } ${isSelected
+          ? theme === 'dark'
+            ? 'border-orange-500 bg-orange-900/20'
             : 'border-orange-500 bg-orange-50'
           : !isContestActive || isLocked
-          ? theme === 'dark'
-            ? 'bg-gray-800/50 border-gray-700'
-            : 'bg-white border-gray-300'
-          : challenge.solve_by_myteam
-          ? theme === 'dark'
-            ? 'bg-green-900/30 border-green-700 hover:border-green-500'
-            : 'bg-green-50 border-green-300 hover:border-green-500'
-          : theme === 'dark'
-          ? 'bg-gray-800 border-gray-700 hover:border-gray-500'
-          : 'bg-white border-gray-300 hover:border-gray-500'
-      }`}
+            ? theme === 'dark'
+              ? 'bg-gray-800/50 border-gray-700'
+              : 'bg-white border-gray-300'
+            : challenge.solve_by_myteam
+              ? theme === 'dark'
+                ? 'bg-green-900/30 border-green-700 hover:border-green-500'
+                : 'bg-green-50 border-green-300 hover:border-green-500'
+              : theme === 'dark'
+                ? 'bg-gray-800 border-gray-700 hover:border-gray-500'
+                : 'bg-white border-gray-300 hover:border-gray-500'
+        }`}
       onClick={handleClick}
     >
       <div className="p-3">
@@ -942,17 +921,16 @@ function ChallengeListItem({
               ) : (
                 <Lock className="text-gray-500 flex-shrink-0" sx={{ fontSize: 18 }} />
               )}
-              
+
               <h3
-                className={`text-sm font-mono font-bold truncate ${
-                  challenge.solve_by_myteam
+                className={`text-sm font-mono font-bold truncate ${challenge.solve_by_myteam
                     ? 'text-green-500'
                     : isLocked
-                    ? 'text-yellow-500'
-                    : isContestActive
-                    ? theme === 'dark' ? 'text-white' : 'text-gray-900'
-                    : 'text-gray-500'
-                }`}
+                      ? 'text-yellow-500'
+                      : isContestActive
+                        ? theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        : 'text-gray-500'
+                  }`}
                 title={challenge.name}
               >
                 {challenge.name}
@@ -961,83 +939,77 @@ function ChallengeListItem({
 
             <div className="flex flex-wrap gap-2 text-xs font-mono">
               {isLocked && (
-                <span className={`px-2 py-0.5 rounded ${
-                  theme === 'dark'
+                <span className={`px-2 py-0.5 rounded ${theme === 'dark'
                     ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
                     : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                }`}>
+                  }`}>
                   [!] locked
                 </span>
               )}
-              
+
               {/* Prerequisites chips */}
               {isLocked && prerequisites.map((prereq) => (
-                <span 
+                <span
                   key={prereq.id}
-                  className={`px-2 py-0.5 rounded ${
-                    theme === 'dark'
+                  className={`px-2 py-0.5 rounded ${theme === 'dark'
                       ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                       : 'bg-orange-100 text-orange-700 border border-orange-300'
-                  }`}
+                    }`}
                   title={`Requires: ${prereq.name}`}
                 >
                   {prereq.name} ({prereq.category})
                 </span>
               ))}
-              
-              <span className={`px-2 py-0.5 rounded ${
-                challenge.solve_by_myteam
+
+              <span className={`px-2 py-0.5 rounded ${challenge.solve_by_myteam
                   ? theme === 'dark'
                     ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                     : 'bg-green-100 text-green-700 border border-green-300'
                   : theme === 'dark'
-                  ? 'bg-gray-700 text-gray-300 border border-gray-600'
-                  : 'bg-gray-100 text-gray-700 border border-gray-300'
-              }`}>
+                    ? 'bg-gray-700 text-gray-300 border border-gray-600'
+                    : 'bg-gray-100 text-gray-700 border border-gray-300'
+                }`}>
                 {challenge.value}pts
               </span>
 
               {challenge.solves !== undefined && (
-                <span className={`px-2 py-0.5 rounded ${
-                  theme === 'dark'
+                <span className={`px-2 py-0.5 rounded ${theme === 'dark'
                     ? 'bg-gray-700 text-gray-400 border border-gray-600'
                     : 'bg-gray-100 text-gray-600 border border-gray-300'
-                }`}>
+                  }`}>
                   {challenge.solves} solves
                 </span>
               )}
-              
+
               {/* Status badge - show deployment status or pod status, not both */}
               {isDeploying ? (
-                <span className={`px-2 py-0.5 rounded animate-pulse ${
-                  theme === 'dark'
+                <span className={`px-2 py-0.5 rounded animate-pulse ${theme === 'dark'
                     ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                     : 'bg-orange-100 text-orange-700 border border-orange-300'
-                }`}>
+                  }`}>
                   [~] deploying...
                 </span>
               ) : challenge.pod_status && (
-                <span className={`px-2 py-0.5 rounded ${
-                  challenge.pod_status === 'Running'
+                <span className={`px-2 py-0.5 rounded ${challenge.pod_status === 'Running'
                     ? theme === 'dark'
                       ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                       : 'bg-green-100 text-green-700 border border-green-300'
                     : challenge.pod_status === 'Pending'
-                    ? theme === 'dark'
-                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                      : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                    : challenge.pod_status === 'Failed'
-                    ? theme === 'dark'
-                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                      : 'bg-red-100 text-red-700 border border-red-300'
-                    : challenge.pod_status === 'Succeeded'
-                    ? theme === 'dark'
-                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                      : 'bg-blue-100 text-blue-700 border border-blue-300'
-                    : theme === 'dark'
-                    ? 'bg-gray-700 text-gray-400 border border-gray-600'
-                    : 'bg-gray-100 text-gray-600 border border-gray-300'
-                }`}>
+                      ? theme === 'dark'
+                        ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                        : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                      : challenge.pod_status === 'Failed'
+                        ? theme === 'dark'
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          : 'bg-red-100 text-red-700 border border-red-300'
+                        : challenge.pod_status === 'Succeeded'
+                          ? theme === 'dark'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-blue-100 text-blue-700 border border-blue-300'
+                          : theme === 'dark'
+                            ? 'bg-gray-700 text-gray-400 border border-gray-600'
+                            : 'bg-gray-100 text-gray-600 border border-gray-300'
+                  }`}>
                   [⚡] {challenge.pod_status}
                 </span>
               )}
@@ -1054,13 +1026,13 @@ function ChallengeListItem({
 }
 
 // Challenge Detail Panel Component
-function ChallengeDetailPanel({ 
-  challenge, 
+function ChallengeDetailPanel({
+  challenge,
   theme,
   onClose,
-  onFlagSuccess 
-}: { 
-  challenge: Challenge; 
+  onFlagSuccess
+}: {
+  challenge: Challenge;
   theme: string;
   onClose: () => void;
   onFlagSuccess?: () => Promise<void>; // Add this prop
@@ -1086,6 +1058,8 @@ function ChallengeDetailPanel({
   const [cooldownTotal, setCooldownTotal] = useState<number>(0);
   const [pdfScale, setPdfScale] = useState<number>(1.0);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedHttp, setCopiedHttp] = useState(false);
+  const [copiedTcp, setCopiedTcp] = useState(false);
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1102,11 +1076,11 @@ function ChallengeDetailPanel({
     // Check if Ctrl key is pressed (standard zoom modifier)
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      
+
       // Determine zoom direction
       const delta = -e.deltaY;
       const zoomStep = 0.1;
-      
+
       setPdfScale(prev => {
         if (delta > 0) {
           // Zoom in
@@ -1124,7 +1098,7 @@ function ChallengeDetailPanel({
     const container = pdfContainerRef.current;
     if (container && selectedPdfIndex !== null) {
       container.addEventListener('wheel', handlePdfWheel, { passive: false });
-      
+
       return () => {
         container.removeEventListener('wheel', handlePdfWheel);
       };
@@ -1143,12 +1117,12 @@ function ChallengeDetailPanel({
     const loadCooldown = () => {
       const cooldownKey = `cooldown_${challenge.id}`;
       const savedCooldown = localStorage.getItem(cooldownKey);
-      
+
       if (savedCooldown) {
         const { expireTime, totalSeconds } = JSON.parse(savedCooldown);
         const now = Date.now();
         const remaining = Math.max(0, Math.floor((expireTime - now) / 1000));
-        
+
         if (remaining > 0) {
           setCooldownRemaining(remaining);
           setCooldownTotal(totalSeconds || remaining);
@@ -1183,9 +1157,9 @@ function ChallengeDetailPanel({
       // Save to localStorage with expiry time and total seconds
       const cooldownKey = `cooldown_${challenge.id}`;
       const expireTime = Date.now() + (cooldownRemaining * 1000);
-      localStorage.setItem(cooldownKey, JSON.stringify({ 
-        expireTime, 
-        totalSeconds: cooldownTotal > 0 ? cooldownTotal : cooldownRemaining 
+      localStorage.setItem(cooldownKey, JSON.stringify({
+        expireTime,
+        totalSeconds: cooldownTotal > 0 ? cooldownTotal : cooldownRemaining
       }));
 
       cooldownTimerRef.current = window.setInterval(() => {
@@ -1217,7 +1191,7 @@ function ChallengeDetailPanel({
         setTimeRemaining((prev) => {
           if (prev && prev <= 1) {
             if (timerRef.current) clearInterval(timerRef.current);
-            
+
             // Auto stop challenge when time runs out - no confirmation needed
             if (challenge.require_deploy && url) {
               // Show toast notification
@@ -1243,7 +1217,7 @@ function ChallengeDetailPanel({
               // Auto stop without confirmation
               autoStopChallengeOnTimeout();
             }
-            
+
             return 0;
           }
           return prev ? prev - 1 : null;
@@ -1264,7 +1238,7 @@ function ChallengeDetailPanel({
   useEffect(() => {
     const handleAutoStop = (event: any) => {
       const { challengeId } = event.detail;
-      
+
       // If this is the challenge that was auto-stopped, update UI
       if (challengeId === challenge.id) {
         setIsChallengeStarted(false);
@@ -1273,13 +1247,13 @@ function ChallengeDetailPanel({
         setIsPodHealthy(false);
         setIsHealthChecking(false);
         setIsDeploymentInProgress(false);
-        
+
         // Clear timer
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
-        
+
         // Refresh challenge data
         if (onFlagSuccess) {
           onFlagSuccess();
@@ -1288,7 +1262,7 @@ function ChallengeDetailPanel({
     };
 
     window.addEventListener('challengeAutoStopped', handleAutoStop);
-    
+
     return () => {
       window.removeEventListener('challengeAutoStopped', handleAutoStop);
     };
@@ -1316,17 +1290,17 @@ function ChallengeDetailPanel({
       const data = await response.json();
       if (data.data) {
         // Log pod_status for debugging
-        
+
         // Set challenge started status from API
         setIsChallengeStarted(data.is_started || false);
-        
+
         // Set URL if challenge was already started
         setUrl(data.challenge_url || null);
-        
+
         // Only set time remaining if we have URL (challenge is deployed)
         if (data.challenge_url && data.time_remaining) {
           setTimeRemaining(data.time_remaining);
-          
+
           // Start global timer for cross-page auto-stop (if not already running)
           challengeTimerService.startTimer(
             challenge.id,
@@ -1337,7 +1311,7 @@ function ChallengeDetailPanel({
         } else {
           setTimeRemaining(null); // Show --:-- when no URL
         }
-        
+
         // If pod_status is not Running and challenge was started, reset state
         if (data.data.pod_status && data.data.pod_status !== 'Running' && isChallengeStarted) {
           setIsChallengeStarted(false);
@@ -1346,26 +1320,26 @@ function ChallengeDetailPanel({
           setIsPodHealthy(false);
           setIsHealthChecking(false);
           setIsDeploymentInProgress(false);
-          
+
           // Clear timer
           if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
           }
-          
+
           // Stop global timer
           challengeTimerService.stopTimer(challenge.id);
-          
+
           return; // Exit early since pod is not running
         }
-        
+
         // If challenge is started and has URL
         if (data.is_started && data.challenge_url) {
           const deploymentKey = `deployment_${challenge.id}`;
           const healthCheckKey = `healthcheck_${challenge.id}`;
           const savedDeployment = localStorage.getItem(deploymentKey);
           const savedHealthCheck = localStorage.getItem(healthCheckKey);
-          
+
           // Check if pod is healthy
           if (data.data.is_healthy) {
             // Pod is healthy - clean up and stop health checking
@@ -1378,7 +1352,7 @@ function ChallengeDetailPanel({
           } else if (savedHealthCheck || savedDeployment) {
             // Health check is running OR deployment in progress - continue checking
             const healthCheckData = savedHealthCheck ? JSON.parse(savedHealthCheck) : null;
-            
+
             // Check if health check hasn't timed out (5 minutes = 300 seconds)
             if (healthCheckData) {
               const elapsed = (Date.now() - healthCheckData.startTime) / 1000;
@@ -1388,7 +1362,7 @@ function ChallengeDetailPanel({
                 setIsDeploymentInProgress(true);
                 setIsStarting(false);
                 setIsPodHealthy(false);
-                
+
                 // Resume health check loop if not already running
                 if (!healthCheckRunningRef.current) {
                   setTimeout(() => {
@@ -1408,21 +1382,21 @@ function ChallengeDetailPanel({
               // Old deployment state - start health check
               const deploymentData = JSON.parse(savedDeployment);
               const elapsed = (Date.now() - deploymentData.startTime) / 1000;
-              
+
               if (elapsed < 300) {
-                
+
                 // Save health check state
                 localStorage.setItem(healthCheckKey, JSON.stringify({
                   startTime: deploymentData.startTime,
                   challengeId: challenge.id,
                   attempts: 0
                 }));
-                
+
                 setIsHealthChecking(true);
                 setIsDeploymentInProgress(true);
                 setIsStarting(false);
                 setIsPodHealthy(false);
-                
+
                 if (!healthCheckRunningRef.current) {
                   setTimeout(() => {
                     startHealthCheckLoop();
@@ -1451,16 +1425,16 @@ function ChallengeDetailPanel({
           const healthCheckKey = `healthcheck_${challenge.id}`;
           const savedDeployment = localStorage.getItem(deploymentKey);
           const savedHealthCheck = localStorage.getItem(healthCheckKey);
-          
+
           // If we have health check or deployment state, resume checking
           if (savedHealthCheck || savedDeployment) {
             const healthCheckData = savedHealthCheck ? JSON.parse(savedHealthCheck) : (savedDeployment ? JSON.parse(savedDeployment) : null);
-            
+
             if (healthCheckData) {
               const elapsed = (Date.now() - healthCheckData.startTime) / 1000;
-              
+
               if (elapsed < 300) {
-                
+
                 // Ensure health check state is saved
                 if (!savedHealthCheck) {
                   localStorage.setItem(healthCheckKey, JSON.stringify({
@@ -1469,7 +1443,7 @@ function ChallengeDetailPanel({
                     attempts: 0
                   }));
                 }
-                
+
                 // Set UI to show health checking state (like image 2)
                 setIsChallengeStarted(false);  // Challenge not fully started yet (no URL)
                 setUrl(null);                  // No URL available yet
@@ -1477,7 +1451,7 @@ function ChallengeDetailPanel({
                 setIsDeploymentInProgress(true);
                 setIsStarting(false);
                 setIsPodHealthy(false);
-                
+
                 // Resume health check loop if not already running
                 if (!healthCheckRunningRef.current) {
                   setTimeout(() => {
@@ -1503,20 +1477,20 @@ function ChallengeDetailPanel({
           const healthCheckKey = `healthcheck_${challenge.id}`;
           const savedDeployment = localStorage.getItem(deploymentKey);
           const savedHealthCheck = localStorage.getItem(healthCheckKey);
-          
+
           // If we have saved deployment/health check state, it means we're in the middle of deploying
           // Don't clean up - the deployment might just not be reflected in API yet
           if (savedHealthCheck || savedDeployment) {
-            const stateData = savedHealthCheck 
-              ? JSON.parse(savedHealthCheck) 
+            const stateData = savedHealthCheck
+              ? JSON.parse(savedHealthCheck)
               : (savedDeployment ? JSON.parse(savedDeployment) : null);
-            
+
             if (stateData) {
               const elapsed = (Date.now() - stateData.startTime) / 1000;
-              
+
               // If within timeout, keep the state and resume health checking
               if (elapsed < 100) {
-                
+
                 // Ensure both keys exist
                 if (!savedHealthCheck) {
                   localStorage.setItem(healthCheckKey, JSON.stringify({
@@ -1525,21 +1499,21 @@ function ChallengeDetailPanel({
                     attempts: 0
                   }));
                 }
-                
+
                 setIsHealthChecking(true);
                 setIsDeploymentInProgress(true);
                 setIsStarting(false);
                 setIsPodHealthy(false);
                 setIsChallengeStarted(false);
                 setUrl(null);
-                
+
                 // Resume health check if not running
                 if (!healthCheckRunningRef.current) {
                   setTimeout(() => {
                     startHealthCheckLoop();
                   }, 100);
                 }
-                
+
                 return; // Don't clean up
               } else {
                 // Timed out - clean up
@@ -1548,7 +1522,7 @@ function ChallengeDetailPanel({
               }
             }
           }
-          
+
           // No saved state or timed out - clean up UI
           setIsDeploymentInProgress(false);
           setIsStarting(false);
@@ -1563,10 +1537,10 @@ function ChallengeDetailPanel({
 
   const handleStartChallenge = async () => {
     setIsStarting(true);
-    
+
     const deploymentKey = `deployment_${challenge.id}`;
     const healthCheckKey = `healthcheck_${challenge.id}`;
-    
+
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START, {
         method: 'POST',
@@ -1584,33 +1558,33 @@ function ChallengeDetailPanel({
           isDeploying: true,
           startTime: Date.now()
         }));
-        
+
         // Save health check state AFTER successful response
         localStorage.setItem(healthCheckKey, JSON.stringify({
           startTime: Date.now(),
           challengeId: challenge.id,
           attempts: 0
         }));
-        
+
         // Set URL immediately
         setIsChallengeStarted(true);
         setUrl(data.challenge_url);
         setIsStarting(false);
         setIsDeploymentInProgress(false);
-        
+
         // Set health checking state to show spinner
         setIsHealthChecking(true);
-        
+
         // Start health check in background
         startHealthCheckLoop();
-        
+
         // Log start challenge action
         actionLogService.logAction(
           actionType.START_CHALLENGE,
           `Khởi động thử thách ${challenge.name}`,
           challenge.id
         );
-        
+
         // Show success message with URL - this is the ONLY popup users see
         Swal.fire({
           html: `
@@ -1639,33 +1613,33 @@ function ChallengeDetailPanel({
           isDeploying: true,
           startTime: Date.now()
         }));
-        
+
         // Save health check state AFTER successful response
         localStorage.setItem(healthCheckKey, JSON.stringify({
           startTime: Date.now(),
           challengeId: challenge.id,
           attempts: 0
         }));
-        
+
         // Set challenge as started with message from backend
         setIsChallengeStarted(true);
         setUrl(data.message || 'Deploying challenge...');
         setIsStarting(false);
         setIsDeploymentInProgress(false);
-        
+
         // Set health checking state to show spinner
         setIsHealthChecking(true);
-        
+
         // Start health check in background
         startHealthCheckLoop();
-        
+
         // Log start challenge action
         actionLogService.logAction(
           actionType.START_CHALLENGE,
           `Khởi động thử thách ${challenge.name}`,
           challenge.id
         );
-        
+
         // Show deploying message
         Swal.fire({
           html: `
@@ -1690,17 +1664,17 @@ function ChallengeDetailPanel({
       else {
         setIsStarting(false);
         setIsDeploymentInProgress(false);
-        
+
         // Clear deployment state from localStorage
         const healthCheckKey = `healthcheck_${challenge.id}`;
         localStorage.removeItem(deploymentKey);
         localStorage.removeItem(healthCheckKey);
-        
+
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
               <div class="text-red-400 mb-2">[!] Deploy failed</div>
-              <div class="text-gray-400">> ${data.message||data.error || 'Unknown error'}</div>
+              <div class="text-gray-400">> ${data.message || data.error || 'Unknown error'}</div>
               <div class="text-gray-500 mt-2">> Status: ${response.status}</div>
             </div>
           `,
@@ -1718,7 +1692,7 @@ function ChallengeDetailPanel({
     } catch (error) {
       setIsStarting(false);
       setIsDeploymentInProgress(false);
-      
+
       // Clear deployment state from localStorage
       const deploymentKey = `deployment_${challenge.id}`;
       const healthCheckKey = `healthcheck_${challenge.id}`;
@@ -1748,20 +1722,20 @@ function ChallengeDetailPanel({
 
   // Health check loop function - runs silently in background
   const startHealthCheckLoop = async () => {
-    
+
     // Prevent duplicate health check loops
     if (healthCheckRunningRef.current) {
       return;
     }
-    
+
     healthCheckRunningRef.current = true;
     const maxAttempts = 20;
-    
+
     // Restore attempts from localStorage if exists
     const healthCheckKey = `healthcheck_${challenge.id}`;
     const savedHealthCheck = localStorage.getItem(healthCheckKey);
     let attempts = 0;
-    
+
     if (savedHealthCheck) {
       try {
         const healthCheckData = JSON.parse(savedHealthCheck);
@@ -1770,11 +1744,11 @@ function ChallengeDetailPanel({
         console.error('[Health Check] Error parsing saved attempts:', error);
       }
     }
-    
+
     const checkStatus = async (): Promise<boolean> => {
       try {
         attempts++;
-        
+
         // Save current attempts to localStorage
         const healthCheckKey = `healthcheck_${challenge.id}`;
         const savedHealthCheck = localStorage.getItem(healthCheckKey);
@@ -1796,16 +1770,16 @@ function ChallengeDetailPanel({
           }),
         });
         const data = await response.json();
-        if (data.success == true && data.challenge_url) {    
-          
+        if (data.success == true && data.challenge_url) {
+
           // Update URL with actual challenge URL (replace message if it was set)
           setUrl(data.challenge_url);
-          
+
           // Set time remaining when healthy (convert minutes to seconds)
           if (data.time_remaining || data.time_limit) {
             const timeInSeconds = data.time_remaining || data.time_limit * 60;
             setTimeRemaining(timeInSeconds);
-            
+
             // Start global timer for cross-page auto-stop
             challengeTimerService.startTimer(
               challenge.id,
@@ -1814,27 +1788,27 @@ function ChallengeDetailPanel({
               challenge.require_deploy || false
             );
           }
-          
+
           setIsHealthChecking(false);
           setIsPodHealthy(true);
           setIsDeploymentInProgress(false);
           healthCheckRunningRef.current = false;
-          
+
           // Clear deployment state from localStorage
           const deploymentKey = `deployment_${challenge.id}`;
           const healthCheckKey = `healthcheck_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
           localStorage.removeItem(healthCheckKey);
-          
+
           // Refresh challenge data to update pod_status and call category refresh
           if (onFlagSuccess) {
             await onFlagSuccess();
           }
-          
+
           // Check if user is currently viewing this challenge
           const isViewingChallenge = window.location.pathname.includes('/challenges');
-                                      
-          
+
+
           if (isViewingChallenge) {
             // User is on the challenge detail page - show popup directly
             Swal.fire({
@@ -1867,20 +1841,20 @@ function ChallengeDetailPanel({
               message: 'Challenge is ready!',
               timestamp: Date.now()
             };
-            
+
             // Dispatch custom event for same-tab notification
-            window.dispatchEvent(new CustomEvent('deploymentNotification', { 
-              detail: notificationData 
+            window.dispatchEvent(new CustomEvent('deploymentNotification', {
+              detail: notificationData
             }));
-            
+
             // Also save to localStorage for cross-tab notification
             const notificationKey = `deployment_notification_${challenge.id}`;
             localStorage.setItem(notificationKey, JSON.stringify(notificationData));
           }
-          
+
           return true; // Stop loop - SUCCESS
         }
-        
+
         // Max attempts reached
         if (attempts >= maxAttempts) {
           setIsHealthChecking(false);
@@ -1888,17 +1862,17 @@ function ChallengeDetailPanel({
           setIsDeploymentInProgress(false);
           setIsStarting(false);
           healthCheckRunningRef.current = false;
-          
+
           // Clear URL to show Start button again
           setUrl(null);
           setIsChallengeStarted(false);
-          
+
           // Clear deployment state from localStorage
           const deploymentKey = `deployment_${challenge.id}`;
           const healthCheckKey = `healthcheck_${challenge.id}`;
           localStorage.removeItem(deploymentKey);
           localStorage.removeItem(healthCheckKey);
-          
+
           // Show timeout notification
           Swal.fire({
             html: `
@@ -1918,40 +1892,40 @@ function ChallengeDetailPanel({
               confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
             },
           });
-          
+
           return true; // Stop loop - TIMEOUT
         }
-        
+
         // Continue checking silently
         await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
         return checkStatus(); // Recursive call
-        
+
       } catch (error) {
         console.error('[Health Check] Error:', error);
-        
+
         // Continue trying even on error
         if (attempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 5000));
           return checkStatus();
         }
-        
+
         // Max attempts reached even with errors
         setIsHealthChecking(false);
         setIsPodHealthy(false);
         setIsDeploymentInProgress(false);
         setIsStarting(false);
         healthCheckRunningRef.current = false;
-        
+
         // Clear URL to show Start button again
         setUrl(null);
         setIsChallengeStarted(false);
-        
+
         // Clear deployment state from localStorage
         const deploymentKey = `deployment_${challenge.id}`;
         const healthCheckKey = `healthcheck_${challenge.id}`;
         localStorage.removeItem(deploymentKey);
         localStorage.removeItem(healthCheckKey);
-        
+
         // Show error notification
         Swal.fire({
           html: `
@@ -1971,11 +1945,11 @@ function ChallengeDetailPanel({
             confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
           },
         });
-        
+
         return true; // Stop loop - ERROR
       }
     };
-    
+
     // Start the check loop
     await checkStatus();
   };
@@ -2003,21 +1977,21 @@ function ChallengeDetailPanel({
         setUrl(null);
         setTimeRemaining(null);
         setIsPodHealthy(false);
-        
+
         // Clear timer
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
-        
+
         // Stop global timer
         challengeTimerService.stopTimer(challenge.id);
-        
+
         // Refresh challenge data to update pod_status and call category refresh
         if (onFlagSuccess) {
           await onFlagSuccess();
         }
-        
+
         // Show success toast
         Swal.fire({
           html: `
@@ -2081,7 +2055,7 @@ function ChallengeDetailPanel({
 
     stopChallengeRunningRef.current = true;
     setIsStopping(true);
-    
+
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
         method: 'POST',
@@ -2096,21 +2070,21 @@ function ChallengeDetailPanel({
         setUrl(null);
         setTimeRemaining(null);
         setIsPodHealthy(false);
-        
+
         // Clear timer
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
-        
+
         // Stop global timer
         challengeTimerService.stopTimer(challenge.id);
-        
+
         // Refresh challenge data to update pod_status and call category refresh
         if (onFlagSuccess) {
           await onFlagSuccess();
         }
-        
+
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2247,13 +2221,13 @@ function ChallengeDetailPanel({
         challengeId: challenge.id,
         submission: answer
       };
-      
+
       const response = await fetchWithAuth(API_ENDPOINTS.FLAGS.SUBMIT, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
       const data = await response.json();
-      
+
       if (data?.data?.status === 'correct') {
         // Log correct flag action
         actionLogService.logAction(
@@ -2261,7 +2235,7 @@ function ChallengeDetailPanel({
           `Nộp cờ đúng cho thử thách ${challenge.name}`,
           challenge.id
         );
-        
+
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2280,35 +2254,35 @@ function ChallengeDetailPanel({
             popup: 'rounded-lg border border-green-500/30',
           },
         });
-        
+
         setAnswer('');
-        
+
         // Refresh challenge data to update UI
         if (onFlagSuccess) {
           await onFlagSuccess();
         }
-        
+
         // If challenge requires deploy and was started, stop it automatically without confirmation
         if (challenge.require_deploy && isChallengeStarted && url) {
           try {
             // Stop challenge without showing confirmation dialog
-            
-              // Update UI state
-              setIsChallengeStarted(false);
-              setUrl(null);
-              setTimeRemaining(null);
-              setIsPodHealthy(false);
-              
-              // Clear local timer
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-              }
-              
-              // Cancel global auto-stop timer
-              challengeTimerService.stopTimer(challenge.id);
-              
-            
+
+            // Update UI state
+            setIsChallengeStarted(false);
+            setUrl(null);
+            setTimeRemaining(null);
+            setIsPodHealthy(false);
+
+            // Clear local timer
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
+
+            // Cancel global auto-stop timer
+            challengeTimerService.stopTimer(challenge.id);
+
+
           } catch (error) {
             console.error('[Auto Stop After Solve] Error stopping challenge:', error);
           }
@@ -2320,18 +2294,18 @@ function ChallengeDetailPanel({
           `Nộp cờ sai cho thử thách ${challenge.name}`,
           challenge.id
         );
-        
-        const attemptsLeft = challenge.max_attempts > 0 
-          ? challenge.max_attempts - (challenge.attemps || 0) - 1 
+
+        const attemptsLeft = challenge.max_attempts > 0
+          ? challenge.max_attempts - (challenge.attemps || 0) - 1
           : '∞';
-        
+
         // Set cooldown if provided by API
         const cooldownSeconds = data.data.cooldown || 0;
         if (cooldownSeconds > 0) {
           setCooldownRemaining(cooldownSeconds);
           setCooldownTotal(cooldownSeconds);
         }
-        
+
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2351,7 +2325,7 @@ function ChallengeDetailPanel({
             confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
           },
         });
-        
+
         // Refresh to update attempt count
         if (onFlagSuccess) {
           await onFlagSuccess();
@@ -2377,12 +2351,12 @@ function ChallengeDetailPanel({
       } else if (data?.data?.status === 'ratelimited') {
         // Get cooldown directly from API response
         const cooldownSeconds = data.data.cooldown || 0;
-        
+
         if (cooldownSeconds > 0) {
           setCooldownRemaining(cooldownSeconds);
           setCooldownTotal(cooldownSeconds);
         }
-        
+
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2505,20 +2479,20 @@ function ChallengeDetailPanel({
   const formatTime = (seconds: number | string | null) => {
     if (challenge?.time_limit === -1) return '∞';
     if (seconds === null || seconds === undefined) return '--:--';
-    
+
     // Convert to number and validate
     const numSeconds = typeof seconds === 'string' ? parseFloat(seconds) : seconds;
-    
+
     if (isNaN(numSeconds)) return '--:--';
-    
+
     // Ensure seconds is a positive number
     const totalSeconds = Math.max(0, Math.floor(numSeconds));
-    
+
     // Convert to hours, minutes, seconds
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
-    
+
     if (hours > 0) {
       // Show hours and minutes: "Xh Ym"
       if (minutes > 0) {
@@ -2539,29 +2513,29 @@ function ChallengeDetailPanel({
     }
   };
 
-const getFileName = (filePath : string) => {
-  try {
-    // Check if it's a URL with query parameters
-    if (filePath.includes('?path=')) {
-      // Extract the path parameter value
-      const urlObj = new URL(filePath, window.location.origin);
-      const pathParam = urlObj.searchParams.get('path');
-      if (pathParam) {
-        // Get filename from the path parameter
-        const pathParts = pathParam.split('/');
-        return pathParts[pathParts.length - 1];
+  const getFileName = (filePath: string) => {
+    try {
+      // Check if it's a URL with query parameters
+      if (filePath.includes('?path=')) {
+        // Extract the path parameter value
+        const urlObj = new URL(filePath, window.location.origin);
+        const pathParam = urlObj.searchParams.get('path');
+        if (pathParam) {
+          // Get filename from the path parameter
+          const pathParts = pathParam.split('/');
+          return pathParts[pathParts.length - 1];
+        }
       }
+
+      // Fallback to original logic for simple paths
+      const pathParts = filePath.split("/");
+      const fullName = pathParts[pathParts.length - 1];
+      return fullName.split("?")[0];
+    } catch (error) {
+      console.error("Error parsing filename:", error);
+      return "download";
     }
-    
-    // Fallback to original logic for simple paths
-    const pathParts = filePath.split("/");
-    const fullName = pathParts[pathParts.length - 1];
-    return fullName.split("?")[0];
-  } catch (error) {
-    console.error("Error parsing filename:", error);
-    return "download";
-  }
-};
+  };
 
   const handleCopyURL = (urlToCopy: string) => {
     navigator.clipboard.writeText(urlToCopy).then(() => {
@@ -2569,6 +2543,24 @@ const getFileName = (filePath : string) => {
       setTimeout(() => setCopiedUrl(false), 2000);
     }).catch((err) => {
       console.error('Failed to copy URL:', err);
+    });
+  };
+
+  const handleCopyHttp = (addr: string) => {
+    navigator.clipboard.writeText(addr).then(() => {
+      setCopiedHttp(true);
+      setTimeout(() => setCopiedHttp(false), 2000);
+    }).catch((err) => {
+      console.error('Failed to copy HTTP address:', err);
+    });
+  };
+
+  const handleCopyTcp = (addr: string) => {
+    navigator.clipboard.writeText(addr).then(() => {
+      setCopiedTcp(true);
+      setTimeout(() => setCopiedTcp(false), 2000);
+    }).catch((err) => {
+      console.error('Failed to copy TCP address:', err);
     });
   };
 
@@ -2624,7 +2616,7 @@ const getFileName = (filePath : string) => {
       return data;
     } catch (error) {
       console.error("Failed to unlock hint:", error);
-      const errorResponse = error && typeof error === 'object' && 'response' in error 
+      const errorResponse = error && typeof error === 'object' && 'response' in error
         ? (error as any).response?.error
         : {};
       return { success: false, errors: errorResponse || {} };
@@ -2633,13 +2625,13 @@ const getFileName = (filePath : string) => {
 
   const handleUnlockHint = async (hintId: number, hintCost: number) => {
     if (unlockingHintId === hintId) return; // Prevent double click
-    
+
     try {
       setUnlockingHintId(hintId);
-      
+
       // Fetch hint details first to check if already unlocked
       const hintDetailsResponse = await FetchHintDetails(hintId);
-      
+
       if (!hintDetailsResponse?.data) {
         Swal.fire({
           html: `
@@ -2712,7 +2704,7 @@ const getFileName = (filePath : string) => {
       if (result.isConfirmed) {
         // Call unlock API
         const response = await HintUnlocks(hintId);
-        
+
         if (response?.success) {
           // Log unlock hint action
           actionLogService.logAction(
@@ -2720,10 +2712,10 @@ const getFileName = (filePath : string) => {
             `Mở khóa trợ giúp cho thử thách ${challenge.name}`,
             challenge.id
           );
-          
+
           // Fetch hint details again after unlock
           const updatedHintDetails = await FetchHintDetails(hintId);
-          
+
           if (updatedHintDetails?.data) {
             Swal.fire({
               html: `
@@ -2745,7 +2737,7 @@ const getFileName = (filePath : string) => {
                 confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
               },
             });
-            
+
             // Refresh hints list
             fetchHints();
           } else {
@@ -2808,10 +2800,10 @@ const getFileName = (filePath : string) => {
             });
           } else if (response.errors?.target) {
             const errorMessage = response.errors.target;
-            
+
             if (errorMessage === "You've already unlocked this this target") {
               const hintDetailsResponse = await FetchHintDetails(hintId);
-              
+
               if (hintDetailsResponse?.data) {
                 Swal.fire({
                   html: `
@@ -2938,16 +2930,16 @@ const getFileName = (filePath : string) => {
     setPageNumber(1);
     // Don't reset scale here, let onDocumentLoadSuccess calculate it
     setLoadingPdf(true);
-    
+
     try {
       // Download PDF with authentication
-  const blob = await downloadFile(pdfFiles[index]);
+      const blob = await downloadFile(pdfFiles[index]);
 
-  // Debug info: log blob type/size to help diagnose invalid responses
-  console.debug('[handlePdfClick] downloaded blob:', blob.type, blob.size);
+      // Debug info: log blob type/size to help diagnose invalid responses
+      console.debug('[handlePdfClick] downloaded blob:', blob.type, blob.size);
 
-  // Store blob in state (pass Blob directly to react-pdf)
-  setPdfBlob(blob);
+      // Store blob in state (pass Blob directly to react-pdf)
+      setPdfBlob(blob);
     } catch (error) {
       console.error('Error loading PDF:', error);
       Swal.fire({
@@ -2975,21 +2967,21 @@ const getFileName = (filePath : string) => {
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-    
+
     // Calculate optimal scale to fit PDF width in container
     setTimeout(() => {
       if (pdfContainerRef.current) {
         const container = pdfContainerRef.current;
         const containerWidth = container.clientWidth - 32; // Subtract padding (16px * 2)
-        
+
         // Get the actual PDF page element to check its width
         const pdfPage = container.querySelector('.react-pdf__Page');
         if (pdfPage) {
           const pageWidth = (pdfPage as HTMLElement).offsetWidth;
-          
+
           // Calculate scale to fit container width
           const optimalScale = containerWidth / pageWidth;
-          
+
           // Clamp between 0.5 and 2.0 for reasonable limits
           const finalScale = Math.max(0.5, Math.min(2.0, optimalScale));
           setPdfScale(finalScale);
@@ -3013,26 +3005,22 @@ const getFileName = (filePath : string) => {
 
   return (
     <>
-      <div className={`flex gap-4 h-full ${
-        selectedPdfIndex !== null ? 'w-full' : ''
-      }`}>
+      <div className={`flex gap-4 h-full ${selectedPdfIndex !== null ? 'w-full' : ''
+        }`}>
         {/* Main Challenge Detail Panel */}
-        <div className={`rounded-lg border overflow-hidden transition-all duration-300 ${
-          selectedPdfIndex !== null ? 'w-[25%]' : 'w-full'
-        } ${
-          theme === 'dark'
+        <div className={`rounded-lg border overflow-hidden transition-all duration-300 ${selectedPdfIndex !== null ? 'w-[25%]' : 'w-full'
+          } ${theme === 'dark'
             ? 'bg-gray-800 border-gray-700'
             : 'bg-white border-gray-300'
-        }`}>
+          }`}>
           <div className="p-6 space-y-4 h-full overflow-y-auto">
             {/* Header with Timer and Solved Status */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h2 className={`text-xl font-bold font-mono ${
-                  challenge.solve_by_myteam 
-                    ? 'text-green-500' 
+                <h2 className={`text-xl font-bold font-mono ${challenge.solve_by_myteam
+                    ? 'text-green-500'
                     : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                  }`}>
                   {challenge.solve_by_myteam && '[✓] '}
                   {challenge.name}
                 </h2>
@@ -3050,43 +3038,39 @@ const getFileName = (filePath : string) => {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {/* Timer for deploy challenges */}
                 {challenge.require_deploy && !challenge.solve_by_myteam && (
-                  <div className={`flex items-center gap-2 px-2 py-1 rounded border text-sm font-mono ${
-                    theme === 'dark' 
-                      ? 'bg-gray-900 border-gray-700' 
+                  <div className={`flex items-center gap-2 px-2 py-1 rounded border text-sm font-mono ${theme === 'dark'
+                      ? 'bg-gray-900 border-gray-700'
                       : 'bg-gray-50 border-gray-300'
-                  }`}>
-                    <Timer sx={{ fontSize: 16 }} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
-                    <span className={`font-bold ${
-                      isChallengeStarted 
-                        ? 'text-green-500' 
-                        : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                     }`}>
+                    <Timer sx={{ fontSize: 16 }} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
+                    <span className={`font-bold ${isChallengeStarted
+                        ? 'text-green-500'
+                        : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                       {formatTime(timeRemaining)}
                     </span>
                   </div>
                 )}
-                
+
                 {challenge.solve_by_myteam && (
-                  <span className={`px-2 py-1 rounded border text-xs font-mono font-bold ${
-                    theme === 'dark'
+                  <span className={`px-2 py-1 rounded border text-xs font-mono font-bold ${theme === 'dark'
                       ? 'bg-green-500/20 text-green-400 border-green-500/30'
                       : 'bg-green-50 text-green-700 border-green-300'
-                  }`}>
+                    }`}>
                     SOLVED
                   </span>
                 )}
-                
+
                 <button
                   onClick={onClose}
-                  className={`p-2 rounded transition-colors ${
-                    theme === 'dark'
+                  className={`p-2 rounded transition-colors ${theme === 'dark'
                       ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                       : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <span className="font-mono text-sm">✕</span>
                 </button>
@@ -3095,14 +3079,12 @@ const getFileName = (filePath : string) => {
 
             {/* Show solved message */}
             {challenge.solve_by_myteam && (
-              <div className={`p-3 rounded border ${
-                theme === 'dark'
+              <div className={`p-3 rounded border ${theme === 'dark'
                   ? 'bg-green-900/20 border-green-700'
                   : 'bg-green-50 border-green-300'
-              }`}>
-                <Typography className={`text-center font-mono text-sm ${
-                  theme === 'dark' ? 'text-green-400' : 'text-green-700'
                 }`}>
+                <Typography className={`text-center font-mono text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-700'
+                  }`}>
                   [✓] Challenge completed
                 </Typography>
               </div>
@@ -3110,18 +3092,16 @@ const getFileName = (filePath : string) => {
 
             {/* Info Badges */}
             <div className="flex flex-wrap gap-2 text-xs font-mono">
-              <span className={`px-2 py-1 rounded border ${
-                theme === 'dark'
+              <span className={`px-2 py-1 rounded border ${theme === 'dark'
                   ? 'bg-gray-700 text-gray-300 border-gray-600'
                   : 'bg-gray-100 text-gray-700 border-gray-300'
-              }`}>
+                }`}>
                 Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
               </span>
-              <span className={`px-2 py-1 rounded border ${
-                theme === 'dark'
+              <span className={`px-2 py-1 rounded border ${theme === 'dark'
                   ? 'bg-gray-700 text-gray-300 border-gray-600'
                   : 'bg-gray-100 text-gray-700 border-gray-300'
-              }`}>
+                }`}>
                 Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
               </span>
             </div>
@@ -3129,32 +3109,30 @@ const getFileName = (filePath : string) => {
             {/* Files */}
             {challenge.files && challenge.files.length > 0 && (
               <div className="space-y-2">
-                <div className={`text-xs font-mono font-bold ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   [FILES]
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {challenge.files.map((file, index) => {
                     const isPdf = file.toLowerCase().includes('.pdf');
                     // Count PDF files before this one to get correct Detail number
-                    const pdfIndex = isPdf 
+                    const pdfIndex = isPdf
                       ? challenge.files!.slice(0, index).filter(f => f.toLowerCase().includes('.pdf')).length + 1
                       : 0;
-                    
+
                     return (
                       <button
                         key={index}
                         onClick={() => handleDownloadFile(file)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${
-                          isPdf
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${isPdf
                             ? theme === 'dark'
                               ? 'bg-red-900/20 text-red-400 border-red-700 hover:bg-red-900/30'
                               : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
                             : theme === 'dark'
-                            ? 'bg-blue-900/20 text-blue-400 border-blue-700 hover:bg-blue-900/30'
-                            : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                        }`}
+                              ? 'bg-blue-900/20 text-blue-400 border-blue-700 hover:bg-blue-900/30'
+                              : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                          }`}
                       >
                         {isPdf ? <PictureAsPdf sx={{ fontSize: 14 }} /> : <FaDownload size={12} />}
                         {isPdf ? `Detail ${pdfIndex}` : getFileName(file)}
@@ -3165,90 +3143,170 @@ const getFileName = (filePath : string) => {
               </div>
             )}
 
-            {/* Connection URL - Show if URL exists OR if health checking */}
+            {/* Connection info: show token-based HTTP and TCP addresses */}
             {(url || isHealthChecking || isDeploymentInProgress) && (
-              <div className={`p-3 rounded border ${
-                theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
-              }`}>
+              <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
+                }`}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-mono font-bold ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    [URL]
+                  <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                    [ACCESS]
                   </span>
                   {isHealthChecking ? (
                     <div className="flex items-center gap-2">
-                      <CircularProgress 
-                        size={12} 
-                        sx={{ 
-                          color: theme === 'dark' ? '#fbbf24' : '#f59e0b',
-                        }} 
-                      />
-                      <span className={`text-xs font-mono ${
-                        theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
-                      }`}>
+                      <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
+                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                        }`}>
                         Health checking...
                       </span>
                     </div>
                   ) : isPodHealthy ? (
                     <div className="flex items-center gap-2">
-                      <Check 
-                        className={`text-sm ${
-                          theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                        }`}
-                      />
-                      <span className={`text-xs font-mono ${
-                        theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                      }`}>
+                      <Check className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
                         Running
                       </span>
                     </div>
                   ) : null}
                 </div>
-                <p className="font-mono text-xs flex items-center gap-2">
-                  <span className={`font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{'>>'} </span>
-                  <span className={`break-all ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
-                    {url || 'Send to request to deploy successfully. Please wait a moment.'}
-                  </span>
-                  {url && url !== 'Send to request to deploy successfully. Please wait a moment.' && !url.includes('Deploying') && (
-                    <button
-                      onClick={() => {
-                        const formatted = url.replace('Connection string: ', '').replace(' ', ':');
-                        handleCopyURL(formatted);
-                      }}
-                      className={`px-1.5 py-1 rounded transition-colors shrink-0 flex items-center text-xs ml-2 ${
-                        copiedUrl
-                          ? theme === 'dark'
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                            : 'bg-green-100 text-green-700 border border-green-300'
-                          : theme === 'dark'
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-400 border border-gray-600'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600 border border-gray-300'
-                      }`}
-                      title="Copy URL"
-                    >
-                      {copiedUrl ? (
-                        <>✓</>
-                      ) : (
-                        <ContentCopy sx={{ fontSize: 12 }} />
-                      )}
-                    </button>
-                  )}
-                </p>
+
+                {/* Build formatted addresses */}
+                {url ? (
+                  (() => {
+                    const token = url.replace('Connection string: ', '').trim();
+                    const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}/{token}` : `${getBaseGateway()}:${getHttpPort()}/${token}`;
+                    const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
+                    return (
+                      <div className="space-y-2.5">
+                        {/* Token */}
+                        <div className="flex items-center gap-2">
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Token
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                              {url}
+                            </div>
+                          </div>
+                          {url && !url.includes('Deploying') && (
+                            <button
+                              onClick={() => {
+                                const formatted = url.replace('Connection string: ', '').replace(' ', ':');
+                                handleCopyURL(formatted);
+                              }}
+                              className={`px-2 py-1.5 rounded transition-all shrink-0 flex items-center ${copiedUrl
+                                  ? theme === 'dark'
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-green-50 text-green-700'
+                                  : theme === 'dark'
+                                    ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                                    : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                                }`}
+                              title="Copy token"
+                            >
+                              {copiedUrl ? (
+                                <span className="text-sm">✓</span>
+                              ) : (
+                                <ContentCopy sx={{ fontSize: 16 }} />
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Divider */}
+                        <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}></div>
+
+                        {/* HTTP & TCP in compact layout */}
+                        <div className="space-y-2">
+                          {/* HTTP */}
+                          <div className="flex items-center gap-2">
+                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              HTTP
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                                {httpAddr}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleCopyHttp(httpAddr)}
+                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedHttp
+                                  ? theme === 'dark'
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-green-50 text-green-700'
+                                  : theme === 'dark'
+                                    ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                                    : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                                }`}
+                              title="Copy HTTP address"
+                            >
+                              {copiedHttp ? (
+                                <span className="text-xs">✓</span>
+                              ) : (
+                                <ContentCopy sx={{ fontSize: 14 }} />
+                              )}
+                            </button>
+                          </div>
+
+                          {/* TCP */}
+                          <div className="flex items-center gap-2">
+                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              TCP
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                                {tcpAddr}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleCopyTcp(tcpAddr)}
+                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedTcp
+                                  ? theme === 'dark'
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-green-50 text-green-700'
+                                  : theme === 'dark'
+                                    ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                                    : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                                }`}
+                              title="Copy TCP address"
+                            >
+                              {copiedTcp ? (
+                                <span className="text-xs">✓</span>
+                              ) : (
+                                <ContentCopy sx={{ fontSize: 14 }} />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Note */}
+                        <div className={`text-[10px] leading-relaxed pt-2 mt-1 border-t ${theme === 'dark' ? 'text-gray-500 border-gray-700' : 'text-gray-500 border-gray-200'}`}>
+                          HTTP: <code className={`font-mono ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>basegateway:port/token</code> • TCP: <code className={`font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>basegateway:port</code>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className={`flex items-center justify-center py-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <div className="text-center">
+                      <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Send request to deploy. Please wait a moment.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Description - Always show if exists */}
             {hasDescription && (
               <div>
-                <div className={`text-xs font-mono font-bold mb-2 ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   [DESCRIPTION]
                 </div>
-                <div className={`p-3 rounded border text-sm ${
-                  theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-gray-50 border-gray-300'
-                }`}>
+                <div className={`p-3 rounded border text-sm ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-gray-50 border-gray-300'
+                  }`}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {challenge.description}
                   </ReactMarkdown>
@@ -3259,9 +3317,8 @@ const getFileName = (filePath : string) => {
             {/* PDF Tabs - Only for switching between PDFs when there are multiple */}
             {hasPdfFiles && pdfFiles.length > 1 && (
               <div>
-                <div className={`text-xs font-mono font-bold mb-2 ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   [PDF FILES]
                 </div>
                 <Tabs
@@ -3303,44 +3360,39 @@ const getFileName = (filePath : string) => {
             {/* Hints Section */}
             {hints.length > 0 && !challenge.solve_by_myteam && (
               <div className="space-y-2">
-                <div className={`text-xs font-mono font-bold ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   [HINTS]
                 </div>
-                
+
                 <div className="grid grid-cols-6 gap-2">
                   {hints.map((hint, index) => (
                     <button
                       key={hint.id}
                       onClick={() => handleUnlockHint(hint.id, hint.cost)}
                       disabled={unlockingHintId === hint.id}
-                      className={`relative p-2 rounded border transition-colors ${
-                        theme === 'dark'
+                      className={`relative p-2 rounded border transition-colors ${theme === 'dark'
                           ? 'bg-gray-900 border-purple-700 hover:border-purple-500 hover:bg-gray-800'
                           : 'bg-gray-50 border-purple-300 hover:border-purple-500 hover:bg-purple-50'
-                      } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : ''}`}
+                        } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : ''}`}
                     >
                       <div className="flex flex-col items-center gap-1">
-                        <div className={`font-bold text-xs font-mono ${
-                          theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
-                        }`}>
+                        <div className={`font-bold text-xs font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                          }`}>
                           H{index + 1}
                         </div>
-                        
-                        <div className={`text-xs font-mono ${
-                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+
+                        <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           {hint.cost}
                         </div>
                       </div>
                     </button>
                   ))}
                 </div>
-                
-                <div className={`text-center text-xs font-mono flex items-center justify-center gap-2 ${
-                  theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-                }`}>
+
+                <div className={`text-center text-xs font-mono flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+                  }`}>
                   <span className="text-orange-500">{'>'}</span>
                   <span>Click to unlock hints | Cost in points</span>
                   <span className="text-purple-500">{'<'}</span>
@@ -3351,22 +3403,19 @@ const getFileName = (filePath : string) => {
             {/* Submit Form */}
             {!challenge.solve_by_myteam && (
               <div className="space-y-2">
-                <div className={`text-xs font-mono font-bold ${
-                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   [SUBMIT_FLAG]
                 </div>
 
                 {/* Check if max attempts reached */}
                 {challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts ? (
-                  <div className={`p-4 rounded border ${
-                    theme === 'dark' 
-                      ? 'bg-red-900/20 border-red-700' 
+                  <div className={`p-4 rounded border ${theme === 'dark'
+                      ? 'bg-red-900/20 border-red-700'
                       : 'bg-red-50 border-red-300'
-                  }`}>
-                    <div className={`font-mono text-sm text-center ${
-                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
                     }`}>
+                    <div className={`font-mono text-sm text-center ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                      }`}>
                       <div className="font-bold mb-2">[!] MAX ATTEMPTS REACHED</div>
                       <div className="text-xs">
                         You have used all {challenge.max_attempts} attempts for this challenge.
@@ -3381,41 +3430,38 @@ const getFileName = (filePath : string) => {
                     <textarea
                       value={answer}
                       onChange={(e) => setAnswer(e.target.value)}
-                      className={`w-full p-3 border rounded font-mono text-sm ${
-                        theme === 'dark'
+                      className={`w-full p-3 border rounded font-mono text-sm ${theme === 'dark'
                           ? 'bg-gray-900 text-white border-gray-700'
                           : 'bg-white text-gray-900 border-gray-300'
-                      }`}
+                        }`}
                       rows={3}
                       placeholder="flag{...}"
                     />
-                    
+
                     {/* Show attempts remaining */}
                     {challenge.max_attempts > 0 && (
-                      <div className={`text-xs font-mono ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
+                      <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                         <span className={
-                          (challenge.max_attempts - (challenge.attemps || 0)) <= 2 
-                            ? 'text-orange-500' 
+                          (challenge.max_attempts - (challenge.attemps || 0)) <= 2
+                            ? 'text-orange-500'
                             : theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
                         }>
                           [i]
                         </span> Attempts remaining: {challenge.max_attempts - (challenge.attemps || 0)} / {challenge.max_attempts}
                       </div>
                     )}
-                    
+
                     {/* Show captain-only submit warning */}
                     {challenge.captain_only_submit && !challenge.is_captain && (
-                      <div className={`text-xs font-mono p-2 rounded border ${
-                        theme === 'dark' 
-                          ? 'bg-red-900/20 text-red-400 border-red-500/30' 
+                      <div className={`text-xs font-mono p-2 rounded border ${theme === 'dark'
+                          ? 'bg-red-900/20 text-red-400 border-red-500/30'
                           : 'bg-red-50 text-red-600 border-red-300'
-                      }`}>
+                        }`}>
                         <span className="text-red-500">[!]</span> Only team captain can submit flags
                       </div>
                     )}
-                    
+
                     <button
                       onClick={handleSubmitFlag}
                       disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
@@ -3445,29 +3491,27 @@ const getFileName = (filePath : string) => {
                         }
                       }}
                     >
-                      {isSubmittingFlag 
-                        ? '[SUBMITTING...]' 
-                        : cooldownRemaining > 0 
+                      {isSubmittingFlag
+                        ? '[SUBMITTING...]'
+                        : cooldownRemaining > 0
                           ? `[COOLDOWN: ${cooldownRemaining}s]`
                           : (challenge.captain_only_submit && !challenge.is_captain)
                             ? '[CAPTAIN ONLY]'
                             : '[SUBMIT]'}
                     </button>
-                    
+
                     {/* Cooldown Progress Bar */}
                     {cooldownRemaining > 0 && (
                       <div className="mt-2 space-y-1">
-                        <div className={`text-xs font-mono ${
-                          theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                        }`}>
+                        <div className={`text-xs font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                          }`}>
                           [!] Cooldown active: {cooldownRemaining}s remaining
                         </div>
-                        <div className={`w-full h-1 rounded overflow-hidden ${
-                          theme === 'dark' ? 'bg-gray-800' : 'bg-gray-300'
-                        }`}>
-                          <div 
+                        <div className={`w-full h-1 rounded overflow-hidden ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-300'
+                          }`}>
+                          <div
                             className="h-full bg-orange-500 transition-all duration-1000 ease-linear"
-                            style={{ 
+                            style={{
                               width: `${cooldownTotal > 0 ? (cooldownRemaining / cooldownTotal) * 100 : 0}%`
                             }}
                           />
@@ -3480,105 +3524,102 @@ const getFileName = (filePath : string) => {
             )}
 
             {/* Start/Stop Buttons */}
-            {challenge.require_deploy && !challenge.solve_by_myteam && 
-             !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
-              <div className="space-y-2">
-                {/* Show Health Checking state if health check is in progress */}
-                {isHealthChecking || isDeploymentInProgress ? (
-                  <button
-                    disabled={true}
-                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                      theme === 'dark'
-                        ? 'bg-yellow-600 text-white border border-yellow-500'
-                        : 'bg-yellow-500 text-white border border-yellow-400'
-                    } cursor-not-allowed`}
-                  >
-                    <CircularProgress 
-                      size={14} 
-                      sx={{ 
-                        color: '#fff',
-                      }} 
-                    />
-                    <span>[-] Health Checking...</span>
-                  </button>
-                ) : !url ? (
-                  // Show Start button only when no URL exists and not health checking
-                  (challenge.captain_only_start && !challenge.is_captain) ? (
-                    <p className={`text-center text-xs font-mono ${
-                      theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                    }`}>
-                      [!] Only captain can start
-                    </p>
-                  ) : (
+            {challenge.require_deploy && !challenge.solve_by_myteam &&
+              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
+                <div className="space-y-2">
+                  {/* Show Health Checking state if health check is in progress */}
+                  {isHealthChecking || isDeploymentInProgress ? (
                     <button
-                      onClick={handleStartChallenge}
-                      disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        width: '100%',
-                        padding: '10px 16px',
-                        border: '1px solid #4ade80',
-                        backgroundColor: '#4ade80',
-                        color: '#000',
-                        borderRadius: '4px',
-                        cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
-                        opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
-                          e.currentTarget.style.backgroundColor = '#22c55e';
-                          e.currentTarget.style.borderColor = '#22c55e';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
-                          e.currentTarget.style.backgroundColor = '#4ade80';
-                          e.currentTarget.style.borderColor = '#4ade80';
-                        }
-                      }}
+                      disabled={true}
+                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                          ? 'bg-yellow-600 text-white border border-yellow-500'
+                          : 'bg-yellow-500 text-white border border-yellow-400'
+                        } cursor-not-allowed`}
                     >
-                      {isStarting && (
-                        <CircularProgress 
-                          size={14} 
-                          sx={{ 
-                            color: '#000',
-                          }} 
+                      <CircularProgress
+                        size={14}
+                        sx={{
+                          color: '#fff',
+                        }}
+                      />
+                      <span>[-] Health Checking...</span>
+                    </button>
+                  ) : !url ? (
+                    // Show Start button only when no URL exists and not health checking
+                    (challenge.captain_only_start && !challenge.is_captain) ? (
+                      <p className={`text-center text-xs font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                        }`}>
+                        [!] Only captain can start
+                      </p>
+                    ) : (
+                      <button
+                        onClick={handleStartChallenge}
+                        disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          padding: '10px 16px',
+                          border: '1px solid #4ade80',
+                          backgroundColor: '#4ade80',
+                          color: '#000',
+                          borderRadius: '4px',
+                          cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
+                          opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                            e.currentTarget.style.backgroundColor = '#22c55e';
+                            e.currentTarget.style.borderColor = '#22c55e';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                            e.currentTarget.style.backgroundColor = '#4ade80';
+                            e.currentTarget.style.borderColor = '#4ade80';
+                          }
+                        }}
+                      >
+                        {isStarting && (
+                          <CircularProgress
+                            size={14}
+                            sx={{
+                              color: '#000',
+                            }}
+                          />
+                        )}
+                        <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
+                      </button>
+                    )
+                  ) : (
+                    // Show Stop button when URL exists (challenge is fully ready)
+                    <button
+                      onClick={handleStopChallenge}
+                      disabled={isStopping || challenge.pod_status === 'Deleting'}
+                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                          ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
+                          : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isStopping && (
+                        <CircularProgress
+                          size={14}
+                          sx={{
+                            color: '#fff',
+                          }}
                         />
                       )}
-                      <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
+                      {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
                     </button>
-                  )
-                ) : (
-                  // Show Stop button when URL exists (challenge is fully ready)
-                  <button
-                    onClick={handleStopChallenge}
-                    disabled={isStopping || challenge.pod_status === 'Deleting'}
-                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                      theme === 'dark'
-                        ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
-                        : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {isStopping && (
-                      <CircularProgress 
-                        size={14} 
-                        sx={{ 
-                          color: '#fff',
-                        }} 
-                      />
-                    )}
-                    {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
-                  </button>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
           </div>
         </div>
 
@@ -3590,27 +3631,24 @@ const getFileName = (filePath : string) => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
-              className={`w-[75%] rounded-lg border overflow-hidden flex flex-col max-h-[85vh] ${
-                theme === 'dark'
+              className={`w-[75%] rounded-lg border overflow-hidden flex flex-col max-h-[85vh] ${theme === 'dark'
                   ? 'bg-gray-900 border-gray-700'
                   : 'bg-gray-100 border-gray-300'
-              }`}
+                }`}
             >
               {/* PDF Header */}
-              <div className={`p-3 border-b flex items-center justify-between flex-shrink-0 ${
-                theme === 'dark' 
-                  ? 'bg-gray-800 border-gray-700' 
+              <div className={`p-3 border-b flex items-center justify-between flex-shrink-0 ${theme === 'dark'
+                  ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-300'
-              }`}>
+                }`}>
                 <div className="flex items-center gap-2">
                   <PictureAsPdf className="text-red-500" sx={{ fontSize: 18 }} />
-                  <h3 className={`font-mono text-sm ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <h3 className={`font-mono text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     {getFileName(pdfFiles[selectedPdfIndex])}
                   </h3>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   {/* Zoom Controls - Minimal Terminal Style */}
                   {numPages && !loadingPdf && (
@@ -3619,91 +3657,84 @@ const getFileName = (filePath : string) => {
                         <button
                           onClick={() => setPdfScale(prev => Math.max(0.5, prev - 0.1))}
                           disabled={pdfScale <= 0.5}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
-                            theme === 'dark'
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
                               ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
                               : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
-                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                            } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           [-]
                         </button>
-                        <span className={`font-mono text-xs min-w-[45px] text-center ${
-                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <span className={`font-mono text-xs min-w-[45px] text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           {Math.round(pdfScale * 100)}%
                         </span>
                         <button
                           onClick={() => setPdfScale(prev => Math.min(3.0, prev + 0.1))}
                           disabled={pdfScale >= 3.0}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
-                            theme === 'dark'
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
                               ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
                               : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
-                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                            } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           [+]
                         </button>
                       </div>
-                      
+
                       <span className={`mx-1 ${theme === 'dark' ? 'text-gray-700' : 'text-gray-400'}`}>|</span>
                     </>
                   )}
-                  
+
                   {/* Page Navigation - Minimal Terminal Style */}
                   {numPages && !loadingPdf && (
                     <>
-                      <div className={`font-mono text-xs ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
+                      <div className={`font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                         {pageNumber}/{numPages}
                       </div>
                       <div className="flex gap-1">
                         <button
                           onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
                           disabled={pageNumber <= 1}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
-                            theme === 'dark'
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
                               ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
                               : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
-                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                            } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           [&lt;]
                         </button>
                         <button
                           onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
                           disabled={pageNumber >= numPages}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${
-                            theme === 'dark'
+                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
                               ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
                               : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
-                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                            } disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           [&gt;]
                         </button>
                       </div>
                     </>
                   )}
-                  
+
                 </div>
               </div>
 
               {/* PDF Content */}
-              <div 
+              <div
                 ref={pdfContainerRef}
                 className="flex-1 overflow-auto p-4 flex justify-center items-start"
               >
                 {loadingPdf ? (
                   <div className="flex flex-col items-center justify-center p-12">
                     <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
-                    <Typography className={`mt-3 font-mono text-xs ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
+                    <Typography className={`mt-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                       Loading PDF...
                     </Typography>
                   </div>
                 ) : pdfBlob ? (
-                  <div 
-                    style={{ 
+                  <div
+                    style={{
                       transform: `scale(${pdfScale})`,
                       transformOrigin: 'center top',
                       display: 'inline-block'
@@ -3735,16 +3766,15 @@ const getFileName = (filePath : string) => {
                       loading={
                         <div className="flex flex-col items-center justify-center p-8">
                           <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
-                          <Typography className={`mt-3 font-mono text-xs ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <Typography className={`mt-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             Rendering...
                           </Typography>
                         </div>
                       }
                     >
-                      <Page 
-                        pageNumber={pageNumber} 
+                      <Page
+                        pageNumber={pageNumber}
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
                         loading={
@@ -3760,11 +3790,10 @@ const getFileName = (filePath : string) => {
 
               {/* PDF Bottom Navigation */}
               {numPages && !loadingPdf && (
-                <div className={`p-3 border-t flex items-center justify-center gap-2 ${
-                  theme === 'dark' 
-                    ? 'bg-gray-800 border-gray-700' 
+                <div className={`p-3 border-t flex items-center justify-center gap-2 ${theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700'
                     : 'bg-white border-gray-300'
-                }`}>
+                  }`}>
                   <button
                     onClick={() => setPageNumber(1)}
                     disabled={pageNumber === 1}
@@ -3779,13 +3808,12 @@ const getFileName = (filePath : string) => {
                   >
                     ← Prev
                   </button>
-                  
-                  <span className={`font-mono font-bold px-2 text-sm ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-800'
-                  }`}>
+
+                  <span className={`font-mono font-bold px-2 text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'
+                    }`}>
                     {pageNumber} / {numPages}
                   </span>
-                  
+
                   <button
                     onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
                     disabled={pageNumber >= numPages}
