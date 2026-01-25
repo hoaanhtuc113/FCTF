@@ -44,12 +44,12 @@ helm upgrade --install redis bitnami/redis \
   -f ./helm/db/redis/redis-values.yaml 
 
   # cài rabbitmq
-# helm repo add bitnami https://charts.bitnami.com/bitnami
-# helm repo update
-# helm upgrade --install rabbitmq bitnami/rabbitmq \
-#   --namespace db --create-namespace \
-#   -f ./dev/helm/db/rabbitmq/rabbitmq-values.yaml \
-#   --set global.security.allowInsecureImages=true
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+helm upgrade --install rabbitmq bitnami/rabbitmq \
+  --namespace db --create-namespace \
+  -f ./prod/helm/db/rabbitmq/rabbitmq-values.yaml \
+  --set global.security.allowInsecureImages=true
 
 # cài monitoring stack (prometheus, grafana, loki, promtail)
 helm repo add grafana https://grafana.github.io/helm-charts

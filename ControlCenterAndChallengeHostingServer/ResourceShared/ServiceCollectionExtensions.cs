@@ -52,7 +52,7 @@ namespace ResourceShared
             services.AddScoped<RedisHelper>();
             services.AddSingleton<RedisLockHelper>();
             services.AddScoped<IK8sService, K8sService>();
-            services.AddScoped<IArgoWorkFlowService, ArgoWorkFlowService>();
+
             services.AddScoped<TokenHelper>();
             var keyBytes = Encoding.UTF8.GetBytes(SharedConfig.PRIVATE_KEY);
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

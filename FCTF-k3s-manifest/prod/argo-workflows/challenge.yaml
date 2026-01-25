@@ -138,7 +138,7 @@ spec:
             ## HIGH NOTATION 
             requests:
               memory: "32Mi"
-              cpu: "0.025"
+              cpu: "0.01"
             limits:
               memory: "128Mi"
               cpu: "0.1"
