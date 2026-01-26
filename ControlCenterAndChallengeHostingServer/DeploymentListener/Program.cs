@@ -1,12 +1,9 @@
 using DeploymentListener;
-using DeploymentListener.Services;
-using DeploymentListener.Utils;
 using DotNetEnv;
-using MessagePack;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared;
 using ResourceShared.Models;
-using StackExchange.Redis;
+using ResourceShared.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,10 +17,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, new MySqlServerVersion(new Version(10, 11, 0)))
 );
 
-new DeploymentListenerConfigHelper().InitConfig();
+new SharedConfig().InitConfig();
 
 builder.Services.AddResourceShared();
-builder.Services.AddScoped<IGetPodsJob, GetPodsJob>();
 builder.Services.AddHostedService<Worker>();
 
 builder.Services.AddSignalR();

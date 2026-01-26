@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 
-namespace ResourceShared.Services.RabbitMQ
+namespace DeploymentConsumer.Services
 {
     public interface IDeploymentConsumerService
     {
