@@ -68,8 +68,8 @@ internal class Worker : BackgroundService
 
         var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
 
+        //prepare api url
         var api = DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL + "/submit";
-
         MultiServiceConnector multiServiceConnector = new(api);
 
         foreach (var mess in messages)
@@ -84,10 +84,14 @@ internal class Worker : BackgroundService
             }
 
             var deploymentKey = ChallengeHelper.GetCacheKey(startReq.challengeId, startReq.teamId);
+            var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
+            // create new scope for db context
             using var messageScope = _scopeFactory.CreateScope();
             var messageDbContext = messageScope.ServiceProvider.GetRequiredService<AppDbContext>();
             try
             {
+                if (deploymentCache == null) throw new InvalidOperationException("Deployment cache not found");
+
                 var challenge = await messageDbContext.Challenges
                     .FirstOrDefaultAsync(c => c.Id == startReq.challengeId, cancellationToken: stoppingToken)
                     ?? throw new InvalidOperationException($"Challenge {startReq.challengeId} not found");
@@ -127,23 +131,17 @@ internal class Worker : BackgroundService
                     if (string.IsNullOrWhiteSpace(workflowName))
                         throw new InvalidOperationException("Workflow name is empty");
                 }
+                deploymentCache._namespace = appName;
+                deploymentCache.status = DeploymentStatus.PENDING;
+                deploymentCache.workflow_name = workflowName;
+                deploymentCache.time_finished = 0;
 
-                var deploymentCache = new ChallengeDeploymentCacheDTO
-                {
-                    challenge_id = startReq?.challengeId ?? 0,
-                    user_id = startReq?.userId ?? 0,
-                    team_id = startReq?.teamId ?? 0,
-                    _namespace = appName,
-                    workflow_name = workflowName ?? string.Empty,
-                    status = DeploymentStatus.PENDING,
-                    time_finished = 0
-                };
 
                 await _redisHelper.AtomicUpdateExpiration(
                     startReq?.teamId.ToString() ?? string.Empty,
                     deploymentKey,
                     startReq?.challengeId.ToString() ?? string.Empty,
-                    realTtlSeconds: 300,
+                    realTtlSeconds: 200,
                     JsonSerializer.Serialize(deploymentCache));
             }
             catch (Exception ex)
