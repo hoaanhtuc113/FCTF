@@ -79,10 +79,6 @@ namespace DeploymentCenter.Services
 
                         var podName = deploymentCache._namespace;
 
-                        //if (!string.IsNullOrEmpty(podName))
-                        //{
-                        //    var podStatus = await _k8SHealthService.CheckPodAliveInCache(podName);
-                        //var podStatus = true;
                         if (!deploymentCache.ready)
                         {
                             return new ChallengeDeployResponeDTO
@@ -92,7 +88,6 @@ namespace DeploymentCenter.Services
                                 message = "Challenge is deploying.",
                             };
                         }
-                        // }
 
                         int timeLeft = 0;
                         if (deploymentCache.time_finished > 0)
@@ -121,12 +116,6 @@ namespace DeploymentCenter.Services
 
             try
             {
-                //_dbContext.ArgoOutboxes.Add(new ArgoOutbox
-                //{
-                //    Payload = JsonSerializer.Serialize(startReq),
-                //    Expiry = DateTime.UtcNow.AddMinutes(5),
-                //});
-                //await _dbContext.SaveChangesAsync();
                 await _deploymentProducerService.EnqueueDeploymentAsync(startReq);
 
                 deploymentCache = new ChallengeDeploymentCacheDTO
@@ -136,7 +125,7 @@ namespace DeploymentCenter.Services
                     team_id = startReq?.teamId ?? 0,
                     _namespace = string.Empty,
                     workflow_name = string.Empty,
-                    status = DeploymentStatus.PENDING,
+                    status = DeploymentStatus.PENDING_DEPLOY,
                     time_finished = 0
                 };
 
