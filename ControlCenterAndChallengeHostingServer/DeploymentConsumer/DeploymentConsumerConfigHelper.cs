@@ -15,12 +15,12 @@ public class DeploymentConsumerConfigHelper : SharedConfig
     public override void InitConfig()
     {
         base.InitConfig();
-        DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL = configuration["ARGO_WORKFLOWS_URL"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_URL");
-        DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN = configuration["ARGO_WORKFLOWS_TOKEN"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_TOKEN");
-        DeploymentConsumerConfigHelper.CPU_LIMIT = configuration["CPU_LIMIT"] ?? "300m";
-        DeploymentConsumerConfigHelper.CPU_REQUEST = configuration["CPU_REQUEST"] ?? "300m";
-        DeploymentConsumerConfigHelper.MEMORY_LIMIT = configuration["MEMORY_LIMIT"] ?? "256Mi";
-        DeploymentConsumerConfigHelper.MEMORY_REQUEST = configuration["MEMORY_REQUEST"] ?? "256Mi";
-        DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES = configuration["POD_START_TIMEOUT_MINUTES"] ?? "5";
+        ARGO_WORKFLOWS_URL = configuration["ARGO_WORKFLOWS_URL"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_URL");
+        ARGO_WORKFLOWS_TOKEN = configuration["ARGO_WORKFLOWS_TOKEN"] ?? throw new Exception("Can't read ServiceConfigs:ARGO_WORKFLOWS_TOKEN");
+        CPU_LIMIT = configuration["CPU_LIMIT"] ?? "300m";
+        CPU_REQUEST = configuration["CPU_REQUEST"] ?? "300m";
+        MEMORY_LIMIT = configuration["MEMORY_LIMIT"] ?? "256Mi";
+        MEMORY_REQUEST = configuration["MEMORY_REQUEST"] ?? "256Mi";
+        POD_START_TIMEOUT_MINUTES = configuration["POD_START_TIMEOUT_MINUTES"] ?? "5";
     }
 }

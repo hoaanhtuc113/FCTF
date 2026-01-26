@@ -1,146 +1,73 @@
 using k8s;
 using k8s.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using ResourceShared.Configs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
+using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using ResourceShared.Logger;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 using static ResourceShared.Enums;
-using File = System.IO.File;
 
 namespace ResourceShared.Services
 {
     public delegate Task OnDeploymentStatusChanged(int teamId, int challengeId, int userId, string status, string? url = null);
     public interface IK8sService
     {
-        Task<bool> CheckPodAlive(string podName, string namespaceName);
-        Task<bool> CheckPodAliveInCache(string podName);
-        Task<List<PodInfo>> GetPodsByLabel(string label = "ctf/kind=challenge", K8sService.PodEventHandler? _event = null);
+        Task<List<PodInfo>> GetPodsByLabel(
+            string label = "ctf/kind=challenge",
+            K8sService.PodEventHandler? _event = null);
+
         Task<bool> DeleteNamespace(string namespaceName);
+
         Task<(int successCount, int failCount, List<string> errors)> DeleteAllChallengeNamespaces(string labelSelector = "ctf/kind=challenge");
-        Task<int?> GetServicePort(string namespaceName);
-        Task StartPodWatcher(OnDeploymentStatusChanged statusHandler, string label = "ctf/kind=challenge", CancellationToken cancellationToken = default);
-        Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache);
-        Task<WorkflowPhase> GetWorkflowStatus(string wfName, string namespaceName = "argo");
-        Task<string> GetWorkflowLogs(string workflowName, string namespaceName = "argo");
-        Task<string> GetPodLogs(string namespaceName, string podName);
+
+        Task StartPodWatcher(
+            OnDeploymentStatusChanged statusHandler,
+            string label = "ctf/kind=challenge",
+            CancellationToken cancellationToken = default);
+
+        Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(
+            int challengeId,
+            int teamId,
+            string podName,
+            ChallengeDeploymentCacheDTO deploymentCache);
+
+        Task<WorkflowPhase> GetWorkflowStatus(
+            string wfName,
+            string namespaceName = "argo");
+
+        Task<string> GetWorkflowLogs(
+            string workflowName,
+            string namespaceName = "argo");
+
+        Task<string> GetPodLogs(
+            string namespaceName,
+            string podName);
     }
     public class K8sService : IK8sService
     {
         private readonly IKubernetes _kubernetes;
         private readonly RedisHelper _redisHelper;
-        private readonly AppDbContext _dbContext;
         private readonly AppLogger _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
         public delegate Task PodEventHandler(PodInfo pod);
-        public K8sService(RedisHelper redisHelper, AppDbContext dbContext, AppLogger logger)
+        public K8sService(
+            RedisHelper redisHelper,
+            AppLogger logger,
+            IKubernetes kubernetes,
+            IServiceScopeFactory scopeFactory)
         {
             _redisHelper = redisHelper;
             _logger = logger;
-            try
-            {
-                var config = KubernetesClientConfiguration.InClusterConfig();
-                _kubernetes = new Kubernetes(config);
-            }
-            catch (Exception ex)
-            {
-                var kubeConfigPath = Environment.GetEnvironmentVariable("KUBECONFIG") ?? "/root/.kube/config";
-                if (!File.Exists(kubeConfigPath))
-                    throw new FileNotFoundException($"Không tìm thấy kubeconfig tại {kubeConfigPath}");
-
-                var config = KubernetesClientConfiguration.BuildConfigFromConfigFile(kubeConfigPath);
-                _kubernetes = new Kubernetes(config);
-
-                var version = _kubernetes.Version.GetCode();
-            }
-
-            _dbContext = dbContext;
-        }
-
-        public async Task<bool> CheckPodAlive(string podName, string namespaceName)
-        {
-            try
-            {
-                // var pod = await _kubernetes.CoreV1.ReadNamespacedPodAsync(podName,namespaceName);
-
-                var pods = await _kubernetes.CoreV1.ListNamespacedPodAsync(
-                    namespaceParameter: namespaceName,
-                    fieldSelector: $"metadata.name={podName}"
-                );
-
-                var pod = pods.Items.FirstOrDefault();
-
-                if (pod == null)
-                {
-                    _logger.LogDebug("No pod found with prefix", new { podName, namespaceName });
-                    return false;
-                }
-
-
-                var phase = pod.Status?.Phase ?? "Unknown";
-                var ready = pod.Status.Conditions?.Any(c => c.Type == "Ready" && c.Status == "True") == true;
-
-                if (phase == DeploymentStatus.RUNING && ready) return true;
-
-                var log = await _kubernetes.CoreV1.ReadNamespacedPodLogAsync(pod.Metadata.Name, namespaceName);
-                return false;
-            }
-            catch (k8s.Autorest.HttpOperationException ex)
-            {
-                if (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    _logger.LogDebug("Pod not found", new { podName, namespaceName });
-                    return false;
-                }
-                _logger.LogError(ex, data: new { podName, namespaceName, errorType = "K8sApiError" });
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, data: new { podName, namespaceName, errorType = "CheckPodAliveException" });
-                return false;
-            }
-        }
-
-        public async Task<bool> CheckPodAliveInCache(string podName)
-        {
-            throw new NotImplementedException();
-            //try
-            //{
-            //    var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
-
-            //    if (pods == null)
-            //    {
-            //        await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache.");
-            //        return false;
-            //    }
-
-            //    var podInfo = pods.FirstOrDefault(p => p.Name.StartsWith(podName));
-            //    if (podInfo != null) {
-            //        await Console.Out.WriteLineAsync($"[Check Pod Alive] Pod: {podName}, Status={podInfo.Status}, Ready={podInfo.Ready}");
-            //        return podInfo.Status == "Running" && podInfo.Ready;
-            //    }
-            //    await Console.Out.WriteLineAsync($"[Check Pod Alive] No pod info found in cache for prefix: {podName}");
-            //    return false;
-            //}
-            //catch (Exception ex)
-            //{
-            //    await Console.Error.WriteLineAsync($"[Check Pod Alive] Exception checking pod {podName}: {ex.Message}");
-            //    return false;
-            //}
+            _kubernetes = kubernetes;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task<bool> DeleteNamespace(string namespaceName)
@@ -592,41 +519,14 @@ namespace ResourceShared.Services
             _logger.LogDebug("Watcher stopped", new { label });
         }
 
-        public async Task<int?> GetServicePort(string namespaceName)
-        {
-            try
-            {
-                var svcs = await _kubernetes.CoreV1.ListNamespacedServiceAsync(namespaceName);
-
-                var svc = svcs.Items.FirstOrDefault();
-                if (svc == null)
-                {
-                    _logger.LogDebug("Namespace does not have any service", new { namespaceName });
-                    return null;
-                }
-
-                var portSpec = svc.Spec.Ports?.FirstOrDefault();
-                if (portSpec == null)
-                {
-                    _logger.LogDebug("Service has no ports defined", new { namespaceName, serviceName = svc.Metadata?.Name });
-                    return null;
-                }
-
-                return portSpec.Port;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, data: new { namespaceName, errorType = "GetServicePortError" });
-                return null;
-            }
-        }
-
         public async Task<ChallengeDeployResponeDTO?> HandleChallengeRunning(int challengeId, int teamId, string podName, ChallengeDeploymentCacheDTO deploymentCache)
         {
             try
             {
-                var challenge = await _dbContext.Challenges.AsNoTracking()
-                    .Select(c => new { c.Id, c.TimeLimit }) 
+                using var scope = _scopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetService<AppDbContext>() ?? throw new Exception("dbcontext null");
+                var challenge = await dbContext.Challenges.AsNoTracking()
+                    .Select(c => new { c.Id, c.TimeLimit })
                     .FirstOrDefaultAsync(c => c.Id == challengeId);
 
                 if (challenge == null)
