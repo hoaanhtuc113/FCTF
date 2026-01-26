@@ -467,6 +467,14 @@ namespace ContestantBE.Services
                         status = (int)HttpStatusCode.OK
                     };
                 }
+                if(deploymentCache.status == Enums.DeploymentStatus.PENDING){
+                    return new ChallengeDeployResponeDTO
+                    {
+                        success = false,
+                        message = "Challenge is currently deploying",
+                        status = (int)HttpStatusCode.OK
+                    };
+                }
                 if (deploymentCache.status == Enums.DeploymentStatus.RUNING && deploymentCache.ready)
                 {
                     
