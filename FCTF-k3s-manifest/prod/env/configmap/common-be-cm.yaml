@@ -14,3 +14,4 @@ data:
   RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
   RABBIT_USERNAME: "user"
   RABBIT_PORT: "5672"
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
