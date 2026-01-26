@@ -1,15 +1,16 @@
-﻿using DeploymentConsumer.Models;
-using DeploymentConsumer.Services;
+﻿using DeploymentConsumer.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.RabbitMQ;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
+using System.Diagnostics;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
@@ -20,14 +21,23 @@ internal class Worker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<Worker> _logger;
     private readonly RedisHelper _redisHelper;
+    private readonly MultiServiceConnector _multiServiceConnector;
+    private readonly ActivitySource _rabbitMQActivitySource;
 
     private const int BatchSize = 20;
     private const int MaxRunningWorkFlow = 30;
-    public Worker(IServiceScopeFactory scopeFactory, ILogger<Worker> logger, RedisHelper redisHelper)
+    public Worker(
+        IServiceScopeFactory scopeFactory,
+        ILogger<Worker> logger,
+        RedisHelper redisHelper,
+        MultiServiceConnector multiServiceConnector,
+        RabbitMqTelemetrySource rabbitMqTelemetrySource)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _redisHelper = redisHelper;
+        _multiServiceConnector = multiServiceConnector;
+        _rabbitMQActivitySource = rabbitMqTelemetrySource.Source;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -62,18 +72,33 @@ internal class Worker : BackgroundService
             return;
         }
         var availableSlots = MaxRunningWorkFlow - runningWorkflow;
-        List<DequeuedMessage> messages = await queueService.DequeueAvailableBatchAsync(Math.Min(availableSlots,BatchSize));
+        List<DequeuedMessage> messages = await queueService.DequeueAvailableBatchAsync(Math.Min(availableSlots, BatchSize));
 
         _logger.LogInformation($"[Worker] Dequeued {messages.Count} messages for processing");
 
         var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
 
-        //prepare api url
-        var api = DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL + "/submit";
-        MultiServiceConnector multiServiceConnector = new(api);
+        using var batchActivity = _rabbitMQActivitySource.StartActivity(
+            "deployment.batch.process",
+            ActivityKind.Internal);
+
+        batchActivity?.SetTag("batch.size", messages.Count);
+        batchActivity?.SetTag("workflow.running", runningWorkflow);
 
         foreach (var mess in messages)
         {
+            var parentContext = Telemetry.ExtractTraceContext(mess.Headers);
+
+            using var activity = _rabbitMQActivitySource.StartActivity(
+                "deployment.consume",
+                ActivityKind.Consumer,
+                parentContext.ActivityContext);
+
+            activity?.SetTag("messaging.system", "rabbitmq");
+            activity?.SetTag("messaging.destination", "deployment_queue");
+            activity?.SetTag("messaging.operation", "process");
+            activity?.SetTag("messaging.message_id", mess.DeliveryTag);
+
             _logger.LogInformation($"[Worker] Excuting message with tag {mess.DeliveryTag}");
 
             var startReq = JsonSerializer.Deserialize<ChallengeStartStopReqDTO>(mess.Payload.Data);
@@ -112,8 +137,12 @@ internal class Worker : BackgroundService
                         DeploymentConsumerConfigHelper.MEMORY_REQUEST,
                         DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES);
 
-
-                var response = await multiServiceConnector.ExecuteRequest(api, Method.Post, payload, headers)
+                var response = await _multiServiceConnector.ExecuteRequest(
+                    DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL,
+                    "/submit",
+                    Method.Post,
+                    payload,
+                    headers)
                     ?? throw new InvalidOperationException("No response from Argo Workflows API");
 
                 // lấy workflow name từ response
@@ -146,6 +175,8 @@ internal class Worker : BackgroundService
             }
             catch (Exception ex)
             {
+                activity?.AddException(ex);
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                 await queueService.NackAsync(mess.DeliveryTag);
                 _logger.LogError(ex, "Deploy failed. ChallengeId={ChallengeId}, TeamId={TeamId}", startReq.challengeId, startReq.teamId);
             }

@@ -6,11 +6,9 @@ using ResourceShared.DTOs.Deployments;
 using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Services;
-using ResourceShared.Services.RabbitMQ;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using System.Net;
-using System.Text.Json;
 using static ResourceShared.Enums;
 
 namespace DeploymentCenter.Services
