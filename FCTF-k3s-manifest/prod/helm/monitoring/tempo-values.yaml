@@ -3,7 +3,14 @@ tempo:
 
   service:
     type: ClusterIP
-    port: 4317   # OTLP gRPC
+    ports:
+      - name: otlp-grpc
+        port: 4317
+        targetPort: 4317
+      - name: http
+        port: 3100
+        targetPort: 3100
+
 
   persistence:
     enabled: true
