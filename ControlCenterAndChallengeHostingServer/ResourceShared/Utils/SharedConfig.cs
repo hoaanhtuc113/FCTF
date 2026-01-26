@@ -46,10 +46,10 @@ namespace ResourceShared.Utils
             START_CHALLENGE_TEMPLATE = configuration["START_CHALLENGE_TEMPLATE"] ?? throw new Exception("Can't read START_CHALLENGE_TEMPLATE");
 
             // Read RabbitMQ settings (use sensible defaults when env vars are missing)
-            RABBIT_HOST = configuration["RABBIT_HOST"] ?? "localhost";
-            RABBIT_USERNAME = configuration["RABBIT_USERNAME"] ?? "guest";
-            RABBIT_PASSWORD = configuration["RABBIT_PASSWORD"] ?? "guest";
-            RABBIT_PORT = int.TryParse(configuration["RABBIT_PORT"], out var p) ? p : 5672;
+            RABBIT_HOST = configuration["RABBIT_HOST"] ?? throw new Exception("Can't read Rabbit_Host");
+            RABBIT_USERNAME = configuration["RABBIT_USERNAME"] ?? throw new Exception("Can't read Rabbit_username");
+            RABBIT_PASSWORD = configuration["RABBIT_PASSWORD"] ?? throw new Exception("Can't read Rabbit_password");
+            RABBIT_PORT = int.TryParse(configuration["RABBIT_PORT"], out var p) ? p : throw new Exception("Can't read Rabbit_Port");
         }
     }
 }

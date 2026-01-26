@@ -348,7 +348,7 @@ namespace ResourceShared.Services
                 return;
             }
 
-
+            //Terminating
             if (pod.Metadata.DeletionTimestamp.HasValue)
             {
                 if (cache == null || cache.status == DeploymentStatus.STOPPED)
@@ -373,7 +373,7 @@ namespace ResourceShared.Services
                 await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.STOPPED, null);
                 return;
             }
-
+            //delete ghost pod
             if (cache == null)
             {
 
@@ -388,20 +388,21 @@ namespace ResourceShared.Services
                 return;
             }
 
+            //pod resstart
             if (cache.pod_id != uid)
             {
                 cache.pod_id = uid;
                 cache.ready = false;
-
-
                 // Cập nhật atomic với TTL hiện tại (giữ nguyên expiration cũ)
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                long remainingTtl = cache.time_finished - now;
+
                 var cacheJson = JsonSerializer.Serialize(cache);
-                var currentTtl = await _redisHelper.KeyExistsAsync(key) ? 300 : 300;
                 await _redisHelper.AtomicUpdateExpiration(
                     teamId.ToString(),
                     key,
                     challengeId.ToString(),
-                    currentTtl,
+                    (int)remainingTtl,
                     cacheJson
                 );
             }
@@ -624,7 +625,10 @@ namespace ResourceShared.Services
         {
             try
             {
-                var challenge = await _dbContext.Challenges.AsNoTracking().FirstOrDefaultAsync(c => c.Id == challengeId);
+                var challenge = await _dbContext.Challenges.AsNoTracking()
+                    .Select(c => new { c.Id, c.TimeLimit }) 
+                    .FirstOrDefaultAsync(c => c.Id == challengeId);
+
                 if (challenge == null)
                     return new ChallengeDeployResponeDTO
                     {
@@ -633,48 +637,36 @@ namespace ResourceShared.Services
                         status = (int)HttpStatusCode.NotFound
                     };
 
-                var timeLimit = challenge.TimeLimit ?? -1;
-
-                var expiry = DateTimeOffset.UtcNow.AddMinutes(
-                    timeLimit > 0 ? timeLimit : 30
-                );
-                var challengeDomain = ChallengeHelper.GenerateChallengeToken(podName, expiry);
-
-                var nowUtc = DateTimeOffset.UtcNow;
-                var timeFinished = nowUtc.AddMinutes(timeLimit);
-                var cacheExpired = timeLimit > 0
-                    ? TimeSpan.FromMinutes(timeLimit)
-                    : (TimeSpan?)null;
-
-                // Set đúng cho các lần loop sau, không đổi time finished nếu đã có và còn hiệu lực
-                if (deploymentCache.time_finished > nowUtc.ToUnixTimeSeconds())
+                // if time finished is in the future, keep it; else calculate new finish time
+                long finalUnixFinished;
+                if (deploymentCache.time_finished > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
                 {
-                    timeFinished = DateTimeOffset.FromUnixTimeSeconds(deploymentCache.time_finished);
-                    cacheExpired = timeFinished - nowUtc;
+                    finalUnixFinished = deploymentCache.time_finished;
+                }
+                else
+                {
+                    int minutes = (challenge.TimeLimit > 0) ? challenge.TimeLimit.Value : 30;
+                    finalUnixFinished = DateTimeOffset.UtcNow.AddMinutes(minutes).ToUnixTimeSeconds();
                 }
 
-                var chalDeployKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
-
-                // Cập nhật deploymentCache object
-
-                deploymentCache.status = DeploymentStatus.RUNING;
-                deploymentCache.challenge_url = challengeDomain;
-                deploymentCache.time_finished = timeFinished.ToUnixTimeSeconds();
-                deploymentCache.ready = true;
-
-                int realTtlSeconds = cacheExpired.HasValue
-                    ? (int)cacheExpired.Value.TotalSeconds
-                    : 60;
+                var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);
+                var challengeDomain = ChallengeHelper.GenerateChallengeToken(podName, expiryOffset);
+                int realTtlSeconds = (int)(expiryOffset - DateTimeOffset.UtcNow).TotalSeconds;
 
                 if (realTtlSeconds <= 0) realTtlSeconds = 60;
-                // Atomic update: Cập nhật cả data + expiration + ZSET score trong 1 transaction
-                var deploymentJson = deploymentCache != null ? JsonSerializer.Serialize(deploymentCache) : null;
+
+                // 4. Update Cache Object
+                deploymentCache.status = DeploymentStatus.RUNING;
+                deploymentCache.challenge_url = challengeDomain;
+                deploymentCache.time_finished = finalUnixFinished;
+                deploymentCache.ready = true;
+
                 await _redisHelper.AtomicUpdateExpiration(
                     teamId.ToString(),
-                    chalDeployKey,
+                    ChallengeHelper.GetCacheKey(challengeId, teamId),
                     challengeId.ToString(),
                     realTtlSeconds,
-                    deploymentJson
+                    JsonSerializer.Serialize(deploymentCache)
                 );
                 return new ChallengeDeployResponeDTO
                 {
