@@ -6,45 +6,50 @@ metadata:
     ctf/temporary: "${IS_TEMPORARY}"
     ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
     ctf/kind: "challenge"
-    pod-security.kubernetes.io/enforce: "restricted"
-    pod-security.kubernetes.io/enforce-version: "latest"
-    pod-security.kubernetes.io/audit: "restricted"
-    pod-security.kubernetes.io/audit-version: "latest"
-    pod-security.kubernetes.io/warn: "restricted"
-    pod-security.kubernetes.io/warn-version: "latest"
+    #pod-security.kubernetes.io/enforce: "restricted"
+    #pod-security.kubernetes.io/enforce-version: "latest"
+    #pod-security.kubernetes.io/audit: "restricted"
+    #pod-security.kubernetes.io/audit-version: "latest"
+    #pod-security.kubernetes.io/warn: "restricted"
+    #pod-security.kubernetes.io/warn-version: "latest"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: ${CHALLENGE_NAME}
   name: ${CHALLENGE_NAME}-svc
-  labels:
-    ctf/kind: "challenge"
+  namespace: ${CHALLENGE_NAME}
 spec:
   type: ClusterIP
   selector:
     app: ${CHALLENGE_NAME}
   ports:
-    - name: tcp-challenge-nodeport
+    - name: tcp-challenge
       protocol: TCP
       port: 3333
       targetPort: ${CONTAINER_PORT}
+
+# ======================================================
+# DENY ALL INGRESS BY DEFAULT
+# ======================================================
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: challenge-deny-all
+  name: deny-all-ingress
   namespace: ${CHALLENGE_NAME}
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
-    - Egress
+
+# ======================================================
+# ALLOW INGRESS FROM GATEWAY ONLY
+# ======================================================
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: challenge-allow-gateway
+  name: allow-gateway-ingress
   namespace: ${CHALLENGE_NAME}
 spec:
   podSelector:
@@ -54,18 +59,52 @@ spec:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
           podSelector:
             matchLabels:
               app: challenge-gateway
       ports:
         - protocol: TCP
           port: ${CONTAINER_PORT}
+
+# ======================================================
+# ALLOW KUBELET (READINESS / LIVENESS PROBE)
+# 👉 BẮT BUỘC, nếu không pod sẽ NEVER READY
+# ======================================================
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: challenge-allow-egress
+  name: allow-kubelet-probe
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app: ${CHALLENGE_NAME}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.0/16   # ❗ CIDR node (sửa nếu node CIDR khác)
+      ports:
+        - protocol: TCP
+          port: ${CONTAINER_PORT}
+
+# ======================================================
+# STRICT EGRESS:
+# - DNS only
+# - Gateway only
+# - Internet only
+# - BLOCK toàn bộ cluster/service
+# ======================================================
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: strict-egress
   namespace: ${CHALLENGE_NAME}
 spec:
   podSelector:
@@ -74,26 +113,38 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # Allow DNS (UDP/TCP 53 to any)
-    - ports:
+    # ---- DNS ----
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
         - protocol: UDP
           port: 53
         - protocol: TCP
           port: 53
-    # Allow Gateway (Response/Connect)
+
+    # ---- Gateway only ----
     - to:
-        - namespaceSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
           podSelector:
             matchLabels:
               app: challenge-gateway
-    # Allow Internet
+
+    # ---- Internet only (NO cluster, NO metadata) ----
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
               - 10.0.0.0/8
-              - 192.168.0.0/16
               - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+
+# ======================================================
+# JOB
+# ======================================================
 ---
 apiVersion: batch/v1
 kind: Job
@@ -109,12 +160,12 @@ spec:
         ctf/kind: "challenge"
     spec:
       restartPolicy: Never
-      automountServiceAccountToken: false # Không gắn token API server
+      automountServiceAccountToken: false
       priorityClassName: batch-low
       preemptionPolicy: Never
       runtimeClassName: gvisor
       securityContext:
-        runAsNonRoot: true
+        #runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -125,23 +176,18 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            
           readinessProbe:
             tcpSocket:
               port: ${CONTAINER_PORT}
             periodSeconds: 3
-            failureThreshold: 3  
-
+            failureThreshold: 3
           securityContext:
-            allowPrivilegeEscalation: false # Không cho escalate privilege
+            allowPrivilegeEscalation: false
             privileged: false
-            runAsNonRoot: true # Không chạy root
-            runAsUser: 1000
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             capabilities:
-              drop: ["ALL"] #  Bỏ mọi Linux capabilities
+              drop: ["ALL"]
           resources:
-            ## HIGH NOTATION 
             requests:
               memory: "32Mi"
               cpu: "0.01"
