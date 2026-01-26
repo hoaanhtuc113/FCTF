@@ -488,8 +488,8 @@ export function Challenges() {
         className="flex-shrink-0 overflow-hidden"
       >
         <div className={`w-48 rounded-lg border p-3 ${theme === 'dark'
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-300'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-300'
           }`}>
           <div className={`mb-3 pb-2 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
             }`}>
@@ -516,12 +516,12 @@ export function Challenges() {
                     key={category.topic_name}
                     onClick={() => handleCategoryClick(category.topic_name)}
                     className={`w-full text-left px-2 py-1.5 rounded transition-colors flex items-center justify-between text-xs ${selectedCategory === category.topic_name
-                        ? theme === 'dark'
-                          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                          : 'bg-orange-50 text-orange-700 border border-orange-300'
-                        : theme === 'dark'
-                          ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
-                          : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
+                      ? theme === 'dark'
+                        ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                        : 'bg-orange-50 text-orange-700 border border-orange-300'
+                      : theme === 'dark'
+                        ? 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600'
+                        : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
                       }`}
                   >
                     <div className="flex items-center gap-1.5">
@@ -531,8 +531,8 @@ export function Challenges() {
                           {category.topic_name.toUpperCase()}
                         </div>
                         <div className={`text-xs font-mono ${selectedCategory === category.topic_name
-                            ? theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
-                            : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                          ? theme === 'dark' ? 'text-orange-300' : 'text-orange-600'
+                          : theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
                           }`}>
                           {category.challenge_count} challs
                         </div>
@@ -563,14 +563,14 @@ export function Challenges() {
       {/* Column 2: Challenge List */}
       <div
         className={`transition-all duration-300 ${selectedChallenge
-            ? (showCategories ? 'w-72' : 'w-80')
-            : 'flex-1'
+          ? (showCategories ? 'w-72' : 'w-80')
+          : 'flex-1'
           }`}
       >
         {!isContestActive && (
           <div className={`mb-4 p-3 rounded border ${theme === 'dark'
-              ? 'bg-orange-900/20 border-orange-500/30'
-              : 'bg-orange-50 border-orange-300'
+            ? 'bg-orange-900/20 border-orange-500/30'
+            : 'bg-orange-50 border-orange-300'
             }`}>
             <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
               }`}>
@@ -595,8 +595,8 @@ export function Challenges() {
                 <button
                   onClick={() => setShowCategories(!showCategories)}
                   className={`p-1.5 rounded transition-colors border ${theme === 'dark'
-                      ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
-                      : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
+                    ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
+                    : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
                     }`}
                   title={showCategories ? "Hide Categories" : "Show Categories"}
                 >
@@ -775,12 +775,12 @@ function TerminalPagination({
           onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
           className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${currentPage === 1
-              ? theme === 'dark'
-                ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
-                : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-              : theme === 'dark'
-                ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
-                : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
+            ? theme === 'dark'
+              ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
+              : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
+            : theme === 'dark'
+              ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
+              : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
             }`}
         >
           {'[<]'}
@@ -798,12 +798,12 @@ function TerminalPagination({
               <button
                 onClick={() => onPageChange(page as number)}
                 className={`min-w-[32px] px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${currentPage === page
-                    ? theme === 'dark'
-                      ? 'bg-orange-500/20 border-orange-500 text-orange-400'
-                      : 'bg-orange-50 border-orange-400 text-orange-600'
-                    : theme === 'dark'
-                      ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  ? theme === 'dark'
+                    ? 'bg-orange-500/20 border-orange-500 text-orange-400'
+                    : 'bg-orange-50 border-orange-400 text-orange-600'
+                  : theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:border-gray-500'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
                   }`}
               >
                 {page}
@@ -817,12 +817,12 @@ function TerminalPagination({
           onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           className={`px-2 py-1 text-xs font-mono font-bold border rounded transition-all ${currentPage === totalPages
-              ? theme === 'dark'
-                ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
-                : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-              : theme === 'dark'
-                ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
-                : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
+            ? theme === 'dark'
+              ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
+              : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
+            : theme === 'dark'
+              ? 'bg-gray-700 border-gray-600 text-orange-400 hover:bg-orange-500/20 hover:border-orange-500/50'
+              : 'bg-white border-gray-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400'
             }`}
         >
           {'[>]'}
@@ -924,12 +924,12 @@ function ChallengeListItem({
 
               <h3
                 className={`text-sm font-mono font-bold truncate ${challenge.solve_by_myteam
-                    ? 'text-green-500'
-                    : isLocked
-                      ? 'text-yellow-500'
-                      : isContestActive
-                        ? theme === 'dark' ? 'text-white' : 'text-gray-900'
-                        : 'text-gray-500'
+                  ? 'text-green-500'
+                  : isLocked
+                    ? 'text-yellow-500'
+                    : isContestActive
+                      ? theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      : 'text-gray-500'
                   }`}
                 title={challenge.name}
               >
@@ -940,8 +940,8 @@ function ChallengeListItem({
             <div className="flex flex-wrap gap-2 text-xs font-mono">
               {isLocked && (
                 <span className={`px-2 py-0.5 rounded ${theme === 'dark'
-                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                    : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                  : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
                   }`}>
                   [!] locked
                 </span>
@@ -952,8 +952,8 @@ function ChallengeListItem({
                 <span
                   key={prereq.id}
                   className={`px-2 py-0.5 rounded ${theme === 'dark'
-                      ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                      : 'bg-orange-100 text-orange-700 border border-orange-300'
+                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                    : 'bg-orange-100 text-orange-700 border border-orange-300'
                     }`}
                   title={`Requires: ${prereq.name}`}
                 >
@@ -962,20 +962,20 @@ function ChallengeListItem({
               ))}
 
               <span className={`px-2 py-0.5 rounded ${challenge.solve_by_myteam
-                  ? theme === 'dark'
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                    : 'bg-green-100 text-green-700 border border-green-300'
-                  : theme === 'dark'
-                    ? 'bg-gray-700 text-gray-300 border border-gray-600'
-                    : 'bg-gray-100 text-gray-700 border border-gray-300'
+                ? theme === 'dark'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-green-100 text-green-700 border border-green-300'
+                : theme === 'dark'
+                  ? 'bg-gray-700 text-gray-300 border border-gray-600'
+                  : 'bg-gray-100 text-gray-700 border border-gray-300'
                 }`}>
                 {challenge.value}pts
               </span>
 
               {challenge.solves !== undefined && (
                 <span className={`px-2 py-0.5 rounded ${theme === 'dark'
-                    ? 'bg-gray-700 text-gray-400 border border-gray-600'
-                    : 'bg-gray-100 text-gray-600 border border-gray-300'
+                  ? 'bg-gray-700 text-gray-400 border border-gray-600'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300'
                   }`}>
                   {challenge.solves} solves
                 </span>
@@ -984,31 +984,31 @@ function ChallengeListItem({
               {/* Status badge - show deployment status or pod status, not both */}
               {isDeploying ? (
                 <span className={`px-2 py-0.5 rounded animate-pulse ${theme === 'dark'
-                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                    : 'bg-orange-100 text-orange-700 border border-orange-300'
+                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                  : 'bg-orange-100 text-orange-700 border border-orange-300'
                   }`}>
                   [~] deploying...
                 </span>
               ) : challenge.pod_status && (
                 <span className={`px-2 py-0.5 rounded ${challenge.pod_status === 'Running'
+                  ? theme === 'dark'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'bg-green-100 text-green-700 border border-green-300'
+                  : challenge.pod_status === 'Pending'
                     ? theme === 'dark'
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      : 'bg-green-100 text-green-700 border border-green-300'
-                    : challenge.pod_status === 'Pending'
+                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                    : challenge.pod_status === 'Failed'
                       ? theme === 'dark'
-                        ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                        : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                      : challenge.pod_status === 'Failed'
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        : 'bg-red-100 text-red-700 border border-red-300'
+                      : challenge.pod_status === 'Succeeded'
                         ? theme === 'dark'
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                          : 'bg-red-100 text-red-700 border border-red-300'
-                        : challenge.pod_status === 'Succeeded'
-                          ? theme === 'dark'
-                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                            : 'bg-blue-100 text-blue-700 border border-blue-300'
-                          : theme === 'dark'
-                            ? 'bg-gray-700 text-gray-400 border border-gray-600'
-                            : 'bg-gray-100 text-gray-600 border border-gray-300'
+                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                          : 'bg-blue-100 text-blue-700 border border-blue-300'
+                        : theme === 'dark'
+                          ? 'bg-gray-700 text-gray-400 border border-gray-600'
+                          : 'bg-gray-100 text-gray-600 border border-gray-300'
                   }`}>
                   [⚡] {challenge.pod_status}
                 </span>
@@ -3004,828 +3004,827 @@ function ChallengeDetailPanel({
   }, [pdfBlob]);
 
   return (
-    <>
-      <div className={`flex gap-4 h-full ${selectedPdfIndex !== null ? 'w-full' : ''
+    <div className={`flex gap-4 h-full ${selectedPdfIndex !== null ? 'w-full' : ''
+      }`}>
+      {/* Main Challenge Detail Panel */}
+      <div className={`rounded-lg border overflow-hidden transition-all duration-300 ${selectedPdfIndex !== null ? 'w-[25%]' : 'w-full'
+        } ${theme === 'dark'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-300'
         }`}>
-        {/* Main Challenge Detail Panel */}
-        <div className={`rounded-lg border overflow-hidden transition-all duration-300 ${selectedPdfIndex !== null ? 'w-[25%]' : 'w-full'
-          } ${theme === 'dark'
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-300'
-          }`}>
-          <div className="p-6 space-y-4 h-full overflow-y-auto">
-            {/* Header with Timer and Solved Status */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h2 className={`text-xl font-bold font-mono ${challenge.solve_by_myteam
-                    ? 'text-green-500'
-                    : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  {challenge.solve_by_myteam && '[✓] '}
-                  {challenge.name}
-                </h2>
-                <div className="flex items-center gap-2 mt-2 text-sm font-mono">
-                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                    {challenge.value} pts
-                  </span>
-                  {challenge.solves !== undefined && (
-                    <>
-                      <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
-                      <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                        {challenge.solves} solves
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Timer for deploy challenges */}
-                {challenge.require_deploy && !challenge.solve_by_myteam && (
-                  <div className={`flex items-center gap-2 px-2 py-1 rounded border text-sm font-mono ${theme === 'dark'
-                      ? 'bg-gray-900 border-gray-700'
-                      : 'bg-gray-50 border-gray-300'
-                    }`}>
-                    <Timer sx={{ fontSize: 16 }} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
-                    <span className={`font-bold ${isChallengeStarted
-                        ? 'text-green-500'
-                        : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                      {formatTime(timeRemaining)}
-                    </span>
-                  </div>
-                )}
-
-                {challenge.solve_by_myteam && (
-                  <span className={`px-2 py-1 rounded border text-xs font-mono font-bold ${theme === 'dark'
-                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                      : 'bg-green-50 text-green-700 border-green-300'
-                    }`}>
-                    SOLVED
-                  </span>
-                )}
-
-                <button
-                  onClick={onClose}
-                  className={`p-2 rounded transition-colors ${theme === 'dark'
-                      ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                    }`}
-                >
-                  <span className="font-mono text-sm">✕</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Show solved message */}
-            {challenge.solve_by_myteam && (
-              <div className={`p-3 rounded border ${theme === 'dark'
-                  ? 'bg-green-900/20 border-green-700'
-                  : 'bg-green-50 border-green-300'
+        <div className="p-6 space-y-4 h-full overflow-y-auto">
+          {/* Header with Timer and Solved Status */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className={`text-xl font-bold font-mono ${challenge.solve_by_myteam
+                ? 'text-green-500'
+                : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                <Typography className={`text-center font-mono text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-700'
-                  }`}>
-                  [✓] Challenge completed
-                </Typography>
-              </div>
-            )}
-
-            {/* Info Badges */}
-            <div className="flex flex-wrap gap-2 text-xs font-mono">
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
-                  ? 'bg-gray-700 text-gray-300 border-gray-600'
-                  : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
-              </span>
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
-                  ? 'bg-gray-700 text-gray-300 border-gray-600'
-                  : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
-              </span>
-            </div>
-
-            {/* Files */}
-            {challenge.files && challenge.files.length > 0 && (
-              <div className="space-y-2">
-                <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  [FILES]
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {challenge.files.map((file, index) => {
-                    const isPdf = file.toLowerCase().includes('.pdf');
-                    // Count PDF files before this one to get correct Detail number
-                    const pdfIndex = isPdf
-                      ? challenge.files!.slice(0, index).filter(f => f.toLowerCase().includes('.pdf')).length + 1
-                      : 0;
-
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleDownloadFile(file)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${isPdf
-                            ? theme === 'dark'
-                              ? 'bg-red-900/20 text-red-400 border-red-700 hover:bg-red-900/30'
-                              : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
-                            : theme === 'dark'
-                              ? 'bg-blue-900/20 text-blue-400 border-blue-700 hover:bg-blue-900/30'
-                              : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                          }`}
-                      >
-                        {isPdf ? <PictureAsPdf sx={{ fontSize: 14 }} /> : <FaDownload size={12} />}
-                        {isPdf ? `Detail ${pdfIndex}` : getFileName(file)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Connection info: show token-based HTTP and TCP addresses */}
-            {(url || isHealthChecking || isDeploymentInProgress) && (
-              <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
-                }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                    [ACCESS]
-                  </span>
-                  {isHealthChecking ? (
-                    <div className="flex items-center gap-2">
-                      <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
-                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
-                        }`}>
-                        Health checking...
-                      </span>
-                    </div>
-                  ) : isPodHealthy ? (
-                    <div className="flex items-center gap-2">
-                      <Check className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
-                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                        Running
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Build formatted addresses */}
-                {(
-                  (() => {
-                    const token = url?.replace('Connection string: ', '').trim();
-                    const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}/{token}` : `${getBaseGateway()}:${getHttpPort()}/${token}`;
-                    const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
-                    return (
-                      <div className="space-y-2.5">
-                        {/* Token */}
-                        <div className="flex items-center gap-2">
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Token
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
-                              {url}
-                            </div>
-                          </div>
-                          {url && !url.includes('Deploying') && (
-                            <button
-                              onClick={() => {
-                                const formatted = url.replace('Connection string: ', '').replace(' ', ':');
-                                handleCopyURL(formatted);
-                              }}
-                              className={`px-2 py-1.5 rounded transition-all shrink-0 flex items-center ${copiedUrl
-                                  ? theme === 'dark'
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-green-50 text-green-700'
-                                  : theme === 'dark'
-                                    ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
-                                    : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
-                                }`}
-                              title="Copy token"
-                            >
-                              {copiedUrl ? (
-                                <span className="text-sm">✓</span>
-                              ) : (
-                                <ContentCopy sx={{ fontSize: 16 }} />
-                              )}
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Divider */}
-                        <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}></div>
-
-                        {/* HTTP & TCP in compact layout */}
-                        <div className="space-y-2">
-                          {/* HTTP */}
-                          <div className="flex items-center gap-2">
-                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              HTTP
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                                {httpAddr}
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleCopyHttp(httpAddr)}
-                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedHttp
-                                  ? theme === 'dark'
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-green-50 text-green-700'
-                                  : theme === 'dark'
-                                    ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
-                                    : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
-                                }`}
-                              title="Copy HTTP address"
-                            >
-                              {copiedHttp ? (
-                                <span className="text-xs">✓</span>
-                              ) : (
-                                <ContentCopy sx={{ fontSize: 14 }} />
-                              )}
-                            </button>
-                          </div>
-
-                          {/* TCP */}
-                          <div className="flex items-center gap-2">
-                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                              TCP
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
-                                {tcpAddr}
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleCopyTcp(tcpAddr)}
-                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedTcp
-                                  ? theme === 'dark'
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : 'bg-green-50 text-green-700'
-                                  : theme === 'dark'
-                                    ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
-                                    : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
-                                }`}
-                              title="Copy TCP address"
-                            >
-                              {copiedTcp ? (
-                                <span className="text-xs">✓</span>
-                              ) : (
-                                <ContentCopy sx={{ fontSize: 14 }} />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Note */}
-                        <div className={`text-[10px] leading-relaxed pt-2 mt-1 border-t ${theme === 'dark' ? 'text-gray-500 border-gray-700' : 'text-gray-500 border-gray-200'}`}>
-                          HTTP: <code className={`font-mono ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>basegateway:port/token</code> • TCP: <code className={`font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>basegateway:port</code>
-                        </div>
-                      </div>
-                    );
-                  })()
-                )}
-              </div>
-            )}
-
-            {/* Description - Always show if exists */}
-            {hasDescription && (
-              <div>
-                <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  [DESCRIPTION]
-                </div>
-                <div className={`p-3 rounded border text-sm ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-gray-50 border-gray-300'
-                  }`}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {challenge.description}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
-
-            {/* PDF Tabs - Only for switching between PDFs when there are multiple */}
-            {hasPdfFiles && pdfFiles.length > 1 && (
-              <div>
-                <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  [PDF FILES]
-                </div>
-                <Tabs
-                  value={selectedPdfIndex !== null ? selectedPdfIndex : 0}
-                  onChange={(_, newValue) => {
-                    handlePdfClick(newValue);
-                  }}
-                  sx={{
-                    minHeight: '36px',
-                    '& .MuiTab-root': {
-                      color: theme === 'dark' ? '#9ca3af' : '#6b7280',
-                      fontFamily: 'monospace',
-                      fontSize: '0.75rem',
-                      minHeight: '36px',
-                      textTransform: 'none',
-                      padding: '8px 12px',
-                    },
-                    '& .Mui-selected': {
-                      color: theme === 'dark' ? '#22c55e !important' : '#16a34a !important',
-                    },
-                    '& .MuiTabs-indicator': {
-                      backgroundColor: theme === 'dark' ? '#22c55e' : '#16a34a',
-                      height: '2px',
-                    },
-                  }}
-                >
-                  {pdfFiles.map((_, index) => (
-                    <Tab
-                      key={index}
-                      icon={<PictureAsPdf sx={{ fontSize: 14 }} />}
-                      iconPosition="start"
-                      label={`Detail ${index + 1}`}
-                    />
-                  ))}
-                </Tabs>
-              </div>
-            )}
-
-            {/* Hints Section */}
-            {hints.length > 0 && !challenge.solve_by_myteam && (
-              <div className="space-y-2">
-                <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  [HINTS]
-                </div>
-
-                <div className="grid grid-cols-6 gap-2">
-                  {hints.map((hint, index) => (
-                    <button
-                      key={hint.id}
-                      onClick={() => handleUnlockHint(hint.id, hint.cost)}
-                      disabled={unlockingHintId === hint.id}
-                      className={`relative p-2 rounded border transition-colors ${theme === 'dark'
-                          ? 'bg-gray-900 border-purple-700 hover:border-purple-500 hover:bg-gray-800'
-                          : 'bg-gray-50 border-purple-300 hover:border-purple-500 hover:bg-purple-50'
-                        } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : ''}`}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <div className={`font-bold text-xs font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
-                          }`}>
-                          H{index + 1}
-                        </div>
-
-                        <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                          {hint.cost}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className={`text-center text-xs font-mono flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-                  }`}>
-                  <span className="text-orange-500">{'>'}</span>
-                  <span>Click to unlock hints | Cost in points</span>
-                  <span className="text-purple-500">{'<'}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Submit Form */}
-            {!challenge.solve_by_myteam && (
-              <div className="space-y-2">
-                <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  [SUBMIT_FLAG]
-                </div>
-
-                {/* Check if max attempts reached */}
-                {challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts ? (
-                  <div className={`p-4 rounded border ${theme === 'dark'
-                      ? 'bg-red-900/20 border-red-700'
-                      : 'bg-red-50 border-red-300'
-                    }`}>
-                    <div className={`font-mono text-sm text-center ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                      }`}>
-                      <div className="font-bold mb-2">[!] MAX ATTEMPTS REACHED</div>
-                      <div className="text-xs">
-                        You have used all {challenge.max_attempts} attempts for this challenge.
-                      </div>
-                      <div className="text-xs mt-1">
-                        No more submissions allowed.
-                      </div>
-                    </div>
-                  </div>
-                ) : (
+                {challenge.solve_by_myteam && '[✓] '}
+                {challenge.name}
+              </h2>
+              <div className="flex items-center gap-2 mt-2 text-sm font-mono">
+                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  {challenge.value} pts
+                </span>
+                {challenge.solves !== undefined && (
                   <>
-                    <textarea
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
-                      className={`w-full p-3 border rounded font-mono text-sm ${theme === 'dark'
-                          ? 'bg-gray-900 text-white border-gray-700'
-                          : 'bg-white text-gray-900 border-gray-300'
-                        }`}
-                      rows={3}
-                      placeholder="flag{...}"
-                    />
-
-                    {/* Show attempts remaining */}
-                    {challenge.max_attempts > 0 && (
-                      <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        <span className={
-                          (challenge.max_attempts - (challenge.attemps || 0)) <= 2
-                            ? 'text-orange-500'
-                            : theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                        }>
-                          [i]
-                        </span> Attempts remaining: {challenge.max_attempts - (challenge.attemps || 0)} / {challenge.max_attempts}
-                      </div>
-                    )}
-
-                    {/* Show captain-only submit warning */}
-                    {challenge.captain_only_submit && !challenge.is_captain && (
-                      <div className={`text-xs font-mono p-2 rounded border ${theme === 'dark'
-                          ? 'bg-red-900/20 text-red-400 border-red-500/30'
-                          : 'bg-red-50 text-red-600 border-red-300'
-                        }`}>
-                        <span className="text-red-500">[!]</span> Only team captain can submit flags
-                      </div>
-                    )}
-
-                    <button
-                      onClick={handleSubmitFlag}
-                      disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        textTransform: 'none',
-                        color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#52525b' : '#fff',
-                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#18181b' : '#fb923c',
-                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '1px solid #27272a' : '1px solid #fb923c',
-                        padding: '10px',
-                        borderRadius: '4px',
-                        cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? 'not-allowed' : 'pointer',
-                        width: '100%',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
-                          e.currentTarget.style.backgroundColor = '#f97316';
-                          e.currentTarget.style.borderColor = '#f97316';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
-                          e.currentTarget.style.backgroundColor = '#fb923c';
-                          e.currentTarget.style.borderColor = '#fb923c';
-                        }
-                      }}
-                    >
-                      {isSubmittingFlag
-                        ? '[SUBMITTING...]'
-                        : cooldownRemaining > 0
-                          ? `[COOLDOWN: ${cooldownRemaining}s]`
-                          : (challenge.captain_only_submit && !challenge.is_captain)
-                            ? '[CAPTAIN ONLY]'
-                            : '[SUBMIT]'}
-                    </button>
-
-                    {/* Cooldown Progress Bar */}
-                    {cooldownRemaining > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <div className={`text-xs font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                          }`}>
-                          [!] Cooldown active: {cooldownRemaining}s remaining
-                        </div>
-                        <div className={`w-full h-1 rounded overflow-hidden ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-300'
-                          }`}>
-                          <div
-                            className="h-full bg-orange-500 transition-all duration-1000 ease-linear"
-                            style={{
-                              width: `${cooldownTotal > 0 ? (cooldownRemaining / cooldownTotal) * 100 : 0}%`
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                    <span className={theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}>|</span>
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                      {challenge.solves} solves
+                    </span>
                   </>
                 )}
               </div>
-            )}
+            </div>
 
-            {/* Start/Stop Buttons */}
-            {challenge.require_deploy && !challenge.solve_by_myteam &&
-              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
-                <div className="space-y-2">
-                  {/* Show Health Checking state if health check is in progress */}
-                  {isHealthChecking || isDeploymentInProgress ? (
+            <div className="flex items-center gap-2">
+              {/* Timer for deploy challenges */}
+              {challenge.require_deploy && !challenge.solve_by_myteam && (
+                <div className={`flex items-center gap-2 px-2 py-1 rounded border text-sm font-mono ${theme === 'dark'
+                  ? 'bg-gray-900 border-gray-700'
+                  : 'bg-gray-50 border-gray-300'
+                  }`}>
+                  <Timer sx={{ fontSize: 16 }} className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} />
+                  <span className={`font-bold ${isChallengeStarted
+                    ? 'text-green-500'
+                    : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                    {formatTime(timeRemaining)}
+                  </span>
+                </div>
+              )}
+
+              {challenge.solve_by_myteam && (
+                <span className={`px-2 py-1 rounded border text-xs font-mono font-bold ${theme === 'dark'
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-green-50 text-green-700 border-green-300'
+                  }`}>
+                  SOLVED
+                </span>
+              )}
+
+              <button
+                onClick={onClose}
+                className={`p-2 rounded transition-colors ${theme === 'dark'
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
+              >
+                <span className="font-mono text-sm">✕</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Show solved message */}
+          {challenge.solve_by_myteam && (
+            <div className={`p-3 rounded border ${theme === 'dark'
+              ? 'bg-green-900/20 border-green-700'
+              : 'bg-green-50 border-green-300'
+              }`}>
+              <Typography className={`text-center font-mono text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-700'
+                }`}>
+                [✓] Challenge completed
+              </Typography>
+            </div>
+          )}
+
+          {/* Info Badges */}
+          <div className="flex flex-wrap gap-2 text-xs font-mono">
+            <span className={`px-2 py-1 rounded border ${theme === 'dark'
+              ? 'bg-gray-700 text-gray-300 border-gray-600'
+              : 'bg-gray-100 text-gray-700 border-gray-300'
+              }`}>
+              Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
+            </span>
+            <span className={`px-2 py-1 rounded border ${theme === 'dark'
+              ? 'bg-gray-700 text-gray-300 border-gray-600'
+              : 'bg-gray-100 text-gray-700 border-gray-300'
+              }`}>
+              Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
+            </span>
+          </div>
+
+          {/* Files */}
+          {challenge.files && challenge.files.length > 0 && (
+            <div className="space-y-2">
+              <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                [FILES]
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {challenge.files.map((file, index) => {
+                  const isPdf = file.toLowerCase().includes('.pdf');
+                  // Count PDF files before this one to get correct Detail number
+                  const pdfIndex = isPdf
+                    ? challenge.files!.slice(0, index).filter(f => f.toLowerCase().includes('.pdf')).length + 1
+                    : 0;
+
+                  return (
                     <button
-                      disabled={true}
-                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
-                          ? 'bg-yellow-600 text-white border border-yellow-500'
-                          : 'bg-yellow-500 text-white border border-yellow-400'
-                        } cursor-not-allowed`}
+                      key={index}
+                      onClick={() => handleDownloadFile(file)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono transition-colors ${isPdf
+                        ? theme === 'dark'
+                          ? 'bg-red-900/20 text-red-400 border-red-700 hover:bg-red-900/30'
+                          : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+                        : theme === 'dark'
+                          ? 'bg-blue-900/20 text-blue-400 border-blue-700 hover:bg-blue-900/30'
+                          : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                        }`}
                     >
+                      {isPdf ? <PictureAsPdf sx={{ fontSize: 14 }} /> : <FaDownload size={12} />}
+                      {isPdf ? `Detail ${pdfIndex}` : getFileName(file)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Connection info: show token-based HTTP and TCP addresses */}
+          {(url || isHealthChecking || isDeploymentInProgress) && (
+            <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
+              }`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                  [ACCESS]
+                </span>
+                {isHealthChecking ? (
+                  <div className="flex items-center gap-2">
+                    <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
+                    <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                      }`}>
+                      Health checking...
+                    </span>
+                  </div>
+                ) : isPodHealthy ? (
+                  <div className="flex items-center gap-2">
+                    <Check className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                    <span className={`text-xs font-mono ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
+                      Running
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Build formatted addresses */}
+              {(
+                (() => {
+                  const token = url ? url.trim() : "Send to request to deploy successfully. Please wait a moment.";
+                  const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}/{token}` : `${getBaseGateway()}:${getHttpPort()}/${token}`;
+                  const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
+                  return (
+                    <div className="space-y-2.5">
+                      {/* Token */}
+                      <div className="flex items-center gap-2">
+                        <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Token
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                            {token}
+                          </div>
+                        </div>
+                        {url && !url.includes('Deploying') && (
+                          <button
+                            onClick={() => {
+                              const formatted = url.replace('Connection string: ', '').replace(' ', ':');
+                              handleCopyURL(formatted);
+                            }}
+                            className={`px-2 py-1.5 rounded transition-all shrink-0 flex items-center ${copiedUrl
+                              ? theme === 'dark'
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-green-50 text-green-700'
+                              : theme === 'dark'
+                                ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                                : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                              }`}
+                            title="Copy token"
+                          >
+                            {copiedUrl ? (
+                              <span className="text-sm">✓</span>
+                            ) : (
+                              <ContentCopy sx={{ fontSize: 16 }} />
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Divider */}
+                      <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}></div>
+
+                      {/* HTTP & TCP in compact layout */}
+                      <div className="space-y-2">
+                        {/* HTTP */}
+                        <div className="flex items-center gap-2">
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            HTTP
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                              {httpAddr}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleCopyHttp(httpAddr)}
+                            className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedHttp
+                              ? theme === 'dark'
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-green-50 text-green-700'
+                              : theme === 'dark'
+                                ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                                : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                              }`}
+                            title="Copy HTTP address"
+                          >
+                            {copiedHttp ? (
+                              <span className="text-xs">✓</span>
+                            ) : (
+                              <ContentCopy sx={{ fontSize: 14 }} />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* TCP */}
+                        <div className="flex items-center gap-2">
+                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            TCP
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                              {tcpAddr}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleCopyTcp(tcpAddr)}
+                            className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedTcp
+                              ? theme === 'dark'
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-green-50 text-green-700'
+                              : theme === 'dark'
+                                ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                                : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                              }`}
+                            title="Copy TCP address"
+                          >
+                            {copiedTcp ? (
+                              <span className="text-xs">✓</span>
+                            ) : (
+                              <ContentCopy sx={{ fontSize: 14 }} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Note */}
+                      <div className={`text-[10px] leading-relaxed pt-2 mt-1 border-t ${theme === 'dark' ? 'text-gray-500 border-gray-700' : 'text-gray-500 border-gray-200'}`}>
+                        HTTP: <code className={`font-mono ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>basegateway:port/token</code> • TCP: <code className={`font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>basegateway:port</code>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+          )}
+
+          {/* Description - Always show if exists */}
+          {hasDescription && (
+            <div>
+              <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                [DESCRIPTION]
+              </div>
+              <div className={`p-3 rounded border text-sm ${theme === 'dark' ? 'bg-gray-900 border-gray-700 text-white' : 'bg-gray-50 border-gray-300'
+                }`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {challenge.description}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+
+          {/* PDF Tabs - Only for switching between PDFs when there are multiple */}
+          {hasPdfFiles && pdfFiles.length > 1 && (
+            <div>
+              <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                [PDF FILES]
+              </div>
+              <Tabs
+                value={selectedPdfIndex !== null ? selectedPdfIndex : 0}
+                onChange={(_, newValue) => {
+                  handlePdfClick(newValue);
+                }}
+                sx={{
+                  minHeight: '36px',
+                  '& .MuiTab-root': {
+                    color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+                    fontFamily: 'monospace',
+                    fontSize: '0.75rem',
+                    minHeight: '36px',
+                    textTransform: 'none',
+                    padding: '8px 12px',
+                  },
+                  '& .Mui-selected': {
+                    color: theme === 'dark' ? '#22c55e !important' : '#16a34a !important',
+                  },
+                  '& .MuiTabs-indicator': {
+                    backgroundColor: theme === 'dark' ? '#22c55e' : '#16a34a',
+                    height: '2px',
+                  },
+                }}
+              >
+                {pdfFiles.map((_, index) => (
+                  <Tab
+                    key={index}
+                    icon={<PictureAsPdf sx={{ fontSize: 14 }} />}
+                    iconPosition="start"
+                    label={`Detail ${index + 1}`}
+                  />
+                ))}
+              </Tabs>
+            </div>
+          )}
+
+          {/* Hints Section */}
+          {hints.length > 0 && !challenge.solve_by_myteam && (
+            <div className="space-y-2">
+              <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                [HINTS]
+              </div>
+
+              <div className="grid grid-cols-6 gap-2">
+                {hints.map((hint, index) => (
+                  <button
+                    key={hint.id}
+                    onClick={() => handleUnlockHint(hint.id, hint.cost)}
+                    disabled={unlockingHintId === hint.id}
+                    className={`relative p-2 rounded border transition-colors ${theme === 'dark'
+                      ? 'bg-gray-900 border-purple-700 hover:border-purple-500 hover:bg-gray-800'
+                      : 'bg-gray-50 border-purple-300 hover:border-purple-500 hover:bg-purple-50'
+                      } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`font-bold text-xs font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                        }`}>
+                        H{index + 1}
+                      </div>
+
+                      <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        {hint.cost}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className={`text-center text-xs font-mono flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
+                }`}>
+                <span className="text-orange-500">{'>'}</span>
+                <span>Click to unlock hints | Cost in points</span>
+                <span className="text-purple-500">{'<'}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Form */}
+          {!challenge.solve_by_myteam && (
+            <div className="space-y-2">
+              <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                [SUBMIT_FLAG]
+              </div>
+
+              {/* Check if max attempts reached */}
+              {challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts ? (
+                <div className={`p-4 rounded border ${theme === 'dark'
+                  ? 'bg-red-900/20 border-red-700'
+                  : 'bg-red-50 border-red-300'
+                  }`}>
+                  <div className={`font-mono text-sm text-center ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                    }`}>
+                    <div className="font-bold mb-2">[!] MAX ATTEMPTS REACHED</div>
+                    <div className="text-xs">
+                      You have used all {challenge.max_attempts} attempts for this challenge.
+                    </div>
+                    <div className="text-xs mt-1">
+                      No more submissions allowed.
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    className={`w-full p-3 border rounded font-mono text-sm ${theme === 'dark'
+                      ? 'bg-gray-900 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
+                      }`}
+                    rows={3}
+                    placeholder="flag{...}"
+                  />
+
+                  {/* Show attempts remaining */}
+                  {challenge.max_attempts > 0 && (
+                    <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                      <span className={
+                        (challenge.max_attempts - (challenge.attemps || 0)) <= 2
+                          ? 'text-orange-500'
+                          : theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                      }>
+                        [i]
+                      </span> Attempts remaining: {challenge.max_attempts - (challenge.attemps || 0)} / {challenge.max_attempts}
+                    </div>
+                  )}
+
+                  {/* Show captain-only submit warning */}
+                  {challenge.captain_only_submit && !challenge.is_captain && (
+                    <div className={`text-xs font-mono p-2 rounded border ${theme === 'dark'
+                      ? 'bg-red-900/20 text-red-400 border-red-500/30'
+                      : 'bg-red-50 text-red-600 border-red-300'
+                      }`}>
+                      <span className="text-red-500">[!]</span> Only team captain can submit flags
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSubmitFlag}
+                    disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '13px',
+                      textTransform: 'none',
+                      color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#52525b' : '#fff',
+                      backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#18181b' : '#fb923c',
+                      border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '1px solid #27272a' : '1px solid #fb923c',
+                      padding: '10px',
+                      borderRadius: '4px',
+                      cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? 'not-allowed' : 'pointer',
+                      width: '100%',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
+                        e.currentTarget.style.backgroundColor = '#f97316';
+                        e.currentTarget.style.borderColor = '#f97316';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
+                        e.currentTarget.style.backgroundColor = '#fb923c';
+                        e.currentTarget.style.borderColor = '#fb923c';
+                      }
+                    }}
+                  >
+                    {isSubmittingFlag
+                      ? '[SUBMITTING...]'
+                      : cooldownRemaining > 0
+                        ? `[COOLDOWN: ${cooldownRemaining}s]`
+                        : (challenge.captain_only_submit && !challenge.is_captain)
+                          ? '[CAPTAIN ONLY]'
+                          : '[SUBMIT]'}
+                  </button>
+
+                  {/* Cooldown Progress Bar */}
+                  {cooldownRemaining > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className={`text-xs font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                        }`}>
+                        [!] Cooldown active: {cooldownRemaining}s remaining
+                      </div>
+                      <div className={`w-full h-1 rounded overflow-hidden ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-300'
+                        }`}>
+                        <div
+                          className="h-full bg-orange-500 transition-all duration-1000 ease-linear"
+                          style={{
+                            width: `${cooldownTotal > 0 ? (cooldownRemaining / cooldownTotal) * 100 : 0}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Start/Stop Buttons */}
+          {challenge.require_deploy && !challenge.solve_by_myteam &&
+            !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
+              <div className="space-y-2">
+                {/* Show Health Checking state if health check is in progress */}
+                {isHealthChecking || isDeploymentInProgress ? (
+                  <button
+                    disabled={true}
+                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                      ? 'bg-yellow-600 text-white border border-yellow-500'
+                      : 'bg-yellow-500 text-white border border-yellow-400'
+                      } cursor-not-allowed`}
+                  >
+                    <CircularProgress
+                      size={14}
+                      sx={{
+                        color: '#fff',
+                      }}
+                    />
+                    <span>[-] Health Checking...</span>
+                  </button>
+                ) : !url ? (
+                  // Show Start button only when no URL exists and not health checking
+                  (challenge.captain_only_start && !challenge.is_captain) ? (
+                    <p className={`text-center text-xs font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                      }`}>
+                      [!] Only captain can start
+                    </p>
+                  ) : (
+                    <button
+                      onClick={handleStartChallenge}
+                      disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        padding: '10px 16px',
+                        border: '1px solid #4ade80',
+                        backgroundColor: '#4ade80',
+                        color: '#000',
+                        borderRadius: '4px',
+                        cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
+                        opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                          e.currentTarget.style.backgroundColor = '#22c55e';
+                          e.currentTarget.style.borderColor = '#22c55e';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                          e.currentTarget.style.backgroundColor = '#4ade80';
+                          e.currentTarget.style.borderColor = '#4ade80';
+                        }
+                      }}
+                    >
+                      {isStarting && (
+                        <CircularProgress
+                          size={14}
+                          sx={{
+                            color: '#000',
+                          }}
+                        />
+                      )}
+                      <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
+                    </button>
+                  )
+                ) : (
+                  // Show Stop button when URL exists (challenge is fully ready)
+                  <button
+                    onClick={handleStopChallenge}
+                    disabled={isStopping || challenge.pod_status === 'Deleting'}
+                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                      ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
+                      : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {isStopping && (
                       <CircularProgress
                         size={14}
                         sx={{
                           color: '#fff',
                         }}
                       />
-                      <span>[-] Health Checking...</span>
-                    </button>
-                  ) : !url ? (
-                    // Show Start button only when no URL exists and not health checking
-                    (challenge.captain_only_start && !challenge.is_captain) ? (
-                      <p className={`text-center text-xs font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                        }`}>
-                        [!] Only captain can start
-                      </p>
-                    ) : (
-                      <button
-                        onClick={handleStartChallenge}
-                        disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
-                        style={{
-                          fontFamily: 'monospace',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          width: '100%',
-                          padding: '10px 16px',
-                          border: '1px solid #4ade80',
-                          backgroundColor: '#4ade80',
-                          color: '#000',
-                          borderRadius: '4px',
-                          cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
-                          opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
-                          transition: 'all 0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
-                            e.currentTarget.style.backgroundColor = '#22c55e';
-                            e.currentTarget.style.borderColor = '#22c55e';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
-                            e.currentTarget.style.backgroundColor = '#4ade80';
-                            e.currentTarget.style.borderColor = '#4ade80';
-                          }
-                        }}
-                      >
-                        {isStarting && (
-                          <CircularProgress
-                            size={14}
-                            sx={{
-                              color: '#000',
-                            }}
-                          />
-                        )}
-                        <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
-                      </button>
-                    )
-                  ) : (
-                    // Show Stop button when URL exists (challenge is fully ready)
-                    <button
-                      onClick={handleStopChallenge}
-                      disabled={isStopping || challenge.pod_status === 'Deleting'}
-                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
-                          ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
-                          : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
-                      {isStopping && (
-                        <CircularProgress
-                          size={14}
-                          sx={{
-                            color: '#fff',
-                          }}
-                        />
-                      )}
-                      {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
-                    </button>
-                  )}
-                </div>
-              )}
-          </div>
+                    )}
+                    {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
+                  </button>
+                )}
+              </div>
+            )}
         </div>
+      </div>
 
-        {/* PDF Viewer Panel */}
-        <AnimatePresence>
-          {selectedPdfIndex !== null && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-              className={`w-[75%] rounded-lg border overflow-hidden flex flex-col max-h-[85vh] ${theme === 'dark'
-                  ? 'bg-gray-900 border-gray-700'
-                  : 'bg-gray-100 border-gray-300'
-                }`}
-            >
-              {/* PDF Header */}
-              <div className={`p-3 border-b flex items-center justify-between flex-shrink-0 ${theme === 'dark'
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-300'
-                }`}>
-                <div className="flex items-center gap-2">
-                  <PictureAsPdf className="text-red-500" sx={{ fontSize: 18 }} />
-                  <h3 className={`font-mono text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
-                    {getFileName(pdfFiles[selectedPdfIndex])}
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Zoom Controls - Minimal Terminal Style */}
-                  {numPages && !loadingPdf && (
-                    <>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setPdfScale(prev => Math.max(0.5, prev - 0.1))}
-                          disabled={pdfScale <= 0.5}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
-                              : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
-                            } disabled:opacity-30 disabled:cursor-not-allowed`}
-                        >
-                          [-]
-                        </button>
-                        <span className={`font-mono text-xs min-w-[45px] text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                          {Math.round(pdfScale * 100)}%
-                        </span>
-                        <button
-                          onClick={() => setPdfScale(prev => Math.min(3.0, prev + 0.1))}
-                          disabled={pdfScale >= 3.0}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
-                              : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
-                            } disabled:opacity-30 disabled:cursor-not-allowed`}
-                        >
-                          [+]
-                        </button>
-                      </div>
-
-                      <span className={`mx-1 ${theme === 'dark' ? 'text-gray-700' : 'text-gray-400'}`}>|</span>
-                    </>
-                  )}
-
-                  {/* Page Navigation - Minimal Terminal Style */}
-                  {numPages && !loadingPdf && (
-                    <>
-                      <div className={`font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        {pageNumber}/{numPages}
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
-                          disabled={pageNumber <= 1}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
-                              : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
-                            } disabled:opacity-30 disabled:cursor-not-allowed`}
-                        >
-                          [&lt;]
-                        </button>
-                        <button
-                          onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
-                          disabled={pageNumber >= numPages}
-                          className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
-                              ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
-                              : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
-                            } disabled:opacity-30 disabled:cursor-not-allowed`}
-                        >
-                          [&gt;]
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                </div>
+      {/* PDF Viewer Panel */}
+      <AnimatePresence>
+        {selectedPdfIndex !== null && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className={`w-[75%] rounded-lg border overflow-hidden flex flex-col max-h-[85vh] ${theme === 'dark'
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-gray-100 border-gray-300'
+              }`}
+          >
+            {/* PDF Header */}
+            <div className={`p-3 border-b flex items-center justify-between flex-shrink-0 ${theme === 'dark'
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-300'
+              }`}>
+              <div className="flex items-center gap-2">
+                <PictureAsPdf className="text-red-500" sx={{ fontSize: 18 }} />
+                <h3 className={`font-mono text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                  {getFileName(pdfFiles[selectedPdfIndex])}
+                </h3>
               </div>
 
-              {/* PDF Content */}
-              <div
-                ref={pdfContainerRef}
-                className="flex-1 overflow-auto p-4 flex justify-center items-start"
-              >
-                {loadingPdf ? (
-                  <div className="flex flex-col items-center justify-center p-12">
-                    <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
-                    <Typography className={`mt-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              <div className="flex items-center gap-2">
+                {/* Zoom Controls - Minimal Terminal Style */}
+                {numPages && !loadingPdf && (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPdfScale(prev => Math.max(0.5, prev - 0.1))}
+                        disabled={pdfScale <= 0.5}
+                        className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
+                          : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                      >
+                        [-]
+                      </button>
+                      <span className={`font-mono text-xs min-w-[45px] text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        {Math.round(pdfScale * 100)}%
+                      </span>
+                      <button
+                        onClick={() => setPdfScale(prev => Math.min(3.0, prev + 0.1))}
+                        disabled={pdfScale >= 3.0}
+                        className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-orange-400 border-gray-600'
+                          : 'bg-gray-100 hover:bg-gray-200 text-orange-600 border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                      >
+                        [+]
+                      </button>
+                    </div>
+
+                    <span className={`mx-1 ${theme === 'dark' ? 'text-gray-700' : 'text-gray-400'}`}>|</span>
+                  </>
+                )}
+
+                {/* Page Navigation - Minimal Terminal Style */}
+                {numPages && !loadingPdf && (
+                  <>
+                    <div className={`font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                      Loading PDF...
-                    </Typography>
-                  </div>
-                ) : pdfBlob ? (
-                  <div
-                    style={{
-                      transform: `scale(${pdfScale})`,
-                      transformOrigin: 'center top',
-                      display: 'inline-block'
-                    }}
-                  >
-                    <Document
-                      file={pdfBlob}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                      onLoadError={(error) => {
-                        console.error('Error loading PDF document:', error);
-                        Swal.fire({
-                          html: `
+                      {pageNumber}/{numPages}
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
+                        disabled={pageNumber <= 1}
+                        className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
+                          : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                      >
+                        [&lt;]
+                      </button>
+                      <button
+                        onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
+                        disabled={pageNumber >= numPages}
+                        className={`px-2 py-0.5 rounded text-xs font-mono transition-colors border ${theme === 'dark'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-green-400 border-gray-600'
+                          : 'bg-gray-100 hover:bg-gray-200 text-green-600 border-gray-300'
+                          } disabled:opacity-30 disabled:cursor-not-allowed`}
+                      >
+                        [&gt;]
+                      </button>
+                    </div>
+                  </>
+                )}
+
+              </div>
+            </div>
+
+            {/* PDF Content */}
+            <div
+              ref={pdfContainerRef}
+              className="flex-1 overflow-auto p-4 flex justify-center items-start"
+            >
+              {loadingPdf ? (
+                <div className="flex flex-col items-center justify-center p-12">
+                  <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
+                  <Typography className={`mt-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                    Loading PDF...
+                  </Typography>
+                </div>
+              ) : pdfBlob ? (
+                <div
+                  style={{
+                    transform: `scale(${pdfScale})`,
+                    transformOrigin: 'center top',
+                    display: 'inline-block'
+                  }}
+                >
+                  <Document
+                    file={pdfBlob}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    onLoadError={(error) => {
+                      console.error('Error loading PDF document:', error);
+                      Swal.fire({
+                        html: `
                             <div class="font-mono text-left text-sm">
                               <div class="text-red-400 mb-2">[!] PDF load error</div>
                               <div class="text-gray-400">> Document failed</div>
                             </div>
                           `,
-                          icon: 'error',
-                          iconColor: '#ef4444',
-                          confirmButtonText: 'OK',
-                          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-                          color: theme === 'dark' ? '#ef4444' : '#000000',
-                          customClass: {
-                            popup: 'rounded-lg border border-red-500/30',
-                            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-                          },
-                        });
-                      }}
+                        icon: 'error',
+                        iconColor: '#ef4444',
+                        confirmButtonText: 'OK',
+                        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                        color: theme === 'dark' ? '#ef4444' : '#000000',
+                        customClass: {
+                          popup: 'rounded-lg border border-red-500/30',
+                          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+                        },
+                      });
+                    }}
+                    loading={
+                      <div className="flex flex-col items-center justify-center p-8">
+                        <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
+                        <Typography className={`mt-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                          Rendering...
+                        </Typography>
+                      </div>
+                    }
+                  >
+                    <Page
+                      pageNumber={pageNumber}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
                       loading={
-                        <div className="flex flex-col items-center justify-center p-8">
-                          <CircularProgress sx={{ color: theme === 'dark' ? '#22c55e' : '#16a34a' }} size={40} />
-                          <Typography className={`mt-3 font-mono text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                            Rendering...
-                          </Typography>
+                        <div className="flex items-center justify-center p-8">
+                          <CircularProgress sx={{ color: '#fb923c' }} size={40} />
                         </div>
                       }
-                    >
-                      <Page
-                        pageNumber={pageNumber}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                        loading={
-                          <div className="flex items-center justify-center p-8">
-                            <CircularProgress sx={{ color: '#fb923c' }} size={40} />
-                          </div>
-                        }
-                      />
-                    </Document>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* PDF Bottom Navigation */}
-              {numPages && !loadingPdf && (
-                <div className={`p-3 border-t flex items-center justify-center gap-2 ${theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-gray-300'
-                  }`}>
-                  <button
-                    onClick={() => setPageNumber(1)}
-                    disabled={pageNumber === 1}
-                    className="px-2 py-1 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
-                  >
-                    First
-                  </button>
-                  <button
-                    onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
-                    disabled={pageNumber <= 1}
-                    className="px-3 py-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
-                  >
-                    ← Prev
-                  </button>
-
-                  <span className={`font-mono font-bold px-2 text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'
-                    }`}>
-                    {pageNumber} / {numPages}
-                  </span>
-
-                  <button
-                    onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
-                    disabled={pageNumber >= numPages}
-                    className="px-3 py-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
-                  >
-                    Next →
-                  </button>
-                  <button
-                    onClick={() => setPageNumber(numPages)}
-                    disabled={pageNumber === numPages}
-                    className="px-2 py-1 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
-                  >
-                    Last
-                  </button>
+                    />
+                  </Document>
                 </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
+              ) : null}
+            </div>
+
+            {/* PDF Bottom Navigation */}
+            {numPages && !loadingPdf && (
+              <div className={`p-3 border-t flex items-center justify-center gap-2 ${theme === 'dark'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-300'
+                }`}>
+                <button
+                  onClick={() => setPageNumber(1)}
+                  disabled={pageNumber === 1}
+                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setPageNumber(prev => Math.max(1, prev - 1))}
+                  disabled={pageNumber <= 1}
+                  className="px-3 py-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
+                >
+                  ← Prev
+                </button>
+
+                <span className={`font-mono font-bold px-2 text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'
+                  }`}>
+                  {pageNumber} / {numPages}
+                </span>
+
+                <button
+                  onClick={() => setPageNumber(prev => Math.min(numPages, prev + 1))}
+                  disabled={pageNumber >= numPages}
+                  className="px-3 py-1 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
+                >
+                  Next →
+                </button>
+                <button
+                  onClick={() => setPageNumber(numPages)}
+                  disabled={pageNumber === numPages}
+                  className="px-2 py-1 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-mono text-xs transition-colors"
+                >
+                  Last
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+
   );
 }
