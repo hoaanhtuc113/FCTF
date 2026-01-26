@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.RabbitMQ;
 using ResourceShared.Models;
-using ResourceShared.Services.RabbitMQ;
 using ResourceShared.Utils;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
