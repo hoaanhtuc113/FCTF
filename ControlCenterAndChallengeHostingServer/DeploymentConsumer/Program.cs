@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ResourceShared;
 using ResourceShared.Models;
-using ResourceShared.Services.RabbitMQ;
 
 Env.Load();
 new DeploymentConsumerConfigHelper().InitConfig();
