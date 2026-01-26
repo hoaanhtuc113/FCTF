@@ -3171,9 +3171,9 @@ function ChallengeDetailPanel({
                 </div>
 
                 {/* Build formatted addresses */}
-                {url ? (
+                {(
                   (() => {
-                    const token = url.replace('Connection string: ', '').trim();
+                    const token = url?.replace('Connection string: ', '').trim();
                     const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}/{token}` : `${getBaseGateway()}:${getHttpPort()}/${token}`;
                     const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
                     return (
@@ -3286,14 +3286,6 @@ function ChallengeDetailPanel({
                       </div>
                     );
                   })()
-                ) : (
-                  <div className={`flex items-center justify-center py-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <div className="text-center">
-                      <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Send request to deploy. Please wait a moment.
-                      </div>
-                    </div>
-                  </div>
                 )}
               </div>
             )}
