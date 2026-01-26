@@ -32,7 +32,12 @@ namespace DeploymentCenter.Services
         private readonly RedisHelper _redisHelper;
         private readonly AppLogger _logger;
         private readonly IDeploymentProducerService _deploymentProducerService;
-        public DeployService(AppDbContext dbContext, RedisHelper redisHelper, IK8sService k8SHealthService, AppLogger logger, IDeploymentProducerService deploymentProducerService)
+        public DeployService(
+            AppDbContext dbContext,
+            RedisHelper redisHelper,
+            IK8sService k8SHealthService,
+            AppLogger logger,
+            IDeploymentProducerService deploymentProducerService)
         {
             _dbContext = dbContext;
             _redisHelper = redisHelper;

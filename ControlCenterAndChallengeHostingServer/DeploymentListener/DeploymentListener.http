@@ -1,6 +1,0 @@
-@DeploymentListener_HostAddress = http://localhost:5281
-
-GET {{DeploymentListener_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication;
+﻿using k8s;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -51,7 +52,31 @@ namespace ResourceShared
             
             services.AddScoped<RedisHelper>();
             services.AddSingleton<RedisLockHelper>();
-            services.AddScoped<IK8sService, K8sService>();
+            services.AddSingleton<IKubernetes>(_ =>
+            {
+                KubernetesClientConfiguration config;
+                try
+                {
+                    config = KubernetesClientConfiguration.InClusterConfig();
+                }
+                catch
+                {
+                    var kubeConfigPath =
+                        Environment.GetEnvironmentVariable("KUBECONFIG")
+                        ?? Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                            ".kube",
+                            "config");
+
+                    if (!File.Exists(kubeConfigPath))
+                        throw new FileNotFoundException($"Không tìm thấy kubeconfig tại {kubeConfigPath}");
+
+                    config = KubernetesClientConfiguration.BuildConfigFromConfigFile(kubeConfigPath);
+                }
+                return new Kubernetes(config);
+            });
+
+            services.AddSingleton<IK8sService, K8sService>();
 
             services.AddScoped<TokenHelper>();
             var keyBytes = Encoding.UTF8.GetBytes(SharedConfig.PRIVATE_KEY);

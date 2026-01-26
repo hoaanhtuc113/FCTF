@@ -1,9 +1,5 @@
 ﻿using DeploymentConsumer.Models;
-using Microsoft.AspNetCore.WebUtilities;
-using System;
-using System.Collections.Generic;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 
 namespace DeploymentConsumer.Services
