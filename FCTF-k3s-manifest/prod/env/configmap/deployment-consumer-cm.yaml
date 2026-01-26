@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-consumer-cm
+  namespace: app
+data:
+  OTEL_SERVICE_NAME: "deployment-consumer"

@@ -4,7 +4,8 @@ metadata:
   name: deployment-center-cm
   namespace: app
 data:
-  ASPNETCORE_URLS: "http://+:5020"  
+  ASPNETCORE_URLS: "http://+:5020"
+  OTEL_SERVICE_NAME: "deployment-center"  
 
   CPU_LIMIT: "300m"
   CPU_REQUEST: "300m"

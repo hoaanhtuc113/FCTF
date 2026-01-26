@@ -23,6 +23,8 @@ spec:
                 name: common-be-cm
             - configMapRef:
                 name: deployment-center-cm
+            - configMapRef:
+                name: deployment-consumer-cm
             - secretRef:
                 name: common-secret
           resources:
