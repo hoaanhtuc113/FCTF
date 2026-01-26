@@ -2,23 +2,18 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using ResourceShared;
-using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
-using ResourceShared.DTOs.Deployments;
 using ResourceShared.DTOs.File;
 using ResourceShared.DTOs.Topic;
-using ResourceShared.Models;
-using ResourceShared.ResponseViews;
-using ResourceShared.Utils;
 using ResourceShared.Logger;
+using ResourceShared.Models;
+using ResourceShared.Utils;
 using RestSharp;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
-using System.Reflection.PortableExecutable;
 using System.Text.Json;
-using static ResourceShared.Enums;
 
 namespace ContestantBE.Services
 {
@@ -35,19 +30,23 @@ namespace ContestantBE.Services
 
     public class ChallengeServices : IChallengeServices
     {
-        private readonly IHttpClientFactory _httpFactory;
         private readonly AppDbContext _dbContext;
         private readonly RedisHelper _redisHelper;
         private readonly ConfigHelper _configHelper;
         private readonly AppLogger _logger;
-        public static int port = 30000;
-        public ChallengeServices(IHttpClientFactory httpFactory, AppDbContext dbContext, RedisHelper redisHelper, ConfigHelper configHelper, AppLogger logger)
+        private readonly MultiServiceConnector _multiServiceConnector;
+        public ChallengeServices(
+            AppDbContext dbContext,
+            RedisHelper redisHelper,
+            ConfigHelper configHelper,
+            AppLogger logger,
+            MultiServiceConnector multiServiceConnector)
         {
-            _httpFactory = httpFactory;
-            _dbContext=dbContext;
-            _redisHelper=redisHelper;
-            _configHelper=configHelper;
+            _dbContext = dbContext;
+            _redisHelper = redisHelper;
+            _configHelper = configHelper;
             _logger = logger;
+            _multiServiceConnector = multiServiceConnector;
         }
         public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
         {
@@ -126,7 +125,7 @@ namespace ContestantBE.Services
                     };
                 }
 
-                var user_chal =  await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == cached_value.user_id);
+                var user_chal = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == cached_value.user_id);
                 if (cached_value.challenge_id == challenge.Id)
                 {
                     var time_finished = cached_value.time_finished;
@@ -293,8 +292,14 @@ namespace ContestantBE.Services
                 {
                     { "SecretKey", generatedSecretKey }
                 };
-                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantBEConfigHelper.DeploymentCenterAPI);
-                var body = await multiServiceConnector.ExecuteRequest("/api/challenge/start", Method.Post, parammeters, headers);
+
+                var body = await _multiServiceConnector.ExecuteRequest(
+                    ContestantBEConfigHelper.DeploymentCenterAPI,
+                    "/api/challenge/start",
+                    Method.Post,
+                    parammeters,
+                    headers);
+
                 if (body == null)
                     return new ChallengeDeployResponeDTO
                     {
@@ -362,8 +367,13 @@ namespace ContestantBE.Services
 
             try
             {
-                MultiServiceConnector multiServiceConnector = new MultiServiceConnector(ContestantBEConfigHelper.DeploymentCenterAPI);
-                var body = await multiServiceConnector.ExecuteRequest("/api/challenge/stop", Method.Post, parammeters, headers);
+                var body = await _multiServiceConnector.ExecuteRequest(
+                    ContestantBEConfigHelper.DeploymentCenterAPI,
+                    "/api/challenge/stop",
+                    Method.Post,
+                    parammeters,
+                    headers);
+
                 if (body == null)
                     return new ChallengeDeployResponeDTO
                     {
@@ -433,7 +443,7 @@ namespace ContestantBE.Services
         {
             try
             {
-                var deploymentKey = ChallengeHelper.GetCacheKey(challengeId,teamId);
+                var deploymentKey = ChallengeHelper.GetCacheKey(challengeId, teamId);
 
                 var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
 
@@ -458,7 +468,7 @@ namespace ContestantBE.Services
                     };
                 }
 
-                if(deploymentCache.status == Enums.DeploymentStatus.PENDING_DEPLOY)
+                if (deploymentCache.status == Enums.DeploymentStatus.PENDING_DEPLOY)
                 {
                     return new ChallengeDeployResponeDTO
                     {
@@ -467,7 +477,8 @@ namespace ContestantBE.Services
                         status = (int)HttpStatusCode.OK
                     };
                 }
-                if(deploymentCache.status == Enums.DeploymentStatus.PENDING){
+                if (deploymentCache.status == Enums.DeploymentStatus.PENDING)
+                {
                     return new ChallengeDeployResponeDTO
                     {
                         success = false,
@@ -477,7 +488,7 @@ namespace ContestantBE.Services
                 }
                 if (deploymentCache.status == Enums.DeploymentStatus.RUNING && deploymentCache.ready)
                 {
-                    
+
                     var result = new ChallengeDeployResponeDTO
                     {
                         status = (int)HttpStatusCode.OK,

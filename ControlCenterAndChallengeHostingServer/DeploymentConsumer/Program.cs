@@ -4,8 +4,13 @@ using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
+using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Models;
+using ResourceShared.Utils;
+using System.Diagnostics;
 
 Env.Load();
 new DeploymentConsumerConfigHelper().InitConfig();
@@ -33,18 +38,41 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IDeploymentConsumerService>(sp =>
         {
             // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
-            var host = ResourceShared.Utils.SharedConfig.RABBIT_HOST;
-            var user = ResourceShared.Utils.SharedConfig.RABBIT_USERNAME;
-            var pass = ResourceShared.Utils.SharedConfig.RABBIT_PASSWORD;
-            var port = ResourceShared.Utils.SharedConfig.RABBIT_PORT;
+            var host = SharedConfig.RABBIT_HOST;
+            var user = SharedConfig.RABBIT_USERNAME;
+            var pass = SharedConfig.RABBIT_PASSWORD;
+            var port = SharedConfig.RABBIT_PORT;
 
             return new DeploymentConsumerService(host, user, pass, port);
         });
 
         services.AddResourceShared();
 
+        services.AddSingleton<HttpTelemetrySource>();
+        services.AddSingleton<RabbitMqTelemetrySource>();
+        services.AddOpenTelemetry()
+            .WithTracing(b =>
+            {
+                b.AddSource(Telemetry.DeploymentConsumerHttp)
+                 .AddSource(Telemetry.DeploymentConsumerRabbitMQ)
+                 .AddOtlpExporter();
+            });
+        services.AddSingleton(sp =>
+        {
+            var httpTelemetrySource = sp.GetRequiredService<HttpTelemetrySource>();
+            return new MultiServiceConnector(httpTelemetrySource.Source);
+        });
+
         services.AddHostedService<Worker>();
     })
     .Build();
+
+Sdk.SetDefaultTextMapPropagator(
+    new CompositeTextMapPropagator(
+    [
+        new TraceContextPropagator(),
+        new BaggagePropagator()
+    ]));
+
 
 await host.RunAsync();

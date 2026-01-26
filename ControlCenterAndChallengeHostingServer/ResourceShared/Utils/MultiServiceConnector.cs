@@ -1,23 +1,96 @@
 ﻿using Newtonsoft.Json;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
+using OpenTelemetry.Trace;
 using RestSharp;
+using System.Diagnostics;
 
 namespace ResourceShared.Utils
 {
     public class MultiServiceConnector
     {
-        private RestClient client { get; set; }
-        public MultiServiceConnector(string BaseUrl)
+        private readonly ActivitySource _activitySource;
+        public MultiServiceConnector(ActivitySource activitySource)
         {
-            RestClientOptions options = new RestClientOptions(BaseUrl);
-            options.CookieContainer = new();
-            options.Timeout = TimeSpan.FromMinutes(15);
-            client = new RestClient(options);
+            _activitySource = activitySource;
         }
-        public async Task<string?> ExecuteNormalRequest(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType, Dictionary<string, string>? headers = null)
+        private static RestClient CreateClient(string baseUrl)
         {
-            var request = new RestRequest();
-            request.Method = method;
-            request.Resource = ApiPath;
+            return new RestClient(new RestClientOptions(baseUrl)
+            {
+                CookieContainer = new(),
+                Timeout = TimeSpan.FromMinutes(5)
+            });
+        }
+
+        private static void InjectTraceContext(RestRequest request)
+        {
+            if (Activity.Current == null)
+                return;
+
+            var context = Activity.Current.Context;
+
+            Propagators.DefaultTextMapPropagator.Inject(
+                new PropagationContext(context, Baggage.Current),
+                request,
+                (req, key, value) => req.AddHeader(key, value)
+            );
+        }
+
+        private async Task<RestResponse> ExecuteWithTracing(
+            RestClient client,
+            RestRequest request,
+            Func<Task<RestResponse>> execute)
+        {
+            using var activity = _activitySource.StartActivity(
+                $"HTTP {request.Method}",
+                ActivityKind.Client);
+
+            try
+            {
+                if (activity != null)
+                {
+                    var baseUri = client.Options.BaseUrl!;
+                    var resource = request.Resource ?? "/";
+
+                    activity.SetTag("http.request.method", request.Method.ToString());
+                    activity.SetTag("url.full", new Uri(baseUri, resource).ToString());
+                    activity.SetTag("server.address", baseUri.Host);
+                    activity.SetTag("server.port", baseUri.Port);
+                }
+
+                InjectTraceContext(request);
+
+                var response = await execute();
+
+                activity?.SetTag("http.response.status_code", (int)response.StatusCode);
+
+                if (!response.IsSuccessful)
+                    activity?.SetStatus(ActivityStatusCode.Error);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                activity?.AddException(ex);
+                activity?.SetStatus(ActivityStatusCode.Error);
+                throw;
+            }
+        }
+
+        public async Task<string?> ExecuteNormalRequest(
+            string baseUrl,
+            string apiPath,
+            Method method,
+            Dictionary<string, object> parameters,
+            RequestContentType contentType,
+            Dictionary<string, string>? headers = null)
+        {
+            var request = new RestRequest
+            {
+                Method = method,
+                Resource = apiPath
+            };
             if (headers != null)
             {
                 foreach (var header in headers)
@@ -46,8 +119,14 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var response = await client.ExecuteAsync(request);
-            if (response.StatusCode != System.Net.HttpStatusCode.OK && string.IsNullOrEmpty(response.Content))
+            var client = CreateClient(baseUrl);
+            var response = await ExecuteWithTracing(
+                client,
+                request,
+                () => client.ExecuteAsync(request)
+            );
+
+            if (!response.IsSuccessful && string.IsNullOrEmpty(response.Content))
             {
                 throw new Exception("Failed to execute request");
             }
@@ -61,11 +140,18 @@ namespace ResourceShared.Utils
                 throw new Exception($"Deserialize failed, error: {ex.Message}. string {ex}", ex);
             }
         }
-        public async Task<T?> ExecuteRequest<T>(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType)
+        public async Task<T?> ExecuteRequest<T>(
+            string baseUrl,
+            string apiPath,
+            Method method,
+            Dictionary<string, object> parameters,
+            RequestContentType contentType)
         {
-            var request = new RestRequest();
-            request.Method = method;
-            request.Resource = ApiPath;
+            var request = new RestRequest
+            {
+                Method = method,
+                Resource = apiPath
+            };
             switch (contentType)
             {
                 case RequestContentType.Json:
@@ -87,8 +173,13 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var response = await client.ExecuteAsync(request);
-            if (response.StatusCode != System.Net.HttpStatusCode.OK || string.IsNullOrEmpty(response.Content) || !IsValidJson(response.Content))
+            var client = CreateClient(baseUrl);
+            var response = await ExecuteWithTracing(
+                client,
+                request,
+                () => client.ExecuteAsync(request)
+            );
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
             {
                 throw new Exception("Failed to execute request");
             }
@@ -97,14 +188,18 @@ namespace ResourceShared.Utils
             try
             {
                 result = JsonConvert.DeserializeObject<T>(response.Content);
-            return result;
+                return result;
             }
             catch (Exception ex)
             {
                 throw new Exception($"Deserialize failed, error: {ex.Message}. string {ex}", ex);
             }
         }
-        public async Task<T?> ExecuteRequest<T>(RestRequest request, Dictionary<string, object> parameters, RequestContentType contentType)
+        public async Task<T?> ExecuteRequest<T>(
+            string baseUrl,
+            RestRequest request,
+            Dictionary<string, object> parameters,
+            RequestContentType contentType)
         {
             switch (contentType)
             {
@@ -127,8 +222,14 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var response = await client.ExecuteAsync(request);
-            if (response.StatusCode != System.Net.HttpStatusCode.OK || string.IsNullOrEmpty(response.Content) || !IsValidJson(response.Content))
+            var client = CreateClient(baseUrl);
+            var response = await ExecuteWithTracing(
+                client,
+                request,
+                () => client.ExecuteAsync(request)
+            );
+
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
             {
                 throw new Exception($"Request failed, status code: {response.StatusCode}. response: {response.Content}", new($"Request failed, status code: {response.StatusCode}. response: {response.Content}"));
             }
@@ -144,7 +245,12 @@ namespace ResourceShared.Utils
             }
             return result;
         }
-        public async Task<string?> ExecuteRequest( string apiPath, Method method, object body,Dictionary<string, string>? headers = null)
+        public async Task<string?> ExecuteRequest(
+            string baseUrl,
+            string apiPath,
+            Method method,
+            object body,
+            Dictionary<string, string>? headers = null)
         {
             var request = new RestRequest(apiPath, method)
                 .AddHeader("Content-Type", "application/json")
@@ -154,38 +260,17 @@ namespace ResourceShared.Utils
                 foreach (var h in headers)
                     request.AddHeader(h.Key, h.Value);
 
-            var resp = await client.ExecuteAsync(request);
-            if (!resp.IsSuccessful)
-                throw new Exception($"[{(int)resp.StatusCode}] {resp.StatusDescription}\n{resp.Content}");
+            var client = CreateClient(baseUrl);
+            var response = await ExecuteWithTracing(
+                client,
+                request,
+                () => client.ExecuteAsync(request)
+            );
 
-            return resp.Content;
-        }
+            if (!response.IsSuccessful)
+                throw new Exception($"[{(int)response.StatusCode}] {response.StatusDescription}\n{response.Content}");
 
-        //function to check if a string is a valid json
-        public bool IsValidJson(string strInput)
-        {
-            strInput = strInput.Trim();
-            if ((strInput.StartsWith("{") && strInput.EndsWith("}")) || //For object
-                (strInput.StartsWith("[") && strInput.EndsWith("]"))) //For array
-            {
-                try
-                {
-                    var obj = Newtonsoft.Json.Linq.JToken.Parse(strInput);
-                    return true;
-                }
-                catch (Newtonsoft.Json.JsonReaderException)
-                {
-                    return false;
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                return false;
-            }
+            return response.Content;
         }
     }
     public enum RequestContentType
