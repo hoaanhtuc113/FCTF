@@ -10,12 +10,12 @@ namespace ResourceShared.Utils
     {
         public static long ConvertToUnixTimestamp(DateTime dateTime)
         {
-            DateTimeOffset dateTimeOffset = new DateTimeOffset(dateTime);
+            DateTimeOffset dateTimeOffset = new(dateTime);
             return dateTimeOffset.ToUnixTimeSeconds();
         }
         public static long GetDateTimeNowInUnix()
         {
-            DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.Now);
+            DateTimeOffset dateTimeOffset = new(DateTime.Now);
             return dateTimeOffset.ToUnixTimeSeconds();
         }
     }

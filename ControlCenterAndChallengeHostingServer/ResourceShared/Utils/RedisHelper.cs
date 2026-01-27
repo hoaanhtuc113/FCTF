@@ -3,254 +3,253 @@ using ResourceShared;
 using ResourceShared.Utils;
 using StackExchange.Redis;
 using static ResourceShared.Enums;
-namespace SocialSync.Shared.Utils
+
+namespace ResourceShared.Utils;
+
+public class RedisHelper
 {
-    namespace ResourceShared.Utils
+    private readonly IDatabase _cache;
+
+    // Constructor nhận ConnectionMultiplexer thông qua Dependency Injection
+    public RedisHelper(IConnectionMultiplexer redisConnection)
     {
-        public class RedisHelper
+        _cache = redisConnection.GetDatabase();
+    }
+
+    // Phương thức để set object (phức tạp hơn string) vào cache
+    public async Task<bool> SetCacheAsync<T>(string key, T value, TimeSpan? expiredTime = null)
+    {
+        try
         {
-            private readonly IDatabase _cache;
-
-            // Constructor nhận ConnectionMultiplexer thông qua Dependency Injection
-            public RedisHelper(IConnectionMultiplexer redisConnection)
+            // Serialize object to string
+            string stringValue = JsonConvert.SerializeObject(value);
+            bool isSet;
+            if (expiredTime.HasValue)
             {
-                _cache = redisConnection.GetDatabase();
+                isSet = await _cache.StringSetAsync(key, stringValue, expiredTime.Value);
+            }
+            else
+            {
+                // không expire
+                isSet = await _cache.StringSetAsync(key, stringValue);
+            }
+            return isSet;
+        }
+        catch (Exception)
+        {
+            // Nếu có lỗi, trả về false
+            return false;
+        }
+    }
+
+    // Phương thức để lấy object từ cache
+    public async Task<T?> GetFromCacheAsync<T>(string key)
+    {
+        try
+        {
+            // Lấy dữ liệu từ cache
+            string? value = await _cache.StringGetAsync(key);
+
+            if (string.IsNullOrEmpty(value))
+            {
+                return default; // Nếu không có giá trị hoặc key không tồn tại
             }
 
-            // Phương thức để set object (phức tạp hơn string) vào cache
-            public async Task<bool> SetCacheAsync<T>(string key, T value, TimeSpan? expiredTime = null)
+            // Deserialize giá trị thành object
+            return JsonConvert.DeserializeObject<T>(value);
+        }
+        catch (Exception)
+        {
+            // Nếu có lỗi, trả về giá trị mặc định
+            return default;
+        }
+    }
+
+    public async Task<List<T?>?> GetListFromCacheAsync<T>(List<string> keys)
+    {
+        try
+        {
+            // Chuyển đổi List<string> sang RedisKey[]
+            RedisKey[] redisKeys = keys.Select(k => (RedisKey)k).ToArray();
+
+            // Lấy dữ liệu từ cache cho tất cả các keys
+            RedisValue[] values = await _cache.StringGetAsync(redisKeys);
+
+            // Khởi tạo danh sách để chứa các đối tượng sau khi deserialize
+            List<T?> resultList = [];
+
+            foreach (var value in values)
             {
-                try
+                if (!value.IsNullOrEmpty)
                 {
-                    // Serialize object to string
-                    string stringValue = JsonConvert.SerializeObject(value);
-                    bool isSet;
-                    if (expiredTime.HasValue)
-                    {
-                        isSet = await _cache.StringSetAsync(key, stringValue, expiredTime.Value);
-                    }
-                    else
-                    {
-                        // không expire
-                        isSet = await _cache.StringSetAsync(key, stringValue);
-                    }
-                    return isSet;
+                    // Deserialize từng giá trị
+                    T? deserializedValue = JsonConvert.DeserializeObject<T>(value);
+                    resultList.Add(deserializedValue);
                 }
-                catch (Exception)
+                else
                 {
-                    // Nếu có lỗi, trả về false
-                    return false;
-                }
-            }
-
-            // Phương thức để lấy object từ cache
-            public async Task<T?> GetFromCacheAsync<T>(string key)
-            {
-                try
-                {
-                    // Lấy dữ liệu từ cache
-                    string? value = await _cache.StringGetAsync(key);
-
-                    if (string.IsNullOrEmpty(value))
-                    {
-                        return default; // Nếu không có giá trị hoặc key không tồn tại
-                    }
-
-                    // Deserialize giá trị thành object
-                    return JsonConvert.DeserializeObject<T>(value);
-                }
-                catch (Exception)
-                {
-                    // Nếu có lỗi, trả về giá trị mặc định
-                    return default;
-                }
-            }
-
-            public async Task<List<T?>?> GetListFromCacheAsync<T>(List<string> keys)
-            {
-                try
-                {
-                    // Chuyển đổi List<string> sang RedisKey[]
-                    RedisKey[] redisKeys = keys.Select(k => (RedisKey)k).ToArray();
-
-                    // Lấy dữ liệu từ cache cho tất cả các keys
-                    RedisValue[] values = await _cache.StringGetAsync(redisKeys);
-
-                    // Khởi tạo danh sách để chứa các đối tượng sau khi deserialize
-                    List<T?> resultList = new List<T?>();
-
-                    foreach (var value in values)
-                    {
-                        if (!value.IsNullOrEmpty)
-                        {
-                            // Deserialize từng giá trị
-                            T? deserializedValue = JsonConvert.DeserializeObject<T>(value);
-                            resultList.Add(deserializedValue);
-                        }
-                        else
-                        {
-                            // Nếu giá trị null hoặc không tồn tại, thêm giá trị mặc định
-                            resultList.Add(default);
-                        }
-                    }
-
-                    return resultList;
-                }
-                catch (Exception)
-                {
-                    // Nếu có lỗi, trả về null
-                    return null;
-                }
-            }
-            // Phương thức để xóa giá trị từ cache dựa vào key
-            public async Task<bool> RemoveCacheAsync(string key)
-            {
-                try
-                {
-                    // Xóa key từ cache
-                    bool isRemoved = await _cache.KeyDeleteAsync(key);
-                    return isRemoved;
-                }
-                catch (Exception)
-                {
-                    // Nếu có lỗi, trả về false
-                    return false;
-                }
-            }
-            public List<string> GetKeysByPattern(string pattern)
-            {
-                try
-                {
-                    var keys = new List<string>();
-                    var endpoints = _cache.Multiplexer.GetEndPoints();
-
-                    foreach (var endpoint in endpoints)
-                    {
-                        var server = _cache.Multiplexer.GetServer(endpoint);
-                        if (server.IsConnected)
-                        {
-                            // Sử dụng phương thức Keys để lấy các key theo pattern
-                            var foundKeys = server.Keys(pattern: pattern);
-                            keys.AddRange(foundKeys.Select(k => k.ToString()));
-                        }
-                    }
-
-                    return keys;
-                }
-                catch (Exception)
-                {
-                    // Nếu có lỗi, trả về danh sách rỗng
-                    return new List<string>();
+                    // Nếu giá trị null hoặc không tồn tại, thêm giá trị mặc định
+                    resultList.Add(default);
                 }
             }
 
-            public async Task<List<T>> GetCacheByPatternAsync<T>(string pattern)
+            return resultList;
+        }
+        catch (Exception)
+        {
+            // Nếu có lỗi, trả về null
+            return null;
+        }
+    }
+    // Phương thức để xóa giá trị từ cache dựa vào key
+    public async Task<bool> RemoveCacheAsync(string key)
+    {
+        try
+        {
+            // Xóa key từ cache
+            bool isRemoved = await _cache.KeyDeleteAsync(key);
+            return isRemoved;
+        }
+        catch (Exception)
+        {
+            // Nếu có lỗi, trả về false
+            return false;
+        }
+    }
+    public List<string> GetKeysByPattern(string pattern)
+    {
+        try
+        {
+            var keys = new List<string>();
+            var endpoints = _cache.Multiplexer.GetEndPoints();
+
+            foreach (var endpoint in endpoints)
             {
-                var result = new List<T>();
-
-                try
+                var server = _cache.Multiplexer.GetServer(endpoint);
+                if (server.IsConnected)
                 {
-                    var endpoints = _cache.Multiplexer.GetEndPoints();
-                    foreach (var endpoint in endpoints)
+                    // Sử dụng phương thức Keys để lấy các key theo pattern
+                    var foundKeys = server.Keys(pattern: pattern);
+                    keys.AddRange(foundKeys.Select(k => k.ToString()));
+                }
+            }
+
+            return keys;
+        }
+        catch (Exception)
+        {
+            // Nếu có lỗi, trả về danh sách rỗng
+            return new List<string>();
+        }
+    }
+
+    public async Task<List<T>> GetCacheByPatternAsync<T>(string pattern)
+    {
+        var result = new List<T>();
+
+        try
+        {
+            var endpoints = _cache.Multiplexer.GetEndPoints();
+            foreach (var endpoint in endpoints)
+            {
+                var server = _cache.Multiplexer.GetServer(endpoint);
+                if (!server.IsConnected) continue;
+
+                var keys = server.Keys(pattern: pattern).ToList();
+                if (!keys.Any()) continue;
+
+                var redisKeys = keys.Select(k => (RedisKey)k).ToArray();
+                var values = await _cache.StringGetAsync(redisKeys);
+
+                foreach (var value in values)
+                {
+                    if (!value.IsNullOrEmpty)
                     {
-                        var server = _cache.Multiplexer.GetServer(endpoint);
-                        if (!server.IsConnected) continue;
-
-                        var keys = server.Keys(pattern: pattern).ToList();
-                        if (!keys.Any()) continue;
-
-                        var redisKeys = keys.Select(k => (RedisKey)k).ToArray();
-                        var values = await _cache.StringGetAsync(redisKeys);
-
-                        foreach (var value in values)
-                        {
-                            if (!value.IsNullOrEmpty)
-                            {
-                                var item = JsonConvert.DeserializeObject<T>(value);
-                                if (item != null)
-                                    result.Add(item);
-                            }
-                        }
+                        var item = JsonConvert.DeserializeObject<T>(value);
+                        if (item != null)
+                            result.Add(item);
                     }
                 }
-                catch (Exception ex)
-                {
-                    await Console.Error.WriteLineAsync($"[Redis] Pattern read failed: {ex.Message}");
-                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[Redis] Pattern read failed: {ex.Message}");
+        }
 
-                return result;
+        return result;
+    }
+
+    public async Task<bool> RemoveCacheByPattern(string pattern)
+    {
+        try
+        {
+            var keys = GetKeysByPattern(pattern);
+
+            if (!keys.Any())
+            {
+                return true;
             }
 
-            public async Task<bool> RemoveCacheByPattern(string pattern)
+            foreach (var batch in keys.Chunk(100))
             {
-                try
-                {
-                    var keys = GetKeysByPattern(pattern);
-
-                    if (!keys.Any())
-                    {
-                        return true;
-                    }
-
-                    foreach (var batch in keys.Chunk(100))
-                    {
-                        var tasks = batch.Select(k => _cache.KeyDeleteAsync(k));
-                        await Task.WhenAll(tasks);
-                    }
-
-                    return true;
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
+                var tasks = batch.Select(k => _cache.KeyDeleteAsync(k));
+                await Task.WhenAll(tasks);
             }
 
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
-            public async Task<bool> KeyExistsAsync(string key)
-            {
-                try
-                {
-                    return await _cache.KeyExistsAsync(key);
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
 
-            }
+    public async Task<bool> KeyExistsAsync(string key)
+    {
+        try
+        {
+            return await _cache.KeyExistsAsync(key);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
 
-            /// <summary>
-            /// 1. HÀM START (Controller gọi):
-            /// Kiểm tra limit, giữ chỗ (Reservation) trong ZSET với thời gian tạm (Provisioning TTL).
-            /// </summary>
-            /// <param name="teamId">ID Team</param>
-            /// <param name="deploymentKey">Key chứa data JSON</param>
-            /// <param name="challengeId">Unique ID của bài thi (dùng làm member trong ZSET)</param>
-            /// <param name="maxLimit">Giới hạn số bài thi tối đa</param>
-            /// <param name="deploymentValue">Data JSON</param>
-            /// <param name="provisioningTtl">Thời gian giữ chỗ tạm thời (Mặc định 300s = 5 phút)</param>
-            /// <returns>
-            /// 0: Success (Thành công)
-            /// 1: Limit Exceeded (Hết lượt)
-            /// 2: Already Exists (Đang chạy rồi)
-            /// </returns>
-            public async Task<DeploymentCheckResult> AtomicCheckAndCreateDeploymentZSet(
-                string teamId,
-                string deploymentKey,
-                string challengeId,
-                long maxLimit,
-                string deploymentValue,
-                int provisioningTtl = 300)
-            {
-                var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
+    }
 
-                // Score tạm thời = Hiện tại + 5 phút
-                // Nếu sau 5 phút Worker không gia hạn, Redis tự coi là hết hạn và cho phép ghi đè.
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                var tempScore = now + provisioningTtl;
+    /// <summary>
+    /// 1. HÀM START (Controller gọi):
+    /// Kiểm tra limit, giữ chỗ (Reservation) trong ZSET với thời gian tạm (Provisioning TTL).
+    /// </summary>
+    /// <param name="teamId">ID Team</param>
+    /// <param name="deploymentKey">Key chứa data JSON</param>
+    /// <param name="challengeId">Unique ID của bài thi (dùng làm member trong ZSET)</param>
+    /// <param name="maxLimit">Giới hạn số bài thi tối đa</param>
+    /// <param name="deploymentValue">Data JSON</param>
+    /// <param name="provisioningTtl">Thời gian giữ chỗ tạm thời (Mặc định 300s = 5 phút)</param>
+    /// <returns>
+    /// 0: Success (Thành công)
+    /// 1: Limit Exceeded (Hết lượt)
+    /// 2: Already Exists (Đang chạy rồi)
+    /// </returns>
+    public async Task<DeploymentCheckResult> AtomicCheckAndCreateDeploymentZSet(
+        string teamId,
+        string deploymentKey,
+        string challengeId,
+        long maxLimit,
+        string deploymentValue,
+        int provisioningTtl = 300)
+    {
+        var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
 
-                var script = @"
+        // Score tạm thời = Hiện tại + 5 phút
+        // Nếu sau 5 phút Worker không gia hạn, Redis tự coi là hết hạn và cho phép ghi đè.
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var tempScore = now + provisioningTtl;
+
+        var script = @"
                     local zsetKey = KEYS[1]
                     local deploymentKey = KEYS[2]
                     
@@ -289,40 +288,40 @@ namespace SocialSync.Shared.Utils
                     return 0 -- Success
                 ";
 
-                try
-                {
-                    var result = await _cache.ScriptEvaluateAsync(
-                        script,
-                        keys: new RedisKey[] { zsetKey, deploymentKey },
-                        values: new RedisValue[] { challengeId, maxLimit, deploymentValue, tempScore, now, provisioningTtl }
-                    );
-                    return (DeploymentCheckResult)(int)result;
-                }
-                catch (Exception ex)
-                {
-                    await Console.Error.WriteLineAsync($"[Redis] Start Failed: {ex.Message}");
-                    throw;
-                }
-            }
+        try
+        {
+            var result = await _cache.ScriptEvaluateAsync(
+                script,
+                keys: new RedisKey[] { zsetKey, deploymentKey },
+                values: new RedisValue[] { challengeId, maxLimit, deploymentValue, tempScore, now, provisioningTtl }
+            );
+            return (DeploymentCheckResult)(int)result;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[Redis] Start Failed: {ex.Message}");
+            throw;
+        }
+    }
 
-            /// <summary>
-            /// Hàm này dành cho WORKER.
-            /// Khi K8s Pod đã Ready, gọi hàm này để gia hạn thời gian sống chính thức (ví dụ 2h).
-            /// </summary>
-            /// <param name="teamId">ID của Team</param>
-            /// <param name="deploymentKey">Key chứa data JSON</param>
-            /// <param name="challengeId">ID bài thi (Unique ID trong ZSET)</param>
-            /// <param name="realTtlSeconds">Thời gian sống thực tế (ví dụ 7200s = 2h)</param>
-            /// <param name="deploymentValue">Data JSON cập nhật mới (tránh race condition)</param>
-            public async Task<bool> AtomicUpdateExpiration(string teamId, string deploymentKey, string challengeId, int realTtlSeconds, string? deploymentValue = null)
-            {
-                var teamIdInt = int.Parse(teamId);
-                var zsetKey = ChallengeHelper.GetZSetKKey(teamIdInt);
+    /// <summary>
+    /// Hàm này dành cho WORKER.
+    /// Khi K8s Pod đã Ready, gọi hàm này để gia hạn thời gian sống chính thức (ví dụ 2h).
+    /// </summary>
+    /// <param name="teamId">ID của Team</param>
+    /// <param name="deploymentKey">Key chứa data JSON</param>
+    /// <param name="challengeId">ID bài thi (Unique ID trong ZSET)</param>
+    /// <param name="realTtlSeconds">Thời gian sống thực tế (ví dụ 7200s = 2h)</param>
+    /// <param name="deploymentValue">Data JSON cập nhật mới (tránh race condition)</param>
+    public async Task<bool> AtomicUpdateExpiration(string teamId, string deploymentKey, string challengeId, int realTtlSeconds, string? deploymentValue = null)
+    {
+        var teamIdInt = int.Parse(teamId);
+        var zsetKey = ChallengeHelper.GetZSetKKey(teamIdInt);
 
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                var realExpiryScore = now + realTtlSeconds;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var realExpiryScore = now + realTtlSeconds;
 
-                var script = @"
+        var script = @"
                     local zsetKey = KEYS[1]
                     local deploymentKey = KEYS[2]
                     local uniqueId = ARGV[1]
@@ -366,34 +365,34 @@ namespace SocialSync.Shared.Utils
                     return 1 -- Success
                 ";
 
-                try
-                {
-                    var result = await _cache.ScriptEvaluateAsync(
-                        script,
-                        keys: new RedisKey[] { zsetKey, deploymentKey },
-                        values: new RedisValue[] { challengeId, realExpiryScore, realTtlSeconds, deploymentValue ?? "", teamIdInt }
-                    );
+        try
+        {
+            var result = await _cache.ScriptEvaluateAsync(
+                script,
+                keys: new RedisKey[] { zsetKey, deploymentKey },
+                values: new RedisValue[] { challengeId, realExpiryScore, realTtlSeconds, deploymentValue ?? "", teamIdInt }
+            );
 
-                    return (int)result == (int)DeploymentCheckResult.Pass;
-                }
-                catch (Exception ex)
-                {
-                    await Console.Out.WriteLineAsync($"[Redis] Update Expiration Failed: {ex.Message}");
-                    return false;
-                }
-            }
+            return (int)result == (int)DeploymentCheckResult.Pass;
+        }
+        catch (Exception ex)
+        {
+            await Console.Out.WriteLineAsync($"[Redis] Update Expiration Failed: {ex.Message}");
+            return false;
+        }
+    }
 
-            /// <summary>
-            /// 3. HÀM REMOVE (Dùng chung cho cả Controller và Worker):
-            /// - User bấm Stop.
-            /// - Start bị lỗi (Rollback).
-            /// - Worker phát hiện Pod Crash/Deleted.
-            /// </summary>
-            public async Task<bool> AtomicRemoveDeploymentZSet(string teamId, string deploymentKey, string challengeId)
-            {
-                var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
+    /// <summary>
+    /// 3. HÀM REMOVE (Dùng chung cho cả Controller và Worker):
+    /// - User bấm Stop.
+    /// - Start bị lỗi (Rollback).
+    /// - Worker phát hiện Pod Crash/Deleted.
+    /// </summary>
+    public async Task<bool> AtomicRemoveDeploymentZSet(string teamId, string deploymentKey, string challengeId)
+    {
+        var zsetKey = ChallengeHelper.GetZSetKKey(int.Parse(teamId));
 
-                var script = @"
+        var script = @"
                     local zsetKey = KEYS[1]
                     local deploymentKey = KEYS[2]
                     local uniqueId = ARGV[1]
@@ -405,38 +404,38 @@ namespace SocialSync.Shared.Utils
                     return redis.call('ZREM', zsetKey, uniqueId)
                 ";
 
-                try
-                {
-                    await _cache.ScriptEvaluateAsync(
-                        script,
-                        keys: new RedisKey[] { zsetKey, deploymentKey },
-                        values: new RedisValue[] { challengeId }
-                    );
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    await Console.Error.WriteLineAsync($"[Redis] Remove Failed: {ex.Message}");
-                    return false;
-                }
-            }
+        try
+        {
+            await _cache.ScriptEvaluateAsync(
+                script,
+                keys: new RedisKey[] { zsetKey, deploymentKey },
+                values: new RedisValue[] { challengeId }
+            );
+            return true;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[Redis] Remove Failed: {ex.Message}");
+            return false;
+        }
+    }
 
-            // Get the underlying Redis database for advanced operations (INCR, DECR, etc.)
-            public Task<IDatabase> GetDatabaseAsync()
-            {
-                return Task.FromResult(_cache);
-            }
+    // Get the underlying Redis database for advanced operations (INCR, DECR, etc.)
+    public Task<IDatabase> GetDatabaseAsync()
+    {
+        return Task.FromResult(_cache);
+    }
 
-            // Lua script for atomic max attempts validation with smart sync
-            // Returns: -1 if exceeded limit, otherwise returns new count after increment
-            public async Task<long> CheckAndIncrementAttemptsAsync(string key, long maxAttempts, long smartSyncThreshold, int actualDbCount)
-            {
-                // Lua script that atomically:
-                // 1. Gets current count
-                // 2. If count > threshold, reset to DB count (smart sync)
-                // 3. If count >= maxAttempts, return -1 (reject)
-                // 4. Otherwise INCR and return new count
-                var luaScript = @"
+    // Lua script for atomic max attempts validation with smart sync
+    // Returns: -1 if exceeded limit, otherwise returns new count after increment
+    public async Task<long> CheckAndIncrementAttemptsAsync(string key, long maxAttempts, long smartSyncThreshold, int actualDbCount)
+    {
+        // Lua script that atomically:
+        // 1. Gets current count
+        // 2. If count > threshold, reset to DB count (smart sync)
+        // 3. If count >= maxAttempts, return -1 (reject)
+        // 4. Otherwise INCR and return new count
+        var luaScript = @"
                     local key = KEYS[1]
                     local maxAttempts = tonumber(ARGV[1])
                     local smartSyncThreshold = tonumber(ARGV[2])
@@ -476,22 +475,20 @@ namespace SocialSync.Shared.Utils
                     return newCount
                 ";
 
-                try
-                {
-                    var result = await _cache.ScriptEvaluateAsync(
-                        luaScript,
-                        new RedisKey[] { key },
-                        new RedisValue[] { maxAttempts, smartSyncThreshold, actualDbCount, 86400 } // 24h TTL
-                    );
+        try
+        {
+            var result = await _cache.ScriptEvaluateAsync(
+                luaScript,
+                [key],
+                [maxAttempts, smartSyncThreshold, actualDbCount, 86400] // 24h TTL
+            );
 
-                    return (long)result;
-                }
-                catch (Exception ex)
-                {
-                    await Console.Error.WriteLineAsync($"[Redis Lua] Error executing attempts check script: {ex.Message}");
-                    throw;
-                }
-            }
+            return (long)result;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[Redis Lua] Error executing attempts check script: {ex.Message}");
+            throw;
         }
     }
 }
