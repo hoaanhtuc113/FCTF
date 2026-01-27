@@ -1,5 +1,6 @@
 tempo:
   enabled: true
+  priorityClassName: infra-critical
 
   service:
     type: ClusterIP

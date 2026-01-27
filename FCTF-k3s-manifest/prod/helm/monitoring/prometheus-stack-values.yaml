@@ -1162,7 +1162,7 @@ alertmanager:
 
     ## Priority class assigned to the Pods
     ##
-    priorityClassName: ""
+    priorityClassName: infra-critical
 
     ## AdditionalPeers allows injecting a set of additional Alertmanagers to peer with to form a highly available cluster.
     ##
@@ -1224,7 +1224,7 @@ grafana:
   enabled: true
   namespaceOverride: ""
 
-  priorityClassName: app-normal
+  priorityClassName: infra-critical
 
   ## ForceDeployDatasources Create datasource configmap even if grafana deployment has been disabled
   ##
@@ -2927,7 +2927,7 @@ prometheusOperator:
       resources: {}
       ## Provide a priority class name to the webhook patching job
       ##
-      priorityClassName: ""
+      priorityClassName: infra-critical
       ttlSecondsAfterFinished: 60
       annotations: {}
       #   argocd.argoproj.io/hook: PreSync
@@ -4520,7 +4520,7 @@ prometheus:
 
     ## Priority class assigned to the Pods
     ##
-    priorityClassName: ""
+    priorityClassName: infra-critical
 
     ## Thanos configuration allows configuring various aspects of a Prometheus server in a Thanos environment.
     ## This section is experimental, it may change significantly without deprecation notice in any release.
@@ -5406,7 +5406,7 @@ thanosRuler:
 
     ## Priority class assigned to the Pods
     ##
-    priorityClassName: ""
+    priorityClassName: infra-critical
 
     ## PortName to use for ThanosRuler.
     ##

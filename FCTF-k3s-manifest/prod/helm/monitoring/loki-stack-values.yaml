@@ -7,6 +7,7 @@ loki:
   image:
     tag: '2.9.3'
   enabled: true
+  priorityClassName: infra-critical
   isDefault: true
   url: http://{{(include "loki.serviceName" .)}}:{{ .Values.loki.service.port }}
   readinessProbe:
@@ -26,6 +27,7 @@ loki:
 
 promtail:
   enabled: true
+  priorityClassName: infra-critical
   config:
     logLevel: info
     serverPort: 3101
