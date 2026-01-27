@@ -9,10 +9,8 @@ namespace ResourceShared.Utils
 {
     public class MultiServiceConnector
     {
-        private readonly ActivitySource _activitySource;
-        public MultiServiceConnector(ActivitySource activitySource)
+        public MultiServiceConnector()
         {
-            _activitySource = activitySource;
         }
         private static RestClient CreateClient(string baseUrl)
         {
@@ -35,47 +33,6 @@ namespace ResourceShared.Utils
                 request,
                 (req, key, value) => req.AddHeader(key, value)
             );
-        }
-
-        private async Task<RestResponse> ExecuteWithTracing(
-            RestClient client,
-            RestRequest request,
-            Func<Task<RestResponse>> execute)
-        {
-            using var activity = _activitySource.StartActivity(
-                $"HTTP {request.Method}",
-                ActivityKind.Client);
-
-            try
-            {
-                if (activity != null)
-                {
-                    var baseUri = client.Options.BaseUrl!;
-                    var resource = request.Resource ?? "/";
-
-                    activity.SetTag("http.request.method", request.Method.ToString());
-                    activity.SetTag("url.full", new Uri(baseUri, resource).ToString());
-                    activity.SetTag("server.address", baseUri.Host);
-                    activity.SetTag("server.port", baseUri.Port);
-                }
-
-                InjectTraceContext(request);
-
-                var response = await execute();
-
-                activity?.SetTag("http.response.status_code", (int)response.StatusCode);
-
-                if (!response.IsSuccessful)
-                    activity?.SetStatus(ActivityStatusCode.Error);
-
-                return response;
-            }
-            catch (Exception ex)
-            {
-                activity?.AddException(ex);
-                activity?.SetStatus(ActivityStatusCode.Error);
-                throw;
-            }
         }
 
         public async Task<string?> ExecuteNormalRequest(
@@ -119,12 +76,7 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var client = CreateClient(baseUrl);
-            var response = await ExecuteWithTracing(
-                client,
-                request,
-                () => client.ExecuteAsync(request)
-            );
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
 
             if (!response.IsSuccessful && string.IsNullOrEmpty(response.Content))
             {
@@ -173,12 +125,8 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var client = CreateClient(baseUrl);
-            var response = await ExecuteWithTracing(
-                client,
-                request,
-                () => client.ExecuteAsync(request)
-            );
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
+
             if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
             {
                 throw new Exception("Failed to execute request");
@@ -222,12 +170,7 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var client = CreateClient(baseUrl);
-            var response = await ExecuteWithTracing(
-                client,
-                request,
-                () => client.ExecuteAsync(request)
-            );
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
 
             if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
             {
@@ -260,13 +203,7 @@ namespace ResourceShared.Utils
                 foreach (var h in headers)
                     request.AddHeader(h.Key, h.Value);
 
-            var client = CreateClient(baseUrl);
-            var response = await ExecuteWithTracing(
-                client,
-                request,
-                () => client.ExecuteAsync(request)
-            );
-
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
             if (!response.IsSuccessful)
                 throw new Exception($"[{(int)response.StatusCode}] {response.StatusDescription}\n{response.Content}");
 

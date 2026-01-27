@@ -96,11 +96,6 @@ namespace ContestantBE
                      .AddAspNetCoreInstrumentation()
                      .AddOtlpExporter();
                 });
-            builder.Services.AddSingleton(sp =>
-            {
-                var activitySource = sp.GetRequiredService<ActivitySource>();
-                return new MultiServiceConnector(activitySource);
-            });
 
             builder.Logging.ClearProviders();
             builder.Logging.AddJsonConsole();

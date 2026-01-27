@@ -49,12 +49,7 @@ namespace DeploymentCenter
                      .AddSource(Telemetry.DeploymentCenterRabbitMQ)
                      .AddAspNetCoreInstrumentation()
                      .AddOtlpExporter();
-                });
-            builder.Services.AddSingleton(sp =>
-            {
-                var httpTelemetrySource = sp.GetRequiredService<HttpTelemetrySource>();
-                return new MultiServiceConnector(httpTelemetrySource.Source);
-            });
+                });            
             // Register DeploymentConsumerService consumer
             builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
             {

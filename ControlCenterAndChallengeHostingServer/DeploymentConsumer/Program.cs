@@ -56,12 +56,7 @@ var host = Host.CreateDefaultBuilder(args)
                 b.AddSource(Telemetry.DeploymentConsumerHttp)
                  .AddSource(Telemetry.DeploymentConsumerRabbitMQ)
                  .AddOtlpExporter();
-            });
-        services.AddSingleton(sp =>
-        {
-            var httpTelemetrySource = sp.GetRequiredService<HttpTelemetrySource>();
-            return new MultiServiceConnector(httpTelemetrySource.Source);
-        });
+            });        
 
         services.AddHostedService<Worker>();
     })
