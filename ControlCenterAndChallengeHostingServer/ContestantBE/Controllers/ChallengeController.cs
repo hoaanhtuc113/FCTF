@@ -9,6 +9,8 @@ using ResourceShared.DTOs.Challenge;
 using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using StackExchange.Redis;
+using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using static ResourceShared.Enums;
