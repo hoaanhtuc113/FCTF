@@ -44,18 +44,18 @@ namespace DeploymentCenter.Services
             };
             _activitySource = activitySource;
         }
-        private static void InjectTraceContext(IBasicProperties props)
+        private static void InjectTraceContext(Activity? activity, IBasicProperties props)
         {
+            if (activity == null) return;
+
             props.Headers ??= new Dictionary<string, object?>();
 
             Propagators.DefaultTextMapPropagator.Inject(
-                new PropagationContext(Activity.Current!.Context, Baggage.Current),
+                new PropagationContext(activity.Context, Baggage.Current),
                 props.Headers,
-                (headers, key, value) =>
-                {
-                    headers[key] = Encoding.UTF8.GetBytes(value);
-                });
+                (headers, key, value) => headers[key] = Encoding.UTF8.GetBytes(value));
         }
+
 
         private async Task EnsureChannelAsync()
         {
@@ -80,14 +80,9 @@ namespace DeploymentCenter.Services
         {
             await EnsureChannelAsync();
 
-            using var activity = Activity.Current == null
-                ? _activitySource.StartActivity(
-                    "rabbitmq.publish",
-                    ActivityKind.Producer)
-                : _activitySource.StartActivity(
-                    "rabbitmq.publish",
-                    ActivityKind.Producer,
-                    Activity.Current.Context);
+            using var activity = _activitySource.StartActivity(
+                "rabbitmq.publish",
+                ActivityKind.Producer);
 
             var payload = new DeploymentQueuePayload
             {
@@ -105,12 +100,12 @@ namespace DeploymentCenter.Services
                 MessageId = Guid.NewGuid().ToString()
             };
 
-            InjectTraceContext(properties);
+            InjectTraceContext(activity, properties);
 
             activity?.SetTag("messaging.system", "rabbitmq");
             activity?.SetTag("messaging.destination", QueueName);
             activity?.SetTag("messaging.destination_kind", "queue");
-            activity?.SetTag("messaging.operation", "publish");
+            activity?.SetTag("messaging.operation", "send");
             activity?.SetTag("messaging.message_id", properties.MessageId);
 
             await _channel!.BasicPublishAsync(
