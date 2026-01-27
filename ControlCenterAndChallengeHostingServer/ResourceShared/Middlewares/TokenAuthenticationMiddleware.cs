@@ -28,54 +28,54 @@ namespace ResourceShared.Middlewares
             {
                 var endpoint = context.GetEndpoint();
                 var authorizeAttribute = endpoint?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
-                
-                // Only check for endpoints with [Authorize]
+
                 if (authorizeAttribute != null && context.User.Identity?.IsAuthenticated == true)
                 {
-                    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-                    // Validate userId exists and can be parsed to int
-                    if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var id))
+                    var userIdStr = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var id))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Invalid user token.");
                         return;
                     }
-                    // Check user status in database
-                    var user = await db.Users
+
+                    var authInfo = await db.Users
+                        .AsNoTracking()
                         .Where(u => u.Id == id)
-                        .Select(u => new { u.Banned, u.Hidden })
+                        .Select(u => new
+                        {
+                            u.Banned,
+                            u.Hidden,
+                            TokenValueFromDb = db.Tokens
+                                .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
+                                .Select(t => t.Value)
+                                .FirstOrDefault()
+                        })
                         .FirstOrDefaultAsync();
 
-                    if (user == null)
+                    if (authInfo == null)
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("User not found.");
                         return;
                     }
-                    var tokens = await db.Tokens
-                        .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
-                        .FirstOrDefaultAsync();
-                    if( tokens == null)
-                    {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await context.Response.WriteAsync("Token not found.");
-                        return;
-                    }
-                    if(tokens.Value == null || !tokens.Value.Equals(context.User.FindFirstValue("tokenUuid")))
+
+                    var tokenUuidFromClaim = context.User.FindFirstValue("tokenUuid");
+                    if (string.IsNullOrEmpty(authInfo.TokenValueFromDb) || !authInfo.TokenValueFromDb.Equals(tokenUuidFromClaim))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Invalid user token");
                         return;
                     }
-                    if (user.Banned == true)
+
+                    if (authInfo.Banned == true)
                     {
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         await context.Response.WriteAsync("Account banned.");
                         return;
                     }
 
-                    if (user.Hidden == true)
+                    if (authInfo.Hidden == true)
                     {
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         await context.Response.WriteAsync("Account hidden.");
@@ -94,7 +94,7 @@ namespace ResourceShared.Middlewares
                     int.TryParse(userId, out var id);
                     logger.LogError(ex, id > 0 ? id : null, data: new { path = context.Request.Path });
                 }
-                
+
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 await context.Response.WriteAsync("An error occurred while processing your request.");
             }
