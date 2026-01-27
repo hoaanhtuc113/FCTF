@@ -1,16 +1,6 @@
 ﻿using ContestantBE.Interfaces;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
-using Microsoft.EntityFrameworkCore;
-using ResourceShared.DTOs.Submit;
-using ResourceShared.Models;
-using ResourceShared.Utils;
-using StackExchange.Redis;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace ContestantBE.Controllers
 {
