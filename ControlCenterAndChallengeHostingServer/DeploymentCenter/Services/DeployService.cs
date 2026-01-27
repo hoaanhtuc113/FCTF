@@ -7,7 +7,6 @@ using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
 using System.Net;
 using static ResourceShared.Enums;
 

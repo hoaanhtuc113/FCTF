@@ -7,7 +7,6 @@ using ResourceShared.Configs;
 using ResourceShared.Logger;
 using ResourceShared.Services;
 using ResourceShared.Utils;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Text;
 namespace ResourceShared

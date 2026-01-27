@@ -1,7 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using DotNetEnv;
+using Microsoft.Extensions.Configuration;
 using ResourceShared.Configs;
-using ResourceShared.Models;
-using DotNetEnv;
 
 namespace ResourceShared.Utils;
 

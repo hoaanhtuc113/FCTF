@@ -1,21 +1,9 @@
 using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
-using ResourceShared.Configs;
-using ResourceShared.DTOs;
 using ResourceShared.DTOs.Auth;
 using ResourceShared.Logger;
-using ResourceShared.Models;
-using ResourceShared.ResponseViews;
-using ResourceShared.Utils;
-using RestSharp;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
-using StackExchange.Redis;
-using System.Collections.Concurrent;
 using System.Security.Claims;
-using System.Text.RegularExpressions;
 
 
 namespace ContestantBE.Controllers
