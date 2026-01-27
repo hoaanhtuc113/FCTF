@@ -10,7 +10,6 @@ using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
 using System.Text.Json;
@@ -474,7 +473,8 @@ namespace ContestantBE.Services
                     {
                         success = false,
                         message = "Challenge is waitting to deploy",
-                        status = (int)HttpStatusCode.OK
+                        status = (int)HttpStatusCode.OK,
+                        pod_status = Enums.DeploymentStatusEnum.PENDING_DEPLOY
                     };
                 }
                 if (deploymentCache.status == Enums.DeploymentStatus.PENDING)
@@ -483,7 +483,8 @@ namespace ContestantBE.Services
                     {
                         success = false,
                         message = "Challenge is currently deploying",
-                        status = (int)HttpStatusCode.OK
+                        status = (int)HttpStatusCode.OK,
+                        pod_status = Enums.DeploymentStatusEnum.Pending
                     };
                 }
                 if (deploymentCache.status == Enums.DeploymentStatus.RUNING && deploymentCache.ready)
@@ -496,6 +497,7 @@ namespace ContestantBE.Services
                         message = "Pod is running.",
                         challenge_url = deploymentCache.challenge_url,
                         time_limit = challenge.TimeLimit ?? -1,
+                        pod_status = Enums.DeploymentStatusEnum.Running
                     };
                     return result;
                 }
@@ -503,7 +505,8 @@ namespace ContestantBE.Services
                 {
                     success = false,
                     message = "Pod is not running.",
-                    status = (int)HttpStatusCode.OK
+                    status = (int)HttpStatusCode.OK,
+                    pod_status = Enums.DeploymentStatusEnum.TIMEOUT
                 };
             }
             catch (Exception ex)
@@ -515,6 +518,7 @@ namespace ContestantBE.Services
                     success = false,
                     message = "Error during status check.",
                     status = (int)HttpStatusCode.InternalServerError,
+                    pod_status = Enums.DeploymentStatusEnum.Failed
                 };
             }
         }

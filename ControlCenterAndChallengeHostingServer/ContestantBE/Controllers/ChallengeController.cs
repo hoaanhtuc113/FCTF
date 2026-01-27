@@ -16,7 +16,6 @@ using ResourceShared.Extensions;
 using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Linq;
 using System.Net;
