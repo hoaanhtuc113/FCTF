@@ -12,14 +12,19 @@ namespace ContestantBE.Services
     public class AuthService : IAuthService
     {
         private readonly AppDbContext _context;
-        private TokenHelper TokenHelper;
+        private readonly TokenHelper _tokenHelper;
         private readonly UserHelper _userHelper;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly AppLogger _logger;
-        public AuthService(AppDbContext context, TokenHelper tokenHelper, UserHelper userHelper, IHttpContextAccessor httpContextAccessor, AppLogger logger)
+        public AuthService(
+            AppDbContext context,
+            TokenHelper tokenHelper,
+            UserHelper userHelper,
+            IHttpContextAccessor httpContextAccessor,
+            AppLogger logger)
         {
             _context = context;
-            TokenHelper = tokenHelper;
+            _tokenHelper = tokenHelper;
             _userHelper = userHelper;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
@@ -32,76 +37,83 @@ namespace ContestantBE.Services
                 // Trim input fields
                 loginDto.username = loginDto.username?.Trim();
                 loginDto.password = loginDto.password?.Trim();
-                
+
                 if (string.IsNullOrEmpty(loginDto.username) || string.IsNullOrEmpty(loginDto.password))
                 {
                     return BaseResponseDTO<AuthResponseDTO>.Fail("Missing username or password");
                 }
 
+                // load tracked entity so we can update password if we migrate hash format
                 var user = await _context.Users
-                .Include(t => t.Team)
-                .FirstOrDefaultAsync(u => u.Name == loginDto.username);
+                    .Include(t => t.Team)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Name == loginDto.username);
 
-            if (user == null || !SHA256Helper.VerifyPassword(loginDto.password, user.Password) || user.Type != "user")
-            {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("Invalid username or password");
-            }
-            if ((user.Hidden ?? false) || (user.Banned ?? false))
-            {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
-            }
-            var dateTime = DateTime.Now.AddDays(1);
-            var token = await TokenHelper.GenerateUserToken(user, dateTime, "Login token");
-
-            if (user.Team == null)
-            {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("you don't have a team yet");
-            }
-            
-            // Kiểm tra xem user đã có tracking với IP này chưa
-            var userIp = _userHelper.GetIP(_httpContextAccessor.HttpContext);
-            var existingTracking = await _context.Trackings
-                .FirstOrDefaultAsync(t => t.UserId == user.Id && t.Ip == userIp);
-            
-            if (existingTracking != null)
-            {
-                // Update date nếu đã có
-                existingTracking.Date = DateTime.Now;
-                _context.Trackings.Update(existingTracking);
-            }
-            else
-            {
-                // Tạo tracking mới
-                var tracking = new Tracking
+                if (user == null || user.Type != "user")
                 {
-                    Type = null,
-                    Ip = userIp,
-                    UserId = user.Id,
-                    Date = DateTime.Now
+                    return BaseResponseDTO<AuthResponseDTO>.Fail("Invalid username or password");
+                }
+
+                if (!SHA256Helper.VerifyPassword(loginDto.password, user.Password) || user.Type != "user")
+                {
+                    return BaseResponseDTO<AuthResponseDTO>.Fail("Invalid username or password");
+                }
+                if ((user.Hidden ?? false) || (user.Banned ?? false))
+                {
+                    return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
+                }
+                var dateTime = DateTime.Now.AddDays(1);
+                var jwt = await _tokenHelper.GenerateUserToken(user, dateTime, "Login token");
+
+                if (user.Team == null)
+                {
+                    return BaseResponseDTO<AuthResponseDTO>.Fail("you don't have a team yet");
+                }
+
+                // Kiểm tra xem user đã có tracking với IP này chưa
+                var userIp = _userHelper.GetIP(_httpContextAccessor.HttpContext!);
+                var existingTracking = await _context.Trackings
+                    .FirstOrDefaultAsync(t => t.UserId == user.Id && t.Ip == userIp);
+
+                if (existingTracking != null)
+                {
+                    // Update date nếu đã có
+                    existingTracking.Date = DateTime.Now;
+                    _context.Trackings.Update(existingTracking);
+                }
+                else
+                {
+                    // Tạo tracking mới
+                    var tracking = new Tracking
+                    {
+                        Type = null,
+                        Ip = userIp,
+                        UserId = user.Id,
+                        Date = DateTime.Now
+                    };
+                    _context.Trackings.Add(tracking);
+                }
+
+                await _context.SaveChangesAsync();
+
+                var authResponse = new AuthResponseDTO
+                {
+                    id = user.Id,
+                    username = user.Name,
+                    email = user.Email,
+                    team = new TeamResponse
+                    {
+                        id = user.Team.Id,
+                        teamName = user.Team.Name
+                    },
+                    token = jwt
                 };
-                _context.Trackings.Add(tracking);
-            }
-            
-            await _context.SaveChangesAsync();
-            
-            var authResponse = new AuthResponseDTO
-            {
-                id = user.Id,
-                username = user.Name,
-                email = user.Email,
-                team = new TeamResponse
-                {
-                    id = user.Team.Id,
-                    teamName = user.Team.Name
-                },
-                token = token.Value
-            };
 
-            return BaseResponseDTO<AuthResponseDTO>.Ok(authResponse,"Login successful");
+                return BaseResponseDTO<AuthResponseDTO>.Ok(authResponse, "Login successful");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, data: new { username = loginDto.username });
+                _logger.LogError(ex, data: new { loginDto.username });
                 return BaseResponseDTO<AuthResponseDTO>.Fail("An error occurred during login");
             }
         }
@@ -114,47 +126,47 @@ namespace ContestantBE.Services
                 changePasswordDto.oldPassword = changePasswordDto.oldPassword?.Trim();
                 changePasswordDto.newPassword = changePasswordDto.newPassword?.Trim();
                 changePasswordDto.confirmPassword = changePasswordDto.confirmPassword?.Trim();
-                
+
                 // Validate input
-                if (string.IsNullOrEmpty(changePasswordDto.oldPassword) || 
-                string.IsNullOrEmpty(changePasswordDto.newPassword) || 
+                if (string.IsNullOrEmpty(changePasswordDto.oldPassword) ||
+                string.IsNullOrEmpty(changePasswordDto.newPassword) ||
                 string.IsNullOrEmpty(changePasswordDto.confirmPassword))
-            {
-                return BaseResponseDTO<string>.Fail("All password fields are required");
-            }
+                {
+                    return BaseResponseDTO<string>.Fail("All password fields are required");
+                }
 
-            // Check password length (max 20 characters)
-            if (changePasswordDto.newPassword.Length > 20)
-            {
-                return BaseResponseDTO<string>.Fail("Password must not exceed 20 characters");
-            }
+                // Check password length (max 20 characters)
+                if (changePasswordDto.newPassword.Length > 20)
+                {
+                    return BaseResponseDTO<string>.Fail("Password must not exceed 20 characters");
+                }
 
-            // Check if new password matches confirm password
-            if (changePasswordDto.newPassword != changePasswordDto.confirmPassword)
-            {
-                return BaseResponseDTO<string>.Fail("New password and confirm password do not match");
-            }
+                // Check if new password matches confirm password
+                if (changePasswordDto.newPassword != changePasswordDto.confirmPassword)
+                {
+                    return BaseResponseDTO<string>.Fail("New password and confirm password do not match");
+                }
 
-            // Get user from database
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-            
-            if (user == null)
-            {
-                return BaseResponseDTO<string>.Fail("User not found");
-            }
+                // Get user from database
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
 
-            // Verify old password
-            if (!SHA256Helper.VerifyPassword(changePasswordDto.oldPassword, user.Password))
-            {
-                return BaseResponseDTO<string>.Fail("Old password is incorrect");
-            }
+                if (user == null)
+                {
+                    return BaseResponseDTO<string>.Fail("User not found");
+                }
 
-            // Hash new password and update
-            user.Password = SHA256Helper.HashPasswordPythonStyle(changePasswordDto.newPassword);
-            
-            await _context.SaveChangesAsync();
+                // Verify old password (v2-only)
+                if (!SHA256Helper.VerifyPassword(changePasswordDto.oldPassword, user.Password))
+                {
+                    return BaseResponseDTO<string>.Fail("Old password is incorrect");
+                }
 
-            return BaseResponseDTO<string>.Ok("Password changed successfully", "Password changed successfully");
+                // Hash new password (v2) and update
+                user.Password = SHA256Helper.HashPasswordPythonStyle(changePasswordDto.newPassword);
+
+                await _context.SaveChangesAsync();
+
+                return BaseResponseDTO<string>.Ok("Password changed successfully", "Password changed successfully");
             }
             catch (Exception ex)
             {

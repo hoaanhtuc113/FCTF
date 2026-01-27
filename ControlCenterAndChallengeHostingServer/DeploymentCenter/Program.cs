@@ -48,6 +48,7 @@ namespace DeploymentCenter
                     b.AddSource(Telemetry.DeploymentCenterHttp)
                      .AddSource(Telemetry.DeploymentCenterRabbitMQ)
                      .AddAspNetCoreInstrumentation()
+                     .AddHttpClientInstrumentation()
                      .AddOtlpExporter();
                 });            
             // Register DeploymentConsumerService consumer

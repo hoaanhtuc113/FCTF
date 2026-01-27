@@ -98,7 +98,10 @@ namespace ContestantBE.Services
                 return BaseResponseDTO.Fail( "You are already in a team");
 
             var team = await _context.Teams.FirstOrDefaultAsync(t => t.Name == request.teamName);
-            if (team == null || !SHA256Helper.VerifyPassword(request.teamPassword, team.Password))
+            if (team == null)
+                return BaseResponseDTO.Fail( "Wrong team name or password");
+
+            if (!SHA256Helper.VerifyPassword(request.teamPassword, team.Password))
                 return BaseResponseDTO.Fail( "Wrong team name or password");
 
             int teamSizeLimit = _configHelper.GetConfig("team_size", 0);

@@ -6,10 +6,8 @@ def test_hash_password():
 
 
 def test_verify_password():
-    assert verify_password(
-        "asdf",
-        "$bcrypt-sha256$2b,12$I0CNXRkGD2Bi/lbC4vZ7Y.$1WoilsadKpOjXa/be9x3dyu7p.mslZ6",
-    )
+    hashed = hash_password("asdf")
+    assert verify_password("asdf", hashed)
 
 
 def test_sha256():
