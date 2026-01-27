@@ -48,13 +48,13 @@ namespace DeploymentConsumer.Services
             if (_channel == null || !_channel.IsOpen)
             {
                 _channel = await _connection.CreateChannelAsync();
-                
+
                 // Declare exchange, queue and binding to ensure they exist
                 // This makes the consumer idempotent and independent of producer startup order
                 await _channel.ExchangeDeclareAsync("deployment_exchange", ExchangeType.Direct, durable: true);
                 await _channel.QueueDeclareAsync(QueueName, durable: true, exclusive: false, autoDelete: false);
                 await _channel.QueueBindAsync(QueueName, "deployment_exchange", routingKey: "deploy");
-                
+
                 await _channel.BasicQosAsync(0, 40, false);
 
                 var consumer = new AsyncEventingBasicConsumer(_channel);
@@ -76,10 +76,12 @@ namespace DeploymentConsumer.Services
                     return;
                 }
 
+                // Preserve message headers (contains tracing context) so downstream worker can extract propagation context
                 await _messageBuffer.Writer.WriteAsync(new DequeuedMessage
                 {
                     DeliveryTag = ea.DeliveryTag,
-                    Payload = payload
+                    Payload = payload!,
+                    Headers = ea.BasicProperties?.Headers ?? new Dictionary<string, object?>()
                 });
             }
             catch
@@ -126,7 +128,7 @@ namespace DeploymentConsumer.Services
                 if (_channel != null) await _channel.CloseAsync();
                 if (_connection != null) await _connection.CloseAsync();
             }
-            catch {  }
+            catch { }
         }
     }
 }
