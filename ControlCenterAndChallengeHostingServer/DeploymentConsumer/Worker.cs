@@ -47,11 +47,12 @@ internal class Worker : BackgroundService
             try
             {
                 await ProcessAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(8), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in DeploymentConsumer Worker");
+                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
             }
         }
     }
