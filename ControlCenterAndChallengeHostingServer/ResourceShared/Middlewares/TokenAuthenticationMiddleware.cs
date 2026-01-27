@@ -1,13 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using ResourceShared.Attribute;
-using ResourceShared.Models;
 using ResourceShared.Logger;
-using System;
-using System.Linq;
+using ResourceShared.Models;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace ResourceShared.Middlewares
 {
@@ -16,7 +12,9 @@ namespace ResourceShared.Middlewares
         private readonly RequestDelegate _next;
         private readonly IServiceScopeFactory _scopeFactory;
 
-        public TokenAuthenticationMiddleware(RequestDelegate next, IServiceScopeFactory scopeFactory)
+        public TokenAuthenticationMiddleware(
+            RequestDelegate next,
+            IServiceScopeFactory scopeFactory)
         {
             _next = next;
             _scopeFactory = scopeFactory;
@@ -91,7 +89,7 @@ namespace ResourceShared.Middlewares
                 {
                     var logger = scope.ServiceProvider.GetRequiredService<AppLogger>();
                     var userId = context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-                    int.TryParse(userId, out var id);
+                    _ = int.TryParse(userId, out var id);
                     logger.LogError(ex, id > 0 ? id : null, data: new { path = context.Request.Path });
                 }
 

@@ -18,7 +18,9 @@ namespace DeploymentCenter.Controllers
 
         private readonly IDeployService _deployService;
         private readonly AppDbContext _dbContext;
-        public ChallengeController(IDeployService deployService, AppDbContext dbContext)
+        public ChallengeController(
+            IDeployService deployService,
+            AppDbContext dbContext)
         {
             _deployService = deployService;
             _dbContext = dbContext;
@@ -29,11 +31,15 @@ namespace DeploymentCenter.Controllers
         public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
         {
             await Console.Out.WriteLineAsync($"Received Start Challenge request. Challenge{challengeStartReq.challengeId}, Team{challengeStartReq.teamId}, User{challengeStartReq.userId}");
-            if (challengeStartReq == null || challengeStartReq.challengeId <= 0 || challengeStartReq.teamId == 0 || challengeStartReq.userId == null)
+
+            if (challengeStartReq == null
+                || challengeStartReq.challengeId <= 0
+                || challengeStartReq.teamId == 0
+                || challengeStartReq.userId == null)
             {
                 return BadRequest(new ChallengeDeployResponeDTO
                 {
-                    status = (int) HttpStatusCode.BadRequest,
+                    status = (int)HttpStatusCode.BadRequest,
                     success = false,
                     message = "Invalid request data."
                 });
@@ -52,7 +58,9 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> StopChallenge([FromBody] ChallengeStartStopReqDTO challengeStopReq)
         {
-            if (challengeStopReq == null || challengeStopReq.challengeId <= 0 || challengeStopReq.teamId == 0)
+            if (challengeStopReq == null
+                || challengeStopReq.challengeId <= 0
+                || challengeStopReq.teamId == 0)
             {
                 return BadRequest(new ChallengeDeployResponeDTO
                 {
@@ -75,7 +83,9 @@ namespace DeploymentCenter.Controllers
         [RequireSecretKey]
         public async Task<IActionResult> StopAllChallenges([FromBody] ChallengeStartStopReqDTO challengeStopReq)
         {
-            var user =  await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == challengeStopReq.userId);
+            var user = await _dbContext.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == challengeStopReq.userId);
             if (user == null || user.Type != "admin")
             {
                 return BadRequest(new ChallengeDeployResponeDTO
@@ -97,9 +107,11 @@ namespace DeploymentCenter.Controllers
 
         [HttpPost("deployment-logs/{workflowName}")]
         [RequireSecretKey]
-        public async Task<IActionResult> GetDeploymentLogs(string workflowName,[FromBody] ChallengeStartStopReqDTO challengeStopReq)
+        public async Task<IActionResult> GetDeploymentLogs(
+            string workflowName,
+            [FromBody] ChallengeStartStopReqDTO challengeStopReq)
         {
-           
+
             var response = await _deployService.GetDeploymentLogs(workflowName);
             return response.HttpStatusCode switch
             {
@@ -122,6 +134,6 @@ namespace DeploymentCenter.Controllers
                 HttpStatusCode.NotFound => NotFound(response),
                 _ => StatusCode((int)response.HttpStatusCode, response)
             };
-        } 
+        }
     }
 }

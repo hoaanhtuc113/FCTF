@@ -20,7 +20,7 @@ namespace ResourceShared.Utils
         public async Task<string> GenerateUserToken(
             User user,
             DateTime? expiration = null,
-            string description = null)
+            string? description = null)
         {
             // Tạo UUID unique cho mỗi lần login
             var tokenUuid = Guid.NewGuid().ToString();
