@@ -1,12 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using ResourceShared.Utils;
-using System;
-using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace DeploymentCenter.Middlewares
 {
@@ -18,7 +13,7 @@ namespace DeploymentCenter.Middlewares
         {
             var headers = context.HttpContext.Request.Headers;
 
-            if (!headers.ContainsKey("SecretKey"))
+            if (!headers.TryGetValue("SecretKey", out Microsoft.Extensions.Primitives.StringValues value))
             {
                 context.Result = new ContentResult()
                 {
@@ -28,7 +23,7 @@ namespace DeploymentCenter.Middlewares
                 return;
             }
 
-            string? receivedSecretKey = headers["SecretKey"];
+            string? receivedSecretKey = value;
             if (string.IsNullOrEmpty(receivedSecretKey))
             {
                 context.Result = new ContentResult()
@@ -48,8 +43,8 @@ namespace DeploymentCenter.Middlewares
                 _requiredFields.UnionWith(form.Keys);
 
                 data = form
-                .Where(kv => _requiredFields.Contains(kv.Key) && !context.HttpContext.Request.Form.Files.Any(f => f.Name == kv.Key))
-                .ToDictionary(k => k.Key, v => v.Value.ToString());
+                    .Where(kv => _requiredFields.Contains(kv.Key) && !context.HttpContext.Request.Form.Files.Any(f => f.Name == kv.Key))
+                    .ToDictionary(k => k.Key, v => v.Value.ToString());
 
                 if (form.ContainsKey("unixTime"))
                 {
@@ -60,58 +55,55 @@ namespace DeploymentCenter.Middlewares
             else
             {
                 // Body đã được enable buffering trong Program.cs
-                using (var reader = new StreamReader(context.HttpContext.Request.Body, leaveOpen: true))
+                using var reader = new StreamReader(context.HttpContext.Request.Body, leaveOpen: true);
+                string bodyContent = await reader.ReadToEndAsync();
+                context.HttpContext.Request.Body.Position = 0;
+
+
+                if (string.IsNullOrWhiteSpace(bodyContent))
                 {
-                    string bodyContent = await reader.ReadToEndAsync();
-                    context.HttpContext.Request.Body.Position = 0;
-
-
-                    if (string.IsNullOrWhiteSpace(bodyContent))
+                    context.Result = new ContentResult()
                     {
-                        context.Result = new ContentResult()
-                        {
-                            StatusCode = 400,
-                            Content = $"[Middlewares] Request body is empty"
-                        };
-                        return;
-                    }
-                    
-                    var bodyData = JsonSerializer.Deserialize<Dictionary<string, object>>(bodyContent);
-
-                    if (bodyData == null)
-                    {
-                        context.Result = new ContentResult()
-                        {
-                            StatusCode = 400,
-                            Content = "[Middlewares] Invalid Json data"
-                        };
-                        return;
-                    }
-
-                    if (bodyData.ContainsKey("unixTime"))
-                    {
-                        var unixTimeValue = bodyData["unixTime"];
-                        // JsonElement cần được xử lý đúng cách
-                        if (unixTimeValue is JsonElement jsonElement)
-                        {
-                            if (jsonElement.ValueKind == JsonValueKind.String)
-                            {
-                                long.TryParse(jsonElement.GetString(), out unixTime);
-                            }
-                            else if (jsonElement.ValueKind == JsonValueKind.Number)
-                            {
-                                unixTime = jsonElement.GetInt64();
-                            }
-                        }
-                        else
-                        {
-                            long.TryParse(unixTimeValue?.ToString(), out unixTime);
-                        }
-                        bodyData.Remove("unixTime");
-                    }
-
-                    data = bodyData.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? string.Empty);
+                        StatusCode = 400,
+                        Content = $"[Middlewares] Request body is empty"
+                    };
+                    return;
                 }
+
+                var bodyData = JsonSerializer.Deserialize<Dictionary<string, object>>(bodyContent);
+
+                if (bodyData == null)
+                {
+                    context.Result = new ContentResult()
+                    {
+                        StatusCode = 400,
+                        Content = "[Middlewares] Invalid Json data"
+                    };
+                    return;
+                }
+
+                if (bodyData.TryGetValue("unixTime", out object? unixTimeValue))
+                {
+                    // JsonElement cần được xử lý đúng cách
+                    if (unixTimeValue is JsonElement jsonElement)
+                    {
+                        if (jsonElement.ValueKind == JsonValueKind.String)
+                        {
+                            _ = long.TryParse(jsonElement.GetString(), out unixTime);
+                        }
+                        else if (jsonElement.ValueKind == JsonValueKind.Number)
+                        {
+                            unixTime = jsonElement.GetInt64();
+                        }
+                    }
+                    else
+                    {
+                        _ = long.TryParse(unixTimeValue?.ToString(), out unixTime);
+                    }
+                    bodyData.Remove("unixTime");
+                }
+
+                data = bodyData.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? string.Empty);
             }
             string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
 

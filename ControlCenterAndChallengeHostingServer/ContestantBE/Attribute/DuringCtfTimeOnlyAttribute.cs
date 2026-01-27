@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using ResourceShared.Extensions;
 using ResourceShared.Utils;
 using System.Security.Claims;
 
