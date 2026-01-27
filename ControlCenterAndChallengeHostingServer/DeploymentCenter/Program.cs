@@ -3,13 +3,14 @@ using DeploymentCenter.Services;
 using DeploymentCenter.Utils;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Configs;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
-using ResourceShared.Services.RabbitMQ;
 using ResourceShared.Utils;
 using StackExchange.Redis;
+using System.Diagnostics;
 
 namespace DeploymentCenter
 {
@@ -34,12 +35,39 @@ namespace DeploymentCenter
                     new MySqlServerVersion(new Version(10, 11, 0))
                 )
             );
-           new DeploymentCenterConfigHelper().InitConfig();
+            new DeploymentCenterConfigHelper().InitConfig();
             builder.Services.AddControllers();
             builder.Services.AddResourceShared();
             builder.Services.AddScoped<IDeployService, DeployService>();
-            // DI services from ResourceShared
-            
+
+            builder.Services.AddSingleton<HttpTelemetrySource>();
+            builder.Services.AddSingleton<RabbitMqTelemetrySource>();
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(b =>
+                {
+                    b.AddSource(Telemetry.DeploymentCenterHttp)
+                     .AddSource(Telemetry.DeploymentCenterRabbitMQ)
+                     .AddAspNetCoreInstrumentation()
+                     .AddOtlpExporter();
+                });            
+            // Register DeploymentConsumerService consumer
+            builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
+            {
+                // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
+                var host = SharedConfig.RABBIT_HOST;
+                var user = SharedConfig.RABBIT_USERNAME;
+                var pass = SharedConfig.RABBIT_PASSWORD;
+                var port = SharedConfig.RABBIT_PORT;
+                var rabbitMqTelemetrySource = sp.GetRequiredService<RabbitMqTelemetrySource>();
+
+                return new DeploymentProducerService(
+                    host,
+                    user,
+                    pass,
+                    port,
+                    rabbitMqTelemetrySource.Source);
+            });
+
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -53,20 +81,8 @@ namespace DeploymentCenter
                 );
             });
 
-            // Register DeploymentConsumerService consumer
-            builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
-            {
-                // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
-                var host = SharedConfig.RABBIT_HOST;
-                var user = SharedConfig.RABBIT_USERNAME;
-                var pass = SharedConfig.RABBIT_PASSWORD;
-                var port = SharedConfig.RABBIT_PORT;
-
-                return new DeploymentProducerService(host, user, pass, port);
-            });
-
             var app = builder.Build();
-            
+
             // Enable buffering for all requests để có thể đọc body nhiều lần
             app.Use(async (context, next) =>
             {

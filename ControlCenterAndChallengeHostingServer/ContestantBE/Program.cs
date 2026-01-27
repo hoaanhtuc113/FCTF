@@ -1,17 +1,16 @@
-using System;
 using ContestantBE.Interfaces;
 using ContestantBE.Services;
-using ResourceShared.Extensions;
-using ResourceShared.Middlewares;
 using ContestantBE.Utils;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using ResourceShared;
-using ResourceShared.Configs;
+using ResourceShared.Middlewares;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using StackExchange.Redis;
+using System.Diagnostics;
 
 namespace ContestantBE
 {
@@ -28,9 +27,9 @@ namespace ContestantBE
             // Add services to the container.
             builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(
                 connectionString,
-                new MySqlServerVersion(new Version(10, 11, 0)) 
+                new MySqlServerVersion(new Version(10, 11, 0))
             ));
-           
+
             builder.Services.AddControllers();
             builder.Services.AddHttpClient();
             builder.Services.AddEndpointsApiExplorer();
@@ -78,7 +77,7 @@ namespace ContestantBE
             builder.Services.AddScoped<ScoreHelper>();
             builder.Services.AddScoped<UserHelper>();
             builder.Services.AddHttpContextAccessor();
-          
+
             builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
             builder.Services.AddScoped<IFileService, FileService>();
             builder.Services.AddScoped<INotificationServices, NotificationServices>();
@@ -88,9 +87,18 @@ namespace ContestantBE
             new ContestantBEConfigHelper().InitConfig();
             // DI services from ResourceShared
             builder.Services.AddResourceShared();
+
+            builder.Services.AddSingleton(_ => new ActivitySource(Telemetry.ContestantBEHttp));
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(b =>
+                {
+                    b.AddSource(Telemetry.ContestantBEHttp)
+                     .AddAspNetCoreInstrumentation()
+                     .AddOtlpExporter();
+                });
+
             builder.Logging.ClearProviders();
             builder.Logging.AddJsonConsole();
-
 
             builder.Services.AddCors(options =>
             {
@@ -102,15 +110,25 @@ namespace ContestantBE
             });
             builder.Services.AddOutputCache();
 
+            builder.Services.AddOpenTelemetry()
+                .WithTracing(t =>
+                    {
+                        t.SetResourceBuilder(
+                             ResourceBuilder.CreateDefault()
+                               .AddService("contestant-be"))
+                         .AddAspNetCoreInstrumentation()
+                         .AddHttpClientInstrumentation()
+                         .AddOtlpExporter();
+                    });
 
             var app = builder.Build();
-            app.UseRouting();                    
-            app.UseCors("AllowAll");                   
+            app.UseRouting();
+            app.UseCors("AllowAll");
             app.UseOutputCache();
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseMiddleware<TokenAuthenticationMiddleware>();
-            app.MapControllers();                 
+            app.MapControllers();
 
             await Console.Out.WriteLineAsync("Config server done, run application....");
             app.Run();

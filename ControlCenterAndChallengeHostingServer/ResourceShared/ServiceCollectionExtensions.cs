@@ -49,7 +49,7 @@ namespace ResourceShared
 
                 return multiplexer;
             });
-            
+
             services.AddScoped<RedisHelper>();
             services.AddSingleton<RedisLockHelper>();
             services.AddSingleton<IKubernetes>(_ =>
@@ -93,7 +93,7 @@ namespace ResourceShared
                 };
             });
             services.AddSingleton<AppLogger>();
-
+            services.AddSingleton<MultiServiceConnector>();
 
             //services.AddAuthorization();
             return services;
