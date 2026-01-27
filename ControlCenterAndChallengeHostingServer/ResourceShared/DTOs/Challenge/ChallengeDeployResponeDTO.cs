@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 namespace ResourceShared.DTOs.Challenge
 {
+    using System.Text.Json.Serialization;
+
     public class ChallengeDeployResponeDTO
     {
         public int status { get; set; }
@@ -14,5 +16,8 @@ namespace ResourceShared.DTOs.Challenge
         public string? message { get; set; }
         public string? challenge_url { get; set; }
         public int time_limit { get; set; }
+        // Current pod/deployment status (strongly-typed)
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public Enums.DeploymentStatusEnum? pod_status { get; set; }
     }
 }
