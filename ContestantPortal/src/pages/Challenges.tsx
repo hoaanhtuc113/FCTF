@@ -3494,9 +3494,8 @@ function ChallengeDetailPanel({
                   >
                     <span>[-] Deleting...</span>
                   </button>
-                ) : (
-                {/* Show Health Checking state if health check is in progress */}
-                {isHealthChecking || isDeploymentInProgress ? (
+                ) : 
+                  isHealthChecking || isDeploymentInProgress ? (
                   <button
                     disabled={true}
                     className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
