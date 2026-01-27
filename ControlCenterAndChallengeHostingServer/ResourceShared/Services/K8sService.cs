@@ -396,7 +396,7 @@ namespace ResourceShared.Services
                             new { resourceVersion, label });
                     }
 
-                    var listTask =
+                    using var listTask =
                         _kubernetes.CoreV1.ListPodForAllNamespacesWithHttpMessagesAsync(
                             labelSelector: label,
                             watch: true,
@@ -425,11 +425,12 @@ namespace ResourceShared.Services
                     );
 #pragma warning restore CS0618
 
-                    await foreach (var (eventType, pod) in watcher)
+                    await foreach (var (eventType, pod) in watcher.WithCancellation(cancellationToken))
                     {
+
+                        resourceVersion = pod.Metadata.ResourceVersion;
                         try
                         {
-                            resourceVersion = pod.Metadata.ResourceVersion;
                             await ProcessPodChangeAsync(pod, eventType, statusHandler);
                         }
                         catch (Exception ex)
@@ -441,6 +442,7 @@ namespace ResourceShared.Services
                                 errorType = "WatcherLogicError"
                             });
                         }
+                        if (forceResync) break;
                     }
 
                     retryCount = 0;
