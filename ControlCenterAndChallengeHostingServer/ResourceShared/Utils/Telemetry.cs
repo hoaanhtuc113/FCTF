@@ -11,25 +11,21 @@ public static class Telemetry
     public const string DeploymentConsumerRabbitMQ = "deploymentconsumer.rabbitmq";
     public const string DeploymentConsumerHttp = "deploymentconsumer.http";
 
-    public static PropagationContext ExtractTraceContext(
-    IDictionary<string, object>? headers)
+    public static PropagationContext Extract(IDictionary<string, object?> headers)
     {
-        if (headers == null)
-            return default;
-
         return Propagators.DefaultTextMapPropagator.Extract(
             default,
             headers,
-            (h, key) =>
+            (dict, key) =>
             {
-                if (!h.TryGetValue(key, out var value))
-                    return [];
+                if (!dict.TryGetValue(key, out var value)) return [];
 
-                if (value is byte[] bytes)
-                    return [Encoding.UTF8.GetString(bytes)];
-
-                return [];
+                return value switch
+                {
+                    byte[] bytes => [Encoding.UTF8.GetString(bytes)],
+                    string s => [s],
+                    _ => []
+                };
             });
     }
-
 }
