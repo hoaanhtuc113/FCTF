@@ -4,55 +4,38 @@ using ResourceShared.Extensions;
 using ResourceShared.Utils;
 using System.Security.Claims;
 
-namespace ContestantBE.Attribute
+namespace ContestantBE.Attribute;
+
+public class DuringCtfTimeOnlyAttribute : ActionFilterAttribute
 {
-    public class DuringCtfTimeOnlyAttribute : ActionFilterAttribute
+    public DuringCtfTimeOnlyAttribute()
     {
+    }
 
+    public override void OnActionExecuting(ActionExecutingContext context)
+    {
+        var ctfTimeHelper = context.HttpContext.RequestServices.GetService(typeof(CtfTimeHelper)) as CtfTimeHelper;
+        var configHelper = context.HttpContext.RequestServices.GetService(typeof(ConfigHelper)) as ConfigHelper;
 
-        private  CtfTimeHelper _ctfTimeHelper;
-        private  ConfigHelper _configHelper;
+        if (ctfTimeHelper!.CtfTime())
+            return;
 
-        public DuringCtfTimeOnlyAttribute()
+        if (ctfTimeHelper.CtfEnded())
         {
+            context.Result = new JsonResult(new { error = $"{configHelper!.CtfName()} has ended" }) { StatusCode = 403 };
+            return;
         }
 
-        public override void OnActionExecuting(ActionExecutingContext context)
+        if (!ctfTimeHelper.CtfStarted())
         {
-            _ctfTimeHelper = context.HttpContext.RequestServices.GetService(typeof(CtfTimeHelper)) as CtfTimeHelper;
-            _configHelper = context.HttpContext.RequestServices.GetService(typeof(ConfigHelper)) as ConfigHelper;
-            if (_ctfTimeHelper.CtfTime())
-            {
-                return;
-            }
-            else
-            {
-                if (_ctfTimeHelper.CtfEnded())
-                {
-                    // if (_ctfTimeHelper.ViewAfterCtf() != null)
-                    // {
-                    //     return;
-                    // }
-                    // else
-                    // {
-                        context.Result = new JsonResult(new { error = $"{_configHelper.CtfName()} has ended" }) { StatusCode = 403 };
-                        return;
-                    // }
-                }
-                if (!_ctfTimeHelper.CtfStarted())
-                {
-                    if (_configHelper.IsTeamsMode() && context.HttpContext.User.FindFirstValue("teamId") == null)
-                    {
-                        context.Result = new JsonResult(new { error = "You must join a team to participate in this CTF" }) { StatusCode = 403 };
-                        return;
-                    }
-                    else
-                    {
-                        context.Result = new JsonResult(new { error = $"{_configHelper.GetConfig("ctf_name")} has not started yet" }) { StatusCode = 403 };
-                        return;
-                    }
-                }
-            }
+            context.Result = new JsonResult(new { error = $"{configHelper!.GetConfig("ctf_name")} has not started yet" }) { StatusCode = 403 };
+            return;
+        }
+
+        if (configHelper!.IsTeamsMode() && context.HttpContext.User.FindFirstValue("teamId") == null)
+        {
+            context.Result = new JsonResult(new { error = "You must join a team to participate in this CTF" }) { StatusCode = 403 };
+            return;
         }
     }
 }
