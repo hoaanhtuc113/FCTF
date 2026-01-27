@@ -10,7 +10,6 @@ using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
 using System.Net;
 using System.Text.Json;

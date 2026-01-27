@@ -1,26 +1,12 @@
 ﻿using DeploymentCenter.Middlewares;
 using DeploymentCenter.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ResourceShared;
-using ResourceShared.Attribute;
-using ResourceShared.Configs;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Deployments;
-using ResourceShared.Extensions;
-using ResourceShared.Models;
-using ResourceShared.Utils;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
-using StackExchange.Redis;
 using System.Net;
-using System.Net.WebSockets;
-using System.Security.Claims;
-using System.Text.Json;
 
-namespace HealthCheckService.Controllers
+namespace DeploymentCenter.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

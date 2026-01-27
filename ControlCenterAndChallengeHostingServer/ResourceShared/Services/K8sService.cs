@@ -8,7 +8,6 @@ using ResourceShared.DTOs.Deployments;
 using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
 using System.Net;
 using System.Text;
 using System.Text.Json;

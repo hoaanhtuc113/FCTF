@@ -1,28 +1,16 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Services;
 using ContestantBE.Utils;
-using k8s.KubeConfigModels;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared;
-using ResourceShared.Attribute;
-using ResourceShared.Configs;
 using ResourceShared.DTOs.Challenge;
-using ResourceShared.DTOs.Deployments;
-using ResourceShared.DTOs.File;
-using ResourceShared.Extensions;
 using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using SocialSync.Shared.Utils.ResourceShared.Utils;
-using StackExchange.Redis;
-using System.Linq;
 using System.Net;
-using System.Net.WebSockets;
 using System.Security.Claims;
-using YamlDotNet.Core.Tokens;
 using static ResourceShared.Enums;
 
 namespace ContestantBE.Controllers
