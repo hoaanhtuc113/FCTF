@@ -16,7 +16,12 @@ namespace ContestantBE.Services
         private readonly RedisLockHelper _redisLockHelper;
         private readonly AppLogger _logger;
 
-        public HintService(AppDbContext context, ScoreHelper scoreHelper, ConfigHelper configHelper, RedisLockHelper redisLockHelper, AppLogger logger)
+        public HintService(
+            AppDbContext context,
+            ScoreHelper scoreHelper,
+            ConfigHelper configHelper,
+            RedisLockHelper redisLockHelper,
+            AppLogger logger)
         {
             _context = context;
             _scoreHelper = scoreHelper;

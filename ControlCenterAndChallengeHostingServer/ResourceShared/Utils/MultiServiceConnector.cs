@@ -21,20 +21,6 @@ namespace ResourceShared.Utils
             });
         }
 
-        private static void InjectTraceContext(RestRequest request)
-        {
-            if (Activity.Current == null)
-                return;
-
-            var context = Activity.Current.Context;
-
-            Propagators.DefaultTextMapPropagator.Inject(
-                new PropagationContext(context, Baggage.Current),
-                request,
-                (req, key, value) => req.AddHeader(key, value)
-            );
-        }
-
         public async Task<string?> ExecuteNormalRequest(
             string baseUrl,
             string apiPath,

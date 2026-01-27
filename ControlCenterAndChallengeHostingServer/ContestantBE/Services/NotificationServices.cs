@@ -13,7 +13,7 @@ namespace ContestantBE.Services
     public class NotificationServices : INotificationServices
     {
 
-        private AppDbContext _context;
+        private readonly AppDbContext _context;
         private readonly AppLogger _logger;
 
         public NotificationServices(AppDbContext context, AppLogger logger)
@@ -27,20 +27,20 @@ namespace ContestantBE.Services
             try
             {
                 var notifications = await _context.Notifications.ToListAsync();
-            var data = notifications.Select(n => new NotificationDTO
-            {
-                Id = n.Id,
-                Content = n.Content,
-                Title = n.Title,
-                Date = n.Date,
-                User_id = n.UserId,
-                User = n.User,
-                Team_id = n.TeamId,
-                Team = n.Team,
-                html = n.Content,
-            });
+                var data = notifications.Select(n => new NotificationDTO
+                {
+                    Id = n.Id,
+                    Content = n.Content,
+                    Title = n.Title,
+                    Date = n.Date,
+                    User_id = n.UserId,
+                    User = n.User,
+                    Team_id = n.TeamId,
+                    Team = n.Team,
+                    html = n.Content,
+                });
 
-            return data.ToList();
+                return data.ToList();
             }
             catch (Exception ex)
             {

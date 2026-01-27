@@ -1,11 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using ResourceShared.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ResourceShared.Utils
 {
@@ -42,30 +36,28 @@ namespace ResourceShared.Utils
 
         public object GetConfig(string key)
         {
-            using (var context = new AppDbContext(_dbOptions))
+            using var context = new AppDbContext(_dbOptions);
+            // If not in cache, query database
+            var config = context.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
+            object result;
+
+            if (config != null && !string.IsNullOrEmpty(config.Value))
             {
-                // If not in cache, query database
-                var config = context.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
-                object result;
-                
-                if (config != null && !string.IsNullOrEmpty(config.Value))
-                {
-                    string value = config.Value;
+                string value = config.Value;
 
-                    if (int.TryParse(value, out int intVal))
-                        result = intVal;
-                    else if (bool.TryParse(value, out bool boolVal))
-                        result = boolVal;
-                    else
-                        result = value;
-                }
+                if (int.TryParse(value, out int intVal))
+                    result = intVal;
+                else if (bool.TryParse(value, out bool boolVal))
+                    result = boolVal;
                 else
-                {
-                    result = new KeyNotFoundException();
-                }
-
-                return result;
+                    result = value;
             }
+            else
+            {
+                result = new KeyNotFoundException();
+            }
+
+            return result;
         }
         private long ToLong(object val,int defaultValue=3)
         {
