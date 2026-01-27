@@ -4,7 +4,7 @@ metadata:
   namespace: app
   name: deployment-listener
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: deployment-listener
@@ -19,10 +19,6 @@ spec:
       containers:
         - name: deployment-listener
           image: quachuoiscontainer/fctf:deployment-listener-prod-v3.10.1
-          ports:
-            - name: http-client
-              containerPort: 5030
-              protocol: TCP
           envFrom:
             - configMapRef:
                 name: common-be-cm

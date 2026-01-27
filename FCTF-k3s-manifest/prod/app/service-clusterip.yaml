@@ -54,18 +54,3 @@ spec:
   selector:
     app: deployment-center
   type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: app
-  name: deployment-listener-svc
-spec:
-  ports:
-    - protocol: TCP
-      port: 5030
-      targetPort: 5030
-  selector:
-    app: deployment-listener
-  type: ClusterIP
----
