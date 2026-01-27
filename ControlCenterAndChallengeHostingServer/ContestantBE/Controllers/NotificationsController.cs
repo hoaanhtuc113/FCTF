@@ -1,13 +1,6 @@
 ﻿using ContestantBE.Services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ResourceShared.DTOs.Notification;
-using ResourceShared.Models;
-using System.Threading.Tasks;
-using ContestantBE.Attribute;
-using ResourceShared.Attribute;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]

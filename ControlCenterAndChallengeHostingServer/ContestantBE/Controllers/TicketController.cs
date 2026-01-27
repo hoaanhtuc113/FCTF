@@ -1,16 +1,9 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ResourceShared.Attribute;
-using ResourceShared.DTOs.Team;
 using ResourceShared.DTOs.Ticket;
-using ResourceShared.Extensions;
 using ResourceShared.Logger;
-using ResourceShared.Models;
-using ResourceShared.Utils;
 using System.Security.Claims;
 
 namespace ContestantBE.Controllers
