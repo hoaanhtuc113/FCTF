@@ -94,6 +94,7 @@ namespace ContestantBE
                 {
                     b.AddSource(Telemetry.ContestantBEHttp)
                      .AddAspNetCoreInstrumentation()
+                     .AddHttpClientInstrumentation()
                      .AddOtlpExporter();
                 });
 
@@ -109,17 +110,6 @@ namespace ContestantBE
                 );
             });
             builder.Services.AddOutputCache();
-
-            builder.Services.AddOpenTelemetry()
-                .WithTracing(t =>
-                    {
-                        t.SetResourceBuilder(
-                             ResourceBuilder.CreateDefault()
-                               .AddService("contestant-be"))
-                         .AddAspNetCoreInstrumentation()
-                         .AddHttpClientInstrumentation()
-                         .AddOtlpExporter();
-                    });
 
             var app = builder.Build();
             app.UseRouting();
