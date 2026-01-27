@@ -5,12 +5,9 @@ using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Trace;
 using ResourceShared;
-using ResourceShared.Configs;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using StackExchange.Redis;
-using System.Diagnostics;
 
 namespace DeploymentCenter;
 
@@ -20,13 +17,11 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-
         builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
         Env.Load();
         builder.Configuration.AddEnvironmentVariables();
 
         var connectionString = builder.Configuration["DB_CONNECTION"];
-
 
         // Add services to the container.
         builder.Services.AddDbContext<AppDbContext>(options =>

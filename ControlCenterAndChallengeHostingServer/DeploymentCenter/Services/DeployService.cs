@@ -143,8 +143,7 @@ namespace DeploymentCenter.Services
             {
                 await _redisHelper.RemoveCacheAsync(deploymentKey);
 
-                _logger.LogError(ex, null, startReq.teamId, new { challengeId = startReq.challengeId });
-                await Console.Error.WriteLineAsync($"Unexpected error: {ex.Message}");
+                _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
                 return new ChallengeDeployResponeDTO
                 {
                     status = (int)HttpStatusCode.InternalServerError,
@@ -160,7 +159,6 @@ namespace DeploymentCenter.Services
             {
                 var deploymentKey = ChallengeHelper.GetCacheKey(stopReq.challengeId, stopReq.teamId);
                 var deployInfo = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey);
-                //var pods = await _redisHelper.GetFromCacheAsync<List<PodInfo>>(RedisConfigs.PodsInfoKey);
 
                 if (deploymentKey == null || deployInfo == null)
                 {
@@ -172,14 +170,15 @@ namespace DeploymentCenter.Services
                     };
                 }
 
-
-                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == stopReq.userId);
+                var user = await _dbContext.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == stopReq.userId);
 
                 // Admin force delete: xóa namespace và cache ngay lập tức
-                if (user != null && user.Type == Enums.UserType.Admin)
+                if (user != null && user.Type == UserType.Admin)
                 {
                     await Console.Out.WriteLineAsync($"[Admin] Force deleting namespace {deployInfo._namespace}...");
-                    await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
+                    await _k8SHealthService.DeleteNamespace(deployInfo._namespace ?? string.Empty);
 
                     deployInfo.status = DeploymentStatus.STOPPED;
                     await _redisHelper.AtomicRemoveDeploymentZSet(stopReq.teamId.ToString(), deploymentKey, stopReq.challengeId.ToString());
@@ -247,13 +246,11 @@ namespace DeploymentCenter.Services
                 await _redisHelper.RemoveCacheByPattern("deploy_challenge_*");
                 await _redisHelper.RemoveCacheByPattern("active_deploys_team_*");
 
-
                 var message = $"Stopped {successCount} challenge namespace(s) successfully.";
                 if (failCount > 0)
                 {
                     message += $" {failCount} failed. Errors: {string.Join("; ", errors)}";
                 }
-
 
                 return new BaseResponseDTO
                 {
@@ -276,7 +273,6 @@ namespace DeploymentCenter.Services
         }
         public async Task<ChallengeDeployResponeDTO> StatusCheck(ChallengCheckStatusReqDTO statusReq)
         {
-
             try
             {
                 var deploymentKey = ChallengeHelper.GetCacheKey(statusReq.challengeId, statusReq.teamId);
@@ -297,10 +293,14 @@ namespace DeploymentCenter.Services
 
                 //var podStatus = await _k8SHealthService.CheckPodAliveInCache(podName);
 
-                if (deploymentCache.status == Enums.DeploymentStatus.RUNING && deploymentCache.ready)
+                if (deploymentCache.status == DeploymentStatus.RUNING && deploymentCache.ready)
                 {
                     // Nếu pod đang chạy thì lấy thông tin domain, port ... lưu vào cache và trả về cho client 
-                    var result = await _k8SHealthService.HandleChallengeRunning(statusReq.challengeId, deploymentCache.team_id, podName, deploymentCache);
+                    var result = await _k8SHealthService.HandleChallengeRunning(
+                        statusReq.challengeId,
+                        deploymentCache.team_id,
+                        podName,
+                        deploymentCache);
                     return result;
                 }
                 return new ChallengeDeployResponeDTO
@@ -312,8 +312,7 @@ namespace DeploymentCenter.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, null, statusReq.teamId, new { challengeId = statusReq.challengeId });
-                await Console.Error.WriteLineAsync($"Error during status check: {ex.Message}");
+                _logger.LogError(ex, null, statusReq.teamId, new { statusReq.challengeId });
                 return new ChallengeDeployResponeDTO
                 {
                     success = false,
