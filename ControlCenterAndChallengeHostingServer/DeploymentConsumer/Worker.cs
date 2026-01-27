@@ -78,26 +78,21 @@ internal class Worker : BackgroundService
 
         var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
 
-        using var batchActivity = _rabbitMQActivitySource.StartActivity(
-            "deployment.batch.process",
-            ActivityKind.Internal);
-
-        batchActivity?.SetTag("batch.size", messages.Count);
-        batchActivity?.SetTag("workflow.running", runningWorkflow);
-
         foreach (var mess in messages)
         {
-            var parentContext = Telemetry.ExtractTraceContext(mess.Headers);
+            var propagationContext = Telemetry.Extract(mess.Headers!);
 
             using var activity = _rabbitMQActivitySource.StartActivity(
-                "deployment.consume",
+                "rabbitmq.consume",
                 ActivityKind.Consumer,
-                parentContext.ActivityContext);
+                propagationContext.ActivityContext);
 
             activity?.SetTag("messaging.system", "rabbitmq");
             activity?.SetTag("messaging.destination", "deployment_queue");
-            activity?.SetTag("messaging.operation", "process");
+            activity?.SetTag("messaging.destination_kind", "queue");
+            activity?.SetTag("messaging.operation", "receive");
             activity?.SetTag("messaging.message_id", mess.DeliveryTag);
+
 
             _logger.LogInformation($"[Worker] Excuting message with tag {mess.DeliveryTag}");
 
@@ -155,6 +150,7 @@ internal class Worker : BackgroundService
                         .GetProperty("name")
                         .GetString()!;
 
+                    activity?.SetTag("messaging.acknowledge", true);
                     await queueService.AckAsync(mess.DeliveryTag);
                     _logger.LogInformation("Request send to argo. ChallengeId={ChallengeId}, TeamId={TeamId}, WorkflowName={WorkflowName}", startReq.challengeId, startReq.teamId, workflowName);
                     if (string.IsNullOrWhiteSpace(workflowName))
@@ -177,6 +173,7 @@ internal class Worker : BackgroundService
             {
                 activity?.AddException(ex);
                 activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity?.SetTag("messaging.acknowledge", false);
                 await queueService.NackAsync(mess.DeliveryTag);
                 _logger.LogError(ex, "Deploy failed. ChallengeId={ChallengeId}, TeamId={TeamId}", startReq.challengeId, startReq.teamId);
             }
