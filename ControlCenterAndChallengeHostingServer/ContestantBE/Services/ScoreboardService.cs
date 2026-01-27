@@ -15,7 +15,11 @@ namespace ContestantBE.Services
         private readonly AppLogger _logger;
         private readonly string _mode;
 
-        public ScoreboardService(AppDbContext context, ConfigHelper configHelper, ScoreHelper scoreHelper, AppLogger logger)
+        public ScoreboardService(
+            AppDbContext context,
+            ConfigHelper configHelper,
+            ScoreHelper scoreHelper,
+            AppLogger logger)
         {
             _context = context;
             _configHelper = configHelper;

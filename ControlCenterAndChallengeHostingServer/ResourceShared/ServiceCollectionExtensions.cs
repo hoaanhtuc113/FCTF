@@ -1,5 +1,4 @@
 ﻿using k8s;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -10,11 +9,7 @@ using ResourceShared.Services;
 using ResourceShared.Utils;
 using SocialSync.Shared.Utils.ResourceShared.Utils;
 using StackExchange.Redis;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 namespace ResourceShared
 {
     public static class ServiceCollectionExtensions
@@ -95,7 +90,6 @@ namespace ResourceShared
             services.AddSingleton<AppLogger>();
             services.AddSingleton<MultiServiceConnector>();
 
-            //services.AddAuthorization();
             return services;
         }
     }

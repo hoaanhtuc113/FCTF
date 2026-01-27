@@ -7,7 +7,7 @@ namespace ResourceShared.Utils
 {
     public class ItsDangerousCompatHelper
     {
-        private static string secret = SharedConfig.PRIVATE_KEY;
+        private static readonly string secret = SharedConfig.PRIVATE_KEY;
         static int UnixNow() => (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         // serialize

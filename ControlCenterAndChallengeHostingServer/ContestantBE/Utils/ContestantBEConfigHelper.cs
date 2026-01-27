@@ -12,8 +12,8 @@ namespace ContestantBE.Utils
         public override void InitConfig()
         {
             base.InitConfig();
-            ContestantBEConfigHelper.DeploymentCenterAPI = configuration["DEPLOYMENT_SERVICE_API"] ?? throw new Exception("Can't read ServiceConfigs:DEPLOYMENT_SERVICE_API");
-            ContestantBEConfigHelper.NFS_MOUNT_PATH = configuration["NFS_MOUNT_PATH"] ?? throw new Exception("Can't read ServiceConfigs:NFS_MOUNT_PATH");
+            DeploymentCenterAPI = configuration["DEPLOYMENT_SERVICE_API"] ?? throw new Exception("Can't read ServiceConfigs:DEPLOYMENT_SERVICE_API");
+            NFS_MOUNT_PATH = configuration["NFS_MOUNT_PATH"] ?? throw new Exception("Can't read ServiceConfigs:NFS_MOUNT_PATH");
         }
     }
 }

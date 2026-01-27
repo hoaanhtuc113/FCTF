@@ -13,7 +13,7 @@ namespace ContestantBE.Services
     }
     public class ActionLogsServices : IActionLogsServices
     {
-        private AppDbContext _context;
+        private readonly AppDbContext _context;
 
         public ActionLogsServices(AppDbContext context)
         {
@@ -22,38 +22,40 @@ namespace ContestantBE.Services
 
         public async Task<List<ActionLogsDTO>> GetActionLogs()
         {
-            var data = await _context.ActionLogs.Include(al => al.User)
-                                                        .OrderByDescending(x => x.ActionDate)
-                                                        .Select(al => new ActionLogsDTO
-                                                        {
-                                                            ActionId = al.ActionId,
-                                                            ActionType = al.ActionType,
-                                                            ActionDate = al.ActionDate,
-                                                            ActionDetail = al.ActionDetail,
-                                                            TopicName = al.TopicName,
-                                                            UserId = al.UserId,
-                                                            UserName = al.User != null ? al.User.Name : ""
-                                                        })
-                                                        .ToListAsync();
+            var data = await _context.ActionLogs
+                .Include(al => al.User)
+                .OrderByDescending(x => x.ActionDate)
+                .Select(al => new ActionLogsDTO
+                {
+                    ActionId = al.ActionId,
+                    ActionType = al.ActionType,
+                    ActionDate = al.ActionDate,
+                    ActionDetail = al.ActionDetail,
+                    TopicName = al.TopicName,
+                    UserId = al.UserId,
+                    UserName = al.User != null ? al.User.Name : ""
+                })
+                .ToListAsync();
 
             return data;
         }
         public async Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId)
         {
-            var data = await _context.ActionLogs.Include(al => al.User)
-                                                        .Where(al => al.User != null && al.User.TeamId == teamId)
-                                                        .OrderByDescending(x => x.ActionDate)
-                                                        .Select(al => new ActionLogsDTO
-                                                        {
-                                                            ActionId = al.ActionId,
-                                                            ActionType = al.ActionType,
-                                                            ActionDate = al.ActionDate,
-                                                            ActionDetail = al.ActionDetail,
-                                                            TopicName = al.TopicName,
-                                                            UserId = al.UserId,
-                                                            UserName = al.User != null ? al.User.Name : ""
-                                                        })
-                                                        .ToListAsync();
+            var data = await _context.ActionLogs
+                .Include(al => al.User)
+                .Where(al => al.User != null && al.User.TeamId == teamId)
+                .OrderByDescending(x => x.ActionDate)
+                .Select(al => new ActionLogsDTO
+                {
+                    ActionId = al.ActionId,
+                    ActionType = al.ActionType,
+                    ActionDate = al.ActionDate,
+                    ActionDetail = al.ActionDetail,
+                    TopicName = al.TopicName,
+                    UserId = al.UserId,
+                    UserName = al.User != null ? al.User.Name : ""
+                })
+                .ToListAsync();
 
             return data;
         }
@@ -61,9 +63,9 @@ namespace ContestantBE.Services
         public async Task<ActionLogsDTO> SaveActionLogs(ActionLogsReq req, int userId)
         {
             var topic_name = await _context.Challenges
-                                            .Where(c => c.Id == req.ChallengeId)
-                                            .Select(c => c.Category)
-                                            .FirstOrDefaultAsync();
+                .Where(c => c.Id == req.ChallengeId)
+                .Select(c => c.Category)
+                .FirstOrDefaultAsync();
 
             var challenge = await _context.Challenges
                                         .Where(c => c.Id == req.ChallengeId)
@@ -81,20 +83,21 @@ namespace ContestantBE.Services
             _context.ActionLogs.Add(log);
             await _context.SaveChangesAsync();
 
-            var logs_with_usernames = await _context.ActionLogs.Include(al => al.User)
-                                                        .Where(al => al.UserId == userId)
-                                                        .OrderByDescending(x => x.ActionDate)
-                                                        .Select(al => new
-                                                        {
-                                                            al.ActionId,
-                                                            al.ActionType,
-                                                            al.ActionDate,
-                                                            al.ActionDetail,
-                                                            al.TopicName,
-                                                            al.UserId,
-                                                            UserName = al.User != null ? al.User.Name : ""
-                                                        })
-                                                        .ToListAsync();
+            var logs_with_usernames = await _context.ActionLogs
+                .Include(al => al.User)
+                .Where(al => al.UserId == userId)
+                .OrderByDescending(x => x.ActionDate)
+                .Select(al => new
+                {
+                    al.ActionId,
+                    al.ActionType,
+                    al.ActionDate,
+                    al.ActionDetail,
+                    al.TopicName,
+                    al.UserId,
+                    UserName = al.User != null ? al.User.Name : ""
+                })
+                .ToListAsync();
 
             return new ActionLogsDTO
             {

@@ -11,7 +11,7 @@ namespace ResourceShared.Utils
 {
     public class ProxyOptions
     {
-        public string[] TrustedProxies { get; set; } = Array.Empty<string>();
+        public string[] TrustedProxies { get; set; } = [];
     }
     public class CommonUserHelper
     {

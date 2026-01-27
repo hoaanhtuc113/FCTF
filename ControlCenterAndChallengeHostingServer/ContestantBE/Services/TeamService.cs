@@ -17,7 +17,12 @@ namespace ContestantBE.Services
         private readonly ScoreHelper _scoreHelper;
         private readonly AppLogger _logger;
 
-        public TeamService(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper, ScoreHelper scoreHelper, AppLogger logger)
+        public TeamService(
+            AppDbContext context,
+            CtfTimeHelper ctfTimeHelper,
+            ConfigHelper configHelper,
+            ScoreHelper scoreHelper,
+            AppLogger logger)
         {
             _context = context;
             _ctfTimeHelper = ctfTimeHelper;
