@@ -17,6 +17,6 @@ namespace ResourceShared.DTOs.RabbitMQ
     {
         public ulong DeliveryTag { get; set; }
         public DeploymentQueuePayload Payload { get; set; }
-        public IDictionary<string, object>? Headers { get; set; }
+        public IDictionary<string, object?>? Headers { get; set; }
     }
 }
