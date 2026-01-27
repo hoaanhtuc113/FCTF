@@ -55,6 +55,7 @@ var host = Host.CreateDefaultBuilder(args)
             {
                 b.AddSource(Telemetry.DeploymentConsumerHttp)
                  .AddSource(Telemetry.DeploymentConsumerRabbitMQ)
+                 .AddHttpClientInstrumentation()
                  .AddOtlpExporter();
             });        
 
