@@ -6,7 +6,6 @@ namespace ContestantBE.Services
 {
     public interface IActionLogsServices
     {
-
         Task<List<ActionLogsDTO>> GetActionLogs();
         Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId);
         Task<ActionLogsDTO> SaveActionLogs(ActionLogsReq req, int userId);

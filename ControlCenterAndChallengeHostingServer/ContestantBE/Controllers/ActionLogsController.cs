@@ -2,8 +2,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.ActionLogs;
-using ResourceShared.Extensions;
-using System;
 using System.Security.Claims;
 
 namespace ContestantBE.Controllers

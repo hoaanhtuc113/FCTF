@@ -1,11 +1,7 @@
-﻿using ContestantBE.Attribute;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ResourceShared.Attribute;
 using ResourceShared.DTOs.User;
-using ResourceShared.Extensions;
 using ResourceShared.Logger;
 using ResourceShared.Models;
 using System.Security.Claims;
@@ -17,9 +13,12 @@ namespace ContestantBE.Controllers
     public class UsersController : ControllerBase
     {
 
-        private AppDbContext _context;
-        private AppLogger _userBehaviorLogger;
-        public UsersController(AppDbContext context, AppLogger userBehaviorLogger) { 
+        private readonly AppDbContext _context;
+        private readonly AppLogger _userBehaviorLogger;
+        public UsersController(
+            AppDbContext context,
+            AppLogger userBehaviorLogger)
+        {
             this._context = context;
             this._userBehaviorLogger = userBehaviorLogger;
         }
@@ -45,12 +44,12 @@ namespace ContestantBE.Controllers
             }
 
 
-            if ( (currentUser.Banned.GetValueOrDefault() || currentUser.Hidden.GetValueOrDefault()))
+            if ((currentUser.Banned.GetValueOrDefault() || currentUser.Hidden.GetValueOrDefault()))
             {
                 return NotFound();
             }
 
-            if(currentUser.Team == null)
+            if (currentUser.Team == null)
             {
                 return NotFound(new
                 {

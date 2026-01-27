@@ -1,11 +1,7 @@
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ResourceShared.DTOs.Team;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using ContestantBE.Attribute;
-using ResourceShared.Attribute;
-using Microsoft.AspNetCore.Authorization;
 namespace ContestantBE.Controllers
 {
     [Route("api/[controller]")]
