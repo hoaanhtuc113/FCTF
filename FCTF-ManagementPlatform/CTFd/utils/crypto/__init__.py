@@ -6,7 +6,8 @@ from CTFd.utils import string_types
 
 
 def hash_password(plaintext):
-    return bcrypt_sha256.hash(str(plaintext))
+    # use rounds=10 to match .NET configuration (faster)
+    return bcrypt_sha256.using(rounds=10).hash(str(plaintext))
 
 
 def verify_password(plaintext, ciphertext):
