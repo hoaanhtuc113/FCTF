@@ -1066,6 +1066,40 @@ function ChallengeDetailPanel({
   const healthCheckRunningRef = useRef<boolean>(false);
   const stopChallengeRunningRef = useRef<boolean>(false);
 
+  useEffect(() => {
+    const raw = challenge.pod_status;
+    if (!raw) return;
+
+    const s = raw.toString().toLowerCase();
+
+    const categorize = (val: string) => {
+      if (val.includes('run') || val.includes('succeed')) return 'running';
+      if (val.includes('pending') || (val.includes('deploy') && !val.includes('failed'))) return 'pending';
+      if (val.includes('fail') || val.includes('stop') || val.includes('delet') || val.includes('timeout')) return 'failed';
+      return 'unknown';
+    };
+
+    const cat = categorize(s);
+    if (cat === 'running') {
+      setIsPodHealthy(true);
+      setIsHealthChecking(false);
+      setIsDeploymentInProgress(false);
+      setIsChallengeStarted(true);
+    } else if (cat === 'pending') {
+      setIsDeploymentInProgress(true);
+      setIsHealthChecking(true);
+      setIsPodHealthy(false);
+      setIsChallengeStarted(false);
+      setUrl(null);
+    } else if (cat === 'failed') {
+      setIsPodHealthy(false);
+      setIsHealthChecking(false);
+      setIsDeploymentInProgress(false);
+      setIsChallengeStarted(false);
+      setUrl(null);
+    }
+  }, [challenge.pod_status, challenge.id]);
+
   // Filter PDF files
   const pdfFiles = challenge.files?.filter(file => file.toLowerCase().includes('.pdf')) || [];
   const hasDescription = !!challenge.description;
@@ -1729,39 +1763,9 @@ function ChallengeDetailPanel({
     }
 
     healthCheckRunningRef.current = true;
-    const maxAttempts = 20;
-
-    // Restore attempts from localStorage if exists
-    const healthCheckKey = `healthcheck_${challenge.id}`;
-    const savedHealthCheck = localStorage.getItem(healthCheckKey);
-    let attempts = 0;
-
-    if (savedHealthCheck) {
-      try {
-        const healthCheckData = JSON.parse(savedHealthCheck);
-        attempts = healthCheckData.attempts || 0;
-      } catch (error) {
-        console.error('[Health Check] Error parsing saved attempts:', error);
-      }
-    }
 
     const checkStatus = async (): Promise<boolean> => {
       try {
-        attempts++;
-
-        // Save current attempts to localStorage
-        const healthCheckKey = `healthcheck_${challenge.id}`;
-        const savedHealthCheck = localStorage.getItem(healthCheckKey);
-        if (savedHealthCheck) {
-          try {
-            const healthCheckData = JSON.parse(savedHealthCheck);
-            healthCheckData.attempts = attempts;
-            localStorage.setItem(healthCheckKey, JSON.stringify(healthCheckData));
-          } catch (error) {
-            console.error('[Health Check] Error updating attempts:', error);
-          }
-        }
-
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START_CHECKING, {
           method: 'POST',
           body: JSON.stringify({
@@ -1855,8 +1859,10 @@ function ChallengeDetailPanel({
           return true; // Stop loop - SUCCESS
         }
 
-        // Max attempts reached
-        if (attempts >= maxAttempts) {
+        // If backend reports a terminal pod status (failed/stopped/deleting/timeout), stop and notify
+        const podStatus = (data.pod_status || data.podStatus || data.status || '').toString();
+        const terminalStatuses = ['Failed', 'DEPLOY_FAILED', 'Stopped', 'DELETING', 'TIMEOUT'];
+        if (podStatus && terminalStatuses.some(s => s.toLowerCase() === podStatus.toLowerCase())) {
           setIsHealthChecking(false);
           setIsPodHealthy(false);
           setIsDeploymentInProgress(false);
@@ -1873,13 +1879,13 @@ function ChallengeDetailPanel({
           localStorage.removeItem(deploymentKey);
           localStorage.removeItem(healthCheckKey);
 
-          // Show timeout notification
+          // Show failure/timeout notification
           Swal.fire({
             html: `
               <div class="font-mono text-left text-sm">
-                <div class="text-red-400 mb-2">[!] Health Check Timeout</div>
-                <div class="text-gray-400">> Pod failed to become ready</div>
-                <div class="text-gray-400">> Please try starting again</div>
+                <div class="text-red-400 mb-2">[!] ${ podStatus.toUpperCase() === 'TIMEOUT' ? 'Health Check Timeout' : 'Deployment Failed'}</div>
+                <div class="text-gray-400">> Pod failed to become ready </div>
+                <div class="text-gray-400">> ${data.message || 'Please try starting again'}</div>
               </div>
             `,
             icon: 'error',
@@ -1893,7 +1899,7 @@ function ChallengeDetailPanel({
             },
           });
 
-          return true; // Stop loop - TIMEOUT
+          return true; // Stop loop - terminal failure
         }
 
         // Continue checking silently
@@ -1903,50 +1909,9 @@ function ChallengeDetailPanel({
       } catch (error) {
         console.error('[Health Check] Error:', error);
 
-        // Continue trying even on error
-        if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          return checkStatus();
-        }
-
-        // Max attempts reached even with errors
-        setIsHealthChecking(false);
-        setIsPodHealthy(false);
-        setIsDeploymentInProgress(false);
-        setIsStarting(false);
-        healthCheckRunningRef.current = false;
-
-        // Clear URL to show Start button again
-        setUrl(null);
-        setIsChallengeStarted(false);
-
-        // Clear deployment state from localStorage
-        const deploymentKey = `deployment_${challenge.id}`;
-        const healthCheckKey = `healthcheck_${challenge.id}`;
-        localStorage.removeItem(deploymentKey);
-        localStorage.removeItem(healthCheckKey);
-
-        // Show error notification
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-red-400 mb-2">[!] Health Check Error</div>
-              <div class="text-gray-400">> Failed to check pod status</div>
-              <div class="text-gray-400">> Please try starting again</div>
-            </div>
-          `,
-          icon: 'error',
-          iconColor: '#ef4444',
-          confirmButtonText: 'OK',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#ef4444' : '#000000',
-          customClass: {
-            popup: 'rounded-lg border border-red-500/30',
-            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-          },
-        });
-
-        return true; // Stop loop - ERROR
+        // On error: wait and retry (no attempt limit) until backend returns terminal status
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        return checkStatus();
       }
     };
 
@@ -3518,8 +3483,19 @@ function ChallengeDetailPanel({
           {challenge.require_deploy && !challenge.solve_by_myteam &&
             !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className="space-y-2">
-                {/* Show Health Checking state if health check is in progress */}
-                {isHealthChecking || isDeploymentInProgress ? (
+                {/* If backend reports Deleting, show disabled Deleting state and block actions */}
+                {challenge.pod_status && challenge.pod_status.toString().toLowerCase().includes('delet') ? (
+                  <button
+                    disabled={true}
+                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                      ? 'bg-gray-600 text-white border border-gray-500'
+                      : 'bg-gray-200 text-gray-700 border border-gray-300'
+                      } cursor-not-allowed`}
+                  >
+                    <span>[-] Deleting...</span>
+                  </button>
+                ) : 
+                  isHealthChecking || isDeploymentInProgress ? (
                   <button
                     disabled={true}
                     className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'

@@ -106,6 +106,20 @@ namespace ResourceShared
 
             return DeploymentStatus.PENDING_DEPLOY;
         }
+        public enum DeploymentStatusEnum
+        {
+            Initial,
+            Pending,
+            Running,
+            Stopped,
+            Deleting,
+            Failed,
+            Succeeded,
+            PENDING_DEPLOY,
+            DEPLOY_FAILED,
+            DEPLOY_SUCCEEDED,
+            TIMEOUT
+        }
 
         public enum DeploymentCheckResult
         {
