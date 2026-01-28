@@ -699,7 +699,7 @@ namespace ContestantBE.Controllers
                 .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId)
                 .AsNoTracking()
                 .ToArrayAsync();
-            if (challenge.MaxAttempts > 0 && submission.Count() >= challenge.MaxAttempts)
+            if (challenge.MaxAttempts > 0 && submission.Length >= challenge.MaxAttempts)
             {
                 return BadRequest(new { error = "Your team has reached the maximum number of attempts for this challenge. You cannot start this challenge." });
             }
