@@ -49,6 +49,7 @@ namespace ContestantBE.Services
                     .AsNoTracking()
                     .Where(f => f.Location == path)
                     .FirstOrDefaultAsync();
+
                 var fileToken = ItsDangerousCompatHelper.Loads<FileTokenDTOs>(token);
 
                 if (fileToken == null || fileToken.user_id != user_id)

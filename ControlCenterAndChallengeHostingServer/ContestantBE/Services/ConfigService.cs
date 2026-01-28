@@ -11,7 +11,10 @@ public class ConfigService : IConfigService
     private readonly CtfTimeHelper _ctfTimeHelper;
     private readonly AppLogger _logger;
 
-    public ConfigService(ConfigHelper configHelper, CtfTimeHelper ctfTimeHelper, AppLogger logger)
+    public ConfigService(
+        ConfigHelper configHelper,
+        CtfTimeHelper ctfTimeHelper,
+        AppLogger logger)
     {
         _configHelper = configHelper;
         _ctfTimeHelper = ctfTimeHelper;

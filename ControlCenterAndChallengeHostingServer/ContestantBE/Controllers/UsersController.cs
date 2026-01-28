@@ -19,8 +19,8 @@ namespace ContestantBE.Controllers
             AppDbContext context,
             AppLogger userBehaviorLogger)
         {
-            this._context = context;
-            this._userBehaviorLogger = userBehaviorLogger;
+            _context = context;
+            _userBehaviorLogger = userBehaviorLogger;
         }
 
         [HttpGet("profile")]

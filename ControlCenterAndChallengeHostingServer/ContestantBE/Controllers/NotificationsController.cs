@@ -8,11 +8,11 @@ namespace ContestantBE.Controllers
     [Authorize]
     public class NotificationsController : ControllerBase
     {
-        private INotificationServices _notification;
+        private readonly INotificationServices _notification;
 
         public NotificationsController(INotificationServices notification)
         {
-           _notification = notification;
+            _notification = notification;
         }
 
         [HttpGet]
