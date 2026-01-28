@@ -133,26 +133,23 @@ namespace ContestantBE.Services
         {
             try
             {
-                var user = await _context.Users
-                    .AsNoTracking()
-                    .Include(u => u.Team)
-                    .FirstOrDefaultAsync(u => u.Id == userId);
-
                 var team = await _context.Teams
                     .AsNoTracking()
                     .Include(t => t.Users)
-                    .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
+                    .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == userId));
 
                 if (team == null) return null;
+
+                var usersScore = await _scoreHelper.GetUsersScore(team.Users, true);
 
                 var members = new List<TeamMemberDTO>();
                 foreach (var u in team.Users)
                 {
-                    var score = await _scoreHelper.GetUserScore(u, true);
+                    _ = usersScore.TryGetValue(u, out int score);
                     members.Add(new TeamMemberDTO
                     {
-                        Name = u.Name,
-                        Email = u.Email,
+                        Name = u.Name ?? string.Empty,
+                        Email = u.Email ?? string.Empty,
                         Score = score
                     });
                 }
@@ -165,7 +162,7 @@ namespace ContestantBE.Services
 
                 return new TeamScoreDTO
                 {
-                    Name = team.Name,
+                    Name = team.Name ?? string.Empty,
                     Place = await _scoreHelper.GetTeamPlace(team, true),
                     Members = members,
                     Score = await _scoreHelper.GetTeamScore(team, true),
@@ -183,15 +180,10 @@ namespace ContestantBE.Services
         {
             try
             {
-                var user = await _context.Users
-                    .AsNoTracking()
-                    .Include(u => u.Team)
-                    .FirstOrDefaultAsync(u => u.Id == userId);
-
                 var team = await _context.Teams
                     .AsNoTracking()
                     .Include(t => t.Users)
-                    .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == user.Id));
+                    .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == userId));
 
                 if (team == null) return [];
 

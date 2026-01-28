@@ -17,35 +17,74 @@ public class ScoreHelper
         _configHelper = configHelper;
     }
 
-    public async Task<int> GetUserScore(User user, bool admin = false)
+    public async Task<Dictionary<User, int>> GetUsersScore(
+        ICollection<User> users,
+        bool admin = false)
     {
+        if (users == null || users.Count == 0) return [];
+
+        var userIds = users.Select(u => u.Id).ToList();
+
         DateTime? freeze = null;
         if (!admin)
         {
             var freezeConfig = await _context.Configs
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Key == "freeze");
-            if (freezeConfig != null && int.TryParse(freezeConfig.Value, out var freezeTs))
-                freeze = DateTimeOffset.FromUnixTimeSeconds(freezeTs).UtcDateTime;
+
+            if (freezeConfig != null &&
+                int.TryParse(freezeConfig.Value, out var freezeTs))
+            {
+                freeze = DateTimeOffset
+                    .FromUnixTimeSeconds(freezeTs)
+                    .UtcDateTime;
+            }
         }
 
-        // Single query to calculate both scores
-        var solvesScore = await _context.Solves
+        // ========== SOLVES ==========
+        var solvesScores = await _context.Solves
             .AsNoTracking()
-            .Where(s => s.UserId == user.Id && (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
-            .SumAsync(s => (s.Challenge != null ? s.Challenge.Value : 0) ?? 0);
+            .Where(s =>
+                userIds.Contains(s.UserId ?? 0) &&
+                (!freeze.HasValue || s.IdNavigation.Date < freeze.Value))
+            .GroupBy(s => s.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key ?? 0,
+                Score = g.Sum(s => (s.Challenge.Value ?? 0))
+            })
+            .ToDictionaryAsync(x => x.UserId, x => x.Score);
 
-        var awardsScore = await _context.Awards
+        // ========== AWARDS ==========
+        var awardsScores = await _context.Awards
             .AsNoTracking()
-            .Where(a => a.UserId == user.Id && (!freeze.HasValue || a.Date < freeze.Value))
-            .SumAsync(a => a.Value ?? 0);
+            .Where(a =>
+                userIds.Contains(a.UserId ?? 0) &&
+                (!freeze.HasValue || a.Date < freeze.Value))
+            .GroupBy(a => a.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key ?? 0,
+                Score = g.Sum(a => a.Value ?? 0)
+            })
+            .ToDictionaryAsync(x => x.UserId, x => x.Score);
 
-        return solvesScore + awardsScore;
+        // ========== MERGE ==========
+        var result = new Dictionary<User, int>(users.Count);
+
+        foreach (var u in users)
+        {
+            solvesScores.TryGetValue(u.Id, out var solve);
+            awardsScores.TryGetValue(u.Id, out var award);
+
+            result[u] = solve + award;
+        }
+
+        return result;
     }
 
     public async Task<int?> GetUserPlace(User user, bool admin = false)
     {
-
         DateTime? freeze = null;
         if (!admin)
         {
@@ -118,7 +157,7 @@ public class ScoreHelper
             .Select(u => u.Id)
             .ToListAsync();
 
-        if (!teamMemberIds.Any())
+        if (teamMemberIds.Count == 0)
             return 0;
 
         // Calculate solves score (remove unnecessary Include)
@@ -133,10 +172,9 @@ public class ScoreHelper
             .AsNoTracking()
             .Where(a => teamMemberIds.Contains(a.UserId.Value) &&
                        (!freeze.HasValue || a.Date < freeze.Value))
-            .SumAsync(a => (int?)a.Value ?? 0);
+            .SumAsync(a => a.Value ?? 0);
 
         return solvesScore + awardsScore;
-
     }
 
     public async Task<List<Solf>> GetUserSolves(User user, bool admin = false)
@@ -196,7 +234,6 @@ public class ScoreHelper
 
     public async Task<int?> GetTeamPlace(Team team, bool admin = false)
     {
-
         DateTime? freeze = null;
         if (!admin)
         {
