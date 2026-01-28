@@ -20,14 +20,14 @@ public class Worker : BackgroundService
     {
         try
         {
-            static async Task statusHandler(
+            async Task statusHandler(
                 int teamId,
                 int challengeId,
                 int userId,
                 string status,
                 string? url = null)
             {
-
+                _logger.LogDebug($"Pod team: {teamId}, challenge: {challengeId} status changed: {status}");
             }
 
             await _challengeInformerService.StartPodWatcher(statusHandler, stoppingToken);

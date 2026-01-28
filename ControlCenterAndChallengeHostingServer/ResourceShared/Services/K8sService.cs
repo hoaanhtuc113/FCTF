@@ -16,7 +16,6 @@ using static ResourceShared.Enums;
 
 namespace ResourceShared.Services
 {
-    public delegate Task OnDeploymentStatusChanged(int teamId, int challengeId, int userId, string status, string? url = null);
     public interface IK8sService
     {
         Task<List<PodInfo>> GetPodsByLabel(
