@@ -1,7 +1,4 @@
-﻿
-
-using k8s;
-using k8s.Autorest;
+﻿using k8s;
 using k8s.Models;
 using Microsoft.Extensions.Logging;
 using ResourceShared.DTOs.Challenge;
@@ -24,7 +21,11 @@ namespace DeploymentListener
 
         private const int WorkerCount = 20;
         private readonly Channel<(WatchEventType, V1Pod)>[] _shards;
-        public ChallengesInformerService(IKubernetes kubernetes, AppLogger logger, RedisHelper redisHelper, IK8sService k8sService)
+        public ChallengesInformerService(
+            IKubernetes kubernetes,
+            AppLogger logger,
+            RedisHelper redisHelper,
+            IK8sService k8sService)
         {
             _kubernetes = kubernetes;
             _logger = logger;
@@ -277,7 +278,7 @@ namespace DeploymentListener
 
             if (ready && podReadyCondition)
             {
-                if (cache.ready == true) return; 
+                if (cache.ready == true) return;
 
                 var deployResult = await _k8sService.HandleChallengeRunning(challengeId, teamId, cache._namespace, cache);
                 await onStatusChange.Invoke(
