@@ -5,12 +5,13 @@ namespace ResourceShared.Utils
 {
     public class ConfigHelper
     {
-        private readonly DbContextOptions<AppDbContext> _dbOptions;
+        private readonly AppDbContext _context;
 
-        public ConfigHelper(DbContextOptions<AppDbContext> dbOptions)
+        public ConfigHelper(AppDbContext context)
         {
-            _dbOptions = dbOptions;
+            _context = context;
         }
+
         public T? GetConfig<T>(object key, T? defaultValue = default)
         {
             if (key is Enum enumKey)
@@ -36,9 +37,11 @@ namespace ResourceShared.Utils
 
         public object GetConfig(string key)
         {
-            using var context = new AppDbContext(_dbOptions);
             // If not in cache, query database
-            var config = context.Configs.AsNoTracking().FirstOrDefault(c => c.Key == key);
+            var config = _context.Configs
+                .AsNoTracking()
+                .FirstOrDefault(c => c.Key == key);
+
             object result;
 
             if (config != null && !string.IsNullOrEmpty(config.Value))
@@ -59,7 +62,7 @@ namespace ResourceShared.Utils
 
             return result;
         }
-        private long ToLong(object val,int defaultValue=3)
+        private long ToLong(object val, int defaultValue = 3)
         {
             if (val == null) return defaultValue;
             if (long.TryParse(val.ToString(), out var result))
