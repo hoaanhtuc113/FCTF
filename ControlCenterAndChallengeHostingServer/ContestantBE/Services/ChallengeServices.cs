@@ -501,7 +501,7 @@ public class ChallengeServices : IChallengeServices
                     success = false,
                     message = "No deployment info found.",
                     status = (int)HttpStatusCode.OK,
-                    pod_status = Enums.DeploymentStatusEnum.TIMEOUT,
+                    pod_status = Enums.DeploymentStatusEnum.NOT_FOUND,
                 };
             }
 

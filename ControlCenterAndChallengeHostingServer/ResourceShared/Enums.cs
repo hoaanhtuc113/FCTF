@@ -118,7 +118,8 @@ namespace ResourceShared
             PENDING_DEPLOY,
             DEPLOY_FAILED,
             DEPLOY_SUCCEEDED,
-            TIMEOUT
+            TIMEOUT,
+            NOT_FOUND
         }
 
         public enum DeploymentCheckResult
