@@ -87,6 +87,36 @@ interface Hint {
   content?: string;
 }
 
+interface StartChallengeResponse {
+  success: boolean;
+  challenge_url?: string;
+  message?: string;
+  error?: string;
+  pod_status?: string;
+  status?: string;
+  time_remaining?: number;
+  time_limit?: number;
+}
+
+interface DeploymentState {
+  isDeploying: boolean;
+  startTime: number;
+}
+
+interface HealthCheckState {
+  startTime: number;
+  challengeId: number;
+  attempts: number;
+}
+
+interface NotificationData {
+  challengeId: number;
+  challengeName: string;
+  status: 'success' | 'error' | 'info';
+  url?: string;
+  message: string;
+  timestamp: number;
+}
 export function Challenges() {
   const { theme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1614,7 +1644,7 @@ function ChallengeDetailPanel({
     }
   };
 
-  const handleStartChallenge = async () => {
+  const handleStartChallenge = async (): Promise<void> => {
     setIsStarting(true);
 
     const deploymentKey = `deployment_${challenge.id}`;
@@ -1623,240 +1653,118 @@ function ChallengeDetailPanel({
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START, {
         method: 'POST',
-        body: JSON.stringify({
-          challengeId: challenge.id,
-        })
+        body: JSON.stringify({ challengeId: challenge.id })
       });
-      const data = await response.json();
+      const data: StartChallengeResponse = await response.json();
 
-      // Case 1: URL is ready immediately
-      if (response.status === 200 && data.success === true && data.challenge_url != null) {
-        setIsDeploymentInProgress(true);
-        // Save deployment state AFTER successful response
-        localStorage.setItem(deploymentKey, JSON.stringify({
-          isDeploying: true,
-          startTime: Date.now()
-        }));
-
-        // Save health check state AFTER successful response
-        localStorage.setItem(healthCheckKey, JSON.stringify({
-          startTime: Date.now(),
-          challengeId: challenge.id,
-          attempts: 0
-        }));
-
-        // Set URL immediately
-        setIsChallengeStarted(true);
-        setUrl(data.challenge_url);
-        setIsStarting(false);
-        setIsDeploymentInProgress(false);
-
-        // Set health checking state to show spinner
-        setIsHealthChecking(true);
-
-        // Start health check in background
-        startHealthCheckLoop();
-
-        // Log start challenge action
-        actionLogService.logAction(
-          actionType.START_CHALLENGE,
-          `Khởi động thử thách ${challenge.name}`,
-          challenge.id
-        );
-
-        // Show success message with URL - this is the ONLY popup users see
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
-              <div class="text-gray-400 mb-2">> URL: ${data.challenge_url}</div>
-              <div class="text-yellow-400 mt-2">> Health check in progress...</div>
-            </div>
-          `,
-          icon: 'success',
-          iconColor: '#22c55e',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#22c55e' : '#000000',
-          timer: 5000,
-          showConfirmButton: false,
-          customClass: {
-            popup: 'rounded-lg border border-green-500/30',
-          },
-        });
+      // Handle error responses
+      if (response.status !== 200 || !data.success) {
+        handleStartError(data, response.status);
+        return;
       }
-      // Case 2: Success but URL is null - deploying, need to wait
-      else if (response.status === 200 && data.success === true && data.challenge_url == null) {
-        setIsDeploymentInProgress(true);
-        // Save deployment state AFTER successful response
-        localStorage.setItem(deploymentKey, JSON.stringify({
-          isDeploying: true,
-          startTime: Date.now()
-        }));
 
-        // Save health check state AFTER successful response
-        localStorage.setItem(healthCheckKey, JSON.stringify({
-          startTime: Date.now(),
-          challengeId: challenge.id,
-          attempts: 0
-        }));
+      // Save deployment state
+      const deploymentState: DeploymentState = {
+        isDeploying: true,
+        startTime: Date.now()
+      };
+      localStorage.setItem(deploymentKey, JSON.stringify(deploymentState));
 
-        // Set challenge as started with message from backend
-        setIsChallengeStarted(true);
-        setUrl(data.message || 'Deploying challenge...');
-        setIsStarting(false);
-        setIsDeploymentInProgress(false);
+      const healthCheckState: HealthCheckState = {
+        startTime: Date.now(),
+        challengeId: challenge.id,
+        attempts: 0
+      };
+      localStorage.setItem(healthCheckKey, JSON.stringify(healthCheckState));
 
-        // Set health checking state to show spinner
-        setIsHealthChecking(true);
-
-        // Start health check in background
-        startHealthCheckLoop();
-
-        // Log start challenge action
-        actionLogService.logAction(
-          actionType.START_CHALLENGE,
-          `Khởi động thử thách ${challenge.name}`,
-          challenge.id
-        );
-
-        // Show deploying message
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-yellow-400 mb-2">[~] Deploying challenge</div>
-              <div class="text-gray-400">> ${data.message || 'Please wait...'}</div>
-              <div class="text-orange-400 mt-2">> Health check will start shortly...</div>
-            </div>
-          `,
-          icon: 'info',
-          iconColor: '#fbbf24',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#fbbf24' : '#000000',
-          timer: 3000,
-          showConfirmButton: false,
-          customClass: {
-            popup: 'rounded-lg border border-yellow-500/30',
-          },
-        });
-      }
-      // Case 3: Error or failure
-      else {
-        setIsStarting(false);
-        setIsDeploymentInProgress(false);
-
-        // Clear deployment state from localStorage
-        const healthCheckKey = `healthcheck_${challenge.id}`;
-        localStorage.removeItem(deploymentKey);
-        localStorage.removeItem(healthCheckKey);
-
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-red-400 mb-2">[!] Deploy failed</div>
-              <div class="text-gray-400">> ${data.message || data.error || 'Unknown error'}</div>
-              <div class="text-gray-500 mt-2">> Status: ${response.status}</div>
-            </div>
-          `,
-          icon: 'error',
-          iconColor: '#ef4444',
-          confirmButtonText: 'Close',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#ef4444' : '#000000',
-          customClass: {
-            popup: 'rounded-lg border border-red-500/30',
-            confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-          },
-        });
-      }
-    } catch (error) {
+      // Update UI states
+      setIsChallengeStarted(true);
+      setIsDeploymentInProgress(true);
+      setIsHealthChecking(true);
       setIsStarting(false);
-      setIsDeploymentInProgress(false);
 
-      // Clear deployment state from localStorage
-      const deploymentKey = `deployment_${challenge.id}`;
-      const healthCheckKey = `healthcheck_${challenge.id}`;
-      localStorage.removeItem(deploymentKey);
-      localStorage.removeItem(healthCheckKey);
-      console.error('Start challenge error:', error);
-      Swal.fire({
-        html: `
-          <div class="font-mono text-left text-sm">
-            <div class="text-red-400 mb-2">[!] Connection error</div>
-            <div class="text-gray-400">> Failed to reach server</div>
-            <div class="text-gray-400">> Please try again</div>
-          </div>
-        `,
-        icon: 'error',
-        iconColor: '#ef4444',
-        confirmButtonText: 'Close',
-        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-        color: theme === 'dark' ? '#ef4444' : '#000000',
-        customClass: {
-          popup: 'rounded-lg border border-red-500/30',
-          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-        },
-      });
+      // Log action
+      actionLogService.logAction(
+        actionType.START_CHALLENGE,
+        `Khởi động thử thách ${challenge.name}`,
+        challenge.id
+      );
+
+      // Handle URL availability
+      if (data.challenge_url) {
+        setUrl(data.challenge_url);
+        setIsDeploymentInProgress(false);
+        showSuccessNotification(data.challenge_url);
+      } else {
+        setUrl(data.message || 'Deploying challenge...');
+        showDeployingNotification(data.message);
+      }
+
+      // Start health check loop
+      startHealthCheckLoop();
+
+    } catch (error) {
+      handleStartError(error as Error);
     }
   };
 
-  // Health check loop function - runs silently in background
-  const startHealthCheckLoop = async () => {
+  const handleStartError = (error: StartChallengeResponse | Error, status: number | null = null): void => {
+    setIsStarting(false);
+    setIsDeploymentInProgress(false);
 
-    // Prevent duplicate health check loops
-    if (healthCheckRunningRef.current) {
-      return;
+    const deploymentKey = `deployment_${challenge.id}`;
+    const healthCheckKey = `healthcheck_${challenge.id}`;
+    localStorage.removeItem(deploymentKey);
+    localStorage.removeItem(healthCheckKey);
+
+    console.error('Start challenge error:', error);
+
+    const isNetworkError = !status;
+    let errorMessage = 'Unknown error';
+
+    if (error instanceof Error) {
+      errorMessage = 'Failed to reach server';
+    } else {
+      errorMessage = error.message || error.error || 'Unknown error';
     }
 
+    Swal.fire({
+      html: `
+      <div class="font-mono text-left text-sm">
+        <div class="text-red-400 mb-2">[!] ${isNetworkError ? 'Connection error' : 'Deploy failed'}</div>
+        <div class="text-gray-400">> ${errorMessage}</div>
+        ${status ? `<div class="text-gray-500 mt-2">> Status: ${status}</div>` : ''}
+      </div>
+    `,
+      icon: 'error',
+      iconColor: '#ef4444',
+      confirmButtonText: 'Close',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#ef4444' : '#000000',
+      customClass: {
+        popup: 'rounded-lg border border-red-500/30',
+        confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+      },
+    });
+  };
+
+  const startHealthCheckLoop = async (): Promise<void> => {
+    if (healthCheckRunningRef.current) return;
+
     healthCheckRunningRef.current = true;
-    // Maximum number of polling attempts (~5.5 minutes = 66 attempts at 5s interval)
-    const maxAttempts = 66;
+    const MAX_ATTEMPTS = 66; // ~5.5 minutes at 5s intervals
     let attempts = 0;
 
     const checkStatus = async (): Promise<boolean> => {
       try {
-        // Count this attempt
         attempts++;
 
-        // If we've exceeded max attempts, treat as TIMEOUT
-        if (attempts >= maxAttempts) {
-          setIsHealthChecking(false);
-          setIsPodHealthy(false);
-          setIsDeploymentInProgress(false);
-          setIsStarting(false);
-          healthCheckRunningRef.current = false;
-
-          // Clear URL to show Start button again
-          setUrl(null);
-          setIsChallengeStarted(false);
-
-          // Clear deployment state from localStorage
-          const deploymentKey = `deployment_${challenge.id}`;
-          const healthCheckKey = `healthcheck_${challenge.id}`;
-          localStorage.removeItem(deploymentKey);
-          localStorage.removeItem(healthCheckKey);
-
-          // Show timeout notification
-          Swal.fire({
-            html: `
-              <div class="font-mono text-left text-sm">
-                <div class="text-red-400 mb-2">[!] Health Check Timeout</div>
-                <div class="text-gray-400">> Pod failed to become ready</div>
-                <div class="text-gray-400">> Please try starting again</div>
-              </div>
-            `,
-            icon: 'error',
-            iconColor: '#ef4444',
-            confirmButtonText: 'OK',
-            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-            color: theme === 'dark' ? '#ef4444' : '#000000',
-            customClass: {
-              popup: 'rounded-lg border border-red-500/30',
-              confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-            },
-          });
-
-          return true; // Stop loop - TIMEOUT
+        // Check for timeout
+        if (attempts >= MAX_ATTEMPTS) {
+          handleHealthCheckTimeout();
+          return true;
         }
+
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START_CHECKING, {
           method: 'POST',
           body: JSON.stringify({
@@ -1864,280 +1772,317 @@ function ChallengeDetailPanel({
             teamId: getTeamId(),
           }),
         });
-        const data = await response.json();
-        if (data.success == true && data.challenge_url) {
+        const data: StartChallengeResponse = await response.json();
+        const podStatus = (data.pod_status || '').toString().toLowerCase();
 
-          // Update URL with actual challenge URL (replace message if it was set)
-          setUrl(data.challenge_url);
-
-          // Set time remaining when healthy (convert minutes to seconds)
-          if (data.time_remaining || data.time_limit) {
-            const timeInSeconds = data.time_remaining || data.time_limit * 60;
-            setTimeRemaining(timeInSeconds);
-
-            // Start global timer for cross-page auto-stop
-            challengeTimerService.startTimer(
-              challenge.id,
-              challenge.name,
-              timeInSeconds,
-              challenge.require_deploy || false
-            );
-          }
-
-          setIsHealthChecking(false);
-          setIsPodHealthy(true);
-          setIsDeploymentInProgress(false);
-          healthCheckRunningRef.current = false;
-
-          // Clear deployment state from localStorage
-          const deploymentKey = `deployment_${challenge.id}`;
-          const healthCheckKey = `healthcheck_${challenge.id}`;
-          localStorage.removeItem(deploymentKey);
-          localStorage.removeItem(healthCheckKey);
-
-          // Refresh challenge data to update pod_status and call category refresh
-          if (onFlagSuccess) {
-            await onFlagSuccess();
-          }
-
-          // Check if user is currently viewing this challenge
-          const isViewingChallenge = window.location.pathname.includes('/challenges');
-
-
-          if (isViewingChallenge) {
-            // User is on the challenge detail page - show popup directly
-            Swal.fire({
-              html: `
-                <div class="font-mono text-left text-sm">
-                  <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
-                  <div class="text-gray-400 mb-2">> ${challenge.name}</div>
-                  <div class="text-orange-400 mt-2">>${data.challenge_url}</div>
-                </div>
-              `,
-              icon: 'success',
-              iconColor: '#22c55e',
-              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-              color: theme === 'dark' ? '#22c55e' : '#000000',
-              toast: false,
-              position: 'center',
-              showConfirmButton: true,
-              timerProgressBar: true,
-              customClass: {
-                popup: 'rounded-lg border border-green-500/30',
-              },
-            });
+        // Handle NOT_FOUND status
+        if (podStatus.includes('not_found') || data.status === "404") {
+          if (isDeleting) {
+            // Deleting + not_found = successfully deleted
+            handleSuccessfulDeletion();
+            return true;
           } else {
-            // User is on different page - dispatch custom event for notification
-            const notificationData = {
-              challengeId: challenge.id,
-              challengeName: challenge.name,
-              status: 'success' as const,
-              url: data.challenge_url,
-              message: 'Challenge is ready!',
-              timestamp: Date.now()
-            };
-
-            // Dispatch custom event for same-tab notification
-            window.dispatchEvent(new CustomEvent('deploymentNotification', {
-              detail: notificationData
-            }));
-
-            // Also save to localStorage for cross-tab notification
-            const notificationKey = `deployment_notification_${challenge.id}`;
-            localStorage.setItem(notificationKey, JSON.stringify(notificationData));
+            // Pending + not_found = timeout
+            handleHealthCheckTimeout();
+            return true;
           }
-
-          return true; // Stop loop - SUCCESS
         }
 
-        // If backend reports a terminal pod status (failed/stopped/timeout), stop and notify
-        // NOTE: 'Deleting' is handled specially - we continue polling until it becomes 'Stopped'
-        const podStatus = (data.pod_status || data.podStatus || data.status || '').toString();
-        const podLower = podStatus.toLowerCase();
-        // If pod is deleting, mark deleting and continue polling until stopped
-        if (podLower && podLower.includes('delet')) {
+        // Handle SUCCESS - pod is ready
+        if (data.success && data.challenge_url) {
+          await handlePodReady(data);
+          return true;
+        }
+
+        // Handle DELETING status
+        if (podStatus.includes('delet')) {
           setIsDeleting(true);
           setIsHealthChecking(false);
-          setIsPodHealthy(false);
           setIsDeploymentInProgress(true);
-
-          // Keep polling until pod transitions to 'Stopped' or another terminal status
           await new Promise(resolve => setTimeout(resolve, 2000));
           return checkStatus();
         }
 
-        // Handle explicit terminal statuses with distinct messages
-        if (podLower) {
-          // TIMEOUT
-          if (podLower.includes('timeout')) {
-            setIsHealthChecking(false);
-            setIsPodHealthy(false);
-            setIsDeploymentInProgress(false);
-            setIsStarting(false);
-            healthCheckRunningRef.current = false;
-
-            const deploymentKey = `deployment_${challenge.id}`;
-            const healthCheckKey = `healthcheck_${challenge.id}`;
-            localStorage.removeItem(deploymentKey);
-            localStorage.removeItem(healthCheckKey);
-
-            Swal.fire({
-              html: `
-                <div class="font-mono text-left text-sm">
-                  <div class="text-red-400 mb-2">[!] Health Check Timeout</div>
-                  <div class="text-gray-400">> Pod failed to become ready</div>
-                  <div class="text-gray-400">> ${data.message || 'Please try starting again'}</div>
-                </div>
-              `,
-              icon: 'error',
-              iconColor: '#ef4444',
-              confirmButtonText: 'OK',
-              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-              color: theme === 'dark' ? '#ef4444' : '#000000',
-              customClass: {
-                popup: 'rounded-lg border border-red-500/30',
-                confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-              },
-            });
-
-            return true;
-          }
-
-          // DEPLOY / FAILURE
-          if (podLower.includes('fail') || podLower.includes('deploy_failed') || data.status === "404") {
-            setIsHealthChecking(false);
-            setIsPodHealthy(false);
-            setIsDeploymentInProgress(false);
-            setIsStarting(false);
-            healthCheckRunningRef.current = false;
-
-            const deploymentKey = `deployment_${challenge.id}`;
-            const healthCheckKey = `healthcheck_${challenge.id}`;
-            localStorage.removeItem(deploymentKey);
-            localStorage.removeItem(healthCheckKey);
-
-            Swal.fire({
-              html: `
-                <div class="font-mono text-left text-sm">
-                  <div class="text-red-400 mb-2">[!] Deployment Failed</div>
-                  <div class="text-gray-400">> ${data.message || 'Pod reported failure'}</div>
-                </div>
-              `,
-              icon: 'error',
-              iconColor: '#ef4444',
-              confirmButtonText: 'OK',
-              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-              color: theme === 'dark' ? '#ef4444' : '#000000',
-              customClass: {
-                popup: 'rounded-lg border border-red-500/30',
-                confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-              },
-            });
-
-            return true;
-          }
-
-          // STOPPED
-          if (podLower === 'stopped') {
-            // If stop was initiated and pod became 'Stopped', treat as successful stop
-            if (stopInitiatedRef.current) {
-              setIsHealthChecking(false);
-              setIsPodHealthy(false);
-              setIsDeploymentInProgress(false);
-              setIsStarting(false);
-              healthCheckRunningRef.current = false;
-
-              // Clear deleting flag
-              setIsDeleting(false);
-
-              // Clear URL and mark not started
-              setUrl(null);
-              setIsChallengeStarted(false);
-
-              // Clear deployment/healthcheck state
-              const deploymentKey = `deployment_${challenge.id}`;
-              const healthCheckKey = `healthcheck_${challenge.id}`;
-              localStorage.removeItem(deploymentKey);
-              localStorage.removeItem(healthCheckKey);
-
-              // Refresh challenge data to update pod_status and call category refresh
-              if (onFlagSuccess) {
-                await onFlagSuccess();
-              }
-
-              // Notify user
-              Swal.fire({
-                html: `
-                  <div class="font-mono text-left text-sm">
-                    <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
-                    <div class="text-gray-400">> ${challenge.name}</div>
-                  </div>
-                `,
-                icon: 'success',
-                iconColor: '#22c55e',
-                confirmButtonText: 'Close',
-                background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-                color: theme === 'dark' ? '#22c55e' : '#000000',
-                customClass: {
-                  popup: 'rounded-lg border border-green-500/30',
-                  confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
-                },
-              });
-
-              // Reset stopInitiated flag
-              stopInitiatedRef.current = false;
-
-              return true; // Stop loop - STOPPED (success)
-            }
-
-            // If stopped but no stopInitiated, treat as generic stopped state (clear and notify)
-            setIsHealthChecking(false);
-            setIsPodHealthy(false);
-            setIsDeploymentInProgress(false);
-            setIsStarting(false);
-            healthCheckRunningRef.current = false;
-
-            const deploymentKey = `deployment_${challenge.id}`;
-            const healthCheckKey = `healthcheck_${challenge.id}`;
-            localStorage.removeItem(deploymentKey);
-            localStorage.removeItem(healthCheckKey);
-
-            Swal.fire({
-              html: `
-                <div class="font-mono text-left text-sm">
-                  <div class="text-yellow-400 mb-2">[!] Instance Stopped</div>
-                  <div class="text-gray-400">> ${challenge.name}</div>
-                </div>
-              `,
-              icon: 'info',
-              iconColor: '#f59e0b',
-              confirmButtonText: 'Close',
-              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-              color: theme === 'dark' ? '#f59e0b' : '#000000',
-              customClass: {
-                popup: 'rounded-lg border border-yellow-500/30',
-              },
-            });
-
-            return true;
-          }
+        // Handle FAILED status
+        if (podStatus.includes('fail') || podStatus.includes('deploy_failed')) {
+          handleDeploymentFailure(data.message);
+          return true;
         }
 
-        // Continue checking silently
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-        return checkStatus(); // Recursive call
+        // Handle STOPPED status
+        if (podStatus === 'stopped') {
+          handlePodStopped();
+          return true;
+        }
+
+        // Continue polling
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        return checkStatus();
 
       } catch (error) {
         console.error('[Health Check] Error:', error);
-
-        // On error: wait and retry (no attempt limit) until backend returns terminal status
         await new Promise(resolve => setTimeout(resolve, 5000));
         return checkStatus();
       }
     };
 
-    // Start the check loop
     await checkStatus();
+  };
+
+  const handleHealthCheckTimeout = (): void => {
+    cleanupHealthCheck();
+
+    Swal.fire({
+      html: `
+      <div class="font-mono text-left text-sm">
+        <div class="text-red-400 mb-2">[!] Health Check Timeout</div>
+        <div class="text-gray-400">> Pod failed to become ready</div>
+        <div class="text-gray-400">> Please try starting again</div>
+      </div>
+    `,
+      icon: 'error',
+      iconColor: '#ef4444',
+      confirmButtonText: 'OK',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#ef4444' : '#000000',
+      customClass: {
+        popup: 'rounded-lg border border-red-500/30',
+        confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+      },
+    });
+  };
+
+  const handleDeploymentFailure = (message?: string): void => {
+    cleanupHealthCheck();
+
+    Swal.fire({
+      html: `
+      <div class="font-mono text-left text-sm">
+        <div class="text-red-400 mb-2">[!] Deployment Failed</div>
+        <div class="text-gray-400">> ${message || 'Pod reported failure'}</div>
+      </div>
+    `,
+      icon: 'error',
+      iconColor: '#ef4444',
+      confirmButtonText: 'OK',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#ef4444' : '#000000',
+      customClass: {
+        popup: 'rounded-lg border border-red-500/30',
+        confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+      },
+    });
+  };
+
+  const handlePodReady = async (data: StartChallengeResponse): Promise<void> => {
+    if (!data.challenge_url) return;
+
+    setUrl(data.challenge_url);
+    setIsPodHealthy(true);
+
+    // Set timer
+    const timeInSeconds =
+      data.time_remaining != null
+        ? data.time_remaining
+        : data.time_limit != null
+          ? data.time_limit * 60
+          : null;
+
+    if (timeInSeconds != null) {
+      setTimeRemaining(timeInSeconds);
+      challengeTimerService.startTimer(
+        challenge.id,
+        challenge.name,
+        timeInSeconds,
+        !!challenge.require_deploy
+      );
+    }
+
+    cleanupHealthCheck(false);
+
+    // Refresh challenge data
+    if (onFlagSuccess) {
+      await onFlagSuccess();
+    }
+
+    // Notify user
+    const isViewingChallenge = window.location.pathname.includes('/challenges');
+
+    if (isViewingChallenge) {
+      Swal.fire({
+        html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
+          <div class="text-gray-400 mb-2">> ${challenge.name}</div>
+          <div class="text-orange-400 mt-2">> ${data.challenge_url}</div>
+        </div>
+      `,
+        icon: 'success',
+        iconColor: '#22c55e',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#22c55e' : '#000000',
+        showConfirmButton: true,
+        customClass: {
+          popup: 'rounded-lg border border-green-500/30',
+        },
+      });
+    } else {
+      dispatchNotification({
+        challengeId: challenge.id,
+        challengeName: challenge.name,
+        status: 'success',
+        url: data.challenge_url,
+        message: 'Challenge is ready!',
+        timestamp: Date.now()
+      });
+    }
+  };
+
+  const handlePodStopped = async (): Promise<void> => {
+    cleanupHealthCheck(false);
+
+    if (stopInitiatedRef.current) {
+      // User-initiated stop
+      setIsDeleting(false);
+
+      if (onFlagSuccess) {
+        await onFlagSuccess();
+      }
+
+      Swal.fire({
+        html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
+          <div class="text-gray-400">> ${challenge.name}</div>
+        </div>
+      `,
+        icon: 'success',
+        iconColor: '#22c55e',
+        confirmButtonText: 'Close',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#22c55e' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-green-500/30',
+          confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
+        },
+      });
+
+      stopInitiatedRef.current = false;
+    } else {
+      // Unexpected stop
+      Swal.fire({
+        html: `
+        <div class="font-mono text-left text-sm">
+          <div class="text-yellow-400 mb-2">[!] Instance Stopped</div>
+          <div class="text-gray-400">> ${challenge.name}</div>
+        </div>
+      `,
+        icon: 'info',
+        iconColor: '#f59e0b',
+        confirmButtonText: 'Close',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#f59e0b' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-yellow-500/30',
+        },
+      });
+    }
+  };
+
+  const handleSuccessfulDeletion = async (): Promise<void> => {
+    cleanupHealthCheck(false);
+    setIsDeleting(false);
+
+    if (onFlagSuccess) {
+      await onFlagSuccess();
+    }
+
+    Swal.fire({
+      html: `
+      <div class="font-mono text-left text-sm">
+        <div class="text-green-400 mb-2">[✓] Challenge Deleted Successfully</div>
+        <div class="text-gray-400">> ${challenge.name}</div>
+      </div>
+    `,
+      icon: 'success',
+      iconColor: '#22c55e',
+      confirmButtonText: 'Close',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#22c55e' : '#000000',
+      customClass: {
+        popup: 'rounded-lg border border-green-500/30',
+        confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
+      },
+    });
+  };
+
+  const cleanupHealthCheck = (clearUrl: boolean = true): void => {
+    setIsHealthChecking(false);
+    setIsPodHealthy(false);
+    setIsDeploymentInProgress(false);
+    setIsStarting(false);
+    healthCheckRunningRef.current = false;
+
+    if (clearUrl) {
+      setUrl(null);
+      setIsChallengeStarted(false);
+    }
+
+    const deploymentKey = `deployment_${challenge.id}`;
+    const healthCheckKey = `healthcheck_${challenge.id}`;
+    localStorage.removeItem(deploymentKey);
+    localStorage.removeItem(healthCheckKey);
+  };
+
+  const showSuccessNotification = (url: string): void => {
+    Swal.fire({
+      html: `
+      <div class="font-mono text-left text-sm">
+        <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
+        <div class="text-gray-400 mb-2">> URL: ${url}</div>
+        <div class="text-yellow-400 mt-2">> Health check in progress...</div>
+      </div>
+    `,
+      icon: 'success',
+      iconColor: '#22c55e',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#22c55e' : '#000000',
+      timer: 5000,
+      showConfirmButton: false,
+      customClass: {
+        popup: 'rounded-lg border border-green-500/30',
+      },
+    });
+  };
+
+  const showDeployingNotification = (message?: string): void => {
+    Swal.fire({
+      html: `
+      <div class="font-mono text-left text-sm">
+        <div class="text-yellow-400 mb-2">[~] Deploying challenge</div>
+        <div class="text-gray-400">> ${message || 'Please wait...'}</div>
+        <div class="text-orange-400 mt-2">> Health check will start shortly...</div>
+      </div>
+    `,
+      icon: 'info',
+      iconColor: '#fbbf24',
+      background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+      color: theme === 'dark' ? '#fbbf24' : '#000000',
+      timer: 3000,
+      showConfirmButton: false,
+      customClass: {
+        popup: 'rounded-lg border border-yellow-500/30',
+      },
+    });
+  };
+
+  const dispatchNotification = (notificationData: NotificationData): void => {
+    window.dispatchEvent(new CustomEvent('deploymentNotification', {
+      detail: notificationData
+    }));
+
+    const notificationKey = `deployment_notification_${challenge.id}`;
+    localStorage.setItem(notificationKey, JSON.stringify(notificationData));
   };
 
   // Auto stop challenge on timeout without confirmation
