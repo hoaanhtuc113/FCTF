@@ -49,6 +49,8 @@ namespace ResourceShared.Services
         Task<string> GetPodLogs(
             string namespaceName,
             string podName);
+
+        bool IsPodStuck(V1Pod pod);
     }
     public class K8sService : IK8sService
     {
@@ -707,7 +709,7 @@ namespace ResourceShared.Services
         }
 
 
-        private bool IsPodStuck(V1Pod pod)
+        public bool IsPodStuck(V1Pod pod)
         {
             var cs = pod.Status?.ContainerStatuses?.FirstOrDefault();
             var reason = "";
