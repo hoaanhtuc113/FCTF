@@ -11,6 +11,8 @@ using static ResourceShared.Enums;
 
 namespace DeploymentListener
 {
+    public delegate Task OnDeploymentStatusChanged(int teamId, int challengeId, int userId, string status, string? url = null);
+
     public class ChallengesInformerService
     {
         private readonly IKubernetes _kubernetes;
@@ -196,7 +198,7 @@ namespace DeploymentListener
             var cache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(key);
 
             //Check ghost pod (pod Added nhưng cache không tồn tại)
-            if (eventType == WatchEventType.Added && cache == null)
+            if (cache == null)
             {
                 _logger.LogDebug($"Ghost pod detected! Namespace: {ns}, Pod: {pod}");
                 await CleanupGhostResources(ns, teamId, challengeId, key, onStatusChange);
@@ -209,8 +211,6 @@ namespace DeploymentListener
                 await HandleDeletion(teamId, challengeId, key, cache, onStatusChange);
                 return;
             }
-            //
-            if (cache == null) return;
 
             // pod restarted
             if (cache.pod_id != uid)
