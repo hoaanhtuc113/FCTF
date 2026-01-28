@@ -48,13 +48,11 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddResourceShared();
 
-        services.AddSingleton<HttpTelemetrySource>();
         services.AddSingleton<RabbitMqTelemetrySource>();
         services.AddOpenTelemetry()
             .WithTracing(b =>
             {
-                b.AddSource(Telemetry.DeploymentConsumerHttp)
-                 .AddSource(Telemetry.DeploymentConsumerRabbitMQ)
+                b.AddSource(Telemetry.DeploymentConsumerRabbitMQ)
                  .AddHttpClientInstrumentation()
                  .AddOtlpExporter();
             });        
