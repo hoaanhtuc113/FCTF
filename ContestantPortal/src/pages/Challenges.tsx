@@ -13,7 +13,6 @@ import {
   Security,
   PictureAsPdf,
   ContentCopy,
-  AttachMoneyRounded,
 } from '@mui/icons-material';
 import { FaDownload } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -1955,47 +1954,6 @@ function ChallengeDetailPanel({
         // NOTE: 'Deleting' is handled specially - we continue polling until it becomes 'Stopped'
         const podStatus = (data.pod_status || data.podStatus || data.status || '').toString();
         const podLower = podStatus.toLowerCase();
-        const terminalStatuses = ['Failed', 'DEPLOY_FAILED', 'Stopped', 'TIMEOUT'];
-        // If pod indicates failure, stop immediately and show backend message
-        if ((podLower && podLower.includes('fail')) || data.status =='404') {
-          setIsHealthChecking(false); 
-          setIsPodHealthy(false);
-          setIsDeploymentInProgress(false);
-          setIsStarting(false);
-          healthCheckRunningRef.current = false;
-
-          // Clear URL to show Start button again
-          setUrl(null);
-          setIsChallengeStarted(false);
-
-          // Clear deployment state from localStorage
-          const deploymentKey = `deployment_${challenge.id}`;
-          const healthCheckKey = `healthcheck_${challenge.id}`;
-          localStorage.removeItem(deploymentKey);
-          localStorage.removeItem(healthCheckKey);
-
-          // Show failure notification with backend message
-          Swal.fire({
-            html: `
-              <div class="font-mono text-left text-sm">
-                <div class="text-red-400 mb-2">[!] Deployment Failed</div>
-                <div class="text-gray-400">> ${data.message || 'Pod reported failure'}</div>
-              </div>
-            `,
-            icon: 'error',
-            iconColor: '#ef4444',
-            confirmButtonText: 'OK',
-            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-            color: theme === 'dark' ? '#ef4444' : '#000000',
-            customClass: {
-              popup: 'rounded-lg border border-red-500/30',
-              confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-            },
-          });
-
-          return true; // Stop loop - FAILURE
-        }
-
         // If pod is deleting, mark deleting and continue polling until stopped
         if (podLower && podLower.includes('delet')) {
           setIsDeleting(true);
@@ -2008,95 +1966,161 @@ function ChallengeDetailPanel({
           return checkStatus();
         }
 
-        if (podStatus && terminalStatuses.some(s => s.toLowerCase() === podLower)) {
-          // If stop was initiated and pod became 'Stopped', treat as successful stop
-          if (podLower === 'stopped' && stopInitiatedRef.current) {
+        // Handle explicit terminal statuses with distinct messages
+        if (podLower) {
+          // TIMEOUT
+          if (podLower.includes('timeout')) {
             setIsHealthChecking(false);
             setIsPodHealthy(false);
             setIsDeploymentInProgress(false);
             setIsStarting(false);
             healthCheckRunningRef.current = false;
 
-            // Clear deleting flag
-            setIsDeleting(false);
-
-            // Clear URL and mark not started
-            setUrl(null);
-            setIsChallengeStarted(false);
-
-            // Clear deployment/healthcheck state
             const deploymentKey = `deployment_${challenge.id}`;
             const healthCheckKey = `healthcheck_${challenge.id}`;
             localStorage.removeItem(deploymentKey);
             localStorage.removeItem(healthCheckKey);
 
-            // Refresh challenge data to update pod_status and call category refresh
-            if (onFlagSuccess) {
-              await onFlagSuccess();
-            }
-
-            // Notify user
             Swal.fire({
               html: `
                 <div class="font-mono text-left text-sm">
-                  <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
-                  <div class="text-gray-400">> ${challenge.name}</div>
+                  <div class="text-red-400 mb-2">[!] Health Check Timeout</div>
+                  <div class="text-gray-400">> Pod failed to become ready</div>
+                  <div class="text-gray-400">> ${data.message || 'Please try starting again'}</div>
                 </div>
               `,
-              icon: 'success',
-              iconColor: '#22c55e',
-              confirmButtonText: 'Close',
+              icon: 'error',
+              iconColor: '#ef4444',
+              confirmButtonText: 'OK',
               background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-              color: theme === 'dark' ? '#22c55e' : '#000000',
+              color: theme === 'dark' ? '#ef4444' : '#000000',
               customClass: {
-                popup: 'rounded-lg border border-green-500/30',
-                confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
+                popup: 'rounded-lg border border-red-500/30',
+                confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
               },
             });
 
-            // Reset stopInitiated flag
-            stopInitiatedRef.current = false;
-
-            return true; // Stop loop - STOPPED (success)
+            return true;
           }
 
-          setIsHealthChecking(false);
-          setIsPodHealthy(false);
-          setIsDeploymentInProgress(false);
-          setIsStarting(false);
-          healthCheckRunningRef.current = false;
+          // DEPLOY / FAILURE
+          if (podLower.includes('fail') || podLower.includes('deploy_failed') || data.status === "404") {
+            setIsHealthChecking(false);
+            setIsPodHealthy(false);
+            setIsDeploymentInProgress(false);
+            setIsStarting(false);
+            healthCheckRunningRef.current = false;
 
-          // Clear URL to show Start button again
-          setUrl(null);
-          setIsChallengeStarted(false);
+            const deploymentKey = `deployment_${challenge.id}`;
+            const healthCheckKey = `healthcheck_${challenge.id}`;
+            localStorage.removeItem(deploymentKey);
+            localStorage.removeItem(healthCheckKey);
 
-          // Clear deployment state from localStorage
-          const deploymentKey = `deployment_${challenge.id}`;
-          const healthCheckKey = `healthcheck_${challenge.id}`;
-          localStorage.removeItem(deploymentKey);
-          localStorage.removeItem(healthCheckKey);
+            Swal.fire({
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-red-400 mb-2">[!] Deployment Failed</div>
+                  <div class="text-gray-400">> ${data.message || 'Pod reported failure'}</div>
+                </div>
+              `,
+              icon: 'error',
+              iconColor: '#ef4444',
+              confirmButtonText: 'OK',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#ef4444' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-red-500/30',
+                confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+              },
+            });
 
-          // Show failure/timeout notification
-          Swal.fire({
-            html: `
-              <div class="font-mono text-left text-sm">
-                <div class="text-red-400 mb-2">[!] ${podStatus.toUpperCase() === 'TIMEOUT' ? 'Health Check Timeout' : 'Deployment Failed'}</div>
-                <div class="text-gray-400">> Pod failed to become ready </div>
-                <div class="text-gray-400">> ${data.message || 'Please try starting again'}</div>
-              </div>
-            `,
-            icon: 'error',
-            iconColor: '#ef4444',
-            confirmButtonText: 'OK',
-            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-            color: theme === 'dark' ? '#ef4444' : '#000000',
-            customClass: {
-              popup: 'rounded-lg border border-red-500/30',
-              confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-            },
-          });
+            return true;
+          }
 
-          return true; // Stop loop - terminal failure
+          // STOPPED
+          if (podLower === 'stopped') {
+            // If stop was initiated and pod became 'Stopped', treat as successful stop
+            if (stopInitiatedRef.current) {
+              setIsHealthChecking(false);
+              setIsPodHealthy(false);
+              setIsDeploymentInProgress(false);
+              setIsStarting(false);
+              healthCheckRunningRef.current = false;
+
+              // Clear deleting flag
+              setIsDeleting(false);
+
+              // Clear URL and mark not started
+              setUrl(null);
+              setIsChallengeStarted(false);
+
+              // Clear deployment/healthcheck state
+              const deploymentKey = `deployment_${challenge.id}`;
+              const healthCheckKey = `healthcheck_${challenge.id}`;
+              localStorage.removeItem(deploymentKey);
+              localStorage.removeItem(healthCheckKey);
+
+              // Refresh challenge data to update pod_status and call category refresh
+              if (onFlagSuccess) {
+                await onFlagSuccess();
+              }
+
+              // Notify user
+              Swal.fire({
+                html: `
+                  <div class="font-mono text-left text-sm">
+                    <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
+                    <div class="text-gray-400">> ${challenge.name}</div>
+                  </div>
+                `,
+                icon: 'success',
+                iconColor: '#22c55e',
+                confirmButtonText: 'Close',
+                background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                color: theme === 'dark' ? '#22c55e' : '#000000',
+                customClass: {
+                  popup: 'rounded-lg border border-green-500/30',
+                  confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
+                },
+              });
+
+              // Reset stopInitiated flag
+              stopInitiatedRef.current = false;
+
+              return true; // Stop loop - STOPPED (success)
+            }
+
+            // If stopped but no stopInitiated, treat as generic stopped state (clear and notify)
+            setIsHealthChecking(false);
+            setIsPodHealthy(false);
+            setIsDeploymentInProgress(false);
+            setIsStarting(false);
+            healthCheckRunningRef.current = false;
+
+            const deploymentKey = `deployment_${challenge.id}`;
+            const healthCheckKey = `healthcheck_${challenge.id}`;
+            localStorage.removeItem(deploymentKey);
+            localStorage.removeItem(healthCheckKey);
+
+            Swal.fire({
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-yellow-400 mb-2">[!] Instance Stopped</div>
+                  <div class="text-gray-400">> ${challenge.name}</div>
+                </div>
+              `,
+              icon: 'info',
+              iconColor: '#f59e0b',
+              confirmButtonText: 'Close',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#f59e0b' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-yellow-500/30',
+              },
+            });
+
+            return true;
+          }
         }
 
         // Continue checking silently
