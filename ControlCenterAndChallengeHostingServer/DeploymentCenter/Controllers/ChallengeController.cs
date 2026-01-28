@@ -50,7 +50,7 @@ namespace DeploymentCenter.Controllers
                 (int)HttpStatusCode.OK => Ok(response),
                 (int)HttpStatusCode.BadRequest => BadRequest(response),
                 (int)HttpStatusCode.NotFound => NotFound(response),
-                _ => StatusCode((int)response.status, response)
+                _ => StatusCode(response.status, response)
             };
         }
 
@@ -75,7 +75,7 @@ namespace DeploymentCenter.Controllers
                 (int)HttpStatusCode.OK => Ok(response),
                 (int)HttpStatusCode.BadRequest => BadRequest(response),
                 (int)HttpStatusCode.NotFound => NotFound(response),
-                _ => StatusCode((int)response.status, response)
+                _ => StatusCode(response.status, response)
             };
         }
 

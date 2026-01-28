@@ -35,13 +35,11 @@ public class Program
         builder.Services.AddResourceShared();
         builder.Services.AddScoped<IDeployService, DeployService>();
 
-        builder.Services.AddSingleton<HttpTelemetrySource>();
         builder.Services.AddSingleton<RabbitMqTelemetrySource>();
         builder.Services.AddOpenTelemetry()
             .WithTracing(b =>
             {
-                b.AddSource(Telemetry.DeploymentCenterHttp)
-                 .AddSource(Telemetry.DeploymentCenterRabbitMQ)
+                b.AddSource(Telemetry.DeploymentCenterRabbitMQ)
                  .AddAspNetCoreInstrumentation()
                  .AddHttpClientInstrumentation()
                  .AddOtlpExporter();
