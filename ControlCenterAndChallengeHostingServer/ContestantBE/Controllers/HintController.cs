@@ -17,8 +17,8 @@ namespace ContestantBE.Controllers
     public class HintController : ControllerBase
     {
         private readonly IHintService _hintService;
-        private readonly  AppDbContext _context;
-        private AppLogger _userBehaviorLogger;
+        private readonly AppDbContext _context;
+        private readonly AppLogger _userBehaviorLogger;
 
         public HintController(IHintService hintService, AppDbContext context, AppLogger userBehaviorLogger)
         {
@@ -31,9 +31,14 @@ namespace ContestantBE.Controllers
         [DuringCtfTimeOnly]
         public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            _userBehaviorLogger.Log("GET_HINT", userId, int.Parse(User.FindFirstValue("teamId")), new { hint_id = id, preview = preview });
+            _userBehaviorLogger.Log(
+                "GET_HINT",
+                userId,
+                int.Parse(User.FindFirstValue("teamId")!),
+                new { hint_id = id, preview = preview });
+
             var hint = await _hintService.GetHintById(id, userId, preview);
             if (hint == null) return NotFound(new { message = "Hint not found" });
             return Ok(new { success = true, data = hint });
@@ -55,9 +60,9 @@ namespace ContestantBE.Controllers
         public async Task<IActionResult> PostUnlock([FromBody] UnlockRequestDto req)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var teamId =  int.Parse(User.FindFirstValue("teamId"));
+            var teamId = int.Parse(User.FindFirstValue("teamId"));
 
-            if(teamId == 0 || userId == 0)
+            if (teamId == 0 || userId == 0)
             {
                 return Unauthorized(new { success = false, error = "Permission denied" });
             }

@@ -11,7 +11,7 @@ namespace ContestantBE.Controllers
     [Authorize]
     public class ActionLogsController : ControllerBase
     {
-        private IActionLogsServices _actionLogsServices;
+        private readonly IActionLogsServices _actionLogsServices;
 
         public ActionLogsController(IActionLogsServices actionLogsServices)
         {
@@ -21,7 +21,8 @@ namespace ContestantBE.Controllers
         [HttpGet("get-logs")]
         public async Task<IActionResult> GetActionLogs()
         {
-            try { 
+            try
+            {
                 var logs_with_details = await _actionLogsServices.GetActionLogs();
 
                 if (logs_with_details == null || logs_with_details.Count == 0)
@@ -51,8 +52,9 @@ namespace ContestantBE.Controllers
         [HttpGet("get-logs-team")]
         public async Task<IActionResult> GetActionLogsTeam()
         {
-            try {
-                var teamId =  int.Parse(User.FindFirstValue("teamId")); 
+            try
+            {
+                var teamId = int.Parse(User.FindFirstValue("teamId"));
                 var logs_with_details = await _actionLogsServices.GetActionLogsTeam(teamId);
 
                 if (logs_with_details == null || logs_with_details.Count == 0)
@@ -99,7 +101,7 @@ namespace ContestantBE.Controllers
 
             try
             {
-                if(int.TryParse(id, out var userId))
+                if (int.TryParse(id, out var userId))
                 {
                     var log = await _actionLogsServices.SaveActionLogs(req, userId);
                     return Ok(new
