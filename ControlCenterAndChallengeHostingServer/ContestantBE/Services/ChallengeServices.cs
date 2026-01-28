@@ -500,8 +500,8 @@ public class ChallengeServices : IChallengeServices
                 {
                     success = false,
                     message = "No deployment info found.",
-                    status = (int)HttpStatusCode.NotFound,
-                    pod_status = Enums.DeploymentStatusEnum.Failed
+                    status = (int)HttpStatusCode.OK,
+                    pod_status = Enums.DeploymentStatusEnum.TIMEOUT,
                 };
             }
 
@@ -569,8 +569,8 @@ public class ChallengeServices : IChallengeServices
             {
                 success = false,
                 message = "Pod is not running.",
-                status = (int)HttpStatusCode.OK,
-                pod_status = Enums.DeploymentStatusEnum.TIMEOUT
+                status = (int)HttpStatusCode.NotFound,
+                pod_status = Enums.DeploymentStatusEnum.Failed
             };
         }
         catch (Exception ex)
