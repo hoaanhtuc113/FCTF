@@ -437,10 +437,12 @@ namespace ResourceShared.Services
         {
             var cs = pod.Status?.ContainerStatuses?.FirstOrDefault();
             var reason = "";
-            var ageMinutes = 0;
+            var ageSeconds = 0;
 
             if (pod.Status?.StartTime != null)
-                ageMinutes = (int)(DateTime.UtcNow - pod.Status.StartTime.Value).TotalMinutes;
+                ageSeconds = (int)(DateTime.UtcNow - pod.Status.StartTime.Value).TotalSeconds;
+
+            if (ageSeconds < 15) return false;
 
             if (cs != null)
             {
@@ -464,23 +466,22 @@ namespace ResourceShared.Services
                 DeploymentReason.IMAGE_PULL_BACK_OFF, DeploymentReason.ERR_IMAGE_PULL, DeploymentReason.INVALID_IMAGE_NAME,
                 DeploymentReason.CREATE_CONTAINER_CONFIG_ERROR, DeploymentReason.CREATE_CONTAINER_ERROR
             };
-            if (fatalReasons.Contains(reason))
+            if (fatalReasons.Contains(reason) && ageSeconds > 30)
                 return true;
 
-            // CrashLoopBackOff nhiều lần
-            if (reason == DeploymentReason.CRASH_LOOP_BACK_OFF && restartCount > 2)
-                return true;
-
-            // OOMKilled nhiều lần
-            if (reason == DeploymentReason.OOM_KILLED && restartCount > 2)
+            //crash too many time
+            if ((reason == "CrashLoopBackOff" || reason == "OOMKilled") && restartCount > 2)
                 return true;
 
             // ContainerCreating quá lâu
-            if (reason == DeploymentReason.CONTAINER_CREATING && ageMinutes > 5)
+            if (reason == DeploymentReason.CONTAINER_CREATING && ageSeconds > 300)
+                return true;
+
+            if (phase == "Failed")
                 return true;
 
             // Running nhưng không ready > 2 phút (nếu không có container status thì coi như not ready)
-            if (phase == DeploymentStatus.RUNING && !(cs?.Ready ?? false) && ageMinutes > 2)
+            if (phase == DeploymentStatus.RUNING && !(cs?.Ready ?? false) && ageSeconds > 180)
                 return true;
 
             return false;
