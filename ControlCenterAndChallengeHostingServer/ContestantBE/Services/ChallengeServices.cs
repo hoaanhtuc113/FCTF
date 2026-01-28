@@ -554,6 +554,17 @@ public class ChallengeServices : IChallengeServices
                 };
                 return result;
             }
+            if (deploymentCache.status == Enums.DeploymentStatus.DELETING)
+            {
+                var result = new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.OK,
+                    success = true,
+                    message = "Pod is deleting.",
+                    pod_status = Enums.DeploymentStatusEnum.Deleting
+                };
+                return result;
+            }
             return new ChallengeDeployResponeDTO
             {
                 success = false,
