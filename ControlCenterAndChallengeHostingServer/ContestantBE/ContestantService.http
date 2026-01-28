@@ -1,6 +1,0 @@
-@ContestantBE_HostAddress = http://localhost:5069
-
-GET {{ContestantBE_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

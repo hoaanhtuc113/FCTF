@@ -14,7 +14,7 @@ namespace ContestantBE.Controllers
     public class TicketController : ControllerBase
     {
         private readonly ITicketService _ticketService;
-        private AppLogger _userBehaviorLogger;
+        private readonly AppLogger _userBehaviorLogger;
 
         public TicketController(ITicketService ticketService, AppLogger userBehaviorLogger)
         {

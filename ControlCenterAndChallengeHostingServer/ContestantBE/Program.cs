@@ -80,7 +80,6 @@ public class Program
         builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
         builder.Services.AddScoped<IFileService, FileService>();
         builder.Services.AddScoped<INotificationServices, NotificationServices>();
-        builder.Services.AddScoped<IUserServices, UserServices>();
         builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
         //Init config from ControlConfig, SharedConfig
         new ContestantBEConfigHelper().InitConfig();

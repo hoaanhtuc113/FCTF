@@ -4,6 +4,7 @@ using ResourceShared.DTOs.File;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using ResourceShared.Logger;
+using Microsoft.EntityFrameworkCore;
 
 namespace ContestantBE.Services
 {
@@ -44,7 +45,11 @@ namespace ContestantBE.Services
         {
             try
             {
-                var file = _context.Files.Where(f => f.Location == path).FirstOrDefault();
+                var file = await _context.Files
+                    .AsNoTracking()
+                    .Where(f => f.Location == path)
+                    .FirstOrDefaultAsync();
+
                 var fileToken = ItsDangerousCompatHelper.Loads<FileTokenDTOs>(token);
 
                 if (fileToken == null || fileToken.user_id != user_id)

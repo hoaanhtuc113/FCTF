@@ -1048,6 +1048,7 @@ function ChallengeDetailPanel({
   const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [isPodHealthy, setIsPodHealthy] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -1073,13 +1074,16 @@ function ChallengeDetailPanel({
     const s = raw.toString().toLowerCase();
 
     const categorize = (val: string) => {
+      if (val.includes('delet')) return 'deleting';
       if (val.includes('run') || val.includes('succeed')) return 'running';
       if (val.includes('pending') || (val.includes('deploy') && !val.includes('failed'))) return 'pending';
-      if (val.includes('fail') || val.includes('stop') || val.includes('delet') || val.includes('timeout')) return 'failed';
+      if (val.includes('fail') || val.includes('stop') || val.includes('timeout')) return 'failed';
       return 'unknown';
     };
 
     const cat = categorize(s);
+    // Reset deleting flag by default
+    setIsDeleting(cat === 'deleting');
     if (cat === 'running') {
       setIsPodHealthy(true);
       setIsHealthChecking(false);
@@ -1883,7 +1887,7 @@ function ChallengeDetailPanel({
           Swal.fire({
             html: `
               <div class="font-mono text-left text-sm">
-                <div class="text-red-400 mb-2">[!] ${ podStatus.toUpperCase() === 'TIMEOUT' ? 'Health Check Timeout' : 'Deployment Failed'}</div>
+                <div class="text-red-400 mb-2">[!] ${podStatus.toUpperCase() === 'TIMEOUT' ? 'Health Check Timeout' : 'Deployment Failed'}</div>
                 <div class="text-gray-400">> Pod failed to become ready </div>
                 <div class="text-gray-400">> ${data.message || 'Please try starting again'}</div>
               </div>
@@ -3245,7 +3249,7 @@ function ChallengeDetailPanel({
 
                       {/* Note */}
                       <div className={`text-[10px] leading-relaxed pt-2 mt-1 border-t ${theme === 'dark' ? 'text-gray-500 border-gray-700' : 'text-gray-500 border-gray-200'}`}>
-                        HTTP: <code className={`font-mono ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>basegateway:port/token</code> • TCP: <code className={`font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>basegateway:port</code>
+                        HTTP: <code className={`font-mono ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>basegateway:port/token</code> • TCP: <code className={`font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>basegateway port</code>
                       </div>
                     </div>
                   );
@@ -3484,7 +3488,7 @@ function ChallengeDetailPanel({
             !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className="space-y-2">
                 {/* If backend reports Deleting, show disabled Deleting state and block actions */}
-                {challenge.pod_status && challenge.pod_status.toString().toLowerCase().includes('delet') ? (
+                {isDeleting ? (
                   <button
                     disabled={true}
                     className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
@@ -3496,95 +3500,95 @@ function ChallengeDetailPanel({
                   </button>
                 ) : 
                   isHealthChecking || isDeploymentInProgress ? (
-                  <button
-                    disabled={true}
-                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
-                      ? 'bg-yellow-600 text-white border border-yellow-500'
-                      : 'bg-yellow-500 text-white border border-yellow-400'
-                      } cursor-not-allowed`}
-                  >
-                    <CircularProgress
-                      size={14}
-                      sx={{
-                        color: '#fff',
-                      }}
-                    />
-                    <span>[-] Health Checking...</span>
-                  </button>
-                ) : !url ? (
-                  // Show Start button only when no URL exists and not health checking
-                  (challenge.captain_only_start && !challenge.is_captain) ? (
-                    <p className={`text-center text-xs font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                      }`}>
-                      [!] Only captain can start
-                    </p>
-                  ) : (
                     <button
-                      onClick={handleStartChallenge}
-                      disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        width: '100%',
-                        padding: '10px 16px',
-                        border: '1px solid #4ade80',
-                        backgroundColor: '#4ade80',
-                        color: '#000',
-                        borderRadius: '4px',
-                        cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
-                        opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
-                          e.currentTarget.style.backgroundColor = '#22c55e';
-                          e.currentTarget.style.borderColor = '#22c55e';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
-                          e.currentTarget.style.backgroundColor = '#4ade80';
-                          e.currentTarget.style.borderColor = '#4ade80';
-                        }
-                      }}
+                      disabled={true}
+                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                        ? 'bg-yellow-600 text-white border border-yellow-500'
+                        : 'bg-yellow-500 text-white border border-yellow-400'
+                        } cursor-not-allowed`}
                     >
-                      {isStarting && (
-                        <CircularProgress
-                          size={14}
-                          sx={{
-                            color: '#000',
-                          }}
-                        />
-                      )}
-                      <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
-                    </button>
-                  )
-                ) : (
-                  // Show Stop button when URL exists (challenge is fully ready)
-                  <button
-                    onClick={handleStopChallenge}
-                    disabled={isStopping || challenge.pod_status === 'Deleting'}
-                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
-                      ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
-                      : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {isStopping && (
                       <CircularProgress
                         size={14}
                         sx={{
                           color: '#fff',
                         }}
                       />
-                    )}
-                    {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
-                  </button>
-                )}
+                      <span>[-] Health Checking...</span>
+                    </button>
+                  ) : !url ? (
+                    // Show Start button only when no URL exists and not health checking
+                    (challenge.captain_only_start && !challenge.is_captain) ? (
+                      <p className={`text-center text-xs font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                        }`}>
+                        [!] Only captain can start
+                      </p>
+                    ) : (
+                      <button
+                        onClick={handleStartChallenge}
+                        disabled={isStarting || isDeleting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping'}
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          padding: '10px 16px',
+                          border: '1px solid #4ade80',
+                          backgroundColor: '#4ade80',
+                          color: '#000',
+                          borderRadius: '4px',
+                          cursor: (isStarting || isDeleting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping') ? 'not-allowed' : 'pointer',
+                          opacity: (isStarting || isDeleting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping') ? 0.5 : 1,
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isStarting && !isDeleting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping') {
+                            e.currentTarget.style.backgroundColor = '#22c55e';
+                            e.currentTarget.style.borderColor = '#22c55e';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isStarting && !isDeleting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping') {
+                            e.currentTarget.style.backgroundColor = '#4ade80';
+                            e.currentTarget.style.borderColor = '#4ade80';
+                          }
+                        }}
+                      >
+                        {isStarting && (
+                          <CircularProgress
+                            size={14}
+                            sx={{
+                              color: '#000',
+                            }}
+                          />
+                        )}
+                        <span>{isStarting ? 'Starting...' : '[+] Start Challenge'}</span>
+                      </button>
+                    )
+                  ) : (
+                    // Show Stop button when URL exists (challenge is fully ready)
+                    <button
+                      onClick={handleStopChallenge}
+                      disabled={isStopping || isDeleting}
+                      className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
+                        ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
+                        : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isStopping && (
+                        <CircularProgress
+                          size={14}
+                          sx={{
+                            color: '#fff',
+                          }}
+                        />
+                      )}
+                      {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
+                    </button>
+                  )}
               </div>
             )}
         </div>

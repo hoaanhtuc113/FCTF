@@ -13,8 +13,10 @@ namespace ContestantBE.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        private AppLogger _userBehaviorLogger;
-        public AuthController(IAuthService authService, AppLogger userBehaviorLogger)
+        private readonly AppLogger _userBehaviorLogger;
+        public AuthController(
+            IAuthService authService,
+            AppLogger userBehaviorLogger)
         {
             _authService = authService;
             _userBehaviorLogger = userBehaviorLogger;
@@ -32,7 +34,7 @@ namespace ContestantBE.Controllers
                     message = result.Message,
                 });
             }
-            _userBehaviorLogger.Log("LOGIN", result.Data.id, result.Data.team.id, result.Data );
+            _userBehaviorLogger.Log("LOGIN", result.Data.id, result.Data.team.id, result.Data);
             await Console.Out.WriteLineAsync($"[Auth] Account {loginDto.username} login success");
 
             return Ok(new
@@ -49,7 +51,7 @@ namespace ContestantBE.Controllers
         {
             // Get userId from JWT token claims
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            
+
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized(new

@@ -21,7 +21,7 @@ namespace ResourceShared.Utils
         }
 
         // unserialize
-        public static T Loads<T>(string token, int? maxAgeSeconds = 432000, string salt = "itsdangerous")
+        public static T? Loads<T>(string token, int? maxAgeSeconds = 432000, string salt = "itsdangerous")
         {
             var payloadB64 = TimestampUnsign(token, secret, maxAgeSeconds, salt);
             var json = Encoding.UTF8.GetString(B64UrlDecode(payloadB64));
