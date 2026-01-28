@@ -59,7 +59,11 @@ namespace ContestantBE.Services
         {
             try
             {
-                var hint = await _context.Hints.Include(h => h.Challenge).FirstOrDefaultAsync(h => h.Id == id);
+                var hint = await _context.Hints
+                    .AsNoTracking()
+                    .Include(h => h.Challenge)
+                    .FirstOrDefaultAsync(h => h.Id == id);
+
             if (hint == null) return null;
             if (!hint.Challenge.State.Equals("visible"))
             {
@@ -89,6 +93,7 @@ namespace ContestantBE.Services
             {
                 view = "locked";
                 var unlocked = await _context.Unlocks
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.UserId == user.Id && u.Target == hint.Id);
                 if (unlocked != null) view = "unlocked";
             }

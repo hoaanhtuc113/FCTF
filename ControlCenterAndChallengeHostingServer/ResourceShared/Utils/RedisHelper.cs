@@ -64,43 +64,38 @@ public class RedisHelper
             return default;
         }
     }
-
-    public async Task<List<T?>?> GetListFromCacheAsync<T>(List<string> keys)
+    public async Task<Dictionary<string, T?>> GetManyAsync<T>(IReadOnlyCollection<string> keys)
     {
-        try
+        var result = new Dictionary<string, T?>(keys.Count);
+
+        if (keys.Count == 0)
+            return result;
+
+        var redisKeys = keys.Select(k => (RedisKey)k).ToArray();
+        var values = await _cache.StringGetAsync(redisKeys);
+
+        for (int i = 0; i < redisKeys.Length; i++)
         {
-            // Chuyển đổi List<string> sang RedisKey[]
-            RedisKey[] redisKeys = keys.Select(k => (RedisKey)k).ToArray();
-
-            // Lấy dữ liệu từ cache cho tất cả các keys
-            RedisValue[] values = await _cache.StringGetAsync(redisKeys);
-
-            // Khởi tạo danh sách để chứa các đối tượng sau khi deserialize
-            List<T?> resultList = [];
-
-            foreach (var value in values)
+            var value = values[i];
+            if (value.IsNullOrEmpty)
             {
-                if (!value.IsNullOrEmpty)
-                {
-                    // Deserialize từng giá trị
-                    T? deserializedValue = JsonConvert.DeserializeObject<T>(value);
-                    resultList.Add(deserializedValue);
-                }
-                else
-                {
-                    // Nếu giá trị null hoặc không tồn tại, thêm giá trị mặc định
-                    resultList.Add(default);
-                }
+                result[(string)redisKeys[i]!] = default;
+                continue;
             }
 
-            return resultList;
+            try
+            {
+                result[(string)redisKeys[i]!] =
+                    JsonConvert.DeserializeObject<T>(value!);
+            }
+            catch
+            {
+                result[(string)redisKeys[i]!] = default;
+            }
         }
-        catch (Exception)
-        {
-            // Nếu có lỗi, trả về null
-            return null;
-        }
+        return result;
     }
+
     // Phương thức để xóa giá trị từ cache dựa vào key
     public async Task<bool> RemoveCacheAsync(string key)
     {
