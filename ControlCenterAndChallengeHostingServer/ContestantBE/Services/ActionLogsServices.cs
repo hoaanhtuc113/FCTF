@@ -22,6 +22,7 @@ namespace ContestantBE.Services
         public async Task<List<ActionLogsDTO>> GetActionLogs()
         {
             var data = await _context.ActionLogs
+                .AsNoTracking()
                 .Include(al => al.User)
                 .OrderByDescending(x => x.ActionDate)
                 .Select(al => new ActionLogsDTO
@@ -41,6 +42,7 @@ namespace ContestantBE.Services
         public async Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId)
         {
             var data = await _context.ActionLogs
+                .AsNoTracking()
                 .Include(al => al.User)
                 .Where(al => al.User != null && al.User.TeamId == teamId)
                 .OrderByDescending(x => x.ActionDate)
@@ -62,14 +64,10 @@ namespace ContestantBE.Services
         public async Task<ActionLogsDTO> SaveActionLogs(ActionLogsReq req, int userId)
         {
             var topic_name = await _context.Challenges
+                .AsNoTracking()
                 .Where(c => c.Id == req.ChallengeId)
                 .Select(c => c.Category)
                 .FirstOrDefaultAsync();
-
-            var challenge = await _context.Challenges
-                                        .Where(c => c.Id == req.ChallengeId)
-                                        .FirstOrDefaultAsync();
-            var challenge_name = challenge != null ? challenge.Name : "Unknown";
 
             var log = new ActionLog
             {
@@ -82,21 +80,11 @@ namespace ContestantBE.Services
             _context.ActionLogs.Add(log);
             await _context.SaveChangesAsync();
 
-            var logs_with_usernames = await _context.ActionLogs
-                .Include(al => al.User)
-                .Where(al => al.UserId == userId)
-                .OrderByDescending(x => x.ActionDate)
-                .Select(al => new
-                {
-                    al.ActionId,
-                    al.ActionType,
-                    al.ActionDate,
-                    al.ActionDetail,
-                    al.TopicName,
-                    al.UserId,
-                    UserName = al.User != null ? al.User.Name : ""
-                })
-                .ToListAsync();
+            var username = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.Name)
+                .FirstOrDefaultAsync();
 
             return new ActionLogsDTO
             {
@@ -105,7 +93,7 @@ namespace ContestantBE.Services
                 ActionDetail = log.ActionDetail,
                 TopicName = log.TopicName,
                 UserId = log.UserId,
-                UserName = logs_with_usernames.FirstOrDefault()?.UserName ?? ""
+                UserName = username
             };
         }
     }
