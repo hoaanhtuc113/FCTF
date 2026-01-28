@@ -1121,8 +1121,10 @@ function ChallengeDetailPanel({
     };
 
     const cat = categorize(s);
-    // Reset deleting flag by default
-    setIsDeleting(cat === 'deleting');
+    // Reset deleting flag by default; also honor user-initiated stop marker so
+    // the UI shows deleting while stop flow completes even if backend reports
+    // intermediate statuses like 'Stopping'.
+    setIsDeleting(cat === 'deleting' || stopInitiatedRef.current === true);
     if (cat === 'running') {
       setIsPodHealthy(true);
       setIsHealthChecking(false);
@@ -1130,7 +1132,10 @@ function ChallengeDetailPanel({
       setIsChallengeStarted(true);
     } else if (cat === 'pending') {
       setIsDeploymentInProgress(true);
-      setIsHealthChecking(true);
+      // Only set health checking if a health check loop is actually running
+      if (healthCheckRunningRef.current) {
+        setIsHealthChecking(true);
+      }
       setIsPodHealthy(false);
       setIsChallengeStarted(false);
       setUrl(null);
@@ -1212,6 +1217,37 @@ function ChallengeDetailPanel({
       }
     };
 
+    // Prevent starting duplicate health-check loops across remounts/tabs.
+    // If another tab/component has already created the healthcheck marker for
+    // this challenge, treat the healthcheck as already running and avoid
+    // calling `startHealthCheckLoop()` again when re-entering the challenge.
+    try {
+      const healthCheckKey = `healthcheck_${challenge.id}`;
+      const savedHealthCheck = localStorage.getItem(healthCheckKey);
+      if (savedHealthCheck) {
+        // Parse saved marker to infer why healthcheck exists (start vs stopping)
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(savedHealthCheck);
+        } catch (e) {
+          parsed = null;
+        }
+
+        healthCheckRunningRef.current = true;
+        // reflect the existing health-check state in UI so buttons are disabled
+        setIsHealthChecking(true);
+        setIsDeploymentInProgress(true);
+
+        // If the saved marker indicates a user-initiated stop, reflect deleting state
+        if (parsed && parsed.reason && (parsed.reason === 'stopping' || parsed.reason === 'delete')) {
+          setIsDeleting(true);
+          stopInitiatedRef.current = true;
+        }
+      }
+    } catch (err) {
+      // ignore localStorage errors
+    }
+
     // Note: Removed loadDeploymentState() - fetchChallengeStatus() handles this by checking is_healthy
     console.log('Loading cooldown for challenge ID:', challenge.id);
 
@@ -1262,6 +1298,11 @@ function ChallengeDetailPanel({
       }
     };
   }, [cooldownRemaining, challenge.id]);
+
+  // Debug: Log isDeleting changes
+  useEffect(() => {
+    console.log(`[DEBUG] isDeleting changed to: ${isDeleting} for challenge ${challenge.id}`);
+  }, [isDeleting, challenge.id]);
 
   useEffect(() => {
     if (isChallengeStarted && timeRemaining && timeRemaining > 0) {
@@ -1397,17 +1438,15 @@ function ChallengeDetailPanel({
         try {
           const pod = (data.pod_status || '').toString().toLowerCase();
           console.log('Checking pod status for health check initiation:', pod, data);
-          const deploymentKey = `deployment_${challenge.id}`;
           const healthCheckKey = `healthcheck_${challenge.id}`;
-          const savedDeployment = localStorage.getItem(deploymentKey);
           const savedHealthCheck = localStorage.getItem(healthCheckKey);
 
           if (pod && (pod.includes('pending') || pod.includes('delet'))) {
             // If nothing is tracking this deployment locally, create a health check marker and start loop
-            if (!savedDeployment && !savedHealthCheck && !healthCheckRunningRef.current) {
+            if (!savedHealthCheck && !healthCheckRunningRef.current) {
               localStorage.setItem(healthCheckKey, JSON.stringify({ startTime: Date.now(), challengeId: challenge.id }));
               setIsHealthChecking(true);
-              setIsDeploymentInProgress(true);
+              setIsDeploymentInProgress(!pod.includes('delet'));
               setIsChallengeStarted(false);
               setUrl(null);
               setIsDeleting(pod.includes('delet'));
@@ -1776,8 +1815,9 @@ function ChallengeDetailPanel({
         const podStatus = (data.pod_status || '').toString().toLowerCase();
 
         // Handle NOT_FOUND status
+        console.log("is Deleting:", isDeleting, " podStatus:", podStatus, " data.status:", data.status);
         if (podStatus.includes('not_found') || data.status === "404") {
-          if (isDeleting) {
+          if (isDeleting || stopInitiatedRef.current) {
             // Deleting + not_found = successfully deleted
             handleSuccessfulDeletion();
             return true;
@@ -1830,7 +1870,9 @@ function ChallengeDetailPanel({
   };
 
   const handleHealthCheckTimeout = (): void => {
+    console.log('[DEBUG] Health check timeout - calling cleanup');
     cleanupHealthCheck();
+    setIsDeleting(false);  // Ensure deleting state is cleared on timeout
 
     Swal.fire({
       html: `
@@ -1992,6 +2034,8 @@ function ChallengeDetailPanel({
   const handleSuccessfulDeletion = async (): Promise<void> => {
     cleanupHealthCheck(false);
     setIsDeleting(false);
+    setUrl(null);  // Reset URL to clear running state
+    setIsChallengeStarted(false);  // Reset started state
 
     if (onFlagSuccess) {
       await onFlagSuccess();
@@ -2017,6 +2061,7 @@ function ChallengeDetailPanel({
   };
 
   const cleanupHealthCheck = (clearUrl: boolean = true): void => {
+    console.log(`[DEBUG] Cleanup health check - clearUrl: ${clearUrl}`);
     setIsHealthChecking(false);
     setIsPodHealthy(false);
     setIsDeploymentInProgress(false);
@@ -2187,6 +2232,24 @@ function ChallengeDetailPanel({
     stopChallengeRunningRef.current = true;
     setIsStopping(true);
 
+    // Optimistically mark stop initiated so UI/healthcheck state reflects user's action
+    const healthCheckKey = `healthcheck_${challenge.id}`;
+    try {
+      stopInitiatedRef.current = true;
+      setIsDeleting(true);
+      setIsHealthChecking(true);
+      setIsDeploymentInProgress(true);
+
+      // Persist marker immediately so other tabs/components know a stop is in-progress
+      localStorage.setItem(healthCheckKey, JSON.stringify({
+        startTime: Date.now(),
+        challengeId: challenge.id,
+        reason: 'stopping'
+      }));
+    } catch (e) {
+      // ignore localStorage write errors
+    }
+
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.STOP, {
         method: 'POST',
@@ -2197,47 +2260,37 @@ function ChallengeDetailPanel({
       const data = await response.json();
 
       if (data.success) {
-        // Mark that a stop was initiated and enter deleting/health-checking state
-        stopInitiatedRef.current = true;
-        setIsChallengeStarted(false);
-        setUrl(null);
-        setIsDeleting(true);
-        setIsHealthChecking(true);
-        setIsDeploymentInProgress(true);
-
-        // Persist health check state so other tabs/pages can resume monitoring
-        const healthCheckKey = `healthcheck_${challenge.id}`;
-        localStorage.setItem(healthCheckKey, JSON.stringify({
-          startTime: Date.now(),
-          challengeId: challenge.id,
-          reason: 'stopping'
-        }));
-
         // Start polling to wait until pod becomes 'Stopped'
         if (!healthCheckRunningRef.current) {
           setTimeout(() => startHealthCheckLoop(), 100);
         }
 
-        // Inform the user that stop has started; final confirmation will appear when pod reaches 'Stopped'
-        Swal.fire({
-          html: `
-            <div class="font-mono text-left text-sm">
-              <div class="text-yellow-400 mb-2">[~] Stopping challenge</div>
-              <div class="text-gray-400">> ${challenge.name}</div>
-              <div class="text-gray-400">> Waiting for pod to reach 'Stopped' state...</div>
-            </div>
-          `,
-          icon: 'info',
-          iconColor: '#fbbf24',
-          confirmButtonText: 'Close',
-          background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#fbbf24' : '#000000',
-          customClass: {
-            popup: 'rounded-lg border border-yellow-500/30',
-            confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
-          },
-        });
+        // Swal.fire({
+        //   html: `
+        //     <div class="font-mono text-left text-sm">
+        //       <div class="text-yellow-400 mb-2">[~] Stopping challenge</div>
+        //       <div class="text-gray-400">> ${challenge.name}</div>
+        //       <div class="text-gray-400">> Waiting for pod to reach 'Stopped' state...</div>
+        //     </div>
+        //   `,
+        //   icon: 'info',
+        //   iconColor: '#fbbf24',
+        //   confirmButtonText: 'Close',
+        //   background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        //   color: theme === 'dark' ? '#fbbf24' : '#000000',
+        //   customClass: {
+        //     popup: 'rounded-lg border border-yellow-500/30',
+        //     confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+        //   },
+        // });
       } else {
+        // API reported failure - revert optimistic state
+        stopInitiatedRef.current = false;
+        setIsDeleting(false);
+        setIsHealthChecking(false);
+        setIsDeploymentInProgress(false);
+        localStorage.removeItem(healthCheckKey);
+
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2258,6 +2311,13 @@ function ChallengeDetailPanel({
       }
     } catch (error) {
       console.error('Stop challenge error:', error);
+      // Revert optimistic state on network error
+      stopInitiatedRef.current = false;
+      setIsDeleting(false);
+      setIsHealthChecking(false);
+      setIsDeploymentInProgress(false);
+      try { localStorage.removeItem(healthCheckKey); } catch (e) {}
+
       Swal.fire({
         html: `
           <div class="font-mono text-left text-sm">
@@ -3277,7 +3337,7 @@ function ChallengeDetailPanel({
           )}
 
           {/* Connection info: show token-based HTTP and TCP addresses */}
-          {(url || isHealthChecking || isDeploymentInProgress) && (
+          {(url || isHealthChecking && isDeploymentInProgress) && (
             <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'
               }`}>
               <div className="flex items-center justify-between mb-1">
@@ -3653,18 +3713,8 @@ function ChallengeDetailPanel({
             !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
               <div className="space-y-2">
                 {/* If backend reports Deleting, show disabled Deleting state and block actions */}
-                {isDeleting ? (
-                  <button
-                    disabled={true}
-                    className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
-                      ? 'bg-gray-600 text-white border border-gray-500'
-                      : 'bg-gray-200 text-gray-700 border border-gray-300'
-                      } cursor-not-allowed`}
-                  >
-                    <span>[-] Deleting...</span>
-                  </button>
-                ) :
-                  isHealthChecking || isDeploymentInProgress ? (
+                {
+                  ((isHealthChecking && isDeploymentInProgress) && !isDeleting) ? (
                     <button
                       disabled={true}
                       className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
@@ -3751,7 +3801,7 @@ function ChallengeDetailPanel({
                           }}
                         />
                       )}
-                      {isStopping ? '[...] Stopping' : '[-] Stop Challenge'}
+                      {isStopping || isDeleting ? '[...] Stopping' : '[-] Stop Challenge'}
                     </button>
                   )}
               </div>
