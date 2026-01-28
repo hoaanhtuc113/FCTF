@@ -873,7 +873,7 @@ namespace ResourceShared.Services
                 return true;
 
             // Running nhưng không ready > 2 phút (nếu không có container status thì coi như not ready)
-            if (phase == DeploymentStatus.RUNING && !(cs?.Ready ?? false) && ageMinutes > 2)
+            if (phase == DeploymentStatus.RUNING && !(cs?.Ready ?? false) && ageMinutes > 6)
                 return true;
 
             return false;
