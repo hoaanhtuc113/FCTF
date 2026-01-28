@@ -43,8 +43,7 @@ namespace ContestantBE.Controllers
         [Authorize]
         public async Task<IActionResult> GetScoreTeam()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
             var teamScore = await _teamService.GetTeamScore(userId);
             if (teamScore == null) return NotFound(new { success = false, message = "Team not found" });
@@ -56,7 +55,7 @@ namespace ContestantBE.Controllers
         [Authorize]
         public async Task<IActionResult> GetSolvesTeam()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
             var solves = await _teamService.GetTeamSolves(userId);
             return Ok(new { success = true, data = solves, meta = new { count = solves.Count } });

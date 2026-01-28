@@ -9,12 +9,12 @@ namespace ContestantBE.Controllers
     [Authorize]
     public class ConfigController : ControllerBase
     {
-        private readonly AppDbContext _context;
         private readonly CtfTimeHelper _ctfTimeHelper;
         private readonly ConfigHelper _configHelper;
-        public ConfigController(AppDbContext context, CtfTimeHelper ctfTimeHelper, ConfigHelper configHelper)
+        public ConfigController(
+            CtfTimeHelper ctfTimeHelper,
+            ConfigHelper configHelper)
         {
-            _context = context;
             _ctfTimeHelper = ctfTimeHelper;
             _configHelper = configHelper;
         }
@@ -28,12 +28,13 @@ namespace ContestantBE.Controllers
 
             return 0;
         }
+
         [HttpGet("get_date_config")]
         public async Task<IActionResult> GetDateTimeConfig()
         {
             var startFromConfig = ToLong(_configHelper.GetConfig("start"));
             var endFromConfig = ToLong(_configHelper.GetConfig("end"));
-            if(_ctfTimeHelper.CtfEnded())
+            if (_ctfTimeHelper.CtfEnded())
             {
                 return Ok(new
                 {
@@ -41,7 +42,7 @@ namespace ContestantBE.Controllers
                     message = "CTF has ended"
                 });
             }
-            if(_ctfTimeHelper.CtfTime())
+            if (_ctfTimeHelper.CtfTime())
             {
                 return Ok(new
                 {
@@ -50,7 +51,8 @@ namespace ContestantBE.Controllers
                     start_date = startFromConfig,
                     end_date = endFromConfig
                 });
-            }else 
+            }
+            else
             {
                 return Ok(new
                 {
@@ -58,7 +60,7 @@ namespace ContestantBE.Controllers
                     message = "CTFd is coming...",
                     start_date = startFromConfig,
                 });
-            }   
+            }
         }
     }
-}   
+}

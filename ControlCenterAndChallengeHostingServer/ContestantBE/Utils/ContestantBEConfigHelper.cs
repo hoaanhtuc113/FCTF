@@ -1,6 +1,4 @@
-﻿using ResourceShared.Configs;
-using ResourceShared.Utils;
-using static System.Net.WebRequestMethods;
+﻿using ResourceShared.Utils;
 
 namespace ContestantBE.Utils
 {
