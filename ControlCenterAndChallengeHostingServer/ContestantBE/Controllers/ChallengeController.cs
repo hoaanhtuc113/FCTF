@@ -117,6 +117,7 @@ namespace ContestantBE.Controllers
                     {
                         message = result.Message,
                         data = result.Data.challenge,
+                        result.Data.pod_status,
                         result.Data.is_started,
                         result.Data.challenge_url,
                         result.Data.time_remaining
@@ -128,6 +129,7 @@ namespace ContestantBE.Controllers
                     message = result.Data.success,
                     data = result.Data.challenge,
                     result.Data.is_started,
+                    result.Data.pod_status
                 });
             }
             catch (Exception ex)
