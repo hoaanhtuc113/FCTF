@@ -13,6 +13,7 @@ import {
   Security,
   PictureAsPdf,
   ContentCopy,
+  AttachMoneyRounded,
 } from '@mui/icons-material';
 import { FaDownload } from 'react-icons/fa';
 import Swal from 'sweetalert2';
@@ -175,9 +176,11 @@ export function Challenges() {
           method: 'GET'
         });
         const data = await response.json();
+        console.log('Refreshing challenge details:', data);
         // Preserve value and solves from the current selected challenge
         setSelectedChallenge({
           ...data.data,
+          pod_status: data.pod_status,
           value: selectedChallenge.value,
           solves: selectedChallenge.solves,
           requirements: selectedChallenge.requirements
@@ -372,9 +375,12 @@ export function Challenges() {
                     const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(prereqChallenge.id), {
                       method: 'GET'
                     });
+
                     const data = await response.json();
+                    console.log('Fetched prerequisite challenge details:', data);
                     setSelectedChallenge({
                       ...data.data,
+                      pod_status: data.pod_status,
                       value: prereqChallenge.value,
                       solves: prereqChallenge.solves,
                       requirements: prereqChallenge.requirements
@@ -407,10 +413,12 @@ export function Challenges() {
         method: 'GET'
       });
       const data = await response.json();
+      console.log('Fetched challenge details:', data);
 
       // Preserve value and solves from the list since API detail doesn't return them
       setSelectedChallenge({
         ...data.data,
+        pod_status: data.pod_status,
         value: challenge.value,
         solves: challenge.solves,
         requirements: challenge.requirements // Preserve requirements
@@ -1066,9 +1074,11 @@ function ChallengeDetailPanel({
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const healthCheckRunningRef = useRef<boolean>(false);
   const stopChallengeRunningRef = useRef<boolean>(false);
+  const stopInitiatedRef = useRef<boolean>(false);
 
   useEffect(() => {
     const raw = challenge.pod_status;
+    console.log('Pod status changed:', challenge);
     if (!raw) return;
 
     const s = raw.toString().toLowerCase();
@@ -1174,6 +1184,7 @@ function ChallengeDetailPanel({
     };
 
     // Note: Removed loadDeploymentState() - fetchChallengeStatus() handles this by checking is_healthy
+    console.log('Loading cooldown for challenge ID:', challenge.id);
 
     loadCooldown();
     fetchHints();
@@ -1322,10 +1333,12 @@ function ChallengeDetailPanel({
 
   const fetchChallengeStatus = async () => {
     try {
+      console.log('Fetching challenge status check for challenge ID:', challenge.id);
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
         method: 'GET'
       });
       const data = await response.json();
+      console.log('Fetched challenge status check:', data);
       if (data.data) {
         // Log pod_status for debugging
 
@@ -1350,8 +1363,37 @@ function ChallengeDetailPanel({
           setTimeRemaining(null); // Show --:-- when no URL
         }
 
+        // If backend reports pending or deleting but we don't have any local deployment/healthcheck state,
+        // start health checking/polling so UI matches backend state and we observe eventual transitions.
+        try {
+          const pod = (data.pod_status || '').toString().toLowerCase();
+          console.log('Checking pod status for health check initiation:', pod, data);
+          const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
+          const savedDeployment = localStorage.getItem(deploymentKey);
+          const savedHealthCheck = localStorage.getItem(healthCheckKey);
+
+          if (pod && (pod.includes('pending') || pod.includes('delet'))) {
+            // If nothing is tracking this deployment locally, create a health check marker and start loop
+            if (!savedDeployment && !savedHealthCheck && !healthCheckRunningRef.current) {
+              localStorage.setItem(healthCheckKey, JSON.stringify({ startTime: Date.now(), challengeId: challenge.id }));
+              setIsHealthChecking(true);
+              setIsDeploymentInProgress(true);
+              setIsChallengeStarted(false);
+              setUrl(null);
+              setIsDeleting(pod.includes('delet'));
+
+              setTimeout(() => {
+                startHealthCheckLoop();
+              }, 100);
+            }
+          }
+        } catch (err) {
+          // non-fatal
+        }
+
         // If pod_status is not Running and challenge was started, reset state
-        if (data.data.pod_status && data.data.pod_status !== 'Running' && isChallengeStarted) {
+        if (data.pod_status && data.pod_status !== 'Running' && isChallengeStarted) {
           setIsChallengeStarted(false);
           setUrl(null);
           setTimeRemaining(null);
@@ -1767,9 +1809,55 @@ function ChallengeDetailPanel({
     }
 
     healthCheckRunningRef.current = true;
+    // Maximum number of polling attempts (~5.5 minutes = 66 attempts at 5s interval)
+    const maxAttempts = 66;
+    let attempts = 0;
 
     const checkStatus = async (): Promise<boolean> => {
       try {
+        // Count this attempt
+        attempts++;
+
+        // If we've exceeded max attempts, treat as TIMEOUT
+        if (attempts >= maxAttempts) {
+          setIsHealthChecking(false);
+          setIsPodHealthy(false);
+          setIsDeploymentInProgress(false);
+          setIsStarting(false);
+          healthCheckRunningRef.current = false;
+
+          // Clear URL to show Start button again
+          setUrl(null);
+          setIsChallengeStarted(false);
+
+          // Clear deployment state from localStorage
+          const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          localStorage.removeItem(healthCheckKey);
+
+          // Show timeout notification
+          Swal.fire({
+            html: `
+              <div class="font-mono text-left text-sm">
+                <div class="text-red-400 mb-2">[!] Health Check Timeout</div>
+                <div class="text-gray-400">> Pod failed to become ready</div>
+                <div class="text-gray-400">> Please try starting again</div>
+              </div>
+            `,
+            icon: 'error',
+            iconColor: '#ef4444',
+            confirmButtonText: 'OK',
+            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+            color: theme === 'dark' ? '#ef4444' : '#000000',
+            customClass: {
+              popup: 'rounded-lg border border-red-500/30',
+              confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+            },
+          });
+
+          return true; // Stop loop - TIMEOUT
+        }
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START_CHECKING, {
           method: 'POST',
           body: JSON.stringify({
@@ -1863,10 +1951,115 @@ function ChallengeDetailPanel({
           return true; // Stop loop - SUCCESS
         }
 
-        // If backend reports a terminal pod status (failed/stopped/deleting/timeout), stop and notify
+        // If backend reports a terminal pod status (failed/stopped/timeout), stop and notify
+        // NOTE: 'Deleting' is handled specially - we continue polling until it becomes 'Stopped'
         const podStatus = (data.pod_status || data.podStatus || data.status || '').toString();
-        const terminalStatuses = ['Failed', 'DEPLOY_FAILED', 'Stopped', 'DELETING', 'TIMEOUT'];
-        if (podStatus && terminalStatuses.some(s => s.toLowerCase() === podStatus.toLowerCase())) {
+        const podLower = podStatus.toLowerCase();
+        const terminalStatuses = ['Failed', 'DEPLOY_FAILED', 'Stopped', 'TIMEOUT'];
+        // If pod indicates failure, stop immediately and show backend message
+        if ((podLower && podLower.includes('fail')) || data.status =='404') {
+          setIsHealthChecking(false); 
+          setIsPodHealthy(false);
+          setIsDeploymentInProgress(false);
+          setIsStarting(false);
+          healthCheckRunningRef.current = false;
+
+          // Clear URL to show Start button again
+          setUrl(null);
+          setIsChallengeStarted(false);
+
+          // Clear deployment state from localStorage
+          const deploymentKey = `deployment_${challenge.id}`;
+          const healthCheckKey = `healthcheck_${challenge.id}`;
+          localStorage.removeItem(deploymentKey);
+          localStorage.removeItem(healthCheckKey);
+
+          // Show failure notification with backend message
+          Swal.fire({
+            html: `
+              <div class="font-mono text-left text-sm">
+                <div class="text-red-400 mb-2">[!] Deployment Failed</div>
+                <div class="text-gray-400">> ${data.message || 'Pod reported failure'}</div>
+              </div>
+            `,
+            icon: 'error',
+            iconColor: '#ef4444',
+            confirmButtonText: 'OK',
+            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+            color: theme === 'dark' ? '#ef4444' : '#000000',
+            customClass: {
+              popup: 'rounded-lg border border-red-500/30',
+              confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+            },
+          });
+
+          return true; // Stop loop - FAILURE
+        }
+
+        // If pod is deleting, mark deleting and continue polling until stopped
+        if (podLower && podLower.includes('delet')) {
+          setIsDeleting(true);
+          setIsHealthChecking(false);
+          setIsPodHealthy(false);
+          setIsDeploymentInProgress(true);
+
+          // Keep polling until pod transitions to 'Stopped' or another terminal status
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return checkStatus();
+        }
+
+        if (podStatus && terminalStatuses.some(s => s.toLowerCase() === podLower)) {
+          // If stop was initiated and pod became 'Stopped', treat as successful stop
+          if (podLower === 'stopped' && stopInitiatedRef.current) {
+            setIsHealthChecking(false);
+            setIsPodHealthy(false);
+            setIsDeploymentInProgress(false);
+            setIsStarting(false);
+            healthCheckRunningRef.current = false;
+
+            // Clear deleting flag
+            setIsDeleting(false);
+
+            // Clear URL and mark not started
+            setUrl(null);
+            setIsChallengeStarted(false);
+
+            // Clear deployment/healthcheck state
+            const deploymentKey = `deployment_${challenge.id}`;
+            const healthCheckKey = `healthcheck_${challenge.id}`;
+            localStorage.removeItem(deploymentKey);
+            localStorage.removeItem(healthCheckKey);
+
+            // Refresh challenge data to update pod_status and call category refresh
+            if (onFlagSuccess) {
+              await onFlagSuccess();
+            }
+
+            // Notify user
+            Swal.fire({
+              html: `
+                <div class="font-mono text-left text-sm">
+                  <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
+                  <div class="text-gray-400">> ${challenge.name}</div>
+                </div>
+              `,
+              icon: 'success',
+              iconColor: '#22c55e',
+              confirmButtonText: 'Close',
+              background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+              color: theme === 'dark' ? '#22c55e' : '#000000',
+              customClass: {
+                popup: 'rounded-lg border border-green-500/30',
+                confirmButton: 'bg-green-500 hover:bg-green-600 text-white font-mono px-4 py-2 rounded',
+              },
+            });
+
+            // Reset stopInitiated flag
+            stopInitiatedRef.current = false;
+
+            return true; // Stop loop - STOPPED (success)
+          }
+
           setIsHealthChecking(false);
           setIsPodHealthy(false);
           setIsDeploymentInProgress(false);
@@ -2035,41 +2228,44 @@ function ChallengeDetailPanel({
       const data = await response.json();
 
       if (data.success) {
+        // Mark that a stop was initiated and enter deleting/health-checking state
+        stopInitiatedRef.current = true;
         setIsChallengeStarted(false);
         setUrl(null);
-        setTimeRemaining(null);
-        setIsPodHealthy(false);
+        setIsDeleting(true);
+        setIsHealthChecking(true);
+        setIsDeploymentInProgress(true);
 
-        // Clear timer
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
+        // Persist health check state so other tabs/pages can resume monitoring
+        const healthCheckKey = `healthcheck_${challenge.id}`;
+        localStorage.setItem(healthCheckKey, JSON.stringify({
+          startTime: Date.now(),
+          challengeId: challenge.id,
+          reason: 'stopping'
+        }));
+
+        // Start polling to wait until pod becomes 'Stopped'
+        if (!healthCheckRunningRef.current) {
+          setTimeout(() => startHealthCheckLoop(), 100);
         }
 
-        // Stop global timer
-        challengeTimerService.stopTimer(challenge.id);
-
-        // Refresh challenge data to update pod_status and call category refresh
-        if (onFlagSuccess) {
-          await onFlagSuccess();
-        }
-
+        // Inform the user that stop has started; final confirmation will appear when pod reaches 'Stopped'
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
-              <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
-              <div class="text-gray-400">> Instance terminated successfully</div>
+              <div class="text-yellow-400 mb-2">[~] Stopping challenge</div>
+              <div class="text-gray-400">> ${challenge.name}</div>
+              <div class="text-gray-400">> Waiting for pod to reach 'Stopped' state...</div>
             </div>
           `,
-          icon: 'success',
-          iconColor: '#22c55e',
+          icon: 'info',
+          iconColor: '#fbbf24',
+          confirmButtonText: 'Close',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-          color: theme === 'dark' ? '#22c55e' : '#000000',
-          timer: 2000,
-          showConfirmButton: false,
+          color: theme === 'dark' ? '#fbbf24' : '#000000',
           customClass: {
-            popup: 'rounded-lg border border-green-500/30',
+            popup: 'rounded-lg border border-yellow-500/30',
+            confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
           },
         });
       } else {
@@ -3498,7 +3694,7 @@ function ChallengeDetailPanel({
                   >
                     <span>[-] Deleting...</span>
                   </button>
-                ) : 
+                ) :
                   isHealthChecking || isDeploymentInProgress ? (
                     <button
                       disabled={true}

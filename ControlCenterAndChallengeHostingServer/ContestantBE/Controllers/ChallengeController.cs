@@ -889,7 +889,8 @@ namespace ContestantBE.Controllers
                 {
                     success = false,
                     message = "Invalid request parameters",
-                    status = (int)HttpStatusCode.BadRequest
+                    status = (int)HttpStatusCode.BadRequest,
+                    pod_status = Enums.DeploymentStatusEnum.Failed
                 });
             }
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -903,7 +904,8 @@ namespace ContestantBE.Controllers
                 {
                     success = false,
                     message = "User no join team",
-                    status = (int)HttpStatusCode.BadRequest
+                    status = (int)HttpStatusCode.BadRequest,
+                    pod_status = Enums.DeploymentStatusEnum.Failed
                 });
             }
 
@@ -915,7 +917,8 @@ namespace ContestantBE.Controllers
             {
                 success = false,
                 message = "Challenge not found",
-                status = (int)HttpStatusCode.BadRequest
+                status = (int)HttpStatusCode.BadRequest,
+                pod_status = Enums.DeploymentStatusEnum.Failed
             });
 
             var response = await _challengeServices.CheckChallengeStart(challenge.Id, user.TeamId.Value);
