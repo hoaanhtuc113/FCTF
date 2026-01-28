@@ -10,7 +10,7 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: 10.184.0.5
+    server: 10.148.0.8
     path: /srv/nfs/share
 
 ---

@@ -10,5 +10,5 @@ data:
   NFS_MOUNT_PATH: "/mnt/nfs/data"
   DEPLOYMENT_SERVICE_API: "http://deployment-center-svc.app.svc.cluster.local:5020"
   ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
-  TCP_DOMAIN: "challenge-zg9uj3rfagfja19tzq.fctf.cloud"
+  TCP_DOMAIN: "challenge.fctf.mnhduc.site"
   START_CHALLENGE_TEMPLATE: "start-chal-v2-template"

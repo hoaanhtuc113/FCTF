@@ -23,23 +23,49 @@ sudo timedatectl set-timezone Asia/Ho_Chi_Minh
 ```
 
 ### 2. Cài đặt K3s Master Node
-**Cho Production (Cloud serrver):**
+# Trên config node
 ```bash
-# Cài K3s với domain TLS SAN
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 644 --tls-san=35.219.48.141" sh -
+sudo mkdir -p /etc/rancher/k3s
+sudo tee /etc/rancher/k3s/kubelet.config <<EOF
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+maxPods: 250
+EOF
+```
+**Cho Production (Cloud serrver):**
+# cài đặt k3s master-node là ip public của server
+```bash
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+  --disable traefik \
+  --flannel-backend=none \
+  --disable-network-policy \
+  --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
+  --write-kubeconfig-mode=644 \
+  --tls-san 34.2.140.1" sh -
+```
+
+# cài k3s worker-node là ip private của server
+```bash
+# Lấy master node token
+sudo cat /var/lib/rancher/k3s/server/node-token
+
+# Cài k3s worker-node
+# Truy cập vào worker-node và chạy lệnh này để join vào master node
+curl -sfL https://get.k3s.io | K3S_URL=https://10.148.0.8:6443 \
+  K3S_TOKEN=K109b367746ec9f9e58a196e502f77281bd9fed2c2e1fbad52f81a2c47391883cc6::server:19978b0a58a7e1822d41c61a2c396e94 \
+  INSTALL_K3S_EXEC="agent --with-node-id --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 ```
 
 **Cho Development (Local, WSL...):**
 ```bash
 # Cài K3s đơn giản hơn, không cần domain
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644" sh -
-```
 
-**Cài các woker-node nếu có**
-```bash
-# Cài k3s worker-node
-# Truy cập vào worker-node và chạy lệnh này để join vào master node
-curl -sfL https://get.k3s.io | K3S_URL=https://35.219.48.141:6443 K3S_TOKEN=K10b3095185665f61cb743b0e4820a6dc358d1fd7ec846de764d68c2912b0a5dffe::server:832d9f9174fcdc5a5f4b555b048ebabc sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+  --disable traefik \
+  --flannel-backend=none \
+  --disable-network-policy \
+  --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
+  --write-kubeconfig-mode=644" sh -
 ```
 
 **Kiểm tra và cấu hình kubectl:**
@@ -58,6 +84,12 @@ echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 
 # Kiểm tra cluster
 kubectl get nodes
+```
+
+## install calico
+```bash
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
 ```
 
 ### 3. Cài đặt NFS Server
@@ -90,13 +122,21 @@ sudo exportfs -v
 ```bash
 # thường sẽ là IP đầu tiên 
 hostname -I
-# Ví dụ tôi có 10.184.0.2 
+# Ví dụ tôi có 10.148.0.8 
 # Cần sửa trong prod\storage\nfs-pv-pvc.yaml phàn spec.nfs.server ở đây thay thế bằng IP của bạn 
+# Cần sửa trong file helm.yaml phần "cài k3s worker-node là ip private của server" thay thế bằng ip server của bạn nếu cần cái node-worker
 # Tương tự những chỗ mount nfs ở các file sau  
 #    prod\app\admin-mvc\deployment.yaml 
 #    prod\app\contestant-be\deployment.yaml
 #    prod\argo-workflows\start-chal-v2\start-chal-v2-template.yaml
 #    prod\argo-workflows\up-challenge\up-challenge-template.yaml
+
+# Cấu hình nodeSelector / hostname
+# Kiểm tra hostname node trong cluster:
+kubectl get nodes
+# Cập nhật đúng tên hostname của server chứa nfs trong các file sau phần kubernetes.io/hostname
+#    prod\helm\db\mariadb\maria-values.yaml
+#    prod\helm\db\mariadb\redis-values.yaml
 
 # apply NFS PV/PVC
 kubectl apply -f ./prod/storage/nfs-pv-pvc.yaml
@@ -124,6 +164,7 @@ kubectl get svc --all-namespaces -o custom-columns="NAMESPACE:.metadata.namespac
 # Chạy script cài đặt tự động 
 # Hoặc cài đặt từng bước: có thể vào ./helm.sh để cài từng bước bắt đầu từ # Apply helm repos
 # Đối với môi trường dev có thể bỏ qua nginx ingress và cert-manager (comment phần đó lại)
+# Vào folder FCTF-k3s-manifest/prod
 bash helm.sh
 # nếu không chạy được bash helm.sh bạn cần chuyển từ CLRF sang FL và đặt file executable sau đó chạy lại
 chmod +x helm.sh
@@ -172,7 +213,7 @@ kubectl apply -f ./prod/app/admin-mvc/
 kubectl apply -f ./prod/app/contestant-be/
 kubectl apply -f ./prod/app/contestant-portal/
 kubectl apply -f ./prod/app/deployment-center/
-kubectl apply -f ./prod/app/event-listener/
+kubectl apply -f ./prod/app/deployment-listener/
 
 # Ở đây có 2 cách bạn có thể chuyển đổi qua lại
 # Apply NodePort services: Nếu Ở môi trường local, ingress domain không hoạt động. sử dụng cách này**

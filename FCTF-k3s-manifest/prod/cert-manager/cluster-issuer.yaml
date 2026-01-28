@@ -4,7 +4,7 @@ metadata:
   name: letsencrypt-dev
 spec:
   acme:
-    email: williamkieu-devops@outlook.com
+    email: mnhduc3012@gmail.com
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-dev-account-key

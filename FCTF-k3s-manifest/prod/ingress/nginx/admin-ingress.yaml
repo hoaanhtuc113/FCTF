@@ -9,7 +9,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   rules:
-    - host: admin.fctf.cloud
+    - host: admin.fctf.mnhduc.site
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 8000
   tls:
     - hosts:
-        - admin.fctf.cloud
+        - admin.fctf.mnhduc.site
       secretName: admin-tls
