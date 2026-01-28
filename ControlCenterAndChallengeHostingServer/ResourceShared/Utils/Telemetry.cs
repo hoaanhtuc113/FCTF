@@ -6,10 +6,8 @@ namespace ResourceShared.Utils;
 public static class Telemetry
 {
     public const string ContestantBEHttp = "contestantbe.http";
-    public const string DeploymentCenterHttp = "deploymentcenter.http";
     public const string DeploymentCenterRabbitMQ = "deploymentcenter.rabbitmq";
     public const string DeploymentConsumerRabbitMQ = "deploymentconsumer.rabbitmq";
-    public const string DeploymentConsumerHttp = "deploymentconsumer.http";
 
     public static PropagationContext Extract(IDictionary<string, object?> headers)
     {

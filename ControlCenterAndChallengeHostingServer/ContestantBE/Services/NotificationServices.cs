@@ -36,6 +36,8 @@ public class NotificationServices : INotificationServices
                 Team = n.Team,
                 html = n.Content,
             })
+            .Take(20)
+            .OrderByDescending(n => n.Date)
             .ToListAsync();
     }
 }
