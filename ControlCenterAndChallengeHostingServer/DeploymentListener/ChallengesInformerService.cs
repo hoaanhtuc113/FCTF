@@ -260,12 +260,12 @@ namespace DeploymentListener
         {
             cache.pod_id = newUid;
             cache.ready = false;
-            long remainingTtl = cache.time_finished - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            int remainingTtl = (int)(cache.time_finished - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
             if (remainingTtl > 0)
             {
                 var cacheJson = JsonSerializer.Serialize(cache);
-                await _redisHelper.AtomicUpdateExpiration(teamId.ToString(), key, challengeId.ToString(), (int)remainingTtl, cacheJson);
+                await _redisHelper.AtomicUpdateExpiration(teamId.ToString(), key, challengeId.ToString(), remainingTtl, cacheJson);
             }
         }
 
