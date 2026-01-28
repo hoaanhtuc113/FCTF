@@ -500,7 +500,8 @@ public class ChallengeServices : IChallengeServices
                 {
                     success = false,
                     message = "No deployment info found.",
-                    status = (int)HttpStatusCode.NotFound
+                    status = (int)HttpStatusCode.NotFound,
+                    pod_status = Enums.DeploymentStatusEnum.Failed
                 };
             }
 
@@ -514,7 +515,8 @@ public class ChallengeServices : IChallengeServices
                 {
                     success = false,
                     message = "Challenge not found.",
-                    status = (int)HttpStatusCode.NotFound
+                    status = (int)HttpStatusCode.NotFound,
+                    pod_status = Enums.DeploymentStatusEnum.Failed
                 };
             }
 
