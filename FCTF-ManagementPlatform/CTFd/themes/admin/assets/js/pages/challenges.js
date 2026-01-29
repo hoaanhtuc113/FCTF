@@ -4,6 +4,11 @@ import $ from "jquery";
 import "../compat/json";
 import { ezAlert, ezQuery, ezToast } from "../compat/ezq";
 
+// Vue tag picker
+import Vue from "vue";
+import { createApp } from "vue";
+import TagsList from "../components/tags/TagsList.vue";
+
 function deleteSelectedChallenges(_event) {
   let challengeIDs = $("input[data-challenge-id]:checked").map(function () {
     return $(this).data("challenge-id");
@@ -237,6 +242,42 @@ function CheckingStatus(challengeId) {
 $(() => {
   $("#challenges-delete-button").click(deleteSelectedChallenges);
   $("#challenges-edit-button").click(bulkEditChallenges);
+
+  // Mount tag picker if present (use same Vue.extend pattern as challenge page for compatibility)
+  const pickerEl = document.getElementById("tags-picker");
+  console.debug("Tags picker: found element?", !!pickerEl);
+  if (pickerEl) {
+    const initTags = pickerEl.dataset.initTags || "";
+    console.debug("Tags picker: initTags=", initTags);
+    try {
+      const TagList = Vue.extend(TagsList);
+      let vueContainer = document.createElement("div");
+      pickerEl.appendChild(vueContainer);
+      new TagList({ propsData: { picker: true, initial_tags: initTags } }).$mount(vueContainer);
+      console.debug("Tags picker mounted successfully (Vue.extend)");
+
+      // Prevent Enter key from submitting the form when focus is inside the tag picker
+      document.addEventListener('keydown', (e) => {
+        try {
+          if (e.key === 'Enter' && pickerEl.contains(document.activeElement)) {
+            // Let the Vue component handle adding the tag; do not submit the form
+            e.preventDefault();
+          }
+        } catch (err) {
+          console.error('Error handling tag picker keydown state', err);
+        }
+      });
+
+    } catch (err) {
+      console.error("Failed to mount TagsList picker", err);
+      const indicator = document.createElement("div");
+      indicator.className = "text-danger small mt-1";
+      indicator.innerText = "Tag picker failed to load (see console).";
+      pickerEl.parentNode && pickerEl.parentNode.appendChild(indicator);
+    }
+  } else {
+    console.debug("Tags picker: element not present in DOM");
+  }
 });
 
 // Expose functions to global scope

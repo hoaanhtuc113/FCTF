@@ -241,10 +241,17 @@
     <div>
         <div class="row">
             <div class="col-md-12">
-                {% if q and field %}
+                {% if q and field or tag_terms %}
                 <div class="alert alert-info">
                     <div class="clean-info-text">
-                        Searching for challenges with <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span>
+                        {% if tag_terms %}
+                            Searching for challenges matching tags:
+                            {% for t in tag_terms %}
+                                <span class="clean-badge clean-badge-secondary mr-1">{{ t }}</span>
+                            {% endfor %}
+                        {% else %}
+                            Searching for challenges with <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span>
+                        {% endif %}
                     </div>
                     <div class="clean-info-text">
                         {{ challenges.total }} results
@@ -252,38 +259,64 @@
                 </div>
                 {% endif %}
 
-            {% with form = Forms.challenges.ChallengeSearchForm(field=field, q=q) %}
-            <div class="clean-search-container">
-                <form method="GET" class="form-inline">
-                    <div class="form-group col-md-3">
-                        <select name="category" class="clean-form-control w-100">
-                            <option value="">All Categories</option>
-                            {% for cat in categories %}
-                            <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group col-md-2">
-                        <select name="type" class="clean-form-control w-100">
-                            <option value="">All Types</option>
-                            {% for t in types %}
-                            <option value="{{ t }}" {% if t == type %}selected{% endif %}>{{ t }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group col-md-5">
-                        {{ form.q(class="clean-form-control w-100", placeholder="Search by name") }}
-                    </div>
-                    <div class="form-group col-md-2">
-                        <button type="submit" class="clean-btn clean-btn-primary w-100">
-                            <i class="fas fa-search" aria-hidden="true"></i> Search
-                        </button>
-                    </div>
-                </form>
+{% with form = Forms.challenges.ChallengeSearchForm(field=field, q=q) %}
+<div class="clean-search-container p-2 bg-white rounded border shadow-sm">
+    <form method="GET" class="m-0">
+        <div class="row no-gutters align-items-center">
+            
+            <div class="col-md-2 px-1">
+                <select name="category" class="clean-form-control w-100">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            {% endwith %}
+
+            <div class="col-md-2 px-1">
+                <select name="type" class="clean-form-control w-100">
+                    <option value="">All Types</option>
+                    {% for t in types %}
+                    <option value="{{ t }}" {% if t == type %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2 px-1">
+                {{ form.field(class="clean-form-control w-100") }}
+            </div>
+
+            <div class="col-md-6 px-1">
+                {{ form.q(class="clean-form-control w-100", placeholder="Search keywords...") }}
+            </div>
+
+        </div>
+
+        <div class="row no-gutters align-items-center mt-2">
+            
+            <div class="col-md-9 px-1">
+                <div id="tags-picker" class="border rounded d-flex align-items-center px-2 bg-light" 
+                     style="min-height: 38px;"
+                     data-init-tags="{% if tag_terms %}{{ tag_terms|join(',') }}{% endif %}">
+                    </div>
+                <input type="hidden" name="tags" id="tags-hidden" value="{% if tag_terms %}{{ tag_terms|join(',') }}{% endif %}">
+            </div>
+
+            <div class="col-md-3 px-1 d-flex">
+                <button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <a href="{{ url_for('admin.challenges_listing') }}" 
+                   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center" 
+                   style="width: 40px;" title="Reset">
+                    <i class="fas fa-sync-alt"></i>
+                </a>
+            </div>
+
+        </div>
+    </form>
+</div>
+{% endwith %}
         </div>
 
         {% if not is_jury() %}
@@ -332,6 +365,7 @@
                             <th class="sort-col text-center"><b>Creator</b></th>
                             <th class="sort-col text-center"><b>Value</b></th>
                             <th class="sort-col text-center"><b>Type</b></th>
+                            <th class="sort-col text-center"><b>Tags</b></th>
                             <th class="sort-col text-center"><b>Deploy Status</b></th>
                             <th class="sort-col text-center"><b>State</b></th>
                             <th class="sort-col text-center"><b>Actions</b></th>
@@ -362,6 +396,15 @@
 
                             <td class="text-center">{{ challenge.value }}</td>
                             <td class="text-center">{{ challenge.type }}</td>
+                            <td class="text-center">
+                                {% if challenge.tags %}
+                                    {% for t in challenge.tags %}
+                                        <span class="clean-badge clean-badge-secondary mr-1">{{ t.value }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
                             <td class="text-center">
                                 {% if challenge.deploy_status == 'DEPLOY_SUCCESS' %}
                                 <span class="clean-badge clean-badge-success">DEPLOY_SUCCESS</span>
