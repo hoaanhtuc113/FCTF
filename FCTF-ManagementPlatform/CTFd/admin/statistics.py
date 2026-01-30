@@ -11,35 +11,36 @@ from CTFd.utils.updates import update_check
 @admin_or_challenge_writer_only_or_jury
 # @challenge_writer_only
 def statistics():
-    update_check()
-
+    # update_check()
     Model = get_model()
+    teams_q = db.session.query(db.func.count(Teams.id)).scalar_subquery()
+    users_q = db.session.query(db.func.count(Users.id)).scalar_subquery()
+    chals_q = db.session.query(db.func.count(Challenges.id)).scalar_subquery()
+    points_q = (
+        db.session.query(db.func.sum(Challenges.value))
+        .filter(Challenges.state == "visible")
+        .scalar_subquery()
+    )
+    ips_q = db.session.query(db.func.count(db.func.distinct(Tracking.ip))).scalar_subquery()
 
-    teams_registered = Teams.query.count()
-    users_registered = Users.query.count()
-
-    wrong_count = (
-        Fails.query.join(Model, Fails.account_id == Model.id)
+    wrong_q = (
+        db.session.query(db.func.count(Fails.id))
+        .join(Model, Fails.account_id == Model.id)
         .filter(Model.banned == False, Model.hidden == False)
-        .count()
+        .scalar_subquery()
     )
 
-    solve_count = (
-        Solves.query.join(Model, Solves.account_id == Model.id)
+    solve_q = (
+        db.session.query(db.func.count(Solves.id))
+        .join(Model, Solves.account_id == Model.id)
         .filter(Model.banned == False, Model.hidden == False)
-        .count()
+        .scalar_subquery()
     )
-
-    challenge_count = Challenges.query.count()
-
-    total_points = (
-        Challenges.query.with_entities(db.func.sum(Challenges.value).label("sum"))
-        .filter_by(state="visible")
-        .first()
-        .sum
-    ) or 0
-
-    ip_count = Tracking.query.with_entities(Tracking.ip).distinct().count()
+    # executing batch query
+    stats = db.session.query(
+        teams_q, users_q, chals_q, points_q, ips_q, wrong_q, solve_q
+    ).first()
+    (team_count, user_count, challenge_count, total_points, ip_count, wrong_count, solve_count) = stats
 
     solves_sub = (
         db.session.query(
@@ -50,7 +51,7 @@ def statistics():
         .group_by(Solves.challenge_id)
         .subquery()
     )
-
+    
     solves = (
         db.session.query(
             solves_sub.columns.challenge_id,
@@ -60,23 +61,15 @@ def statistics():
         .join(Challenges, solves_sub.columns.challenge_id == Challenges.id)
         .all()
     )
-
-    solve_data = {}
-    for _chal, count, name in solves:
-        solve_data[name] = count
-
-    most_solved = None
-    least_solved = None
-    if len(solve_data):
-        most_solved = max(solve_data, key=solve_data.get)
-        least_solved = min(solve_data, key=solve_data.get)
-
+    solve_data = {name: count for count, name in solves}
+    most_solved = max(solve_data, key=solve_data.get) if solve_data else None
+    least_solved = min(solve_data, key=solve_data.get) if solve_data else None
     db.session.close()
 
     return render_template(
         "admin/statistics.html",
-        user_count=users_registered,
-        team_count=teams_registered,
+        user_count=user_count,
+        team_count=team_count,
         ip_count=ip_count,
         wrong_count=wrong_count,
         solve_count=solve_count,
