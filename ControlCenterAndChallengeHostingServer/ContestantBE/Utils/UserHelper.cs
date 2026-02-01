@@ -2,53 +2,52 @@
 using ResourceShared.Utils;
 using System.Text.RegularExpressions;
 
-namespace ContestantBE.Utils
+namespace ContestantBE.Utils;
+
+public class UserHelper : CommonUserHelper
 {
-    public class UserHelper : CommonUserHelper
+    public UserHelper(IOptions<ProxyOptions> options) : base(options)
     {
-        public UserHelper(IOptions<ProxyOptions> options) : base(options)
+    }
+
+    public string GetIP(HttpContext context)
+    {
+        var combined = "(" + string.Join(")|(", _trustedProxies) + ")";
+
+        var route = context.Request.Headers["X-Forwarded-For"]
+            .ToString()
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(ip => ip.Trim())
+            .ToList();
+
+        var remoteAddr = context.Connection.RemoteIpAddress?.ToString();
+        if (!string.IsNullOrEmpty(remoteAddr))
         {
+            route.Add(remoteAddr);
         }
 
-        public string GetIP(HttpContext context)
+        bool found = false;
+        foreach (var addr in route.AsEnumerable().Reverse())
         {
-            var combined = "(" + string.Join(")|(", _trustedProxies) + ")";
-
-            var route = context.Request.Headers["X-Forwarded-For"]
-                .ToString()
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(ip => ip.Trim())
-                .ToList();
-
-            var remoteAddr = context.Connection.RemoteIpAddress?.ToString();
-            if (!string.IsNullOrEmpty(remoteAddr))
+            if (!Regex.IsMatch(addr, combined,RegexOptions.None,TimeSpan.FromMilliseconds(100)))
             {
-                route.Add(remoteAddr);
+                remoteAddr = addr;
+                found = true;
+                break;
             }
-
-            bool found = false;
-            foreach (var addr in route.AsEnumerable().Reverse())
-            {
-                if (!Regex.IsMatch(addr, combined,RegexOptions.None,TimeSpan.FromMilliseconds(100)))
-                {
-                    remoteAddr = addr;
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                remoteAddr = context.Connection.RemoteIpAddress?.ToString();
-            }
-
-            // Remove IPv6 prefix ::ffff: if present (IPv4-mapped IPv6 address)
-            if (!string.IsNullOrEmpty(remoteAddr) && remoteAddr.StartsWith("::ffff:"))
-            {
-                remoteAddr = remoteAddr.Substring(7);
-            }
-
-            return remoteAddr ?? "unknown";
         }
+
+        if (!found)
+        {
+            remoteAddr = context.Connection.RemoteIpAddress?.ToString();
+        }
+
+        // Remove IPv6 prefix ::ffff: if present (IPv4-mapped IPv6 address)
+        if (!string.IsNullOrEmpty(remoteAddr) && remoteAddr.StartsWith("::ffff:"))
+        {
+            remoteAddr = remoteAddr.Substring(7);
+        }
+
+        return remoteAddr ?? "unknown";
     }
 }

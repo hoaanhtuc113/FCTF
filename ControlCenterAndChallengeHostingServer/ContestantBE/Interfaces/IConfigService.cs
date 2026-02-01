@@ -1,9 +1,8 @@
 ﻿using ResourceShared.DTOs.Config;
 
-namespace ContestantBE.Interfaces
+namespace ContestantBE.Interfaces;
+
+public interface IConfigService
 {
-    public interface IConfigService
-    {
-        Task<DateConfigResponseDTO> GetDateTimeConfig();
-    }
+    Task<DateConfigResponseDTO> GetDateTimeConfig();
 }
