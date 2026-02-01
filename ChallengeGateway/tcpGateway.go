@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,13 @@ var tcpRateLimiter rateLimiter
 var tcpIPConnLimiter connLimiter
 var tcpTokenConnLimiter connLimiter
 var tcpGlobalConnLimiter connLimiter
+
+var tcpCopyBufPool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, 32*1024)
+		return buf
+	},
+}
 
 func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
 	listenPort := ":1337"
@@ -117,17 +125,22 @@ func HandleConnection(clientConn net.Conn) {
 	}
 	defer challengeConn.Close()
 
-	done := make(chan struct{})
-
-	go func() {
-		io.Copy(challengeConn, clientConn)
+	done := make(chan struct{}, 2)
+	var closeOnce sync.Once
+	closeAll := func() {
+		_ = clientConn.Close()
+		_ = challengeConn.Close()
+	}
+	proxyCopy := func(dst, src net.Conn) {
+		buf := tcpCopyBufPool.Get().([]byte)
+		_, _ = io.CopyBuffer(dst, src, buf)
+		tcpCopyBufPool.Put(buf)
+		closeOnce.Do(closeAll)
 		done <- struct{}{}
-	}()
+	}
 
-	go func() {
-		io.Copy(clientConn, challengeConn)
-		done <- struct{}{}
-	}()
+	go proxyCopy(challengeConn, clientConn)
+	go proxyCopy(clientConn, challengeConn)
 
 	<-done
 	log.Printf("[+] Session ended: %s", clientConn.RemoteAddr())

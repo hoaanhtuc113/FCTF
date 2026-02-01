@@ -51,7 +51,7 @@ public class ScoreHelper
             .Select(g => new
             {
                 UserId = g.Key ?? 0,
-                Score = g.Sum(s => (s.Challenge.Value ?? 0))
+                Score = g.Sum(s => s.Challenge.Value ?? 0)
             })
             .ToDictionaryAsync(x => x.UserId, x => x.Score);
 
