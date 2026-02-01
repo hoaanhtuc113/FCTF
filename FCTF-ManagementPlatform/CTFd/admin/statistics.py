@@ -61,7 +61,9 @@ def statistics():
         .join(Challenges, solves_sub.columns.challenge_id == Challenges.id)
         .all()
     )
-    solve_data = {name: count for count, name in solves}
+    # solves is a list of tuples: (challenge_id, solves_cnt, name)
+    # Unpack accordingly: (challenge_id, count, name)
+    solve_data = {name: count for _cid, count, name in solves}
     most_solved = max(solve_data, key=solve_data.get) if solve_data else None
     least_solved = min(solve_data, key=solve_data.get) if solve_data else None
     db.session.close()
