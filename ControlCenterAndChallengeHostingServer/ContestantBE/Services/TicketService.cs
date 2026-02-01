@@ -4,8 +4,8 @@ using ContestantBE.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs;
 using ResourceShared.DTOs.Ticket;
-using ResourceShared.Models;
 using ResourceShared.Logger;
+using ResourceShared.Models;
 
 public class TicketService : ITicketService
 {
