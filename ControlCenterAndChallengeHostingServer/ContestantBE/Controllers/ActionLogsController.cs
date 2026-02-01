@@ -4,127 +4,126 @@ using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.ActionLogs;
 using System.Security.Claims;
 
-namespace ContestantBE.Controllers
+namespace ContestantBE.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+[Authorize]
+public class ActionLogsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    [Authorize]
-    public class ActionLogsController : ControllerBase
+    private readonly IActionLogsServices _actionLogsServices;
+
+    public ActionLogsController(IActionLogsServices actionLogsServices)
     {
-        private readonly IActionLogsServices _actionLogsServices;
+        _actionLogsServices = actionLogsServices;
+    }
 
-        public ActionLogsController(IActionLogsServices actionLogsServices)
+    [HttpGet("get-logs")]
+    public async Task<IActionResult> GetActionLogs()
+    {
+        try
         {
-            _actionLogsServices = actionLogsServices;
+            var logs_with_details = await _actionLogsServices.GetActionLogs();
+
+            if (logs_with_details == null || logs_with_details.Count == 0)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = "No action logs found."
+                });
+            }
+            return Ok(new
+            {
+                success = true,
+                data = logs_with_details
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                error = ex.Message
+            });
+        }
+    }
+
+    [HttpGet("get-logs-team")]
+    public async Task<IActionResult> GetActionLogsTeam()
+    {
+        try
+        {
+            var teamId = int.Parse(User.FindFirstValue("teamId"));
+            var logs_with_details = await _actionLogsServices.GetActionLogsTeam(teamId);
+
+            if (logs_with_details == null || logs_with_details.Count == 0)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = "No action logs found."
+                });
+            }
+            return Ok(new
+            {
+                success = true,
+                data = logs_with_details
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                error = ex.Message
+            });
+        }
+    }
+
+    [HttpPost("save-logs")]
+    public async Task<IActionResult> PostActionLogs([FromBody] ActionLogsReq req)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+        var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (req.ChallengeId <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Invalid request data"
+            });
         }
 
-        [HttpGet("get-logs")]
-        public async Task<IActionResult> GetActionLogs()
+        try
         {
-            try
+            if (int.TryParse(id, out var userId))
             {
-                var logs_with_details = await _actionLogsServices.GetActionLogs();
-
-                if (logs_with_details == null || logs_with_details.Count == 0)
-                {
-                    return Ok(new
-                    {
-                        success = false,
-                        message = "No action logs found."
-                    });
-                }
+                var log = await _actionLogsServices.SaveActionLogs(req, userId);
                 return Ok(new
                 {
                     success = true,
-                    data = logs_with_details
+                    data = log,
                 });
             }
-            catch (Exception ex)
+            return BadRequest(new
             {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    error = ex.Message
-                });
-            }
+                success = false,
+                message = "Invalid user ID"
+            });
+
         }
-
-        [HttpGet("get-logs-team")]
-        public async Task<IActionResult> GetActionLogsTeam()
+        catch (Exception ex)
         {
-            try
+            return StatusCode(500, new
             {
-                var teamId = int.Parse(User.FindFirstValue("teamId"));
-                var logs_with_details = await _actionLogsServices.GetActionLogsTeam(teamId);
-
-                if (logs_with_details == null || logs_with_details.Count == 0)
-                {
-                    return Ok(new
-                    {
-                        success = false,
-                        message = "No action logs found."
-                    });
-                }
-                return Ok(new
-                {
-                    success = true,
-                    data = logs_with_details
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    error = ex.Message
-                });
-            }
-        }
-
-        [HttpPost("save-logs")]
-        public async Task<IActionResult> PostActionLogs([FromBody] ActionLogsReq req)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (req.ChallengeId <= 0)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = "Invalid request data"
-                });
-            }
-
-            try
-            {
-                if (int.TryParse(id, out var userId))
-                {
-                    var log = await _actionLogsServices.SaveActionLogs(req, userId);
-                    return Ok(new
-                    {
-                        success = true,
-                        data = log,
-                    });
-                }
-                return BadRequest(new
-                {
-                    success = false,
-                    message = "Invalid user ID"
-                });
-
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    error = ex.Message
-                });
-            }
+                success = false,
+                error = ex.Message
+            });
         }
     }
 }

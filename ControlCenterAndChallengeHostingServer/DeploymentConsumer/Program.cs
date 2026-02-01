@@ -10,7 +10,6 @@ using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using System.Diagnostics;
 
 Env.Load();
 new DeploymentConsumerConfigHelper().InitConfig();
@@ -55,7 +54,7 @@ var host = Host.CreateDefaultBuilder(args)
                 b.AddSource(Telemetry.DeploymentConsumerRabbitMQ)
                  .AddHttpClientInstrumentation()
                  .AddOtlpExporter();
-            });        
+            });
 
         services.AddHostedService<Worker>();
     })

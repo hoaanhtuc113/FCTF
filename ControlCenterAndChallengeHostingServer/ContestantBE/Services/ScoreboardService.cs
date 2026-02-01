@@ -37,11 +37,6 @@ public class ScoreboardService : IScoreboardService
 
         return 0;
     }
-    private int? GetAccountId(Solf solve) =>
-        _mode == "teams" ? solve.TeamId : solve.UserId;
-
-    private int? GetAccountId(Award award) =>
-        _mode == "teams" ? award.TeamId : award.UserId;
 
     public async Task<List<ScoreboardEntryDTO>> GetTopStandings(int count, int? bracketId)
     {
