@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -30,21 +31,22 @@ func newLocalRateLimiter(rate float64, burst int) *localRateLimiter {
 	}
 }
 
-func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) {
-	if redisClient != nil {
-		httpRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl", cfg.RedisFailClosed)
-		tcpRateLimiter = newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl", cfg.RedisFailClosed)
-		tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip", cfg.RedisFailClosed)
-		tcpTokenConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerToken, cfg.RedisKeyPrefix+":tcp:conn:token", cfg.RedisFailClosed)
-		tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global", cfg.RedisFailClosed)
-		return
+func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) error {
+	if redisClient == nil {
+		httpRateLimiter = nil
+		tcpRateLimiter = nil
+		tcpIPConnLimiter = nil
+		tcpTokenConnLimiter = nil
+		tcpGlobalConnLimiter = nil
+		return fmt.Errorf("redis limiter required: REDIS_ADDR is missing or Redis unavailable")
 	}
 
-	httpRateLimiter = newLocalRateLimiter(cfg.HTTPRate, cfg.HTTPBurst)
-	tcpRateLimiter = newLocalRateLimiter(cfg.TCPRate, cfg.TCPBurst)
-	tcpIPConnLimiter = newIPConnLimiter(cfg.TCPMaxConnsPerIP)
-	tcpTokenConnLimiter = newIPConnLimiter(cfg.TCPMaxConnsPerToken)
-	tcpGlobalConnLimiter = nil
+	httpRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl", cfg.RedisFailClosed)
+	tcpRateLimiter = newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl", cfg.RedisFailClosed)
+	tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip", cfg.RedisFailClosed)
+	tcpTokenConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerToken, cfg.RedisKeyPrefix+":tcp:conn:token", cfg.RedisFailClosed)
+	tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global", cfg.RedisFailClosed)
+	return nil
 }
 
 func (rl *localRateLimiter) Allow(ctx context.Context, ip string) bool {

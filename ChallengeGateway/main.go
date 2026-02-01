@@ -18,7 +18,9 @@ func main() {
 
 	cfg := loadConfig()
 	redisClient := initRedis(cfg)
-	initLimiters(cfg, redisClient)
+	if err := initLimiters(cfg, redisClient); err != nil {
+		log.Fatalf("Limiter initialization failed: %v", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

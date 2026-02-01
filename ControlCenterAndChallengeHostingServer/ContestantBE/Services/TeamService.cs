@@ -206,8 +206,8 @@ namespace ContestantBE.Services
                         },
                         Team = new TeamDto
                         {
-                            Id = s.User?.Team?.Id ?? default,
-                            Name = s.User?.Team?.Name ?? string.Empty,
+                            Id = s?.User?.Team?.Id ?? default,
+                            Name = s?.User?.Team?.Name ?? string.Empty,
                         },
                         Date = s.IdNavigation.Date,
                         Type = s.IdNavigation.Type,
