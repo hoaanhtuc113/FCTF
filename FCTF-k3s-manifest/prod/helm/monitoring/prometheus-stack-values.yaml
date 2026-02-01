@@ -1672,7 +1672,7 @@ kubelet:
     ## Configure the scrape interval for resource metrics. This is configured to the default Kubelet cAdvisor
     ## minimum housekeeping interval in order to avoid missing samples. Note, this value is ignored
     ## if kubelet.serviceMonitor.interval is not empty.
-    resourceInterval: 10s
+    resourceInterval: 30s
 
     ## Enable scraping /metrics/cadvisor from kubelet's service
     ##
@@ -1680,11 +1680,15 @@ kubelet:
     ## Configure the scrape interval for cAdvisor. This is configured to the default Kubelet cAdvisor
     ## minimum housekeeping interval in order to avoid missing samples. Note, this value is ignored
     ## if kubelet.serviceMonitor.interval is not empty.
-    cAdvisorInterval: 10s
+    cAdvisorInterval: 30s
     ## MetricRelabelConfigs to apply to samples after scraping, but before ingestion.
     ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#relabelconfig
     ##
     cAdvisorMetricRelabelings:
+      # Drop all metrics for challenge namespaces (team*).
+      - sourceLabels: [namespace]
+        action: drop
+        regex: "team.*"
       # Drop less useful container CPU metrics.
       - sourceLabels: [__name__]
         action: drop
@@ -2490,7 +2494,11 @@ kube-state-metrics:
       ## MetricRelabelConfigs to apply to samples after scraping, but before ingestion.
       ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#relabelconfig
       ##
-      metricRelabelings: []
+      metricRelabelings:
+        # Drop all metrics for challenge namespaces (team*).
+        - sourceLabels: [namespace]
+          action: drop
+          regex: "team.*"
       # - action: keep
       #   regex: 'kube_(daemonset|deployment|pod|namespace|node|statefulset).+'
       #   sourceLabels: [__name__]

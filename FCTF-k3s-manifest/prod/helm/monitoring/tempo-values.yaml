@@ -19,11 +19,11 @@ tempo:
 
   resources:
     requests:
-      cpu: "200m"
-      memory: "512Mi"
-    limits:
-      cpu: "1"
+      cpu: "500m"
       memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
 
   config:
     auth_enabled: false
@@ -42,6 +42,15 @@ tempo:
       lifecycler:
         ring:
           replication_factor: 1
+
+    querier:
+      max_concurrent_queries: 10
+
+    overrides:
+      # Guardrails to avoid heavy queries causing OOM.
+      max_bytes_per_trace: 20000000
+      max_search_duration: 5m
+      max_traces_per_user: 2000
 
     compactor:
       compaction:
