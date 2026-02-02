@@ -16,18 +16,21 @@ public class AuthService : IAuthService
     private readonly UserHelper _userHelper;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly AppLogger _logger;
+    private readonly RedisHelper _redisHelper;
     public AuthService(
         AppDbContext context,
         TokenHelper tokenHelper,
         UserHelper userHelper,
         IHttpContextAccessor httpContextAccessor,
-        AppLogger logger)
+        AppLogger logger,
+        RedisHelper redisHelper)
     {
         _context = context;
         _tokenHelper = tokenHelper;
         _userHelper = userHelper;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _redisHelper = redisHelper;
     }
 
     public async Task<BaseResponseDTO<AuthResponseDTO>> LoginContestant(LoginDTO loginDto)
@@ -95,6 +98,17 @@ public class AuthService : IAuthService
             }
 
             await _context.SaveChangesAsync();
+
+            // Invalidate cached auth info for this user so middleware reads fresh token UUID
+            try
+            {
+                var cacheKey = $"auth:user:{user.Id}";
+                _ = await _redisHelper.RemoveCacheAsync(cacheKey);
+            }
+            catch
+            {
+                // ignore cache errors
+            }
 
             var authResponse = new AuthResponseDTO
             {

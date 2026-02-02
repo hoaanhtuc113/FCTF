@@ -4,13 +4,24 @@ metadata:
   name: challenge-gateway-cm
   namespace: app
 data:
+  # Token-based HTTP limits (applies after token verification)
   HTTP_RATE: "100"
   HTTP_BURST: "200"
   HTTP_MAX_BODY_BYTES: "10485760"
+  
+  # Per-IP HTTP limiter to prevent token rotation attacks
+  # Increased default because many contestants may share a network
+  HTTP_IP_RATE: "500"
+  HTTP_IP_BURST: "1000"
   TCP_RATE: "50"
   TCP_BURST: "200"
+  # TCP auth timeout (seconds)
+  TCP_AUTH_TIMEOUT_SECONDS: "10"
+  # Connection counter TTL (seconds)
+  TCP_CONN_TTL_SECONDS: "300"
   TCP_MAX_CONNS: "4000"
-  TCP_MAX_CONNS_PER_IP: "80"
+  # Increased per-IP connection cap to better support LANed contestants
+  TCP_MAX_CONNS_PER_IP: "1000"
   TCP_MAX_CONNS_PER_TOKEN: "15"
   REDIS_ADDR: "redis-headless.db.svc.cluster.local:6379"
   REDIS_DB: "0"
