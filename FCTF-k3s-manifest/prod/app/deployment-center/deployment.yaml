@@ -37,6 +37,22 @@ spec:
             limits:
               cpu: 0.3
               memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5020
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5020
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           imagePullPolicy: Always
       imagePullSecrets:
         - name: regcred

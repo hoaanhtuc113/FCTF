@@ -29,6 +29,7 @@ new DeploymentCenterConfigHelper().InitConfig();
 builder.Services.AddControllers();
 builder.Services.AddResourceShared();
 builder.Services.AddScoped<IDeployService, DeployService>();
+builder.Services.AddHealthChecks();
 
 builder.Services.AddSingleton<RabbitMqTelemetrySource>();
 builder.Services.AddOpenTelemetry()
@@ -89,5 +90,7 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TokenAuthenticationMiddleware>();
+app.MapHealthChecks("/healthcheck");
+app.MapHealthChecks("/healthz");
 app.MapControllers();
 await app.RunAsync();
