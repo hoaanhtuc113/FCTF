@@ -2,33 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"sync"
-	"time"
 )
 
 type rateLimiter interface {
 	Allow(ctx context.Context, key string) bool
-}
-
-type localRateLimiter struct {
-	mu     sync.Mutex
-	rate   float64
-	burst  float64
-	tokens map[string]float64
-	last   map[string]time.Time
-}
-
-func newLocalRateLimiter(rate float64, burst int) *localRateLimiter {
-	return &localRateLimiter{
-		rate:   rate,
-		burst:  float64(burst),
-		tokens: make(map[string]float64),
-		last:   make(map[string]time.Time),
-	}
 }
 
 func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) error {
@@ -49,44 +33,6 @@ func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) error {
 	return nil
 }
 
-func (rl *localRateLimiter) Allow(ctx context.Context, ip string) bool {
-	if ip == "" {
-		return true
-	}
-
-	now := time.Now()
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	last, ok := rl.last[ip]
-	if !ok {
-		rl.last[ip] = now
-		rl.tokens[ip] = rl.burst - 1
-		return true
-	}
-
-	dt := now.Sub(last).Seconds()
-	newTokens := rl.tokens[ip] + dt*rl.rate
-	if newTokens > rl.burst {
-		newTokens = rl.burst
-	}
-	if newTokens < 1 {
-		rl.tokens[ip] = newTokens
-		rl.last[ip] = now
-		return false
-	}
-
-	rl.tokens[ip] = newTokens - 1
-	rl.last[ip] = now
-
-	if now.Sub(last) > 10*time.Minute {
-		delete(rl.tokens, ip)
-		delete(rl.last, ip)
-	}
-
-	return true
-}
-
 func parseRemoteIP(addr string) string {
 	if addr == "" {
 		return ""
@@ -99,13 +45,22 @@ func parseRemoteIP(addr string) string {
 }
 
 func buildRateLimitKey(token string, ip string) string {
-	if token != "" && ip != "" {
-		return "tok:" + token + ":ip:" + ip
+	hashedToken := hashToken(token)
+	if hashedToken != "" && ip != "" {
+		return "tok:" + hashedToken + ":ip:" + ip
 	}
-	if token != "" {
-		return "tok:" + token
+	if hashedToken != "" {
+		return "tok:" + hashedToken
 	}
 	return ip
+}
+
+func hashToken(token string) string {
+	if token == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:16])
 }
 
 type ipConnLimiter struct {
