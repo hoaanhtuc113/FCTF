@@ -26,7 +26,6 @@ from CTFd.utils.decorators import ratelimit
 from CTFd.constants.config import ConfigTypes, RegistrationVisibilityTypes
 from CTFd.utils.dates import ctftime, ctf_ended
 from datetime import datetime
-from CTFd.utils.maps import add_character_to_map
 
 LoginUser = Blueprint("login", __name__)
 
@@ -79,15 +78,6 @@ def login():
             ),
         }
 
-        add_character_to_map(
-            {
-                "id": user.id,
-                "name": user.name,
-                "team": team.name if team else "No team",
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "date": datetime.now().strftime("%Y-%m-%d"),
-            }
-        )
 
         return jsonify({"generatedToken": token.value, "user": user_data}), 200
 
