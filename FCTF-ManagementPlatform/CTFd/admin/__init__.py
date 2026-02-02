@@ -137,6 +137,23 @@ def export_ctf():
     )
 
 
+@admin.route("/admin/import/template/<name>", methods=["GET"])
+@admins_only
+def download_template(name):
+    """Serve CSV import templates stored in the admin theme templates folder."""
+    allowed = {
+        "users_template.csv",
+        "teams_template.csv",
+        "users_and_teams_template.csv",
+    }
+    if name not in allowed:
+        abort(404)
+    template_path = os.path.join(
+        app.root_path, "themes", "admin", "templates", "import_templates", name
+    )
+    return send_file(template_path, as_attachment=True, download_name=name)
+
+
 @admin.route("/admin/import/csv", methods=["POST"])
 @admins_only
 def import_csv():
