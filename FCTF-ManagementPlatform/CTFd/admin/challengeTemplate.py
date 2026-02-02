@@ -95,7 +95,7 @@ def challenge_template():
     
 @admin.route("/admin/challenges/download/<filename>")
 @admin_or_challenge_writer_only_or_jury
-def download_template(filename):
+def download_challenge_template(filename):
     template_dir = "/var/template_challenge"
     file_path = os.path.join(template_dir, filename)
     if not os.path.exists(file_path):
