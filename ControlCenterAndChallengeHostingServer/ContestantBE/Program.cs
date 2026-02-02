@@ -71,6 +71,7 @@ builder.Services.AddScoped<CtfTimeHelper>();
 builder.Services.AddScoped<ScoreHelper>();
 builder.Services.AddScoped<UserHelper>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHealthChecks();
 
 builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
 builder.Services.AddScoped<IFileService, FileService>();
@@ -111,6 +112,8 @@ app.UseOutputCache();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TokenAuthenticationMiddleware>();
+app.MapHealthChecks("/healthcheck");
+app.MapHealthChecks("/healthz");
 app.MapControllers();
 
 await Console.Out.WriteLineAsync("Config server done, run application....");

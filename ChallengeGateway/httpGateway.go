@@ -63,6 +63,10 @@ func startHTTPGateway(cfg gatewayConfig) *http.Server {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
 	mux.Handle("/", loggingMiddleware(rateLimitMiddleware(bodySizeLimitMiddleware(cfg.HTTPMaxBodyBytes, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpGatewayHandler(w, r, proxy)
 	})))))
