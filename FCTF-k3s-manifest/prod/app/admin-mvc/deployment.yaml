@@ -38,6 +38,22 @@ spec:
             limits:
               cpu: 0.5
               memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
           imagePullPolicy: Always
           volumeMounts:
             - name: nfs-shared-data
