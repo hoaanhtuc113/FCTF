@@ -186,6 +186,19 @@ def clear_user_session(user_id):
     cache.delete_memoized(get_user_recent_ips, user_id=user_id)
 
 
+def clear_auth_cache(user_id):
+    """Clear auth cache used by ContestantBE middleware (best-effort)."""
+    try:
+        client = cache.cache._write_client
+    except Exception:
+        return
+
+    try:
+        client.delete(f"auth:user:{user_id}")
+    except Exception:
+        pass
+
+
 def clear_all_user_sessions():
     from CTFd.utils.user import (  # noqa: I001
         get_user_attrs,

@@ -9,7 +9,7 @@ from CTFd.api.v1.schemas import (
     APIDetailedSuccessResponse,
     PaginatedAPIListSuccessResponse,
 )
-from CTFd.cache import clear_challenges, clear_standings, clear_user_session
+from CTFd.cache import clear_auth_cache, clear_challenges, clear_standings, clear_user_session
 from CTFd.constants import RawEnum
 from CTFd.models import (
     Awards,
@@ -295,6 +295,7 @@ class UserPublic(Resource):
         )
 
         clear_user_session(user_id=user_id)
+        clear_auth_cache(user_id=user_id)
         clear_standings()
         clear_challenges()
 
