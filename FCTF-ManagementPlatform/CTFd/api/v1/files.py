@@ -106,7 +106,10 @@ class FilesList(Resource):
 
         print("require_deploy", require_deploy)
 
-        if not require_deploy:
+        # Only clear deployment info if this is from the Deploy tab (deploy_file field exists in request)
+        is_deploy_operation = "deploy_file" in request.files
+        
+        if is_deploy_operation and not require_deploy:
             print("require_deploy is false - clearing deployment info")
             challenge = Challenges.query.filter_by(id=challenge_id).first()
             if not challenge:
