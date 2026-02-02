@@ -18,6 +18,7 @@ type rateLimiter interface {
 func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) error {
 	if redisClient == nil {
 		httpRateLimiter = nil
+		httpIPRateLimiter = nil
 		tcpRateLimiter = nil
 		tcpIPConnLimiter = nil
 		tcpTokenConnLimiter = nil
@@ -26,10 +27,11 @@ func initLimiters(cfg gatewayConfig, redisClient redisLimiterClient) error {
 	}
 
 	httpRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPRate, cfg.HTTPBurst, cfg.RedisKeyPrefix+":http:rl", cfg.RedisFailClosed)
+	httpIPRateLimiter = newRedisRateLimiter(redisClient, cfg.HTTPIPRate, cfg.HTTPIPBurst, cfg.RedisKeyPrefix+":http:rl:ip", cfg.RedisFailClosed)
 	tcpRateLimiter = newRedisRateLimiter(redisClient, cfg.TCPRate, cfg.TCPBurst, cfg.RedisKeyPrefix+":tcp:rl", cfg.RedisFailClosed)
-	tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip", cfg.RedisFailClosed)
-	tcpTokenConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerToken, cfg.RedisKeyPrefix+":tcp:conn:token", cfg.RedisFailClosed)
-	tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global", cfg.RedisFailClosed)
+	tcpIPConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerIP, cfg.RedisKeyPrefix+":tcp:conn:ip", cfg.TCPConnTTLSeconds, cfg.RedisFailClosed)
+	tcpTokenConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConnsPerToken, cfg.RedisKeyPrefix+":tcp:conn:token", cfg.TCPConnTTLSeconds, cfg.RedisFailClosed)
+	tcpGlobalConnLimiter = newRedisConnLimiter(redisClient, cfg.TCPMaxConns, cfg.RedisKeyPrefix+":tcp:conn:global", cfg.TCPConnTTLSeconds, cfg.RedisFailClosed)
 	return nil
 }
 
@@ -118,12 +120,16 @@ type connLimiter interface {
 type gatewayConfig struct {
 	HTTPRate         float64
 	HTTPBurst        int
+	HTTPIPRate       float64
+	HTTPIPBurst      int
 	HTTPMaxBodyBytes int64
 	TCPRate          float64
 	TCPBurst         int
 	TCPMaxConns      int
 	TCPMaxConnsPerIP int
 	TCPMaxConnsPerToken int
+	TCPAuthTimeoutSeconds int
+	TCPConnTTLSeconds int
 	RedisAddr        string
 	RedisPassword    string
 	RedisDB          int
@@ -135,14 +141,19 @@ type gatewayConfig struct {
 
 func loadConfig() gatewayConfig {
 	return gatewayConfig{
-		HTTPRate:         envFloat("HTTP_RATE", 150),
-		HTTPBurst:        envInt("HTTP_BURST", 300),
+		HTTPRate:         envFloat("HTTP_RATE", 300),
+		HTTPBurst:        envInt("HTTP_BURST", 600),
+		// Per-IP HTTP defaults increased to accommodate teams on same network
+		HTTPIPRate:       envFloat("HTTP_IP_RATE", 500),
+		HTTPIPBurst:      envInt("HTTP_IP_BURST", 1000),
 		HTTPMaxBodyBytes: envInt64("HTTP_MAX_BODY_BYTES", 10<<20),
-		TCPRate:          envFloat("TCP_RATE", 5),
-		TCPBurst:         envInt("TCP_BURST", 15),
+		TCPRate:          envFloat("TCP_RATE", 10),
+		TCPBurst:         envInt("TCP_BURST", 30),
 		TCPMaxConns:      envInt("TCP_MAX_CONNS", 4000),
-		TCPMaxConnsPerIP: envInt("TCP_MAX_CONNS_PER_IP", 500),
+		TCPMaxConnsPerIP: envInt("TCP_MAX_CONNS_PER_IP", 1000),
 		TCPMaxConnsPerToken: envInt("TCP_MAX_CONNS_PER_TOKEN", 15),
+		TCPAuthTimeoutSeconds: envInt("TCP_AUTH_TIMEOUT_SECONDS", 5),
+		TCPConnTTLSeconds: envInt("TCP_CONN_TTL_SECONDS", 300),
 		RedisAddr:        os.Getenv("REDIS_ADDR"),
 		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
 		RedisDB:          envInt("REDIS_DB", 0),

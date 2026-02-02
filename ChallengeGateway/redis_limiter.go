@@ -58,12 +58,15 @@ type redisConnLimiter struct {
 	failClosed bool
 }
 
-func newRedisConnLimiter(client redisLimiterClient, max int, prefix string, failClosed bool) *redisConnLimiter {
+func newRedisConnLimiter(client redisLimiterClient, max int, prefix string, ttlSeconds int, failClosed bool) *redisConnLimiter {
+	if ttlSeconds <= 0 {
+		ttlSeconds = 900
+	}
 	return &redisConnLimiter{
 		client: client,
 		max:    max,
 		prefix: prefix,
-		ttl:    1 * time.Hour,
+		ttl:    time.Duration(ttlSeconds) * time.Second,
 		scriptAcquire: redisConnAcquireScript,
 		scriptRelease: redisConnReleaseScript,
 		failClosed: failClosed,
@@ -88,7 +91,7 @@ func (l *redisConnLimiter) Release(ctx context.Context, key string) {
 		return
 	}
 	redisKey := l.prefix + ":" + key
-	_, _ = l.scriptRelease.Run(ctx, l.client, []string{redisKey}).Result()
+	_, _ = l.scriptRelease.Run(ctx, l.client, []string{redisKey}, int(l.ttl.Seconds())).Result()
 }
 
 func initRedis(cfg gatewayConfig) redisLimiterClient {
@@ -156,9 +159,7 @@ local max = tonumber(ARGV[1])
 local ttl = tonumber(ARGV[2])
 
 local current = redis.call("INCR", KEYS[1])
-if current == 1 then
-  redis.call("EXPIRE", KEYS[1], ttl)
-end
+redis.call("EXPIRE", KEYS[1], ttl)
 
 if current > max then
   redis.call("DECR", KEYS[1])
@@ -169,10 +170,13 @@ return 1
 `
 
 const redisConnReleaseScriptSource = `
+local ttl = tonumber(ARGV[1])
 local current = redis.call("DECR", KEYS[1])
 if current <= 0 then
   redis.call("DEL", KEYS[1])
+	return current
 end
+redis.call("EXPIRE", KEYS[1], ttl)
 return current
 `
 
