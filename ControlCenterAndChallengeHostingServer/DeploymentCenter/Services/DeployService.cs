@@ -109,6 +109,19 @@ public class DeployService : IDeployService
                         challenge_url = deploymentCache.challenge_url,
                         time_limit = timeLeft,
                     };
+                case DeploymentStatus.DELETING:
+                    return new ChallengeDeployResponeDTO
+                    {
+                        status = (int)HttpStatusCode.Conflict,
+                        success = false,
+                        message = "Challenge is currently being deleted. Please wait a moment before starting again.",
+                    };
+                case DeploymentStatus.STOPPED:
+                    // Clean up old STOPPED cache and allow new deployment
+                    await Console.Out.WriteLineAsync($"Removing STOPPED cache for {deploymentKey} before new deployment");
+                    await _redisHelper.RemoveCacheAsync(deploymentKey);
+                    await _redisHelper.AtomicRemoveDeploymentZSet(startReq.teamId.ToString(), deploymentKey, startReq.challengeId.ToString());
+                    break;
                 default:
                     await Console.Out.WriteLineAsync($"Unknown deployment status: {deploymentCache.status}");
                     break;
