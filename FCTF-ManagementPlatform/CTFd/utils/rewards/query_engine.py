@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Dict, Iterable, List, Tuple
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 from CTFd.models import db
 
@@ -65,6 +66,37 @@ class QuerySpecError(ValueError):
     pass
 
 
+@lru_cache(maxsize=128)
+def _table_columns(table_name: str) -> set[str]:
+    inspector = inspect(db.engine)
+    return {col["name"] for col in inspector.get_columns(table_name)}
+
+
+def _require_columns(table_name: str, columns: Iterable[str]) -> None:
+    existing = _table_columns(table_name)
+    missing = [col for col in columns if col not in existing]
+    if missing:
+        raise QuerySpecError(
+            f"Schema mismatch: missing columns in {table_name}: {', '.join(missing)}"
+        )
+
+
+def _assert_schema(entity: str) -> None:
+    _require_columns(
+        "submissions",
+        ["id", "team_id", "user_id", "challenge_id", "date", "type"],
+    )
+    _require_columns("solves", ["id"])
+    _require_columns("challenges", ["id", "value", "category", "name"])
+    _require_columns("unlocks", ["team_id", "user_id", "target", "type"])
+    _require_columns("hints", ["id", "challenge_id"])
+
+    if entity == "team":
+        _require_columns("teams", ["id", "name"])
+    if entity == "user":
+        _require_columns("users", ["id", "name"])
+
+
 def _parse_filters(filters: Iterable[Dict[str, Any]]) -> List[FilterSpec]:
     parsed = []
     for f in filters:
@@ -123,6 +155,8 @@ def validate_query_spec(payload: Dict[str, Any]) -> QuerySpec:
 def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
     metric = spec.metric
     entity = spec.entity
+
+    _assert_schema(entity)
 
     if entity == "solve" and metric not in {"FIRST_BLOOD", "CLEAN_SOLVE", "WRONG_SUBMISSION_COUNT"}:
         raise QuerySpecError(f"Metric {metric} is not supported for solve entities")
@@ -349,7 +383,7 @@ LIMIT :limit
         return sql, params
 
     metric_expr = {
-        "FIRST_BLOOD": "CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END",
+        "FIRST_BLOOD": "CASE WHEN is_first_blood THEN 1 ELSE 0 END",
         "CLEAN_SOLVE": "CASE WHEN COALESCE(wrong_before, 0) = 0 THEN 1 ELSE 0 END",
         "WRONG_SUBMISSION_COUNT": "COALESCE(wrong_before, 0)",
     }[metric]
