@@ -294,7 +294,7 @@ export function Instances() {
                 <th className="text-left py-3 px-3 font-mono" style={{ width: '15%' }}>Challenge</th>
                 <th className="text-left py-3 px-2 font-mono" style={{ width: '8%' }}>Cat</th>
                 <th className="text-left py-3 px-2 font-mono" style={{ width: '8%' }}>Status</th>
-                <th className="text-left py-3 px-3 font-mono" style={{ width: '35%' }}>Connection URL</th>
+                <th className="text-left py-3 px-3 font-mono" style={{ width: '35%' }}>Your Access Token</th>
                 <th className="text-left py-3 px-2 font-mono" style={{ width: '12%' }}>Age</th>
                 <th className="text-right py-3 px-2 font-mono" style={{ width: '17%' }}>Actions</th>
               </tr>
