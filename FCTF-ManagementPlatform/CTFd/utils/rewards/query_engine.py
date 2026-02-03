@@ -350,8 +350,8 @@ LIMIT :limit
 
     metric_expr = {
         "FIRST_BLOOD": "CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END",
-        "CLEAN_SOLVE": "CASE WHEN COALESCE(wb.wrong_before, 0) = 0 THEN 1 ELSE 0 END",
-        "WRONG_SUBMISSION_COUNT": "COALESCE(wb.wrong_before, 0)",
+        "CLEAN_SOLVE": "CASE WHEN COALESCE(wrong_before, 0) = 0 THEN 1 ELSE 0 END",
+        "WRONG_SUBMISSION_COUNT": "COALESCE(wrong_before, 0)",
     }[metric]
 
     sql = f"""
