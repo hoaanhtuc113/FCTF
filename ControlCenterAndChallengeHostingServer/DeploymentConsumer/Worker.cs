@@ -121,15 +121,27 @@ internal class Worker : BackgroundService
                 var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink)
                     ?? throw new InvalidOperationException($"Unable to deserialize ChallengeImageDTO for Challenge ID: {challenge.Id}.");
 
+                var cpuLimit = challenge.CpuLimit > 0 ? challenge.CpuLimit : 300;
+                var cpuRequest = challenge.CpuRequest > 0 ? challenge.CpuRequest : cpuLimit;
+                var memoryLimit = challenge.MemoryLimit > 0 ? challenge.MemoryLimit : 256;
+                var memoryRequest = challenge.MemoryRequest > 0 ? challenge.MemoryRequest : memoryLimit;
+                var useGvisor = challenge.UseGvisor;
+
+                var cpuLimitValue = $"{cpuLimit}m";
+                var cpuRequestValue = $"{cpuRequest}m";
+                var memoryLimitValue = $"{memoryLimit}Mi";
+                var memoryRequestValue = $"{memoryRequest}Mi";
+
                 var (payload, appName) = ChallengeHelper.BuildArgoPayload(
-                        challenge,
-                        startReq.teamId,
-                        imageObj,
-                        DeploymentConsumerConfigHelper.CPU_LIMIT,
-                        DeploymentConsumerConfigHelper.CPU_REQUEST,
-                        DeploymentConsumerConfigHelper.MEMORY_LIMIT,
-                        DeploymentConsumerConfigHelper.MEMORY_REQUEST,
-                        DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES);
+                    challenge,
+                    startReq.teamId,
+                    imageObj,
+                    cpuLimitValue,
+                    cpuRequestValue,
+                    memoryLimitValue,
+                    memoryRequestValue,
+                    useGvisor,
+                    DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES);
 
                 var response = await _multiServiceConnector.ExecuteRequest(
                     DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL,

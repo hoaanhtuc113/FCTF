@@ -130,6 +130,11 @@ class Challenges(db.Model):
     last_update = db.Column(db.DateTime)
     image_link = db.Column(db.Text,nullable =True)
     deploy_file = db.Column(db.String(256), nullable=True)
+    cpu_limit = db.Column(db.Integer, nullable=False, default=300)
+    cpu_request = db.Column(db.Integer, nullable=False, default=300)
+    memory_limit = db.Column(db.Integer, nullable=False, default=256)
+    memory_request = db.Column(db.Integer, nullable=False, default=256)
+    use_gvisor = db.Column(db.Boolean, nullable=False, default=True)
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")
@@ -1258,14 +1263,3 @@ class Brackets(db.Model):
     type = db.Column(db.String(80))
 
 
-class ArgoOutbox(db.Model):
-    __tablename__ = "argo_outbox"
-    id = db.Column(db.Integer, primary_key=True)
-    payload = db.Column(db.JSON, nullable=False)
-    status = db.Column(db.Integer, default=0)
-    expiry = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    # New columns requested: workflow name, processing timestamp, and retry counter
-    workflow_name = db.Column(db.String(255), nullable=True)
-    processing_at = db.Column(db.DateTime, nullable=True)
-    retry_count = db.Column(db.Integer, default=0)
