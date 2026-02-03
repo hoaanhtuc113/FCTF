@@ -56,40 +56,40 @@
                         </label>
                         <input type="text" class="form-control" name="expose_port" id="expose_port"  min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group d-none" id="deploy_resource_container">
                         <label>
                             CPU Limit (mCPU) <br>
                             <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
                         </label>
-                        <input type="number" class="form-control" name="cpu_limit" min="1" max="500" value="300" required>
+                        <input type="number" class="form-control" name="cpu_limit" min="1" max="500" value="300">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group d-none" id="deploy_resource_container_cpu_request">
                         <label>
                             CPU Request (mCPU) <br>
                             <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
                         </label>
-                        <input type="number" class="form-control" name="cpu_request" min="1" max="500" value="300" required>
+                        <input type="number" class="form-control" name="cpu_request" min="1" max="500" value="300">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group d-none" id="deploy_resource_container_memory_limit">
                         <label>
                             Memory Limit (Mi) <br>
                             <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
                         </label>
-                        <input type="number" class="form-control" name="memory_limit" min="1" max="1024" value="256" required>
+                        <input type="number" class="form-control" name="memory_limit" min="1" max="1024" value="256">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group d-none" id="deploy_resource_container_memory_request">
                         <label>
                             Memory Request (Mi) <br>
                             <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
                         </label>
-                        <input type="number" class="form-control" name="memory_request" min="1" max="1024" value="256" required>
+                        <input type="number" class="form-control" name="memory_request" min="1" max="1024" value="256">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group d-none" id="deploy_resource_container_use_gvisor">
                         <label>
                             Use gVisor <br>
                             <small class="form-text text-muted">Run the pod with gVisor sandbox for extra isolation.</small>
                         </label>
-                        <select class="form-control" name="use_gvisor" required>
+                        <select class="form-control" name="use_gvisor">
                             <option value="true" selected>True</option>
                             <option value="false">False</option>
                         </select>
@@ -233,10 +233,18 @@
             $('#expose_port_container').removeClass('d-none');
             $('.upload-file').removeClass('d-none');
             $('.multi_files').addClass('d-none');
+                        $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor').removeClass('d-none');
+                        $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+                            .prop('disabled', false)
+                            .prop('required', true);
         } else {
             $('#expose_port_container').addClass('d-none');
             $('.upload-file').addClass('d-none');
             $('.multi_files').removeClass('d-none');
+                        $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor').addClass('d-none');
+                        $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+                            .prop('disabled', true)
+                            .prop('required', false);
         }
     });
 
@@ -247,8 +255,16 @@
             $('#expose_port_container').removeClass('d-none');
             $('.upload-file').removeClass('d-none');
             $('.multi_files').addClass('d-none');
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor').removeClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+              .prop('disabled', false)
+              .prop('required', true);
         } else {
             $('.multi_files').removeClass('d-none');
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor').addClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+              .prop('disabled', true)
+              .prop('required', false);
         }
     });
 </script>
