@@ -62,7 +62,7 @@ def handle_regular_query(data):
         # Determine which tables need to be joined based on selected fields
         need_user_join = any(f in selected_fields for f in ["user_name"])
         need_team_join = any(f in selected_fields for f in ["team_name"])
-        need_challenge_join = any(f in selected_fields for f in ["challenge_name", "challenge_category", "challenge_point"])
+        need_challenge_join = any(f in selected_fields for f in ["challenge_id", "challenge_name", "category", "point"])
         
         # Check if filters require joins
         for f in filters:
@@ -71,7 +71,7 @@ def handle_regular_query(data):
                 need_user_join = True
             elif field_name in ["team_name"]:
                 need_team_join = True
-            elif field_name in ["challenge_name", "challenge_category", "challenge_point"]:
+            elif field_name in ["challenge_id", "challenge_name", "category", "point"]:
                 need_challenge_join = True
         
         # Build select fields dynamically from selected_fields
@@ -101,20 +101,6 @@ def handle_regular_query(data):
             operator = f.get("operator")
             value = f.get("value")
             
-            # Map field names to SQLAlchemy columns
-            field_map = {
-                "user_id": Submissions.user_id,
-                "team_id": Submissions.team_id,
-                "user_name": Users.name,
-                "team_name": Teams.name,
-                "challenge_id": Submissions.challenge_id,
-                "challenge_name": Challenges.name,
-                "challenge_category": Challenges.category,
-                "challenge_point": Challenges.value,
-                "type": Submissions.type,
-                "date": Submissions.date
-            }
-            
             if field_name not in field_map:
                 continue
                 
@@ -138,19 +124,6 @@ def handle_regular_query(data):
         if sort_by:
             sort_field = sort_by.get("field")
             sort_order = sort_by.get("order", "asc")
-            
-            field_map = {
-                "user_id": Submissions.user_id,
-                "team_id": Submissions.team_id,
-                "user_name": Users.name,
-                "team_name": Teams.name,
-                "challenge_id": Submissions.challenge_id,
-                "challenge_name": Challenges.name,
-                "challenge_category": Challenges.category,
-                "challenge_point": Challenges.value,
-                "type": Submissions.type,
-                "date": Submissions.date
-            }
             
             if sort_field in field_map:
                 column = field_map[sort_field]
@@ -209,8 +182,8 @@ def handle_aggregation_query(data):
             "team_name": Teams.name,
             "challenge_id": Submissions.challenge_id,
             "challenge_name": Challenges.name,
-            "challenge_category": Challenges.category,
-            "challenge_point": Challenges.value,
+            "category": Challenges.category,
+            "point": Challenges.value,
             "type": Submissions.type,
             "date": Submissions.date
         }
@@ -218,14 +191,14 @@ def handle_aggregation_query(data):
         # Determine which tables need to be joined based on group by fields
         need_user_join = any(f in group_by_fields for f in ["user_id", "user_name"])
         need_team_join = any(f in group_by_fields for f in ["team_id", "team_name"])
-        need_challenge_join = any(f in group_by_fields for f in ["challenge_id", "challenge_name", "challenge_category", "challenge_point"])
+        need_challenge_join = any(f in group_by_fields for f in ["challenge_id", "challenge_name", "category", "point"])
         
         # Check if target field requires joins
         if target in ["user_name"]:
             need_user_join = True
         elif target in ["team_name"]:
             need_team_join = True
-        elif target in ["challenge_name", "challenge_category", "challenge_point"]:
+        elif target in ["challenge_id", "challenge_name", "category", "point"]:
             need_challenge_join = True
         
         # Check if filters require joins
@@ -235,7 +208,7 @@ def handle_aggregation_query(data):
                 need_user_join = True
             elif field_name in ["team_name"]:
                 need_team_join = True
-            elif field_name in ["challenge_name", "challenge_category", "challenge_point"]:
+            elif field_name in ["challenge_id", "challenge_name", "category", "point"]:
                 need_challenge_join = True
         
         # Build GROUP BY fields
@@ -286,24 +259,10 @@ def handle_aggregation_query(data):
             operator = f.get("operator")
             value = f.get("value")
             
-            # Map field names to SQLAlchemy columns for filtering
-            filter_field_map = {
-                "user_id": Submissions.user_id,
-                "team_id": Submissions.team_id,
-                "user_name": Users.name,
-                "team_name": Teams.name,
-                "challenge_id": Submissions.challenge_id,
-                "challenge_name": Challenges.name,
-                "challenge_category": Challenges.category,
-                "challenge_point": Challenges.value,
-                "type": Submissions.type,
-                "date": Submissions.date
-            }
-            
-            if field_name not in filter_field_map:
+            if field_name not in field_map:
                 continue
                 
-            column = filter_field_map[field_name]
+            column = field_map[field_name]
             
             # Apply operator
             if operator == "=":

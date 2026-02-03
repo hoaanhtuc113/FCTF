@@ -275,6 +275,20 @@
 	let lastQuery = {};
 	let currentMode = 'regular';
 
+	// Field mapping from UI field names to backend field names
+	const FIELD_MAP = {
+		'userId': 'user_id',
+		'userName': 'user_name',
+		'teamId': 'team_id',
+		'teamName': 'team_name',
+		'challengeId': 'challenge_id',
+		'challengeName': 'challenge_name',
+		'challengeCategory': 'category',
+		'challengePoint': 'point',
+		'type': 'type',
+		'date': 'date'
+	};
+
 	// Toggle between query modes
 	$('input[name="query-mode"]').on('change', function() {
 		currentMode = $(this).val();
@@ -423,20 +437,7 @@
 		const selectedFields = [];
 		$('.field-checkbox:checked').each(function() {
 			const fieldValue = $(this).val();
-			// Map UI field names to backend field names
-			const fieldMap = {
-				'userId': 'user_id',
-				'userName': 'user_name',
-				'teamId': 'team_id',
-				'teamName': 'team_name',
-				'challengeId': 'challenge_id',
-				'challengeName': 'challenge_name',
-				'challengeCategory': 'category',
-				'challengePoint': 'point',
-				'type': 'type',
-				'date': 'date'
-			};
-			selectedFields.push(fieldMap[fieldValue] || fieldValue);
+			selectedFields.push(FIELD_MAP[fieldValue] || fieldValue);
 		});
 
 		if (selectedFields.length === 0) {
@@ -501,20 +502,6 @@
 			const value = $(this).find('.filter-value').val().trim();
 			
 			if (field && value) {
-				// Map UI field names to backend field names
-				const fieldMap = {
-					'userId': 'user_id',
-					'userName': 'user_name',
-					'teamId': 'team_id',
-					'teamName': 'team_name',
-					'challengeId': 'challenge_id',
-					'challengeName': 'challenge_name',
-					'challengeCategory': 'challenge_category',
-					'challengePoint': 'challenge_point',
-					'type': 'type',
-					'date': 'date'
-				};
-				
 				// Map operators
 				const operatorMap = {
 					'eq': '=',
@@ -527,7 +514,7 @@
 				};
 				
 				filters.push({
-					field: fieldMap[field] || field,
+					field: FIELD_MAP[field] || field,
 					operator: operatorMap[operator] || '=',
 					value: value
 				});
@@ -541,14 +528,7 @@
 		const sortField = $('#sort-field').val();
 		const sortOrder = $('#sort-order').val();
 		return sortField ? {
-			field: {
-				'userName': 'user_name',
-				'teamName': 'team_name',
-				'challengeName': 'challenge_name',
-				'challengeCategory': 'challenge_category',
-				'challengePoint': 'challenge_point',
-				'date': 'date'
-			}[sortField] || sortField,
+			field: FIELD_MAP[sortField] || sortField,
 			order: sortOrder
 		} : null;
 	}
