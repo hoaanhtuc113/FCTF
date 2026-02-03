@@ -12,28 +12,28 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme');
-    return (saved as Theme) || 'dark';
+    return (saved as Theme) || 'light';
   });
 
   // Apply theme immediately on mount
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
-    
+
     // Remove both classes first
     root.classList.remove('light', 'dark');
     body.classList.remove('light', 'dark');
-    
+
     // Add the current theme class
     root.classList.add(theme);
     body.classList.add(theme);
-    
+
     // Force a repaint
     void root.offsetHeight;
-    
+
     // Save to localStorage
     localStorage.setItem('theme', theme);
-    
+
     console.log('Theme applied:', theme);
   }, [theme]);
 
