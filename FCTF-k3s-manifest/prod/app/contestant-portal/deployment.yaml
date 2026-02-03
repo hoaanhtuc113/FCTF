@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: contestant-portal
-          image: quachuoiscontainer/fctf:contestant-portal-prod-v3.10.1
+          image: quachuoiscontainer/fctf:contestant-portal-prod-v4.0.0
           ports:
             - name: http-client
               containerPort: 80

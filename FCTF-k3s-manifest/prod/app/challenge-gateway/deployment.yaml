@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: challenge-gateway
-          image: quachuoiscontainer/fctf:challenge-gateway-prod-v3.10.1
+          image: quachuoiscontainer/fctf:challenge-gateway-prod-v4.0.0
           envFrom:
             - configMapRef:
                 name: common-be-cm

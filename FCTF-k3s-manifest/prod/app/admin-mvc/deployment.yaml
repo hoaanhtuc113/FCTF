@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: admin-mvc
-          image: quachuoiscontainer/fctf:admin-mvc-prod-v3.10.1
+          image: quachuoiscontainer/fctf:admin-mvc-prod-v4.0.0
           ports:
             - name: http-client
               containerPort: 8000
