@@ -29,13 +29,14 @@ services:
     volumes:
       - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
       - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads
-      - ./FCTF-ManagementPlatform:/opt/CTFd:ro
-      - ${NFS_MOUNT_PATH}:${NFS_MOUNT_PATH}
+      - ./FCTF-ManagementPlatform:/opt/CTFd
+      - /srv/nfs/share:${NFS_MOUNT_PATH}
     depends_on:
       - db
       - cache
     networks:
       - default
+    entrypoint: sh -c "export PYTHONUNBUFFERED=1 && export FLASK_APP=CTFd:create_app && export FLASK_ENV=development && python ping.py && flask db upgrade && flask run --host=0.0.0.0 --port=8000 --reload"
 
   db:
     image: mariadb:10.11

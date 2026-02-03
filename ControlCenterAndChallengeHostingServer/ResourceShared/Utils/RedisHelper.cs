@@ -9,6 +9,8 @@ namespace ResourceShared.Utils;
 public class RedisHelper
 {
     private readonly IDatabase _cache;
+    private const int RedisScanPageSize = 1000;
+    private const int RedisValueBatchSize = 500;
 
     // Constructor nhận ConnectionMultiplexer thông qua Dependency Injection
     public RedisHelper(IConnectionMultiplexer redisConnection)
@@ -115,7 +117,7 @@ public class RedisHelper
     {
         try
         {
-            var keys = new List<string>();
+            var keys = new HashSet<string>(StringComparer.Ordinal);
             var endpoints = _cache.Multiplexer.GetEndPoints();
 
             foreach (var endpoint in endpoints)
@@ -123,13 +125,15 @@ public class RedisHelper
                 var server = _cache.Multiplexer.GetServer(endpoint);
                 if (server.IsConnected)
                 {
-                    // Sử dụng phương thức Keys để lấy các key theo pattern
-                    var foundKeys = server.Keys(pattern: pattern);
-                    keys.AddRange(foundKeys.Select(k => k.ToString()));
+                    // Use SCAN via server.Keys with page size to avoid blocking Redis
+                    foreach (var key in server.Keys(pattern: pattern, pageSize: RedisScanPageSize))
+                    {
+                        keys.Add(key.ToString());
+                    }
                 }
             }
 
-            return keys;
+            return keys.ToList();
         }
         catch (Exception)
         {
@@ -150,21 +154,36 @@ public class RedisHelper
                 var server = _cache.Multiplexer.GetServer(endpoint);
                 if (!server.IsConnected) continue;
 
-                var keys = server.Keys(pattern: pattern).ToList();
-                if (!keys.Any()) continue;
+                var batch = new List<RedisKey>(RedisValueBatchSize);
 
-                var redisKeys = keys.Select(k => (RedisKey)k).ToArray();
-                var values = await _cache.StringGetAsync(redisKeys);
-
-                foreach (var value in values)
+                async Task FlushBatchAsync()
                 {
-                    if (!value.IsNullOrEmpty)
+                    if (batch.Count == 0) return;
+                    var values = await _cache.StringGetAsync(batch.ToArray());
+
+                    foreach (var value in values)
                     {
-                        var item = JsonConvert.DeserializeObject<T>(value);
-                        if (item != null)
-                            result.Add(item);
+                        if (!value.IsNullOrEmpty)
+                        {
+                            var item = JsonConvert.DeserializeObject<T>(value);
+                            if (item != null)
+                                result.Add(item);
+                        }
+                    }
+
+                    batch.Clear();
+                }
+
+                foreach (var key in server.Keys(pattern: pattern, pageSize: RedisScanPageSize))
+                {
+                    batch.Add(key);
+                    if (batch.Count >= RedisValueBatchSize)
+                    {
+                        await FlushBatchAsync();
                     }
                 }
+
+                await FlushBatchAsync();
             }
         }
         catch (Exception ex)

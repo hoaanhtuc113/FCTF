@@ -18,6 +18,7 @@ const (
 )
 
 var httpRateLimiter rateLimiter
+var httpIPRateLimiter rateLimiter
 
 type ctxKey string
 
@@ -62,6 +63,10 @@ func startHTTPGateway(cfg gatewayConfig) *http.Server {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
 	mux.Handle("/", loggingMiddleware(rateLimitMiddleware(bodySizeLimitMiddleware(cfg.HTTPMaxBodyBytes, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpGatewayHandler(w, r, proxy)
 	})))))
@@ -95,6 +100,14 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
             http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
             return
         }
+		if httpRateLimiter != nil {
+			ip := parseRemoteIP(r.RemoteAddr)
+			key := buildRateLimitKey(token, ip)
+			if !httpRateLimiter.Allow(r.Context(), key) {
+				http.Error(w, "too many requests", http.StatusTooManyRequests)
+				return
+			}
+		}
         setTokenCookieAndRedirect(w, r, token, payload.Exp, cleanedPath)
         return
     }
@@ -116,6 +129,14 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	if err != nil {
 		http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
 		return
+	}
+	if httpRateLimiter != nil {
+		ip := parseRemoteIP(r.RemoteAddr)
+		key := buildRateLimitKey(token, ip)
+		if !httpRateLimiter.Allow(r.Context(), key) {
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
 	}
 
 	// Expand route if needed and store target host in requestInfo for logging
@@ -206,19 +227,12 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func rateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if httpRateLimiter == nil {
+		if httpIPRateLimiter == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
 		ip := parseRemoteIP(r.RemoteAddr)
-		token, _ := extractTokenFromRequest(r)
-		if token == "" {
-			if cookie, err := r.Cookie(challengeCookieName); err == nil && looksLikeToken(cookie.Value) {
-				token = cookie.Value
-			}
-		}
-		key := buildRateLimitKey(token, ip)
-		if !httpRateLimiter.Allow(r.Context(), key) {
+		if !httpIPRateLimiter.Allow(r.Context(), ip) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}

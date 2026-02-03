@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Notification;
 using ResourceShared.Models;
-using ResourceShared.Logger;
 
 namespace ContestantBE.Services;
 

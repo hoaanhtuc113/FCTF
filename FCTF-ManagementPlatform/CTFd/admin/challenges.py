@@ -18,7 +18,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, DeployedChallenge, Flags, Solves, Users, db
+from CTFd.models import Challenges, DeployedChallenge, Flags, Solves, Users, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -49,8 +49,26 @@ def challenges_listing():
     filters = []
 
     # Add filter based on search query
+    tag_terms = []
+
+    # Separate tags parameter (comma-separated) - this is intentionally distinct from generic `q` search
+    tags_q = request.args.get("tags")
+    if tags_q:
+        tag_terms = [t.strip() for t in tags_q.split(",") if t.strip()]
+        for term in tag_terms:
+            # Require that the tag value exactly matches the term (case-insensitive)
+            exists_filter = (
+                db.session.query(Tags.id)
+                .filter(
+                    Tags.challenge_id == Challenges.id,
+                    db.func.lower(Tags.value) == term.lower(),
+                )
+                .exists()
+            )
+            filters.append(exists_filter)
+
     if q:
-        # Check if the field exists as an exposed column
+        # Generic field search (name, id, category, type)
         if Challenges.__mapper__.has_property(field):
             filters.append(getattr(Challenges, field).like(f"%{q}%"))
 
@@ -103,6 +121,7 @@ def challenges_listing():
         type=type_,
         categories=categories,
         types=types,
+        tag_terms=tag_terms,
     )
 
 
