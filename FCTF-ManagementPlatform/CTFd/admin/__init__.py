@@ -21,6 +21,7 @@ from sqlalchemy.orm import joinedload
 admin = Blueprint("admin", __name__)
 
 # isort:imports-firstparty
+from CTFd.admin import analytics  # noqa: F401,I001
 from CTFd.admin import challenges  # noqa: F401,I001
 from CTFd.admin import notifications  # noqa: F401,I001
 from CTFd.admin import pages  # noqa: F401,I001
