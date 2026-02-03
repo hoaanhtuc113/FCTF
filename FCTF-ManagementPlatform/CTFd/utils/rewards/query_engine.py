@@ -184,7 +184,13 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
 
     params["limit"] = spec.limit
 
-    base_ctes = """
+    dialect = db.engine.dialect.name if db.engine else "postgresql"
+    if dialect in {"mysql", "mariadb"}:
+        solve_time_expr = "UNIX_TIMESTAMP(s.date)"
+    else:
+        solve_time_expr = "EXTRACT(EPOCH FROM s.date)"
+
+    base_ctes = f"""
 WITH base_solves AS (
     SELECT
         s.id AS solve_id,
@@ -195,7 +201,7 @@ WITH base_solves AS (
         c.value AS challenge_value,
         c.category AS category,
         c.name AS challenge_name,
-        EXTRACT(EPOCH FROM s.date) AS solve_time
+        {solve_time_expr} AS solve_time
     FROM solves s
     JOIN challenges c ON c.id = s.challenge_id
 ),
