@@ -15,6 +15,22 @@
 
       <div class="card mt-4" style="cursor: default;">
         <div class="card-body">
+          <h5 class="mb-2">Quick Guide</h5>
+          <ul class="mb-3">
+            <li>Chọn <strong>Entity</strong> (team/user/solve) và <strong>Metric</strong>.</li>
+            <li>Thêm <strong>Filters</strong> nếu cần (ví dụ: category = Web).</li>
+            <li>Nhấn <strong>Run Query</strong> để xem kết quả.</li>
+          </ul>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm mr-2" data-example="top_teams">Top Teams (Score)</button>
+            <button type="button" class="btn btn-outline-primary btn-sm mr-2" data-example="fastest_solves">Fastest Solves</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" data-example="first_bloods">First Bloods</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4" style="cursor: default;">
+        <div class="card-body">
           <div class="form-row">
             <div class="form-group col-md-4">
               <label><strong>Rule Name</strong></label>
@@ -45,7 +61,7 @@
             </button>
           </div>
           <div id="filters" class="mt-3"></div>
-          <small class="text-muted">For IN operator, use comma-separated values.</small>
+          <small class="text-muted">For IN operator, use comma-separated values. Boolean fields accept true/false.</small>
         </div>
       </div>
 
@@ -254,6 +270,52 @@
   entitySelect.addEventListener("change", renderMetrics);
   document.getElementById("add-filter").addEventListener("click", () => {
     filtersContainer.appendChild(createFilterRow());
+  });
+
+  function setExample(exampleKey) {
+    document.getElementById("rule-name").value = exampleKey;
+    filtersContainer.innerHTML = "";
+
+    if (exampleKey === "top_teams") {
+      entitySelect.value = "team";
+      renderMetrics();
+      metricSelect.value = "TEAM_TOTAL_SCORE";
+      document.getElementById("order-field").value = "metric_value";
+      document.getElementById("order-dir").value = "desc";
+      document.getElementById("limit").value = 50;
+    }
+
+    if (exampleKey === "fastest_solves") {
+      entitySelect.value = "solve";
+      renderMetrics();
+      metricSelect.value = "CLEAN_SOLVE";
+      const row = createFilterRow();
+      row.querySelector(".filter-field").value = "solve_time";
+      row.querySelector(".filter-op").value = "<";
+      row.querySelector(".filter-value").value = "600";
+      filtersContainer.appendChild(row);
+      document.getElementById("order-field").value = "entity_id";
+      document.getElementById("order-dir").value = "asc";
+      document.getElementById("limit").value = 100;
+    }
+
+    if (exampleKey === "first_bloods") {
+      entitySelect.value = "solve";
+      renderMetrics();
+      metricSelect.value = "FIRST_BLOOD";
+      const row = createFilterRow();
+      row.querySelector(".filter-field").value = "first_blood";
+      row.querySelector(".filter-op").value = "=";
+      row.querySelector(".filter-value").value = "true";
+      filtersContainer.appendChild(row);
+      document.getElementById("order-field").value = "entity_id";
+      document.getElementById("order-dir").value = "asc";
+      document.getElementById("limit").value = 200;
+    }
+  }
+
+  document.querySelectorAll("[data-example]").forEach((btn) => {
+    btn.addEventListener("click", () => setExample(btn.dataset.example));
   });
 
   document.getElementById("run-query").addEventListener("click", async () => {

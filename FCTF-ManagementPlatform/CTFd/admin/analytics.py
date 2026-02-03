@@ -8,4 +8,4 @@ from CTFd.utils.decorators import admin_or_jury
 @admin_or_jury
 def analytics():
     """Competition Analytics page with custom query endpoint."""
-    return render_template("admin/analytics.html")
+    return render_template("admin/rewards.html")
