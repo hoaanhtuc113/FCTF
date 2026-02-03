@@ -215,7 +215,7 @@ public class DeployService : IDeployService
                 stopReq.teamId.ToString(),
                 deploymentKey,
                 stopReq.challengeId.ToString(),
-                60,  // TTL 60s đủ để pod terminate
+                40,  // TTL 40s đủ để pod terminate
                 cacheJson
             );
 

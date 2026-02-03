@@ -196,6 +196,12 @@ public class ChallengesInformerService
         var (teamId, challengeId) = ChallengeHelper.ParseDeploymentAppName(ns);
         var key = ChallengeHelper.GetCacheKey(challengeId, teamId);
         var cache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(key);
+        // pod deleted
+        if (eventType == WatchEventType.Deleted)
+        {
+            await HandleDeletion(teamId, challengeId, key, cache, onStatusChange);
+            return;
+        }
 
         //Check ghost pod (pod Added nhưng cache không tồn tại)
         if (cache == null)
@@ -204,12 +210,12 @@ public class ChallengesInformerService
             await CleanupGhostResources(ns, teamId, challengeId, key, onStatusChange);
             return;
         }
-
-        // // pod deleted or terminating
-        // if (eventType == WatchEventType.Deleted || pod.Metadata.DeletionTimestamp.HasValue)
-        // {
-        //     return;
-        // }
+        // pod terminating
+        if (pod.Metadata.DeletionTimestamp.HasValue)
+        {
+            _logger.LogDebug($"Pod is terminating! Namespace: {ns}, Pod: {pod}");
+            return;
+        }
 
         // pod restarted
         if (cache.pod_id != uid)
@@ -231,6 +237,13 @@ public class ChallengesInformerService
 
     #region Sub-Logics
 
+    private async Task HandleDeletion(int teamId, int challengeId, string key, ChallengeDeploymentCacheDTO? cache, OnDeploymentStatusChanged onStatusChange)
+    {
+        _logger.LogDebug($"Final cleanup for Challenge {challengeId} (Team {teamId})");
+        await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
+        await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.STOPPED, null);
+        
+    }
     private async Task CleanupGhostResources(string ns, int teamId, int challengeId, string key, OnDeploymentStatusChanged onStatusChange, string status = DeploymentStatus.STOPPED)
     {
         var deleted = await _k8sService.DeleteNamespace(ns);
@@ -260,7 +273,7 @@ public class ChallengesInformerService
         var ready = cs.All(c => c.Ready);
         var podReadyCondition = pod.Status?.Conditions?.Any(c => c.Type == "Ready" && c.Status == "True") == true;
 
-        if (ready && podReadyCondition)
+        if (ready && podReadyCondition && cache.status != DeploymentStatus.DELETING)
         {
             if (cache.ready == true) return;
 
