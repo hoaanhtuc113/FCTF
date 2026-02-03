@@ -317,6 +317,29 @@ function loadChalTemplate(challenge) {
 function handleChallengeOptions(event) {
   event.preventDefault();
   var params = $(event.target).serializeJSON(true);
+  const cpuLimit = parseInt(params.cpu_limit || "0", 10);
+  const cpuRequest = parseInt(params.cpu_request || "0", 10);
+  const memoryLimit = parseInt(params.memory_limit || "0", 10);
+  const memoryRequest = parseInt(params.memory_request || "0", 10);
+  const useGvisor = (params.use_gvisor || "true") === "true";
+
+  if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
+    ezAlert({
+      title: "Validation Error",
+      body: "CPU limit/request must be between 1 and 500 (mCPU).",
+      button: "OK",
+    });
+    return;
+  }
+
+  if (memoryLimit < 1 || memoryLimit > 1024 || memoryRequest < 1 || memoryRequest > 1024) {
+    ezAlert({
+      title: "Validation Error",
+      body: "Memory limit/request must be between 1 and 1024 (Mi).",
+      button: "OK",
+    });
+    return;
+  }
   let flag_params = {
     challenge_id: params.challenge_id,
     content: params.flag || "",
@@ -334,6 +357,11 @@ function handleChallengeOptions(event) {
       },
       body: JSON.stringify({
         state: params.state,
+        cpu_limit: cpuLimit,
+        cpu_request: cpuRequest,
+        memory_limit: memoryLimit,
+        memory_request: memoryRequest,
+        use_gvisor: useGvisor,
       }),
     })
       .then(function (response) {

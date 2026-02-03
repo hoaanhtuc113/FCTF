@@ -16,10 +16,8 @@
     </div>
     <div class="form-group">
       <label class="clean-label">
-        CPU Limit (mCPU)
-        <small class="form-text text-muted" title="Giới hạn CPU tối đa mà pod challenge được phép dùng (đơn vị mCPU).">
-          <i class="fas fa-info-circle"></i>
-        </small>
+        CPU Limit (mCPU) <br>
+        <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="cpu_limit" id="cpu_limit"
         min="1" max="500" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 300 }}" required>
@@ -27,10 +25,8 @@
 
     <div class="form-group">
       <label class="clean-label">
-        CPU Request (mCPU)
-        <small class="form-text text-muted" title="CPU tối thiểu được yêu cầu để scheduler đặt pod (đơn vị mCPU).">
-          <i class="fas fa-info-circle"></i>
-        </small>
+        CPU Request (mCPU) <br>
+        <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="cpu_request" id="cpu_request"
         min="1" max="500" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 300 }}" required>
@@ -38,10 +34,8 @@
 
     <div class="form-group">
       <label class="clean-label">
-        Memory Limit (Mi)
-        <small class="form-text text-muted" title="Giới hạn RAM tối đa mà pod challenge được phép dùng (đơn vị Mi).">
-          <i class="fas fa-info-circle"></i>
-        </small>
+        Memory Limit (Mi) <br>
+        <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_limit" id="memory_limit"
         min="1" max="1024" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 256 }}" required>
@@ -49,10 +43,8 @@
 
     <div class="form-group">
       <label class="clean-label">
-        Memory Request (Mi)
-        <small class="form-text text-muted" title="RAM tối thiểu được yêu cầu để scheduler đặt pod (đơn vị Mi).">
-          <i class="fas fa-info-circle"></i>
-        </small>
+        Memory Request (Mi) <br>
+        <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_request" id="memory_request"
         min="1" max="1024" value="{{ challenge.memory_request if challenge.memory_request is not none else 256 }}" required>
@@ -60,10 +52,8 @@
 
     <div class="form-group">
       <label class="clean-label">
-        Use gVisor
-        <small class="form-text text-muted" title="Bật để chạy pod với gVisor (sandbox tăng độ an toàn, có thể giảm hiệu năng).">
-          <i class="fas fa-info-circle"></i>
-        </small>
+        Use gVisor <br>
+        <small class="form-text text-muted">Run the pod with gVisor sandbox for extra isolation.</small>
       </label>
       <select class="form-control clean-form-control" name="use_gvisor" id="use_gvisor" required>
         <option value="true" {% if challenge.use_gvisor %}selected{% endif %}>True</option>

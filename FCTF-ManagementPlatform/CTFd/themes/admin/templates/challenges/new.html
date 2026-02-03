@@ -57,6 +57,44 @@
                         <input type="text" class="form-control" name="expose_port" id="expose_port"  min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                     </div>
                     <div class="form-group">
+                        <label>
+                            CPU Limit (mCPU) <br>
+                            <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_limit" min="1" max="500" value="300" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            CPU Request (mCPU) <br>
+                            <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_request" min="1" max="500" value="300" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            Memory Limit (Mi) <br>
+                            <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_limit" min="1" max="1024" value="256" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            Memory Request (Mi) <br>
+                            <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_request" min="1" max="1024" value="256" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            Use gVisor <br>
+                            <small class="form-text text-muted">Run the pod with gVisor sandbox for extra isolation.</small>
+                        </label>
+                        <select class="form-control" name="use_gvisor" required>
+                            <option value="true" selected>True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <div class="form-group d-none upload-file">
                             <label>Files template:</label>
                             <ul id="template-list">
