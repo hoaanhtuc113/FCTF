@@ -20,7 +20,9 @@ helm repo add jetstack https://charts.jetstack.io
 helm repo update
 helm upgrade --install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
-  --set installCRDs=true
+  --set installCRDs=true \
+  --set webhook.securePort=10250
+
 
 # # Cài jenkins để tạo pipeline
 # helm repo add jenkins https://charts.jenkins.io
@@ -48,7 +50,7 @@ helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 helm upgrade --install rabbitmq bitnami/rabbitmq \
   --namespace db --create-namespace \
-  -f ./prod/helm/db/rabbitmq/rabbitmq-values.yaml \
+  -f ./helm/db/rabbitmq/rabbitmq-values.yaml \
   --set global.security.allowInsecureImages=true
 
 # cài monitoring stack (prometheus, grafana, loki, promtail)
