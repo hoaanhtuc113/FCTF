@@ -160,13 +160,18 @@ public class TeamService : ITeamService
                 .Select(c => new { c.Value })
                 .ToListAsync();
 
+            var totalTeams = await _context.Teams
+                .AsNoTracking()
+                .CountAsync(t => t.Banned == false && t.Hidden == false);
+
             return new TeamScoreDTO
             {
                 Name = team.Name ?? string.Empty,
                 Place = await _scoreHelper.GetTeamPlace(team, true),
                 Members = members,
                 Score = await _scoreHelper.GetTeamScore(team, true),
-                ChallengeTotalScore = challenges.Sum(c => c.Value ?? 0)
+                ChallengeTotalScore = challenges.Sum(c => c.Value ?? 0),
+                TotalTeams = totalTeams
             };
         }
         catch (Exception ex)
