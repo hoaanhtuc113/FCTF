@@ -143,7 +143,9 @@ function previewChallenge(challengeId) {
       
       const body = `<div>
         <p><strong>${data.message}</strong></p>
-        <p>Challenge URL: ${data.challenge_url}"<br>
+        <div style="overflow:auto; max-width:100%; word-break:break-all;">
+          <p>Challenge Token: <code>${data.challenge_url}</code></p>
+        </div>
       </div>`;
 
       ezAlert({
@@ -221,7 +223,9 @@ function CheckingStatus(challengeId) {
       if (data.challenge_url) {
         const body = `<div>
                       <p><strong>${data.message}</strong></p>
-                      <p>Challenge URL: ${data.challenge_url}"<br>
+                      <div style="overflow:auto; max-width:100%; word-break:break-all;">
+                        <p>Challenge URL: <code>${data.challenge_url}</code></p>
+                      </div>
                     </div>`;
 
         ezAlert({

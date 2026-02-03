@@ -92,8 +92,8 @@
 									<option value="team_name">Team Name</option>
 									<option value="challenge_id">Challenge ID</option>
 									<option value="challenge_name">Challenge Name</option>
-									<option value="challenge_category">Challenge Category</option>
-									<option value="challenge_point">Challenge Points</option>
+								<option value="category">Challenge Category</option>
+								<option value="point">Challenge Points</option>
 									<option value="type">Type (correct/incorrect)</option>
 									<option value="date">Date</option>
 								</select>
@@ -113,7 +113,7 @@
 								<label class="mt-3"><strong>Target Field:</strong></label>
 								<select class="form-control" id="aggregate-target">
 									<option value="submission_id">Submissions ID</option>
-									<option value="challenge_point">Challenge Points</option>
+									<option value="point">Challenge Points</option>
 									<option value="user_id">Users ID</option>
 									<option value="team_id">Teams ID</option>
 									<option value="challenge_id">Challenges ID</option>
@@ -136,14 +136,14 @@
 									<label class="small">Field</label>
 									<select class="form-control filter-field">
 										<option value="">-- Select Field --</option>
-										<option value="userId">User ID</option>
-										<option value="userName">User Name</option>
-										<option value="teamId">Team ID</option>
-										<option value="teamName">Team Name</option>
-										<option value="challengeId">Challenge ID</option>
-										<option value="challengeName">Challenge Name</option>
-										<option value="challengeCategory">Category</option>
-										<option value="challengePoint">Points</option>
+								<option value="user_id">User ID</option>
+								<option value="user_name">User Name</option>
+								<option value="team_id">Team ID</option>
+								<option value="team_name">Team Name</option>
+								<option value="challenge_id">Challenge ID</option>
+								<option value="challenge_name">Challenge Name</option>
+								<option value="category">Category</option>
+								<option value="point">Points</option>
 										<option value="type">Type (correct/incorrect)</option>
 									</select>
 								</div>
@@ -190,11 +190,11 @@
 									<select class="form-control" id="sort-field">
 										<option value="">None</option>
 										<option value="date" selected>Date</option>
-										<option value="userName">User Name</option>
-										<option value="teamName">Team Name</option>
-										<option value="challengeName">Challenge Name</option>
-										<option value="challengeCategory">Category</option>
-										<option value="challengePoint">Points</option>
+								<option value="user_name">User Name</option>
+								<option value="team_name">Team Name</option>
+								<option value="challenge_name">Challenge Name</option>
+								<option value="category">Category</option>
+								<option value="point">Points</option>
 										<option value="metric_value" id="sort-metric-option" style="display:none;">Metric Value</option>
 									</select>
 								</div>
@@ -275,20 +275,6 @@
 	let lastQuery = {};
 	let currentMode = 'regular';
 
-	// Field mapping from UI field names to backend field names
-	const FIELD_MAP = {
-		'userId': 'user_id',
-		'userName': 'user_name',
-		'teamId': 'team_id',
-		'teamName': 'team_name',
-		'challengeId': 'challenge_id',
-		'challengeName': 'challenge_name',
-		'challengeCategory': 'category',
-		'challengePoint': 'point',
-		'type': 'type',
-		'date': 'date'
-	};
-
 	// Toggle between query modes
 	$('input[name="query-mode"]').on('change', function() {
 		currentMode = $(this).val();
@@ -329,8 +315,8 @@
 			'team_name': 'Team Name',
 			'challenge_id': 'Challenge ID',
 			'challenge_name': 'Challenge Name',
-			'challenge_category': 'Category',
-			'challenge_point': 'Points',
+			'category': 'Category',
+			'point': 'Points',
 			'type': 'Type',
 			'date': 'Date'
 		};
@@ -357,11 +343,11 @@
 		$('#sort-field').html(`
 			<option value="">None</option>
 			<option value="date" selected>Date</option>
-			<option value="userName">User Name</option>
-			<option value="teamName">Team Name</option>
-			<option value="challengeName">Challenge Name</option>
-			<option value="challengeCategory">Category</option>
-			<option value="challengePoint">Points</option>
+			<option value="user_name">User Name</option>
+			<option value="team_name">Team Name</option>
+			<option value="challenge_name">Challenge Name</option>
+			<option value="category">Category</option>
+			<option value="point">Points</option>
 			<option value="metric_value" id="sort-metric-option" style="display:none;">Metric Value</option>
 		`);
 	}
@@ -436,8 +422,7 @@
 		// Get selected fields
 		const selectedFields = [];
 		$('.field-checkbox:checked').each(function() {
-			const fieldValue = $(this).val();
-			selectedFields.push(FIELD_MAP[fieldValue] || fieldValue);
+			selectedFields.push($(this).val());
 		});
 
 		if (selectedFields.length === 0) {
@@ -514,7 +499,7 @@
 				};
 				
 				filters.push({
-					field: FIELD_MAP[field] || field,
+					field: field,
 					operator: operatorMap[operator] || '=',
 					value: value
 				});
@@ -528,7 +513,7 @@
 		const sortField = $('#sort-field').val();
 		const sortOrder = $('#sort-order').val();
 		return sortField ? {
-			field: FIELD_MAP[sortField] || sortField,
+			field: sortField,
 			order: sortOrder
 		} : null;
 	}
