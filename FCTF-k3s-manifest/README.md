@@ -34,7 +34,15 @@ maxPods: 250
 EOF
 
 # Cài K3s với domain TLS SAN
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --kubelet-arg=config=/etc/rancher/k3s/kubelet.config --write-kubeconfig-mode 644 --tls-san=34.2.140.1 --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+  --flannel-backend=none \
+  --disable-network-policy \
+  --disable traefik \
+  --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
+  --write-kubeconfig-mode 644 \
+  --tls-san=34.96.192.125 \
+  --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
+
 ```
 
 **Cho Development (Local, WSL...):**
@@ -67,6 +75,11 @@ echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 # Kiểm tra cluster
 kubectl get nodes
 ```
+## install calico
+```bash
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
+```
 
 ### 3. Cài đặt NFS Server
 
@@ -98,7 +111,7 @@ sudo exportfs -v
 ```bash
 # thường sẽ là IP đầu tiên 
 hostname -I
-# Ví dụ tôi có 10.148.0.8 
+# Ví dụ tôi có 10.170.0.2 
 # Cần sửa trong prod\storage\nfs-pv-pvc.yaml phàn spec.nfs.server ở đây thay thế bằng IP của bạn 
 # Tương tự những chỗ mount nfs ở các file sau  
 #    prod\app\admin-mvc\deployment.yaml 
