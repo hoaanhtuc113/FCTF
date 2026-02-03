@@ -172,8 +172,16 @@ namespace ResourceShared.Utils
             return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
-        public static (object payload, string appName) BuildArgoPayload(Challenge challenge, int teamId, ChallengeImageDTO challengeImage,
-                    string cpu_limit, string cpu_request, string memory_limt, string memory_request, string pow_difficulty)
+        public static (object payload, string appName) BuildArgoPayload(
+            Challenge challenge,
+            int teamId,
+            ChallengeImageDTO challengeImage,
+            string cpu_limit,
+            string cpu_request,
+            string memory_limit,
+            string memory_request,
+            bool use_gvisor,
+            string pow_difficulty)
         {
             var isTemp = true;
             if (challenge.TimeLimit.HasValue && challenge.TimeLimit.Value <= 0)
@@ -199,8 +207,9 @@ namespace ResourceShared.Utils
                         $"CONTAINER_IMAGE={challengeImage.imageLink}",
                         $"CPU_LIMIT={cpu_limit}",
                         $"CPU_REQUEST={cpu_request}",
-                        $"MEMORY_LIMIT={memory_limt}",
+                        $"MEMORY_LIMIT={memory_limit}",
                         $"MEMORY_REQUEST={memory_request}",
+                        $"USE_GVISOR={use_gvisor.ToString().ToLower()}",
                         $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
                         $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
                         $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
