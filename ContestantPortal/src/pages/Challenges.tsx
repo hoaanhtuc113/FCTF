@@ -22,7 +22,6 @@ import { saveAs } from 'file-saver';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Document, Page, pdfjs } from 'react-pdf';
-import * as pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs';
 import { fetchWithAuth, downloadFile } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
 import { getBaseGateway, getHttpPort, getTcpPort } from '../services/envService';
@@ -93,7 +92,6 @@ export function Challenges() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingChallengeDetail, setLoadingChallengeDetail] = useState(false);
@@ -298,7 +296,6 @@ export function Challenges() {
 
       // Store challenges by category
       setChallengesByCategory(prev => new Map(prev).set(categoryName, parsedChallenges));
-      setChallenges(parsedChallenges);
 
       // Load prerequisites info for challenges with requirements
       await loadPrerequisitesInfo(parsedChallenges);
@@ -334,14 +331,9 @@ export function Challenges() {
     } else {
       // Expand category
       setExpandedCategories(prev => new Set(prev).add(categoryName));
-
       // Fetch challenges if not already loaded
       if (!challengesByCategory.has(categoryName)) {
         await fetchChallenges(categoryName);
-      } else {
-        // Just set existing challenges
-        const existingChallenges = challengesByCategory.get(categoryName) || [];
-        setChallenges(existingChallenges);
       }
     }
 
@@ -574,8 +566,8 @@ export function Challenges() {
               <button
                 onClick={() => setIsSidebarVisible(false)}
                 className={`shrink-0 transition-all duration-300 p-1.5 rounded transition-colors border ${theme === 'dark'
-                    ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
-                    : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
+                  ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
+                  : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
                   } rounded-md p-1.5`}
                 title="Hide Categories"
               >
@@ -895,17 +887,6 @@ function ChallengeListItem({
   // Only disable if contest is not active, allow click on locked challenges to show prerequisite popup
   const disabled = !isContestActive;
 
-  // Format time helper
-  const formatTimeLimit = (minutes: number) => {
-    if (minutes === -1) return '∞';
-    if (minutes >= 60) {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-    }
-    return `${minutes}m`;
-  };
-
   // Expanded view when no challenge is selected
   if (!isCompact) {
     return (
@@ -1190,10 +1171,6 @@ function ChallengeListItem({
     </div>
   );
 }
-
-
-// Note: ChallengeDetailPanel component remains the same - it's too long to include here
-// You can keep it from the original code
 
 // Challenge Detail Panel Component
 function ChallengeDetailPanel({
@@ -2385,23 +2362,6 @@ function ChallengeDetailPanel({
       return;
     }
 
-    // Check for emoji/icons in submission
-    // const emojiRegex = /[\u{1F300}-\u{1F9FF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}|\u{FE00}-\u{FE0F}|\u{1F600}-\u{1F64F}|\u{1F680}-\u{1F6FF}|\u{1F1E0}-\u{1F1FF}]/u;
-    // if (emojiRegex.test(answer)) {
-    //   Swal.fire({
-    //     html: `<div class="font-mono text-sm text-red-400">[!] Submission cannot contain emoji or special icons</div>`,
-    //     icon: 'error',
-    //     iconColor: '#ef4444',
-    //     confirmButtonText: 'OK',
-    //     background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
-    //     customClass: {
-    //       popup: 'rounded-lg border border-red-500/30',
-    //       confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
-    //     },
-    //   });
-    //   return;
-    // }
-
     // Check if captain_only_submit is enabled and user is not captain
     if (challenge.captain_only_submit && !challenge.is_captain) {
       Swal.fire({
@@ -3217,8 +3177,8 @@ function ChallengeDetailPanel({
             <button
               onClick={onToggleSidebar}
               className={`shrink-0 transition-all duration-300 ${theme === 'dark'
-                  ? 'text-orange-400 hover:bg-gray-700'
-                  : 'text-orange-600 hover:bg-gray-100'
+                ? 'text-orange-400 hover:bg-gray-700'
+                : 'text-orange-600 hover:bg-gray-100'
                 } rounded-md p-1.5`}
               title="Show Categories"
             >
