@@ -20,7 +20,9 @@ helm repo add jetstack https://charts.jetstack.io
 helm repo update
 helm upgrade --install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
-  --set installCRDs=true
+  --set installCRDs=true \
+  --set webhook.securePort=10250
+
 
 # # Cài jenkins để tạo pipeline
 # helm repo add jenkins https://charts.jenkins.io

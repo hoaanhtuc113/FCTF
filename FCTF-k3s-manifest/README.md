@@ -51,11 +51,16 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644" sh -
 ```
 
-**Cài các woker-node nếu có**
+# cài k3s worker-node là ip private của server
 ```bash
+# Lấy master node token
+sudo cat /var/lib/rancher/k3s/server/node-token
+
 # Cài k3s worker-node
 # Truy cập vào worker-node và chạy lệnh này để join vào master node
-curl -sfL https://get.k3s.io | K3S_URL=https://35.219.48.141:6443 K3S_TOKEN=K103423d372b84bbc3e0904027636d3e102f4ed204b7661e1402fd5a71704b3efe6::server:bc7aa9e972db97d5932c70f0d24f1900 sh -
+curl -sfL https://get.k3s.io | K3S_URL=https://10.170.0.2:6443 \
+  K3S_TOKEN=K109f8ed7afed5666089849417efb9f78175bcb8dec748f6438057065f5140ba4b9::server:05a87db197bea859c1d1cba005a0b78c \
+  INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 ```
 
 **Kiểm tra và cấu hình kubectl:**
@@ -232,7 +237,7 @@ kubectl apply -f ./prod/ingress/nginx/
 ### 7. Apply Cron job
 ```Bash
 # Cron job dùng để dọn dẹp các challenge/instance un-heathy
-kubectl apply -f ./cron-job/delete-chal-job.yaml 
+kubectl apply -f ./prod/cron-job/delete-chal-job.yaml 
 ```
 ### 8. Setup Argo and NFS server to deploy challenge
 ```bash
