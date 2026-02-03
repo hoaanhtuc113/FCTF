@@ -234,17 +234,8 @@ public class ChallengesInformerService
 
     private async Task HandleDeletion(int teamId, int challengeId, string key, ChallengeDeploymentCacheDTO? cache, OnDeploymentStatusChanged onStatusChange)
     {
-        // Cleanup Redis ZSET
+        // k8s recive delete pod cleanup redis ZSET allow new deploy
         await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
-
-        // Nếu đang Terminating (chưa Deleted hoàn toàn) và cache vẫn Running -> báo STOPPED
-        if (cache != null && cache.status != DeploymentStatus.STOPPED)
-        {
-            cache.status = DeploymentStatus.STOPPED;
-            var json = JsonSerializer.Serialize(cache);
-            await _redisHelper.AtomicUpdateExpiration(teamId.ToString(), key, challengeId.ToString(), 30, json);
-            await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.STOPPED, null);
-        }
     }
 
     private async Task CleanupGhostResources(string ns, int teamId, int challengeId, string key, OnDeploymentStatusChanged onStatusChange, string status = DeploymentStatus.STOPPED)

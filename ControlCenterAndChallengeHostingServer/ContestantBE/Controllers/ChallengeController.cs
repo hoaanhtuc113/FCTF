@@ -765,6 +765,7 @@ public class ChallengeController : ControllerBase
                             success = true,
                             message = "Challenge is deploying.",
                         });
+                    
                     case DeploymentStatus.RUNING:
                         int timeLeft = 0;
                         if (deploymentCache.time_finished > 0)
