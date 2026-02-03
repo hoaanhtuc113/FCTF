@@ -75,6 +75,11 @@ echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 # Kiểm tra cluster
 kubectl get nodes
 ```
+## install calico
+```bash
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
+```
 
 ### 3. Cài đặt NFS Server
 
