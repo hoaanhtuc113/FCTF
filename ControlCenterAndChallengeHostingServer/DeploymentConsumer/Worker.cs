@@ -121,11 +121,11 @@ internal class Worker : BackgroundService
                 var imageObj = JsonSerializer.Deserialize<ChallengeImageDTO>(jsonImageLink)
                     ?? throw new InvalidOperationException($"Unable to deserialize ChallengeImageDTO for Challenge ID: {challenge.Id}.");
 
-                var cpuLimit = challenge.CpuLimit > 0 ? challenge.CpuLimit : 300;
-                var cpuRequest = challenge.CpuRequest > 0 ? challenge.CpuRequest : cpuLimit;
-                var memoryLimit = challenge.MemoryLimit > 0 ? challenge.MemoryLimit : 256;
-                var memoryRequest = challenge.MemoryRequest > 0 ? challenge.MemoryRequest : memoryLimit;
-                var useGvisor = challenge.UseGvisor;
+                var cpuLimit = (challenge.CpuLimit ?? 0) > 0 ? challenge.CpuLimit!.Value : 300;
+                var cpuRequest = (challenge.CpuRequest ?? 0) > 0 ? challenge.CpuRequest!.Value : cpuLimit;
+                var memoryLimit = (challenge.MemoryLimit ?? 0) > 0 ? challenge.MemoryLimit!.Value : 256;
+                var memoryRequest = (challenge.MemoryRequest ?? 0) > 0 ? challenge.MemoryRequest!.Value : memoryLimit;
+                var useGvisor = challenge.UseGvisor ?? true;
 
                 var cpuLimitValue = $"{cpuLimit}m";
                 var cpuRequestValue = $"{cpuRequest}m";
