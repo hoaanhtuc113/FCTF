@@ -32,6 +32,16 @@ class BaseChallenge(object):
         :return:
         """
         data = request.form or request.get_json()
+        data = dict(data)
+        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request"):
+            if key in data and data[key] is not None:
+                try:
+                    data[key] = int(data[key])
+                except (TypeError, ValueError):
+                    pass
+        if "use_gvisor" in data:
+            if isinstance(data["use_gvisor"], str):
+                data["use_gvisor"] = data["use_gvisor"].lower() in ("true", "1", "yes", "on")
         if int(data["time_limit"]) >= -1:
             challenge = cls.challenge_model(**data)
 
@@ -81,6 +91,17 @@ class BaseChallenge(object):
         :return:
         """
         data = request.form or request.get_json()
+        data = dict(data)
+
+        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request"):
+            if key in data and data[key] is not None:
+                try:
+                    data[key] = int(data[key])
+                except (TypeError, ValueError):
+                    pass
+        if "use_gvisor" in data:
+            if isinstance(data["use_gvisor"], str):
+                data["use_gvisor"] = data["use_gvisor"].lower() in ("true", "1", "yes", "on")
 
         # Kiểm tra nếu 'time_limit' có trong dữ liệu và kiểm tra giá trị của nó
         if "time_limit" in data:

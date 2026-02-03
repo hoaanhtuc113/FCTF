@@ -45,6 +45,16 @@ public partial class Challenge
 
     public int? Cooldown { get; set; }
 
+    public int CpuLimit { get; set; }
+
+    public int CpuRequest { get; set; }
+
+    public int MemoryLimit { get; set; }
+
+    public int MemoryRequest { get; set; }
+
+    public bool UseGvisor { get; set; }
+
     public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 
     public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();

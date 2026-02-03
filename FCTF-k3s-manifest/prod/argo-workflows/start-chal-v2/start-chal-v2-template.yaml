@@ -19,8 +19,14 @@ spec:
       - name: CONTAINER_IMAGE
       - name: CPU_LIMIT
         value: "0.05"
+      - name: CPU_REQUEST
+        value: "0.05"
       - name: MEMORY_LIMIT
         value: "64Mi"
+      - name: MEMORY_REQUEST
+        value: "64Mi"
+      - name: USE_GVISOR
+        value: "true"
       - name: IS_TEMPORARY
         value: "true"
       - name: CHALLENGE_TIMEOUT
@@ -43,8 +49,14 @@ spec:
                   value: "{{workflow.parameters.CONTAINER_IMAGE}}"
                 - name: CPU_LIMIT
                   value: "{{workflow.parameters.CPU_LIMIT}}"
+                - name: CPU_REQUEST
+                  value: "{{workflow.parameters.CPU_REQUEST}}"
                 - name: MEMORY_LIMIT
                   value: "{{workflow.parameters.MEMORY_LIMIT}}"
+                - name: MEMORY_REQUEST
+                  value: "{{workflow.parameters.MEMORY_REQUEST}}"
+                - name: USE_GVISOR
+                  value: "{{workflow.parameters.USE_GVISOR}}"
                 - name: IS_TEMPORARY
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
@@ -59,7 +71,10 @@ spec:
           - name: CONTAINER_PORT
           - name: CONTAINER_IMAGE
           - name: CPU_LIMIT
+          - name: CPU_REQUEST
           - name: MEMORY_LIMIT
+          - name: MEMORY_REQUEST
+          - name: USE_GVISOR
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
           - name: NFS_SERVER_IP
@@ -101,9 +116,17 @@ spec:
             export CONTAINER_PORT="{{inputs.parameters.CONTAINER_PORT}}"
             export CONTAINER_IMAGE="{{inputs.parameters.CONTAINER_IMAGE}}"
             export CPU_LIMIT="{{inputs.parameters.CPU_LIMIT}}"
+            export CPU_REQUEST="{{inputs.parameters.CPU_REQUEST}}"
             export MEMORY_LIMIT="{{inputs.parameters.MEMORY_LIMIT}}"
+            export MEMORY_REQUEST="{{inputs.parameters.MEMORY_REQUEST}}"
             export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
             export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
+
+            if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
+              export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
+            else
+              export RUNTIME_CLASS_NAME_LINE=""
+            fi
 
 
             # Check if challenge.yaml exists in NFS

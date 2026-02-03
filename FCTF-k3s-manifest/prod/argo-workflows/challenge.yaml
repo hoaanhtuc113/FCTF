@@ -163,7 +163,7 @@ spec:
       automountServiceAccountToken: false
       priorityClassName: batch-low
       preemptionPolicy: Never
-      runtimeClassName: gvisor
+      ${RUNTIME_CLASS_NAME_LINE}
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -193,11 +193,11 @@ spec:
               drop: ["ALL"]
           resources:
             requests:
-              memory: "32Mi"
-              cpu: "0.01"
+              memory: "${MEMORY_REQUEST}"
+              cpu: "${CPU_REQUEST}"
             limits:
-              memory: "128Mi"
-              cpu: "0.1"
+              memory: "${MEMORY_LIMIT}"
+              cpu: "${CPU_LIMIT}"
           imagePullPolicy: IfNotPresent
       imagePullSecrets:
         - name: global-regcred
