@@ -107,7 +107,7 @@ class ChallengeSchema(ma.ModelSchema):
     cpu_limit = field_for(
         Challenges,
         "cpu_limit",
-        allow_none=False,
+        allow_none=True,
         validate=[
             validate.Range(
                 min=1,
@@ -120,7 +120,7 @@ class ChallengeSchema(ma.ModelSchema):
     cpu_request = field_for(
         Challenges,
         "cpu_request",
-        allow_none=False,
+        allow_none=True,
         validate=[
             validate.Range(
                 min=1,
@@ -133,7 +133,7 @@ class ChallengeSchema(ma.ModelSchema):
     memory_limit = field_for(
         Challenges,
         "memory_limit",
-        allow_none=False,
+        allow_none=True,
         validate=[
             validate.Range(
                 min=1,
@@ -146,7 +146,7 @@ class ChallengeSchema(ma.ModelSchema):
     memory_request = field_for(
         Challenges,
         "memory_request",
-        allow_none=False,
+        allow_none=True,
         validate=[
             validate.Range(
                 min=1,
@@ -159,5 +159,5 @@ class ChallengeSchema(ma.ModelSchema):
     use_gvisor = field_for(
         Challenges,
         "use_gvisor",
-        allow_none=False,
+        allow_none=True,
     )

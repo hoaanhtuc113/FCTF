@@ -317,6 +317,38 @@ function loadChalTemplate(challenge) {
 function handleChallengeOptions(event) {
   event.preventDefault();
   var params = $(event.target).serializeJSON(true);
+  const requireDeploy = params.require_deploy === true || params.require_deploy === "true";
+  let cpuLimit = 0;
+  let cpuRequest = 0;
+  let memoryLimit = 0;
+  let memoryRequest = 0;
+  let useGvisor = true;
+
+  if (requireDeploy) {
+    cpuLimit = parseInt(params.cpu_limit || "0", 10);
+    cpuRequest = parseInt(params.cpu_request || "0", 10);
+    memoryLimit = parseInt(params.memory_limit || "0", 10);
+    memoryRequest = parseInt(params.memory_request || "0", 10);
+    useGvisor = (params.use_gvisor || "true") === "true";
+
+    if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
+      ezAlert({
+        title: "Validation Error",
+        body: "CPU limit/request must be between 1 and 500 (mCPU).",
+        button: "OK",
+      });
+      return;
+    }
+
+    if (memoryLimit < 1 || memoryLimit > 1024 || memoryRequest < 1 || memoryRequest > 1024) {
+      ezAlert({
+        title: "Validation Error",
+        body: "Memory limit/request must be between 1 and 1024 (Mi).",
+        button: "OK",
+      });
+      return;
+    }
+  }
   let flag_params = {
     challenge_id: params.challenge_id,
     content: params.flag || "",
@@ -325,6 +357,16 @@ function handleChallengeOptions(event) {
   };
   // Define a save_challenge function
   let save_challenge = function () {
+    const body = {
+      state: params.state,
+    };
+    if (requireDeploy) {
+      body.cpu_limit = cpuLimit;
+      body.cpu_request = cpuRequest;
+      body.memory_limit = memoryLimit;
+      body.memory_request = memoryRequest;
+      body.use_gvisor = useGvisor;
+    }
     CTFd.fetch("/api/v1/challenges/" + params.challenge_id, {
       method: "PATCH",
       credentials: "same-origin",
@@ -332,9 +374,7 @@ function handleChallengeOptions(event) {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        state: params.state,
-      }),
+      body: JSON.stringify(body),
     })
       .then(function (response) {
         return response.json();
