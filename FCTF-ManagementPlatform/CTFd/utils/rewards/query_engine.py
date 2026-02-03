@@ -202,8 +202,10 @@ WITH base_solves AS (
         c.category AS category,
         c.name AS challenge_name,
         {solve_time_expr} AS solve_time
-    FROM solves s
+    FROM submissions s
+    JOIN solves sol ON sol.id = s.id
     JOIN challenges c ON c.id = s.challenge_id
+    WHERE s.type = 'correct'
 ),
 first_bloods AS (
     SELECT challenge_id, MIN(solve_date) AS first_blood_date
@@ -249,7 +251,8 @@ wrong_before AS (
     SELECT
         s.id AS solve_id,
         COUNT(w.id) AS wrong_before
-    FROM solves s
+    FROM submissions s
+    JOIN solves sol ON sol.id = s.id
     LEFT JOIN submissions w
         ON w.challenge_id = s.challenge_id
         AND w.type = 'incorrect'
