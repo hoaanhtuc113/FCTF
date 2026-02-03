@@ -63,6 +63,6 @@ spec:
       volumes:
         - name: nfs-shared-data
           nfs:
-            server: 10.148.0.8
+            server: 10.170.0.2
             path: /srv/nfs/share
   revisionHistoryLimit: 3
