@@ -205,12 +205,11 @@ public class ChallengesInformerService
             return;
         }
 
-        // pod deleted or terminating
-        if (eventType == WatchEventType.Deleted || pod.Metadata.DeletionTimestamp.HasValue)
-        {
-            await HandleDeletion(teamId, challengeId, key, cache, onStatusChange);
-            return;
-        }
+        // // pod deleted or terminating
+        // if (eventType == WatchEventType.Deleted || pod.Metadata.DeletionTimestamp.HasValue)
+        // {
+        //     return;
+        // }
 
         // pod restarted
         if (cache.pod_id != uid)
@@ -231,12 +230,6 @@ public class ChallengesInformerService
     }
 
     #region Sub-Logics
-
-    private async Task HandleDeletion(int teamId, int challengeId, string key, ChallengeDeploymentCacheDTO? cache, OnDeploymentStatusChanged onStatusChange)
-    {
-        // k8s recive delete pod cleanup redis ZSET allow new deploy
-        await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
-    }
 
     private async Task CleanupGhostResources(string ns, int teamId, int challengeId, string key, OnDeploymentStatusChanged onStatusChange, string status = DeploymentStatus.STOPPED)
     {
