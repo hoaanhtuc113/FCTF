@@ -8,6 +8,8 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,12 +17,24 @@ var tcpRateLimiter rateLimiter
 var tcpIPConnLimiter connLimiter
 var tcpTokenConnLimiter connLimiter
 var tcpGlobalConnLimiter connLimiter
+var tcpAuthTimeout time.Duration
+var tcpPendingAuth int64
+
+var tcpCopyBufPool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, 32*1024)
+		return buf
+	},
+}
 
 func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
 	listenPort := ":1337"
 	ln, err := net.Listen("tcp", listenPort)
 	if err != nil {
 		log.Fatalf("Error starting gateway: %v", err)
+	}
+	if cfg.TCPAuthTimeoutSeconds > 0 {
+		tcpAuthTimeout = time.Duration(cfg.TCPAuthTimeoutSeconds) * time.Second
 	}
 
 	maxConns := cfg.TCPMaxConns
@@ -84,6 +98,12 @@ func HandleConnection(clientConn net.Conn) {
 		_ = tcpConn.SetKeepAlive(true)
 		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}
+	pending := atomic.AddInt64(&tcpPendingAuth, 1)
+	log.Printf("[*] TCP pending auth connections: %d", pending)
+	defer func() {
+		pending := atomic.AddInt64(&tcpPendingAuth, -1)
+		log.Printf("[*] TCP pending auth connections: %d", pending)
+	}()
 
 	payload, token, err := authenticateClient(clientConn)
 	if err != nil {
@@ -117,17 +137,22 @@ func HandleConnection(clientConn net.Conn) {
 	}
 	defer challengeConn.Close()
 
-	done := make(chan struct{})
-
-	go func() {
-		io.Copy(challengeConn, clientConn)
+	done := make(chan struct{}, 2)
+	var closeOnce sync.Once
+	closeAll := func() {
+		_ = clientConn.Close()
+		_ = challengeConn.Close()
+	}
+	proxyCopy := func(dst, src net.Conn) {
+		buf := tcpCopyBufPool.Get().([]byte)
+		_, _ = io.CopyBuffer(dst, src, buf)
+		tcpCopyBufPool.Put(buf)
+		closeOnce.Do(closeAll)
 		done <- struct{}{}
-	}()
+	}
 
-	go func() {
-		io.Copy(clientConn, challengeConn)
-		done <- struct{}{}
-	}()
+	go proxyCopy(challengeConn, clientConn)
+	go proxyCopy(clientConn, challengeConn)
 
 	<-done
 	log.Printf("[+] Session ended: %s", clientConn.RemoteAddr())
@@ -135,10 +160,13 @@ func HandleConnection(clientConn net.Conn) {
 
 
 func authenticateClient(conn net.Conn) (challengeTokenPayload, string, error) {
-    timeoutDuration := 60 * time.Second
+	timeoutDuration := tcpAuthTimeout
+	if timeoutDuration <= 0 {
+		timeoutDuration = 10 * time.Second
+	}
     conn.SetReadDeadline(time.Now().Add(timeoutDuration))
 
-    fmt.Fprint(conn, "\n--- CTF AUTHENTICATION ---\nPlease enter your token (Timeout 60s): ")
+	fmt.Fprintf(conn, "\n--- CTF AUTHENTICATION ---\nPlease enter your token (Timeout %ds): ", int(timeoutDuration.Seconds()))
 
     reader := bufio.NewReader(conn)
     input, err := reader.ReadString('\n')

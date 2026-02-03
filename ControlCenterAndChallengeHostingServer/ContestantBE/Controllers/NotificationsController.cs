@@ -1,41 +1,40 @@
 ﻿using ContestantBE.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-namespace ContestantBE.Controllers
+namespace ContestantBE.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+[Authorize]
+public class NotificationsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    [Authorize]
-    public class NotificationsController : ControllerBase
+    private readonly INotificationServices _notification;
+
+    public NotificationsController(INotificationServices notification)
     {
-        private readonly INotificationServices _notification;
+        _notification = notification;
+    }
 
-        public NotificationsController(INotificationServices notification)
+    [HttpGet]
+    public async Task<IActionResult> GetNotifications()
+    {
+        try
         {
-            _notification = notification;
+            var data = await _notification.GetAll();
+
+            return Ok(new
+            {
+                success = true,
+                data = data
+            });
         }
-
-        [HttpGet]
-        public async Task<IActionResult> GetNotifications()
+        catch (System.Exception ex)
         {
-            try
+            return BadRequest(new
             {
-                var data = await _notification.GetAll();
-
-                return Ok(new
-                {
-                    success = true,
-                    data = data
-                });
-            }
-            catch (System.Exception ex)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    errors = ex.Message
-                });
-            }
+                success = false,
+                errors = ex.Message
+            });
         }
     }
 }

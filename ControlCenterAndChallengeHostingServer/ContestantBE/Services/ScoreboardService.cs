@@ -37,11 +37,6 @@ public class ScoreboardService : IScoreboardService
 
         return 0;
     }
-    private int? GetAccountId(Solf solve) =>
-        _mode == "teams" ? solve.TeamId : solve.UserId;
-
-    private int? GetAccountId(Award award) =>
-        _mode == "teams" ? award.TeamId : award.UserId;
 
     public async Task<List<ScoreboardEntryDTO>> GetTopStandings(int count, int? bracketId)
     {
@@ -72,52 +67,88 @@ public class ScoreboardService : IScoreboardService
                 awardsQuery = awardsQuery.Where(a => a.Date < freezeUtc);
             }
 
-            var solves = await solvesQuery
-                .AsNoTracking()
-                .Include(s => s.Challenge)
-                .Include(s => s.IdNavigation)
-                .ToListAsync();
+            List<SolveEntryDTO> solves;
+            List<SolveEntryDTO> awards;
 
-            var awards = await awardsQuery.AsNoTracking().ToListAsync();
+            if (_mode == "teams")
+            {
+                solves = await solvesQuery
+                    .AsNoTracking()
+                    .Select(s => new SolveEntryDTO
+                    {
+                        ChallengeId = s.ChallengeId,
+                        AccountId = s.TeamId,
+                        TeamId = s.TeamId,
+                        UserId = s.UserId,
+                        Value = s.Challenge != null ? s.Challenge.Value : 0,
+                        Date = s.IdNavigation.Date
+                    })
+                    .ToListAsync();
+
+                awards = await awardsQuery
+                    .AsNoTracking()
+                    .Select(a => new SolveEntryDTO
+                    {
+                        ChallengeId = null,
+                        AccountId = a.TeamId,
+                        TeamId = a.TeamId,
+                        UserId = a.UserId,
+                        Value = a.Value,
+                        Date = a.Date
+                    })
+                    .ToListAsync();
+            }
+            else
+            {
+                solves = await solvesQuery
+                    .AsNoTracking()
+                    .Select(s => new SolveEntryDTO
+                    {
+                        ChallengeId = s.ChallengeId,
+                        AccountId = s.UserId,
+                        TeamId = s.TeamId,
+                        UserId = s.UserId,
+                        Value = s.Challenge != null ? s.Challenge.Value : 0,
+                        Date = s.IdNavigation.Date
+                    })
+                    .ToListAsync();
+
+                awards = await awardsQuery
+                    .AsNoTracking()
+                    .Select(a => new SolveEntryDTO
+                    {
+                        ChallengeId = null,
+                        AccountId = a.UserId,
+                        TeamId = a.TeamId,
+                        UserId = a.UserId,
+                        Value = a.Value,
+                        Date = a.Date
+                    })
+                    .ToListAsync();
+            }
 
             var solvesMapper = new Dictionary<int, List<SolveEntryDTO>>();
 
             foreach (var solve in solves)
             {
-                var accId = GetAccountId(solve);
+                var accId = solve.AccountId;
                 if (accId == null) continue;
 
                 if (!solvesMapper.ContainsKey(accId.Value))
                     solvesMapper[accId.Value] = [];
 
-                solvesMapper[accId.Value].Add(new SolveEntryDTO
-                {
-                    ChallengeId = solve.ChallengeId,
-                    AccountId = accId,
-                    TeamId = solve.TeamId,
-                    UserId = solve.UserId,
-                    Value = solve.Challenge?.Value ?? 0,
-                    Date = solve.IdNavigation.Date
-                });
+                solvesMapper[accId.Value].Add(solve);
             }
 
             foreach (var award in awards)
             {
-                var accId = GetAccountId(award);
+                var accId = award.AccountId;
                 if (accId == null) continue;
 
                 if (!solvesMapper.ContainsKey(accId.Value))
                     solvesMapper[accId.Value] = new List<SolveEntryDTO>();
 
-                solvesMapper[accId.Value].Add(new SolveEntryDTO
-                {
-                    ChallengeId = null,
-                    AccountId = accId,
-                    TeamId = award.TeamId,
-                    UserId = award.UserId,
-                    Value = award.Value,
-                    Date = award.Date
-                });
+                solvesMapper[accId.Value].Add(award);
             }
 
             // Sort by date

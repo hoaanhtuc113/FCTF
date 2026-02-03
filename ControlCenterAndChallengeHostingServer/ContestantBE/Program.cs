@@ -11,114 +11,111 @@ using ResourceShared.Models;
 using ResourceShared.Utils;
 using System.Diagnostics;
 
-namespace ContestantBE;
 
-public class Program
-{
-    public static async Task Main(string[] args)
-    {
-        var builder = WebApplication.CreateBuilder(args);
-        builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-        Env.Load();
-        builder.Configuration.AddEnvironmentVariables();
-        var connectionString = builder.Configuration["DB_CONNECTION"];
+var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+Env.Load();
+builder.Configuration.AddEnvironmentVariables();
+var connectionString = builder.Configuration["DB_CONNECTION"];
 
-        // Add services to the container.
-        builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(
-            connectionString,
+// Add services to the container.
+builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(
+    connectionString,
             new MySqlServerVersion(new Version(10, 11, 0))
         ));
 
-        builder.Services.AddControllers();
-        builder.Services.AddHttpClient();
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen(c =>
-        {
-            c.SwaggerDoc("v1", new OpenApiInfo
-            {
-                Title = "ContestantBE API",
-                Version = "v1"
-            });
-            c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-            {
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                Scheme = "Bearer",
-                BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                Description = "Nhập JWT token vào ô bên dưới. \r\n\r\nVí dụ: \"Bearer {token}\""
-            });
-            c.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
+builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "ContestantBE API",
+        Version = "v1"
+    });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Nhập JWT token vào ô bên dưới. \r\n\r\nVí dụ: \"Bearer {token}\""
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
                 {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    },
+        new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        },
                     Array.Empty<string>()
                 }
-            });
-        });
-        builder.Services.Configure<ProxyOptions>(builder.Configuration.GetSection("Proxy"));
-        builder.Services.AddScoped<IAuthService, AuthService>();
-        builder.Services.AddScoped<IHintService, HintService>();
-        builder.Services.AddScoped<ITeamService, TeamService>();
-        builder.Services.AddScoped<IScoreboardService, ScoreboardService>();
-        builder.Services.AddScoped<ITicketService, TicketService>();
-        builder.Services.AddScoped<IConfigService, ConfigService>();
-        builder.Services.AddMemoryCache();
-        builder.Services.AddScoped<ConfigHelper>();
-        builder.Services.AddScoped<CtfTimeHelper>();
-        builder.Services.AddScoped<ScoreHelper>();
-        builder.Services.AddScoped<UserHelper>();
-        builder.Services.AddHttpContextAccessor();
+});
+});
+builder.Services.Configure<ProxyOptions>(builder.Configuration.GetSection("Proxy"));
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IHintService, HintService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<IScoreboardService, ScoreboardService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<IConfigService, ConfigService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ConfigHelper>();
+builder.Services.AddScoped<CtfTimeHelper>();
+builder.Services.AddScoped<ScoreHelper>();
+builder.Services.AddScoped<UserHelper>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHealthChecks();
 
-        builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
-        builder.Services.AddScoped<IFileService, FileService>();
-        builder.Services.AddScoped<INotificationServices, NotificationServices>();
-        builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
-        //Init config from ControlConfig, SharedConfig
-        new ContestantBEConfigHelper().InitConfig();
-        // DI services from ResourceShared
-        builder.Services.AddResourceShared();
+builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
+builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<INotificationServices, NotificationServices>();
+builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
+//Init config from ControlConfig, SharedConfig
+new ContestantBEConfigHelper().InitConfig();
+// DI services from ResourceShared
+builder.Services.AddResourceShared();
 
-        builder.Services.AddSingleton(_ => new ActivitySource(Telemetry.ContestantBEHttp));
-        builder.Services.AddOpenTelemetry()
-            .WithTracing(b =>
-            {
-                b.AddSource(Telemetry.ContestantBEHttp)
-                 .AddAspNetCoreInstrumentation()
-                 .AddHttpClientInstrumentation()
-                 .AddOtlpExporter();
-            });
+builder.Services.AddSingleton(_ => new ActivitySource(Telemetry.ContestantBEHttp));
+builder.Services.AddOpenTelemetry()
+    .WithTracing(b =>
+    {
+        b.AddSource(Telemetry.ContestantBEHttp)
+         .AddAspNetCoreInstrumentation()
+         .AddHttpClientInstrumentation()
+         .AddOtlpExporter();
+    });
 
-        builder.Logging.ClearProviders();
-        builder.Logging.AddJsonConsole();
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole();
 
-        builder.Services.AddCors(options =>
-        {
-            options.AddPolicy("AllowAll", p =>
-                p.AllowAnyOrigin()
-                 .AllowAnyHeader()
-                 .AllowAnyMethod()
-            );
-        });
-        builder.Services.AddOutputCache();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", p =>
+        p.AllowAnyOrigin()
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+    );
+});
+builder.Services.AddOutputCache();
 
-        var app = builder.Build();
-        app.UseRouting();
-        app.UseCors("AllowAll");
-        app.UseOutputCache();
-        app.UseAuthentication();
-        app.UseAuthorization();
-        app.UseMiddleware<TokenAuthenticationMiddleware>();
-        app.MapControllers();
+var app = builder.Build();
+app.UseRouting();
+app.UseCors("AllowAll");
+app.UseOutputCache();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<TokenAuthenticationMiddleware>();
+app.MapHealthChecks("/healthcheck");
+app.MapHealthChecks("/healthz");
+app.MapControllers();
 
-        await Console.Out.WriteLineAsync("Config server done, run application....");
-        await app.RunAsync();
-    }
-}
+await Console.Out.WriteLineAsync("Config server done, run application....");
+await app.RunAsync();
+

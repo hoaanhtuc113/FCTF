@@ -6,6 +6,7 @@ from flask_restx import Namespace, Resource
 
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
+from CTFd.cache import clear_auth_cache
 from CTFd.models import Tokens, db
 from CTFd.schemas.tokens import TokenSchema
 from CTFd.utils.decorators import authed_only, require_verified_emails
@@ -94,6 +95,8 @@ class TokenList(Resource):
             user, expiration=expiration, description=description
         )
 
+        clear_auth_cache(user_id=user.id)
+
         # Explicitly use admin view so that user's can see the value of their token
         schema = TokenSchema(view="admin")
         response = schema.dump(token)
@@ -151,5 +154,7 @@ class TokenDetail(Resource):
         db.session.delete(token)
         db.session.commit()
         db.session.close()
+
+        clear_auth_cache(user_id=token.user_id)
 
         return {"success": True}

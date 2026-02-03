@@ -84,12 +84,14 @@
 		border-radius: 8px;
 		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 		border: 1px solid #e8e8e8;
-		overflow: hidden;
+		width: 100%;
 	}
 	
 	.monitoring-table {
 		margin: 0;
 		font-size: 0.9rem;
+		width: 100%;
+		table-layout: fixed;
 	}
 	
 	.monitoring-table thead th {
@@ -117,6 +119,7 @@
 		padding: 0.875rem 0.75rem;
 		color: #495057;
 		vertical-align: middle;
+		overflow: auto;
 	}
 	
 	.monitoring-table tbody td a {
