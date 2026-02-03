@@ -2078,7 +2078,7 @@ function ChallengeDetailPanel({
         }
 
         // If backend reports a terminal pod status (failed/stopped/deleting/timeout), stop and notify
-        const podStatus = (data.pod_status || data.podStatus || data.status || '').toString();
+        const podStatus = data.pod_status.toString().trim();
         const terminalStatuses = ['Failed', 'DEPLOY_FAILED', 'Stopped', 'DELETING', 'TIMEOUT', 'Not_Found'];
         if (podStatus && terminalStatuses.some(s => s.toLowerCase() === podStatus.toLowerCase())) {
           setIsHealthChecking(false);
