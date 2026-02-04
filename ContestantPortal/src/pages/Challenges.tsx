@@ -34,8 +34,8 @@ import { challengeTimerService } from '../services/challengeTimerService';
 import { actionLogService } from '../services/actionLogService';
 import { actionType } from '../constants/ActionLogConstant';
 
-// Setup PDF worker
-pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+// Setup PDF worker - mirror legacy behavior using jsDelivr CDN (handles MIME/CORS)
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // Helper function to get team ID from localStorage
 const getTeamId = (): number | null => {
@@ -1220,6 +1220,7 @@ function ChallengeDetailPanel({
   const healthCheckAbortRef = useRef<boolean>(false);
   const stopChallengeRunningRef = useRef<boolean>(false);
   const endTimeRef = useRef<number | null>(null); // Absolute end time in milliseconds
+  const isMountedRef = useRef<boolean>(true); // Track if component is mounted
 
 
   // Filter PDF files
@@ -1525,7 +1526,33 @@ function ChallengeDetailPanel({
       if (data.data) {
         // Log pod_status for debugging
 
-        // Set challenge started status from API
+        // Check if pod is being deleted
+        const podStatus = data.pod_status;
+        const isDeleting = podStatus && (podStatus === 'Deleting' || podStatus.toString().toLowerCase().includes('delet'));
+        console.log(`[ChallengeStatus] Challenge ID ${challenge.id} Pod Status: ${podStatus} (Deleting: ${isDeleting})`);
+        
+        // If pod is deleting, show as starting state (don't allow stop)
+        if (isDeleting) {
+          setIsChallengeStarted(false);
+          setUrl(null);
+          setTimeRemaining(null);
+          setIsPodHealthy(false);
+          setIsHealthChecking(false);
+          setIsDeploymentInProgress(false); // Show as "processing"
+
+          // Clear timer
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+
+          // Stop global timer
+          challengeTimerService.stopTimer(challenge.id);
+
+          return; // Exit early
+        }
+
+        // Set challenge started status from API (only if not deleting)
         setIsChallengeStarted(data.is_started || false);
 
         // Set URL if challenge was already started
@@ -1547,7 +1574,7 @@ function ChallengeDetailPanel({
         }
 
         // If pod_status is not Running and challenge was started, reset state
-        if (data.data.pod_status && data.data.pod_status !== 'Running' && isChallengeStarted) {
+        if (podStatus && podStatus !== 'Running' && isChallengeStarted) {
           setIsChallengeStarted(false);
           setUrl(null);
           setTimeRemaining(null);
@@ -2078,7 +2105,7 @@ function ChallengeDetailPanel({
         }
 
         // If backend reports a terminal pod status (failed/stopped/deleting/timeout), stop and notify
-        const podStatus = (data.pod_status || data.podStatus || data.status || '').toString();
+        const podStatus = data.pod_status.toString().trim();
         const terminalStatuses = ['Failed', 'DEPLOY_FAILED', 'Stopped', 'DELETING', 'TIMEOUT', 'Not_Found'];
         if (podStatus && terminalStatuses.some(s => s.toLowerCase() === podStatus.toLowerCase())) {
           setIsHealthChecking(false);
@@ -2272,13 +2299,14 @@ function ChallengeDetailPanel({
               <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
               <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
               <div class="text-gray-400">> Instance terminated successfully</div>
+              <div class="text-yellow-400 mt-2 text-xs">> Please wait 5 seconds for cleanup...</div>
             </div>
           `,
           icon: 'success',
           iconColor: '#22c55e',
           background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
           color: theme === 'dark' ? '#22c55e' : '#000000',
-          timer: 2000,
+          timer: 5000,
           showConfirmButton: false,
           customClass: {
             popup: 'rounded-lg border border-green-500/30',
@@ -3092,17 +3120,14 @@ function ChallengeDetailPanel({
   const handlePdfClick = async (index: number) => {
     setSelectedPdfIndex(index);
     setPageNumber(1);
-    // Don't reset scale here, let onDocumentLoadSuccess calculate it
     setLoadingPdf(true);
 
     try {
-      // Download PDF with authentication
       const blob = await downloadFile(pdfFiles[index]);
-
-      // Debug info: log blob type/size to help diagnose invalid responses
       console.debug('[handlePdfClick] downloaded blob:', blob.type, blob.size);
-
-      // Store blob in state (pass Blob directly to react-pdf)
+      if (!isMountedRef.current) {
+        return;
+      }
       setPdfBlob(blob);
     } catch (error) {
       console.error('Error loading PDF:', error);
@@ -3125,7 +3150,9 @@ function ChallengeDetailPanel({
       });
       setSelectedPdfIndex(null);
     } finally {
-      setLoadingPdf(false);
+      if (isMountedRef.current) {
+        setLoadingPdf(false);
+      }
     }
   };
 
@@ -3159,13 +3186,16 @@ function ChallengeDetailPanel({
 
   // Cleanup blob when component unmounts
   useEffect(() => {
+    isMountedRef.current = true;
+    
     return () => {
-      // Clear blob reference to help GC
-      // (no object URL was created when using Blob directly)
-      // eslint-disable-next-line no-unused-expressions
-      pdfBlob && null;
+      isMountedRef.current = false;
+      // Clear blob reference to help GC and prevent worker access after unmount
+      setPdfBlob(null);
+      setNumPages(null);
+      setSelectedPdfIndex(null);
     };
-  }, [pdfBlob]);
+  }, [challenge.id]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -3298,7 +3328,7 @@ function ChallengeDetailPanel({
                           Loading PDF...
                         </Typography>
                       </div>
-                    ) : pdfBlob ? (
+                    ) : (pdfBlob && isMountedRef.current) ? (
                       <div
                         style={{
                           transform: `scale(${pdfScale})`,
@@ -3763,7 +3793,7 @@ function ChallengeDetailPanel({
             {challenge.require_deploy && !challenge.solve_by_myteam &&
               !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
                 <div className="space-y-2">
-                  {challenge.pod_status && challenge.pod_status.toString().toLowerCase().includes('delet') ? (
+                  {!!(challenge.pod_status && challenge.pod_status.toString().toLowerCase().includes('delet')) ? (
                     <button disabled={true} className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-gray-600 text-white border border-gray-500' : 'bg-gray-200 text-gray-700 border border-gray-300'} cursor-not-allowed`}>
                       <span>[-] Deleting...</span>
                     </button>
@@ -3819,7 +3849,7 @@ function ChallengeDetailPanel({
                   ) : (
                     <button
                       onClick={handleStopChallenge}
-                      disabled={isStopping || challenge.pod_status === 'Deleting'}
+                      disabled={isStopping || !!(challenge.pod_status && (challenge.pod_status === 'Deleting' || challenge.pod_status.toString().toLowerCase().includes('delet')))}
                       className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark'
                         ? 'bg-red-600 hover:bg-red-700 text-white border border-red-500'
                         : 'bg-red-500 hover:bg-red-600 text-white border border-red-400'
