@@ -156,6 +156,109 @@ def stop_challenge_by_admin():
             400,
         )
 
+
+@challenge.route("/api/challenge/stop-bulk", methods=["POST"])
+@bypass_csrf_protection
+def stop_challenge_bulk_by_admin():
+    data = request.get_json(silent=True) or {}
+    items = data.get("items")
+
+    user_id = session.get("id")
+    if not user_id:
+        return jsonify({"error": "User Not found"}), 403
+
+    user = Users.query.filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"error": "User Not found"}), 403
+
+    if user.type == "user":
+        return jsonify({"error": "Permission denied"}), 400
+
+    if not isinstance(items, list) or len(items) == 0:
+        return jsonify({"error": "items must be a non-empty array"}), 400
+
+    results = []
+    stopped = 0
+    failed = 0
+
+    for item in items:
+        try:
+            challenge_id_raw = item.get("challenge_id") if isinstance(item, dict) else None
+            team_id_raw = item.get("team_id") if isinstance(item, dict) else None
+
+            try:
+                challenge_id = int(challenge_id_raw)
+                team_id = int(team_id_raw)
+            except (TypeError, ValueError):
+                challenge_id = None
+                team_id = None
+
+            if challenge_id is None or team_id is None:
+                failed += 1
+                results.append({
+                    "challenge_id": challenge_id_raw,
+                    "team_id": team_id_raw,
+                    "success": False,
+                    "error": "challenge_id and team_id are required",
+                })
+                continue
+
+            challenge = Challenges.query.filter_by(id=challenge_id).first()
+            if not challenge:
+                failed += 1
+                results.append({
+                    "challenge_id": challenge_id,
+                    "team_id": team_id,
+                    "success": False,
+                    "error": "Challenge not found",
+                })
+                continue
+
+            cache_key = generate_cache_key(challenge_id, team_id)
+            if not redis_client.exists(cache_key):
+                failed += 1
+                results.append({
+                    "challenge_id": challenge_id,
+                    "team_id": team_id,
+                    "success": False,
+                    "error": "No active cache found",
+                })
+                continue
+
+            resp = force_stop(user_id=user_id, challenge_id=challenge_id, team_id=team_id)
+
+            # normalize success field
+            ok = False
+            if isinstance(resp, dict):
+                ok = bool(resp.get("success") is True or resp.get("isSuccess") is True)
+
+            if ok:
+                stopped += 1
+            else:
+                failed += 1
+
+            results.append({
+                "challenge_id": challenge_id,
+                "team_id": team_id,
+                "success": ok,
+                "response": resp,
+            })
+        except Exception as e:
+            failed += 1
+            results.append({
+                "challenge_id": item.get("challenge_id") if isinstance(item, dict) else None,
+                "team_id": item.get("team_id") if isinstance(item, dict) else None,
+                "success": False,
+                "error": str(e),
+            })
+
+    return jsonify({
+        "success": True,
+        "stopped": stopped,
+        "failed": failed,
+        "results": results,
+    }), 200
+
 @challenge.route("/api/challenge/stop-all", methods=["DELETE"])
 @bypass_csrf_protection
 def stop_all_challenges():
