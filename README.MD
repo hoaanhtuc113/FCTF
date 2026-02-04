@@ -1,5 +1,24 @@
 # FCTF Platform - Tổng Quan & Hướng Dẫn Sử Dụng
 
+## 🔍 Công cụ tìm kiếm commit
+
+**NEW!** Sử dụng `find-commits.sh` để tìm các commit liên quan đến security, query, performance, và refactoring:
+
+```bash
+# Tìm tất cả các commit
+./find-commits.sh all
+
+# Tìm theo từng loại
+./find-commits.sh security
+./find-commits.sh query
+./find-commits.sh performance
+./find-commits.sh refactor
+```
+
+📖 Xem hướng dẫn chi tiết tại: [FIND_COMMITS_GUIDE.md](FIND_COMMITS_GUIDE.md)
+
+---
+
 ## 1. Giới thiệu các thành phần chính
 
 ### 1. ContestantPlatform
