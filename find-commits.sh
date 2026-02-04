@@ -181,8 +181,9 @@ search_all() {
     search_commits "PERFORMANCE IMPROVEMENTS" "$YELLOW" "${PERFORMANCE_KEYWORDS[@]}"
     search_commits "CODE REFACTORING" "$CYAN" "${REFACTOR_KEYWORDS[@]}"
     
-    # Note: Could calculate total by counting unique commits, but for simplicity
-    # we just show results for each category
+    # Note: Một commit có thể xuất hiện trong nhiều category nếu chứa nhiều keyword
+    # Ví dụ: "Fix security vulnerability and optimize query performance" sẽ xuất hiện
+    # trong cả SECURITY FIXES và QUERY OPTIMIZATION
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║${NC}  ${YELLOW}Tìm kiếm hoàn tất!${NC}                                        ${GREEN}║${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════╝${NC}"

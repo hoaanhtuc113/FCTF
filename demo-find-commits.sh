@@ -76,11 +76,25 @@ echo "Đã tạo 8 commits mẫu trong: $DEMO_DIR"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
 
-# Copy script find-commits.sh vào demo dir
-if [ -f "/home/runner/work/FCTF/FCTF/find-commits.sh" ]; then
-    cp /home/runner/work/FCTF/FCTF/find-commits.sh .
-    chmod +x find-commits.sh
-    
+# Tìm và copy script find-commits.sh vào demo dir
+SCRIPT_FOUND=0
+SCRIPT_LOCATIONS=(
+    "${BASH_SOURCE%/*}/find-commits.sh"  # Cùng thư mục với demo script
+    "./find-commits.sh"  # Thư mục hiện tại
+    "/home/runner/work/FCTF/FCTF/find-commits.sh"  # CI environment
+    "../find-commits.sh"  # Parent directory
+)
+
+for location in "${SCRIPT_LOCATIONS[@]}"; do
+    if [ -f "$location" ]; then
+        cp "$location" .
+        chmod +x find-commits.sh
+        SCRIPT_FOUND=1
+        break
+    fi
+done
+
+if [ $SCRIPT_FOUND -eq 1 ]; then
     echo "Chạy find-commits.sh để test..."
     echo ""
     ./find-commits.sh all
