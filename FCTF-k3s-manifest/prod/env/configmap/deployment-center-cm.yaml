@@ -7,8 +7,4 @@ data:
   ASPNETCORE_URLS: "http://+:5020"
   OTEL_SERVICE_NAME: "deployment-center"  
 
-  CPU_LIMIT: "300m"
-  CPU_REQUEST: "300m"
-  MEMORY_LIMIT: "256Mi"
-  MEMORY_REQUEST: "256Mi"
   POW_DIFFICULTY_SECONDS: "5" 
