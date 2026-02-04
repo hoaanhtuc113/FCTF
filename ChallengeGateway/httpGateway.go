@@ -92,17 +92,19 @@ func startHTTPGateway(cfg gatewayConfig) *http.Server {
 }
 
 func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.ReverseProxy) {
+	remoteAddr := r.RemoteAddr
+	clientIP := parseRemoteIP(remoteAddr)
 	token, cleanedPath := extractTokenFromRequest(r)
 	// If token found in URL
 	if token != "" {
         payload, err := verifyChallengeToken(token)
         if err != nil {
+			log.Printf("[-] HTTP auth failed from %s: %v", remoteAddr, err)
             http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
             return
         }
 		if httpRateLimiter != nil {
-			ip := parseRemoteIP(r.RemoteAddr)
-			key := buildRateLimitKey(token, ip)
+			key := buildRateLimitKey(token, clientIP)
 			if !httpRateLimiter.Allow(r.Context(), key) {
 				http.Error(w, "too many requests", http.StatusTooManyRequests)
 				return
@@ -120,6 +122,7 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 
 	//If still no token, reject
 	if token == "" {
+		log.Printf("[-] HTTP auth failed from %s: missing token", remoteAddr)
 		http.Error(w, "missing token", http.StatusUnauthorized)
 		return
 	}
@@ -127,12 +130,12 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	// Verify token
 	payload, err := verifyChallengeToken(token)
 	if err != nil {
+		log.Printf("[-] HTTP auth failed from %s: %v", remoteAddr, err)
 		http.Error(w, fmt.Sprintf("invalid token: %v", err), http.StatusUnauthorized)
 		return
 	}
 	if httpRateLimiter != nil {
-		ip := parseRemoteIP(r.RemoteAddr)
-		key := buildRateLimitKey(token, ip)
+		key := buildRateLimitKey(token, clientIP)
 		if !httpRateLimiter.Allow(r.Context(), key) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
@@ -220,6 +223,12 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		targetHost := info.TargetHost
 		if targetHost == "" {
 			targetHost = "-"
+		}
+		if targetHost != "-" {
+			if teamID, challengeID, ok := parseTeamChallengeFromRoute(targetHost); ok {
+				log.Printf("HTTP %s %s %d %s team=%d challenge=%d -> %s", r.Method, r.URL.Path, recorder.status, time.Since(start), teamID, challengeID, targetHost)
+				return
+			}
 		}
 		log.Printf("HTTP %s %s %d %s -> %s", r.Method, r.URL.Path, recorder.status, time.Since(start), targetHost)
 	})
