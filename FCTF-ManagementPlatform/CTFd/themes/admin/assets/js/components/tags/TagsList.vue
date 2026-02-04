@@ -1,61 +1,63 @@
 <template>
   <div class="col-md-12">
-    <div id="challenge-tags" class="my-3">
-      <!-- Render selected tags in picker mode, otherwise show challenge tags -->
+    <div style="display: flex; flex-wrap: wrap; gap: 0.625rem; min-height: 2rem; align-items: center;" class="my-3">
       <span
-        class="badge badge-primary mx-1 challenge-tag"
+        style="display: inline-flex; align-items: center; gap: 0.5rem; background: #f8f9fa; border: 1px solid #000000; padding: 0.375rem 0.625rem; border-radius: 0.25rem; font-size: 0.875rem; color: #495057; transition: all 0.15s ease; margin-right: 0.25rem;"
         v-for="tag in (picker ? selectedTags : tags)"
         :key="tag.id || tag.value"
       >
-        <span>{{ tag.value }}</span>
-        <a class="btn-fa delete-tag" @click="deleteTag(tag.id || tag.value)"> &#215;</a>
+        {{ tag.value }}
+        <a style="color: #6c757d; cursor: pointer; font-size: 1.125rem; line-height: 1; text-decoration: none; transition: color 0.15s ease; padding: 0 0.125rem; margin-left: 0.125rem;" @click="deleteTag(tag.id || tag.value)">×</a>
+      </span>
+      <span v-if="(picker ? selectedTags : tags).length === 0" class="text-muted small">
+        {{ picker ? 'No tags selected' : 'No tags' }}
       </span>
     </div>
 
     <div class="form-group position-relative">
-      <label
-        >Tag
-        <br />
-        <small class="text-muted">{{ picker ? 'Search and select tags' : 'Type tag and press Enter' }}</small>
+      <label style="font-weight: 500; font-size: 0.875rem; color: #495057; margin-bottom: 0.5rem;">
+        Tags
+        <small style="font-weight: 400; font-size: 0.75rem;" class="text-muted ml-2">
+          {{ picker ? 'Search or create tags' : 'Press Enter to add' }}
+        </small>
       </label>
       <input
         id="tags-add-input"
         maxlength="80"
         type="text"
         class="form-control"
+        style="font-size: 0.875rem;"
         v-model="tagValue"
         @keydown="handleKeyNavigation"
         @keyup.enter.prevent="addTag"
         @input="onInputChange"
-        @focus="showSuggestions = true"
+        @focus="onFocus"
         @blur="onBlur"
-        :placeholder="picker ? 'Type to search tags...' : 'Add a tag'"
+        :placeholder="picker ? 'Type to search...' : 'Tag name'"
         autocomplete="off"
       />
       
-      <!-- Autocomplete suggestions dropdown (only in picker mode) -->
+      <!-- Autocomplete suggestions dropdown -->
       <div 
-        v-if="picker && showSuggestions && filteredSuggestions.length > 0"
-        class="suggestions-dropdown"
+        v-if="picker && showSuggestions && (filteredSuggestions.length > 0 || tagValue.trim())"
+        style="position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ced4da; border-top: none; border-radius: 0 0 0.25rem 0.25rem; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: -1px;"
       >
         <div
           v-for="(suggestion, index) in filteredSuggestions"
           :key="suggestion.id"
-          class="suggestion-item"
-          :class="{ 'selected': index === highlightedIndex }"
+          :style="index === highlightedIndex ? 'padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; color: #212529; border-bottom: 1px solid #f8f9fa; transition: background-color 0.15s ease; background: #f8f9fa;' : 'padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; color: #495057; border-bottom: 1px solid #f8f9fa; transition: background-color 0.15s ease;'"
           @mousedown.prevent="selectSuggestion(suggestion)"
           @mouseenter="highlightedIndex = index"
         >
-          <span class="badge badge-light">{{ suggestion.value }}</span>
+          {{ suggestion.value }}
         </div>
         <div
           v-if="tagValue.trim() && !filteredSuggestions.find(s => s.value.toLowerCase() === tagValue.trim().toLowerCase())"
-          class="suggestion-item create-new"
-          :class="{ 'selected': highlightedIndex === filteredSuggestions.length }"
+          :style="highlightedIndex === filteredSuggestions.length ? 'padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; color: #007bff; font-weight: 500; border-top: 1px solid #dee2e6; transition: background-color 0.15s ease; background: #e7f1ff;' : 'padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; color: #007bff; font-weight: 500; border-top: 1px solid #dee2e6; transition: background-color 0.15s ease;'"
           @mousedown.prevent="addTag"
           @mouseenter="highlightedIndex = filteredSuggestions.length"
         >
-          <i class="fas fa-plus-circle mr-1"></i> Create new tag: <strong>{{ tagValue.trim() }}</strong>
+          + Create "{{ tagValue.trim() }}"
         </div>
       </div>
     </div>
@@ -234,8 +236,12 @@ export default {
         this.highlightedIndex = -1;
       }
     },
+    onFocus: function () {
+      if (this.picker && this.tagValue.trim()) {
+        this.showSuggestions = true;
+      }
+    },
     onBlur: function () {
-      // Delay to allow click on suggestion
       setTimeout(() => {
         this.showSuggestions = false;
         this.highlightedIndex = -1;
@@ -285,141 +291,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-/* Clean Tags Styles */
-#challenge-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  min-height: 2rem;
-}
-
-.challenge-tag {
-  background: #fff5f2;
-  color: #495057;
-  border: 1px solid #ffd4c4;
-  padding: 0.375rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
-}
-
-.challenge-tag:hover {
-  background: #ffe8dd;
-  border-color: #ff6b35;
-}
-
-.delete-tag {
-  color: #9ca3af;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 1.25rem;
-  line-height: 1;
-  text-decoration: none;
-  padding: 0 0.25rem;
-}
-
-.delete-tag:hover {
-  color: #dc3545;
-}
-
-.form-group label {
-  color: #495057;
-  font-weight: 500;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-}
-
-.form-group small {
-  color: #6c757d;
-  font-size: 0.875rem;
-}
-
-.form-control {
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-}
-
-.form-control:focus {
-  border-color: #ff6b35;
-  box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
-  outline: none;
-}
-
-/* Autocomplete Suggestions Dropdown */
-.suggestions-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  border: 1px solid #dee2e6;
-  border-top: none;
-  border-radius: 0 0 4px 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  max-height: 250px;
-  overflow-y: auto;
-  z-index: 1000;
-  margin-top: -1px;
-}
-
-.suggestion-item {
-  padding: 0.625rem 0.75rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-bottom: 1px solid #f1f1f1;
-  font-size: 0.875rem;
-  color: #495057;
-}
-
-.suggestion-item:last-child {
-  border-bottom: none;
-}
-
-.suggestion-item:hover,
-.suggestion-item.selected {
-  background: #fff5f2;
-  color: #ff6b35;
-}
-
-.suggestion-item .badge {
-  background: #f8f9fa;
-  color: #495057;
-  border: 1px solid #dee2e6;
-  padding: 0.25rem 0.5rem;
-  font-weight: 500;
-}
-
-.suggestion-item:hover .badge,
-.suggestion-item.selected .badge {
-  background: #ffe8dd;
-  border-color: #ff6b35;
-  color: #ff6b35;
-}
-
-.suggestion-item.create-new {
-  color: #6c757d;
-  font-style: italic;
-  border-top: 2px solid #e8e8e8;
-}
-
-.suggestion-item.create-new:hover,
-.suggestion-item.create-new.selected {
-  background: #f0f9ff;
-  color: #0066cc;
-}
-
-.suggestion-item.create-new strong {
-  font-style: normal;
-  font-weight: 600;
-}
-
-</style>
