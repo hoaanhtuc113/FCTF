@@ -10,3 +10,8 @@ declare global {
   }
 }
 export { };
+
+declare module '*?url' {
+  const src: string;
+  export default src;
+}

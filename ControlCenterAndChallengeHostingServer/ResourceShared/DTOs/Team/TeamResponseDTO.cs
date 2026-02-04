@@ -30,5 +30,6 @@ namespace ResourceShared.DTOs.Team
         public List<TeamMemberDTO> Members { get; set; } = new();
         public int Score { get; set; }
         public int ChallengeTotalScore { get; set; }
+        public int TotalTeams { get; set; }
     }
 }
