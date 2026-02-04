@@ -12,14 +12,12 @@ from CTFd.models import db
 ALLOWED_ENTITIES = {"team", "user", "solve"}
 ALLOWED_METRICS = {
     "TEAM_TOTAL_SCORE",
-    "TEAM_RANK",
     "TEAM_SOLVED_COUNT",
-    "TEAM_FASTEST_SOLVE",
-    "TEAM_AVG_SOLVE_TIME",
     "FIRST_BLOOD",
     "TEAM_FIRST_BLOOD_COUNT",
     "WRONG_SUBMISSION_COUNT",
-    "CLEAN_SOLVE",
+    "TEAM_CATEGORY_CLEAR_COUNT",
+    "TEAM_PERFECT_SOLVE_COUNT",
 }
 
 FILTER_FIELDS = {
@@ -158,9 +156,9 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
 
     _assert_schema(entity)
 
-    if entity == "solve" and metric not in {"FIRST_BLOOD", "CLEAN_SOLVE", "WRONG_SUBMISSION_COUNT"}:
+    if entity == "solve" and metric not in {"FIRST_BLOOD", "WRONG_SUBMISSION_COUNT"}:
         raise QuerySpecError(f"Metric {metric} is not supported for solve entities")
-    if entity in {"team", "user"} and metric in {"FIRST_BLOOD", "CLEAN_SOLVE"}:
+    if entity in {"team", "user"} and metric in {"FIRST_BLOOD"}:
         raise QuerySpecError(f"Metric {metric} is not supported for {entity} entities")
 
     params: Dict[str, Any] = {}
@@ -299,12 +297,11 @@ wrong_before AS (
     if entity == "team":
         metric_expr = {
             "TEAM_TOTAL_SCORE": "total_score",
-            "TEAM_RANK": "rank",
             "TEAM_SOLVED_COUNT": "solved_count",
-            "TEAM_FASTEST_SOLVE": "fastest_solve",
-            "TEAM_AVG_SOLVE_TIME": "avg_solve_time",
             "TEAM_FIRST_BLOOD_COUNT": "first_blood_count",
             "WRONG_SUBMISSION_COUNT": "wrong_count",
+            "TEAM_CATEGORY_CLEAR_COUNT": "category_clear_count",
+            "TEAM_PERFECT_SOLVE_COUNT": "perfect_solve_count",
         }[metric]
 
         sql = f"""
@@ -318,11 +315,17 @@ team_agg AS (
         MIN(sf.solve_time) AS fastest_solve,
         AVG(sf.solve_time) AS avg_solve_time,
         COALESCE(SUM(CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END), 0) AS first_blood_count,
+        COUNT(DISTINCT sf.category) AS category_clear_count,
+        COALESCE(
+            SUM(CASE WHEN COALESCE(wb.wrong_before, 0) = 0 THEN 1 ELSE 0 END),
+            0
+        ) AS perfect_solve_count,
         COALESCE(wt.wrong_count, 0) AS wrong_count,
         MAX(sf.solve_date) AS last_solve_date
     FROM teams t
     LEFT JOIN solves_filtered sf ON sf.team_id = t.id
     LEFT JOIN wrong_team wt ON wt.team_id = t.id
+    LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
     GROUP BY t.id, t.name, wt.wrong_count
 ),
 ranked AS (
@@ -342,12 +345,11 @@ LIMIT :limit
     if entity == "user":
         metric_expr = {
             "TEAM_TOTAL_SCORE": "total_score",
-            "TEAM_RANK": "rank",
             "TEAM_SOLVED_COUNT": "solved_count",
-            "TEAM_FASTEST_SOLVE": "fastest_solve",
-            "TEAM_AVG_SOLVE_TIME": "avg_solve_time",
             "TEAM_FIRST_BLOOD_COUNT": "first_blood_count",
             "WRONG_SUBMISSION_COUNT": "wrong_count",
+            "TEAM_CATEGORY_CLEAR_COUNT": "category_clear_count",
+            "TEAM_PERFECT_SOLVE_COUNT": "perfect_solve_count",
         }[metric]
 
         sql = f"""
@@ -361,11 +363,17 @@ user_agg AS (
         MIN(sf.solve_time) AS fastest_solve,
         AVG(sf.solve_time) AS avg_solve_time,
         COALESCE(SUM(CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END), 0) AS first_blood_count,
+        COUNT(DISTINCT sf.category) AS category_clear_count,
+        COALESCE(
+            SUM(CASE WHEN COALESCE(wb.wrong_before, 0) = 0 THEN 1 ELSE 0 END),
+            0
+        ) AS perfect_solve_count,
         COALESCE(wu.wrong_count, 0) AS wrong_count,
         MAX(sf.solve_date) AS last_solve_date
     FROM users u
     LEFT JOIN solves_filtered sf ON sf.user_id = u.id
     LEFT JOIN wrong_user wu ON wu.user_id = u.id
+    LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
     GROUP BY u.id, u.name, wu.wrong_count
 ),
 ranked AS (
@@ -384,7 +392,6 @@ LIMIT :limit
 
     metric_expr = {
         "FIRST_BLOOD": "CASE WHEN is_first_blood THEN 1 ELSE 0 END",
-        "CLEAN_SOLVE": "CASE WHEN COALESCE(wrong_before, 0) = 0 THEN 1 ELSE 0 END",
         "WRONG_SUBMISSION_COUNT": "COALESCE(wrong_before, 0)",
     }[metric]
 
@@ -394,6 +401,7 @@ solve_rows AS (
     SELECT
         sf.solve_id AS entity_id,
         sf.challenge_name AS entity_name,
+        sf.category AS category,
         sf.solve_time,
         sf.is_first_blood,
         sf.hint_used,
@@ -401,7 +409,7 @@ solve_rows AS (
     FROM solves_filtered sf
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
 )
-SELECT entity_id, entity_name, {metric_expr} AS metric_value
+SELECT entity_id, entity_name, category, {metric_expr} AS metric_value
 FROM solve_rows
 {final_where}
 {order_clause}
@@ -416,13 +424,14 @@ def execute_query(spec: QuerySpec) -> Dict[str, Any]:
 
     result_rows = []
     for row in rows:
-        result_rows.append(
-            {
-                "entity_id": row.entity_id,
-                "entity_name": row.entity_name,
-                "metric_value": row.metric_value,
-            }
-        )
+        payload = {
+            "entity_id": row.entity_id,
+            "entity_name": row.entity_name,
+            "metric_value": row.metric_value,
+        }
+        if "category" in row._mapping:
+            payload["category"] = row._mapping.get("category")
+        result_rows.append(payload)
 
     return {
         "rule": spec.rule,
