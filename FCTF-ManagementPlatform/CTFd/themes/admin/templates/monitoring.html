@@ -264,6 +264,14 @@
 			<table id="challengeTable" class="table monitoring-table mb-0">
 				<thead>
 					<tr>
+						<th class="text-center" style="width: 44px;">
+							<input
+								id="selectAll"
+								type="checkbox"
+								onchange="toggleSelectAllOnPage(this.checked)"
+								aria-label="Select all on page"
+							/>
+						</th>
 						<th class="sort-col text-center">ID</th>
 						<th class="sort-col text-center">Challenge Name</th>
 						<th class="sort-col text-center">Team Name</th>
@@ -286,6 +294,14 @@
 					<div class="clean-info-text" role="status" aria-live="polite">
 						Page <span class="clean-highlight" id="currentPage">1</span> of <span class="clean-highlight" id="totalPages">1</span> • <span id="totalItems">0</span> total
 					</div>
+					<div class="d-flex align-items-center">
+						<span class="clean-info-text mr-2">
+							Selected: <span class="clean-highlight" id="selectedCount">0</span>
+						</span>
+						<button id="bulkStopBtn" onclick="bulkStopSelected()" class="btn btn-sm btn-stop" disabled>
+							Stop Selected
+						</button>
+					</div>
 					<nav aria-label="Instance pagination">
 						<ul class="clean-pagination pagination mb-0" id="paginationControls">
 							<!-- Pagination buttons will be inserted here -->
@@ -304,6 +320,55 @@
 	let sortOrder = "desc";
 	let paginationData = null;
 	let searchTimeout = null;
+	// Persist selections across pagination/search within the page
+	let selectedInstances = new Map(); // key => { challenge_id, team_id }
+
+	function makeInstanceKey(challengeId, teamId) {
+		return `${challengeId}:${teamId}`;
+	}
+
+	function updateSelectedUI() {
+		const count = selectedInstances.size;
+		const selectedCountEl = document.getElementById("selectedCount");
+		if (selectedCountEl) selectedCountEl.textContent = String(count);
+
+		const bulkBtn = document.getElementById("bulkStopBtn");
+		if (bulkBtn) bulkBtn.disabled = count === 0;
+	}
+
+	function toggleRowSelection(challengeId, teamId, checked) {
+		const key = makeInstanceKey(challengeId, teamId);
+		if (checked) {
+			selectedInstances.set(key, { challenge_id: challengeId, team_id: teamId });
+		} else {
+			selectedInstances.delete(key);
+		}
+		updateSelectedUI();
+	}
+
+	function toggleSelectAllOnPage(checked) {
+		const checkboxes = document.querySelectorAll('input.instance-checkbox');
+		checkboxes.forEach(cb => {
+			cb.checked = checked;
+			const challengeId = Number(cb.dataset.challengeId);
+			const teamId = Number(cb.dataset.teamId);
+			toggleRowSelection(challengeId, teamId, checked);
+		});
+	}
+
+	function syncSelectAllCheckbox() {
+		const selectAll = document.getElementById("selectAll");
+		if (!selectAll) return;
+		const checkboxes = Array.from(document.querySelectorAll('input.instance-checkbox'));
+		if (checkboxes.length === 0) {
+			selectAll.checked = false;
+			selectAll.indeterminate = false;
+			return;
+		}
+		const checkedCount = checkboxes.filter(cb => cb.checked).length;
+		selectAll.checked = checkedCount === checkboxes.length;
+		selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+	}
 
 	// Populate teams dropdown from data
 	function populateTeams(teams) {
@@ -360,20 +425,42 @@
 			
 			result.data.forEach(row => {
 				const tr = document.createElement("tr");
+				const key = makeInstanceKey(row.challenge_id, row.team_id);
+				const isChecked = selectedInstances.has(key);
 
 				tr.innerHTML = `
+					<td class="text-center">
+						<input
+							type="checkbox"
+							class="instance-checkbox"
+							data-challenge-id="${row.challenge_id}"
+							data-team-id="${row.team_id}"
+							${isChecked ? 'checked' : ''}
+							onchange="toggleRowSelection(${row.challenge_id}, ${row.team_id}, this.checked); syncSelectAllCheckbox();"
+							aria-label="Select instance"
+						/>
+					</td>
 					<td class="text-center">${row.challenge_id}</td>
 					<td class="text-center">${row.challenge_name}</td>
 					<td class="text-center">${row.team_name}</td>
 					<td class="text-center">${row.user_name ?? "N/A"}</td>
-					<td class="text-center">
-						${row.challenge_url ? `<a href="${row.challenge_url}" class="text-decoration-none" target="_blank">${row.challenge_url}</a>` : "Processing . . ."}</td>
+					<td class="text-center" 
+					style="
+						text-align: center;
+						max-width: 250px;
+						word-break: break-all;
+						overflow-wrap: break-word;
+						white-space: normal;
+						">
+						${row.challenge_url ? row.challenge_url : "Processing . . ."}
+					</td>
+
 					<td class="text-center">${row.time_finished
 						? new Date(row.time_finished).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
 						: "N/A"}</td>
 					<td class="text-center text-nowrap">
 						<button onclick="window.location.href='/deploy_History/${row.challenge_id}/pods-logs'" class="btn btn-sm btn-info d-inline-block">Logs</button>
-						${row.challenge_url ? `<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block ml-1">Stop</button>` : ""}
+						<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block ml-1">Stop</button>
 					</td>
 				`;
 
@@ -382,6 +469,8 @@
 			
 			// Update pagination info and controls
 			updatePagination();
+			syncSelectAllCheckbox();
+			updateSelectedUI();
 		} else {
 			alert("Error loading data: " + result.error);
 		}
@@ -505,6 +594,66 @@
 
 	}
 
+	async function bulkStopSelected() {
+		const items = Array.from(selectedInstances.values());
+		if (!items.length) return;
+
+		const confirmed = confirm(
+			`Stop ${items.length} selected challenge instance(s)?\n\n` +
+			`This will force-stop selected instances only.`
+		);
+		if (!confirmed) return;
+
+		const bulkBtn = document.getElementById("bulkStopBtn");
+		const originalText = bulkBtn ? bulkBtn.textContent : "";
+		if (bulkBtn) {
+			bulkBtn.disabled = true;
+			bulkBtn.textContent = "Stopping...";
+		}
+
+		try {
+			const response = await fetch("/api/challenge/stop-bulk", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify({ items })
+			});
+
+			const result = await response.json().catch(() => null);
+			if (!response.ok) {
+				alert("Failed to stop selected challenges: " + ((result && (result.error || result.message)) || "Unknown error"));
+				return;
+			}
+
+			const stopped = (result && result.stopped) || 0;
+			const failed = (result && result.failed) || 0;
+			alert(`Bulk stop completed. Stopped: ${stopped}, Failed: ${failed}`);
+
+			// Clear successful items from selection to avoid re-stopping
+			if (result && Array.isArray(result.results)) {
+				for (const r of result.results) {
+					if (r && r.success) {
+						selectedInstances.delete(makeInstanceKey(r.challenge_id, r.team_id));
+					}
+				}
+			} else {
+				selectedInstances.clear();
+			}
+
+			updateSelectedUI();
+			await loadData(currentPage);
+		} catch (error) {
+			alert("Network or server error: " + error.message);
+		} finally {
+			if (bulkBtn) {
+				bulkBtn.textContent = originalText;
+				bulkBtn.disabled = selectedInstances.size === 0;
+			}
+			updateSelectedUI();
+		}
+	}
+
 	async function DeleteAll() {
 		// Show confirmation dialog
 		const confirmed = confirm(
@@ -533,7 +682,7 @@
 			});
 
 			if (response.ok) {
-				const result = await response.json();
+				await response.json();
 				alert("All challenges stopped successfully.");
 				loadData(); // Refresh the list
 			} else {
