@@ -9,6 +9,9 @@ RUN apt-get update \
     libffi-dev \
     libssl-dev \
     git \
+    gcc \
+    g++ \
+    python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && python -m venv /opt/venv
