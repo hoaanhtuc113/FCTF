@@ -151,9 +151,14 @@ search_commits() {
     fi
     
     # Hiển thị kết quả
-    while IFS='|||' read -r hash author date subject; do
-        if [ -n "$hash" ]; then
+    while IFS= read -r line; do
+        if [ -n "$line" ]; then
             found=$((found + 1))
+            local hash=$(echo "$line" | awk -F'\\|\\|\\|' '{print $1}')
+            local author=$(echo "$line" | awk -F'\\|\\|\\|' '{print $2}')
+            local date=$(echo "$line" | awk -F'\\|\\|\\|' '{print $3}')
+            local subject=$(echo "$line" | awk -F'\\|\\|\\|' '{print $4}')
+            
             echo -e "${GREEN}Commit #${found}:${NC}"
             echo -e "  ${BLUE}Hash:${NC}    ${hash:0:7}"
             echo -e "  ${BLUE}Author:${NC}  $author"
@@ -166,27 +171,20 @@ search_commits() {
     echo -e "${color}Tổng số commit tìm thấy: ${found}${NC}"
     echo ""
     
-    return $found
+    return 0
 }
 
 # Hàm tìm tất cả
 search_all() {
-    local total=0
-    
     search_commits "SECURITY FIXES" "$RED" "${SECURITY_KEYWORDS[@]}"
-    total=$((total + $?))
-    
     search_commits "QUERY OPTIMIZATION" "$MAGENTA" "${QUERY_KEYWORDS[@]}"
-    total=$((total + $?))
-    
     search_commits "PERFORMANCE IMPROVEMENTS" "$YELLOW" "${PERFORMANCE_KEYWORDS[@]}"
-    total=$((total + $?))
-    
     search_commits "CODE REFACTORING" "$CYAN" "${REFACTOR_KEYWORDS[@]}"
-    total=$((total + $?))
     
+    # Note: Could calculate total by counting unique commits, but for simplicity
+    # we just show results for each category
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}Tổng số commit tìm thấy: ${total}${NC}                               ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${YELLOW}Tìm kiếm hoàn tất!${NC}                                        ${GREEN}║${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════╝${NC}"
 }
 
