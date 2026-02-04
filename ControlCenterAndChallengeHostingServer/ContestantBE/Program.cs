@@ -1,3 +1,5 @@
+using AspNetCoreRateLimit;
+using AspNetCoreRateLimit.Redis;
 using ContestantBE.Interfaces;
 using ContestantBE.Services;
 using ContestantBE.Utils;
@@ -66,6 +68,18 @@ builder.Services.AddScoped<IScoreboardService, ScoreboardService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
+builder.Services.AddOptions();
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration =
+        builder.Configuration["Redis:ConnectionString"]
+        ?? builder.Configuration["REDIS_CONNECTION"];
+});
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddRedisRateLimiting();
 builder.Services.AddScoped<ConfigHelper>();
 builder.Services.AddScoped<CtfTimeHelper>();
 builder.Services.AddScoped<ScoreHelper>();
@@ -108,6 +122,7 @@ builder.Services.AddOutputCache();
 var app = builder.Build();
 app.UseRouting();
 app.UseCors("AllowAll");
+app.UseIpRateLimiting();
 app.UseOutputCache();
 app.UseAuthentication();
 app.UseAuthorization();
