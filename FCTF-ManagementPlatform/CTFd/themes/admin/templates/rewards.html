@@ -17,15 +17,38 @@
         <div class="card-body">
           <h5 class="mb-2">Quick Guide</h5>
           <ul class="mb-3">
-            <li>Chọn <strong>Entity</strong> (team/user/solve) và <strong>Metric</strong>.</li>
+            <li>Chọn <strong>Preset</strong> (mẫu có sẵn) hoặc tự chọn <strong>Entity</strong> và <strong>Metric</strong>.</li>
             <li>Thêm <strong>Filters</strong> nếu cần (ví dụ: category = Web).</li>
             <li>Nhấn <strong>Run Query</strong> để xem kết quả.</li>
           </ul>
-          <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-primary btn-sm mr-2" data-example="top_teams">Top Teams (Score)</button>
-            <button type="button" class="btn btn-outline-primary btn-sm mr-2" data-example="fastest_solves">Fastest Solves</button>
-            <button type="button" class="btn btn-outline-primary btn-sm" data-example="first_bloods">First Bloods</button>
+          <div class="form-row align-items-end">
+            <div class="form-group col-md-8">
+              <label><strong>Quick Preset</strong></label>
+              <select id="preset-select" class="form-control">
+                <option value="">-- Chọn preset --</option>
+                <option value="top_points_team_desc">Top K Points (Team, Desc)</option>
+                <option value="top_points_team_asc">Top K Points (Team, Asc)</option>
+                <option value="top_points_user_desc">Top K Points (User, Desc)</option>
+                <option value="top_points_user_asc">Top K Points (User, Asc)</option>
+                <option value="first_blood_challenge">First Blood (by Challenge)</option>
+                <option value="first_blood_category">First Blood (by Category)</option>
+                <option value="top_solve_team">Top Solve Count (Team)</option>
+                <option value="top_solve_user">Top Solve Count (User)</option>
+                <option value="top_clear_category_team">Top Clear Category (Team)</option>
+                <option value="top_clear_category_user">Top Clear Category (User)</option>
+                <option value="top_perfect_solve_team">Top Perfect Solve (Team)</option>
+                <option value="top_perfect_solve_user">Top Perfect Solve (User)</option>
+                <option value="top_first_blood_count_team">Top First Blood Count (Team)</option>
+                <option value="top_first_blood_count_user">Top First Blood Count (User)</option>
+              </select>
+            </div>
+            <div class="form-group col-md-4">
+              <button id="apply-preset" type="button" class="btn btn-outline-primary btn-block">
+                <i class="fas fa-magic"></i> Apply Preset
+              </button>
+            </div>
           </div>
+          <small class="text-muted">Bạn chỉ cần chọn preset, thay đổi Limit/Direction nếu muốn rồi bấm Run Query.</small>
         </div>
       </div>
 
@@ -113,6 +136,7 @@
                 <tr>
                   <th>Entity ID</th>
                   <th>Entity Name</th>
+                  <th id="col-category" style="display: none;">Category</th>
                   <th>Metric Value</th>
                 </tr>
               </thead>
@@ -142,27 +166,24 @@
 <script>
   const metricOptions = {
     team: [
-      "TEAM_TOTAL_SCORE",
-      "TEAM_RANK",
-      "TEAM_SOLVED_COUNT",
-      "TEAM_FASTEST_SOLVE",
-      "TEAM_AVG_SOLVE_TIME",
-      "TEAM_FIRST_BLOOD_COUNT",
-      "WRONG_SUBMISSION_COUNT",
+      { value: "TEAM_TOTAL_SCORE", label: "Total Score" },
+      { value: "TEAM_SOLVED_COUNT", label: "Solved Count" },
+      { value: "TEAM_FIRST_BLOOD_COUNT", label: "First Blood Count" },
+      { value: "TEAM_CATEGORY_CLEAR_COUNT", label: "Category Clear Count" },
+      { value: "TEAM_PERFECT_SOLVE_COUNT", label: "Perfect Solve Count (0 wrong)" },
+      { value: "WRONG_SUBMISSION_COUNT", label: "Wrong Submission Count" },
     ],
     user: [
-      "TEAM_TOTAL_SCORE",
-      "TEAM_RANK",
-      "TEAM_SOLVED_COUNT",
-      "TEAM_FASTEST_SOLVE",
-      "TEAM_AVG_SOLVE_TIME",
-      "TEAM_FIRST_BLOOD_COUNT",
-      "WRONG_SUBMISSION_COUNT",
+      { value: "TEAM_TOTAL_SCORE", label: "Total Score" },
+      { value: "TEAM_SOLVED_COUNT", label: "Solved Count" },
+      { value: "TEAM_FIRST_BLOOD_COUNT", label: "First Blood Count" },
+      { value: "TEAM_CATEGORY_CLEAR_COUNT", label: "Category Clear Count" },
+      { value: "TEAM_PERFECT_SOLVE_COUNT", label: "Perfect Solve Count (0 wrong)" },
+      { value: "WRONG_SUBMISSION_COUNT", label: "Wrong Submission Count" },
     ],
     solve: [
-      "FIRST_BLOOD",
-      "WRONG_SUBMISSION_COUNT",
-      "CLEAN_SOLVE",
+      { value: "FIRST_BLOOD", label: "First Blood (per solve)" },
+      { value: "WRONG_SUBMISSION_COUNT", label: "Wrong Before Solve" },
     ],
   };
 
@@ -185,10 +206,10 @@
   function renderMetrics() {
     metricSelect.innerHTML = "";
     const values = metricOptions[entitySelect.value] || [];
-    values.forEach((value) => {
+    values.forEach((item) => {
       const option = document.createElement("option");
-      option.value = value;
-      option.textContent = value;
+      option.value = item.value;
+      option.textContent = item.label;
       metricSelect.appendChild(option);
     });
   }
@@ -275,47 +296,140 @@
   function setExample(exampleKey) {
     document.getElementById("rule-name").value = exampleKey;
     filtersContainer.innerHTML = "";
+    const config = {
+      top_points_team_desc: {
+        entity: "team",
+        metric: "TEAM_TOTAL_SCORE",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_points_team_asc: {
+        entity: "team",
+        metric: "TEAM_TOTAL_SCORE",
+        orderField: "metric_value",
+        orderDir: "asc",
+        limit: 50,
+      },
+      top_points_user_desc: {
+        entity: "user",
+        metric: "TEAM_TOTAL_SCORE",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_points_user_asc: {
+        entity: "user",
+        metric: "TEAM_TOTAL_SCORE",
+        orderField: "metric_value",
+        orderDir: "asc",
+        limit: 50,
+      },
+      first_blood_challenge: {
+        entity: "solve",
+        metric: "FIRST_BLOOD",
+        orderField: "entity_id",
+        orderDir: "asc",
+        limit: 200,
+        filters: [
+          { field: "first_blood", operator: "=", value: "true" },
+        ],
+      },
+      first_blood_category: {
+        entity: "solve",
+        metric: "FIRST_BLOOD",
+        orderField: "entity_id",
+        orderDir: "asc",
+        limit: 200,
+        filters: [
+          { field: "first_blood", operator: "=", value: "true" },
+          { field: "category", operator: "=", value: "Web" },
+        ],
+      },
+      top_solve_team: {
+        entity: "team",
+        metric: "TEAM_SOLVED_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_solve_user: {
+        entity: "user",
+        metric: "TEAM_SOLVED_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_clear_category_team: {
+        entity: "team",
+        metric: "TEAM_CATEGORY_CLEAR_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_clear_category_user: {
+        entity: "user",
+        metric: "TEAM_CATEGORY_CLEAR_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_perfect_solve_team: {
+        entity: "team",
+        metric: "TEAM_PERFECT_SOLVE_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_perfect_solve_user: {
+        entity: "user",
+        metric: "TEAM_PERFECT_SOLVE_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_first_blood_count_team: {
+        entity: "team",
+        metric: "TEAM_FIRST_BLOOD_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+      top_first_blood_count_user: {
+        entity: "user",
+        metric: "TEAM_FIRST_BLOOD_COUNT",
+        orderField: "metric_value",
+        orderDir: "desc",
+        limit: 50,
+      },
+    };
 
-    if (exampleKey === "top_teams") {
-      entitySelect.value = "team";
-      renderMetrics();
-      metricSelect.value = "TEAM_TOTAL_SCORE";
-      document.getElementById("order-field").value = "metric_value";
-      document.getElementById("order-dir").value = "desc";
-      document.getElementById("limit").value = 50;
+    const preset = config[exampleKey];
+    if (!preset) {
+      return;
     }
 
-    if (exampleKey === "fastest_solves") {
-      entitySelect.value = "solve";
-      renderMetrics();
-      metricSelect.value = "CLEAN_SOLVE";
+    entitySelect.value = preset.entity;
+    renderMetrics();
+    metricSelect.value = preset.metric;
+    document.getElementById("order-field").value = preset.orderField;
+    document.getElementById("order-dir").value = preset.orderDir;
+    document.getElementById("limit").value = preset.limit;
+
+    (preset.filters || []).forEach((filter) => {
       const row = createFilterRow();
-      row.querySelector(".filter-field").value = "solve_time";
-      row.querySelector(".filter-op").value = "<";
-      row.querySelector(".filter-value").value = "600";
+      row.querySelector(".filter-field").value = filter.field;
+      row.querySelector(".filter-op").value = filter.operator;
+      row.querySelector(".filter-value").value = filter.value;
       filtersContainer.appendChild(row);
-      document.getElementById("order-field").value = "entity_id";
-      document.getElementById("order-dir").value = "asc";
-      document.getElementById("limit").value = 100;
-    }
-
-    if (exampleKey === "first_bloods") {
-      entitySelect.value = "solve";
-      renderMetrics();
-      metricSelect.value = "FIRST_BLOOD";
-      const row = createFilterRow();
-      row.querySelector(".filter-field").value = "first_blood";
-      row.querySelector(".filter-op").value = "=";
-      row.querySelector(".filter-value").value = "true";
-      filtersContainer.appendChild(row);
-      document.getElementById("order-field").value = "entity_id";
-      document.getElementById("order-dir").value = "asc";
-      document.getElementById("limit").value = 200;
-    }
+    });
   }
 
-  document.querySelectorAll("[data-example]").forEach((btn) => {
-    btn.addEventListener("click", () => setExample(btn.dataset.example));
+  document.getElementById("apply-preset").addEventListener("click", () => {
+    const presetKey = document.getElementById("preset-select").value;
+    if (presetKey) {
+      setExample(presetKey);
+    }
   });
 
   document.getElementById("run-query").addEventListener("click", async () => {
@@ -350,12 +464,18 @@
       }
 
       const tbody = document.getElementById("results-body");
+      const hasCategory = (data.result || []).some((row) => row.category !== undefined && row.category !== null && row.category !== "");
+      const categoryHeader = document.getElementById("col-category");
+      if (categoryHeader) {
+        categoryHeader.style.display = hasCategory ? "" : "none";
+      }
       tbody.innerHTML = "";
       (data.result || []).forEach((row) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${row.entity_id ?? ""}</td>
           <td>${row.entity_name ?? ""}</td>
+          ${hasCategory ? `<td>${row.category ?? ""}</td>` : ""}
           <td>${row.metric_value ?? ""}</td>
         `;
         tbody.appendChild(tr);
