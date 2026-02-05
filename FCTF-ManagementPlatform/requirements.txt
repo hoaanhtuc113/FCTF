@@ -57,6 +57,8 @@ flask-babel==2.0.0
     # via -r requirements.in
 flask-caching==2.0.2
     # via -r requirements.in
+flask-cors==4.0.0
+    # via -r requirements.in
 flask-marshmallow==0.10.1
     # via -r requirements.in
 flask-migrate==2.5.3

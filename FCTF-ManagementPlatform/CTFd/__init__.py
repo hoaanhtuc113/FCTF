@@ -6,7 +6,6 @@ import threading
 import time
 import weakref
 from distutils.version import StrictVersion
-from flask_socketio import SocketIO, emit
 from flask_caching import Cache
 import jinja2
 from flask import Flask, Request, request
