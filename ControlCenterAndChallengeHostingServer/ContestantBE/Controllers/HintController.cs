@@ -51,9 +51,9 @@ public class HintController : ControllerBase
     [DuringCtfTimeOnly]
     public async Task<IActionResult> GetHintByChallengeId(int id)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, int.Parse(User.FindFirstValue("teamId")), new { challenge_id = id });
+        _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, int.Parse(User.FindFirstValue("teamId")!), new { challenge_id = id });
         var data = await _hintService.GetHintsByChallengeId(id, userId);
         return Ok(new { success = true, hints = data });
     }
@@ -62,8 +62,8 @@ public class HintController : ControllerBase
     [DuringCtfTimeOnly]
     public async Task<IActionResult> PostUnlock([FromBody] UnlockRequestDto req)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-        var teamId = int.Parse(User.FindFirstValue("teamId"));
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var teamId = int.Parse(User.FindFirstValue("teamId")!);
 
         if (teamId == 0 || userId == 0)
         {
@@ -96,11 +96,26 @@ public class HintController : ControllerBase
             await Console.Out.WriteLineAsync($"[Requesst Unlock Hint Challenge] User {userId} : Team {teamId} : Challenge {target.Challenge.Name}");
 
             var result = await _hintService.UnlockHint(req, userId);
+            if (result == null)
+            {
+                return BadRequest(new { success = false, error = "Unable to unlock hint" });
+            }
+
             return Ok(new { success = true, data = result });
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { success = false, error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _userBehaviorLogger.Log(
+                "UNLOCK_HINT_ERROR",
+                userId,
+                teamId,
+                new { hint_id = req.Target, error = ex.Message });
+
+            return StatusCode(500, new { success = false, error = "Internal server error" });
         }
     }
 }
