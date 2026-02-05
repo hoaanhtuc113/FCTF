@@ -1,4 +1,3 @@
-from flask_socketio import emit
 from CTFd.models import (
     Challenges,
 )
@@ -7,7 +6,9 @@ from CTFd.models import (
 def send_action_logs_to_client(logs):
     try:
         data = {"type": "action_logs", "logs": logs}
-        emit("action_logs", data, broadcast=True, namespace="/")
+        # SocketIO not configured - emit disabled
+        # emit("action_logs", data, broadcast=True, namespace="/")
+        pass
     except Exception as e:
         print(f"Error sending action logs to client: {e}")
 
@@ -32,7 +33,8 @@ def send_challenge_selected_event(
         }
 
         print("Sending challenge-selected event:", log_entry)
-        emit("challenge-selected", [log_entry], broadcast=True, namespace="/")
+        # SocketIO not configured - emit disabled
+        # emit("challenge-selected", [log_entry], broadcast=True, namespace="/")
     except Exception as e:
         print(f"Error sending challenge-selected event: {e}")
 
