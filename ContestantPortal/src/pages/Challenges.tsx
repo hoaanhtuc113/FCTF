@@ -189,7 +189,8 @@ export function Challenges() {
           ...data.data,
           value: selectedChallenge.value,
           solves: selectedChallenge.solves,
-          requirements: selectedChallenge.requirements
+          requirements: selectedChallenge.requirements,
+          pod_status: data.pod_status // Update pod_status
         });
       } catch (error) {
         console.error('Error refreshing challenge details:', error);
@@ -1110,27 +1111,15 @@ function ChallengeListItem({
             >
               [~] deploying
             </span>
-          ) : challenge.pod_status && (
+          ) : challenge.pod_status === 'Running' && (
             <span
               className={`px-1.5 py-0.5 rounded border
-                ${challenge.pod_status === 'Running'
-                  ? theme === 'dark'
-                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                    : 'bg-green-100 text-green-700 border-green-300'
-                  : challenge.pod_status === 'Pending'
-                    ? theme === 'dark'
-                      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                      : 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                    : challenge.pod_status === 'Failed'
-                      ? theme === 'dark'
-                        ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                        : 'bg-red-100 text-red-700 border-red-300'
-                      : theme === 'dark'
-                        ? 'bg-gray-700 text-gray-400 border-gray-600'
-                        : 'bg-gray-100 text-gray-600 border-gray-300'}
+                ${theme === 'dark'
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-green-100 text-green-700 border-green-300'}
               `}
             >
-              [⚡] {challenge.pod_status}
+              [⚡] Running
             </span>
           )}
         </div>
@@ -1497,7 +1486,7 @@ function ChallengeDetailPanel({
         const podStatus = data.pod_status;
         const isDeleting = podStatus && (podStatus === 'Deleting' || podStatus.toString().toLowerCase().includes('delet'));
         console.log(`[ChallengeStatus] Challenge ID ${challenge.id} Pod Status: ${podStatus} (Deleting: ${isDeleting})`);
-        
+
         // If pod is deleting, show as starting state (don't allow stop)
         if (isDeleting) {
           setIsChallengeStarted(false);
@@ -3154,7 +3143,7 @@ function ChallengeDetailPanel({
   // Cleanup blob when component unmounts
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     return () => {
       isMountedRef.current = false;
       // Clear blob reference to help GC and prevent worker access after unmount
