@@ -982,39 +982,6 @@ function ChallengeListItem({
                     {challenge.solves} solves
                   </span>
                 )}
-
-                {/* Status badge - show deployment status or pod status, not both */}
-                {isDeploying ? (
-                  <span className={`px-2 py-0.5 rounded animate-pulse ${theme === 'dark'
-                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                    : 'bg-orange-100 text-orange-700 border border-orange-300'
-                    }`}>
-                    [~] deploying...
-                  </span>
-                ) : challenge.pod_status && (
-                  <span className={`px-2 py-0.5 rounded ${challenge.pod_status === 'Running'
-                    ? theme === 'dark'
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      : 'bg-green-100 text-green-700 border border-green-300'
-                    : challenge.pod_status === 'Pending'
-                      ? theme === 'dark'
-                        ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                        : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                      : challenge.pod_status === 'Failed'
-                        ? theme === 'dark'
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                          : 'bg-red-100 text-red-700 border border-red-300'
-                        : challenge.pod_status === 'Succeeded'
-                          ? theme === 'dark'
-                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                            : 'bg-blue-100 text-blue-700 border border-blue-300'
-                          : theme === 'dark'
-                            ? 'bg-gray-700 text-gray-400 border border-gray-600'
-                            : 'bg-gray-100 text-gray-600 border border-gray-300'
-                    }`}>
-                    [⚡] {challenge.pod_status}
-                  </span>
-                )}
               </div>
             </div>
 
