@@ -92,7 +92,8 @@ class HintList(Resource):
     )
     def post(self):
         req = request.get_json()
-        if(req.get("cost") < 0):
+        cost = req.get("cost")
+        if cost is not None and cost < 0:
             return {"success": False, "errors": {"cost": ["Cost must be a positive number"]}}, 400
         schema = HintSchema(view="admin")
         response = schema.load(req, session=db.session)
@@ -214,6 +215,10 @@ class Hint(Resource):
     def patch(self, hint_id):
         hint = Hints.query.filter_by(id=hint_id).first_or_404()
         req = request.get_json()
+
+        cost = req.get("cost")
+        if cost is not None and cost < 0:
+            return {"success": False, "errors": {"cost": ["Cost must be a positive number"]}}, 400
 
         schema = HintSchema(view="admin")
         response = schema.load(req, instance=hint, partial=True, session=db.session)
