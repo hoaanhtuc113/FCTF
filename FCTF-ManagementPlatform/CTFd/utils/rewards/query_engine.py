@@ -405,12 +405,22 @@ solve_rows AS (
         sf.solve_time,
         sf.is_first_blood,
         sf.hint_used,
+        sf.team_id,
+        sf.user_id,
         COALESCE(wb.wrong_before, 0) AS wrong_before
     FROM solves_filtered sf
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
 )
-SELECT entity_id, entity_name, category, {metric_expr} AS metric_value
-FROM solve_rows
+SELECT 
+    sr.entity_id, 
+    sr.entity_name, 
+    sr.category, 
+    {metric_expr} AS metric_value,
+    t.name AS team_name,
+    u.name AS user_name
+FROM solve_rows sr
+LEFT JOIN teams t ON t.id = sr.team_id
+LEFT JOIN users u ON u.id = sr.user_id
 {final_where}
 {order_clause}
 LIMIT :limit
@@ -431,6 +441,10 @@ def execute_query(spec: QuerySpec) -> Dict[str, Any]:
         }
         if "category" in row._mapping:
             payload["category"] = row._mapping.get("category")
+        if "team_name" in row._mapping:
+            payload["team_name"] = row._mapping.get("team_name")
+        if "user_name" in row._mapping:
+            payload["user_name"] = row._mapping.get("user_name")
         result_rows.append(payload)
 
     return {
