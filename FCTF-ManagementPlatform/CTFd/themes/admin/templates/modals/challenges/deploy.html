@@ -357,7 +357,8 @@
                 cpu_request: cpuRequest,
                 memory_limit: memoryLimit,
                 memory_request: memoryRequest,
-                use_gvisor: (useGvisorInput?.value || "true") === "true"
+                use_gvisor: (useGvisorInput?.value || "true") === "true",
+                expose_port: parseInt(exposePortInput?.value || "0", 10)
               };
 
               const updateResponse = await CTFd.fetch(`/api/v1/challenges/${CHALLENGE_ID}`, {
