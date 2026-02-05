@@ -4,6 +4,730 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col-md-12">
+      <!-- Header Card -->
+      <div class="card mt-3">
+        <div class="card-body">
+          <h3 class="mb-2">
+            <i class="fas fa-award text-warning"></i> Reward Query Builder
+          </h3>
+          <p class="text-muted mb-0">
+            Easily query and award participants based on predefined criteria templates.
+            Select a template, customize parameters, preview results, then distribute rewards.
+          </p>
+        </div>
+      </div>
+
+      <!-- Template Selector Card -->
+      <div class="card mt-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-th-large"></i> Step 1: Choose Reward Template</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="font-weight-bold">Filter by Category:</label>
+            <div class="btn-group btn-group-toggle" data-toggle="buttons" id="category-filter">
+              <label class="btn btn-outline-secondary active">
+                <input type="radio" name="cat-filter" value="" checked> All
+              </label>
+              <label class="btn btn-outline-secondary">
+                <input type="radio" name="cat-filter" value="ranking"> Ranking
+              </label>
+              <label class="btn btn-outline-secondary">
+                <input type="radio" name="cat-filter" value="achievement"> Achievement
+              </label>
+              <label class="btn btn-outline-secondary">
+                <input type="radio" name="cat-filter" value="special"> Special
+              </label>
+            </div>
+          </div>
+
+          <div class="row" id="template-cards">
+            <div class="col-12 text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading templates...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parameters Card (hidden initially) -->
+      <div class="card mt-4" id="params-card" style="display: none;">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-sliders-h"></i> Step 2: Customize Parameters</h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info">
+            <strong id="selected-template-name">Template Name</strong>
+            <p class="mb-0 small" id="selected-template-desc">Description</p>
+          </div>
+
+          <div id="params-container"></div>
+
+          <div class="mt-3">
+            <button id="preview-btn" class="btn btn-primary btn-lg">
+              <i class="fas fa-eye"></i> Preview Results
+            </button>
+            <button id="reset-btn" class="btn btn-outline-secondary btn-lg ml-2">
+              <i class="fas fa-undo"></i> Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview Results Card (hidden initially) -->
+      <div class="card mt-4" id="results-card" style="display: none;">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="fas fa-list"></i> Step 3: Preview & Execute</h5>
+          <span class="badge badge-light" id="result-count">0 results</span>
+        </div>
+        <div class="card-body">
+          <!-- Summary Stats -->
+          <div class="row mb-3" id="stats-row">
+            <div class="col-md-3">
+              <div class="card border-primary">
+                <div class="card-body text-center">
+                  <h2 class="mb-0 text-primary" id="stat-count">0</h2>
+                  <small class="text-muted">Recipients</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-info">
+                <div class="card-body text-center">
+                  <h2 class="mb-0 text-info" id="stat-avg">-</h2>
+                  <small class="text-muted">Avg Value</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-success">
+                <div class="card-body text-center">
+                  <h2 class="mb-0 text-success" id="stat-max">-</h2>
+                  <small class="text-muted">Max Value</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-warning">
+                <div class="card-body text-center">
+                  <h2 class="mb-0 text-warning" id="stat-min">-</h2>
+                  <small class="text-muted">Min Value</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Table -->
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead class="thead-dark">
+                <tr>
+                  <th style="width: 10%;">Rank</th>
+                  <th style="width: 15%;">Entity ID</th>
+                  <th style="width: 35%;">Name</th>
+                  <th style="width: 20%;" id="col-category">Category</th>
+                  <th style="width: 20%;">Metric Value</th>
+                </tr>
+              </thead>
+              <tbody id="results-body"></tbody>
+            </table>
+          </div>
+
+          <!-- SQL Query (Collapsible) -->
+          <div class="mt-3">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="collapse" data-target="#sql-collapse">
+              <i class="fas fa-code"></i> View Generated SQL
+            </button>
+            <div class="collapse mt-2" id="sql-collapse">
+              <pre id="generated-sql" class="p-3 bg-light border rounded" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></pre>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="mt-4 pt-3 border-top">
+            <button id="export-csv-btn" class="btn btn-info">
+              <i class="fas fa-download"></i> Export as CSV
+            </button>
+            <button id="execute-reward-btn" class="btn btn-success ml-2">
+              <i class="fas fa-gift"></i> Execute Reward Distribution
+            </button>
+            <small class="text-muted ml-3">
+              <i class="fas fa-info-circle"></i> Review results carefully before executing
+            </small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Mode Toggle (for power users) -->
+      <div class="card mt-4">
+        <div class="card-body">
+          <button class="btn btn-link text-muted" type="button" data-toggle="collapse" data-target="#advanced-mode">
+            <i class="fas fa-cog"></i> Advanced Mode (Legacy Query Builder)
+          </button>
+          <div class="collapse" id="advanced-mode">
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              Advanced mode is for power users who understand the query engine.
+              For most use cases, use the template-based builder above.
+            </div>
+            <a href="#" class="btn btn-outline-secondary" id="show-legacy-ui">
+              Show Legacy Query Builder
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="fas fa-exclamation-circle"></i> Error</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="errorMessage"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-check-circle"></i> Success</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="successMessage"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-success" data-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let allTemplates = [];
+  let selectedTemplate = null;
+  let currentResults = null;
+
+  // Load templates on page load
+  async function loadTemplates() {
+    try {
+      const res = await fetch("/admin/rewards/templates");
+      const data = await res.json();
+      if (data.success) {
+        allTemplates = data.templates;
+        renderTemplateCards();
+      } else {
+        showError("Failed to load templates");
+      }
+    } catch (err) {
+      showError("Network error while loading templates");
+    }
+  }
+
+  // Render template cards
+  function renderTemplateCards(filterCategory = "") {
+    const container = document.getElementById("template-cards");
+    const filtered = filterCategory 
+      ? allTemplates.filter(t => t.category === filterCategory)
+      : allTemplates;
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="col-12 text-center py-4">
+          <p class="text-muted">No templates found in this category.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = filtered.map(t => `
+      <div class="col-md-4 col-lg-3 mb-3">
+        <div class="card template-card h-100" data-template-id="${t.id}" style="cursor: pointer; transition: all 0.2s;">
+          <div class="card-body text-center">
+            <div class="mb-2">
+              <i class="fas fa-${t.icon} fa-3x text-primary"></i>
+            </div>
+            <h6 class="card-title">${t.name}</h6>
+            <p class="card-text small text-muted">${t.description}</p>
+            <span class="badge badge-${getCategoryColor(t.category)}">${t.category}</span>
+          </div>
+        </div>
+      </div>
+    `).join("");
+
+    // Add click handlers
+    document.querySelectorAll(".template-card").forEach(card => {
+      card.addEventListener("click", function() {
+        const templateId = this.getAttribute("data-template-id");
+        selectTemplate(templateId);
+      });
+      
+      // Hover effect
+      card.addEventListener("mouseenter", function() {
+        this.style.transform = "translateY(-5px)";
+        this.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+      });
+      card.addEventListener("mouseleave", function() {
+        this.style.transform = "translateY(0)";
+        this.style.boxShadow = "";
+      });
+    });
+  }
+
+  function getCategoryColor(category) {
+    const colors = {
+      ranking: "primary",
+      achievement: "success",
+      special: "warning"
+    };
+    return colors[category] || "secondary";
+  }
+
+  // Select a template
+  function selectTemplate(templateId) {
+    selectedTemplate = allTemplates.find(t => t.id === templateId);
+    if (!selectedTemplate) return;
+
+    // Highlight selected card
+    document.querySelectorAll(".template-card").forEach(c => {
+      c.style.borderColor = "";
+      c.style.borderWidth = "";
+    });
+    document.querySelector(`[data-template-id="${templateId}"]`).style.cssText = 
+      "border: 3px solid #007bff; cursor: pointer;";
+
+    // Show parameters card
+    document.getElementById("selected-template-name").textContent = selectedTemplate.name;
+    document.getElementById("selected-template-desc").textContent = selectedTemplate.description;
+    
+    renderParameterInputs(selectedTemplate);
+    document.getElementById("params-card").style.display = "block";
+    
+    // Hide results
+    document.getElementById("results-card").style.display = "none";
+    
+    // Smooth scroll
+    document.getElementById("params-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Render parameter inputs based on template
+  function renderParameterInputs(template) {
+    const container = document.getElementById("params-container");
+    const params = template.customizable_params || [];
+
+    if (params.length === 0) {
+      container.innerHTML = `
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i> This template has no customizable parameters.
+          Click "Preview Results" to see the default query.
+        </div>
+      `;
+      return;
+    }
+
+    const paramInputs = params.map(param => {
+      return generateParamInput(param);
+    }).join("");
+
+    container.innerHTML = `
+      <div class="row">
+        ${paramInputs}
+      </div>
+      <div class="mt-2">
+        <small class="text-muted">
+          <i class="fas fa-lightbulb"></i> <strong>Example:</strong> ${template.example_usage}
+        </small>
+      </div>
+    `;
+  }
+
+  function generateParamInput(param) {
+    const configs = {
+      limit: {
+        label: "Limit (Number of Results)",
+        type: "number",
+        default: 50,
+        min: 1,
+        max: 500,
+        help: "Maximum number of results to return"
+      },
+      entity_type: {
+        label: "Entity Type",
+        type: "select",
+        options: [
+          { value: "team", label: "Team" },
+          { value: "user", label: "User" },
+          { value: "solve", label: "Solve" }
+        ],
+        default: "team",
+        help: "Type of entity to query"
+      },
+      min_rank: {
+        label: "Minimum Rank",
+        type: "number",
+        default: 1,
+        min: 1,
+        help: "Minimum rank position (e.g., 1 for first place)"
+      },
+      max_rank: {
+        label: "Maximum Rank",
+        type: "number",
+        default: 10,
+        min: 1,
+        help: "Maximum rank position (e.g., 10 for top 10)"
+      },
+      min_score: {
+        label: "Minimum Score",
+        type: "number",
+        default: 0,
+        min: 0,
+        help: "Minimum score required"
+      },
+      max_score: {
+        label: "Maximum Score",
+        type: "number",
+        default: 10000,
+        min: 0,
+        help: "Maximum score allowed"
+      },
+      category: {
+        label: "Challenge Category",
+        type: "text",
+        default: "",
+        help: "Filter by challenge category (e.g., Web, Crypto, Pwn)"
+      },
+      categories: {
+        label: "Challenge Categories (comma-separated)",
+        type: "text",
+        default: "",
+        help: "Multiple categories separated by comma (e.g., Web,Crypto)"
+      },
+      min_solves: {
+        label: "Minimum Solve Count",
+        type: "number",
+        default: 1,
+        min: 0,
+        help: "Minimum number of challenges solved"
+      },
+      min_perfect_solves: {
+        label: "Minimum Perfect Solves",
+        type: "number",
+        default: 1,
+        min: 1,
+        help: "Minimum number of perfect solves (no wrong submissions)"
+      },
+      min_count: {
+        label: "Minimum Count",
+        type: "number",
+        default: 1,
+        min: 1,
+        help: "Minimum count threshold"
+      },
+      min_categories: {
+        label: "Minimum Categories Cleared",
+        type: "number",
+        default: 1,
+        min: 1,
+        help: "Minimum number of categories fully cleared"
+      },
+      min_attempts: {
+        label: "Minimum Wrong Attempts",
+        type: "number",
+        default: 1,
+        min: 0,
+        help: "Minimum number of wrong submissions"
+      },
+      only_first_blood: {
+        label: "Only First Bloods",
+        type: "checkbox",
+        default: true,
+        help: "Filter to only first blood solves"
+      },
+      no_hints: {
+        label: "No Hints Used",
+        type: "checkbox",
+        default: false,
+        help: "Filter to solves without hints"
+      },
+      max_solve_time: {
+        label: "Maximum Solve Time (seconds)",
+        type: "number",
+        default: 3600,
+        min: 1,
+        help: "Maximum time to solve (in seconds)"
+      }
+    };
+
+    const config = configs[param] || {
+      label: param,
+      type: "text",
+      default: "",
+      help: ""
+    };
+
+    let inputHtml = "";
+    if (config.type === "select") {
+      const options = config.options.map(opt => 
+        `<option value="${opt.value}">${opt.label}</option>`
+      ).join("");
+      inputHtml = `<select class="form-control" id="param-${param}">${options}</select>`;
+    } else if (config.type === "checkbox") {
+      inputHtml = `
+        <div class="custom-control custom-checkbox">
+          <input type="checkbox" class="custom-control-input" id="param-${param}" ${config.default ? 'checked' : ''}>
+          <label class="custom-control-label" for="param-${param}">${config.help}</label>
+        </div>
+      `;
+    } else {
+      inputHtml = `
+        <input type="${config.type}" class="form-control" id="param-${param}" 
+               value="${config.default}" 
+               ${config.min !== undefined ? `min="${config.min}"` : ""}
+               ${config.max !== undefined ? `max="${config.max}"` : ""}
+               placeholder="${config.help}">
+      `;
+    }
+
+    return `
+      <div class="col-md-6 mb-3">
+        <label class="font-weight-bold">${config.label}</label>
+        ${inputHtml}
+        ${config.help && config.type !== "checkbox" ? `<small class="form-text text-muted">${config.help}</small>` : ""}
+      </div>
+    `;
+  }
+
+  // Collect parameter values
+  function collectParams() {
+    if (!selectedTemplate) return {};
+    
+    const params = {};
+    (selectedTemplate.customizable_params || []).forEach(param => {
+      const input = document.getElementById(`param-${param}`);
+      if (!input) return;
+
+      if (input.type === "checkbox") {
+        params[param] = input.checked;
+      } else if (input.type === "number") {
+        const val = parseFloat(input.value);
+        if (!isNaN(val)) params[param] = val;
+      } else if (param === "categories" && input.value) {
+        params[param] = input.value.split(",").map(s => s.trim()).filter(s => s);
+      } else if (input.value) {
+        params[param] = input.value;
+      }
+    });
+
+    return params;
+  }
+
+  // Preview results
+  async function previewResults() {
+    if (!selectedTemplate) {
+      showError("Please select a template first");
+      return;
+    }
+
+    const params = collectParams();
+    
+    try {
+      const res = await fetch("/admin/rewards/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template_id: selectedTemplate.id,
+          params: params
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showError(data.error || "Preview failed");
+        return;
+      }
+
+      currentResults = data;
+      renderResults(data);
+      document.getElementById("results-card").style.display = "block";
+      document.getElementById("results-card").scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (err) {
+      showError("Network error during preview");
+    }
+  }
+
+  // Render results
+  function renderResults(data) {
+    const results = data.result || [];
+    const tbody = document.getElementById("results-body");
+    
+    // Calculate stats
+    if (results.length > 0) {
+      const values = results.map(r => r.metric_value || 0);
+      const sum = values.reduce((a, b) => a + b, 0);
+      const avg = (sum / values.length).toFixed(2);
+      const max = Math.max(...values);
+      const min = Math.min(...values);
+      
+      document.getElementById("stat-count").textContent = results.length;
+      document.getElementById("stat-avg").textContent = avg;
+      document.getElementById("stat-max").textContent = max;
+      document.getElementById("stat-min").textContent = min;
+    } else {
+      document.getElementById("stat-count").textContent = "0";
+      document.getElementById("stat-avg").textContent = "-";
+      document.getElementById("stat-max").textContent = "-";
+      document.getElementById("stat-min").textContent = "-";
+    }
+
+    document.getElementById("result-count").textContent = `${results.length} results`;
+
+    // Check if category column is needed
+    const hasCategory = results.some(r => r.category);
+    const categoryHeader = document.getElementById("col-category");
+    categoryHeader.style.display = hasCategory ? "" : "none";
+
+    // Render rows
+    tbody.innerHTML = results.map((row, idx) => `
+      <tr>
+        <td><strong>#${idx + 1}</strong></td>
+        <td>${row.entity_id || "-"}</td>
+        <td>${row.entity_name || "-"}</td>
+        ${hasCategory ? `<td><span class="badge badge-info">${row.category || "-"}</span></td>` : ""}
+        <td><strong class="text-primary">${row.metric_value !== null && row.metric_value !== undefined ? row.metric_value : "-"}</strong></td>
+      </tr>
+    `).join("");
+
+    // Show SQL
+    document.getElementById("generated-sql").textContent = data.generated_sql || "";
+  }
+
+  // Export to CSV
+  function exportToCSV() {
+    if (!currentResults || !currentResults.result) {
+      showError("No results to export");
+      return;
+    }
+
+    const results = currentResults.result;
+    const hasCategory = results.some(r => r.category);
+    
+    let csv = hasCategory 
+      ? "Rank,Entity ID,Entity Name,Category,Metric Value\n"
+      : "Rank,Entity ID,Entity Name,Metric Value\n";
+
+    results.forEach((row, idx) => {
+      const rank = idx + 1;
+      const id = row.entity_id || "";
+      const name = (row.entity_name || "").replace(/"/g, '""');
+      const value = row.metric_value !== null && row.metric_value !== undefined ? row.metric_value : "";
+      
+      if (hasCategory) {
+        const cat = (row.category || "").replace(/"/g, '""');
+        csv += `${rank},"${id}","${name}","${cat}",${value}\n`;
+      } else {
+        csv += `${rank},"${id}","${name}",${value}\n`;
+      }
+    });
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rewards_${selectedTemplate.id}_${new Date().getTime()}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  // Execute reward (placeholder - needs backend implementation)
+  function executeReward() {
+    if (!currentResults) {
+      showError("No results to execute");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to execute reward distribution for ${currentResults.result.length} recipients?`)) {
+      return;
+    }
+
+    // TODO: Implement actual reward distribution endpoint
+    showSuccess(`Reward execution initiated for ${currentResults.result.length} recipients. (Note: Backend implementation needed)`);
+  }
+
+  // Utility functions
+  function showError(message) {
+    document.getElementById("errorMessage").textContent = message;
+    $("#errorModal").modal("show");
+  }
+
+  function showSuccess(message) {
+    document.getElementById("successMessage").textContent = message;
+    $("#successModal").modal("show");
+  }
+
+  function resetForm() {
+    selectedTemplate = null;
+    currentResults = null;
+    document.getElementById("params-card").style.display = "none";
+    document.getElementById("results-card").style.display = "none";
+    document.querySelectorAll(".template-card").forEach(c => {
+      c.style.borderColor = "";
+      c.style.borderWidth = "";
+    });
+  }
+
+  // Event listeners
+  document.getElementById("category-filter").addEventListener("change", function(e) {
+    if (e.target.name === "cat-filter") {
+      renderTemplateCards(e.target.value);
+    }
+  });
+
+  document.getElementById("preview-btn").addEventListener("click", previewResults);
+  document.getElementById("reset-btn").addEventListener("click", resetForm);
+  document.getElementById("export-csv-btn").addEventListener("click", exportToCSV);
+  document.getElementById("execute-reward-btn").addEventListener("click", executeReward);
+
+  // Legacy UI redirect
+  document.getElementById("show-legacy-ui").addEventListener("click", function(e) {
+    e.preventDefault();
+    alert("Legacy UI has been replaced. Please use the new template-based builder.");
+  });
+
+  // Initialize
+  loadTemplates();
+</script>
+
+<style>
+  .template-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  .card-header {
+    font-weight: 600;
+  }
+  
+  #results-body tr:hover {
+    background-color: #f8f9fa;
+  }
+</style>
+{% endblock %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-12">
       <div class="card mt-3" style="cursor: default;">
         <div class="card-body">
           <h3 class="mb-2">Dynamic Reward Query Engine</h3>
