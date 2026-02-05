@@ -3749,11 +3749,7 @@ function ChallengeDetailPanel({
             {challenge.require_deploy && !challenge.solve_by_myteam &&
               !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
                 <div className="space-y-2">
-                  {!!(challenge.pod_status && challenge.pod_status.toString().toLowerCase().includes('delet')) ? (
-                    <button disabled={true} className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-gray-600 text-white border border-gray-500' : 'bg-gray-200 text-gray-700 border border-gray-300'} cursor-not-allowed`}>
-                      <span>[-] Deleting...</span>
-                    </button>
-                  ) : isHealthChecking || isDeploymentInProgress ? (
+                  {isHealthChecking || isDeploymentInProgress ? (
                     <button disabled={true} className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-yellow-600 text-white border border-yellow-500' : 'bg-yellow-500 text-white border border-yellow-400'} cursor-not-allowed`}>
                       <CircularProgress size={14} sx={{ color: '#fff' }} />
                       <span>[-] Checking...</span>
@@ -3766,7 +3762,7 @@ function ChallengeDetailPanel({
                     ) : (
                       <button
                         onClick={handleStartChallenge}
-                        disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
+                        disabled={isStarting}
                         style={{
                           fontFamily: 'monospace',
                           fontSize: '13px',
@@ -3777,8 +3773,8 @@ function ChallengeDetailPanel({
                           backgroundColor: '#4ade80',
                           color: '#000',
                           borderRadius: '4px',
-                          cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
-                          opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
+                          cursor: (isStarting) ? 'not-allowed' : 'pointer',
+                          opacity: (isStarting) ? 0.5 : 1,
                           transition: 'all 0.2s',
                           display: 'flex',
                           alignItems: 'center',
@@ -3786,13 +3782,13 @@ function ChallengeDetailPanel({
                           gap: '8px',
                         }}
                         onMouseEnter={(e) => {
-                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping') {
                             e.currentTarget.style.backgroundColor = '#22c55e';
                             e.currentTarget.style.borderColor = '#22c55e';
                           }
                         }}
                         onMouseLeave={(e) => {
-                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping') {
                             e.currentTarget.style.backgroundColor = '#4ade80';
                             e.currentTarget.style.borderColor = '#4ade80';
                           }

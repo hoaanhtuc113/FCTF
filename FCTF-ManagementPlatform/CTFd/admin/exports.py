@@ -32,7 +32,19 @@ def export_data():
         submit_standings_df = pd.DataFrame(submit_standings)
         user_standings_df= pd.DataFrame(user_standings)
         top_challenge_count_teams_df= pd.DataFrame(top_challenge_count_teams)
-        get_teams_clear_df= pd.DataFrame(get_team_cleared)
+        
+        # Convert dictionary to flat list for DataFrame
+        teams_cleared_list = []
+        for topic_name, teams in get_team_cleared.items():
+            for team in teams:
+                teams_cleared_list.append({
+                    'topic': topic_name,
+                    'team_id': team.get('team_id'),
+                    'team_name': team.get('team_name'),
+                    'status': team.get('status'),
+                    'last_submission_time': team.get('last_submission_time')
+                })
+        get_teams_clear_df = pd.DataFrame(teams_cleared_list)
         
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
