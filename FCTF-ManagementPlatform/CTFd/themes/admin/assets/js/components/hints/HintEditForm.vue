@@ -49,6 +49,7 @@
                       type="number"
                       class="form-control"
                       name="cost"
+                      min="0"
                       v-model.lazy="cost"
                     />
                   </div>
@@ -168,7 +169,8 @@ export default {
       editor.mde.codemirror.refresh();
     },
     getCost: function () {
-      return this.cost || 0;
+      const cost = Number(this.cost);
+      return Number.isFinite(cost) ? cost : 0;
     },
     getContent: function () {
       this._forceRefresh();
@@ -176,10 +178,15 @@ export default {
       return editor.mde.codemirror.getDoc().getValue();
     },
     updateHint: function () {
+      const cost = this.getCost();
+      if (cost < 0) {
+        alert("Cost must be a positive number");
+        return;
+      }
       let params = {
         challenge_id: this.$props.challenge_id,
         content: this.getContent(),
-        cost: this.getCost(),
+        cost,
         requirements: { prerequisites: this.selectedHints },
       };
 
