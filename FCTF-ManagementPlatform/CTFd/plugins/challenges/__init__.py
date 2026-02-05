@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, session
+import json
 
 from CTFd.models import (
     ChallengeFiles,
@@ -102,6 +103,32 @@ class BaseChallenge(object):
         if "use_gvisor" in data:
             if isinstance(data["use_gvisor"], str):
                 data["use_gvisor"] = data["use_gvisor"].lower() in ("true", "1", "yes", "on")
+        
+        # Handle expose_port - store in image_link JSON
+        if "expose_port" in data and data["expose_port"] is not None:
+            try:
+                expose_port_int = int(data["expose_port"])
+                # Remove expose_port from data so it doesn't get set as a direct attribute
+                del data["expose_port"]
+                
+                # Update image_link JSON with exposedPort
+                image_obj = {}
+                if challenge.image_link:
+                    try:
+                        parsed = json.loads(challenge.image_link)
+                        if isinstance(parsed, dict):
+                            image_obj = parsed
+                        else:
+                            image_obj = {"imageLink": challenge.image_link}
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        image_obj = {"imageLink": challenge.image_link}
+                
+                image_obj["exposedPort"] = expose_port_int
+                challenge.image_link = json.dumps(image_obj)
+            except (TypeError, ValueError):
+                # Invalid expose_port, skip updating
+                if "expose_port" in data:
+                    del data["expose_port"]
 
         # Kiểm tra nếu 'time_limit' có trong dữ liệu và kiểm tra giá trị của nó
         if "time_limit" in data:
