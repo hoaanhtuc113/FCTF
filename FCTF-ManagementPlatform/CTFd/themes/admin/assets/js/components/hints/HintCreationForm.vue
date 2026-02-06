@@ -113,16 +113,22 @@ export default {
   },
   methods: {
     getCost: function () {
-      return this.cost || 0;
+      const cost = Number(this.cost);
+      return Number.isFinite(cost) ? cost : 0;
     },
     getContent: function () {
       return this.$refs.content.value;
     },
     submitHint: function () {
+      const cost = this.getCost();
+      if (cost < 0) {
+        alert("Cost must be a positive number");
+        return;
+      }
       let params = {
         challenge_id: this.$props.challenge_id,
         content: this.getContent(),
-        cost: this.getCost(),
+        cost,
         requirements: { prerequisites: this.selectedHints },
       };
       CTFd.fetch("/api/v1/hints", {
