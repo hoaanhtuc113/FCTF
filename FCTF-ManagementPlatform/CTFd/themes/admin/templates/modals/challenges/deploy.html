@@ -14,6 +14,15 @@
         <input type="text" class="form-control clean-form-control" name="expose_port" id="expose_port"  value="{{ expose_port }}"
            min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
     </div>
+    {% if image_link_display %}
+    <div class="form-group">
+      <label class="clean-label">
+        Image name <br>
+        <small class="form-text text-muted">Current deployed image</small>
+      </label>
+      <input type="text" class="form-control clean-form-control" value="{{ image_link_display }}" disabled readonly>
+    </div>
+    {% endif %}
     <div class="form-group deploy-resource-field">
       <label class="clean-label">
         CPU Limit (mCPU) <br>
@@ -73,8 +82,13 @@
       {% endfor %}
     </ul>
     <label class="clean-label">
-      Files:
-      <small class="form-text text-muted">Files distributed along with your challenge</small>
+      {% if challenge.deploy_status == "DEPLOY_SUCCESS" %}
+        Change deploy file:
+        <small class="form-text text-muted">Upload a new deploy file</small>
+      {% else %}
+        Files:
+        <small class="form-text text-muted">Files distributed along with your challenge</small>
+      {% endif %}
     </label>
     <input class="form-control-file clean-file-input" type="file" name="deploy_file" id="file-upload" />
   </div>

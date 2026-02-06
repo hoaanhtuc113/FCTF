@@ -41,13 +41,23 @@
             Attach multiple files using Control+Click or Cmd+Click.
           </sub>
         </div>
+        <div
+          v-if="uploadStatus"
+          class="alert"
+          :class="uploadError ? 'alert-danger' : 'alert-success'"
+          role="alert"
+        >
+          <span v-if="isUploading" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+          {{ uploadStatus }}
+        </div>
         <div class="form-group">
           <input
             class="btn btn-primary float-right"
             id="_submit"
             name="_submit"
             type="submit"
-            value="Upload"
+            :disabled="isUploading"
+            :value="isUploading ? 'Uploading…' : 'Upload'"
           />
         </div>
       </form>
@@ -68,6 +78,9 @@ export default {
     return {
       files: [],
       urlRoot: CTFd.config.urlRoot,
+      isUploading: false,
+      uploadStatus: "",
+      uploadError: false,
     };
   },
   methods: {
@@ -100,17 +113,32 @@ export default {
           }
         }
       }
+
+      this.isUploading = true;
+      this.uploadError = false;
+      this.uploadStatus = "Uploading files...";
       
       let data = {
         challenge_id: this.$props.challenge_id,
         type: "challenge",
       };
       let form = this.$refs.FileUploadForm;
-      helpers.files.upload(form, data, (_response) => {
-        setTimeout(() => {
-          this.loadFiles();
-        }, 700);
-      });
+      helpers.files
+        .upload(form, data)
+        .then(() => {
+          this.uploadStatus = "Upload successful.";
+          this.uploadError = false;
+          this.isUploading = false;
+          setTimeout(() => {
+            this.loadFiles();
+            this.uploadStatus = "";
+          }, 700);
+        })
+        .catch((error) => {
+          this.uploadStatus = error?.message || "Upload failed. Please try again.";
+          this.uploadError = true;
+          this.isUploading = false;
+        });
     },
     deleteFile: function (fileId) {
       ezQuery({
