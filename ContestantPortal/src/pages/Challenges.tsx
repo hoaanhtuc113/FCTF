@@ -189,7 +189,8 @@ export function Challenges() {
           ...data.data,
           value: selectedChallenge.value,
           solves: selectedChallenge.solves,
-          requirements: selectedChallenge.requirements
+          requirements: selectedChallenge.requirements,
+          pod_status: data.pod_status // Update pod_status
         });
       } catch (error) {
         console.error('Error refreshing challenge details:', error);
@@ -1110,27 +1111,15 @@ function ChallengeListItem({
             >
               [~] deploying
             </span>
-          ) : challenge.pod_status && (
+          ) : challenge.pod_status === 'Running' && (
             <span
               className={`px-1.5 py-0.5 rounded border
-                ${challenge.pod_status === 'Running'
-                  ? theme === 'dark'
-                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                    : 'bg-green-100 text-green-700 border-green-300'
-                  : challenge.pod_status === 'Pending'
-                    ? theme === 'dark'
-                      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                      : 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                    : challenge.pod_status === 'Failed'
-                      ? theme === 'dark'
-                        ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                        : 'bg-red-100 text-red-700 border-red-300'
-                      : theme === 'dark'
-                        ? 'bg-gray-700 text-gray-400 border-gray-600'
-                        : 'bg-gray-100 text-gray-600 border-gray-300'}
+                ${theme === 'dark'
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-green-100 text-green-700 border-green-300'}
               `}
             >
-              [⚡] {challenge.pod_status}
+              [⚡] Running
             </span>
           )}
         </div>
@@ -1188,6 +1177,19 @@ function ChallengeDetailPanel({
   const stopChallengeRunningRef = useRef<boolean>(false);
   const endTimeRef = useRef<number | null>(null); // Absolute end time in milliseconds
   const isMountedRef = useRef<boolean>(true); // Track if component is mounted
+
+  const escapeHtml = (input: string) =>
+    input
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const renderHintContentHtml = (content?: string) => {
+    const normalized = (content ?? 'No content').replace(/\r\n/g, '\n').trim();
+    return escapeHtml(normalized);
+  };
 
 
   // Filter PDF files
@@ -1497,7 +1499,7 @@ function ChallengeDetailPanel({
         const podStatus = data.pod_status;
         const isDeleting = podStatus && (podStatus === 'Deleting' || podStatus.toString().toLowerCase().includes('delet'));
         console.log(`[ChallengeStatus] Challenge ID ${challenge.id} Pod Status: ${podStatus} (Deleting: ${isDeleting})`);
-        
+
         // If pod is deleting, show as starting state (don't allow stop)
         if (isDeleting) {
           setIsChallengeStarted(false);
@@ -1780,6 +1782,7 @@ function ChallengeDetailPanel({
 
       // Case 1: URL is ready immediately
       if (response.status === 200 && data.success === true && data.challenge_url != null) {
+        const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
         setIsDeploymentInProgress(true);
         // Save deployment state AFTER successful response
         localStorage.setItem(deploymentKey, JSON.stringify({
@@ -1817,9 +1820,13 @@ function ChallengeDetailPanel({
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
-              <div class="text-gray-400 mb-2">> URL: ${data.challenge_url}</div>
-              <div class="text-yellow-400 mt-2">> Health check in progress...</div>
+              <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[✓] Challenge Ready!</div>
+              <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> Token:</div>
+              <div class="${theme === 'dark'
+                ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+              }" style="word-break: break-all; overflow-wrap: anywhere;">${safeChallengeUrl}</div>
+              <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} mt-2">> Health check in progress...</div>
             </div>
           `,
           icon: 'success',
@@ -1987,6 +1994,7 @@ function ChallengeDetailPanel({
         });
         const data = await response.json();
         if (data.success == true && data.challenge_url) {
+          const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
 
           // Update URL with actual challenge URL (replace message if it was set)
           setUrl(data.challenge_url);
@@ -2030,9 +2038,13 @@ function ChallengeDetailPanel({
             Swal.fire({
               html: `
                 <div class="font-mono text-left text-sm">
-                  <div class="text-green-400 mb-2">[✓] Challenge Ready!</div>
-                  <div class="text-gray-400 mb-2">> ${challenge.name}</div>
-                  <div class="text-orange-400 mt-2">> ${data.challenge_url}</div>
+                  <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[✓] Challenge Ready!</div>
+                  <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> ${escapeHtml(String(challenge.name))}</div>
+                  <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> Token:</div>
+                  <div class="${theme === 'dark'
+                    ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                    : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+                  }" style="word-break: break-all; overflow-wrap: anywhere;">${safeChallengeUrl}</div>
                 </div>
               `,
               icon: 'success',
@@ -2266,7 +2278,7 @@ function ChallengeDetailPanel({
               <div class="text-green-400 mb-2">[✓] Challenge Stopped</div>
               <div class="text-gray-400 mb-2">> Challenge: ${challenge.name}</div>
               <div class="text-gray-400">> Instance terminated successfully</div>
-              <div class="text-yellow-400 mt-2 text-xs">> Please wait 5 seconds for cleanup...</div>
+              <div class="text-yellow-400 mt-2 text-xs">> Please wait 30~60 seconds for cleanup...</div>
             </div>
           `,
           icon: 'success',
@@ -2814,14 +2826,16 @@ function ChallengeDetailPanel({
 
       // Check if hint is already unlocked
       if (hintDetailsResponse?.data.content) {
+        const safeContent = renderHintContentHtml(hintDetailsResponse.data.content);
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-orange-400 mb-2">[i] Already unlocked</div>
-              <div class="text-gray-400 mb-2">> Content:</div>
-              <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30">
-                ${hintDetailsResponse.data.content || "No content"}
-              </div>
+              <div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} mb-2">[i] Already unlocked</div>
+              <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-2">> Content:</div>
+              <div class="${theme === 'dark'
+                ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+              }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
             </div>
           `,
           icon: "info",
@@ -2876,14 +2890,16 @@ function ChallengeDetailPanel({
           const updatedHintDetails = await FetchHintDetails(hintId);
 
           if (updatedHintDetails?.data) {
+            const safeContent = renderHintContentHtml(updatedHintDetails.data.content);
             Swal.fire({
               html: `
                 <div class="font-mono text-left text-sm">
-                  <div class="text-green-400 mb-2">[+] Hint unlocked</div>
-                  <div class="text-gray-400 mb-2">> Content:</div>
-                  <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30">
-                    ${updatedHintDetails.data.content || "No content"}
-                  </div>
+                  <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[+] Hint unlocked</div>
+                  <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-2">> Content:</div>
+                  <div class="${theme === 'dark'
+                    ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                    : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+                  }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
                 </div>
               `,
               icon: "success",
@@ -2964,14 +2980,16 @@ function ChallengeDetailPanel({
               const hintDetailsResponse = await FetchHintDetails(hintId);
 
               if (hintDetailsResponse?.data) {
+                const safeContent = renderHintContentHtml(hintDetailsResponse.data.content);
                 Swal.fire({
                   html: `
                     <div class="font-mono text-left text-sm">
-                      <div class="text-orange-400 mb-2">[i] Already unlocked</div>
-                      <div class="text-gray-400 mb-2">> Content:</div>
-                      <div class="text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30">
-                        ${hintDetailsResponse.data.content || "No content"}
-                      </div>
+                      <div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} mb-2">[i] Already unlocked</div>
+                      <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-2">> Content:</div>
+                      <div class="${theme === 'dark'
+                        ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                        : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+                      }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
                     </div>
                   `,
                   icon: "info",
@@ -3154,7 +3172,7 @@ function ChallengeDetailPanel({
   // Cleanup blob when component unmounts
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     return () => {
       isMountedRef.current = false;
       // Clear blob reference to help GC and prevent worker access after unmount
@@ -3703,31 +3721,13 @@ function ChallengeDetailPanel({
                     <button
                       onClick={handleSubmitFlag}
                       disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        textTransform: 'none',
-                        color: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#52525b' : '#fff',
-                        backgroundColor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '#18181b' : '#fb923c',
-                        border: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? '1px solid #27272a' : '1px solid #fb923c',
-                        padding: '10px',
-                        borderRadius: '4px',
-                        cursor: (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)) ? 'not-allowed' : 'pointer',
-                        width: '100%',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
-                          e.currentTarget.style.backgroundColor = '#f97316';
-                          e.currentTarget.style.borderColor = '#f97316';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSubmittingFlag && answer.trim() && cooldownRemaining === 0 && !(challenge.captain_only_submit && !challenge.is_captain)) {
-                          e.currentTarget.style.backgroundColor = '#fb923c';
-                          e.currentTarget.style.borderColor = '#fb923c';
-                        }
-                      }}
+                      className={`w-full rounded border px-3 py-2.5 font-mono text-[13px] transition-colors ${
+                        (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain))
+                          ? (theme === 'dark'
+                            ? 'bg-zinc-900 text-zinc-500 border-zinc-800 cursor-not-allowed'
+                            : 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed')
+                          : 'bg-orange-400 hover:bg-orange-500 text-white border-orange-400 hover:border-orange-500 cursor-pointer'
+                      }`}
                     >
                       {isSubmittingFlag
                         ? '[SUBMITTING...]'
@@ -3760,11 +3760,7 @@ function ChallengeDetailPanel({
             {challenge.require_deploy && !challenge.solve_by_myteam &&
               !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
                 <div className="space-y-2">
-                  {!!(challenge.pod_status && challenge.pod_status.toString().toLowerCase().includes('delet')) ? (
-                    <button disabled={true} className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-gray-600 text-white border border-gray-500' : 'bg-gray-200 text-gray-700 border border-gray-300'} cursor-not-allowed`}>
-                      <span>[-] Deleting...</span>
-                    </button>
-                  ) : isHealthChecking || isDeploymentInProgress ? (
+                  {isHealthChecking || isDeploymentInProgress ? (
                     <button disabled={true} className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-yellow-600 text-white border border-yellow-500' : 'bg-yellow-500 text-white border border-yellow-400'} cursor-not-allowed`}>
                       <CircularProgress size={14} sx={{ color: '#fff' }} />
                       <span>[-] Checking...</span>
@@ -3777,7 +3773,7 @@ function ChallengeDetailPanel({
                     ) : (
                       <button
                         onClick={handleStartChallenge}
-                        disabled={isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting'}
+                        disabled={isStarting}
                         style={{
                           fontFamily: 'monospace',
                           fontSize: '13px',
@@ -3788,8 +3784,8 @@ function ChallengeDetailPanel({
                           backgroundColor: '#4ade80',
                           color: '#000',
                           borderRadius: '4px',
-                          cursor: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 'not-allowed' : 'pointer',
-                          opacity: (isStarting || challenge.pod_status === 'Stopped' || challenge.pod_status === 'Stopping' || challenge.pod_status === 'Deleting') ? 0.5 : 1,
+                          cursor: (isStarting) ? 'not-allowed' : 'pointer',
+                          opacity: (isStarting) ? 0.5 : 1,
                           transition: 'all 0.2s',
                           display: 'flex',
                           alignItems: 'center',
@@ -3797,13 +3793,13 @@ function ChallengeDetailPanel({
                           gap: '8px',
                         }}
                         onMouseEnter={(e) => {
-                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping') {
                             e.currentTarget.style.backgroundColor = '#22c55e';
                             e.currentTarget.style.borderColor = '#22c55e';
                           }
                         }}
                         onMouseLeave={(e) => {
-                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping' && challenge.pod_status !== 'Deleting') {
+                          if (!isStarting && challenge.pod_status !== 'Stopped' && challenge.pod_status !== 'Stopping') {
                             e.currentTarget.style.backgroundColor = '#4ade80';
                             e.currentTarget.style.borderColor = '#4ade80';
                           }
