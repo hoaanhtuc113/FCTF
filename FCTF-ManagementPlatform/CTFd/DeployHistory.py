@@ -106,6 +106,12 @@ def get_pods_logs(challenge_id):
         return jsonify({"error": "Permission denied"}), 400
 
     team_id = user.team_id if user.team_id is not None else -1
+    team_id_param = request.args.get("team_id")
+    if team_id_param is not None:
+        try:
+            team_id = int(team_id_param)
+        except ValueError:
+            return jsonify({"error": "Invalid team_id"}), 400
     logs = get_challenge_pod_logs(challenge_id, team_id)
 
     return render_template(

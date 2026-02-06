@@ -366,6 +366,12 @@ function handleChallengeOptions(event) {
       body.memory_limit = memoryLimit;
       body.memory_request = memoryRequest;
       body.use_gvisor = useGvisor;
+    } else {
+      body.cpu_limit = null;
+      body.cpu_request = null;
+      body.memory_limit = null;
+      body.memory_request = null;
+      body.use_gvisor = null;
     }
     CTFd.fetch("/api/v1/challenges/" + params.challenge_id, {
       method: "PATCH",
