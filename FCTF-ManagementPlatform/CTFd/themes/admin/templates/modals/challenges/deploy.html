@@ -20,7 +20,7 @@
         <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="cpu_limit" id="cpu_limit"
-        min="1" max="500" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 300 }}" required>
+        min="1" max="500" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 100 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -29,7 +29,7 @@
         <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="cpu_request" id="cpu_request"
-        min="1" max="500" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 300 }}" required>
+        min="1" max="500" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 10 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -38,7 +38,7 @@
         <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_limit" id="memory_limit"
-        min="1" max="1024" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 256 }}" required>
+        min="1" max="1024" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 128 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -47,7 +47,7 @@
         <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_request" id="memory_request"
-        min="1" max="1024" value="{{ challenge.memory_request if challenge.memory_request is not none else 256 }}" required>
+        min="1" max="1024" value="{{ challenge.memory_request if challenge.memory_request is not none else 32 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -235,6 +235,10 @@
     const memoryLimitInput = document.getElementById("memory_limit");
     const memoryRequestInput = document.getElementById("memory_request");
     const useGvisorInput = document.getElementById("use_gvisor");
+    const defaultCpuLimit = 100;
+    const defaultCpuRequest = 10;
+    const defaultMemoryLimit = 128;
+    const defaultMemoryRequest = 32;
 
     // Show progress bar container
     const progressContainer = document.getElementById('deploy-progress-container');
@@ -270,6 +274,10 @@
           el.disabled = false;
           el.required = true;
         });
+        if (cpuLimitInput && !cpuLimitInput.value) cpuLimitInput.value = String(defaultCpuLimit);
+        if (cpuRequestInput && !cpuRequestInput.value) cpuRequestInput.value = String(defaultCpuRequest);
+        if (memoryLimitInput && !memoryLimitInput.value) memoryLimitInput.value = String(defaultMemoryLimit);
+        if (memoryRequestInput && !memoryRequestInput.value) memoryRequestInput.value = String(defaultMemoryRequest);
       } else {
         exposePortContainer.style.display = 'none';
         deployBtn.disabled = false;
@@ -280,6 +288,10 @@
           el.disabled = true;
           el.required = false;
         });
+        if (cpuLimitInput) cpuLimitInput.value = '';
+        if (cpuRequestInput) cpuRequestInput.value = '';
+        if (memoryLimitInput) memoryLimitInput.value = '';
+        if (memoryRequestInput) memoryRequestInput.value = '';
       }
       // File input always enabled, no required attribute
       fileInput.disabled = false;
@@ -322,11 +334,13 @@
       let cpuRequest = 0;
       let memoryLimit = 0;
       let memoryRequest = 0;
+      let useGvisor = null;
       if (setupDockerCheckbox.checked) {
         cpuLimit = parseInt(cpuLimitInput?.value || "0", 10);
         cpuRequest = parseInt(cpuRequestInput?.value || "0", 10);
         memoryLimit = parseInt(memoryLimitInput?.value || "0", 10);
         memoryRequest = parseInt(memoryRequestInput?.value || "0", 10);
+        useGvisor = (useGvisorInput?.value || "true") === "true";
 
         if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
           ezAlert({
@@ -351,36 +365,37 @@
       Promise.all([
         new Promise(async function (resolve, reject) {
           try {
-            if (setupDockerCheckbox.checked) {
-              const updatePayload = {
-                cpu_limit: cpuLimit,
-                cpu_request: cpuRequest,
-                memory_limit: memoryLimit,
-                memory_request: memoryRequest,
-                use_gvisor: (useGvisorInput?.value || "true") === "true",
-                expose_port: parseInt(exposePortInput?.value || "0", 10)
-              };
+            const updatePayload = {
+              require_deploy: setupDockerCheckbox.checked,
+              cpu_limit: setupDockerCheckbox.checked ? cpuLimit : null,
+              cpu_request: setupDockerCheckbox.checked ? cpuRequest : null,
+              memory_limit: setupDockerCheckbox.checked ? memoryLimit : null,
+              memory_request: setupDockerCheckbox.checked ? memoryRequest : null,
+              use_gvisor: setupDockerCheckbox.checked ? useGvisor : null,
+              expose_port: setupDockerCheckbox.checked
+                ? parseInt(exposePortInput?.value || "0", 10)
+                : null
+            };
 
-              const updateResponse = await CTFd.fetch(`/api/v1/challenges/${CHALLENGE_ID}`, {
-                method: "PATCH",
-                credentials: "same-origin",
-                headers: {
-                  Accept: "application/json",
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(updatePayload),
-              });
-              const updateData = await updateResponse.json();
+            const updateResponse = await CTFd.fetch(`/api/v1/challenges/${CHALLENGE_ID}`, {
+              method: "PATCH",
+              credentials: "same-origin",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(updatePayload),
+            });
+            const updateData = await updateResponse.json();
 
-              if (!updateData.success) {
-                let body = "";
-                for (const k in updateData.errors || {}) {
-                  body += updateData.errors[k].join("\n") + "\n";
-                }
-                ezAlert({ title: "Error", body: body || "Invalid resource settings", button: "OK" });
-                reject(new Error("Invalid resource settings"));
-                return;
+            if (!updateData.success) {
+              let body = "";
+              for (const k in updateData.errors || {}) {
+                body += updateData.errors[k].join("\n") + "\n";
               }
+              ezAlert({ title: "Error", body: body || "Invalid resource settings", button: "OK" });
+              reject(new Error("Invalid resource settings"));
+              return;
             }
 
             const data = {
