@@ -566,7 +566,7 @@
 	loadData(); // Initial load
 
 	function viewLogs(challengeId, teamId) {
-		window.location.href = `/deploy_History/${challengeId}/pods-logs`;
+		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
 	}
 
 	async function stopChallenge(challengeId, teamId) {
