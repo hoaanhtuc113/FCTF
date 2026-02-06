@@ -149,9 +149,14 @@ def challenges_detail(challenge_id):
             isDeploySuccess = True
 
     expose_port = ""
+    image_link_name = ""
+    image_link_display = ""
     if challenge.image_link:
         object_image = json.loads(challenge.image_link)
         expose_port = object_image.get("exposedPort", "")
+        image_link_name = object_image.get("imageLink", "")
+        if image_link_name:
+            image_link_display = image_link_name.split(":")[-1]
 
     try:
         challenge_class = get_chal_class(challenge.type)
@@ -181,6 +186,8 @@ def challenges_detail(challenge_id):
         update_script=update_script,
         challenge=challenge,
         expose_port=expose_port,
+        image_link_name=image_link_name,
+        image_link_display=image_link_display,
         challenges=challenges,
         solves=solves,
         flags=flags,
