@@ -505,4 +505,54 @@ public class RedisHelper
             throw;
         }
     }
+
+    // Atomic cooldown check-and-set
+    // Returns -1 when allowed (timestamp updated), otherwise returns last timestamp
+    public async Task<long> CheckAndUpdateCooldownAsync(string key, long nowSeconds, long cooldownSeconds, int ttlSeconds)
+    {
+        var luaScript = @"
+                    local key = KEYS[1]
+                    local now = tonumber(ARGV[1])
+                    local cooldown = tonumber(ARGV[2])
+                    local ttl = tonumber(ARGV[3])
+
+                    local last = redis.call('GET', key)
+
+                    if not last then
+                        redis.call('SET', key, now)
+                        redis.call('EXPIRE', key, ttl)
+                        return -1
+                    end
+
+                    last = tonumber(last)
+                    if (now - last) >= cooldown then
+                        redis.call('SET', key, now)
+                        redis.call('EXPIRE', key, ttl)
+                        return -1
+                    end
+
+                    local keyttl = redis.call('TTL', key)
+                    if keyttl < 0 then
+                        redis.call('EXPIRE', key, ttl)
+                    end
+
+                    return last
+                ";
+
+        try
+        {
+            var result = await _cache.ScriptEvaluateAsync(
+                luaScript,
+                [key],
+                [nowSeconds, cooldownSeconds, ttlSeconds]
+            );
+
+            return (long)result;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[Redis Lua] Error executing cooldown script: {ex.Message}");
+            throw;
+        }
+    }
 }
