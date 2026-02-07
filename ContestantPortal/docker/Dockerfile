@@ -21,7 +21,8 @@ COPY public/env.template.js /usr/share/nginx/html/env.template.js
 
 # Copy entrypoint script
 COPY docker/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh \
+	&& sed -i 's/\r$//' /docker-entrypoint.sh
 
 EXPOSE 80
 ENTRYPOINT ["/docker-entrypoint.sh"]
