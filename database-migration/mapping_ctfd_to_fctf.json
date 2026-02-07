@@ -130,10 +130,10 @@
       "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
       "columns": {
         "id": { "from": "id" },
-        "initial": { "from": "initial" },
-        "minimum": { "from": "minimum" },
-        "decay": { "from": "decay" },
-        "function": { "from": "function" }
+        "initial": { "from": "dynamic_initial" },
+        "minimum": { "from": "dynamic_minimum" },
+        "decay": { "from": "dynamic_decay" },
+        "function": { "from": "dynamic_function" }
       }
     },
     { 
