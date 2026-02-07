@@ -1155,6 +1155,7 @@ function ChallengeDetailPanel({
   const [isDeploymentInProgress, setIsDeploymentInProgress] = useState(false);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [isPodHealthy, setIsPodHealthy] = useState(false);
+  const [podStatus, setPodStatus] = useState<string | null>(challenge.pod_status ?? null);
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -1240,6 +1241,7 @@ function ChallengeDetailPanel({
 
   // Load cooldown and deployment state from localStorage when challenge changes
   useEffect(() => {
+    setPodStatus(challenge.pod_status ?? null);
     const loadCooldown = () => {
       const cooldownKey = `cooldown_${challenge.id}`;
       const savedCooldown = localStorage.getItem(cooldownKey);
@@ -1495,6 +1497,8 @@ function ChallengeDetailPanel({
       if (data.data) {
         // Log pod_status for debugging
 
+        setPodStatus(data.pod_status ?? null);
+
         // Check if pod is being deleted
         const podStatus = data.pod_status;
         const isDeleting = podStatus && (podStatus === 'Deleting' || podStatus.toString().toLowerCase().includes('delet'));
@@ -1702,6 +1706,26 @@ function ChallengeDetailPanel({
             }
           }
         } else {
+          const normalizedPodStatus = podStatus ? podStatus.toString().trim().toLowerCase() : '';
+          const isPendingDeploy = ['pending_deploy', 'pending', 'deploying', 'creating', 'initializing']
+            .some(status => status === normalizedPodStatus);
+
+          if (isPendingDeploy) {
+            setIsChallengeStarted(false);
+            setUrl(null);
+            setIsHealthChecking(true);
+            setIsDeploymentInProgress(true);
+            setIsStarting(false);
+            setIsPodHealthy(false);
+
+            if (!healthCheckRunningRef.current) {
+              setTimeout(() => {
+                startHealthCheckLoop();
+              }, 100);
+            }
+            return; // Skip cleanup while pending deploy
+          }
+
           // Not started - but check if we have deployment state before cleaning up
           const deploymentKey = `deployment_${challenge.id}`;
           const healthCheckKey = `healthcheck_${challenge.id}`;
@@ -1993,6 +2017,7 @@ function ChallengeDetailPanel({
           }),
         });
         const data = await response.json();
+        setPodStatus(data.pod_status ?? null);
         if (data.success == true && data.challenge_url) {
           const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
 
@@ -2084,7 +2109,7 @@ function ChallengeDetailPanel({
         }
 
         // If backend reports a terminal pod status (failed/stopped/deleting/timeout), stop and notify
-        const podStatus = data.pod_status.toString().trim();
+        const podStatus = data.pod_status ? data.pod_status.toString().trim() : '';
         const terminalStatuses = ['Failed', 'DEPLOY_FAILED', 'Stopped', 'DELETING', 'TIMEOUT', 'Not_Found'];
         if (podStatus && terminalStatuses.some(s => s.toLowerCase() === podStatus.toLowerCase())) {
           setIsHealthChecking(false);
@@ -3538,7 +3563,7 @@ function ChallengeDetailPanel({
                     <div className="flex items-center gap-2">
                       <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
                       <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                        Checking...
+                        {podStatus ? `Checking... (${podStatus})` : 'Checking...'}
                       </span>
                     </div>
                   ) : isPodHealthy ? (
@@ -3763,7 +3788,7 @@ function ChallengeDetailPanel({
                   {isHealthChecking || isDeploymentInProgress ? (
                     <button disabled={true} className={`w-full py-2 px-4 rounded font-mono font-bold text-sm transition-colors flex items-center justify-center gap-2 ${theme === 'dark' ? 'bg-yellow-600 text-white border border-yellow-500' : 'bg-yellow-500 text-white border border-yellow-400'} cursor-not-allowed`}>
                       <CircularProgress size={14} sx={{ color: '#fff' }} />
-                      <span>[-] Checking...</span>
+                      <span>{podStatus ? `[-] Checking: (${podStatus})` : '[-] Checking...'}</span>
                     </button>
                   ) : !url ? (
                     (challenge.captain_only_start && !challenge.is_captain) ? (

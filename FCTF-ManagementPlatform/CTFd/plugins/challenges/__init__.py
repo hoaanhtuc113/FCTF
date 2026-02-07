@@ -107,7 +107,7 @@ class BaseChallenge(object):
         # Handle expose_port - store in image_link JSON
         if "expose_port" in data and data["expose_port"] is not None:
             try:
-                expose_port_int = int(data["expose_port"])
+                expose_port_str = str(data["expose_port"])
                 # Remove expose_port from data so it doesn't get set as a direct attribute
                 del data["expose_port"]
                 
@@ -123,7 +123,7 @@ class BaseChallenge(object):
                     except (TypeError, ValueError, json.JSONDecodeError):
                         image_obj = {"imageLink": challenge.image_link}
                 
-                image_obj["exposedPort"] = expose_port_int
+                image_obj["exposedPort"] = expose_port_str
                 challenge.image_link = json.dumps(image_obj)
             except (TypeError, ValueError):
                 # Invalid expose_port, skip updating
