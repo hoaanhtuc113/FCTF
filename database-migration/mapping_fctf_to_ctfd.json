@@ -97,30 +97,12 @@
       }
     },
     {
-      "name": "dynamic_challenge",
-      "source": { "table": "dynamic_challenge", "pk": ["id"] },
-      "target": { "table": "dynamic_challenge", "pk": ["id"] },
-      "mode": "upsert",
-      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
-      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
-      "columns": {
-        "id": { "from": "id" },
-        "dynamic_initial": { "from": "initial" },
-        "dynamic_minimum": { "from": "minimum" },
-        "dynamic_decay": { "from": "decay" },
-        "dynamic_function": { "from": "function" }
-      }
-    },
-    {
       "name": "challenges",
       "source": { "table": "challenges", "pk": ["id"] },
       "target": { "table": "challenges", "pk": ["id"] },
       "mode": "upsert",
       "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
-      "postSQL": [
-        "UPDATE challenges c LEFT JOIN dynamic_challenge dc ON c.id = dc.id SET c.initial = dc.dynamic_initial, c.minimum = dc.dynamic_minimum, c.decay = dc.dynamic_decay, c.function = dc.dynamic_function WHERE dc.id IS NOT NULL",
-        "SET FOREIGN_KEY_CHECKS=1"
-      ],
+      "postSQL": ["SET FOREIGN_KEY_CHECKS=1"],
       "columns": {
         "id": { "from": "id" },
         "name": { "from": "name" },
@@ -143,6 +125,24 @@
         "function": { "const": null },
         "attribution": { "const": null },
         "logic": { "const": "" }
+      }
+    },
+    {
+      "name": "dynamic_challenge",
+      "source": { "table": "dynamic_challenge", "pk": ["id"] },
+      "target": { "table": "dynamic_challenge", "pk": ["id"] },
+      "mode": "upsert",
+      "preSQL":  ["SET FOREIGN_KEY_CHECKS=0"],
+      "postSQL": [
+        "UPDATE challenges c LEFT JOIN dynamic_challenge dc ON c.id = dc.id SET c.initial = dc.dynamic_initial, c.minimum = dc.dynamic_minimum, c.decay = dc.dynamic_decay, c.function = dc.dynamic_function WHERE dc.id IS NOT NULL",
+        "SET FOREIGN_KEY_CHECKS=1"
+      ],
+      "columns": {
+        "id": { "from": "id" },
+        "dynamic_initial": { "from": "initial" },
+        "dynamic_minimum": { "from": "minimum" },
+        "dynamic_decay": { "from": "decay" },
+        "dynamic_function": { "from": "function" }
       }
     },
     { 
@@ -341,20 +341,6 @@
         "ip": { "from": "ip" },
         "user_id": { "from": "user_id" },
         "date": { "from": "date" }
-      }
-    },
-    {
-      "name":"unlocks",
-      "source": { "table": "unlocks", "pk": ["id"] },
-      "target": { "table": "unlocks", "pk": ["id"] },
-      "mode": "upsert",
-      "columns": {
-        "id": { "from": "id" },
-        "user_id": { "from": "user_id" },
-        "team_id": { "from": "team_id" },
-        "target": { "from": "target" },
-        "date": { "from": "date" },
-        "type": { "from": "type" }
       }
     }
   ]

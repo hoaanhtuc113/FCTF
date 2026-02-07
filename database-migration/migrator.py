@@ -106,7 +106,8 @@ class DataMigrator:
                     source_session, 
                     target_session,
                     source_engine,
-                    target_engine
+                    target_engine,
+                    direction
                 )
                 
                 if success:
@@ -240,7 +241,7 @@ class DataMigrator:
         return {'inserted': inserted, 'updated': updated, 'unchanged': unchanged}
     
     @retry_on_connection_error(max_retries=3, delay=2)
-    def _process_task(self, task, source_session, target_session, source_engine, target_engine):
+    def _process_task(self, task, source_session, target_session, source_engine, target_engine, direction):
         """Process a single migration task"""
         try:
             task_name = task['name']
@@ -257,6 +258,10 @@ class DataMigrator:
                     target_session.commit()
                 except Exception as e:
                     print(f"  Warning: Pre-SQL execution: {e}")
+
+            if target_table_name == 'dynamic_challenge' and direction == 'fctf_to_ctfd':
+                print("  ℹ Ensuring clean dynamic_challenge table for CTFd")
+                self._rebuild_ctfd_dynamic_challenge(target_session)
             
             # Reflect source table
             source_table = Table(
@@ -373,6 +378,10 @@ class DataMigrator:
                     target_session.commit()
                 except Exception as e:
                     print(f"  Warning: Post-SQL execution: {e}")
+
+            if target_table_name == 'dynamic_challenge':
+                mapped_rows = self._map_rows_for_target(rows, columns_mapping, target_table)
+                self._ensure_dynamic_challenge_fk(target_session, target_engine, direction, mapped_rows)
             
             self.stats['inserted_rows'] += inserted
             self.stats['updated_rows'] += updated
@@ -387,6 +396,160 @@ class DataMigrator:
             print(f"  ✗ {error_msg}")
             self.stats['errors'].append(error_msg)
             return False
+
+    def _map_rows_for_target(self, rows, columns_mapping, target_table):
+        mapped_rows = []
+        for row in rows:
+            target_data = {}
+            for target_col, mapping in columns_mapping.items():
+                if target_col not in target_table.c:
+                    continue
+
+                if 'from' in mapping:
+                    source_col = mapping['from']
+                    if hasattr(row, source_col):
+                        target_data[target_col] = getattr(row, source_col)
+                elif 'const' in mapping:
+                    target_data[target_col] = mapping['const']
+
+            mapped_rows.append(target_data)
+
+        return mapped_rows
+
+    def _ensure_dynamic_challenge_fk(self, target_session, target_engine, direction, mapped_rows):
+        if direction != 'fctf_to_ctfd':
+            return
+
+        try:
+            fk_count = target_session.execute(text(
+                "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS "
+                "WHERE CONSTRAINT_SCHEMA = DATABASE() "
+                "AND TABLE_NAME = 'dynamic_challenge' "
+                "AND CONSTRAINT_NAME = 'dynamic_challenge_ibfk_1' "
+                "AND CONSTRAINT_TYPE = 'FOREIGN KEY'"
+            )).scalar()
+            target_session.commit()
+        except OperationalError as e:
+            if self._is_missing_tablespace_error(e) or self._is_table_missing_error(e):
+                print("  ⚠ dynamic_challenge missing or corrupted; rebuilding before FK")
+                self._rebuild_ctfd_dynamic_challenge(target_session)
+                fk_count = 0
+            else:
+                raise
+
+        if fk_count:
+            return
+
+        filtered_rows = self._filter_dynamic_rows_to_existing_challenges(
+            target_session,
+            mapped_rows
+        )
+
+        self._rebuild_ctfd_dynamic_challenge(target_session)
+        self._reinsert_dynamic_challenge_rows(target_session, target_engine, filtered_rows)
+
+    def _reinsert_dynamic_challenge_rows(self, target_session, target_engine, mapped_rows):
+        if not mapped_rows:
+            return
+
+        target_table = Table(
+            'dynamic_challenge',
+            self.db_config.ctfd_metadata if target_engine == self.db_config.ctfd_engine else self.db_config.fctf_metadata,
+            autoload_with=target_engine
+        )
+        legacy_map = {
+            'initial': 'dynamic_initial',
+            'minimum': 'dynamic_minimum',
+            'decay': 'dynamic_decay',
+            'function': 'dynamic_function'
+        }
+
+        normalized_rows = []
+        for row in mapped_rows:
+            updated = dict(row)
+            for legacy_col, dynamic_col in legacy_map.items():
+                if legacy_col in target_table.c and legacy_col not in updated:
+                    updated[legacy_col] = updated.get(dynamic_col)
+            normalized_rows.append(updated)
+
+        target_session.execute(insert(target_table), normalized_rows)
+        target_session.commit()
+
+    def _filter_dynamic_rows_to_existing_challenges(self, target_session, mapped_rows):
+        if not mapped_rows:
+            return []
+
+        ids = [row.get('id') for row in mapped_rows if row.get('id') is not None]
+        if not ids:
+            return []
+
+        existing_ids = set()
+        chunk_size = 1000
+        for i in range(0, len(ids), chunk_size):
+            chunk = ids[i:i + chunk_size]
+            result = target_session.execute(text(
+                "SELECT id FROM challenges WHERE id IN :ids"
+            ), {"ids": tuple(chunk)})
+            existing_ids.update(row[0] for row in result)
+
+        return [row for row in mapped_rows if row.get('id') in existing_ids]
+
+    @staticmethod
+    def _is_fk_violation_error(error):
+        message = str(error).lower()
+        if 'foreign key constraint fails' in message:
+            return True
+        orig = getattr(error, 'orig', None)
+        if orig and hasattr(orig, 'args') and orig.args:
+            return orig.args[0] == 1452
+        return False
+
+
+
+    @staticmethod
+    def _is_missing_tablespace_error(error):
+        message = str(error).lower()
+        if 'tablespace is missing' in message:
+            return True
+        orig = getattr(error, 'orig', None)
+        if orig and hasattr(orig, 'args') and orig.args:
+            return orig.args[0] == 194
+        return False
+
+    @staticmethod
+    def _is_table_missing_error(error):
+        message = str(error).lower()
+        if 'doesn\'t exist' in message or 'unknown table' in message:
+            return True
+        orig = getattr(error, 'orig', None)
+        if orig and hasattr(orig, 'args') and orig.args:
+            return orig.args[0] == 1146
+        return False
+
+    @staticmethod
+    def _rebuild_ctfd_dynamic_challenge(target_session):
+        rebuild_sql = [
+            "SET FOREIGN_KEY_CHECKS=0",
+            "DROP TABLE IF EXISTS dynamic_challenge",
+            "CREATE TABLE dynamic_challenge ("
+            "  id int(11) NOT NULL,"
+            "  initial int(11) DEFAULT NULL,"
+            "  minimum int(11) DEFAULT NULL,"
+            "  decay int(11) DEFAULT NULL,"
+            "  function varchar(32) DEFAULT NULL,"
+            "  dynamic_initial int(11) DEFAULT NULL,"
+            "  dynamic_minimum int(11) DEFAULT NULL,"
+            "  dynamic_decay int(11) DEFAULT NULL,"
+            "  dynamic_function varchar(32) DEFAULT NULL,"
+            "  PRIMARY KEY (id),"
+            "  CONSTRAINT dynamic_challenge_ibfk_1 FOREIGN KEY (id) REFERENCES challenges(id) ON DELETE CASCADE"
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            "SET FOREIGN_KEY_CHECKS=1"
+        ]
+
+        for sql in rebuild_sql:
+            target_session.execute(text(sql))
+        target_session.commit()
     
     def _print_summary(self):
         """Print migration summary"""
