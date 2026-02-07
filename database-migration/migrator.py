@@ -457,22 +457,7 @@ class DataMigrator:
             self.db_config.ctfd_metadata if target_engine == self.db_config.ctfd_engine else self.db_config.fctf_metadata,
             autoload_with=target_engine
         )
-        legacy_map = {
-            'initial': 'dynamic_initial',
-            'minimum': 'dynamic_minimum',
-            'decay': 'dynamic_decay',
-            'function': 'dynamic_function'
-        }
-
-        normalized_rows = []
-        for row in mapped_rows:
-            updated = dict(row)
-            for legacy_col, dynamic_col in legacy_map.items():
-                if legacy_col in target_table.c and legacy_col not in updated:
-                    updated[legacy_col] = updated.get(dynamic_col)
-            normalized_rows.append(updated)
-
-        target_session.execute(insert(target_table), normalized_rows)
+        target_session.execute(insert(target_table), mapped_rows)
         target_session.commit()
 
     def _filter_dynamic_rows_to_existing_challenges(self, target_session, mapped_rows):
@@ -533,10 +518,6 @@ class DataMigrator:
             "DROP TABLE IF EXISTS dynamic_challenge",
             "CREATE TABLE dynamic_challenge ("
             "  id int(11) NOT NULL,"
-            "  initial int(11) DEFAULT NULL,"
-            "  minimum int(11) DEFAULT NULL,"
-            "  decay int(11) DEFAULT NULL,"
-            "  function varchar(32) DEFAULT NULL,"
             "  dynamic_initial int(11) DEFAULT NULL,"
             "  dynamic_minimum int(11) DEFAULT NULL,"
             "  dynamic_decay int(11) DEFAULT NULL,"
