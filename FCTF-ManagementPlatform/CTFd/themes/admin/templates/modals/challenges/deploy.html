@@ -14,25 +14,16 @@
         <input type="text" class="form-control clean-form-control" name="expose_port" id="expose_port"  value="{{ expose_port }}"
            min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
     </div>
-    {% if image_link_display %}
-    <div class="form-group">
-      <label class="clean-label">
-        Image name <br>
-        <small class="form-text text-muted">Current deployed image</small>
-      </label>
-      <input type="text" class="form-control clean-form-control" value="{{ image_link_display }}" disabled readonly>
-    </div>
-    {% endif %}
     <div class="form-group deploy-resource-field">
       <label class="clean-label">
         CPU Limit (mCPU) <br>
-        <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
+          <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
       </label>
-      <input type="number" class="form-control clean-form-control" name="cpu_limit" id="cpu_limit"
+        <input type="number" class="form-control clean-form-control" name="cpu_limit" id="cpu_limit"
         min="1" max="500" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 100 }}" required>
     </div>
 
-    <div class="form-group deploy-resource-field">
+     <div class="form-group deploy-resource-field">
       <label class="clean-label">
         CPU Request (mCPU) <br>
         <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
@@ -83,7 +74,16 @@
     </ul>
     <label class="clean-label">
       {% if challenge.deploy_status == "DEPLOY_SUCCESS" %}
-        Change deploy file:
+          {% if image_link_display %}
+            <div class="form-group">
+              <label class="clean-label">
+                Image name <br>
+                <small class="form-text text-muted">Current deployed image</small>
+              </label>
+              <input type="text" class="form-control clean-form-control" value="{{ image_link_display }}" disabled readonly>
+            </div>
+          {% endif %}
+          Change deploy file:
         <small class="form-text text-muted">Upload a new deploy file</small>
       {% else %}
         Files:

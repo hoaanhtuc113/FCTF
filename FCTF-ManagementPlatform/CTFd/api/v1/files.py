@@ -104,6 +104,9 @@ class FilesList(Resource):
         if expose_port and not re.fullmatch(r"^[1-9]\d*$", expose_port) and require_deploy:
             return {"success": False, "errors": "Expose port must be a positive integer"}, 400
 
+        if expose_port and require_deploy:
+            expose_port = str(expose_port)
+
         print("require_deploy", require_deploy)
 
         # Only clear deployment info if this is from the Deploy tab (deploy_file field exists in request)
