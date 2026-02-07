@@ -15,6 +15,8 @@ public class HintService : IHintService
     private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _logger;
 
+    private const string HintUnlockType = "hints";
+
     public HintService(
         AppDbContext context,
         ScoreHelper scoreHelper,
@@ -68,12 +70,14 @@ public class HintService : IHintService
             {
                 return null;
             }
-            var prerequisites = GetPrerequisites(hint.Requirements);
+            var hasCost = (hint.Cost ?? 0) > 0;
+
             var user = await _context.Users
-                                         .Include(u => u.Team)
-                                         .FirstOrDefaultAsync(u => u.Id == userId);
-            // Nếu user null và có cost hoặc yêu cầu
-            if (user == null && (hint.Cost != null && prerequisites.Count > 0))
+                .Include(u => u.Team)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            // If unauthenticated/null user and hint has cost, keep the old behavior: locked.
+            if (user == null && hasCost)
             {
                 return new HintResponseDTO
                 {
@@ -84,17 +88,40 @@ public class HintService : IHintService
                     View = "locked"
                 };
             }
-
-            string view = "unlocked";
-
-            // Nếu có cost > 0 và user chưa unlock
-            if (hint.Cost > 0)
+            var view = "unlocked";
+            if (hasCost)
             {
                 view = "locked";
-                var unlocked = await _context.Unlocks
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.UserId == user.Id && u.Target == hint.Id);
-                if (unlocked != null) view = "unlocked";
+
+                if (user != null)
+                {
+                    Unlock? unlocked;
+                    if (_configHelper.IsTeamsMode())
+                    {
+                        unlocked = user.TeamId == null
+                            ? null
+                            : await _context.Unlocks
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(u =>
+                                    u.TeamId == user.TeamId &&
+                                    u.Target == hint.Id &&
+                                    (u.Type == HintUnlockType || u.Type == null));
+                    }
+                    else
+                    {
+                        unlocked = await _context.Unlocks
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(u =>
+                                u.UserId == user.Id &&
+                                u.Target == hint.Id &&
+                                (u.Type == HintUnlockType || u.Type == null));
+                    }
+
+                    if (unlocked != null)
+                    {
+                        view = "unlocked";
+                    }
+                }
             }
             return new HintResponseDTO
             {
@@ -169,8 +196,19 @@ public class HintService : IHintService
             if (prerequisites.Count > 0)
             {
                 // Get the IDs of all hints that the user has unlocked
-                var allUnlocks = await _context.Unlocks
-                    .Where(u => u.UserId == user.Id && u.Type == "hints")
+                IQueryable<Unlock> allUnlocksQuery = _context.Unlocks.Where(u => u.Type == HintUnlockType);
+                if (_configHelper.IsTeamsMode())
+                {
+                    if (user.TeamId == null)
+                        throw new InvalidOperationException("User team not found");
+                    allUnlocksQuery = allUnlocksQuery.Where(u => u.TeamId == user.TeamId);
+                }
+                else
+                {
+                    allUnlocksQuery = allUnlocksQuery.Where(u => u.UserId == user.Id);
+                }
+
+                var allUnlocks = await allUnlocksQuery
                     .Select(u => u.Target)
                     .ToListAsync();
                 var unlockIds = new HashSet<int>(allUnlocks.Where(t => t.HasValue).Select(t => t.Value));
@@ -219,7 +257,6 @@ public class HintService : IHintService
                 Unlock? existing;
                 if (_configHelper.IsTeamsMode())
                 {
-                    Console.WriteLine("Team mode");
                     // Team Mode: Check by TeamId
                     existing = await _context.Unlocks
                         .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.TeamId == user.TeamId);
