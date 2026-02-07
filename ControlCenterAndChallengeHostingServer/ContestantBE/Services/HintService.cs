@@ -191,53 +191,6 @@ public class HintService : IHintService
 
             if (user == null)
                 throw new InvalidOperationException("User not found");
-            // Check prerequisites
-            var prerequisites = GetPrerequisites(target.Requirements);
-            if (prerequisites.Count > 0)
-            {
-                // Get the IDs of all hints that the user has unlocked
-                IQueryable<Unlock> allUnlocksQuery = _context.Unlocks.Where(u => u.Type == HintUnlockType);
-                if (_configHelper.IsTeamsMode())
-                {
-                    if (user.TeamId == null)
-                        throw new InvalidOperationException("User team not found");
-                    allUnlocksQuery = allUnlocksQuery.Where(u => u.TeamId == user.TeamId);
-                }
-                else
-                {
-                    allUnlocksQuery = allUnlocksQuery.Where(u => u.UserId == user.Id);
-                }
-
-                var allUnlocks = await allUnlocksQuery
-                    .Select(u => u.Target)
-                    .ToListAsync();
-                var unlockIds = new HashSet<int>(allUnlocks.Where(t => t.HasValue).Select(t => t.Value));
-
-                // Get the IDs of all free hints (cost = 0 or null)
-                var freeHints = await _context.Hints
-                    .Where(h => h.Cost == null || h.Cost == 0)
-                    .Select(h => h.Id)
-                    .ToListAsync();
-                var freeIds = new HashSet<int>(freeHints);
-
-                // Add free hints to unlocked IDs
-                unlockIds.UnionWith(freeIds);
-
-                // Filter out hint IDs that don't exist
-                var allHintIds = await _context.Hints
-                    .Select(h => h.Id)
-                    .ToListAsync();
-                var allHintIdsSet = new HashSet<int>(allHintIds);
-
-                var prereqs = new HashSet<int>(prerequisites);
-                prereqs.IntersectWith(allHintIdsSet);
-
-                // Check if user has unlocked all required hints
-                if (!prereqs.IsSubsetOf(unlockIds))
-                {
-                    throw new InvalidOperationException("You must unlock other hints before accessing this hint");
-                }
-            }
 
             // Use distributed lock to prevent race condition across multiple backend replicas
             // Lock key is based on team/user to allow parallel unlocks for different teams
@@ -245,7 +198,7 @@ public class HintService : IHintService
                 ? $"hint:unlock:team:{user.TeamId}"
                 : $"hint:unlock:user:{user.Id}";
             var lockToken = Guid.NewGuid().ToString();
-            var lockExpiry = TimeSpan.FromSeconds(10); // Max time to complete unlock operation
+            var lockExpiry = TimeSpan.FromSeconds(30); // Max time to complete unlock operation
 
             bool acquired = await _redisLockHelper.AcquireLock(lockKey, lockToken, lockExpiry);
             if (!acquired)
@@ -253,6 +206,49 @@ public class HintService : IHintService
 
             try
             {
+                // Re-check prerequisites inside lock to avoid TOCTOU
+                var prerequisites = GetPrerequisites(target.Requirements);
+                if (prerequisites.Count > 0)
+                {
+                    IQueryable<Unlock> allUnlocksQuery = _context.Unlocks.Where(u => u.Type == HintUnlockType);
+                    if (_configHelper.IsTeamsMode())
+                    {
+                        if (user.TeamId == null)
+                            throw new InvalidOperationException("User team not found");
+                        allUnlocksQuery = allUnlocksQuery.Where(u => u.TeamId == user.TeamId);
+                    }
+                    else
+                    {
+                        allUnlocksQuery = allUnlocksQuery.Where(u => u.UserId == user.Id);
+                    }
+
+                    var allUnlocks = await allUnlocksQuery
+                        .Select(u => u.Target)
+                        .ToListAsync();
+                    var unlockIds = new HashSet<int>(allUnlocks.Where(t => t.HasValue).Select(t => t.Value));
+
+                    var freeHints = await _context.Hints
+                        .Where(h => h.Cost == null || h.Cost == 0)
+                        .Select(h => h.Id)
+                        .ToListAsync();
+                    var freeIds = new HashSet<int>(freeHints);
+
+                    unlockIds.UnionWith(freeIds);
+
+                    var allHintIds = await _context.Hints
+                        .Select(h => h.Id)
+                        .ToListAsync();
+                    var allHintIdsSet = new HashSet<int>(allHintIds);
+
+                    var prereqs = new HashSet<int>(prerequisites);
+                    prereqs.IntersectWith(allHintIdsSet);
+
+                    if (!prereqs.IsSubsetOf(unlockIds))
+                    {
+                        throw new InvalidOperationException("You must unlock other hints before accessing this hint");
+                    }
+                }
+
                 // Check if already unlocked based on mode (Team Mode or User Mode)
                 Unlock? existing;
                 if (_configHelper.IsTeamsMode())
@@ -272,7 +268,10 @@ public class HintService : IHintService
                     throw new InvalidOperationException("Already unlocked");
 
                 // Check score inside lock to prevent TOCTOU race
-                var userCheck = await _context.Users.Include(u => u.Team).FirstOrDefaultAsync(u => u.Id == user.Id);
+                var userCheck = await _context.Users
+                    .AsNoTracking()
+                    .Include(u => u.Team)
+                    .FirstOrDefaultAsync(u => u.Id == user.Id);
                 if (userCheck?.Team == null)
                     throw new InvalidOperationException("User team not found");
 
@@ -290,7 +289,6 @@ public class HintService : IHintService
                     Date = DateTime.UtcNow
                 };
                 _context.Unlocks.Add(unlock);
-                await _context.SaveChangesAsync();
 
                 var award = new Award
                 {
@@ -303,7 +301,7 @@ public class HintService : IHintService
                     Date = DateTime.UtcNow
                 };
                 _context.Awards.Add(award);
-
+                
                 await _context.SaveChangesAsync();
 
                 return new UnlockResponseDTO
