@@ -88,6 +88,7 @@ def _assert_schema(entity: str) -> None:
     _require_columns("challenges", ["id", "value", "category", "name"])
     _require_columns("unlocks", ["team_id", "user_id", "target", "type"])
     _require_columns("hints", ["id", "challenge_id"])
+    _require_columns("awards", ["id", "team_id", "user_id", "value", "date"])
 
     if entity == "team":
         _require_columns("teams", ["id", "name"])
@@ -267,6 +268,18 @@ solves_filtered AS (
     FROM solves_enriched sf
     {base_where}
 ),
+team_awards AS (
+    SELECT team_id, COALESCE(SUM(value), 0) AS award_value
+    FROM awards
+    WHERE team_id IS NOT NULL AND value != 0
+    GROUP BY team_id
+),
+user_awards AS (
+    SELECT user_id, COALESCE(SUM(value), 0) AS award_value
+    FROM awards
+    WHERE user_id IS NOT NULL AND value != 0
+    GROUP BY user_id
+),
 wrong_team AS (
     SELECT team_id, COUNT(*) AS wrong_count
     FROM submissions
@@ -311,7 +324,7 @@ team_agg AS (
         t.id AS entity_id,
         t.name AS entity_name,
         COUNT(sf.solve_id) AS solved_count,
-        COALESCE(SUM(sf.challenge_value), 0) AS total_score,
+        COALESCE(SUM(sf.challenge_value), 0) + COALESCE(ta.award_value, 0) AS total_score,
         MIN(sf.solve_time) AS fastest_solve,
         AVG(sf.solve_time) AS avg_solve_time,
         COALESCE(SUM(CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END), 0) AS first_blood_count,
@@ -326,7 +339,8 @@ team_agg AS (
     LEFT JOIN solves_filtered sf ON sf.team_id = t.id
     LEFT JOIN wrong_team wt ON wt.team_id = t.id
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
-    GROUP BY t.id, t.name, wt.wrong_count
+    LEFT JOIN team_awards ta ON ta.team_id = t.id
+    GROUP BY t.id, t.name, wt.wrong_count, ta.award_value
 ),
 ranked AS (
     SELECT
@@ -359,7 +373,7 @@ user_agg AS (
         u.id AS entity_id,
         u.name AS entity_name,
         COUNT(sf.solve_id) AS solved_count,
-        COALESCE(SUM(sf.challenge_value), 0) AS total_score,
+        COALESCE(SUM(sf.challenge_value), 0) + COALESCE(ua.award_value, 0) AS total_score,
         MIN(sf.solve_time) AS fastest_solve,
         AVG(sf.solve_time) AS avg_solve_time,
         COALESCE(SUM(CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END), 0) AS first_blood_count,
@@ -374,7 +388,8 @@ user_agg AS (
     LEFT JOIN solves_filtered sf ON sf.user_id = u.id
     LEFT JOIN wrong_user wu ON wu.user_id = u.id
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
-    GROUP BY u.id, u.name, wu.wrong_count
+    LEFT JOIN user_awards ua ON ua.user_id = u.id
+    GROUP BY u.id, u.name, wu.wrong_count, ua.award_value
 ),
 ranked AS (
     SELECT

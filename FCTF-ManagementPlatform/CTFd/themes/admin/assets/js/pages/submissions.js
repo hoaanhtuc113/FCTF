@@ -2,7 +2,7 @@ import "./main";
 import CTFd from "../compat/CTFd";
 import $ from "jquery";
 import { htmlEntities } from "@ctfdio/ctfd-js/utils/html";
-import { ezQuery } from "../compat/ezq";
+import { ezAlert, ezQuery } from "../compat/ezq";
 import "../compat/format";
 
 function deleteCorrectSubmission(_event) {
@@ -126,6 +126,57 @@ function copyFlag(event) {
   }, 1500);
 }
 
+function resyncDynamicChallenges(_event) {
+  ezQuery({
+    title: "Resync Dynamic Challenges",
+    body: "Are you sure you want to recalculate all dynamic challenge values? This will update the point values based on current solve counts.",
+    success: function () {
+      // Show loading state
+      const $button = $("#resync-dynamic-button");
+      const originalHtml = $button.html();
+      $button.prop("disabled", true);
+      $button.html('<i class="fas fa-spinner fa-spin"></i>');
+
+      CTFd.fetch("/admin/submissions/resync-dynamic", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            ezAlert({
+              title: "Success",
+              body: data.message,
+              button: "OK",
+            });
+          } else {
+            ezAlert({
+              title: "Error",
+              body: data.message || "Failed to resync dynamic challenges",
+              button: "OK",
+            });
+          }
+        })
+        .catch((error) => {
+          ezAlert({
+            title: "Error",
+            body: "An error occurred while resyncing: " + error.message,
+            button: "OK",
+          });
+        })
+        .finally(() => {
+          // Restore button state
+          $button.prop("disabled", false);
+          $button.html(originalHtml);
+        });
+    },
+  });
+}
+
 $(() => {
   $("#show-full-flags-button").click(showFlagsToggle);
   $("#show-short-flags-button").click(showFlagsToggle);
@@ -134,4 +185,5 @@ $(() => {
   $("#correct-flags-button").click(correctSubmissions);
   $(".delete-correct-submission").click(deleteCorrectSubmission);
   $("#submission-delete-button").click(deleteSelectedSubmissions);
+  $("#resync-dynamic-button").click(resyncDynamicChallenges);
 });
