@@ -99,10 +99,42 @@ namespace ResourceShared.Utils
         /// </summary>
         public static async Task<int> RecalculateDynamicChallengeValue(
             AppDbContext context, 
-            int challengeId)
+            int challengeId,
+            RedisLockHelper? redisLockHelper = null)
         {
             try
             {
+                string lockKey = $"challenge:dynamic:recalc:{challengeId}";
+                string lockToken = Guid.NewGuid().ToString();
+                bool lockAcquired = redisLockHelper == null;
+                if (redisLockHelper != null)
+                {
+                    var lockWaitTimeout = TimeSpan.FromSeconds(5);
+                    var lockWaitStart = DateTime.UtcNow;
+                    bool timeoutLogged = false;
+                    while (!lockAcquired)
+                    {
+                        lockAcquired = await redisLockHelper.AcquireLock(
+                            lockKey,
+                            lockToken,
+                            TimeSpan.FromSeconds(10));
+                        if (!lockAcquired)
+                        {
+                            if (DateTime.UtcNow - lockWaitStart > lockWaitTimeout)
+                            {
+                                if (!timeoutLogged)
+                                {
+                                    await Console.Error.WriteLineAsync($"[DynamicChallengeHelper] Lock wait exceeded for challenge {challengeId}, continuing to wait.");
+                                    timeoutLogged = true;
+                                }
+                            }
+                            await Task.Delay(100);
+                        }
+                    }
+                }
+
+                try
+                {
                 var challenge = await context.Challenges
                     .Include(c => c.DynamicChallenge)
                     .FirstOrDefaultAsync(c => c.Id == challengeId);
@@ -137,6 +169,14 @@ namespace ResourceShared.Utils
                 challenge.Value = newValue;
                 await context.SaveChangesAsync();
                 return newValue;
+                }
+                finally
+                {
+                    if (redisLockHelper != null && lockAcquired)
+                    {
+                        await redisLockHelper.ReleaseLock(lockKey, lockToken);
+                    }
+                }
             }
             catch (Exception ex)
             {

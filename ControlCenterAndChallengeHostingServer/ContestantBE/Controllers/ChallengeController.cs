@@ -27,6 +27,7 @@ public class ChallengeController : ControllerBase
     private readonly UserHelper _userHelper;
     private readonly IChallengeServices _challengeServices;
     private readonly RedisHelper _redisHelper;
+    private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
 
     public ChallengeController(
@@ -36,6 +37,7 @@ public class ChallengeController : ControllerBase
         UserHelper userHelper,
         IChallengeServices challengeServices,
         RedisHelper redisHelper,
+        RedisLockHelper redisLockHelper,
         AppLogger userBehavior)
     {
         _context = context;
@@ -44,7 +46,16 @@ public class ChallengeController : ControllerBase
         _userHelper = userHelper;
         _challengeServices = challengeServices;
         _redisHelper = redisHelper;
+        _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehavior;
+    }
+
+    private static bool IsDuplicateKey(DbUpdateException ex)
+    {
+        var message = ex.InnerException?.Message ?? ex.Message;
+        return message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("unique", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("constraint", StringComparison.OrdinalIgnoreCase);
     }
 
     // Helper method: Increment and check KPM using Redis atomic INCR
@@ -301,14 +312,17 @@ public class ChallengeController : ControllerBase
         if (cooldownSeconds > 0)
         {
             var cooldownKey = $"submission_cooldown_{challenge.Id}_{user?.TeamId}";
+            var nowSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var cooldownCheck = await _redisHelper.CheckAndUpdateCooldownAsync(
+                cooldownKey,
+                nowSeconds,
+                cooldownSeconds,
+                ttlSeconds: 600
+            );
 
-            var lastSubmissionTime = await _redisHelper.GetFromCacheAsync<long?>(cooldownKey);
-
-            if (lastSubmissionTime.HasValue && lastSubmissionTime.Value > 0)
+            if (cooldownCheck >= 0)
             {
-                var currentTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                var timeElapsed = currentTime - lastSubmissionTime.Value;
-
+                var timeElapsed = nowSeconds - cooldownCheck;
                 if (timeElapsed < cooldownSeconds)
                 {
                     var remainingCooldown = (int)(cooldownSeconds - timeElapsed);
@@ -324,11 +338,7 @@ public class ChallengeController : ControllerBase
                         }
                     });
                 }
-
             }
-            // First submission for this challenge+team - set cooldown timestamp
-            var newTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            await _redisHelper.SetCacheAsync(cooldownKey, newTimestamp, TimeSpan.FromMinutes(10));
         }
 
         if (challenge.State == "hidden") return NotFound();
@@ -357,7 +367,7 @@ public class ChallengeController : ControllerBase
 
                     // Convert prereq ids to nullable ints to match solve_ids (IEnumerable<int?>)
                     var prereqs = requirementsObj.prerequisites
-                                        .Where(id => all_challenge_ids.Contains(id))
+                                        .Where(all_challenge_ids.Contains)
                                         .Select(id => (int?)id)
                                         .ToHashSet();
 
@@ -461,6 +471,18 @@ public class ChallengeController : ControllerBase
                 _context.Submissions.Add(submission);
                 await _context.SaveChangesAsync();
             }
+            catch (DbUpdateException ex) when (IsDuplicateKey(ex))
+            {
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        status = "already_solved",
+                        message = "You or your teammate already solved this"
+                    }
+                });
+            }
             catch (Exception ex)
             {
                 await Console.Error.WriteLineAsync($"[Error] Submission save failed for challenge {challenge.Id}, team {user.TeamId}: {ex.Message}");
@@ -473,7 +495,10 @@ public class ChallengeController : ControllerBase
             // Handle dynamic challenge value calculation
             if (challenge.Type == "dynamic")
             {
-                await DynamicChallengeHelper.RecalculateDynamicChallengeValue(_context, challenge.Id);
+                _ = await DynamicChallengeHelper.RecalculateDynamicChallengeValue(
+                    _context,
+                    challenge.Id,
+                    _redisLockHelper);
             }
 
             // Auto stop challenge if require_deploy and cache exists
@@ -481,7 +506,7 @@ public class ChallengeController : ControllerBase
             {
                 try
                 {
-                    await _challengeServices.ForceStopChallenge(challenge.Id, user);
+                    _ = await _challengeServices.ForceStopChallenge(challenge.Id, user);
                 }
                 catch (Exception ex)
                 {
@@ -502,7 +527,7 @@ public class ChallengeController : ControllerBase
         }
 
         // Handle incorrect attempt with rate limit + max attempts validation
-        var kpm_limit = _configHelper.GetConfig<int>("incorrect_submissions_per_min", 10);
+        var kpm_limit = _configHelper.GetConfig("incorrect_submissions_per_min", 10);
 
         // Phase 1: Check KPM with Redis (lightweight, no DB query)
         var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, kpm_limit);
