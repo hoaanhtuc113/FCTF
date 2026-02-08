@@ -1,7 +1,7 @@
-from flask import render_template, request, url_for
+from flask import render_template, request, url_for, jsonify
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Submissions
+from CTFd.models import Challenges, Submissions, db
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.modes import get_model
@@ -65,3 +65,56 @@ def submissions_listing(submission_type):
         q=q,
         field=field,
     )
+
+
+@admin.route("/admin/submissions/resync-dynamic", methods=["POST"])
+@admins_only
+def resync_dynamic_challenges():
+    """
+    Recalculate values for all dynamic challenges.
+    This endpoint triggers DynamicValueChallenge.calculate_value() for each dynamic challenge.
+    """
+    try:
+        # Import here to avoid circular import issues
+        from CTFd.plugins.dynamic_challenges import DynamicChallenge, DynamicValueChallenge
+        from CTFd.cache import clear_challenges, clear_standings
+        
+        # Get all dynamic challenges
+        dynamic_challenges = DynamicChallenge.query.all()
+        
+        if not dynamic_challenges:
+            return jsonify({
+                "success": True,
+                "message": "No dynamic challenges found to resync",
+                "count": 0
+            })
+        
+        # Recalculate value for each dynamic challenge
+        resync_count = 0
+        for challenge in dynamic_challenges:
+            try:
+                DynamicValueChallenge.calculate_value(challenge)
+                resync_count += 1
+            except Exception as e:
+                # Log error but continue with other challenges
+                print(f"Error resyncing challenge {challenge.id}: {str(e)}")
+                continue
+        
+        db.session.commit()
+        
+        # Clear caches to reflect updated challenge values
+        clear_challenges()
+        clear_standings()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully resynced {resync_count} dynamic challenge(s)",
+            "count": resync_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": f"Error resyncing dynamic challenges: {str(e)}"
+        }), 500

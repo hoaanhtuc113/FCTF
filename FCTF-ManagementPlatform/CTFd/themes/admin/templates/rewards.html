@@ -17,24 +17,6 @@
         <div class="card-header bg-primary text-white py-2">
           <strong><i class="fas fa-th-large"></i> Chọn Template</strong>
         </div>
-        <div class="card-body p-3">
-          <div class="mb-2">
-            <label class="mb-1 small"><strong>Lọc theo Category:</strong></label>
-            <div class="btn-group btn-group-sm btn-group-toggle" data-toggle="buttons" id="category-filter">
-              <label class="btn btn-outline-secondary active">
-                <input type="radio" name="cat-filter" value="" checked> All
-              </label>
-              <label class="btn btn-outline-secondary">
-                <input type="radio" name="cat-filter" value="ranking"> Ranking
-              </label>
-              <label class="btn btn-outline-secondary">
-                <input type="radio" name="cat-filter" value="achievement"> Achievement
-              </label>
-              <label class="btn btn-outline-secondary">
-                <input type="radio" name="cat-filter" value="special"> Special
-              </label>
-            </div>
-          </div>
 
           <div class="row" id="template-cards">
             <div class="col-12 text-center py-3">
@@ -397,12 +379,6 @@
   }
 
   // Event listeners
-  document.getElementById("category-filter").addEventListener("change", (e) => {
-    if (e.target.type === "radio") {
-      renderTemplateCards(e.target.value);
-    }
-  });
-
   document.getElementById("preview-btn").addEventListener("click", previewResults);
   document.getElementById("reset-btn").addEventListener("click", resetForm);
   document.getElementById("export-csv-btn").addEventListener("click", exportToCSV);
