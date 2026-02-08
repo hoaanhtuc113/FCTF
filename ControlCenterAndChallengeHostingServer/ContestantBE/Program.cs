@@ -120,6 +120,13 @@ builder.Services.AddCors(options =>
 builder.Services.AddOutputCache();
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.RoutePrefix = "swagger";
+});
+
 app.UseRouting();
 app.UseCors("AllowAll");
 app.UseIpRateLimiting();

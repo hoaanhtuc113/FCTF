@@ -44,7 +44,7 @@ namespace ResourceShared
                 return multiplexer;
             });
 
-            services.AddScoped<RedisHelper>();
+            services.AddSingleton<RedisHelper>();
             services.AddSingleton<RedisLockHelper>();
             services.AddSingleton<IKubernetes>(_ =>
             {
