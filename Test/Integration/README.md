@@ -204,7 +204,7 @@ PowerShell:
   $env:CHALLENGE_ID="12"
   $env:CHALLENGE_FLAG="flag{test}"
   $env:CONCURRENCY="10"
-  k6 run k6-tests/concurrent_correct_submissions.js
+  k6 run Test/Integration/concurrent_correct_submissions.js  # or: cd Test/Integration && k6 run concurrent_correct_submissions.js
 
 ## Test execution order
 Recommended order for fresh challenge (avoids state conflicts):
@@ -249,7 +249,7 @@ PowerShell (batch, run all even on failure):
 
 1. **Run validation script first**:
    ```powershell
-   .\k6-tests\validate-test-data.ps1
+   .\Test\Integration\validate-test-data.ps1
    ```
    This checks:
    - Token validity
@@ -266,12 +266,12 @@ PowerShell (batch, run all even on failure):
 
 3. **Solutions**:
    - Create fresh challenge with max_attempts ≥100, time_limit ≥5s, type='dynamic'
-   - Generate new tokens from unused users: `.\k6-tests\generate-tokens.ps1 -Start 301 -End 400 -Password 1`
+   - Generate new tokens from unused users: `.\Test\Integration\generate-tokens.ps1 -Start 301 -End 400 -Password 1`
    - Reset challenge data (if you have admin access)
 
 ### Documentation
 
-- [COMPLETE_FIX_SUMMARY.md](k6-tests/COMPLETE_FIX_SUMMARY.md) - All fixes and validations
-- [TROUBLESHOOTING.md](k6-tests/TROUBLESHOOTING.md) - Detailed debugging guide
-- [SETUP.md](k6-tests/SETUP.md) - Setup instructions for fresh tests
-- [FIX_SUMMARY.md](k6-tests/FIX_SUMMARY.md) - Technical bug fix details
+- [COMPLETE_FIX_SUMMARY.md](COMPLETE_FIX_SUMMARY.md) - All fixes and validations
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Detailed debugging guide
+- [SETUP.md](SETUP.md) - Setup instructions for fresh tests
+- [FIX_SUMMARY.md](FIX_SUMMARY.md) - Technical bug fix details
