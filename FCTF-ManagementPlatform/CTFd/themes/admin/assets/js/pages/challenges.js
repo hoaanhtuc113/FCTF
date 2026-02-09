@@ -81,9 +81,7 @@ function bulkEditChallenges(_event) {
 }
 
 function previewChallenge(challengeId) {
-  const errorElement = document.getElementById(`preview-error-${challengeId}`);
   const previewButton = document.getElementById(`preview-button-${challengeId}`);
-  const successElement = document.getElementById(`preview-success-${challengeId}`);
 
   // const result = confirm("The domain will be immediately returned to you, but it won't be accessible until the environment finishes starting up.\nWould you like to proceed?");
   // if (!result) {
@@ -91,10 +89,6 @@ function previewChallenge(challengeId) {
   // }
 
   // Prepare UI
-  errorElement.innerText = 'Waiting for response...';
-  errorElement.style.display = 'block';
-  successElement.innerText = '';
-  successElement.style.display = 'none';
   previewButton.disabled = true;
 
   CTFd.fetch('/api/challenge/start', {
@@ -107,7 +101,6 @@ function previewChallenge(challengeId) {
 
     if (!data || !data.success) {
       const errorMsg = (data && data.message) || 'Failed to Preview challenge.';
-      errorElement.innerText = errorMsg;
       
       ezAlert({
         title: `Preview Challenge ${challengeId} Error`,
@@ -126,7 +119,6 @@ function previewChallenge(challengeId) {
           : data.Challenge_url;
         challengeUrl = (cacheData && (cacheData.challenge_url || cacheData.Challenge_url)) || null;
       } catch (e) {
-        errorElement.innerText = 'Error parsing cached data.';
         ezAlert({
           title: `Preview Challenge ${challengeId} Error`,
           body: "Error parsing cached data.",
@@ -136,10 +128,7 @@ function previewChallenge(challengeId) {
       }
     }
 
-    errorElement.style.display = 'none';
     if (challengeUrl) {
-      successElement.innerText = challengeUrl;
-      successElement.style.display = 'block';
       
       const body = `<div>
         <p><strong>${data.message}</strong></p>
@@ -154,14 +143,14 @@ function previewChallenge(challengeId) {
         button: "OK"
       });
     } else {
-      successElement.innerText = data.message;
-      successElement.style.display = 'block';
-      
-      ezAlert({
+      const waitingDialog = ezAlert({
         title: `Preview Challenge ${challengeId}`,
         body: data.message,
         button: "OK"
       });
+      
+      // Store dialog reference for closing later
+      window[`previewDialog_${challengeId}`] = waitingDialog;
     }
 
     // Start checking status with the original challengeId parameter
@@ -169,7 +158,6 @@ function previewChallenge(challengeId) {
   })
   .catch(error => {
     console.error(error);
-    errorElement.innerText = 'Connection failed.';
     
     ezAlert({
       title: "Connection Error",
@@ -183,11 +171,22 @@ function previewChallenge(challengeId) {
 }
 
 function LoopCheckingStatus(challengeId) {
+  // Initialize the flag at the start
+  if (!window[`successShown_${challengeId}`]) {
+    window[`successShown_${challengeId}`] = false;
+  }
+  
   var timesChecked = 0;
   var maxChecks = 40; 
 
   const intervalId = setInterval(() => {
-    CheckingStatus(challengeId).then(isReady => {
+    // Stop if already shown success
+    if (window[`successShown_${challengeId}`]) {
+      clearInterval(intervalId);
+      return;
+    }
+    
+    CheckingStatus(challengeId, intervalId).then(isReady => {
       if (isReady) {
         clearInterval(intervalId);
       }
@@ -204,7 +203,7 @@ function LoopCheckingStatus(challengeId) {
   }, 2000);
 }
 
-function CheckingStatus(challengeId) {
+function CheckingStatus(challengeId, intervalId) {
   return CTFd.fetch('/api/challenge/status-check/' + challengeId, { method: 'GET' })
     .then(response => response.json())
     .then(data => {
@@ -215,12 +214,33 @@ function CheckingStatus(challengeId) {
         return false;
       }
 
-      ezToast({
-        title: `Preview Challenge ${challengeId}`,
-        body: data.message,
-      });
+      // Only show toast if success alert hasn't been shown yet
+      if (!window[`successShown_${challengeId}`]) {
+        ezToast({
+          title: `Preview Challenge ${challengeId}`,
+          body: data.message,
+        });
+      }
 
-      if (data.challenge_url) {
+      if (data.challenge_url && !window[`successShown_${challengeId}`]) {
+        // Set flag FIRST to prevent any race conditions
+        window[`successShown_${challengeId}`] = true;
+        
+        // Close the waiting dialog if it exists
+        const waitingDialog = window[`previewDialog_${challengeId}`];
+        if (waitingDialog && typeof waitingDialog.modal === 'function') {
+          try {
+            waitingDialog.modal('hide');
+          } catch (e) {
+            console.log('Could not close waiting dialog:', e);
+          }
+        }
+        
+        // Clear interval immediately
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+        
         const body = `<div>
                       <p><strong>${data.message}</strong></p>
                       <div style="overflow:auto; max-width:100%; word-break:break-all;">
@@ -233,9 +253,11 @@ function CheckingStatus(challengeId) {
           body: body,
           button: "OK"
         });
+        
+        return true;
       }
 
-      return true;
+      return data.challenge_url ? true : false;
     })
     .catch(error => {
       console.error(error);
