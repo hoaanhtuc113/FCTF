@@ -138,10 +138,3 @@ dist
 ctf-directory/*
 
 FCTF-ManagementPlatform/data/*
-
-# Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
