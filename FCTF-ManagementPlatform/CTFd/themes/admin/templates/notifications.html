@@ -245,8 +245,8 @@
 				<div class="notifications-list-section">
 					<h3>Notification History</h3>
 					<div id="notifications-list">
-						{% if notifications %}
-							{% for notification in notifications %}
+						{% if notifications.items %}
+							{% for notification in notifications.items %}
 								<div class="card notification-card bg-light">
 									<button type="button" data-notif-id="{{ notification.id }}" class="delete-notification" aria-label="Close">
 										<span aria-hidden="true">&times;</span>
@@ -267,6 +267,51 @@
 							</div>
 						{% endif %}
 					</div>
+					
+					{% if notifications.pages > 1 %}
+					<div class="row mt-3">
+						<div class="col-md-12">
+							<nav aria-label="Notifications pagination">
+								<ul class="pagination mb-0 justify-content-center">
+									<li class="page-item {% if notifications.page == 1 %}disabled{% endif %}">
+										<a class="page-link" href="{{ prev_page if notifications.page > 1 else '#' }}">&laquo;</a>
+									</li>
+
+									{% set start_page = [1, notifications.page - 2]|max %}
+									{% set end_page = [notifications.pages, notifications.page + 2]|min %}
+
+									{% if start_page > 1 %}
+										<li class="page-item">
+											<a class="page-link" href="{{ url_for('admin.notifications', page=1, per_page=per_page) }}">1</a>
+										</li>
+										{% if start_page > 2 %}
+										<li class="page-item disabled"><span class="page-link">...</span></li>
+										{% endif %}
+									{% endif %}
+
+									{% for page_num in range(start_page, end_page + 1) %}
+									<li class="page-item {% if page_num == notifications.page %}active{% endif %}">
+										<a class="page-link" href="{{ url_for('admin.notifications', page=page_num, per_page=per_page) }}">{{ page_num }}</a>
+									</li>
+									{% endfor %}
+
+									{% if end_page < notifications.pages %}
+										{% if end_page < notifications.pages - 1 %}
+										<li class="page-item disabled"><span class="page-link">...</span></li>
+										{% endif %}
+										<li class="page-item">
+											<a class="page-link" href="{{ url_for('admin.notifications', page=notifications.pages, per_page=per_page) }}">{{ notifications.pages }}</a>
+										</li>
+									{% endif %}
+
+									<li class="page-item {% if notifications.page == notifications.pages %}disabled{% endif %}">
+										<a class="page-link" href="{{ next_page if notifications.page < notifications.pages else '#' }}">&raquo;</a>
+									</li>
+								</ul>
+							</nav>
+						</div>
+					</div>
+					{% endif %}
 				</div>
 			</div>
 			
