@@ -21,7 +21,7 @@
 		background: #ffffff;
 		padding: 1.25rem;
 		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 		border: 1px solid #e8e8e8;
 		margin-bottom: 1.5rem;
 	}
@@ -30,7 +30,7 @@
 		background: #ffffff;
 		padding: 1.25rem;
 		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 		border: 1px solid #e8e8e8;
 	}
 
@@ -73,17 +73,29 @@
 				<div class="row">
 					<div class="col-md-4 mb-2">
 						<label for="user" class="mb-1">User (id or name)</label>
-						<input class="form-control" id="user" name="user" value="{{ user_filter }}" placeholder="e.g. 12 or alice" />
+						<input class="form-control" id="user" name="user" value="{{ user_filter }}"
+							placeholder="e.g. 12 or alice" />
 					</div>
 					<div class="col-md-4 mb-2">
 						<label for="team" class="mb-1">Team (id or name)</label>
-						<input class="form-control" id="team" name="team" value="{{ team_filter }}" placeholder="e.g. 3 or Team A" />
+						<input class="form-control" id="team" name="team" value="{{ team_filter }}"
+							placeholder="e.g. 3 or Team A" />
+					</div>
+					<div class="col-md-2 mb-2">
+						<label for="action_type" class="mb-1">Type</label>
+						<select class="form-control" id="action_type" name="action_type">
+							<option value="" {% if not action_type_filter %}selected{% endif %}>All</option>
+							{% for k, v in action_type_labels.items() %}
+							<option value="{{ k }}" {% if action_type_filter==(k|string) %}selected{% endif %}>{{ k }} -
+								{{ v }}</option>
+							{% endfor %}
+						</select>
 					</div>
 					<div class="col-md-2 mb-2">
 						<label for="per_page" class="mb-1">Per page</label>
 						<select class="form-control" id="per_page" name="per_page">
 							{% for n in [25, 50, 100, 200] %}
-							<option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+							<option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }}</option>
 							{% endfor %}
 						</select>
 					</div>
@@ -97,7 +109,10 @@
 						Showing page {{ logs.page }} of {{ logs.pages }} ({{ logs.total }} total logs)
 					</div>
 					<div>
-						<a class="btn btn-outline-secondary" href="{{ url_for('admin.action_logs_export_csv', user=user_filter, team=team_filter) }}">Export CSV</a>
+						<!-- <a class="btn btn-outline-secondary" href="{{ url_for('admin.action_logs_export_csv', user=user_filter, team=team_filter, action_type=action_type_filter) }}">Export CSV</a> -->
+						<a class="btn btn-outline-secondary"
+							href="{{ url_for('admin.action_logs_export_xlsx', user=user_filter, team=team_filter, action_type=action_type_filter) }}">Export
+							XLSX</a>
 					</div>
 				</div>
 			</form>
@@ -121,21 +136,22 @@
 						<td class="mono">{{ row.ActionLogs.actionDate }}</td>
 						<td>
 							{% if row.user_id %}
-								<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name }}</a>
-								<div class="text-muted small">#{{ row.user_id }}</div>
+							<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name }}</a>
+							<div class="text-muted small">#{{ row.user_id }}</div>
 							{% else %}
-								-
+							-
 							{% endif %}
 						</td>
 						<td>
 							{% if row.team_id %}
-								<a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">{{ row.team_name }}</a>
-								<div class="text-muted small">#{{ row.team_id }}</div>
+							<a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">{{ row.team_name }}</a>
+							<div class="text-muted small">#{{ row.team_id }}</div>
 							{% else %}
-								-
+							-
 							{% endif %}
 						</td>
-						<td class="mono">{{ row.ActionLogs.actionType }}</td>
+						<td class="mono">{{ row.ActionLogs.actionType }} - {{
+							action_type_labels.get(row.ActionLogs.actionType, 'UNKNOWN') }}</td>
 						<td class="mono">{{ row.ActionLogs.topicName or '' }}</td>
 						<td class="mono">{{ row.ActionLogs.actionDetail }}</td>
 					</tr>
@@ -161,32 +177,37 @@
 							{% set end_page = [logs.pages, logs.page + 2]|min %}
 
 							{% if start_page > 1 %}
-								<li class="page-item">
-									<a class="page-link" href="{{ url_for('admin.action_logs_listing', page=1, user=user_filter, team=team_filter, per_page=per_page) }}">1</a>
-								</li>
-								{% if start_page > 2 %}
-								<li class="page-item disabled"><span class="page-link">...</span></li>
-								{% endif %}
+							<li class="page-item">
+								<a class="page-link"
+									href="{{ url_for('admin.action_logs_listing', page=1, user=user_filter, team=team_filter, action_type=action_type_filter, per_page=per_page) }}">1</a>
+							</li>
+							{% if start_page > 2 %}
+							<li class="page-item disabled"><span class="page-link">...</span></li>
+							{% endif %}
 							{% endif %}
 
 							{% for page_num in range(start_page, end_page + 1) %}
 							<li class="page-item {% if page_num == logs.page %}active{% endif %}">
-								<a class="page-link" href="{{ url_for('admin.action_logs_listing', page=page_num, user=user_filter, team=team_filter, per_page=per_page) }}">{{ page_num }}</a>
+								<a class="page-link"
+									href="{{ url_for('admin.action_logs_listing', page=page_num, user=user_filter, team=team_filter, action_type=action_type_filter, per_page=per_page) }}">{{
+									page_num }}</a>
 							</li>
 							{% endfor %}
 
-							{% if end_page < logs.pages %}
-								{% if end_page < logs.pages - 1 %}
-								<li class="page-item disabled"><span class="page-link">...</span></li>
+							{% if end_page < logs.pages %} {% if end_page < logs.pages - 1 %} <li
+								class="page-item disabled"><span class="page-link">...</span></li>
 								{% endif %}
 								<li class="page-item">
-									<a class="page-link" href="{{ url_for('admin.action_logs_listing', page=logs.pages, user=user_filter, team=team_filter, per_page=per_page) }}">{{ logs.pages }}</a>
+									<a class="page-link"
+										href="{{ url_for('admin.action_logs_listing', page=logs.pages, user=user_filter, team=team_filter, action_type=action_type_filter, per_page=per_page) }}">{{
+										logs.pages }}</a>
 								</li>
-							{% endif %}
+								{% endif %}
 
-							<li class="page-item {% if logs.page == logs.pages %}disabled{% endif %}">
-								<a class="page-link" href="{{ next_page if logs.page < logs.pages else '#' }}">&raquo;</a>
-							</li>
+								<li class="page-item {% if logs.page == logs.pages %}disabled{% endif %}">
+									<a class="page-link"
+										href="{{ next_page if logs.page < logs.pages else '#' }}">&raquo;</a>
+								</li>
 						</ul>
 					</nav>
 				</div>
