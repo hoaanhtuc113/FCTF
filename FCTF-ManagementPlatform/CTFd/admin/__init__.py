@@ -168,14 +168,27 @@ def import_csv():
             csvdata = raw.decode("latin-1")
     csvfile = StringIO(csvdata)
     reader = csv.DictReader(csvfile)
+
+    def normalize_row(row):
+        # Allow templates to use Titlecase headers (e.g. Name/Email/Password)
+        # while schemas expect lowercase (name/email/password)
+        return {
+            (k.strip().lower() if isinstance(k, str) else k): v
+            for k, v in (row or {}).items()
+        }
+
+    normalized_reader = (normalize_row(row) for row in reader)
     if csv_type == "users":
-        success = load_users_csv(reader)
+        success = load_users_csv(normalized_reader)
     elif csv_type == "users_and_teams":
-        success = load_users_and_teams_csv(reader)
+        # load_users_and_teams_csv expects a file-like object (or DictReader).
+        # Rewind to ensure it reads the header row.
+        csvfile.seek(0)
+        success = load_users_and_teams_csv(csvfile)
     elif csv_type == "teams":
-        success = load_teams_csv(reader)
+        success = load_teams_csv(normalized_reader)
     elif csv_type == "challenges":
-        success = load_challenges_csv(reader)
+        success = load_challenges_csv(normalized_reader)
     else:
         # Handle other CSV types
 
