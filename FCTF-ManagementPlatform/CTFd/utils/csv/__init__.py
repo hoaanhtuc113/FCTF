@@ -444,30 +444,38 @@ def load_challenges_csv(dict_reader):
     return True
 
 
-def load_users_and_teams_csv(csvfile):
-    """Load users and teams from a CSV file and handle creation or retrieval."""
+def load_users_and_teams_csv(csvfile_or_reader):
+    """Load users and teams from a CSV file (or DictReader) and handle creation or retrieval."""
     team_schema = TeamSchema()
     user_schema = UserSchema()
-    reader = csv.DictReader(csvfile)
+    reader = (
+        csvfile_or_reader
+        if isinstance(csvfile_or_reader, csv.DictReader)
+        else csv.DictReader(csvfile_or_reader)
+    )
     created_users = []
     errors = []
     users = Users.query.all()
     for i, row in enumerate(reader, start=1):
+        row = {
+            (k.strip().lower() if isinstance(k, str) else k): v
+            for k, v in (row or {}).items()
+        }
         # Skip rows with empty Name or Email
-        if not row.get("Name") or not row.get("Email"):
+        if not row.get("name") or not row.get("email"):
             continue
         # Skip rows with empty Password
-        if not row.get("Password"):
+        if not row.get("password"):
             continue
         # Skip rows with email that already exists
-        if any(user.email == row.get("Email") for user in users):
+        if any(user.email == row.get("email") for user in users):
             continue
         # Skip rows with invalid email
-        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', row.get("Email")):
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', row.get("email")):
             continue
 
         # Handle team creation or retrieval
-        teamname = row.get("Team")
+        teamname = row.get("team")
         team = None
         # If teamname is not empty, create or retrieve team
         if teamname:
@@ -491,12 +499,10 @@ def load_users_and_teams_csv(csvfile):
                 continue
 
         # Create user
-        user_password = ''.join(SystemRandom().choice(
-            'abcdefghijklmnopqrstuvwxyz0123456789') for _ in range(8))
         user_data = {
-            "name": row.get("Name"),
-            "email": row.get("Email"),
-            "password": row.get("Password"),
+            "name": row.get("name"),
+            "email": row.get("email"),
+            "password": row.get("password"),
             "team_id": team.id if team else None
         }
         try:
