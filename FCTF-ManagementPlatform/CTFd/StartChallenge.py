@@ -370,6 +370,7 @@ def get_all_instance():
                     "user_name": user.name if user else "Unknown User",
                     "user_id": value.get("user_id"),
                     "challenge_url": value.get("challenge_url"),
+                    "status": value.get("status", "Unknown"),
                     "time_finished": finished_time,  # dạng ISO 8601
                     "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
                 })
@@ -382,6 +383,7 @@ def get_all_instance():
                     "team_id": team_id,
                     "user_id": value.get("user_id"),
                     "challenge_url": value.get("challenge_url"),
+                    "status": value.get("status", "Unknown"),
                     "time_finished": finished_time,  # dạng ISO 8601
                     "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
                 })
