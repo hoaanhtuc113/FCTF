@@ -383,7 +383,79 @@ function insertTimezones(target) {
   }
 }
 
+function showTab(anchorEl) {
+  if (!anchorEl) return;
+
+  // Prefer Bootstrap 5 API if available
+  if (globalThis.bootstrap && globalThis.bootstrap.Tab) {
+    globalThis.bootstrap.Tab.getOrCreateInstance(anchorEl).show();
+    return;
+  }
+
+  // Fallback to Bootstrap 4 jQuery plugin
+  if (typeof $(anchorEl).tab === "function") {
+    $(anchorEl).tab("show");
+    return;
+  }
+
+  // Last resort
+  anchorEl.click();
+}
+
+function setUrl({ hash, backupTab }) {
+  const url = new URL(globalThis.location.href);
+  if (backupTab) {
+    url.searchParams.set("backup_tab", backupTab);
+    url.hash = "#backup";
+  } else {
+    url.searchParams.delete("backup_tab");
+    if (hash) url.hash = hash;
+  }
+  globalThis.history.replaceState({}, "", url.toString());
+}
+
 $(() => {
+  // Keep users on the same config tab after redirects.
+  // - Outer tabs use URL hash: #backup
+  // - Backup inner tabs use query param: ?backup_tab=import-csv
+  const params = new URLSearchParams(globalThis.location.search);
+  const backupTab = params.get("backup_tab");
+  const hash = globalThis.location.hash;
+
+  if (backupTab) {
+    showTab(document.querySelector("a[href='#backup'][data-toggle='tab'], a[href='#backup'][data-bs-toggle='tab']"));
+    showTab(document.querySelector(`#backup a[href='#${backupTab}'][data-toggle='tab'], #backup a[href='#${backupTab}'][data-bs-toggle='tab']`));
+  } else if (hash) {
+    showTab(document.querySelector(`a[href='${hash}'][data-toggle='tab'], a[href='${hash}'][data-bs-toggle='tab']`));
+  }
+
+  // Sync URL with tab changes so refresh keeps the same tab.
+  // Outer tab change: set hash and clear backup_tab unless it's #backup
+  $(document).on(
+    "shown.bs.tab",
+    "a[data-toggle='tab'], a[data-bs-toggle='tab']",
+    function (e) {
+      const target = $(e.target).attr("href");
+      if (!target || !target.startsWith("#")) return;
+
+      // Inner tabs in backup section
+      const isBackupInner = $(e.target).closest("#backup").length > 0;
+      if (isBackupInner && target !== "#backup") {
+        setUrl({ backupTab: target.slice(1) });
+        return;
+      }
+
+      if (target === "#backup") {
+        // If entering backup without specifying an inner tab, keep URL hash only
+        setUrl({ hash: "#backup" });
+        return;
+      }
+
+      // Any other outer tab: update hash and clear backup_tab
+      setUrl({ hash: target });
+    },
+  );
+
   const theme_header_editor = CodeMirror.fromTextArea(
     document.getElementById("theme-header"),
     {

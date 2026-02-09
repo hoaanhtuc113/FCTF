@@ -1,7 +1,17 @@
 <div role="tabpanel" class="tab-pane config-section" id="backup">
+	{% with messages = get_flashed_messages(with_categories=true) %}
+	{% if messages %}
+	{% for category, message in messages %}
+	<div class="alert alert-{{ category }}" role="alert">
+		<pre class="mb-0">{{ message }}</pre>
+	</div>
+	{% endfor %}
+	{% endif %}
+	{% endwith %}
 	<ul class="nav nav-tabs mb-3" role="tablist">
 		<li class="nav-item">
-			<a class="nav-link active" href="#export-ctf" aria-controls="export-ctf" role="tab" data-toggle="tab">Export</a>
+			<a class="nav-link active" href="#export-ctf" aria-controls="export-ctf" role="tab"
+				data-toggle="tab">Export</a>
 		</li>
 		<li class="nav-item">
 			<a class="nav-link" href="#import-ctf" aria-controls="import-ctf" role="tab" data-toggle="tab">Import</a>
@@ -10,7 +20,8 @@
 			<a class="nav-link" href="#save-csv" aria-controls="save-csv" role="tab" data-toggle="tab">Download CSV</a>
 		</li>
 		<li class="nav-item">
-			<a class="nav-link" href="#import-csv" aria-controls="import-csv" role="tab" data-toggle="tab">Import CSV</a>
+			<a class="nav-link" href="#import-csv" aria-controls="import-csv" role="tab" data-toggle="tab">Import
+				CSV</a>
 		</li>
 	</ul>
 	<div class="tab-content">
@@ -47,7 +58,9 @@
 			<div class="alert alert-warning" role="alert">
 				<small class="text-muted text-right">
 					<i class="fas fa-exclamation pr-2"></i>
-					CSVs exported from CTFd are not guaranteed to import back in via the Import CSV functionality. See <a href="https://docs.ctfd.io/docs/imports/csv/" target="_blank">CSV Importing instructions</a> for details.
+					CSVs exported from CTFd are not guaranteed to import back in via the Import CSV functionality. See
+					<a href="https://docs.ctfd.io/docs/imports/csv/" target="_blank">CSV Importing instructions</a> for
+					details.
 				</small>
 			</div>
 			{% with form = Forms.config.ExportCSVForm() %}
@@ -62,7 +75,8 @@
 		</div>
 		<div role="tabpanel" class="tab-pane" id="import-csv">
 			{% with form = Forms.config.ImportCSVForm() %}
-			<form method="POST" action="{{ url_for('admin.import_csv') }}" enctype="multipart/form-data" id="import-csv-form">
+			<form method="POST" action="{{ url_for('admin.import_csv') }}" enctype="multipart/form-data"
+				id="import-csv-form">
 				<div class="form-group">
 					<div class="alert alert-info" role="alert">
 						<small class="text-muted text-right">
@@ -70,15 +84,19 @@
 								<i class="far fa-question-circle pr-2"></i> Instructions and CSV templates
 							</a>
 						</small>
-					</div>						<!-- CSV templates quick links -->
-						<div class="mt-2">
-							<strong>CSV templates:</strong>
-							<ul class="list-unstyled mb-0">
-						<li><a href="{{ url_for('admin.download_template', name='users_template.csv') }}" target="_blank">Download Users template</a></li>
-						<li><a href="{{ url_for('admin.download_template', name='teams_template.csv') }}" target="_blank">Download Teams template</a></li>
-						<li><a href="{{ url_for('admin.download_template', name='users_and_teams_template.csv') }}" target="_blank">Download Users + Teams template</a></li>
-							</ul>
-						</div>				</div>
+					</div> <!-- CSV templates quick links -->
+					<div class="mt-2">
+						<strong>CSV templates:</strong>
+						<ul class="list-unstyled mb-0">
+							<li><a href="{{ url_for('admin.download_template', name='users_template.csv') }}"
+									target="_blank">Download Users template</a></li>
+							<li><a href="{{ url_for('admin.download_template', name='teams_template.csv') }}"
+									target="_blank">Download Teams template</a></li>
+							<li><a href="{{ url_for('admin.download_template', name='users_and_teams_template.csv') }}"
+									target="_blank">Download Users + Teams template</a></li>
+						</ul>
+					</div>
+				</div>
 				<div class="form-group">
 					<b>{{ form.csv_type.label }}</b>
 					{{ form.csv_type(class="form-control custom-select", id="import-csv-type") }}

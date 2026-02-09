@@ -190,3 +190,37 @@ Charlie,charlie@examplectf.com,charliePass,
         assert charlie.team_id is None
 
     destroy_ctfd(app)
+
+
+def test_import_users_and_teams_csv_warns_but_imports():
+    """Invalid rows should generate warnings but not fail the import."""
+
+    USERS_AND_TEAMS_CSV = b"""Name,Email,Password,Team
+Valid,valid@examplectf.com,pass,Team A
+NoEmail,,pass,Team A
+BadEmail,not-an-email,pass,Team A
+"""
+
+    app = create_ctfd()
+    with app.app_context():
+        client = login_as_user(app, name="admin", password="password")
+
+        with client.session_transaction() as sess:
+            data = {
+                "csv_type": "users_and_teams",
+                "csv_file": (io.BytesIO(USERS_AND_TEAMS_CSV), "users_and_teams.csv"),
+                "nonce": sess.get("nonce"),
+            }
+
+        resp = client.post(
+            "/admin/import/csv",
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert resp.status_code == 200
+        assert Users.query.filter_by(email="valid@examplectf.com").first() is not None
+        assert b"Imported with warnings" in resp.data
+
+    destroy_ctfd(app)
