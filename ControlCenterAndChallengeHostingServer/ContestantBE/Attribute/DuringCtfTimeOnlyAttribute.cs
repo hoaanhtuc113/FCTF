@@ -5,36 +5,56 @@ using System.Security.Claims;
 
 namespace ContestantBE.Attribute;
 
-public class DuringCtfTimeOnlyAttribute : ActionFilterAttribute
+public class DuringCtfTimeOnlyAttribute : TypeFilterAttribute
 {
     public DuringCtfTimeOnlyAttribute()
+        : base(typeof(DuringCtfTimeOnlyFilter))
     {
     }
+}
 
-    public override void OnActionExecuting(ActionExecutingContext context)
+public class DuringCtfTimeOnlyFilter : IAsyncActionFilter
+{
+    private readonly CtfTimeHelper _ctfTimeHelper;
+    private readonly ConfigHelper _configHelper;
+
+    public DuringCtfTimeOnlyFilter(
+        CtfTimeHelper ctfTimeHelper,
+        ConfigHelper configHelper)
     {
-        var ctfTimeHelper = context.HttpContext.RequestServices.GetService(typeof(CtfTimeHelper)) as CtfTimeHelper;
-        var configHelper = context.HttpContext.RequestServices.GetService(typeof(ConfigHelper)) as ConfigHelper;
+        _ctfTimeHelper = ctfTimeHelper;
+        _configHelper = configHelper;
+    }
 
-        if (ctfTimeHelper!.CtfTime())
-            return;
-
-        if (ctfTimeHelper.CtfEnded())
+    public async Task OnActionExecutionAsync(
+        ActionExecutingContext context,
+        ActionExecutionDelegate next)
+    {
+        if (_ctfTimeHelper.CtfTime())
         {
-            context.Result = new JsonResult(new { error = $"{configHelper!.CtfName()} has ended" }) { StatusCode = 403 };
+            await next();
             return;
         }
 
-        if (!ctfTimeHelper.CtfStarted())
+        if (_ctfTimeHelper.CtfEnded())
         {
-            context.Result = new JsonResult(new { error = $"{configHelper!.GetConfig("ctf_name")} has not started yet" }) { StatusCode = 403 };
+            context.Result = new JsonResult(new { error = $"{_configHelper.CtfName()} has ended" }) { StatusCode = 403 };
             return;
         }
 
-        if (configHelper!.IsTeamsMode() && context.HttpContext.User.FindFirstValue("teamId") == null)
+        if (!_ctfTimeHelper.CtfStarted())
+        {
+            context.Result = new JsonResult(new { error = $"{_configHelper.GetConfig("ctf_name")} has not started yet" }) { StatusCode = 403 };
+            return;
+        }
+
+        if (_configHelper.IsTeamsMode()
+            && context.HttpContext.User.FindFirstValue("teamId") == null)
         {
             context.Result = new JsonResult(new { error = "You must join a team to participate in this CTF" }) { StatusCode = 403 };
             return;
         }
+
+        await next();
     }
 }
