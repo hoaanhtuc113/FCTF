@@ -2,6 +2,7 @@ import csv  # noqa: I001
 import datetime
 import os
 from io import StringIO
+import json
 
 from flask import Blueprint, abort, g
 from flask import current_app as app
@@ -158,6 +159,12 @@ def download_template(name):
 @admin.route("/admin/import/csv", methods=["POST"])
 @admins_only
 def import_csv():
+    wants_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes["application/json"]
+        >= request.accept_mimetypes["text/html"]
+    )
+
     csv_type = request.form["csv_type"]
     raw = request.files["csv_file"].stream.read()
     try:
@@ -180,6 +187,45 @@ def import_csv():
 
     normalized_reader = (normalize_row(row) for row in reader)
     result = None
+
+    def format_import_errors(res):
+        # Expected shapes:
+        # - True
+        # - [(row_index, {field: [errors]})] from load_users_csv/load_teams_csv
+        # - other objects
+        if isinstance(res, list):
+            # If the importer uses 0-based indexes for first data row, convert to CSV line numbers.
+            # CSV line number = header (1) + data row index (0-based) + 1
+            has_zero_based = any(
+                isinstance(e, tuple)
+                and len(e) == 2
+                and isinstance(e[0], int)
+                and e[0] == 0
+                for e in res
+            )
+            offset = 2 if has_zero_based else 0
+
+            lines = []
+            for entry in res[:50]:
+                if isinstance(entry, tuple) and len(entry) == 2:
+                    row_index, err = entry
+                    row_display = row_index + offset if isinstance(row_index, int) else row_index
+                    if isinstance(err, (dict, list)):
+                        err_text = json.dumps(err, ensure_ascii=False)
+                    else:
+                        err_text = str(err)
+                    lines.append(f"Row {row_display}: {err_text}")
+                else:
+                    lines.append(str(entry))
+
+            remaining = len(res) - len(lines)
+            msg = "Import failed:\n" + "\n".join(lines)
+            if remaining > 0:
+                msg += f"\n... and {remaining} more"
+            return msg
+
+        return f"Import failed:\n{res}"
+
     if csv_type == "users":
         result = load_users_csv(normalized_reader)
     elif csv_type == "users_and_teams":
@@ -188,7 +234,7 @@ def import_csv():
         csvfile.seek(0)
         result = load_users_and_teams_csv(csvfile)
         warnings = (result or {}).get("warnings") if isinstance(result, dict) else None
-        if warnings:
+        if warnings and not wants_json:
             max_lines = 50
             shown = warnings[:max_lines]
             remaining = len(warnings) - len(shown)
@@ -208,12 +254,56 @@ def import_csv():
     redirect_url = url_for("admin.config", backup_tab="import-csv", _anchor="backup")
 
     success = result is True or (isinstance(result, dict) and result.get("success") is True)
+
+    # AJAX mode: respond with JSON (no redirects) so UI can show feedback without reload
+    if wants_json:
+        payload = {
+            "success": bool(success),
+            "csv_type": csv_type,
+            "warnings": (result or {}).get("warnings") if isinstance(result, dict) else [],
+            "message": "",
+            "errors": [],
+        }
+
+        if success:
+            if payload["warnings"]:
+                payload["message"] = "Imported with warnings"
+            else:
+                payload["message"] = "Import completed successfully"
+            return jsonify(payload), 200
+
+        # Failure formatting
+        if isinstance(result, list):
+            has_zero_based = any(
+                isinstance(e, tuple)
+                and len(e) == 2
+                and isinstance(e[0], int)
+                and e[0] == 0
+                for e in result
+            )
+            offset = 2 if has_zero_based else 0
+            errors = []
+            for entry in result:
+                if isinstance(entry, tuple) and len(entry) == 2:
+                    row_index, err = entry
+                    row_display = row_index + offset if isinstance(row_index, int) else row_index
+                    errors.append({"row": row_display, "error": err})
+                else:
+                    errors.append({"row": None, "error": entry})
+            payload["errors"] = errors
+            payload["message"] = format_import_errors(result)
+        else:
+            payload["message"] = format_import_errors(result)
+
+        return jsonify(payload), 400
+
     if success is True:
+        flash("Import completed successfully", category="success")
         # for user in g.created_users:
         #     user_created_notification(user['email'], user['name'], user['password'])
         return redirect(redirect_url)
     else:
-        flash(f"Import failed:\n{result}", category="danger")
+        flash(format_import_errors(result), category="danger")
         return redirect(redirect_url)
 
 
