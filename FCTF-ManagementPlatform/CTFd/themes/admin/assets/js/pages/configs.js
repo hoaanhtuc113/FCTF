@@ -409,9 +409,20 @@ function setUrl({ hash, backupTab }) {
     url.hash = "#backup";
   } else {
     url.searchParams.delete("backup_tab");
-    if (hash) url.hash = hash;
+    url.hash = hash || "";
   }
   globalThis.history.replaceState({}, "", url.toString());
+}
+
+function extractHash(href) {
+  if (!href) return "";
+  if (href.startsWith("#")) return href;
+  try {
+    const u = new URL(href, globalThis.location.href);
+    return u.hash || "";
+  } catch (_e) {
+    return "";
+  }
 }
 
 $(() => {
@@ -429,13 +440,37 @@ $(() => {
     showTab(document.querySelector(`a[href='${hash}'][data-toggle='tab'], a[href='${hash}'][data-bs-toggle='tab']`));
   }
 
+  // Update URL immediately on click (some setups don't emit shown.bs.tab reliably)
+  $(document).on(
+    "click",
+    "a[data-toggle='tab'], a[data-bs-toggle='tab']",
+    function () {
+      const href = $(this).attr("href");
+      const targetHash = extractHash(href);
+      if (!targetHash || !targetHash.startsWith("#")) return;
+
+      const isBackupInner = $(this).closest("#backup").length > 0;
+      if (isBackupInner && targetHash !== "#backup") {
+        setUrl({ backupTab: targetHash.slice(1) });
+        return;
+      }
+
+      if (targetHash === "#backup") {
+        setUrl({ hash: "#backup" });
+        return;
+      }
+
+      setUrl({ hash: targetHash });
+    },
+  );
+
   // Sync URL with tab changes so refresh keeps the same tab.
   // Outer tab change: set hash and clear backup_tab unless it's #backup
   $(document).on(
     "shown.bs.tab",
     "a[data-toggle='tab'], a[data-bs-toggle='tab']",
     function (e) {
-      const target = $(e.target).attr("href");
+      const target = extractHash($(e.target).attr("href"));
       if (!target || !target.startsWith("#")) return;
 
       // Inner tabs in backup section
