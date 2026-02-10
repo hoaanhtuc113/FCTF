@@ -83,8 +83,9 @@ interface PrerequisiteChallenge {
 
 interface Hint {
   id: number;
-  cost: number;
+  cost: number | null;
   content?: string;
+  isUnlocked?: boolean;
 }
 
 export function Challenges() {
@@ -1847,9 +1848,9 @@ function ChallengeDetailPanel({
               <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[✓] Challenge Ready!</div>
               <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> Token:</div>
               <div class="${theme === 'dark'
-                ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
-                : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
-              }" style="word-break: break-all; overflow-wrap: anywhere;">${safeChallengeUrl}</div>
+              ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+              : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+            }" style="word-break: break-all; overflow-wrap: anywhere;">${safeChallengeUrl}</div>
               <div class="${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'} mt-2">> Health check in progress...</div>
             </div>
           `,
@@ -2067,9 +2068,9 @@ function ChallengeDetailPanel({
                   <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> ${escapeHtml(String(challenge.name))}</div>
                   <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-1">> Token:</div>
                   <div class="${theme === 'dark'
-                    ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
-                    : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
-                  }" style="word-break: break-all; overflow-wrap: anywhere;">${safeChallengeUrl}</div>
+                  ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                  : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+                }" style="word-break: break-all; overflow-wrap: anywhere;">${safeChallengeUrl}</div>
                 </div>
               `,
               icon: 'success',
@@ -2858,9 +2859,9 @@ function ChallengeDetailPanel({
               <div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} mb-2">[i] Already unlocked</div>
               <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-2">> Content:</div>
               <div class="${theme === 'dark'
-                ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
-                : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
-              }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
+              ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+              : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+            }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
             </div>
           `,
           icon: "info",
@@ -2922,9 +2923,9 @@ function ChallengeDetailPanel({
                   <div class="${theme === 'dark' ? 'text-green-400' : 'text-green-600'} mb-2">[+] Hint unlocked</div>
                   <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-2">> Content:</div>
                   <div class="${theme === 'dark'
-                    ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
-                    : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
-                  }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
+                  ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                  : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+                }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
                 </div>
               `,
               icon: "success",
@@ -3012,9 +3013,9 @@ function ChallengeDetailPanel({
                       <div class="${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'} mb-2">[i] Already unlocked</div>
                       <div class="${theme === 'dark' ? 'text-gray-400' : 'text-gray-700'} mb-2">> Content:</div>
                       <div class="${theme === 'dark'
-                        ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
-                        : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
-                      }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
+                      ? 'text-orange-400 text-xs p-2 bg-gray-800/50 rounded border border-orange-500/30'
+                      : 'text-orange-700 text-xs p-2 bg-orange-50 rounded border border-orange-300'
+                    }" style="white-space: pre-wrap; overflow-wrap: anywhere;">${safeContent}</div>
                     </div>
                   `,
                   icon: "info",
@@ -3670,24 +3671,33 @@ function ChallengeDetailPanel({
                 </div>
                 <div className="grid grid-cols-6 gap-2">
                   {hints.map((hint, index) => (
-                    <button
-                      key={hint.id}
-                      onClick={() => handleUnlockHint(hint.id, hint.cost)}
-                      disabled={unlockingHintId === hint.id}
-                      className={`relative p-2 rounded border transition-colors ${theme === 'dark'
-                        ? 'bg-gray-900 border-purple-700 hover:border-purple-500 hover:bg-gray-800'
-                        : 'bg-gray-50 border-purple-300 hover:border-purple-500 hover:bg-purple-50'
-                        } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : ''}`}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <div className={`font-bold text-xs font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
-                          H{index + 1}
-                        </div>
-                        <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {hint.cost}
-                        </div>
-                      </div>
-                    </button>
+                    (() => {
+                      const cost = hint.cost ?? 0;
+                      const isUnlocked = hint.isUnlocked ?? cost <= 0;
+                      return (
+                        <button
+                          key={hint.id}
+                          onClick={() => handleUnlockHint(hint.id, cost)}
+                          disabled={unlockingHintId === hint.id}
+                          className={`relative p-2 rounded border transition-colors ${theme === 'dark'
+                            ? `bg-gray-900 ${isUnlocked ? 'border-green-700 hover:border-green-500' : 'border-purple-700 hover:border-purple-500'} hover:bg-gray-800`
+                            : `bg-gray-50 ${isUnlocked ? 'border-green-300 hover:border-green-500' : 'border-purple-300 hover:border-purple-500'} hover:bg-purple-50`
+                            } ${unlockingHintId === hint.id ? 'opacity-50 cursor-wait' : ''}`}
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <div className={`font-bold text-xs font-mono ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                              H{index + 1}
+                            </div>
+                            <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {cost}
+                            </div>
+                            <div className={`text-[10px] font-mono ${isUnlocked ? (theme === 'dark' ? 'text-green-400' : 'text-green-700') : (theme === 'dark' ? 'text-gray-500' : 'text-gray-500')}`}>
+                              {isUnlocked ? 'UNLOCKED' : 'LOCKED'}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })()
                   ))}
                 </div>
                 <div className={`text-center text-xs font-mono flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
@@ -3746,13 +3756,12 @@ function ChallengeDetailPanel({
                     <button
                       onClick={handleSubmitFlag}
                       disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
-                      className={`w-full rounded border px-3 py-2.5 font-mono text-[13px] transition-colors ${
-                        (isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain))
+                      className={`w-full rounded border px-3 py-2.5 font-mono text-[13px] transition-colors ${(isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain))
                           ? (theme === 'dark'
                             ? 'bg-zinc-900 text-zinc-500 border-zinc-800 cursor-not-allowed'
                             : 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed')
                           : 'bg-orange-400 hover:bg-orange-500 text-white border-orange-400 hover:border-orange-500 cursor-pointer'
-                      }`}
+                        }`}
                     >
                       {isSubmittingFlag
                         ? '[SUBMITTING...]'

@@ -40,8 +40,9 @@ export interface PrerequisiteChallenge {
 
 export interface Hint {
   id: number;
-  cost: number;
+  cost: number | null;
   content?: string;
+  isUnlocked?: boolean;
 }
 
 export type { DeploymentStatus };
