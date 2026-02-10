@@ -26,7 +26,7 @@ cd Test/Integration
 .\generate-tokens.ps1 -Start 1 -End 100 -Password 1
 
 # 2. Edit .env with your configuration
-# Update CHALLENGE_ID, CHALLENGE_FLAG, HINT_ID, etc.
+# Update CHALLENGE_ID, CHALLENGE_FLAG, HINT_ID, START_CHALLENGE_ID, etc.
 
 # 3. Validate test environment (recommended)
 .\validate-test-data.ps1
@@ -40,6 +40,9 @@ For tests to PASS, you need:
 - Fresh challenge (type=dynamic, max_attempts≥100, time_limit≥5s)
 - Locked hint
 - Users that haven't attempted the challenge yet
+- A deployable challenge for start/stop tests (RequireDeploy=true, not started yet)
+- Team captain token for start/stop tests
+- Ticket APIs accessible (CTF started, user has a team)
 
 Run validation script to check your environment!
 
@@ -54,7 +57,7 @@ Run validation script to check your environment!
 ## Batch runner (pass/fail)
 - Validate test data first (recommended):
   .\Test\Integration\validate-test-data.ps1
-- Run all four scripts in order with strict checks:
+- Run all scripts in order with strict checks:
   .\Test\Integration\run-k6-batch.ps1 -Strict
 - Stop-on-fail is enabled by default. To keep running all tests:
   .\Test\Integration\run-k6-batch.ps1 -Strict -StopOnFail:$false
@@ -66,10 +69,14 @@ Run validation script to check your environment!
 - Hint in 'locked' state (for hint_unlock test)
 - Users in tokens.txt have NOT solved the challenge yet
 - Users have NOT exhausted their attempts on the challenge
+- Deployable challenge for start/stop tests (RequireDeploy=true, not started)
+- Max-attempts challenge with low max_attempts and cooldown=0
+- Set incorrect_submissions_per_min high enough to avoid rate limiting during max attempts test
+- Ticket create/delete allowed (CTF started, ticket status open)
 
 ### Per-script token allocation (batch runner behavior)
 - If `tokens.txt` (or `TOKEN_FILE` / `TOKEN_LIST`) is available in this folder, the batch runner auto-allocates tokens per script:
-  - Scripts that need a single user (`concurrent_hint_unlock.js`, `concurrent_cooldown_attempts.js`, `concurrent_correct_submissions.js`) will each be assigned one token sequentially from the tokens list (1 token per script).
+  - Scripts that need a single user (`concurrent_start_challenge.js`, `concurrent_stop_challenge.js`, `concurrent_max_attempts.js`, `concurrent_ticket_create.js`, `concurrent_ticket_delete.js`, `concurrent_hint_unlock.js`, `concurrent_cooldown_attempts.js`, `concurrent_correct_submissions.js`) will each be assigned one token sequentially from the tokens list (1 token per script). The stop test reuses the same token as the start test.
   - The dynamic test (`concurrent_dynamic_recalc.js`) will be assigned a slice of tokens equal to `CONCURRENCY` (written to a temporary `token_slice_*.txt` and exposed via `TOKEN_FILE`).
 - When running an individual script (not the batch runner), ensure `TOKEN_FILE` is set in the script's env (we recommend `TOKEN_FILE=tokens.txt` in `Test/Integration/.env`) or set `TOKEN_LIST`/`TOKEN` explicitly. Runner scripts expect paths relative to the `Test/Integration` folder.
 - This avoids test conflicts: single-user tests use dedicated tokens, multi-team dynamic test uses multiple tokens.
@@ -109,6 +116,15 @@ Batch runner auto-load:
 - CHALLENGE_ID: Target challenge id for attempt tests.
 - CHALLENGE_FLAG: Correct flag for the challenge.
 - WRONG_FLAG: Incorrect flag for cooldown test.
+- START_CHALLENGE_ID: Challenge id for start/stop race tests (optional fallback to CHALLENGE_ID).
+- STOP_CHALLENGE_ID: Challenge id for stop test (optional fallback to START_CHALLENGE_ID or CHALLENGE_ID).
+- START_BEFORE_STOP: Whether stop test should call start once in setup (default: true).
+- START_WAIT_SECONDS: Seconds to wait after setup start before sending stop (default: 2).
+- MAX_ATTEMPTS_CHALLENGE_ID: Challenge id for max-attempts race test (optional fallback to CHALLENGE_ID).
+- MAX_ATTEMPTS: Expected max attempts (used for STRICT validation in max-attempts test).
+- TICKET_TITLE: Ticket title for create/delete tests.
+- TICKET_TYPE: Ticket type for create/delete tests.
+- TICKET_DESCRIPTION: Ticket description for create/delete tests.
 - HINT_ID: Target hint id for unlock test.
 - HINT_TYPE: Hint type (default: hints).
 - CHALLENGE_CATEGORY: Category name used to read challenge value.
@@ -120,6 +136,89 @@ Batch runner auto-load:
 - DYN_BASE_SOLVE_COUNT: base solve count before test (auto = base + correct solves).
 - DYN_POLL_ATTEMPTS: number of polls for dynamic value fetch.
 - DYN_POLL_DELAY_MS: delay between polls in milliseconds.
+
+## Script: concurrent_start_challenge.js
+Purpose: N concurrent start requests -> only one deployment should initiate.
+
+Required env:
+- START_CHALLENGE_ID (or CHALLENGE_ID)
+
+Recommended:
+- Use a challenge with RequireDeploy=true and not started yet
+- Use a captain token if captain_only_start_challenge is enabled
+
+STRICT behavior (current):
+- When `STRICT=true` the script expects at least one successful start and no unexpected/limit/forbidden responses.
+
+Run:
+  k6 run Test/Integration/concurrent_start_challenge.js  # or: cd Test/Integration && k6 run concurrent_start_challenge.js
+
+## Script: concurrent_stop_challenge.js
+Purpose: N concurrent stop requests -> only one stop should succeed.
+
+Required env:
+- STOP_CHALLENGE_ID (or START_CHALLENGE_ID / CHALLENGE_ID)
+
+Optional env:
+- START_BEFORE_STOP (default: true)
+- START_WAIT_SECONDS (default: 2)
+
+Recommended:
+- Use a challenge that is already running, or allow setup to start it
+
+STRICT behavior (current):
+- When `STRICT=true` and `START_BEFORE_STOP=true`, the script expects at least one successful stop and no unexpected responses.
+
+Run:
+  k6 run Test/Integration/concurrent_stop_challenge.js  # or: cd Test/Integration && k6 run concurrent_stop_challenge.js
+
+## Script: concurrent_max_attempts.js
+Purpose: N concurrent incorrect submissions -> respect max attempts limit.
+
+Required env:
+- MAX_ATTEMPTS_CHALLENGE_ID (or CHALLENGE_ID)
+- WRONG_FLAG
+
+Optional env:
+- MAX_ATTEMPTS (used for STRICT validation)
+
+Recommended:
+- Challenge max_attempts should be low (e.g., 3)
+- Cooldown = 0 and incorrect_submissions_per_min high enough to avoid 429s
+
+STRICT behavior (current):
+- When `STRICT=true` and `MAX_ATTEMPTS` is set, the script expects exactly MAX_ATTEMPTS incorrect responses and the rest max-attempts exceeded.
+
+Run:
+  k6 run Test/Integration/concurrent_max_attempts.js  # or: cd Test/Integration && k6 run concurrent_max_attempts.js
+
+## Script: concurrent_ticket_create.js
+Purpose: N concurrent ticket submissions -> only one should be created (duplicate detection).
+
+Required env:
+- TICKET_TITLE
+- TICKET_TYPE
+- TICKET_DESCRIPTION
+
+STRICT behavior (current):
+- When `STRICT=true` the script expects exactly one created ticket and the rest rejected as similar.
+
+Run:
+  k6 run Test/Integration/concurrent_ticket_create.js  # or: cd Test/Integration && k6 run concurrent_ticket_create.js
+
+## Script: concurrent_ticket_delete.js
+Purpose: N concurrent deletes -> only one delete succeeds.
+
+Optional env:
+- TICKET_TITLE
+- TICKET_TYPE
+- TICKET_DESCRIPTION
+
+STRICT behavior (current):
+- When `STRICT=true` the script expects exactly one delete success and no unexpected responses.
+
+Run:
+  k6 run Test/Integration/concurrent_ticket_delete.js  # or: cd Test/Integration && k6 run concurrent_ticket_delete.js
 
 ## Script: concurrent_hint_unlock.js
 Purpose: N concurrent hint unlock -> only one unlock + award.
@@ -208,15 +307,23 @@ PowerShell:
 
 ## Test execution order
 Recommended order for fresh challenge (avoids state conflicts):
-1. concurrent_hint_unlock.js (independent, tests hint only)
-2. concurrent_cooldown_attempts.js (uses WRONG_FLAG, doesn't solve)
-3. concurrent_correct_submissions.js (solves challenge, 1 correct + 9 already_solved)
-4. concurrent_dynamic_recalc.js (uses multiple teams, each solves once)
+1. concurrent_start_challenge.js (deployable challenge, start race)
+2. concurrent_stop_challenge.js (same deployable challenge, stop race)
+3. concurrent_max_attempts.js (incorrect attempts against max_attempts)
+4. concurrent_ticket_create.js (duplicate ticket detection)
+5. concurrent_ticket_delete.js (delete race)
+6. concurrent_hint_unlock.js (independent, tests hint only)
+7. concurrent_cooldown_attempts.js (uses WRONG_FLAG, doesn't solve)
+8. concurrent_correct_submissions.js (solves challenge, 1 correct + 9 already_solved)
+9. concurrent_dynamic_recalc.js (uses multiple teams, each solves once)
 
 **Important**: Tests require fresh data to pass:
 - Challenge should have available attempts (max_attempts > current attempts)
 - Hint should not be unlocked yet (for hint_unlock test)
 - Users in tokens.txt should not have solved the challenge yet
+- Deployable challenge should not be running before start/stop tests
+- Max-attempts challenge should have remaining attempts and cooldown=0
+- Ticket tests run during CTF time and use open tickets
 
 To reset and run all tests:
 ```powershell
@@ -232,6 +339,11 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed debugging guide.
 
 ## Common run commands
 PowerShell (env file):
+  .\Test\Integration\run-k6.ps1 -Script concurrent_start_challenge.js
+  .\Test\Integration\run-k6.ps1 -Script concurrent_stop_challenge.js
+  .\Test\Integration\run-k6.ps1 -Script concurrent_max_attempts.js
+  .\Test\Integration\run-k6.ps1 -Script concurrent_ticket_create.js
+  .\Test\Integration\run-k6.ps1 -Script concurrent_ticket_delete.js
   .\Test\Integration\run-k6.ps1 -Script concurrent_hint_unlock.js
   .\Test\Integration\run-k6.ps1 -Script concurrent_cooldown_attempts.js
   .\Test\Integration\run-k6.ps1 -Script concurrent_correct_submissions.js
