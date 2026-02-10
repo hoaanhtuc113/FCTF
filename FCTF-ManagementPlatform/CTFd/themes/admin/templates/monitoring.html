@@ -278,7 +278,7 @@
 							<input id="selectAll" type="checkbox" onchange="toggleSelectAllOnPage(this.checked)"
 								aria-label="Select all on page" />
 						</th>
-						<th class="sort-col text-center">ID</th>
+						<th class="sort-col text-center" style="width: 50px;">ID</th>
 						<th class="sort-col text-center">Challenge Name</th>
 						<th class="sort-col text-center">Team Name</th>
 						<th class="sort-col text-center">User Name</th>
@@ -451,7 +451,7 @@
 						overflow-wrap: break-word;
 						white-space: normal;
 						">
-						${row.challenge_url ? row.challenge_url : "Processing . . ."}
+						${row.challenge_url ? row.challenge_url : (row.status || "Unknown")}
 					</td>
 
 					<td class="text-center">${row.time_finished

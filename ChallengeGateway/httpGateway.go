@@ -255,11 +255,21 @@ func bodySizeLimitMiddleware(maxBytes int64, next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.ContentLength > maxBytes {
+
+		//Check ContentLength if known (not -1 for chunked encoding)
+		if r.ContentLength > 0 && r.ContentLength > maxBytes {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
+		//Wrap Body with MaxBytesReader to enforce limit during read
 		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+
+		//Log warning for chunked transfer (ContentLength = -1)
+		if r.ContentLength < 0 {
+			log.Printf("[!] Chunked/unknown transfer from %s - enforcing %d byte limit during read", 
+				r.RemoteAddr, maxBytes)
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
