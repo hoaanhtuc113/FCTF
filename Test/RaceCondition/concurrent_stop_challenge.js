@@ -7,6 +7,7 @@ const concurrency = parseEnvInt('CONCURRENCY', 5);
 const strictMode = (__ENV.STRICT || 'false').toLowerCase() === 'true';
 const startBeforeStop = (__ENV.START_BEFORE_STOP || 'true').toLowerCase() === 'true';
 const startWaitSeconds = parseEnvInt('START_WAIT_SECONDS', 2);
+const useTokenList = (__ENV.USE_TOKEN_LIST || 'false').toLowerCase() === 'true';
 
 const stopSuccessCount = new Counter('stop_success');
 const alreadyStoppedCount = new Counter('stop_already');
@@ -57,6 +58,13 @@ function pickSingleToken() {
   return null;
 }
 
+function parseTokenList(raw) {
+  return raw
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+}
+
 function resolveChallengeId() {
   return parseEnvInt('STOP_CHALLENGE_ID', 0)
     || parseEnvInt('START_CHALLENGE_ID', 0)
@@ -64,7 +72,31 @@ function resolveChallengeId() {
 }
 
 export function setup() {
-  const token = pickSingleToken() || loginAndGetToken();
+  let tokens = null;
+  if (useTokenList) {
+    const tokenListRaw = __ENV.TOKEN_LIST;
+    if (tokenListRaw) {
+      tokens = parseTokenList(tokenListRaw);
+      if (tokens.length === 0) {
+        throw new Error('TOKEN_LIST is provided but empty');
+      }
+      if (tokens.length < concurrency) {
+        throw new Error(`TOKEN_LIST must have at least ${concurrency} tokens for this test`);
+      }
+    } else if (_tokenFileTokens) {
+      tokens = _tokenFileTokens;
+      if (tokens.length === 0) {
+        throw new Error(`TOKEN_FILE (${_tokenFilePath}) exists but contains no tokens`);
+      }
+      if (tokens.length < concurrency) {
+        throw new Error(`TOKEN_FILE must have at least ${concurrency} tokens for this test`);
+      }
+    } else {
+      throw new Error('USE_TOKEN_LIST=true requires TOKEN_LIST or TOKEN_FILE');
+    }
+  }
+
+  const token = tokens ? tokens[0] : (pickSingleToken() || loginAndGetToken());
   const challengeId = resolveChallengeId();
   if (!challengeId) {
     throw new Error('STOP_CHALLENGE_ID (or START_CHALLENGE_ID/CHALLENGE_ID) is required');
@@ -82,14 +114,18 @@ export function setup() {
     }
   }
 
-  return { token, challengeId };
+  return { token, challengeId, tokens };
 }
 
 export default function (data) {
+  const token = data.tokens
+    ? data.tokens[(__VU - 1) % data.tokens.length]
+    : data.token;
+
   const res = http.post(
     buildUrl('/api/Challenge/stop-by-user'),
     JSON.stringify({ challengeId: data.challengeId }),
-    { headers: getAuthHeaders(data.token) }
+    { headers: getAuthHeaders(token) }
   );
 
   let body = null;

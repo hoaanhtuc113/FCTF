@@ -23,7 +23,7 @@ All scripts require a valid contestant account and a running backend.
 ```powershell
 # 1. Generate tokens for test users
 cd Test/Integration
-.\generate-tokens.ps1 -Start 1 -End 100 -Password 1
+.\generate-tokens.ps1 -Start 2000 -End 2009 -Password 1
 
 # 2. Edit .env with your configuration
 # Update CHALLENGE_ID, CHALLENGE_FLAG, HINT_ID, START_CHALLENGE_ID, etc.
@@ -105,6 +105,7 @@ Batch runner auto-load:
 - TOKEN_FILE (optional, path to tokens file - supports CSV or newline-separated tokens)
 - CONCURRENCY (default: 10)
 - STRICT (default: false) -> when true, scripts perform stricter count checks
+- USE_TOKEN_LIST (default: false) -> when true, use TOKEN_LIST/TOKEN_FILE for multi-user same-team runs (per script)
 
 ### Env explanations
 - BASE_URL: Base URL of the Contestant BE (no trailing slash).
@@ -143,9 +144,13 @@ Purpose: N concurrent start requests -> only one deployment should initiate.
 Required env:
 - START_CHALLENGE_ID (or CHALLENGE_ID)
 
+Optional env:
+- USE_TOKEN_LIST=true (use TOKEN_LIST/TOKEN_FILE for multi-user same-team tests)
+
 Recommended:
 - Use a challenge with RequireDeploy=true and not started yet
 - Use a captain token if captain_only_start_challenge is enabled
+- For "many users in same team" tests, provide TOKEN_LIST or TOKEN_FILE with tokens from users in the same team.
 
 STRICT behavior (current):
 - When `STRICT=true` the script expects at least one successful start and no unexpected/limit/forbidden responses.
@@ -162,9 +167,11 @@ Required env:
 Optional env:
 - START_BEFORE_STOP (default: true)
 - START_WAIT_SECONDS (default: 2)
+- USE_TOKEN_LIST=true (use TOKEN_LIST/TOKEN_FILE for multi-user same-team tests)
 
 Recommended:
 - Use a challenge that is already running, or allow setup to start it
+- For "many users in same team" tests, provide TOKEN_LIST or TOKEN_FILE with tokens from users in the same team.
 
 STRICT behavior (current):
 - When `STRICT=true` and `START_BEFORE_STOP=true`, the script expects at least one successful stop and no unexpected responses.
@@ -181,10 +188,12 @@ Required env:
 
 Optional env:
 - MAX_ATTEMPTS (used for STRICT validation)
+- USE_TOKEN_LIST=true (use TOKEN_LIST/TOKEN_FILE for multi-user same-team tests)
 
 Recommended:
 - Challenge max_attempts should be low (e.g., 3)
 - Cooldown = 0 and incorrect_submissions_per_min high enough to avoid 429s
+- For "many users in same team" tests, provide TOKEN_LIST or TOKEN_FILE with tokens from users in the same team.
 
 STRICT behavior (current):
 - When `STRICT=true` and `MAX_ATTEMPTS` is set, the script expects exactly MAX_ATTEMPTS incorrect responses and the rest max-attempts exceeded.

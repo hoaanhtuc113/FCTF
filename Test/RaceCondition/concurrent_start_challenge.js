@@ -5,6 +5,7 @@ import { buildUrl, loginAndGetToken, getAuthHeaders, parseEnvInt } from './helpe
 
 const concurrency = parseEnvInt('CONCURRENCY', 5);
 const strictMode = (__ENV.STRICT || 'false').toLowerCase() === 'true';
+const useTokenList = (__ENV.USE_TOKEN_LIST || 'false').toLowerCase() === 'true';
 
 const startSuccessCount = new Counter('start_success');
 const alreadyStartedCount = new Counter('start_already');
@@ -57,7 +58,40 @@ function pickSingleToken() {
   return null;
 }
 
+function parseTokenList(raw) {
+  return raw
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+}
+
 export function setup() {
+  if (useTokenList) {
+    const tokenListRaw = __ENV.TOKEN_LIST;
+    if (tokenListRaw) {
+      const tokens = parseTokenList(tokenListRaw);
+      if (tokens.length === 0) {
+        throw new Error('TOKEN_LIST is provided but empty');
+      }
+      if (tokens.length < concurrency) {
+        throw new Error(`TOKEN_LIST must have at least ${concurrency} tokens for this test`);
+      }
+      return { tokens };
+    }
+
+    if (_tokenFileTokens) {
+      if (_tokenFileTokens.length === 0) {
+        throw new Error(`TOKEN_FILE (${_tokenFilePath}) exists but contains no tokens`);
+      }
+      if (_tokenFileTokens.length < concurrency) {
+        throw new Error(`TOKEN_FILE must have at least ${concurrency} tokens for this test`);
+      }
+      return { tokens: _tokenFileTokens };
+    }
+
+    throw new Error('USE_TOKEN_LIST=true requires TOKEN_LIST or TOKEN_FILE');
+  }
+
   const token = pickSingleToken() || loginAndGetToken();
   return { token };
 }
@@ -68,10 +102,14 @@ export default function (data) {
     throw new Error('START_CHALLENGE_ID (or CHALLENGE_ID) is required');
   }
 
+  const token = data.tokens
+    ? data.tokens[(__VU - 1) % data.tokens.length]
+    : data.token;
+
   const res = http.post(
     buildUrl('/api/Challenge/start'),
     JSON.stringify({ challengeId }),
-    { headers: getAuthHeaders(data.token) }
+    { headers: getAuthHeaders(token) }
   );
 
   let body = null;
