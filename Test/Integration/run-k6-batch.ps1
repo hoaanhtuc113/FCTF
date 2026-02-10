@@ -109,13 +109,33 @@ if ($tokenFileItem -and (Test-Path $tokenFileItem.Value)) {
 }
 
 $tokenIndex = 0
-$singleTokenScripts = @('concurrent_hint_unlock.js', 'concurrent_cooldown_attempts.js', 'concurrent_correct_submissions.js')
+$LastStartToken = $null
+$singleTokenScripts = @('concurrent_start_challenge.js', 'concurrent_max_attempts.js', 'concurrent_ticket_create.js', 'concurrent_ticket_delete.js', 'concurrent_hint_unlock.js', 'concurrent_cooldown_attempts.js', 'concurrent_correct_submissions.js')
 
 function AllocateTokensForScript {
   param([string]$ScriptName)
-  if ($allTokens.Count -eq 0) { return }
+  if ($allTokens.Count -eq 0) {
+    if ($ScriptName -eq 'concurrent_start_challenge.js') {
+      $tokenItem = Get-Item -Path Env:TOKEN -ErrorAction SilentlyContinue
+      if ($tokenItem) { $LastStartToken = $tokenItem.Value }
+    }
+    if ($ScriptName -eq 'concurrent_stop_challenge.js' -and $LastStartToken) {
+      Set-Item -Path "env:TOKEN" -Value $LastStartToken
+      Write-Host "Reusing TOKEN for $ScriptName (paired with start test)"
+    }
+    return
+  }
 
-  if ($singleTokenScripts -contains $ScriptName) {
+  if ($ScriptName -eq 'concurrent_stop_challenge.js') {
+    if ($LastStartToken) {
+      Set-Item -Path "env:TOKEN" -Value $LastStartToken
+      Write-Host "Reusing TOKEN for $ScriptName (paired with start test)"
+      return
+    }
+    Write-Host "WARNING: No start-test token found; allocating a new token for stop test"
+  }
+
+  if ($singleTokenScripts -contains $ScriptName -or $ScriptName -eq 'concurrent_stop_challenge.js') {
     # Assign one token per script (sequentially)
     if ($tokenIndex -ge $allTokens.Count) {
       Write-Host "WARNING: Not enough tokens; reusing tokens from start"
@@ -123,6 +143,7 @@ function AllocateTokensForScript {
     $idx = $tokenIndex % $allTokens.Count
     Set-Item -Path "env:TOKEN" -Value $allTokens[$idx]
     Write-Host "Assigned TOKEN (index=$($idx+1)) for $ScriptName"
+    if ($ScriptName -eq 'concurrent_start_challenge.js') { $LastStartToken = $allTokens[$idx] }
     $tokenIndex += 1
   } elseif ($ScriptName -eq 'concurrent_dynamic_recalc.js') {
     # Allocate a slice of tokens for multi-team test based on CONCURRENCY
@@ -151,6 +172,11 @@ function AllocateTokensForScript {
 }
 
 $tests = @(
+  'concurrent_start_challenge.js',
+  'concurrent_stop_challenge.js',
+  'concurrent_max_attempts.js',
+  'concurrent_ticket_create.js',
+  'concurrent_ticket_delete.js',
   'concurrent_hint_unlock.js',
   'concurrent_cooldown_attempts.js',
   'concurrent_correct_submissions.js',
@@ -174,6 +200,31 @@ function Validate-ScriptEnv {
   switch ($ScriptName) {
     'concurrent_correct_submissions.js' {
       if (-not (HasEnv 'CHALLENGE_ID') -or -not (HasEnv 'CHALLENGE_FLAG')) { $Reason.Value = 'CHALLENGE_ID and CHALLENGE_FLAG are required'; return $false }
+      if (-not $hasAuth) { $Reason.Value = 'Authentication required: set TOKEN or USERNAME+PASSWORD or generate tokens'; return $false }
+      return $true
+    }
+    'concurrent_start_challenge.js' {
+      if (-not (HasEnv 'START_CHALLENGE_ID') -and -not (HasEnv 'CHALLENGE_ID')) { $Reason.Value = 'START_CHALLENGE_ID (or CHALLENGE_ID) is required'; return $false }
+      if (-not $hasAuth) { $Reason.Value = 'Authentication required: set TOKEN or USERNAME+PASSWORD or generate tokens'; return $false }
+      return $true
+    }
+    'concurrent_stop_challenge.js' {
+      if (-not (HasEnv 'STOP_CHALLENGE_ID') -and -not (HasEnv 'START_CHALLENGE_ID') -and -not (HasEnv 'CHALLENGE_ID')) { $Reason.Value = 'STOP_CHALLENGE_ID (or START_CHALLENGE_ID / CHALLENGE_ID) is required'; return $false }
+      if (-not $hasAuth) { $Reason.Value = 'Authentication required: set TOKEN or USERNAME+PASSWORD or generate tokens'; return $false }
+      return $true
+    }
+    'concurrent_max_attempts.js' {
+      if (-not (HasEnv 'MAX_ATTEMPTS_CHALLENGE_ID') -and -not (HasEnv 'CHALLENGE_ID')) { $Reason.Value = 'MAX_ATTEMPTS_CHALLENGE_ID (or CHALLENGE_ID) is required'; return $false }
+      if (-not (HasEnv 'WRONG_FLAG')) { $Reason.Value = 'WRONG_FLAG is required'; return $false }
+      if (-not $hasAuth) { $Reason.Value = 'Authentication required: set TOKEN or USERNAME+PASSWORD or generate tokens'; return $false }
+      return $true
+    }
+    'concurrent_ticket_create.js' {
+      if (-not (HasEnv 'TICKET_TITLE') -or -not (HasEnv 'TICKET_TYPE') -or -not (HasEnv 'TICKET_DESCRIPTION')) { $Reason.Value = 'TICKET_TITLE, TICKET_TYPE, and TICKET_DESCRIPTION are required'; return $false }
+      if (-not $hasAuth) { $Reason.Value = 'Authentication required: set TOKEN or USERNAME+PASSWORD or generate tokens'; return $false }
+      return $true
+    }
+    'concurrent_ticket_delete.js' {
       if (-not $hasAuth) { $Reason.Value = 'Authentication required: set TOKEN or USERNAME+PASSWORD or generate tokens'; return $false }
       return $true
     }
@@ -235,6 +286,44 @@ foreach ($script in $tests) {
     }
 
     switch ($scriptName) {
+      'concurrent_start_challenge.js' {
+        $challengeId = (Get-Item -Path Env:START_CHALLENGE_ID -ErrorAction SilentlyContinue).Value
+        if (-not $challengeId) { $challengeId = (Get-Item -Path Env:CHALLENGE_ID -ErrorAction SilentlyContinue).Value }
+        if (-not $challengeId) { $Reason.Value = 'START_CHALLENGE_ID not set'; return $false }
+        try {
+          $res = Invoke-RestMethod -Method Get -Uri ("$base/api/Challenge/$challengeId") -Headers $h -ErrorAction Stop
+          if (-not $res.data) { $Reason.Value = 'Challenge response missing data field'; return $false }
+          if ($res.data.state -eq 'hidden' -or $res.data.state -eq 'locked') { $Reason.Value = "Challenge not available (state=$($res.data.state))"; return $false }
+        } catch {
+          $Reason.Value = "Challenge lookup failed: $($_.Exception.Message)"; return $false
+        }
+        return $true
+      }
+      'concurrent_stop_challenge.js' {
+        $challengeId = (Get-Item -Path Env:STOP_CHALLENGE_ID -ErrorAction SilentlyContinue).Value
+        if (-not $challengeId) { $challengeId = (Get-Item -Path Env:START_CHALLENGE_ID -ErrorAction SilentlyContinue).Value }
+        if (-not $challengeId) { $challengeId = (Get-Item -Path Env:CHALLENGE_ID -ErrorAction SilentlyContinue).Value }
+        if (-not $challengeId) { $Reason.Value = 'STOP_CHALLENGE_ID not set'; return $false }
+        try {
+          $res = Invoke-RestMethod -Method Get -Uri ("$base/api/Challenge/$challengeId") -Headers $h -ErrorAction Stop
+          if (-not $res.data) { $Reason.Value = 'Challenge response missing data field'; return $false }
+        } catch {
+          $Reason.Value = "Challenge lookup failed: $($_.Exception.Message)"; return $false
+        }
+        return $true
+      }
+      'concurrent_max_attempts.js' {
+        $challengeId = (Get-Item -Path Env:MAX_ATTEMPTS_CHALLENGE_ID -ErrorAction SilentlyContinue).Value
+        if (-not $challengeId) { $challengeId = (Get-Item -Path Env:CHALLENGE_ID -ErrorAction SilentlyContinue).Value }
+        if (-not $challengeId) { $Reason.Value = 'MAX_ATTEMPTS_CHALLENGE_ID not set'; return $false }
+        try {
+          $res = Invoke-RestMethod -Method Get -Uri ("$base/api/Challenge/$challengeId") -Headers $h -ErrorAction Stop
+          if (-not $res.data) { $Reason.Value = 'Challenge response missing data field'; return $false }
+        } catch {
+          $Reason.Value = "Challenge lookup failed: $($_.Exception.Message)"; return $false
+        }
+        return $true
+      }
       'concurrent_correct_submissions.js' {
         $challengeId = (Get-Item -Path Env:CHALLENGE_ID -ErrorAction SilentlyContinue).Value
         if (-not $challengeId) { $Reason.Value = 'CHALLENGE_ID not set'; return $false }

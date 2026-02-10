@@ -35,6 +35,11 @@ Test/
 - `concurrent_dynamic_recalc.js` - Test dynamic score calculation under load
 - `concurrent_hint_unlock.js` - Test hint unlock race conditions
 - `concurrent_cooldown_attempts.js` - Test cooldown mechanisms
+- `concurrent_start_challenge.js` - Test race conditions in challenge start
+- `concurrent_stop_challenge.js` - Test race conditions in challenge stop
+- `concurrent_max_attempts.js` - Test max-attempts race conditions
+- `concurrent_ticket_create.js` - Test duplicate ticket creation race
+- `concurrent_ticket_delete.js` - Test ticket delete race conditions
 
 📖 **[See Integration Test README](Integration/README.md)** for detailed documentation.
 
