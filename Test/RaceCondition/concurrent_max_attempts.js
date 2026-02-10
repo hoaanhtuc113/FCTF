@@ -6,6 +6,7 @@ import { buildUrl, loginAndGetToken, getAuthHeaders, parseEnvInt, requireEnv } f
 const concurrency = parseEnvInt('CONCURRENCY', 5);
 const strictMode = (__ENV.STRICT || 'false').toLowerCase() === 'true';
 const expectedMaxAttempts = parseEnvInt('MAX_ATTEMPTS', 0);
+const useTokenList = (__ENV.USE_TOKEN_LIST || 'false').toLowerCase() === 'true';
 
 const incorrectCount = new Counter('max_attempts_incorrect');
 const exceededCount = new Counter('max_attempts_exceeded');
@@ -56,11 +57,44 @@ function pickSingleToken() {
   return null;
 }
 
+function parseTokenList(raw) {
+  return raw
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+}
+
 function resolveChallengeId() {
   return parseEnvInt('MAX_ATTEMPTS_CHALLENGE_ID', 0) || parseEnvInt('CHALLENGE_ID', 0);
 }
 
 export function setup() {
+  if (useTokenList) {
+    const tokenListRaw = __ENV.TOKEN_LIST;
+    if (tokenListRaw) {
+      const tokens = parseTokenList(tokenListRaw);
+      if (tokens.length === 0) {
+        throw new Error('TOKEN_LIST is provided but empty');
+      }
+      if (tokens.length < concurrency) {
+        throw new Error(`TOKEN_LIST must have at least ${concurrency} tokens for this test`);
+      }
+      return { tokens };
+    }
+
+    if (_tokenFileTokens) {
+      if (_tokenFileTokens.length === 0) {
+        throw new Error(`TOKEN_FILE (${_tokenFilePath}) exists but contains no tokens`);
+      }
+      if (_tokenFileTokens.length < concurrency) {
+        throw new Error(`TOKEN_FILE must have at least ${concurrency} tokens for this test`);
+      }
+      return { tokens: _tokenFileTokens };
+    }
+
+    throw new Error('USE_TOKEN_LIST=true requires TOKEN_LIST or TOKEN_FILE');
+  }
+
   const token = pickSingleToken() || loginAndGetToken();
   return { token };
 }
@@ -72,10 +106,14 @@ export default function (data) {
     throw new Error('MAX_ATTEMPTS_CHALLENGE_ID (or CHALLENGE_ID) is required');
   }
 
+  const token = data.tokens
+    ? data.tokens[(__VU - 1) % data.tokens.length]
+    : data.token;
+
   const res = http.post(
     buildUrl('/api/Challenge/attempt'),
     JSON.stringify({ challengeId, submission: wrongFlag }),
-    { headers: getAuthHeaders(data.token) }
+    { headers: getAuthHeaders(token) }
   );
 
   let status = null;
