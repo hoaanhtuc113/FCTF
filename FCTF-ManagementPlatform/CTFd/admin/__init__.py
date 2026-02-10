@@ -6,6 +6,7 @@ from io import StringIO
 from flask import Blueprint, abort, g
 from flask import current_app as app
 from flask import (
+    flash,
     jsonify,
     redirect,
     render_template,
@@ -168,24 +169,52 @@ def import_csv():
             csvdata = raw.decode("latin-1")
     csvfile = StringIO(csvdata)
     reader = csv.DictReader(csvfile)
+
+    def normalize_row(row):
+        # Allow templates to use Titlecase headers (e.g. Name/Email/Password)
+        # while schemas expect lowercase (name/email/password)
+        return {
+            (k.strip().lower() if isinstance(k, str) else k): v
+            for k, v in (row or {}).items()
+        }
+
+    normalized_reader = (normalize_row(row) for row in reader)
+    result = None
     if csv_type == "users":
-        success = load_users_csv(reader)
+        result = load_users_csv(normalized_reader)
     elif csv_type == "users_and_teams":
-        success = load_users_and_teams_csv(reader)
+        # load_users_and_teams_csv expects a file-like object (or DictReader).
+        # Rewind to ensure it reads the header row.
+        csvfile.seek(0)
+        result = load_users_and_teams_csv(csvfile)
+        warnings = (result or {}).get("warnings") if isinstance(result, dict) else None
+        if warnings:
+            max_lines = 50
+            shown = warnings[:max_lines]
+            remaining = len(warnings) - len(shown)
+            message = "Imported with warnings:\n" + "\n".join(shown)
+            if remaining > 0:
+                message += f"\n... and {remaining} more"
+            flash(message, category="warning")
     elif csv_type == "teams":
-        success = load_teams_csv(reader)
+        result = load_teams_csv(normalized_reader)
     elif csv_type == "challenges":
-        success = load_challenges_csv(reader)
+        result = load_challenges_csv(normalized_reader)
     else:
         # Handle other CSV types
 
-        success = False  # or load other types if implemented
+        result = False  # or load other types if implemented
+
+    redirect_url = url_for("admin.config", backup_tab="import-csv", _anchor="backup")
+
+    success = result is True or (isinstance(result, dict) and result.get("success") is True)
     if success is True:
         # for user in g.created_users:
         #     user_created_notification(user['email'], user['name'], user['password'])
-        return redirect(url_for("admin.config"))
+        return redirect(redirect_url)
     else:
-        return jsonify(success), 500
+        flash(f"Import failed:\n{result}", category="danger")
+        return redirect(redirect_url)
 
 
 
