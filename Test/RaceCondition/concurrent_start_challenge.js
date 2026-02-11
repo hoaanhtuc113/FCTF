@@ -5,6 +5,8 @@ import { buildUrl, loginAndGetToken, getAuthHeaders, parseEnvInt } from './helpe
 
 const concurrency = parseEnvInt('CONCURRENCY', 5);
 const strictMode = (__ENV.STRICT || 'false').toLowerCase() === 'true';
+const expectLimit = (__ENV.EXPECT_LIMIT || 'false').toLowerCase() === 'true';
+const expectMaxStart = parseEnvInt('EXPECT_MAX_START', 0);
 const useTokenList = (__ENV.USE_TOKEN_LIST || 'false').toLowerCase() === 'true';
 
 const startSuccessCount = new Counter('start_success');
@@ -65,6 +67,13 @@ function parseTokenList(raw) {
     .filter((t) => t.length > 0);
 }
 
+function parseChallengeIdList(raw) {
+  return raw
+    .split(',')
+    .map((v) => parseInt(v.trim(), 10))
+    .filter((v) => Number.isFinite(v) && v > 0);
+}
+
 export function setup() {
   if (useTokenList) {
     const tokenListRaw = __ENV.TOKEN_LIST;
@@ -97,9 +106,16 @@ export function setup() {
 }
 
 export default function (data) {
-  const challengeId = parseEnvInt('START_CHALLENGE_ID', 0) || parseEnvInt('CHALLENGE_ID', 0);
+  const challengeIdListRaw = __ENV.CHALLENGE_ID_LIST || '';
+  const challengeIdList = challengeIdListRaw ? parseChallengeIdList(challengeIdListRaw) : [];
+  const challengeId = challengeIdList.length > 0
+    ? challengeIdList[(__VU - 1) % challengeIdList.length]
+    : parseEnvInt('START_CHALLENGE_ID', 0) || parseEnvInt('CHALLENGE_ID', 0);
   if (!challengeId) {
-    throw new Error('START_CHALLENGE_ID (or CHALLENGE_ID) is required');
+    throw new Error('START_CHALLENGE_ID (or CHALLENGE_ID) is required when CHALLENGE_ID_LIST is not set');
+  }
+  if (challengeIdListRaw && challengeIdList.length === 0) {
+    throw new Error('CHALLENGE_ID_LIST is provided but has no valid IDs');
   }
 
   const token = data.tokens
@@ -164,10 +180,26 @@ export function handleSummary(data) {
 
   if (strictMode) {
     const unexpected = data.metrics.unexpected_responses ? data.metrics.unexpected_responses.values.count : 0;
-    if (started < 1 || unexpected > 0 || limit > 0 || forbidden > 0) {
-      summary += 'STRICT check failed: expected at least 1 start success and no unexpected/limit/forbidden responses.\n';
+    if (expectLimit) {
+      const startedOrInProgress = started + inProgress;
+      const handled = already + inProgress + limit + forbidden + started;
+      if (expectMaxStart > 0) {
+        if (startedOrInProgress > expectMaxStart || limit === 0 || unexpected > 0) {
+          summary += 'STRICT check failed: expected start count within limit and limit responses present.\n';
+        } else {
+          summary += 'STRICT check passed.\n';
+        }
+      } else if (started > 0 || unexpected > 0 || handled === 0) {
+        summary += 'STRICT check failed: expected no start success and limit/forbidden/in_progress responses.\n';
+      } else {
+        summary += 'STRICT check passed.\n';
+      }
     } else {
-      summary += 'STRICT check passed.\n';
+      if (started < 1 || unexpected > 0 || limit > 0 || forbidden > 0) {
+        summary += 'STRICT check failed: expected at least 1 start success and no unexpected/limit/forbidden responses.\n';
+      } else {
+        summary += 'STRICT check passed.\n';
+      }
     }
   }
 
