@@ -69,11 +69,13 @@ builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions();
+
+// Init config from SharedConfig (includes REDIS_CONNECTION_STRING)
+new ContestantBEConfigHelper().InitConfig();
+
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration =
-        builder.Configuration["Redis:ConnectionString"]
-        ?? builder.Configuration["REDIS_CONNECTION"];
+    options.Configuration = SharedConfig.REDIS_CONNECTION_STRING;
 });
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
@@ -91,8 +93,6 @@ builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<INotificationServices, NotificationServices>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
-//Init config from ControlConfig, SharedConfig
-new ContestantBEConfigHelper().InitConfig();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 

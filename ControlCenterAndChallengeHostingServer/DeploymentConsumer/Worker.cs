@@ -177,7 +177,7 @@ internal class Worker : BackgroundService
                     startReq?.teamId.ToString() ?? string.Empty,
                     deploymentKey,
                     startReq?.challengeId.ToString() ?? string.Empty,
-                    realTtlSeconds: 360,
+                    realTtlSeconds: DeploymentConsumerConfigHelper.ARGO_DEPLOY_TTL_MINUTES * 60,
                     JsonSerializer.Serialize(deploymentCache));
             }
             catch (Exception ex)
