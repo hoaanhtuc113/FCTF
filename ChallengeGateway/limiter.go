@@ -125,6 +125,7 @@ type gatewayConfig struct {
 	HTTPMaxBodyBytes int64
 	TCPRate          float64
 	TCPBurst         int
+	TCPCopyBufBytes  int
 	TCPMaxConns      int
 	TCPMaxConnsPerIP int
 	TCPMaxConnsPerToken int
@@ -149,6 +150,7 @@ func loadConfig() gatewayConfig {
 		HTTPMaxBodyBytes: envInt64("HTTP_MAX_BODY_BYTES", 10<<20),
 		TCPRate:          envFloat("TCP_RATE", 10),
 		TCPBurst:         envInt("TCP_BURST", 30),
+		TCPCopyBufBytes:  envInt("TCP_COPY_BUF_BYTES", 32*1024),
 		TCPMaxConns:      envInt("TCP_MAX_CONNS", 4000),
 		TCPMaxConnsPerIP: envInt("TCP_MAX_CONNS_PER_IP", 1000),
 		TCPMaxConnsPerToken: envInt("TCP_MAX_CONNS_PER_TOKEN", 15),
