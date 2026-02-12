@@ -9,6 +9,7 @@ using ResourceShared.Services;
 using ResourceShared.Utils;
 using System.Net;
 using static ResourceShared.Enums;
+using DeploymentCenter.Utils;
 
 namespace DeploymentCenter.Services;
 
@@ -131,7 +132,8 @@ public class DeployService : IDeployService
 
         try
         {
-            await _deploymentProducerService.EnqueueDeploymentAsync(startReq);
+            var expirySeconds = DeploymentCenterConfigHelper.DEPLOYMENT_QUEUE_TIMEOUT_MINUTES * 60;
+            await _deploymentProducerService.EnqueueDeploymentAsync(startReq, expirySeconds);
 
             deploymentCache = new ChallengeDeploymentCacheDTO
             {
@@ -144,7 +146,10 @@ public class DeployService : IDeployService
                 time_finished = 0
             };
 
-            await _redisHelper.SetCacheAsync(deploymentKey, deploymentCache, TimeSpan.FromMinutes(5));
+            await _redisHelper.SetCacheAsync(
+                deploymentKey,
+                deploymentCache,
+                TimeSpan.FromMinutes(DeploymentCenterConfigHelper.DEPLOYMENT_QUEUE_TIMEOUT_MINUTES));
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.OK,

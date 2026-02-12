@@ -5,3 +5,5 @@ metadata:
   namespace: app
 data:
   OTEL_SERVICE_NAME: "deployment-consumer"
+
+  ARGO_DEPLOY_TTL_MINUTES: "6"
