@@ -73,20 +73,29 @@
       {% endfor %}
     </ul>
     <label class="clean-label">
+      {% if image_link_display %}
+        <div class="form-group">
+          <label class="clean-label">
+            Image name <br>
+            <small class="form-text text-muted">Current deployed image</small>
+          </label>
+          <input type="text" class="form-control clean-form-control" value="{{ image_link_display }}" disabled readonly>
+        </div>
+      {% else %}
+        <div class="form-group">
+          <label class="clean-label">
+            Image name <br>
+            <small class="form-text text-muted">Current deployed image</small>
+          </label>
+          <input type="text" class="form-control clean-form-control" value="No image deployed" disabled readonly>
+        </div>
+      {% endif %}
+
       {% if challenge.deploy_status == "DEPLOY_SUCCESS" %}
-          {% if image_link_display %}
-            <div class="form-group">
-              <label class="clean-label">
-                Image name <br>
-                <small class="form-text text-muted">Current deployed image</small>
-              </label>
-              <input type="text" class="form-control clean-form-control" value="{{ image_link_display }}" disabled readonly>
-            </div>
-          {% endif %}
-          Change deploy file:
+        Change deploy file:
         <small class="form-text text-muted">Upload a new deploy file</small>
       {% else %}
-        Files:
+        Deploy Files:
         <small class="form-text text-muted">Files distributed along with your challenge</small>
       {% endif %}
     </label>
