@@ -1,26 +1,30 @@
 # FCTF Testing Suite
 
-Comprehensive testing suite for the FCTF (CTF Platform) system, covering integration tests and stress tests for all Contestant Backend APIs.
+Comprehensive testing suite for the FCTF (CTF Platform) system, covering race-condition, stress, and gateway-focused tests.
 
 ## 📁 Test Structure
 
 ```
 Test/
-├── Integration/          # Integration & concurrency tests
+├── RaceCondition/        # Integration & concurrency tests
 │   ├── Various k6 test scripts
 │   └── README.md
 │
-└── Stress/              # Performance & load tests
+├── Stress/               # Performance & load tests
     ├── 10 stress test scripts
     ├── 4 runner scripts
     ├── README.md
     ├── QUICKSTART.md
     └── FILE_STRUCTURE.md
+│
+└── Gateway/              # Gateway auth/proxy/rate-limit tests
+    ├── k6 scripts + PowerShell runners
+    └── README.md
 ```
 
 ## 🎯 Test Types
 
-### Integration Tests (`Integration/`)
+### Integration Tests (`RaceCondition/`)
 **Purpose**: Verify API functionality and handle concurrency scenarios
 
 **Key Features**:
@@ -41,7 +45,19 @@ Test/
 - `concurrent_ticket_create.js` - Test duplicate ticket creation race
 - `concurrent_ticket_delete.js` - Test ticket delete race conditions
 
-📖 **[See Integration Test README](Integration/README.md)** for detailed documentation.
+📖 **[See Integration Test README](RaceCondition/README.md)** for detailed documentation.
+
+### Gateway Tests (`Gateway/`)
+**Purpose**: Validate ChallengeGateway behavior for token auth, transparent proxying, and rate-limit controls
+
+**Key Features**:
+- Token auth flow checks (missing/invalid/expired/valid)
+- Redirect and cookie flow verification (`token` stripped from URL)
+- Exploit-like payload passthrough load tests
+- Rate-limit behavior validation under burst traffic
+- TCP auth smoke tests (empty/invalid/valid token)
+
+📖 **[See Gateway Test README](Gateway/README.md)** for detailed documentation.
 
 ### Stress Tests (`Stress/`)
 **Purpose**: Evaluate performance, scalability, and stability under various load conditions
@@ -86,7 +102,7 @@ choco install k6
 ### Integration Tests Quick Start
 
 ```powershell
-cd Test\Integration
+cd Test\RaceCondition
 
 # Copy and configure environment
 Copy-Item .env.example .env
@@ -94,6 +110,19 @@ notepad .env  # Add your configuration
 
 # Run all tests
 .\run-k6-batch.ps1
+```
+
+### Gateway Tests Quick Start
+
+```powershell
+cd Test\Gateway
+
+# Copy and configure environment
+Copy-Item .env.example .env
+notepad .env  # Add gateway URL and token/private key
+
+# Run full gateway suite
+.\run-gateway-tests.ps1
 ```
 
 ### Stress Tests Quick Start
@@ -230,18 +259,21 @@ checks.........................: 98.50%
 
 | Document | Location | Purpose |
 |----------|----------|---------|
-| Integration Tests README | `Integration/README.md` | Integration test documentation |
+| RaceCondition Tests README | `RaceCondition/README.md` | Integration/race-condition test documentation |
 | Stress Tests README | `Stress/README.md` | Complete stress test documentation |
+| Gateway Tests README | `Gateway/README.md` | Gateway test usage and metrics |
+| Gateway Test Cases | `Gateway/TestCases.md` | Full report-ready gateway test cases and test-type mapping |
 | Stress Tests Quick Start | `Stress/QUICKSTART.md` | 5-minute quick start guide |
 | Stress Tests File Structure | `Stress/FILE_STRUCTURE.md` | Detailed file descriptions |
 
 ## 🎓 Learning Path
 
 1. **Start Here**: Read this README
-2. **Integration Tests**: Go to `Integration/README.md`
-3. **Stress Tests**: Go to `Stress/QUICKSTART.md`
-4. **Deep Dive**: Read `Stress/README.md` for complete details
-5. **Reference**: Use `Stress/FILE_STRUCTURE.md` as reference
+2. **Integration Tests**: Go to `RaceCondition/README.md`
+3. **Gateway Tests**: Go to `Gateway/README.md` then `Gateway/TestCases.md`
+4. **Stress Tests**: Go to `Stress/QUICKSTART.md`
+5. **Deep Dive**: Read `Stress/README.md` for complete details
+6. **Reference**: Use `Stress/FILE_STRUCTURE.md` as reference
 
 ## 🛠️ Common Tasks
 
