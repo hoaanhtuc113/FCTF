@@ -1,6 +1,5 @@
 ﻿using DotNetEnv;
 using Microsoft.Extensions.Configuration;
-using ResourceShared.Configs;
 
 namespace ResourceShared.Utils;
 
@@ -13,6 +12,8 @@ public class SharedConfig
     public static string PRIVATE_KEY = "";
     public static string TCP_DOMAIN = "";
     public static string START_CHALLENGE_TEMPLATE = "";
+
+    public static string REDIS_CONNECTION_STRING = "";
 
     // RabbitMQ configuration (can be overridden by environment variables or .env)
     public static string RABBIT_HOST = "";
@@ -38,7 +39,10 @@ public class SharedConfig
     }
     public virtual void InitConfig()
     {
-        RedisConfigs.ConnectionString = configuration["REDIS_CONNECTION"] ?? throw new Exception("Can't read RedisConnectionString");
+        REDIS_CONNECTION_STRING =
+            configuration["Redis:ConnectionString"]
+            ?? configuration["REDIS_CONNECTION"]
+            ?? throw new Exception("Can't read Redis connection string (Redis:ConnectionString or REDIS_CONNECTION)");
         PRIVATE_KEY = configuration["PRIVATE_KEY"] ?? throw new Exception("Can't read PrivateKey");
         TCP_DOMAIN = configuration["TCP_DOMAIN"] ?? throw new Exception("Can't read TCP_DOMAIN");
         START_CHALLENGE_TEMPLATE = configuration["START_CHALLENGE_TEMPLATE"] ?? throw new Exception("Can't read START_CHALLENGE_TEMPLATE");
