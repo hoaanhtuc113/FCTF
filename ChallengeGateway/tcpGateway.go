@@ -210,19 +210,11 @@ func HandleConnection(clientConn net.Conn) {
 	proxyCopy := func(dst, src net.Conn, direction string) {
 		buf := tcpCopyBufPool.Get().([]byte)
 		sampleLimit := 0
-		var onSample func(sampleB64 string, sampleBytes int)
-		// Only sample client-to-server data log first 256 bytes 
+		// Only sample client-to-server data log first 32kb
 		if direction == "c2s" {
-			sampleLimit = 256
-			onSample = func(sampleB64 string, sampleBytes int) {
-				if ok {
-					log.Printf("[~] TCP proxy %s sample from %s team=%d challenge=%d -> %s sample_bytes=%d sample_b64=%s", direction, remoteAddr, teamID, challengeID, host, sampleBytes, sampleB64)
-				} else {
-					log.Printf("[~] TCP proxy %s sample from %s -> %s sample_bytes=%d sample_b64=%s", direction, remoteAddr, host, sampleBytes, sampleB64)
-				}
-			}
+			sampleLimit = 32768
 		}
-		bytesCopied, sampleB64, copyErr := proxyCopyWithSample(dst, src, buf, sampleLimit, onSample)
+		bytesCopied, sampleB64, copyErr := proxyCopyWithSample(dst, src, buf, sampleLimit)
 		tcpCopyBufPool.Put(buf)
 
 		errSuffix := ""
@@ -256,12 +248,11 @@ func HandleConnection(clientConn net.Conn) {
 	log.Printf("[+] Session ended: %s", remoteAddr)
 }
 
-func proxyCopyWithSample(dst io.Writer, src io.Reader, buf []byte, sampleLimit int, onSample func(sampleB64 string, sampleBytes int)) (bytesCopied int64, sampleB64 string, err error) {
+func proxyCopyWithSample(dst io.Writer, src io.Reader, buf []byte, sampleLimit int) (bytesCopied int64, sampleB64 string, err error) {
 	if sampleLimit < 0 {
 		sampleLimit = 0
 	}
 	var sample bytes.Buffer
-	sampleLogged := false
 	for {
 		n, readErr := src.Read(buf)
 		if n > 0 {
@@ -273,11 +264,6 @@ func proxyCopyWithSample(dst io.Writer, src io.Reader, buf []byte, sampleLimit i
 				} else {
 					_, _ = sample.Write(buf[:remain])
 				}
-			}
-
-			if !sampleLogged && onSample != nil && sample.Len() > 0 {
-				sampleLogged = true
-				onSample(base64.RawStdEncoding.EncodeToString(sample.Bytes()), sample.Len())
 			}
 
 			if _, writeErr := dst.Write(buf[:n]); writeErr != nil {
