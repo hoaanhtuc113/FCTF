@@ -720,13 +720,22 @@ public class ChallengeController : ControllerBase
             }
         }
 
-        var submission = await _context.Submissions
-            .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId)
-            .AsNoTracking()
-            .ToArrayAsync();
-        if (challenge.MaxAttempts > 0 && submission.Length >= challenge.MaxAttempts)
+        if (challenge.MaxAttempts.HasValue && challenge.MaxAttempts.Value > 0)
         {
-            return BadRequest(new { error = "Your team has reached the maximum number of attempts for this challenge. You cannot start this challenge." });
+            var incorrectSubmissionCount = await _context.Submissions
+                .AsNoTracking()
+                .Where(s => s.ChallengeId == challenge.Id
+                    && s.TeamId == user.TeamId
+                    && s.Type == SubmissionTypes.INCORRECT)
+                .CountAsync();
+
+            if (incorrectSubmissionCount >= challenge.MaxAttempts.Value)
+            {
+                return BadRequest(new
+                {
+                    error = "You have 0 tries remaining. You cannot start this challenge."
+                });
+            }
         }
 
         var solve = await _context.Solves
