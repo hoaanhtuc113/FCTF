@@ -30,18 +30,21 @@ public class ChallengeServices : IChallengeServices
 {
     private readonly AppDbContext _dbContext;
     private readonly RedisHelper _redisHelper;
+    private readonly RedisLockHelper _redisLockHelper;
     private readonly ConfigHelper _configHelper;
     private readonly AppLogger _logger;
     private readonly MultiServiceConnector _multiServiceConnector;
     public ChallengeServices(
         AppDbContext dbContext,
         RedisHelper redisHelper,
+        RedisLockHelper redisLockHelper,
         ConfigHelper configHelper,
         AppLogger logger,
         MultiServiceConnector multiServiceConnector)
     {
         _dbContext = dbContext;
         _redisHelper = redisHelper;
+        _redisLockHelper = redisLockHelper;
         _configHelper = configHelper;
         _logger = logger;
         _multiServiceConnector = multiServiceConnector;
@@ -379,6 +382,21 @@ public class ChallengeServices : IChallengeServices
 
     public async Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user)
     {
+        if (user?.TeamId == null)
+        {
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.BadRequest,
+                success = false,
+                message = "User team not found"
+            };
+        }
+
+        var lockKey = $"challenge:stop:team:{user.TeamId.Value}:challenge:{challengeId}";
+        var lockToken = Guid.NewGuid().ToString("N");
+        var lockExpiry = TimeSpan.FromSeconds(30);
+        var lockAcquired = false;
+
         var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var data = new Dictionary<string, string>
         {
@@ -399,6 +417,28 @@ public class ChallengeServices : IChallengeServices
 
         try
         {
+            lockAcquired = await _redisLockHelper.AcquireLock(lockKey, lockToken, lockExpiry);
+            if (!lockAcquired)
+            {
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.Conflict,
+                    success = false,
+                    message = "Stop challenge request is already in progress"
+                };
+            }
+
+            var cacheKey = ChallengeHelper.GetCacheKey(challengeId, user.TeamId.Value);
+            if (!await _redisHelper.KeyExistsAsync(cacheKey))
+            {
+                return new ChallengeDeployResponeDTO
+                {
+                    status = (int)HttpStatusCode.BadRequest,
+                    success = false,
+                    message = "Challenge not started or already stopped"
+                };
+            }
+
             var body = await _multiServiceConnector.ExecuteRequest(
                 ContestantBEConfigHelper.DeploymentCenterAPI,
                 "/api/challenge/stop",
@@ -436,6 +476,23 @@ public class ChallengeServices : IChallengeServices
                 success = false,
                 message = "Connection url failed"
             };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, user?.Id, user?.TeamId, new { challengeId });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.InternalServerError,
+                success = false,
+                message = "Unexpected error occurred while stopping challenge"
+            };
+        }
+        finally
+        {
+            if (lockAcquired)
+            {
+                await _redisLockHelper.ReleaseLock(lockKey, lockToken);
+            }
         }
     }
 
