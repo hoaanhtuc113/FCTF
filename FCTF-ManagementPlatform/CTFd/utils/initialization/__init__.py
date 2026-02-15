@@ -362,8 +362,8 @@ def init_request_processors(app):
             abort(404)
         if hasattr(func, "_bypass_csrf"):
             return
-        if request.headers.get("Authorization"):
-            return
+        # REMOVED: Authorization header bypass - this was a CSRF vulnerability!
+        # Token-based auth is already handled by tokens() middleware above
         if not session.get("nonce"):
             session["nonce"] = generate_nonce()
         if request.method not in ("GET", "HEAD", "OPTIONS", "TRACE"):

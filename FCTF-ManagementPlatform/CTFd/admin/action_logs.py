@@ -32,6 +32,17 @@ def _parse_int(value):
 		return None
 
 
+def _escape_like_pattern(value):
+	"""Escape special LIKE wildcard characters to prevent injection."""
+	if not value:
+		return value
+	# Escape LIKE wildcards: % and _
+	value = value.replace("\\", "\\\\")  # Escape backslash first
+	value = value.replace("%", "\\%")
+	value = value.replace("_", "\\_")
+	return value
+
+
 def _apply_user_team_filters(query, user_filter, team_filter):
 	user_id = _parse_int(user_filter)
 	team_id = _parse_int(team_filter)
@@ -40,13 +51,19 @@ def _apply_user_team_filters(query, user_filter, team_filter):
 		if user_id is not None:
 			query = query.filter(Users.id == user_id)
 		else:
-			query = query.filter(Users.name.ilike(f"%{user_filter}%"))
+			# Escape LIKE wildcards and use parameterized query to prevent SQL injection
+			escaped_filter = _escape_like_pattern(user_filter)
+			search_pattern = f"%{escaped_filter}%"
+			query = query.filter(Users.name.ilike(search_pattern, escape="\\"))
 
 	if team_filter:
 		if team_id is not None:
 			query = query.filter(Teams.id == team_id)
 		else:
-			query = query.filter(Teams.name.ilike(f"%{team_filter}%"))
+			# Escape LIKE wildcards and use parameterized query to prevent SQL injection
+			escaped_filter = _escape_like_pattern(team_filter)
+			search_pattern = f"%{escaped_filter}%"
+			query = query.filter(Teams.name.ilike(search_pattern, escape="\\"))
 
 	return query
 

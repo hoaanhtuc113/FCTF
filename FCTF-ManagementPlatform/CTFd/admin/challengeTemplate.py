@@ -32,7 +32,6 @@ from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import get_current_team, get_current_user, is_admin,is_jury
 from CTFd.utils.uploads import upload_file
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, PRIVATE_KEY
-from CTFd.plugins import bypass_csrf_protection
 # Cấu hình các định dạng file được phép upload
 ALLOWED_EXTENSIONS = {"zip"}  # Thay đổi theo nhu cầu
 
@@ -40,7 +39,6 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @admin.route("/admin/challenge_template", methods=["GET", "POST"])
-@bypass_csrf_protection
 @admin_or_challenge_writer_only
 def challenge_template():
     try:

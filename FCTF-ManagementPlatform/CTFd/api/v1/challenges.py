@@ -74,7 +74,6 @@ from CTFd.utils.user import (
     is_jury,
 )
 
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification, get_workflow_status ,get_workflow_name, delete_cached_files
 from CTFd.utils.uploads import delete_folder
 
@@ -723,7 +722,6 @@ def get_token_from_header():
 @challenges_namespace.route("/attempt")
 class ChallengeAttempt(Resource):
     @during_ctf_time_only
-    @bypass_csrf_protection
     def post(self):
         print("Chay vao day")
         auth_header = get_token_from_header()

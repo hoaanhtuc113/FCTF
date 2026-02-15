@@ -13,7 +13,6 @@ from CTFd.models import (
     Users,
     db,
 )
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.constants.envvars import (
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
@@ -55,7 +54,6 @@ redis_client = redis.StrictRedis(
    
 @challenge.route("/api/challenge/start", methods=["POST"])
 @during_ctf_time_only
-@bypass_csrf_protection
 def start_challenge():
     data = request.get_json() or request.form.to_dict()
     challenge_id = data.get("challenge_id")
@@ -95,7 +93,6 @@ def start_challenge():
         return challenge_start(payload, headers, api_start)
 
 @challenge.route("/api/challenge/status-check/<challenge_id>", methods=["GET"])
-@bypass_csrf_protection
 def check_challenge_status(challenge_id):
     if not challenge_id or challenge_id == 'undefined':
         return jsonify({"error": "ChallengeId is required"}), 400
@@ -103,7 +100,6 @@ def check_challenge_status(challenge_id):
     return start_challenge_status_checking(challenge_id, -1)  # -1 for preview mode
     
 @challenge.route("/api/challenge/stop-by-admin", methods=["POST"])
-@bypass_csrf_protection
 def stop_challenge_by_admin():
     data = request.get_json() or request.form.to_dict()
     team_id = data.get("team_id")
@@ -158,7 +154,6 @@ def stop_challenge_by_admin():
 
 
 @challenge.route("/api/challenge/stop-bulk", methods=["POST"])
-@bypass_csrf_protection
 def stop_challenge_bulk_by_admin():
     data = request.get_json(silent=True) or {}
     items = data.get("items")
@@ -260,7 +255,6 @@ def stop_challenge_bulk_by_admin():
     }), 200
 
 @challenge.route("/api/challenge/stop-all", methods=["DELETE"])
-@bypass_csrf_protection
 def stop_all_challenges():
     user_id = session["id"]
     print("useriddddd" +str(user_id))
@@ -284,7 +278,6 @@ def stop_all_challenges():
 
 
 @challenge.route("/api/challenge/get-all-instance", methods=["POST", "GET"])
-@bypass_csrf_protection
 def get_all_instance():
     try:
         # Kiểm tra quyền truy cập của người dùng
@@ -447,7 +440,6 @@ def get_all_instance():
 
 
 @challenge.route("/api/attempt/check_cache", methods=["POST"])
-@bypass_csrf_protection
 def check_user_attempt_cache():
     data = request.get_json() or request.form.to_dict()
     if data == request.form.to_dict():

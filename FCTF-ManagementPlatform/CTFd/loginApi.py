@@ -11,7 +11,6 @@ from CTFd.models import (
     Teams,
     db,
 )
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.crypto import verify_password, hash_password
 from datetime import datetime, timedelta
 from CTFd.utils.security.auth import generate_user_token
@@ -30,7 +29,6 @@ from datetime import datetime
 LoginUser = Blueprint("login", __name__)
 
 @LoginUser.route("/api/login-contestant", methods=["POST"])
-@bypass_csrf_protection
 def login():
     data = request.get_json()
     username = data.get("username")
@@ -85,7 +83,6 @@ def login():
 
 
 @LoginUser.route("/api/changepassword", methods=["POST"])
-@bypass_csrf_protection
 def change_password():
     data = request.form.to_dict()
     current_password = data.get("current_password")
@@ -124,7 +121,6 @@ def validate_email(email, email_regex):
 
 
 @LoginUser.route("/api/register-contestant", methods=["POST"])
-@bypass_csrf_protection
 def register():
     try:
         register_config = get_config(ConfigTypes.REGISTRATION_VISIBILITY)
@@ -298,7 +294,6 @@ def register():
 
 
 @LoginUser.route("/api/team/create", methods=["POST", "GET"])
-@bypass_csrf_protection
 @require_team_mode
 def create_team():
     errors = []
@@ -448,7 +443,6 @@ def create_team():
 
 
 @LoginUser.route("/api/team/join", methods=["GET", "POST"])
-@bypass_csrf_protection
 @require_team_mode
 @ratelimit(method="POST", limit=10, interval=5)
 def joinTeam():

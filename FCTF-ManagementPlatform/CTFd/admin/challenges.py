@@ -315,7 +315,6 @@ def create_secret_key(
 
 
 @admin.route("/api/challenge/preview/<int:challenge_id>")
-@bypass_csrf_protection
 @admin_or_challenge_writer_only
 def challenge_preview(challenge_id):
     unix_time = str(int(time.time()))

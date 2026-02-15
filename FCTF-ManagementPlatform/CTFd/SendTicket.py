@@ -3,7 +3,6 @@ from flask import Blueprint, jsonify, request, flash, render_template, abort, se
 from CTFd.utils.decorators import require_verified_emails, during_ctf_time_only
 from CTFd.utils.user import authed
 from CTFd.models import Tickets, Tokens, Users, db
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.StartChallenge import get_token_from_header
 from sqlalchemy.orm import aliased
 import datetime
@@ -24,7 +23,6 @@ def send_ticket():
 
 @sendticket.route("/api/sendticket", methods=['POST'])
 @require_verified_emails
-@bypass_csrf_protection
 @during_ctf_time_only
 def send_ticket_from_user():
     data = request.get_json() or request.form.to_dict()
@@ -64,7 +62,6 @@ def send_ticket_from_user():
 
 @sendticket.route("/api/tickets/<int:ticket_id>", methods=['GET'])
 @during_ctf_time_only
-@bypass_csrf_protection
 def get_ticket_by_id(ticket_id):
     try:
         Author = aliased(Users)
@@ -100,7 +97,6 @@ def get_ticket_by_id(ticket_id):
 
 
 @sendticket.route("/api/tickets", methods=['GET'])
-@bypass_csrf_protection
 @during_ctf_time_only
 def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, per_page=10):
     try:
@@ -188,7 +184,6 @@ def send_ticket_from_relier(ticket_id, data):
 
 
 @sendticket.route("/api/tickets-user", methods=['GET'])
-@bypass_csrf_protection
 @during_ctf_time_only
 def get_user_tickets():
     try:
