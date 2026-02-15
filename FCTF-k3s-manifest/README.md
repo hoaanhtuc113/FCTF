@@ -34,6 +34,7 @@ maxPods: 250
 EOF
 
 # Cài K3s với domain TLS SAN
+# Chú ý đổi tls-san thành ip của master 
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
   --disable-network-policy \
@@ -189,6 +190,9 @@ kubectl create secret docker-registry regcred
 kubectl create namespace app
 kubectl create namespace challenge
 
+
+kubectl apply -f ./prod/priority-classes.yaml
+kubectl apply -f ./prod/runtime-class.yaml
 # Apply ConfigMaps và Secrets
 kubectl apply -f ./prod/env/configmap/
 kubectl apply -f ./prod/env/secret/
@@ -284,6 +288,11 @@ sudo systemctl restart nfs-kernel-server
 
 # Xóa pod để recreate
 kubectl delete pod -n storage -l app.kubernetes.io/name=filebrowser
+```
+
+### Lưu ý
+``` bash
+# nếu xử dụng firewall mở các port 80, 443, 30037, 30038
 ```
 
 ### Pod pending hoặc CrashLoopBackOff
