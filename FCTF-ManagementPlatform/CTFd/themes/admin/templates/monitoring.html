@@ -406,7 +406,7 @@
 			url += `&team_name=${encodeURIComponent(teamFilter)}`;
 		}
 
-		const response = await fetch(url, {
+		const response = await CTFd.fetch(url, {
 			method: "GET"
 		});
 
@@ -563,7 +563,10 @@
 		paginationControls.appendChild(nextLi);
 	}
 
-	loadData(); // Initial load
+	// Initial load when DOM is ready
+	document.addEventListener('DOMContentLoaded', function () {
+		loadData();
+	});
 
 	function viewLogs(challengeId, teamId) {
 		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
@@ -571,11 +574,8 @@
 
 	async function stopChallenge(challengeId, teamId) {
 		try {
-			const response = await fetch("/api/challenge/stop-by-admin", {
+			const response = await CTFd.fetch("/api/challenge/stop-by-admin", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
 				body: JSON.stringify({
 					challenge_id: challengeId,
 					team_id: teamId
@@ -615,11 +615,8 @@
 		}
 
 		try {
-			const response = await fetch("/api/challenge/stop-bulk", {
+			const response = await CTFd.fetch("/api/challenge/stop-bulk", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
 				body: JSON.stringify({ items })
 			});
 
@@ -677,11 +674,8 @@
 		deleteAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping All...';
 
 		try {
-			const response = await fetch("/api/challenge/stop-all", {
-				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json"
-				}
+			const response = await CTFd.fetch("/api/challenge/stop-all", {
+				method: "DELETE"
 			});
 
 			if (response.ok) {

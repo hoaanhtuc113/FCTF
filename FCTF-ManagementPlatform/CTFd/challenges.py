@@ -59,7 +59,6 @@ from CTFd.models import (
     Topics,
     Users,
 )
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.StartChallenge import generate_cache_key, get_token_from_header
 from CTFd.plugins.multiple_choice import modify_description
 
@@ -109,7 +108,6 @@ def listing():
 
 @challenges.route("/api/challenge/<int:challenge_id>", methods=["GET"])
 @during_ctf_time_only
-@bypass_csrf_protection
 def get_challenge_detail(challenge_id):
     try:
         challenge = Challenges.query.filter_by(id=challenge_id).first()
@@ -232,7 +230,6 @@ def get_challenge_detail(challenge_id):
 
 
 @challenges.route("/api/challenge/list_challenge/<string:category>", methods=["GET"])
-@bypass_csrf_protection
 def get_challenges_by_topic(category):
     try:
         challenges = Challenges.query.filter_by(category=category).all()
@@ -285,7 +282,6 @@ def get_challenges_by_topic(category):
 
 
 @challenges.route("/api/challenge/by-topic", methods=["GET"])
-@bypass_csrf_protection
 def challenge_by_topic():
     if is_banned():
         return (
@@ -356,7 +352,6 @@ def challenge_by_topic():
 
 
 @challenges.route("/api/public/challenge/by-topic", methods=["GET"])
-@bypass_csrf_protection
 def public_challenge_by_topic():
     try:
         # Lấy các danh mục challenge mà không yêu cầu người dùng đăng nhập
@@ -411,7 +406,6 @@ def public_challenge_by_topic():
 
 
 @challenges.route("/api/challenge/<int:challenge_id>", methods=["GET"])
-@bypass_csrf_protection
 def challenge_by_id(challenge_id):
     try:
         challenge = Challenges.query.get_or_404(challenge_id)
@@ -439,7 +433,6 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), ".", "uploads/")
 
 # Route để lấy file của challenge
 @challenges.route("/api/challenge/<int:challenge_id>/file", methods=["GET"])
-@bypass_csrf_protection
 def get_challenge_file(challenge_id):
     try:
         challenge = Challenges.query.filter_by(id=challenge_id).first()

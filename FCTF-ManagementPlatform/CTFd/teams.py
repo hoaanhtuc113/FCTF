@@ -15,7 +15,6 @@ from CTFd.utils.helpers import get_errors, get_infos
 from CTFd.utils.humanize.words import pluralize
 from CTFd.utils.user import get_current_user, get_current_user_attrs, is_admin
 from CTFd.utils.validators import ValidationError
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.StartChallenge import get_token_from_header
 from CTFd.schemas.submissions import SubmissionSchema
 
@@ -406,7 +405,7 @@ def public(team_id):
     )
 
 @teams.route('/api/team/solves', methods=["GET"])
-@bypass_csrf_protection
+
 def solves ():
     user_id = 0
     generatedToken = get_token_from_header()
