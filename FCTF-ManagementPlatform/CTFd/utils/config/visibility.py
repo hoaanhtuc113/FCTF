@@ -7,6 +7,7 @@ from CTFd.constants.config import (
 )
 from CTFd.utils import get_config
 from CTFd.utils.user import authed, is_admin
+from CTFd.utils.config import is_setup
 
 
 def challenges_visible():
@@ -42,6 +43,10 @@ def accounts_visible():
 
 
 def registration_visible():
+    # Completely disable registration after admin setup
+    if is_setup():
+        return False
+    
     v = get_config(ConfigTypes.REGISTRATION_VISIBILITY)
     if v == RegistrationVisibilityTypes.PUBLIC:
         return True
