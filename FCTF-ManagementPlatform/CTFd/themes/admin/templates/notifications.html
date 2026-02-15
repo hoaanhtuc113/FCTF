@@ -330,7 +330,8 @@
 					<h3>Create New Notification</h3>
 					{% with form = Forms.notifications.NotificationForm() %}
 					<form method="POST" id="notifications_form" autocomplete="off">
-						{{ form.hidden_tag() }}
+						{{ form.nonce() }}
+						<input type="hidden" name="csrf_token" value="{{ Session.nonce }}">
 						<div class="form-group">
 							<label>{{ form.title.label }}</label>
 							{{ form.title(class="form-control") }}

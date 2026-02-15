@@ -45,6 +45,7 @@
 							</a>
 						</div>
 						{{ form.nonce() }}
+						<input type="hidden" name="csrf_token" value="{{ Session.nonce }}">
 					</div>
 				</form>
 				{% endwith %}
