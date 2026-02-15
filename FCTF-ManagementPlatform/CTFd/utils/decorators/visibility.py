@@ -11,6 +11,7 @@ from CTFd.constants.config import (
 )
 from CTFd.utils import get_config
 from CTFd.utils.user import authed, is_admin
+from CTFd.utils.config import is_setup
 
 
 def check_score_visibility(f):
@@ -114,6 +115,10 @@ def check_account_visibility(f):
 def check_registration_visibility(f):
     @functools.wraps(f)
     def _check_registration_visibility(*args, **kwargs):
+        # Block registration completely after setup
+        if is_setup():
+            abort(404)
+        
         v = get_config(ConfigTypes.REGISTRATION_VISIBILITY)
         if v == RegistrationVisibilityTypes.PUBLIC:
             return f(*args, **kwargs)
