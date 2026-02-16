@@ -194,10 +194,8 @@ def reset_password(data=None):
 @check_registration_visibility
 @ratelimit(method="POST", limit=10, interval=5)
 def register():
-    # Completely block registration after setup
-    from CTFd.utils.config import is_setup
-    if is_setup():
-        abort(403, description="Registration is closed. The CTF has been set up and new registrations are not allowed.")
+    # Registration is disabled in this deployment.
+    abort(404)
     
     errors = get_errors()
     if current_user.authed():
