@@ -1,5 +1,7 @@
-from flask import Blueprint, current_app
+from flask import Blueprint, abort, current_app, redirect
 from flask_restx import Api
+
+from CTFd.utils.decorators import admins_only
 
 from CTFd.api.v1.awards import awards_namespace
 from CTFd.api.v1.brackets import brackets_namespace
@@ -30,6 +32,20 @@ from CTFd.api.v1.users import users_namespace
 from CTFd.api.v1.action_logs import action_logs_namespace
 
 api = Blueprint("api", __name__, url_prefix="/api/v1")
+
+
+@api.route("")
+@admins_only
+def api_v1_root():
+    """Redirect /api/v1 to the Swagger UI when enabled."""
+
+    doc_endpoint = current_app.config.get("SWAGGER_UI_ENDPOINT")
+    if doc_endpoint:
+        if not doc_endpoint.startswith("/"):
+            doc_endpoint = f"/{doc_endpoint}"
+        return redirect(f"/api/v1{doc_endpoint}")
+    abort(404)
+
 CTFd_API_v1 = Api(
     api,
     version="v1",

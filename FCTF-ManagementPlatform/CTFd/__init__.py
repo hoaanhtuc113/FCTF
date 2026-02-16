@@ -8,7 +8,7 @@ import weakref
 from distutils.version import StrictVersion
 from flask_caching import Cache
 import jinja2
-from flask import Flask, Request, request
+from flask import Flask, Request, abort, redirect, request, url_for
 from flask_babel import Babel
 from flask_migrate import upgrade
 from jinja2 import FileSystemLoader
@@ -32,7 +32,7 @@ from CTFd.utils.initialization import (
 from CTFd.utils.migrations import create_database, migrations, stamp_latest_revision
 from CTFd.utils.sessions import CachingSessionInterface
 from CTFd.utils.updates import update_check
-from CTFd.utils.user import get_locale
+from CTFd.utils.user import get_locale, is_admin
 
 __version__ = "3.7.3"
 __channel__ = "oss"
@@ -344,6 +344,42 @@ def create_app(config="CTFd.config.Config"):
         init_events(app)
         init_plugins(app)
         init_cli(app)
+
+        @app.before_request
+        def _restrict_swagger_to_admins():
+            swagger_ui_endpoint = app.config.get("SWAGGER_UI_ENDPOINT")
+            if not swagger_ui_endpoint:
+                return
+
+            path = request.path or ""
+
+            if not swagger_ui_endpoint.startswith("/"):
+                swagger_ui_endpoint = f"/{swagger_ui_endpoint}"
+
+            if swagger_ui_endpoint == "/":
+                swagger_ui_paths = {"/api/v1/", "/api/v1"}
+                is_swagger_ui = path in swagger_ui_paths
+            else:
+                swagger_ui_base = f"/api/v1{swagger_ui_endpoint}"
+                is_swagger_ui = path == swagger_ui_base or path == f"{swagger_ui_base}/"
+
+            is_swagger_spec = path == "/api/v1/swagger.json"
+            is_swagger_asset = path.startswith("/swaggerui/")
+
+            if not (is_swagger_ui or is_swagger_spec or is_swagger_asset):
+                return
+
+            if is_admin():
+                return
+
+            # Swagger UI: redirect browsers to login, block JSON requests
+            if is_swagger_ui:
+                if request.content_type == "application/json":
+                    abort(403)
+                return redirect(url_for("auth.login", next=request.full_path))
+
+            # Swagger spec + assets: always block for non-admins
+            abort(403)
 
         return app
 
