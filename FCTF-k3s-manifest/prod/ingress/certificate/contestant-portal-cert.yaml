@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: contestant-tls
   dnsNames:
-    - contestant.fctf.mnhduc.site
+    - contestant.fctf.site
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

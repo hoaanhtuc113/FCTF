@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: grafana-tls
   dnsNames:
-    - grafana.fctf.mnhduc.site
+    - grafana.fctf.site
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

@@ -9,7 +9,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   rules:
-    - host: grafana.fctf.mnhduc.site
+    - host: grafana.fctf.site
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - grafana.fctf.mnhduc.site
+        - grafana.fctf.site
       secretName: grafana-tls
