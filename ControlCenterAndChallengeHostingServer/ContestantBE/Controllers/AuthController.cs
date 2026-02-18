@@ -3,20 +3,18 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.Auth;
 using ResourceShared.Logger;
-using System.Security.Claims;
-
 
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
-public class AuthController : ControllerBase
+public class AuthController : BaseController
 {
     private readonly IAuthService _authService;
     private readonly AppLogger _userBehaviorLogger;
+
     public AuthController(
+        IUserContext userContext,
         IAuthService authService,
-        AppLogger userBehaviorLogger)
+        AppLogger userBehaviorLogger) : base(userContext)
     {
         _authService = authService;
         _userBehaviorLogger = userBehaviorLogger;
@@ -45,24 +43,15 @@ public class AuthController : ControllerBase
 
     }
 
-    [Authorize]
     [HttpPost("change-password")]
+    [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDTO changePasswordDto)
     {
         // Get userId from JWT token claims
-        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-        {
-            return Unauthorized(new
-            {
-                message = "Invalid user token"
-            });
-        }
-
+        var userId = UserContext.UserId;
 
         var result = await _authService.ChangePassword(userId, changePasswordDto);
-        await Console.Out.WriteLineAsync($"[Auth] Account {userIdClaim} change password");
+        await Console.Out.WriteLineAsync($"[Auth] Account {userId} change password");
         if (!result.Success)
         {
             return BadRequest(new
@@ -76,5 +65,4 @@ public class AuthController : ControllerBase
             message = result.Message
         });
     }
-
 }

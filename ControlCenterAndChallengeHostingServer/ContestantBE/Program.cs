@@ -1,5 +1,6 @@
 using AspNetCoreRateLimit;
 using AspNetCoreRateLimit.Redis;
+using ContestantBE.Filters;
 using ContestantBE.Interfaces;
 using ContestantBE.Services;
 using ContestantBE.Utils;
@@ -26,7 +27,10 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(
             new MySqlServerVersion(new Version(10, 11, 0))
         ));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<GlobalExceptionFilter>();
+});
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -89,7 +93,7 @@ builder.Services.AddScoped<UserHelper>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHealthChecks();
 
-builder.Services.AddScoped<IChallengeServices, ChallengeServices>();
+builder.Services.AddScoped<IChallengeService, ChallengeService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<INotificationServices, NotificationServices>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
