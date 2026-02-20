@@ -312,9 +312,7 @@ def create_app(config="CTFd.config.Config"):
         from CTFd.users import users
         from CTFd.views import views
         from CTFd.StartChallenge import challenge
-        from CTFd.SendTicket import sendticket
         from CTFd.DeployHistory import challengeHistory
-        from CTFd.loginApi import LoginUser
         from CTFd.ManageInstances import ManageInstance
         from CTFd.getTimeFromConfig import get_date_config
         from CTFd.registrationConfig import get_registration_config
@@ -329,9 +327,9 @@ def create_app(config="CTFd.config.Config"):
         app.register_blueprint(events)
         app.register_blueprint(social)
         app.register_blueprint(challenge)
-        app.register_blueprint(sendticket)
+        # NOTE: Legacy contestant portal + ticket APIs are intentionally disabled.
+        # (Contestant Portal has its own backend.)
         app.register_blueprint(challengeHistory)
-        app.register_blueprint(LoginUser)
         app.register_blueprint(admin)
         app.register_blueprint(ManageInstance)
         app.register_blueprint(get_date_config)
@@ -380,6 +378,59 @@ def create_app(config="CTFd.config.Config"):
 
             # Swagger spec + assets: always block for non-admins
             abort(403)
+
+        @app.before_request
+        def _restrict_non_staff_access():
+            """This deployment is an admin/staff UI.
+
+            Contestants have a separate portal/backend, so we restrict *all* non-staff
+            access (including legacy /api/* endpoints) to reduce attack surface.
+            """
+
+            path = request.path or ""
+
+            # Always allow static assets
+            if (
+                path.startswith("/themes/")
+                or path.startswith("/static/")
+                or path.startswith("/favicon")
+                or path == "/robots.txt"
+                or path == "/healthcheck"
+            ):
+                return
+
+            # Allow auth endpoints necessary for staff login flows
+            if (
+                path.startswith("/login")
+                or path.startswith("/logout")
+                or path.startswith("/oauth")
+                or path.startswith("/redirect")
+                or path.startswith("/reset_password")
+                or path.startswith("/confirm")
+            ):
+                return
+
+            # Allow setup only if the instance isn't configured yet
+            if path.startswith("/setup"):
+                from CTFd.utils.config import is_setup
+
+                if is_setup() is False:
+                    return
+
+            # For everything else, require staff roles
+            from CTFd.utils.user import authed, is_challenge_writer, is_jury
+
+            if is_admin() or is_challenge_writer() or is_jury():
+                return
+
+            # Block anonymous + logged-in non-staff
+            if authed():
+                abort(403)
+
+            # Browsers get redirected to login, API clients get 403
+            if path.startswith("/api") or request.content_type == "application/json":
+                abort(403)
+            return redirect(url_for("auth.login", next=request.full_path))
 
         return app
 
