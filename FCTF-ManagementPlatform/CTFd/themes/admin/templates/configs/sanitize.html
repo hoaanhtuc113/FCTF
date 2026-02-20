@@ -1,6 +1,7 @@
 <div role="tabpanel" class="tab-pane config-section" id="sanitize">
 	{% set html_sanitization = "true" if html_sanitization == True else "false" %}
 	<form method="POST" autocomplete="off" class="w-100">
+		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 		<div class="form-group">
 			<label for="html_sanitization">
 				HTML Sanitization

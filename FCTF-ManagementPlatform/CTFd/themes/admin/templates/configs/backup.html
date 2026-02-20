@@ -78,6 +78,7 @@
 			{% with form = Forms.config.ImportCSVForm() %}
 			<form method="POST" action="{{ url_for('admin.import_csv') }}" enctype="multipart/form-data"
 				id="import-csv-form">
+				<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 				<div class="form-group">
 					<div class="alert alert-info" role="alert">
 						<small class="text-muted text-right">
