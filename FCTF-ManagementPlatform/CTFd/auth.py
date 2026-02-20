@@ -410,6 +410,17 @@ def login():
                 return render_template("login.html", errors=errors)
 
             if user and verify_password(request.form["password"], user.password):
+                # Contestants have a separate portal/backend; this instance is staff-only.
+                if user.type == "user":
+                    log(
+                        "logins",
+                        "[{date}] {ip} - blocked contestant login for {name}",
+                        name=user.name,
+                    )
+                    errors.append("You are not allowed to access this portal")
+                    db.session.close()
+                    return render_template("login.html", errors=errors)
+
                 session.regenerate()
 
                 login_user(user)

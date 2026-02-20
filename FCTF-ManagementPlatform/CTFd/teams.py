@@ -404,38 +404,4 @@ def public(team_id):
         errors=errors,
     )
 
-@teams.route('/api/team/solves', methods=["GET"])
 
-def solves ():
-    user_id = 0
-    generatedToken = get_token_from_header()
-    token = Tokens.query.filter_by(value=generatedToken).first()
-    if not token:
-        return jsonify({"error": "Token not found"}), 404
-    else:
-        user_id = token.user_id
-        if not user_id:
-            return jsonify({"error": "Please login"}), 400
-
-    user = Users.query.filter_by(id=user_id).first()
-
-    if not user:
-        return jsonify({"error": "User Not found"}), 404
-
-    # team_id = user.team_id
-    # if not team_id :
-    #     return jsonify({"err or": "User no join team"}), 400
-    
-    team = user.team
-
-    solves = team.get_solves(admin=True)
-
-    view = "admin" if is_admin() else "user"
-    schema = SubmissionSchema(view=view, many=True)
-    response = schema.dump(solves)
-
-    if response.errors:
-        return {"success": False, "errors": response.errors}, 400
-
-    count = len(response.data)
-    return {"success": True, "data": response.data, "meta": {"count": count}}
