@@ -399,6 +399,10 @@ def create_app(config="CTFd.config.Config"):
             ):
                 return
 
+            # Landing page is public – everyone can see it
+            if path == "/":
+                return
+
             # Allow auth endpoints necessary for staff login flows
             if (
                 path.startswith("/login")
@@ -410,12 +414,9 @@ def create_app(config="CTFd.config.Config"):
             ):
                 return
 
-            # Allow setup only if the instance isn't configured yet
+            # Always allow /setup – the view itself redirects away when already configured
             if path.startswith("/setup"):
-                from CTFd.utils.config import is_setup
-
-                if is_setup() is False:
-                    return
+                return
 
             # For everything else, require staff roles
             from CTFd.utils.user import authed, is_challenge_writer, is_jury
