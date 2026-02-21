@@ -9,6 +9,8 @@ import {
   buildRandomBody,
 } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
+
 const bodyLimitUnexpected = new Counter('gateway_body_limit_unexpected');
 
 const protectedPath = __ENV.PROTECTED_PATH || '/anything/fctf-gateway';
@@ -47,6 +49,7 @@ export default function () {
         Cookie: bootstrap.cookieHeader,
         'Content-Type': 'application/octet-stream',
       },
+      timeout: '30s',
       tags: { endpoint: 'small_body' },
     });
 
@@ -63,6 +66,7 @@ export default function () {
         Cookie: bootstrap.cookieHeader,
         'Content-Type': 'application/octet-stream',
       },
+      timeout: '30s',
       tags: { endpoint: 'big_body' },
     });
 

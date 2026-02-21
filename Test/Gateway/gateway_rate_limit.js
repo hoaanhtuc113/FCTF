@@ -9,10 +9,12 @@ import {
   requireEnv,
 } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
+
 const rateLimitSeen = new Rate('gateway_rate_limit_seen');
 const unexpected5xx = new Counter('gateway_rl_unexpected_5xx');
 
-const protectedPath = __ENV.PROTECTED_PATH || '/anything/fctf-gateway';
+const protectedPath = __ENV.PROTECTED_PATH || '/';
 const vus = parseEnvInt('RATE_LIMIT_VUS', 200);
 const duration = __ENV.RATE_LIMIT_DURATION || '20s';
 const min429Ratio = parseEnvFloat('MIN_429_RATIO', 0.05);

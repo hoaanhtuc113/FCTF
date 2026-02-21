@@ -8,6 +8,8 @@ import {
   isUpstreamSuccessStatus,
 } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
+
 const authUnexpected = new Counter('gateway_auth_unexpected');
 
 const protectedPath = __ENV.PROTECTED_PATH || '/anything/fctf-gateway';
@@ -67,7 +69,7 @@ export default function () {
     check(bootstrap, {
       'bootstrap returns 302': (s) => s.bootstrapStatus === 302,
       'bootstrap has auth cookie': (s) => !!s.cookieHeader,
-      'redirect location strips token': (s) => s.location && !s.location.includes('token='),
+      'redirect location strips token': (s) => s.location && !/(?:[?&])token=/.test(s.location),
     }) || authUnexpected.add(1);
 
     const marker = `<script>alert('fctf')</script>-race-${Date.now()}`;

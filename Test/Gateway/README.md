@@ -47,12 +47,14 @@ Bộ test này tập trung vào đúng mục tiêu của gateway: **token-based 
 - `gateway_security_negative.js`: security-negative (token fuzzing, malformed aliases).
 - `gateway_resilience.js`: resilience (broken upstream -> 502, health vẫn sống).
 - `gateway_passthrough_load.js`: load test payload exploit-like liên tục.
+- `gateway_race_under_load.js`: race-style burst (concurrent) dưới nền tải cao.
 - `gateway_spike.js`: spike test tăng tải đột ngột.
 - `gateway_soak.js`: soak test dài hạn.
 - `gateway_tcp_auth.ps1`: TCP integration smoke auth.
 - `gateway_tcp_limits.ps1`: TCP concurrency/limit test (per-token connection limit).
 - `gateway_helpers.js`: helper chung cho k6 scripts.
 - `generate-gateway-token.ps1`: tạo token hợp lệ/hết hạn bằng `PRIVATE_KEY`.
+- `generate-gateway-token.py`: bản Linux/macOS (Python) để tạo token giống gateway.
 - `run-gateway-tests.ps1`: runner full suite theo loại test (`-Type`).
 - `.env.example`: mẫu cấu hình.
 
@@ -66,12 +68,81 @@ notepad .env
 
 Nếu có `PRIVATE_KEY` giống gateway và route challenge test:
 - Chỉ cần điền `PRIVATE_KEY`, `CHALLENGE_ROUTE`.
-- Runner sẽ tự sinh `VALID_TOKEN` + `EXPIRED_TOKEN`.
+- Runner sẽ tự sinh `VALID_TOKEN` + `EXPIRED_TOKEN` (bash runner dùng `generate-gateway-token.py`; PowerShell runner dùng `.ps1`).
 
 Nếu đã có token sẵn:
 - điền trực tiếp `VALID_TOKEN` (và optional `EXPIRED_TOKEN`).
 
+### Linux/macOS (không cần PowerShell)
+
+`k6` không có flag `--env-file` ở một số phiên bản; cách ổn định là **export env vars từ `.env`** rồi chạy `k6 run`.
+
+```bash
+cd Test/Gateway
+set -a
+source ./.env
+set +a
+
+# cần có VALID_TOKEN hợp lệ để pass full integration
+export VALID_TOKEN='<token>'
+
+k6 run gateway_auth_flow.js
+```
+
+TCP smoke nhanh (empty/invalid token) có thể probe bằng `nc`:
+
+```bash
+printf "\n" | nc -w 5 "$TCP_GATEWAY_HOST" "$TCP_GATEWAY_PORT"
+printf "invalid.token\n" | nc -w 5 "$TCP_GATEWAY_HOST" "$TCP_GATEWAY_PORT"
+```
+
 ## Chạy test
+
+### Chạy tự động (Linux/macOS) – khuyên dùng
+
+Runner Bash sẽ:
+
+- `source` file `.env`
+- chạy curl smoke + các k6 script theo `--type`
+- tự tạo folder log theo timestamp trong `test-results/<timestamp>/`
+- tự sinh file báo cáo `TestReport_<timestamp>.md`
+
+```bash
+cd Test/Gateway
+chmod +x ./run-gateway-tests.sh
+./run-gateway-tests.sh --type quick
+```
+
+Chạy full (bỏ long-running nếu cần):
+
+```bash
+./run-gateway-tests.sh --type all --skip-long-running
+```
+
+Chạy full **bao gồm** load/spike/soak (có thể mất lâu, tuỳ `SOAK_DURATION`):
+
+```bash
+./run-gateway-tests.sh --type all
+```
+
+Chạy riêng bài race-under-load (mô phỏng burst đồng thời dưới nền tải):
+
+```bash
+./run-gateway-tests.sh --type race
+```
+
+Mô phỏng **nhiều team** cùng lúc (mỗi token ~ 1 team):
+
+- Cách 1 (ngắn): set `RACE_TOKENS_CSV` trong `.env` (phân tách bằng dấu phẩy), ví dụ: `RACE_TOKENS_CSV=tokA,tokB,tokC`
+- Cách 2 (nhiều token): tạo file (mỗi dòng 1 token) và set `RACE_TOKENS_FILE=./race_tokens.txt` trong `.env`, runner bash sẽ tự nạp vào `RACE_TOKENS_CSV`.
+
+Lưu ý: chạy từ 1 máy sẽ dùng chung 1 source IP ⇒ dễ đụng limiter theo IP sớm hơn thực tế. Nếu cần sát thực tế nhiều team từ nhiều IP, nên chạy distributed load từ nhiều host.
+
+Nếu bạn muốn chạy body-limit (không khuyến nghị nếu upstream không support POST):
+
+```bash
+./run-gateway-tests.sh --type integration --include-body-limits
+```
 
 ### Chạy full suite (khuyên dùng cho staging)
 ```powershell
@@ -87,7 +158,7 @@ cd Test\Gateway
 ### Chạy theo loại test
 ```powershell
 # Integration
-.\run-gateway-tests.ps1 -Type integration
+./run-gateway-tests.ps1 -Type integration
 
 # Security negative
 .\run-gateway-tests.ps1 -Type security
@@ -129,6 +200,7 @@ cd Test\Gateway
 | `gateway_security_negative.js` | Security-Negative |
 | `gateway_resilience.js` | Resilience |
 | `gateway_passthrough_load.js` | Load/Stress |
+| `gateway_race_under_load.js` | Race/Load |
 | `gateway_spike.js` | Spike |
 | `gateway_soak.js` | Soak |
 | `gateway_tcp_auth.ps1` | TCP Integration |

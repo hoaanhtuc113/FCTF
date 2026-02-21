@@ -7,6 +7,8 @@ import {
   establishAuthCookieWithQueryKey,
 } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }, 502));
+
 const resilienceUnexpected = new Counter('gateway_resilience_unexpected');
 
 const protectedPath = __ENV.PROTECTED_PATH || '/anything/fctf-gateway';
