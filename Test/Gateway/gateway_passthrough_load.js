@@ -9,6 +9,8 @@ import {
   requireEnv,
 } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
+
 const blockedRate = new Rate('gateway_blocked_ratio');
 const upstreamErrors = new Counter('gateway_upstream_5xx');
 

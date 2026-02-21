@@ -126,8 +126,9 @@ function Ensure-TokenVars {
 function Run-K6Script {
   param([string]$ScriptName)
 
-  $args = @("run", "--env-file", $EnvFile, $ScriptName)
-  Write-Host "Running: k6 $($args -join ' ')" -ForegroundColor Cyan
+  # Env vars are already loaded via Load-EnvFile, so we don't rely on k6 "--env-file"
+  $args = @("run", $ScriptName)
+  Write-Host "Running: k6 $($args -join ' ') (env loaded from $EnvFile)" -ForegroundColor Cyan
   & k6 @args
   return $LASTEXITCODE
 }
