@@ -1,16 +1,17 @@
 ﻿using ContestantBE.Interfaces;
+using ContestantBE.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
-public class ScoreboardController : ControllerBase
+public class ScoreboardController : BaseController
 {
     private readonly IScoreboardService _scoreboardService;
 
-    public ScoreboardController(IScoreboardService scoreboardService)
+    public ScoreboardController(
+        IUserContext userContext,
+        IScoreboardService scoreboardService) : base(userContext)
     {
         _scoreboardService = scoreboardService;
     }

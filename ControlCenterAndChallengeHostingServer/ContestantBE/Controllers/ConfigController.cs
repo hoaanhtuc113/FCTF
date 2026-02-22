@@ -1,22 +1,24 @@
+using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.Utils;
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
 [Authorize]
-public class ConfigController : ControllerBase
+public class ConfigController : BaseController
 {
     private readonly CtfTimeHelper _ctfTimeHelper;
     private readonly ConfigHelper _configHelper;
+
     public ConfigController(
+        IUserContext userContext,
         CtfTimeHelper ctfTimeHelper,
-        ConfigHelper configHelper)
+        ConfigHelper configHelper) : base(userContext)
     {
         _ctfTimeHelper = ctfTimeHelper;
         _configHelper = configHelper;
     }
+
     private long ToLong(object val)
     {
         if (val == null) return 0;

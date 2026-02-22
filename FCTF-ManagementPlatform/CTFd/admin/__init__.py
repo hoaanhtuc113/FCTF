@@ -447,6 +447,22 @@ def dump_csv_without_passwords(field=None, q=None):
 @admin.route("/admin/config", methods=["GET", "POST"])
 @admins_only
 def config():
+    if request.method == "POST":
+        for key, values in request.form.lists():
+            if key == "nonce":
+                continue
+            if not values:
+                continue
+            value = values[-1]
+            if value in ("true", "false"):
+                value = value == "true"
+            set_config(key=key, value=value)
+
+        clear_config()
+        clear_standings()
+        clear_challenges()
+        return redirect(url_for("admin.config"))
+
     # Clear the config cache so that we don't get stale values
     clear_config()
 

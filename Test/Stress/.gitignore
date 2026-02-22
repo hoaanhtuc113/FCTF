@@ -1,0 +1,13 @@
+# Environment files with credentials
+
+# k6 outputs
+summary.json
+result.json
+*.har
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
