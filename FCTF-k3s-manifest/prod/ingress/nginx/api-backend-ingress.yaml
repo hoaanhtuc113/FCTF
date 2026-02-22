@@ -9,10 +9,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - api.fctf.mnhduc.site
+        - api.fctf.site
       secretName: api-backend-tls
   rules:
-    - host: api.fctf.mnhduc.site
+    - host: api.fctf.site
       http:
         paths:
           - path: /.well-known/acme-challenge/
@@ -35,10 +35,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - api.fctf.mnhduc.site
+        - api.fctf.site
       secretName: api-backend-tls
   rules:
-    - host: api.fctf.mnhduc.site
+    - host: api.fctf.site
       http:
         paths:
           - path: /contestant-be(/|$)(.*)

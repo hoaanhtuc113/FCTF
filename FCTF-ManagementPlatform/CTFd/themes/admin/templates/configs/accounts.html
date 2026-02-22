@@ -3,11 +3,14 @@
 	{% set verify_emails = "true" if verify_emails == True else "false" %}
 	{% set name_changes = "true" if name_changes == True else "false" %}
 	{% set team_creation = "false" if team_creation == False else "true" %}
-	{% with form = Forms.config.AccountSettingsForm(verify_emails=verify_emails, name_changes=name_changes, team_disbanding=team_disbanding, team_creation=team_creation) %}
+	{% with form = Forms.config.AccountSettingsForm(verify_emails=verify_emails, name_changes=name_changes,
+	team_disbanding=team_disbanding, team_creation=team_creation) %}
 	<form method="POST" autocomplete="off" class="w-100">
+		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 		<ul class="nav nav-tabs mb-3">
 			<li class="nav-item">
-				<a class="nav-link active" href="#user-accounts" aria-controls="user-accounts" role="tab" data-toggle="tab">
+				<a class="nav-link active" href="#user-accounts" aria-controls="user-accounts" role="tab"
+					data-toggle="tab">
 					User Accounts
 				</a>
 			</li>
@@ -28,7 +31,7 @@
 							{{ form.domain_whitelist.description }}
 						</small>
 					</div>
-			
+
 					<div class="form-group">
 						{{ form.verify_emails.label }}
 						{{ form.verify_emails(class="form-control custom-select") }}
@@ -36,7 +39,7 @@
 							{{ form.verify_emails.description }}
 						</small>
 					</div>
-			
+
 					<div class="form-group">
 						{{ form.num_users.label }}
 						{{ form.num_users(class="form-control", value=num_users) }}
@@ -44,15 +47,16 @@
 							{{ form.num_users.description }}
 						</small>
 					</div>
-			
+
 					<div class="form-group">
 						{{ form.incorrect_submissions_per_min.label }}
-						{{ form.incorrect_submissions_per_min(class="form-control", value=incorrect_submissions_per_min) }}
+						{{ form.incorrect_submissions_per_min(class="form-control", value=incorrect_submissions_per_min)
+						}}
 						<small class="form-text text-muted">
 							{{ form.incorrect_submissions_per_min.description }}
 						</small>
 					</div>
-			
+
 					<div class="form-group">
 						{{ form.name_changes.label }}
 						{{ form.name_changes(class="form-control custom-select") }}
@@ -71,7 +75,7 @@
 							{{ form.team_creation.description }}
 						</small>
 					</div>
-			
+
 					<div class="form-group">
 						{{ form.team_size.label }}
 						{{ form.team_size(class="form-control", value=team_size) }}
@@ -79,7 +83,7 @@
 							{{ form.team_size.description }}
 						</small>
 					</div>
-			
+
 					<div class="form-group">
 						{{ form.num_teams.label }}
 						{{ form.num_teams(class="form-control", value=num_teams) }}
