@@ -23,8 +23,10 @@ var tcpGlobalConnLimiter connLimiter
 var tcpAuthTimeout time.Duration
 var tcpPendingAuth int64
 
-var tcpCopyBufBytes = 32 * 1024
+const tcpMaxAuthTokenBytes = 1024
 
+var tcpCopyBufBytes = 32 * 1024
+//memory pool for TCP copy buffers to reduce GC overhead
 var tcpCopyBufPool = sync.Pool{
 	New: func() any {
 		buf := make([]byte, tcpCopyBufBytes)
@@ -111,6 +113,7 @@ func HandleConnection(clientConn net.Conn) {
 	}
 	pending := atomic.AddInt64(&tcpPendingAuth, 1)
 	log.Printf("[*] TCP pending auth connections: %d", pending)
+	//on exit remove pending auth count and log current count
 	defer func() {
 		pending := atomic.AddInt64(&tcpPendingAuth, -1)
 		log.Printf("[*] TCP pending auth connections: %d", pending)
@@ -122,6 +125,7 @@ func HandleConnection(clientConn net.Conn) {
 		log.Printf("[-] Auth failed from %s: %v", remoteAddr, err)
 		return
 	}
+
 	if tcpRateLimiter != nil {
 		key := buildRateLimitKey(token, clientIP)
 		if !tcpRateLimiter.Allow(context.Background(), key) {
@@ -136,6 +140,7 @@ func HandleConnection(clientConn net.Conn) {
 		}
 		defer tcpTokenConnLimiter.Release(context.Background(), token)
 	}
+
 	host := expandRoute(payload.Route)
 	teamID, challengeID, ok := parseTeamChallengeFromRoute(payload.Route)
 	if !ok {
@@ -192,7 +197,7 @@ func HandleConnection(clientConn net.Conn) {
 			}
 		}
 	}()
-	// Monitor for token expiry
+	// Timer for token expiry
 	go func() {
 		select {
 		case <-expiryTimer.C:
@@ -210,7 +215,7 @@ func HandleConnection(clientConn net.Conn) {
 	proxyCopy := func(dst, src net.Conn, direction string) {
 		buf := tcpCopyBufPool.Get().([]byte)
 		sampleLimit := 0
-		// Only sample client-to-server data log first 32kb
+		// Only sample client-to-server data log first 32kb per connection
 		if direction == "c2s" {
 			sampleLimit = 32768
 		}
@@ -333,26 +338,32 @@ func authenticateClient(conn net.Conn) (challengeTokenPayload, string, error) {
 	if timeoutDuration <= 0 {
 		timeoutDuration = 10 * time.Second
 	}
-    conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+	_ = conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+	defer func() { _ = conn.SetReadDeadline(time.Time{}) }()
 
 	fmt.Fprintf(conn, "\n--- CTF AUTHENTICATION ---\nPlease enter your token (Timeout %ds): ", int(timeoutDuration.Seconds()))
 
-    reader := bufio.NewReader(conn)
-    input, err := reader.ReadString('\n')
+	limitedConn := io.LimitReader(conn, tcpMaxAuthTokenBytes+1)
+	reader := bufio.NewReader(limitedConn)
+	input, err := reader.ReadString('\n')
     
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			return challengeTokenPayload{}, "", fmt.Errorf("Authentication timed out")
 		}
+		if err == io.EOF && len(input) > tcpMaxAuthTokenBytes {
+			return challengeTokenPayload{}, "", fmt.Errorf("token too long")
+		}
 		return challengeTokenPayload{}, "", err
 	}
+	if len(input) > tcpMaxAuthTokenBytes {
+		return challengeTokenPayload{}, "", fmt.Errorf("token too long")
+	}
 
-    conn.SetReadDeadline(time.Time{}) 
-
-    token := strings.TrimSpace(input)
-    if token == "" {
-        return challengeTokenPayload{}, "", fmt.Errorf("empty token")
-    }
+	token := strings.TrimSpace(input)
+	if token == "" {
+		return challengeTokenPayload{}, "", fmt.Errorf("empty token")
+	}
 
 	payload, err := verifyChallengeToken(token)
 	if err != nil {
