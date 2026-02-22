@@ -326,6 +326,7 @@ def integrations():
 
 
 @views.route("/notifications", methods=["GET"])
+@authed_only
 def notifications():
     notifications = Notifications.query.order_by(Notifications.id.desc()).all()
     return render_template("notifications.html", notifications=notifications)
@@ -386,6 +387,10 @@ def static_html(route):
     """
     page = get_page(route)
     if page is None:
+        if route == "index":
+            if is_setup() is False:
+                return redirect(url_for("views.setup"))
+            return redirect(url_for("auth.login"))
         abort(404)
     else:
         if page.auth_required and authed() is False:
