@@ -6,7 +6,7 @@ from flask import current_app as app
 from flask import redirect, render_template, request, session, url_for
 from itsdangerous.exc import BadSignature, BadTimeSignature, SignatureExpired
 from CTFd.cache import clear_team_session, clear_user_session
-from CTFd.models import Brackets, Teams, UserFieldEntries, UserFields, Users, db
+from CTFd.models import Teams, Users, db
 from CTFd.utils import config, email, get_app_config, get_config
 from CTFd.utils import user as current_user
 from CTFd.utils import validators
@@ -15,7 +15,6 @@ from CTFd.utils.config.integrations import mlc_registration
 from CTFd.utils.config.visibility import registration_visible
 from CTFd.utils.crypto import verify_password
 from CTFd.utils.decorators import ratelimit
-from CTFd.utils.decorators.visibility import check_registration_visibility
 from CTFd.utils.helpers import error_for, get_errors, markup
 from CTFd.utils.logging import log
 from CTFd.utils.modes import TEAMS_MODE
@@ -41,8 +40,8 @@ auth = Blueprint("auth", __name__)
 @ratelimit(method="POST", limit=10, interval=60)
 def confirm(data=None):
     if not get_config("verify_emails"):
-        # If the CTF doesn't care about confirming email addresses then redierct to challenges
-        return redirect(url_for("challenges.listing"))
+        # If the CTF doesn't care about confirming email addresses then redirect to admin
+        return redirect(url_for("admin.challenges_listing"))
 
     # User is confirming email account
     if data and request.method == "GET":
@@ -72,7 +71,7 @@ def confirm(data=None):
         email.successful_registration_notification(user.email)
         db.session.close()
         if current_user.authed():
-            return redirect(url_for("challenges.listing"))
+            return redirect(url_for("admin.challenges_listing"))
         return redirect(url_for("auth.login"))
 
     # User is trying to start or restart the confirmation flow
@@ -192,200 +191,10 @@ def reset_password(data=None):
 
 @auth.route("/register", methods=["POST", "GET"])
 @check_registration_visibility
-@ratelimit(method="POST", limit=10, interval=5)
+@ratelimit(method=\"POST\", limit=10, interval=5)
 def register():
-    # Registration is disabled in this deployment.
+    # Registration is disabled in this admin-only deployment.
     abort(404)
-    
-    errors = get_errors()
-    if current_user.authed():
-        return redirect(url_for("challenges.listing"))
-
-    num_users_limit = int(get_config("num_users", default=0))
-    num_users = Users.query.filter_by(banned=False, hidden=False).count()
-    if num_users_limit and num_users >= num_users_limit:
-        abort(
-            403,
-            description=f"Reached the maximum number of users ({num_users_limit}).",
-        )
-
-    if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        email_address = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "").strip()
-
-        website = request.form.get("website")
-        affiliation = request.form.get("affiliation")
-        country = request.form.get("country")
-        registration_code = str(request.form.get("registration_code", ""))
-        bracket_id = request.form.get("bracket_id", None)
-
-        name_len = len(name) == 0
-        names = (
-            Users.query.add_columns(Users.name, Users.id).filter_by(name=name).first()
-        )
-        emails = (
-            Users.query.add_columns(Users.email, Users.id)
-            .filter_by(email=email_address)
-            .first()
-        )
-        pass_short = len(password) == 0
-        pass_long = len(password) > 128
-        valid_email = validators.validate_email(email_address)
-        team_name_email_check = validators.validate_email(name)
-
-        if get_config("registration_code"):
-            if (
-                registration_code.lower()
-                != str(get_config("registration_code", default="")).lower()
-            ):
-                errors.append("The registration code you entered was incorrect")
-
-        # Process additional user fields
-        fields = {}
-        for field in UserFields.query.all():
-            fields[field.id] = field
-
-        entries = {}
-        for field_id, field in fields.items():
-            value = request.form.get(f"fields[{field_id}]", "").strip()
-            if field.required is True and (value is None or value == ""):
-                errors.append("Please provide all required fields")
-                break
-
-            if field.field_type == "boolean":
-                entries[field_id] = bool(value)
-            else:
-                entries[field_id] = value
-
-        if country:
-            try:
-                validators.validate_country_code(country)
-                valid_country = True
-            except ValidationError:
-                valid_country = False
-        else:
-            valid_country = True
-
-        if website:
-            valid_website = validators.validate_url(website)
-        else:
-            valid_website = True
-
-        if affiliation:
-            valid_affiliation = len(affiliation) < 128
-        else:
-            valid_affiliation = True
-
-        if bracket_id:
-            valid_bracket = bool(
-                Brackets.query.filter_by(id=bracket_id, type="users").first()
-            )
-        else:
-            if Brackets.query.filter_by(type="users").count():
-                valid_bracket = False
-            else:
-                valid_bracket = True
-
-        if not valid_email:
-            errors.append("Please enter a valid email address")
-        if email.check_email_is_whitelisted(email_address) is False:
-            errors.append("Your email address is not from an allowed domain")
-        if names:
-            errors.append("That user name is already taken")
-        if team_name_email_check is True:
-            errors.append("Your user name cannot be an email address")
-        if emails:
-            errors.append("That email has already been used")
-        if pass_short:
-            errors.append("Pick a longer password")
-        if pass_long:
-            errors.append("Pick a shorter password")
-        if name_len:
-            errors.append("Pick a longer user name")
-        if valid_website is False:
-            errors.append("Websites must be a proper URL starting with http or https")
-        if valid_country is False:
-            errors.append("Invalid country")
-        if valid_affiliation is False:
-            errors.append("Please provide a shorter affiliation")
-        if valid_bracket is False:
-            errors.append("Please provide a valid bracket")
-
-        if len(errors) > 0:
-            return render_template(
-                "register.html",
-                errors=errors,
-                name=request.form["name"],
-                email=request.form["email"],
-                password=request.form["password"],
-            )
-        else:
-            with app.app_context():
-                user = Users(
-                    name=name,
-                    email=email_address,
-                    password=password,
-                    bracket_id=bracket_id,
-                )
-
-                if website:
-                    user.website = website
-                if affiliation:
-                    user.affiliation = affiliation
-                if country:
-                    user.country = country
-
-                db.session.add(user)
-                db.session.commit()
-                db.session.flush()
-
-                for field_id, value in entries.items():
-                    entry = UserFieldEntries(
-                        field_id=field_id, value=value, user_id=user.id
-                    )
-                    db.session.add(entry)
-                db.session.commit()
-
-                login_user(user)
-
-                if request.args.get("next") and validators.is_safe_url(
-                    request.args.get("next")
-                ):
-                    return redirect(request.args.get("next"))
-
-                if config.can_send_mail() and get_config(
-                    "verify_emails"
-                ):  # Confirming users is enabled and we can send email.
-                    log(
-                        "registrations",
-                        format="[{date}] {ip} - {name} registered (UNCONFIRMED) with {email}",
-                        name=user.name,
-                        email=user.email,
-                    )
-                    email.verify_email_address(user.email)
-                    db.session.close()
-                    return redirect(url_for("auth.confirm"))
-                else:  # Don't care about confirming users
-                    if (
-                        config.can_send_mail()
-                    ):  # We want to notify the user that they have registered.
-                        email.successful_registration_notification(user.email)
-
-        log(
-            "registrations",
-            format="[{date}] {ip} - {name} registered with {email}",
-            name=user.name,
-            email=user.email,
-        )
-        db.session.close()
-
-        if is_teams_mode():
-            return redirect(url_for("teams.private"))
-
-        return redirect(url_for("challenges.listing"))
-    else:
-        return render_template("register.html", errors=errors)
 
 
 @auth.route("/login", methods=["POST", "GET"])
@@ -599,7 +408,7 @@ def oauth_redirect():
 
             login_user(user)
 
-            return redirect(url_for("challenges.listing"))
+            return redirect(url_for("admin.challenges_listing"))
         else:
             log("logins", "[{date}] {ip} - OAuth token retrieval failure")
             error_for(endpoint="auth.login", message="OAuth token retrieval failure.")

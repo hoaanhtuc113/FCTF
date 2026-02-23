@@ -52,46 +52,6 @@ redis_client = redis.StrictRedis(
     decode_responses=True
 )
    
-@challenge.route("/api/challenge/start", methods=["POST"])
-@during_ctf_time_only
-def start_challenge():
-    data = request.get_json() or request.form.to_dict()
-    challenge_id = data.get("challenge_id")
-    user_id = session["id"]
-
-    if user_id is None:
-        generatedToken = get_token_from_header()
-        print("Generated Token:", generatedToken)
-        token = Tokens.query.filter_by(value=generatedToken).first()
-        if not token:
-            return jsonify({"error": "Token not found"}), 404
-        else:
-            user_id = token.user_id
-
-    if not user_id:
-        return jsonify({"error": "Please login"}), 400
-
-    if not challenge_id:
-        return jsonify({"error": "ChallengeId is required"}), 400
-
-    user = Users.query.filter_by(id=user_id).first()
-    if not user:
-        return jsonify({"error": "User Not found"}), 404
-
-    challenge = Challenges.query.filter_by(id=challenge_id).first()
-    # lấy ra team_id theo user_id
-    team_id, cache_key = get_team_id_and_cache_key(user, challenge_id)
-    team = Teams.query.filter_by(id=team_id).first()
-    if not team_id or not challenge:
-        return jsonify({"error": "Invalid team or challenge"}), 400
-
-    print("User {} from team {} is starting challenge {}".format(user_id, team_id, challenge_id))
-    if challenge.require_deploy:
-        # Chuẩn bị payload và headers
-        payload, headers, api_start = prepare_start_challenge_payload(challenge, user_id, team_id)
-
-        return challenge_start(payload, headers, api_start)
-
 @challenge.route("/api/challenge/status-check/<challenge_id>", methods=["GET"])
 def check_challenge_status(challenge_id):
     if not challenge_id or challenge_id == 'undefined':
@@ -439,42 +399,3 @@ def get_all_instance():
         }), 500
 
 
-@challenge.route("/api/attempt/check_cache", methods=["POST"])
-def check_user_attempt_cache():
-    data = request.get_json() or request.form.to_dict()
-    if data == request.form.to_dict():
-        challenge_id = data.get("challenge_id")
-        generatedToken = data.get("generatedToken")
-    else:
-        challenge_id = data.get("ChallengeId")
-        generatedToken = data.get("generatedToken")
-    if not challenge_id or not generatedToken:
-
-        return jsonify({"error": "Missing challengeId or generated Token"}), 404
-    challenge = Challenges.query.filter_by(id=challenge_id).first()
-    if not challenge:
-        return jsonify({"error": "Challenge not found"})
-
-    token = Tokens.query.filter_by(value=generatedToken).first()
-    if token is None:
-        return jsonify({"error": "Token not found"}), 404
-
-    user = Users.query.filter_by(id=token.user_id).first()
-    if user is None:
-        return jsonify({"error": "User not found"}), 404
-
-    team_id = user.team_id
-    cache_key = generate_cache_attempt_key(challenge_id, team_id)
-    exist = redis_client.exists(cache_key)
-    if exist:
-        return (
-            jsonify(
-                {
-                    "status": "Submitted",
-                    "message": "This challenge is solved by you or your teamate",
-                }
-            ),
-            200,
-        )
-    else:
-        return jsonify({"status": "Not Submitted"}), 404
