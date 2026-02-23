@@ -1,6 +1,6 @@
 from typing import List
 
-from flask import request
+from flask import abort, request
 from flask_restx import Namespace, Resource
 
 from CTFd.api.v1.helpers.request import validate_args
@@ -17,6 +17,14 @@ from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.logging.audit_logger import log_audit
 
 configs_namespace = Namespace("configs", description="Endpoint to retrieve Configs")
+
+
+PROTECTED_CONFIG_KEYS = {
+    "user_mode",
+    "registration_code",
+    "oauth_client_id",
+    "oauth_client_secret",
+}
 
 ConfigModel = sqlalchemy_to_pydantic(Configs)
 
@@ -66,6 +74,7 @@ class ConfigList(Resource):
         filters = build_model_filters(model=Configs, query=q, field=field)
 
         configs = Configs.query.filter_by(**query_args).filter(*filters).all()
+        configs = [c for c in configs if c.key not in PROTECTED_CONFIG_KEYS]
         schema = ConfigSchema(many=True)
         response = schema.dump(configs)
         if response.errors:
@@ -86,6 +95,10 @@ class ConfigList(Resource):
     )
     def post(self):
         req = request.get_json()
+
+        if req and req.get("key") in PROTECTED_CONFIG_KEYS:
+            abort(404)
+
         schema = ConfigSchema()
         response = schema.load(req)
 
@@ -121,6 +134,9 @@ class ConfigList(Resource):
     def patch(self):
         req = request.get_json()
         schema = ConfigSchema()
+
+        if any(k in PROTECTED_CONFIG_KEYS for k in req.keys()):
+            abort(404)
 
         # Capture before state for all configs being updated
         before_configs = {}
@@ -163,6 +179,8 @@ class Config(Resource):
         },
     )
     def get(self, config_key):
+        if config_key in PROTECTED_CONFIG_KEYS:
+            abort(404)
         config = Configs.query.filter_by(key=config_key).first_or_404()
         schema = ConfigSchema()
         response = schema.dump(config)
@@ -180,6 +198,8 @@ class Config(Resource):
         },
     )
     def patch(self, config_key):
+        if config_key in PROTECTED_CONFIG_KEYS:
+            abort(404)
         config = Configs.query.filter_by(key=config_key).first()
         
         # Capture before state for audit
@@ -224,6 +244,8 @@ class Config(Resource):
         responses={200: ("Success", "APISimpleSuccessResponse")},
     )
     def delete(self, config_key):
+        if config_key in PROTECTED_CONFIG_KEYS:
+            abort(404)
         config = Configs.query.filter_by(key=config_key).first_or_404()
         
         # Capture config info before deletion
