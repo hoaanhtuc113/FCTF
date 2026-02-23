@@ -288,26 +288,8 @@ def init_request_processors(app):
     def banned():
         if request.endpoint == "views.themes":
             return
-        if request.endpoint == "login.login":
-            return
-        if request.endpoint == "get_date_config.get_date_timr_config":
-            return
         if request.endpoint == "api.notifications_notificantion_list":
             return
-        if request.endpoint== "teams.solves":
-            return
-        if request.endpoint== "api.users_user_constant":
-            return
-        if request.endpoint== "api.teams_team_contestant":
-            return
-        if request.endpoint== "sendticket.get_user_tickets":
-            return
-        if request.endpoint=="sendticket.send_ticket_from_user":
-            return
-        if request.endpoint== "sendticket.get_ticket_by_id":
-            return
-        if request.endpoint== "get_registration_config.get":
-            return 
 
         if authed():
             user = get_current_user_attrs()

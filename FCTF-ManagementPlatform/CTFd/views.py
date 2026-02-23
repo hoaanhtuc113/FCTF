@@ -325,13 +325,6 @@ def integrations():
         abort(403)
 
 
-@views.route("/notifications", methods=["GET"])
-@authed_only
-def notifications():
-    notifications = Notifications.query.order_by(Notifications.id.desc()).all()
-    return render_template("notifications.html", notifications=notifications)
-
-
 @views.route("/settings", methods=["GET"])
 @authed_only
 def settings():
@@ -341,10 +334,9 @@ def settings():
     user = get_current_user()
 
     if is_teams_mode() and get_current_team() is None:
-        team_url = url_for("teams.private")
         infos.append(
             markup(
-                f'In order to participate you must either <a href="{team_url}">join or create a team</a>.'
+                'In order to participate you must either join or create a team.'
             )
         )
 

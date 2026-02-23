@@ -303,37 +303,21 @@ def create_app(config="CTFd.config.Config"):
         from CTFd.admin import admin
         from CTFd.api import api
         from CTFd.auth import auth
-        from CTFd.challenges import challenges
         from CTFd.errors import render_error
         from CTFd.events import events
-        from CTFd.scoreboard import scoreboard
-        from CTFd.share import social
-        from CTFd.teams import teams
-        from CTFd.users import users
         from CTFd.views import views
         from CTFd.StartChallenge import challenge
         from CTFd.DeployHistory import challengeHistory
         from CTFd.ManageInstances import ManageInstance
-        from CTFd.getTimeFromConfig import get_date_config
-        from CTFd.registrationConfig import get_registration_config
 
         app.register_blueprint(views)
-        app.register_blueprint(teams)
-        app.register_blueprint(users)
-        app.register_blueprint(challenges)
-        app.register_blueprint(scoreboard)
         app.register_blueprint(auth)
         app.register_blueprint(api)
         app.register_blueprint(events)
-        app.register_blueprint(social)
         app.register_blueprint(challenge)
-        # NOTE: Legacy contestant portal + ticket APIs are intentionally disabled.
-        # (Contestant Portal has its own backend.)
         app.register_blueprint(challengeHistory)
         app.register_blueprint(admin)
         app.register_blueprint(ManageInstance)
-        app.register_blueprint(get_date_config)
-        app.register_blueprint(get_registration_config)
 
         for code in {403, 404, 500, 502}:
             app.register_error_handler(code, render_error)
