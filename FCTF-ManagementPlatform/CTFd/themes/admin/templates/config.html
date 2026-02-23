@@ -290,11 +290,6 @@
 							<i class="fa fa-fingerprint action-icon"></i>Custom Fields
 						</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link rounded-0 py-1" href="#registration_code" role="tab" data-toggle="tab">
-							<i class="fa fa-user-lock action-icon"></i>Registration Code
-						</a>
-					</li>
 
 					<small class="section-title">Backup</small>
 					<li class="nav-item">
@@ -336,11 +331,6 @@
 							<i class="fa fa-share-nodes action-icon"></i>Social Sharing
 						</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link rounded-0 py-1s" href="#mlc" role="tab" data-toggle="tab">
-							<i class="fa fa-network-wired action-icon"></i>MajorLeagueCyber
-						</a>
-					</li>
 
 					<!-- Plugins -->
 					{% set plugins = get_configurable_plugins() %}
@@ -359,11 +349,6 @@
 
 					<!-- Reset -->
 					<small class="section-title">Danger zone</small>
-					<li class="nav-item">
-						<a class="nav-link rounded-0 py-1" href="#usermode" role="tab" data-toggle="tab">
-							<i class="fa fa-people-arrows action-icon"></i>User Mode
-						</a>
-					</li>
 					<li class="nav-item">
 						<a class="nav-link rounded-0 py-1" href="{{ url_for('admin.reset') }}" role="tab">
 							<i class="fa fa-trash-can action-icon"></i>Reset
@@ -405,13 +390,9 @@
 
 					{% include "admin/configs/accounts.html" %}
 
-					{% include "admin/configs/usermode.html" %}
-
 					{% include "admin/configs/brackets.html" %}
 
 					{% include "admin/configs/fields.html" %}
-
-					{% include "admin/configs/registration_code.html" %}
 
 					<!-- Security -->
 
@@ -430,8 +411,6 @@
 					{% include "admin/configs/email.html" %}
 
 					{% include "admin/configs/social.html" %}
-
-					{% include "admin/configs/mlc.html" %}
 
 					<!-- Plugins -->
 
