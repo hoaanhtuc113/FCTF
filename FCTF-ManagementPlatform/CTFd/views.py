@@ -311,14 +311,7 @@ def integrations():
             state = False
 
         if state:
-            if name == "mlc":
-                mlc_client_id = request.values.get("mlc_client_id")
-                mlc_client_secret = request.values.get("mlc_client_secret")
-                set_config("oauth_client_id", mlc_client_id)
-                set_config("oauth_client_secret", mlc_client_secret)
-                return render_template("admin/integrations.html")
-            else:
-                abort(404)
+            abort(404)
         else:
             abort(403)
     else:
