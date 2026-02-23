@@ -25,17 +25,6 @@ Alpine.data("SetupForm", () => ({
       });
     });
 
-    // Register storage listener for MLC integration
-    window.addEventListener("storage", function (event) {
-      if (event.key == "integrations" && event.newValue) {
-        let integration = JSON.parse(event.newValue);
-        if (integration["name"] == "mlc") {
-          $("#integration-mlc").text("Already Configured").attr("disabled", true);
-          window.focus();
-          localStorage.removeItem("integrations");
-        }
-      }
-    });
   },
 
   validateFileSize(e, limit) {
@@ -99,32 +88,6 @@ Alpine.data("SetupForm", () => ({
         document.querySelector(`#${datetime}-preview`).value = unix_time;
       }
     };
-  },
-
-  mlcSetup() {
-    let r = CTFd.config.urlRoot;
-    let params = {
-      name: document.querySelector("#ctf_name").value,
-      type: "jeopardy",
-      description: document.querySelector("#ctf_description").value,
-      user_mode: document.querySelector("[name=user_mode]:checked").value,
-      event_url: window.location.origin + r,
-      redirect_url: window.location.origin + r + "/redirect",
-      integration_setup_url: window.location.origin + r + "/setup/integrations",
-      start: document.querySelector("#start-preview").value,
-      end: document.querySelector("#end-preview").value,
-      platform: "CTFd",
-      state: window.STATE,
-    };
-
-    const ret = [];
-    for (let p in params) {
-      ret.push(encodeURIComponent(p) + "=" + encodeURIComponent(params[p]));
-    }
-    window.open(
-      "https://www.majorleaguecyber.org/events/new?" + ret.join("&"),
-      "_blank",
-    );
   },
 
   submitSetup(e) {
