@@ -925,7 +925,7 @@ test.describe('Test Suite: Tạo Challenge - Validation Đầy Đủ', () => {
 
     // Login trước mỗi test
     test.beforeEach(async ({ page }: { page: Page }) => {
-        await page.goto('https://admin.fctf.mnhduc.site/login');
+        await page.goto('https://admin.fctf.site/login');
         await page.getByRole('textbox', { name: 'User Name or Email' }).fill('admin');
         await page.getByRole('textbox', { name: 'Password' }).fill('1');
         await page.getByRole('button', { name: 'Submit' }).click();
