@@ -449,7 +449,13 @@ def dump_csv_without_passwords(field=None, q=None):
 def config():
     if request.method == "POST":
         for key, values in request.form.lists():
-            if key == "nonce":
+            if key in (
+                "nonce",
+                "user_mode",
+                "registration_code",
+                "oauth_client_id",
+                "oauth_client_secret",
+            ):
                 continue
             if not values:
                 continue
@@ -527,13 +533,6 @@ def reset():
             Awards.query.delete()
             Unlocks.query.delete()
             Tracking.query.delete()
-
-        if data.get("user_mode") == "users":
-            db.session.query(Users).update({Users.team_id: None})
-            Teams.query.delete()
-
-            clear_all_user_sessions()
-            clear_all_team_sessions()
 
         if require_setup:
             set_config("setup", False)

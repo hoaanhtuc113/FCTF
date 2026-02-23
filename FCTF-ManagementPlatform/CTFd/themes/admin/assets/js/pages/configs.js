@@ -163,30 +163,6 @@ function uploadLogo(event) {
   });
 }
 
-function switchUserMode(event) {
-  event.preventDefault();
-  let formData = new FormData(event.target);
-  let msg =
-    "Are you sure you'd like to switch user modes?\n\nAll submissions, awards, unlocks, and tracking will be deleted!";
-  if (formData.get("user_mode") == "users") {
-    msg =
-      "Are you sure you'd like to switch user modes?\n\nAll teams, submissions, awards, unlocks, and tracking will be deleted!";
-  }
-  if (confirm(msg)) {
-    // Use original form to include original input
-    formData.append("submissions", true);
-    formData.append("nonce", CTFd.config.csrfNonce);
-    fetch(CTFd.config.urlRoot + "/admin/reset", {
-      method: "POST",
-      credentials: "same-origin",
-      body: formData,
-    });
-    // Bind `this` so that we can reuse the updateConfigs function
-    let binded = updateConfigs.bind(this);
-    binded(event);
-  }
-}
-
 function removeLogo() {
   ezQuery({
     title: "Remove logo",
@@ -584,7 +560,6 @@ $(() => {
     updateConfigs,
   );
   $("#logo-upload").submit(uploadLogo);
-  $("#user-mode-form").submit(switchUserMode);
   $("#remove-logo").click(removeLogo);
   $("#ctf-small-icon-upload").submit(smallIconUpload);
   $("#remove-small-icon").click(removeSmallIcon);
