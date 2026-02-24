@@ -36,7 +36,6 @@ from CTFd.admin import Ticket
 from CTFd.admin import monitors
 from CTFd.admin import exports
 from CTFd.admin import estimation
-from CTFd.admin import challengeTemplate
 from CTFd.admin import action_logs  # noqa: F401
 
 from CTFd.cache import (
