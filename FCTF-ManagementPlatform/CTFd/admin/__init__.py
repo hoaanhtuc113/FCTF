@@ -474,19 +474,10 @@ def config():
     configs = Configs.query.all()
     configs = {c.key: get_config(c.key) for c in configs}
 
-    themes = ctf_config.get_themes()
-
-    # Remove current theme but ignore failure
-    try:
-        themes.remove(get_config("ctf_theme"))
-    except ValueError:
-        pass
-
     force_html_sanitization = get_app_config("HTML_SANITIZATION")
 
     return render_template(
         "admin/config.html",
-        themes=themes,
         **configs,
         force_html_sanitization=force_html_sanitization
     )
