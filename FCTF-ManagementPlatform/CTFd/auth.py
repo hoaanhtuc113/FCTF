@@ -191,7 +191,7 @@ def reset_password(data=None):
 
 @auth.route("/register", methods=["POST", "GET"])
 @check_registration_visibility
-@ratelimit(method=\"POST\", limit=10, interval=5)
+@ratelimit(method="POST", limit=10, interval=5)
 def register():
     # Registration is disabled in this admin-only deployment.
     abort(404)
