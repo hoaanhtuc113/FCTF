@@ -207,10 +207,13 @@ def init_events(app):
 def init_request_processors(app):
     @app.url_defaults
     def inject_theme(endpoint, values):
-        if "theme" not in values and app.url_map.is_endpoint_expecting(
-            endpoint, "theme"
-        ):
-            values["theme"] = ctf_theme()
+        try:
+            if "theme" not in values and app.url_map.is_endpoint_expecting(
+                endpoint, "theme"
+            ):
+                values["theme"] = "core-beta"
+        except KeyError:
+            pass
 
     @app.before_request
     def needs_setup():
