@@ -60,18 +60,6 @@
         <option value="false" {% if not challenge.use_gvisor %}selected{% endif %}>False</option>
       </select>
     </div>
-    <label class="clean-label">Files template:</label>
-    <ul id="template-list" class="clean-file-list">
-      {% for filename in template_files %}
-      <li class="clean-file-item">
-        <a href="{{ url_for('admin.download_template', filename=filename) }}" download class="clean-file-link">
-          <i class="fas fa-file-archive"></i> {{ filename }}
-        </a>
-      </li>
-      {% else %}
-      <li class="text-muted">No templates available.</li>
-      {% endfor %}
-    </ul>
     <label class="clean-label">
       {% if image_link_display %}
         <div class="form-group">
