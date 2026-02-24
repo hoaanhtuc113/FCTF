@@ -80,10 +80,9 @@ def setup():
             # General
             ctf_name = request.form.get("ctf_name")
             ctf_description = request.form.get("ctf_description")
-            user_mode = request.form.get("user_mode", USERS_MODE)
             set_config("ctf_name", ctf_name)
             set_config("ctf_description", ctf_description)
-            set_config("user_mode", user_mode)
+            set_config("user_mode", USERS_MODE)
 
             # Settings
             challenge_visibility = ChallengeVisibilityTypes(
@@ -295,27 +294,6 @@ def setup():
             set_config("ctf_theme", DEFAULT_THEME)
             return render_template("setup.html", state=serialize(generate_nonce()))
     return redirect(url_for("views.static_html"))
-
-
-@views.route("/setup/integrations", methods=["GET", "POST"])
-def integrations():
-    if is_admin() or is_setup() is False:
-        name = request.values.get("name")
-        state = request.values.get("state")
-
-        try:
-            state = unserialize(state, max_age=3600)
-        except (BadSignature, BadTimeSignature):
-            state = False
-        except Exception:
-            state = False
-
-        if state:
-            abort(404)
-        else:
-            abort(403)
-    else:
-        abort(403)
 
 
 @views.route("/settings", methods=["GET"])
