@@ -96,18 +96,6 @@
                     </div>
                     <div class="form-group">
                         <div class="form-group d-none upload-file">
-                            <label>Files template:</label>
-                            <ul id="template-list">
-                                {% for filename in template_files %}
-                                <li class="list-unstyled">
-                                    <a href="{{ url_for('admin.download_template', filename=filename) }}" download>
-                                        {{ filename }}
-                                    </a>
-                                </li>
-                                {% else %}
-                                <li>No templates available.</li>
-                                {% endfor %}
-                            </ul>
                             <label>
                                 Deploy Files:
                                 <small class="form-text text-muted">Files distributed along with your challenge</small>
