@@ -15,6 +15,7 @@ from CTFd.utils.config.integrations import mlc_registration
 from CTFd.utils.config.visibility import registration_visible
 from CTFd.utils.crypto import verify_password
 from CTFd.utils.decorators import ratelimit
+from CTFd.utils.decorators.visibility import check_registration_visibility
 from CTFd.utils.helpers import error_for, get_errors, markup
 from CTFd.utils.logging import log
 from CTFd.utils.modes import TEAMS_MODE

@@ -1,4 +1,3 @@
-from curses import flash
 import hashlib
 import os
 import time
@@ -6,7 +5,7 @@ import requests
 import json
 from flask import (
     abort,
-    current_app,
+    flash,
     jsonify,
     render_template,
     request,
@@ -238,29 +237,8 @@ def challenges_preview(challenge_id):
 @admin.route("/admin/challenges/new")
 @admin_or_challenge_writer_only
 def challenges_new():
-    template_dir = os.path.join(current_app.root_path, "template_challenge")
-    try:
-        template_files = os.listdir(template_dir) 
-        template_files = [file for file in template_files if os.path.isfile(os.path.join(template_dir, file))]
-    except FileNotFoundError:
-        template_files = []
     types = CHALLENGE_CLASSES.keys()
-
-    return render_template("admin/challenges/new.html", types=types, template_files=template_files)
-
-@admin.route("/admin/challenges/update")
-@admin_or_challenge_writer_only
-def challenges_teamplate():
-    template_dir = os.path.join(current_app.root_path, "template_challenge")
-    try:
-        print("đã vao day")
-        template_files = os.listdir(template_dir) 
-        template_files = [file for file in template_files if os.path.isfile(os.path.join(template_dir, file))]
-    except FileNotFoundError:
-        template_files = []
-    types = CHALLENGE_CLASSES.keys()
-
-    return render_template("admin/deploy.html", types=types, template_files=template_files)
+    return render_template("admin/challenges/new.html", types=types)
 
 
 
