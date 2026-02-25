@@ -229,12 +229,7 @@ public class K8sService : IK8sService
                     IsPending = false,
                 });
 
-                if (status == DeploymentStatus.RUNING && ready)
-                {
-
-                    if (deploymentCache != null)
-                        await HandleChallengeRunning(challengeId, teamId, deploymentCache._namespace, deploymentCache);
-                }
+ 
             }
         }
         catch (Exception ex)
@@ -263,7 +258,7 @@ public class K8sService : IK8sService
                     status = (int)HttpStatusCode.NotFound
                 };
 
-            // if time finished is in the future, keep it; else calculate new finish time
+            // if have time finished keep it; else calculate new finish time and update db as challenge started
             long finalUnixFinished;
             if (deploymentCache.time_finished > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             {
@@ -271,8 +266,16 @@ public class K8sService : IK8sService
             }
             else
             {
-                int minutes = (challenge.TimeLimit > 0) ? challenge.TimeLimit.Value : 30;
-                finalUnixFinished = DateTimeOffset.UtcNow.AddMinutes(minutes).ToUnixTimeSeconds();
+                int minutes = challenge.TimeLimit ?? 30;
+                var now = DateTimeOffset.UtcNow;
+                finalUnixFinished = now.AddMinutes(minutes).ToUnixTimeSeconds();
+                dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
+                {
+                    ChallengeId = challengeId,
+                    TeamId = teamId,
+                    StartedAt = now.DateTime 
+                });
+                await dbContext.SaveChangesAsync();
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);
