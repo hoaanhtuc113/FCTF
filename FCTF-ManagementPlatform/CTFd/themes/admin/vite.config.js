@@ -9,7 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "~": resolve(__dirname, "./node_modules/"),
-      core: resolve(__dirname, "../core/assets/js/"),
+      core: resolve(__dirname, "../core-beta/assets/js/"),
       vue: "@vue/compat"
     }
   },
@@ -39,6 +39,10 @@ export default defineConfig({
             },
             {
               src: "./node_modules/@ctfdio/ctfd-js/assets/images/**",
+              dest: "static/img"
+            },
+            {
+              src: "./assets/img/**",
               dest: "static/img"
             },
             {

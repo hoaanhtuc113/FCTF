@@ -32,7 +32,7 @@ from CTFd.utils.initialization import (
 from CTFd.utils.migrations import create_database, migrations, stamp_latest_revision
 from CTFd.utils.sessions import CachingSessionInterface
 from CTFd.utils.updates import update_check
-from CTFd.utils.user import get_locale, is_admin
+from CTFd.utils.user import is_admin
 
 __version__ = "3.7.3"
 __channel__ = "oss"
@@ -84,8 +84,7 @@ class SandboxedBaseEnvironment(SandboxedEnvironment):
         # Add theme to the LRUCache cache key
         cache_name = name
         if name.startswith("admin/") is False:
-            theme = str(utils.get_config("ctf_theme"))
-            cache_name = theme + "/" + name
+            cache_name = "core-beta/" + name
 
         # Rest of this code roughly copied from Jinja
         # https://github.com/pallets/jinja/blob/b08cd4bc64bb980df86ed2876978ae5735572280/src/jinja2/environment.py#L956-L973
@@ -135,7 +134,7 @@ class ThemeLoader(FileSystemLoader):
             if self.theme_name != ADMIN_THEME:
                 raise jinja2.TemplateNotFound(template)
             template = template[len(self._ADMIN_THEME_PREFIX) :]
-        theme_name = self.theme_name or str(utils.get_config("ctf_theme"))
+        theme_name = self.theme_name or "core-beta"
         template = safe_join(theme_name, "templates", template)
         return super(ThemeLoader, self).get_source(environment, template)
 
@@ -234,8 +233,8 @@ def create_app(config="CTFd.config.Config"):
         # Register Flask-Migrate
         migrations.init_app(app, db)
 
+        # Localization removed – always use English (no locale selector)
         babel = Babel()
-        babel.locale_selector_func = get_locale
         babel.init_app(app)
 
         # Alembic sqlite support is lacking so we should just create_all anyway
@@ -290,8 +289,8 @@ def create_app(config="CTFd.config.Config"):
         if not version:
             utils.set_config("ctf_version", __version__)
 
-        if not utils.get_config("ctf_theme"):
-            utils.set_config("ctf_theme", "core-beta")
+        # Theme is always core-beta
+        utils.set_config("ctf_theme", "core-beta")
 
         update_check(force=True)
 
@@ -370,6 +369,7 @@ def create_app(config="CTFd.config.Config"):
             Contestants have a separate portal/backend, so we restrict *all* non-staff
             access (including legacy /api/* endpoints) to reduce attack surface.
             """
+            from CTFd.utils.user import authed, is_challenge_writer, is_jury
 
             path = request.path or ""
 
@@ -383,7 +383,7 @@ def create_app(config="CTFd.config.Config"):
             ):
                 return
 
-            # Landing page is public – everyone can see it
+            # Landing page is public for unauthenticated users
             if path == "/":
                 return
 
@@ -403,8 +403,6 @@ def create_app(config="CTFd.config.Config"):
                 return
 
             # For everything else, require staff roles
-            from CTFd.utils.user import authed, is_challenge_writer, is_jury
-
             if is_admin() or is_challenge_writer() or is_jury():
                 return
 
