@@ -258,6 +258,9 @@ def login():
             db.session.close()
             return render_template("login.html", errors=errors)
     else:
+        # If already logged in as staff, redirect to admin
+        if authed() and (is_admin() or is_challenge_writer() or is_jury()):
+            return redirect(url_for("admin.view"))
         db.session.close()
         return render_template("login.html", errors=errors)
 
