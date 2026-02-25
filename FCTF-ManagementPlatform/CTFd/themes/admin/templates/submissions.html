@@ -22,43 +22,6 @@
 		padding: 2rem 0;
 	}
 	
-	/* Search Form */
-	.search-section {
-		background: #ffffff;
-		padding: 1.5rem;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		border: 1px solid #e8e8e8;
-		margin-bottom: 2rem;
-	}
-	
-	.search-section .form-control,
-	.search-section .custom-select {
-		border: 1px solid #dee2e6;
-		border-radius: 6px;
-		padding: 0.6rem 0.75rem;
-		transition: all 0.2s ease;
-	}
-	
-	.search-section .form-control:focus,
-	.search-section .custom-select:focus {
-		border-color: #ff6b35;
-		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
-	}
-	
-	.search-section .btn-primary {
-		background-color: #495057;
-		border-color: #495057;
-		transition: all 0.2s ease;
-	}
-	
-	.search-section .btn-primary:hover {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-	}
-	
 	/* Action Buttons */
 	.action-buttons {
 		margin-bottom: 1.5rem;
@@ -144,8 +107,8 @@
 		background-color: #dc3545;
 	}
 
-	/* Filter Section */
-	.filter-section {
+	/* Unified Filter & Search Section */
+	.filter-search-section {
 		background: #ffffff;
 		padding: 1.25rem 1.5rem;
 		border-radius: 8px;
@@ -154,8 +117,8 @@
 		margin-bottom: 1.5rem;
 	}
 
-	.filter-section label {
-		font-size: 0.8rem;
+	.filter-search-section label {
+		font-size: 0.78rem;
 		font-weight: 600;
 		color: #495057;
 		text-transform: uppercase;
@@ -163,8 +126,8 @@
 		margin-bottom: 0.25rem;
 	}
 
-	.filter-section .form-control,
-	.filter-section .custom-select {
+	.filter-search-section .form-control,
+	.filter-search-section .custom-select {
 		border: 1px solid #dee2e6;
 		border-radius: 6px;
 		padding: 0.5rem 0.75rem;
@@ -173,8 +136,8 @@
 		height: 38px;
 	}
 
-	.filter-section .form-control:focus,
-	.filter-section .custom-select:focus {
+	.filter-search-section .form-control:focus,
+	.filter-search-section .custom-select:focus {
 		border-color: #ff6b35;
 		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
 	}
@@ -186,6 +149,7 @@
 		font-weight: 600;
 		border-radius: 6px;
 		transition: all 0.2s ease;
+		height: 38px;
 	}
 
 	.btn-filter:hover {
@@ -202,11 +166,62 @@
 		font-weight: 600;
 		border-radius: 6px;
 		transition: all 0.2s ease;
+		height: 38px;
 	}
 
 	.btn-clear-filter:hover {
 		background-color: #f8f9fa;
 		transform: translateY(-2px);
+	}
+
+	/* Searchable Select Wrapper */
+	.searchable-select-wrapper {
+		position: relative;
+	}
+
+	.searchable-select-wrapper .ss-input {
+		width: 100%;
+		cursor: text;
+		background: #fff;
+	}
+
+	.searchable-select-wrapper .ss-dropdown {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		z-index: 1050;
+		max-height: 220px;
+		overflow-y: auto;
+		background: #ffffff;
+		border: 1px solid #dee2e6;
+		border-top: none;
+		border-radius: 0 0 6px 6px;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+		display: none;
+	}
+
+	.searchable-select-wrapper .ss-dropdown.show {
+		display: block;
+	}
+
+	.searchable-select-wrapper .ss-option {
+		padding: 0.45rem 0.75rem;
+		cursor: pointer;
+		font-size: 0.9rem;
+		color: #495057;
+		transition: background 0.1s;
+	}
+
+	.searchable-select-wrapper .ss-option:hover,
+	.searchable-select-wrapper .ss-option.active {
+		background: #fff5f2;
+		color: #ff6b35;
+	}
+
+	.searchable-select-wrapper .ss-option.selected {
+		background: #ff6b35;
+		color: #fff;
 	}
 	
 	/* Pagination */
@@ -242,88 +257,87 @@
 	<div class="row">
 		<div class="col-md-12">
 			{% if q and field %}
-			<div class="search-section text-center mb-4">
-				<h5 class="text-muted">
-					Searching for submissions with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
-				</h5>
-				<h6 class="text-muted">
-					{{ submissions.total }} results
+			<div class="text-center mb-3">
+				<h6 class="text-muted mb-0">
+					Searching <strong>{{ field }}</strong> matching <strong>{{ q }}</strong> &mdash; {{ submissions.total }} results
 				</h6>
 			</div>
 			{% endif %}
 
-			<div class="search-section">
-				{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
-				<form method="GET" class="form-inline">
-					<div class="form-group col-md-2 pr-0">
-						{{ form.field(class="form-control custom-select w-100") }}
-					</div>
-					<div class="form-group col-md-8">
-						{{ form.q(class="form-control w-100", placeholder="Search for matching submission") }}
-					</div>
-					<div class="form-group col-md-2">
-						<button type="submit" class="btn btn-primary w-100">
-							<i class="fas fa-search" aria-hidden="true"></i>
-						</button>
-					</div>
-				</form>
-				{% endwith %}
-			</div>
-
-			<!-- Filter Section -->
-			<div class="filter-section">
+			<!-- Unified Filter & Search -->
+			<div class="filter-search-section">
 				<form method="GET" id="filterForm">
 					{% if type %}<input type="hidden" name="submission_type" value="{{ type }}">{% endif %}
-					{% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-					{% if field %}<input type="hidden" name="field" value="{{ field }}">{% endif %}
 					<div class="row mb-2">
 						<div class="col-md-3">
 							<label for="team_id">Team</label>
-							<select name="team_id" id="team_id" class="form-control custom-select">
-								<option value="">All Teams</option>
-								{% for team in all_teams %}
-								<option value="{{ team.id }}" {% if team_filter == team.id|string %}selected{% endif %}>{{ team.name }}</option>
-								{% endfor %}
-							</select>
+							<div class="searchable-select-wrapper" data-ss-target="team_id">
+								<input type="hidden" name="team_id" id="team_id" value="{{ team_filter }}">
+								<input type="text" class="form-control ss-input" placeholder="All Teams" autocomplete="off">
+								<div class="ss-dropdown">
+									<div class="ss-option" data-value="">All Teams</div>
+									{% for team in all_teams %}
+									<div class="ss-option" data-value="{{ team.id }}">{{ team.name }}</div>
+									{% endfor %}
+								</div>
+							</div>
 						</div>
 						<div class="col-md-3">
 							<label for="user_id">User</label>
-							<select name="user_id" id="user_id" class="form-control custom-select">
-								<option value="">All Users</option>
-								{% for user in all_users %}
-								<option value="{{ user.id }}" {% if user_filter == user.id|string %}selected{% endif %}>{{ user.name }}</option>
-								{% endfor %}
-							</select>
+							<div class="searchable-select-wrapper" data-ss-target="user_id">
+								<input type="hidden" name="user_id" id="user_id" value="{{ user_filter }}">
+								<input type="text" class="form-control ss-input" placeholder="All Users" autocomplete="off">
+								<div class="ss-dropdown">
+									<div class="ss-option" data-value="">All Users</div>
+									{% for user in all_users %}
+									<div class="ss-option" data-value="{{ user.id }}">{{ user.name }}</div>
+									{% endfor %}
+								</div>
+							</div>
 						</div>
 						<div class="col-md-3">
 							<label for="challenge_id">Challenge</label>
-							<select name="challenge_id" id="challenge_id" class="form-control custom-select">
-								<option value="">All Challenges</option>
-								{% for ch in all_challenges %}
-								<option value="{{ ch.id }}" {% if challenge_filter == ch.id|string %}selected{% endif %}>{{ ch.name }}</option>
-								{% endfor %}
-							</select>
+							<div class="searchable-select-wrapper" data-ss-target="challenge_id">
+								<input type="hidden" name="challenge_id" id="challenge_id" value="{{ challenge_filter }}">
+								<input type="text" class="form-control ss-input" placeholder="All Challenges" autocomplete="off">
+								<div class="ss-dropdown">
+									<div class="ss-option" data-value="">All Challenges</div>
+									{% for ch in all_challenges %}
+									<div class="ss-option" data-value="{{ ch.id }}">{{ ch.name }}</div>
+									{% endfor %}
+								</div>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<label for="date_from">From Date</label>
+							<input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-md-3">
+							<label for="date_to">To Date</label>
+							<input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+						</div>
+						<div class="col-md-2">
+							<label>Search Field</label>
+							{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
+							{{ form.field(class="form-control custom-select w-100") }}
+							{% endwith %}
+						</div>
+						<div class="col-md-4">
+							<label>Search Text</label>
+							<input type="text" name="q" class="form-control" placeholder="Search for matching submission" value="{{ q or '' }}">
 						</div>
 						<div class="col-md-3">
 							<label>&nbsp;</label>
 							<div class="d-flex">
 								<button type="submit" class="btn btn-filter flex-grow-1 mr-1">
-									<i class="fas fa-filter"></i> Apply
+									<i class="fas fa-search"></i> Search &amp; Filter
 								</button>
 								<button type="button" class="btn btn-clear-filter" onclick="clearAllFilters()">
 									<i class="fas fa-times"></i>
 								</button>
 							</div>
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-3">
-							<label for="date_from">From Date</label>
-							<input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
-						</div>
-						<div class="col-md-3">
-							<label for="date_to">To Date</label>
-							<input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
 						</div>
 					</div>
 				</form>
@@ -335,12 +349,16 @@
 		<div class="col-md-12">
 			<div class="float-right action-buttons">
 				<div class="btn-group" role="group">
+					{% if type != 'correct' %}
 					<button type="button" class="btn btn-outline-success" data-toggle="tooltip" title="Mark selected as correct" id="correct-flags-button">
 						<i class="btn-fa fas fa-check"></i>
 					</button>
+					{% endif %}
+					{% if type != 'incorrect' %}
 					<button type="button" class="btn btn-outline-warning" data-toggle="tooltip" title="Mark selected as incorrect" id="incorrect-flags-button">
 						<i class="btn-fa fas fa-times"></i>
 					</button>
+					{% endif %}
 					{% if request.args.get("full") %}
 					<button type="button" class="btn btn-outline-primary" data-toggle="tooltip" title="Show truncated flags" id="show-short-flags-button">
 						<i class="btn-fa far fa-flag"></i>
@@ -511,15 +529,105 @@
 {% block scripts %}
 <script>
 function clearAllFilters() {
-	// Keep only the search params (q, field) if present
-	var url = window.location.pathname;
-	var params = new URLSearchParams(window.location.search);
-	var newParams = new URLSearchParams();
-	if (params.get('q')) newParams.set('q', params.get('q'));
-	if (params.get('field')) newParams.set('field', params.get('field'));
-	var qs = newParams.toString();
-	window.location.href = url + (qs ? '?' + qs : '');
+	window.location.href = window.location.pathname;
 }
+
+/* Searchable Select Component */
+(function() {
+	document.querySelectorAll('.searchable-select-wrapper').forEach(function(wrapper) {
+		var hiddenInput = wrapper.querySelector('input[type="hidden"]');
+		var textInput = wrapper.querySelector('.ss-input');
+		var dropdown = wrapper.querySelector('.ss-dropdown');
+		var options = wrapper.querySelectorAll('.ss-option');
+		var placeholder = textInput.getAttribute('placeholder');
+
+		// Set initial display text from selected value
+		var currentVal = hiddenInput.value;
+		if (currentVal) {
+			var matched = wrapper.querySelector('.ss-option[data-value="' + currentVal + '"]');
+			if (matched) {
+				textInput.value = matched.textContent.trim();
+				matched.classList.add('selected');
+			}
+		}
+
+		textInput.addEventListener('focus', function() {
+			dropdown.classList.add('show');
+			textInput.select();
+			filterOptions('');
+		});
+
+		textInput.addEventListener('input', function() {
+			filterOptions(textInput.value);
+			dropdown.classList.add('show');
+		});
+
+		options.forEach(function(opt) {
+			opt.addEventListener('mousedown', function(e) {
+				e.preventDefault(); // prevent blur before click registers
+				selectOption(opt);
+			});
+		});
+
+		textInput.addEventListener('blur', function() {
+			setTimeout(function() {
+				dropdown.classList.remove('show');
+				// Reset display to selected option or placeholder
+				if (hiddenInput.value) {
+					var sel = wrapper.querySelector('.ss-option.selected');
+					textInput.value = sel ? sel.textContent.trim() : '';
+				} else {
+					textInput.value = '';
+				}
+			}, 150);
+		});
+
+		// Keyboard nav
+		textInput.addEventListener('keydown', function(e) {
+			var visible = Array.from(options).filter(function(o) { return o.style.display !== 'none'; });
+			var activeIdx = visible.findIndex(function(o) { return o.classList.contains('active'); });
+
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				if (activeIdx < visible.length - 1) {
+					if (activeIdx >= 0) visible[activeIdx].classList.remove('active');
+					visible[activeIdx + 1].classList.add('active');
+					visible[activeIdx + 1].scrollIntoView({ block: 'nearest' });
+				}
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				if (activeIdx > 0) {
+					visible[activeIdx].classList.remove('active');
+					visible[activeIdx - 1].classList.add('active');
+					visible[activeIdx - 1].scrollIntoView({ block: 'nearest' });
+				}
+			} else if (e.key === 'Enter') {
+				e.preventDefault();
+				var act = visible.find(function(o) { return o.classList.contains('active'); });
+				if (act) selectOption(act);
+			} else if (e.key === 'Escape') {
+				textInput.blur();
+			}
+		});
+
+		function filterOptions(query) {
+			var q = query.toLowerCase().trim();
+			options.forEach(function(opt) {
+				var text = opt.textContent.toLowerCase();
+				opt.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
+				opt.classList.remove('active');
+			});
+		}
+
+		function selectOption(opt) {
+			options.forEach(function(o) { o.classList.remove('selected'); });
+			opt.classList.add('selected');
+			hiddenInput.value = opt.getAttribute('data-value');
+			textInput.value = opt.getAttribute('data-value') ? opt.textContent.trim() : '';
+			dropdown.classList.remove('show');
+		}
+	});
+})();
 </script>
 {% endblock %}
 
