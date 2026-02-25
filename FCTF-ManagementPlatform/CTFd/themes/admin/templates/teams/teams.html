@@ -234,12 +234,20 @@
 
 				<div class="search-section">
 					{% with form = Forms.teams.TeamSearchForm(field=field, q=q) %}
-					<form method="GET" class="form-inline">
+					<form method="GET" class="form-inline align-items-center">
 						<div class="form-group col-md-2">
 							{{ form.field(class="form-control custom-select w-100") }}
 						</div>
-						<div class="form-group col-md-8">
+						<div class="form-group col-md-6">
 							{{ form.q(class="form-control w-100", placeholder="Search for matching teams") }}
+						</div>
+						<div class="form-group col-md-2" style="display:flex;flex-direction:row;align-items:center;gap:1.25rem;flex-wrap:nowrap;">
+							<label style="display:flex;align-items:center;gap:.35rem;margin:0;white-space:nowrap;font-weight:normal;">
+								<input type="checkbox" id="hidden" name="hidden" value="1" {% if hidden %}checked{% endif %}> Hidden
+							</label>
+							<label style="display:flex;align-items:center;gap:.35rem;margin:0;white-space:nowrap;font-weight:normal;">
+								<input type="checkbox" id="banned" name="banned" value="1" {% if banned %}checked{% endif %}> Banned
+							</label>
 						</div>
 						<div class="form-group col-md-2">
 							<button type="submit" class="btn btn-primary w-100">
@@ -290,6 +298,8 @@
 						</th>
 						<th class="sort-col text-center"><b>ID</b></th>
 						<th class="sort-col text-left"><b>Team</b></th>
+						<th class="sort-col text-center"><b>Captain</b></th>
+						<th class="sort-col text-center"><b>Members</b></th>
 						<th class="sort-col text-center"><b>Country</b></th>
 						<th class="sort-col text-center px-0"><b>Hidden</b></th>
 						<th class="sort-col text-center px-0"><b>Banned</b></th>
@@ -326,6 +336,16 @@
 									{% endif %}
 								</small>
 							</span>
+						</td>
+						<td class="team-captain text-center">
+							{% if team.captain %}
+								<a href="{{ url_for('admin.users_detail', user_id=team.captain.id) }}">
+									{{ team.captain.name | truncate(24) }}
+								</a>
+							{% endif %}
+						</td>
+						<td class="team-members text-center">
+							{{ member_counts.get(team.id, 0) }}
 						</td>
 						<td class="team-country text-center" value="{{ team.country if team.country is not none }}">
 							<span>
@@ -372,7 +392,7 @@
 								
 								{% if start_page > 1 %}
 								<li class="page-item">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.teams_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.teams_listing', page=1) }}{% endif %}">1</a>
+									<a class="page-link" href="{% if q or hidden or banned %}{{ url_for('admin.teams_listing', page=1, field=field, q=q, hidden=hidden, banned=banned) }}{% else %}{{ url_for('admin.teams_listing', page=1) }}{% endif %}">1</a>
 								</li>
 								{% if start_page > 2 %}
 								<li class="page-item disabled">
@@ -383,7 +403,7 @@
 								
 								{% for page_num in range(start_page, end_page + 1) %}
 								<li class="page-item {% if page_num == teams.page %}active{% endif %}">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.teams_listing', page=page_num, field=field, q=q) }}{% else %}{{ url_for('admin.teams_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
+									<a class="page-link" href="{% if q or hidden or banned %}{{ url_for('admin.teams_listing', page=page_num, field=field, q=q, hidden=hidden, banned=banned) }}{% else %}{{ url_for('admin.teams_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
 								</li>
 								{% endfor %}
 								
@@ -394,7 +414,7 @@
 								</li>
 								{% endif %}
 								<li class="page-item">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.teams_listing', page=teams.pages, field=field, q=q) }}{% else %}{{ url_for('admin.teams_listing', page=teams.pages) }}{% endif %}">{{ teams.pages }}</a>
+									<a class="page-link" href="{% if q or hidden or banned %}{{ url_for('admin.teams_listing', page=teams.pages, field=field, q=q, hidden=hidden, banned=banned) }}{% else %}{{ url_for('admin.teams_listing', page=teams.pages) }}{% endif %}">{{ teams.pages }}</a>
 								</li>
 								{% endif %}
 								
