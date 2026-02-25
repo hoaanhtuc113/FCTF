@@ -369,6 +369,7 @@ def create_app(config="CTFd.config.Config"):
             Contestants have a separate portal/backend, so we restrict *all* non-staff
             access (including legacy /api/* endpoints) to reduce attack surface.
             """
+            from CTFd.utils.user import authed, is_challenge_writer, is_jury
 
             path = request.path or ""
 
@@ -382,11 +383,9 @@ def create_app(config="CTFd.config.Config"):
             ):
                 return
 
-            # Root path: redirect to login or admin panel
+            # Landing page is public for unauthenticated users
             if path == "/":
-                if is_admin() or is_challenge_writer() or is_jury():
-                    return
-                return redirect(url_for("auth.login"))
+                return
 
             # Allow auth endpoints necessary for staff login flows
             if (
@@ -404,8 +403,6 @@ def create_app(config="CTFd.config.Config"):
                 return
 
             # For everything else, require staff roles
-            from CTFd.utils.user import authed, is_challenge_writer, is_jury
-
             if is_admin() or is_challenge_writer() or is_jury():
                 return
 
