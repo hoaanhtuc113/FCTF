@@ -143,6 +143,71 @@
 	.badge-danger {
 		background-color: #dc3545;
 	}
+
+	/* Filter Section */
+	.filter-section {
+		background: #ffffff;
+		padding: 1.25rem 1.5rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		margin-bottom: 1.5rem;
+	}
+
+	.filter-section label {
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: #495057;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+		margin-bottom: 0.25rem;
+	}
+
+	.filter-section .form-control,
+	.filter-section .custom-select {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.9rem;
+		transition: all 0.2s ease;
+		height: 38px;
+	}
+
+	.filter-section .form-control:focus,
+	.filter-section .custom-select:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+	}
+
+	.btn-filter {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		color: #ffffff;
+		font-weight: 600;
+		border-radius: 6px;
+		transition: all 0.2s ease;
+	}
+
+	.btn-filter:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		color: #ffffff;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+
+	.btn-clear-filter {
+		border: 1px solid #dee2e6;
+		color: #495057;
+		font-weight: 600;
+		border-radius: 6px;
+		transition: all 0.2s ease;
+	}
+
+	.btn-clear-filter:hover {
+		background-color: #f8f9fa;
+		transform: translateY(-2px);
+	}
 	
 	/* Pagination */
 	.page-link {
@@ -204,6 +269,65 @@
 				</form>
 				{% endwith %}
 			</div>
+
+			<!-- Filter Section -->
+			<div class="filter-section">
+				<form method="GET" id="filterForm">
+					{% if type %}<input type="hidden" name="submission_type" value="{{ type }}">{% endif %}
+					{% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+					{% if field %}<input type="hidden" name="field" value="{{ field }}">{% endif %}
+					<div class="row mb-2">
+						<div class="col-md-3">
+							<label for="team_id">Team</label>
+							<select name="team_id" id="team_id" class="form-control custom-select">
+								<option value="">All Teams</option>
+								{% for team in all_teams %}
+								<option value="{{ team.id }}" {% if team_filter == team.id|string %}selected{% endif %}>{{ team.name }}</option>
+								{% endfor %}
+							</select>
+						</div>
+						<div class="col-md-3">
+							<label for="user_id">User</label>
+							<select name="user_id" id="user_id" class="form-control custom-select">
+								<option value="">All Users</option>
+								{% for user in all_users %}
+								<option value="{{ user.id }}" {% if user_filter == user.id|string %}selected{% endif %}>{{ user.name }}</option>
+								{% endfor %}
+							</select>
+						</div>
+						<div class="col-md-3">
+							<label for="challenge_id">Challenge</label>
+							<select name="challenge_id" id="challenge_id" class="form-control custom-select">
+								<option value="">All Challenges</option>
+								{% for ch in all_challenges %}
+								<option value="{{ ch.id }}" {% if challenge_filter == ch.id|string %}selected{% endif %}>{{ ch.name }}</option>
+								{% endfor %}
+							</select>
+						</div>
+						<div class="col-md-3">
+							<label>&nbsp;</label>
+							<div class="d-flex">
+								<button type="submit" class="btn btn-filter flex-grow-1 mr-1">
+									<i class="fas fa-filter"></i> Apply
+								</button>
+								<button type="button" class="btn btn-clear-filter" onclick="clearAllFilters()">
+									<i class="fas fa-times"></i>
+								</button>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-md-3">
+							<label for="date_from">From Date</label>
+							<input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+						</div>
+						<div class="col-md-3">
+							<label for="date_to">To Date</label>
+							<input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+						</div>
+					</div>
+				</form>
+			</div>
 		</div>
 	</div>
 
@@ -211,11 +335,12 @@
 		<div class="col-md-12">
 			<div class="float-right action-buttons">
 				<div class="btn-group" role="group">
-					{% if type == "incorrect" %}
-					<button type="button" class="btn btn-outline-success" data-toggle="tooltip" title="Mark submissions correct" id="correct-flags-button">
+					<button type="button" class="btn btn-outline-success" data-toggle="tooltip" title="Mark selected as correct" id="correct-flags-button">
 						<i class="btn-fa fas fa-check"></i>
 					</button>
-					{% endif %}
+					<button type="button" class="btn btn-outline-warning" data-toggle="tooltip" title="Mark selected as incorrect" id="incorrect-flags-button">
+						<i class="btn-fa fas fa-times"></i>
+					</button>
 					{% if request.args.get("full") %}
 					<button type="button" class="btn btn-outline-primary" data-toggle="tooltip" title="Show truncated flags" id="show-short-flags-button">
 						<i class="btn-fa far fa-flag"></i>
@@ -316,6 +441,13 @@
 			
 			<!-- Backend Pagination Controls -->
 			{% if submissions.pages > 0 %}
+			{% set filter_args = {} %}
+			{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
+			{% if team_filter %}{% set _ = filter_args.update({"team_id": team_filter}) %}{% endif %}
+			{% if user_filter %}{% set _ = filter_args.update({"user_id": user_filter}) %}{% endif %}
+			{% if challenge_filter %}{% set _ = filter_args.update({"challenge_id": challenge_filter}) %}{% endif %}
+			{% if date_from %}{% set _ = filter_args.update({"date_from": date_from}) %}{% endif %}
+			{% if date_to %}{% set _ = filter_args.update({"date_to": date_to}) %}{% endif %}
 			<div class="row mt-3">
 				<div class="col-md-12">
 					<div class="d-flex justify-content-between align-items-center">
@@ -334,7 +466,7 @@
 								
 								{% if start_page > 1 %}
 								<li class="page-item">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.submissions_listing', submission_type=type, page=1, field=field, q=q) }}{% else %}{{ url_for('admin.submissions_listing', submission_type=type, page=1) }}{% endif %}">1</a>
+									<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=1, **filter_args) }}">1</a>
 								</li>
 								{% if start_page > 2 %}
 								<li class="page-item disabled">
@@ -345,7 +477,7 @@
 								
 								{% for page_num in range(start_page, end_page + 1) %}
 								<li class="page-item {% if page_num == submissions.page %}active{% endif %}">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.submissions_listing', submission_type=type, page=page_num, field=field, q=q) }}{% else %}{{ url_for('admin.submissions_listing', submission_type=type, page=page_num) }}{% endif %}">{{ page_num }}</a>
+									<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=page_num, **filter_args) }}">{{ page_num }}</a>
 								</li>
 								{% endfor %}
 								
@@ -356,7 +488,7 @@
 								</li>
 								{% endif %}
 								<li class="page-item">
-									<a class="page-link" href="{% if q %}{{ url_for('admin.submissions_listing', submission_type=type, page=submissions.pages, field=field, q=q) }}{% else %}{{ url_for('admin.submissions_listing', submission_type=type, page=submissions.pages) }}{% endif %}">{{ submissions.pages }}</a>
+									<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=submissions.pages, **filter_args) }}">{{ submissions.pages }}</a>
 								</li>
 								{% endif %}
 								
@@ -377,6 +509,18 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+function clearAllFilters() {
+	// Keep only the search params (q, field) if present
+	var url = window.location.pathname;
+	var params = new URLSearchParams(window.location.search);
+	var newParams = new URLSearchParams();
+	if (params.get('q')) newParams.set('q', params.get('q'));
+	if (params.get('field')) newParams.set('field', params.get('field'));
+	var qs = newParams.toString();
+	window.location.href = url + (qs ? '?' + qs : '');
+}
+</script>
 {% endblock %}
 
 {% block entrypoint %}
