@@ -97,6 +97,7 @@ builder.Services.AddScoped<IChallengeService, ChallengeService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<INotificationServices, NotificationServices>();
 builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
+builder.Services.AddScoped<IUserContext, UserContext>();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 
