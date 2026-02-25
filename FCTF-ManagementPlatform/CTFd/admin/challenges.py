@@ -31,7 +31,7 @@ from CTFd.utils.dates import ctftime
 from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import get_current_team, get_current_user, is_admin,is_jury
 from CTFd.utils.uploads import upload_file
-from CTFd.constants.envvars import API_URL_CONTROLSERVER, PRIVATE_KEY
+from CTFd.constants.envvars import DEPLOYMENT_SERVICE_API, PRIVATE_KEY
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.constants import status_challenge
 
@@ -197,7 +197,7 @@ def challenges_detail(challenge_id):
     )
 
 
-@admin.route("/api/challenges/preview/<int:challenge_id>")
+@admin.route("/admin/challenges/preview/<int:challenge_id>")
 @admin_or_challenge_writer_only_or_jury
 def challenges_preview(challenge_id):
     challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
@@ -292,51 +292,69 @@ def create_secret_key(
     return hashlib.md5(combine_string.encode()).hexdigest()
 
 
-@admin.route("/api/challenge/preview/<int:challenge_id>")
+@admin.route("/api/challenge/start", methods=["POST"])
 @admin_or_challenge_writer_only
-def challenge_preview(challenge_id):
-    unix_time = str(int(time.time()))
-    private_key = PRIVATE_KEY
-    challenge = Challenges.query.filter_by(
-        id=challenge_id
-    ).first_or_404()  # Corrected here
-    secret_key = create_secret_key(
-        private_key,
-        unix_time,
-        {
-            "ChallengeId": challenge_id,
-            "TeamId": -1,
-            "ImageLink": challenge.image_link,
-        },  # Corrected here
-    )
-    print(secret_key)
-    payload = {
-        "ChallengeId": challenge_id,
-        "UnixTime": unix_time,
-        "TeamId": -1,
-        "ImageLink": challenge.image_link,  # Corrected here
-    }
-    headers = {"Secretkey": secret_key}
-    api_start = f"{API_URL_CONTROLSERVER}/api/challenge/start"
-
+def challenge_start():
     try:
-        response = requests.post(api_start, data=payload, headers=headers)
-        print(response)
+        data = request.get_json(force=True, silent=True) or {}
+        challenge_id = data.get("challenge_id")
+        if not challenge_id:
+            return jsonify({"success": False, "message": "challenge_id is required"}), 400
+        challenge_id = int(challenge_id)
+
+        private_key = PRIVATE_KEY
+        if not private_key:
+            return jsonify({"success": False, "message": "Server PRIVATE_KEY is not configured"}), 500
+
+        from CTFd.utils.user import get_current_user
+        current_user = get_current_user()
+        user_id = current_user.id if current_user else -1
+
+        unix_time = str(int(time.time()))
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+
+        # Use camelCase keys matching the Deployment Service API contract
+        secret_key = create_secret_key(
+            private_key,
+            unix_time,
+            {
+                "challengeId": challenge_id,
+                "teamId": -1,
+                "userId": user_id,
+            },
+        )
+        payload = {
+            "challengeId": challenge_id,
+            "teamId": -1,
+            "userId": user_id,
+            "unixTime": unix_time,
+        }
+        headers = {"SecretKey": secret_key}
+        api_start = f"{DEPLOYMENT_SERVICE_API}/api/challenge/start"
+
+        response = requests.post(api_start, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
 
         res_data = response.json()
         if res_data.get("success"):
-            return (
-                jsonify(
-                    {"success": True, "challenge_url": res_data.get("challenge_url")}
-                ),
-                200,
-            )
+            return jsonify({
+                "success": True,
+                "message": res_data.get("message", "Challenge started"),
+                "challenge_url": res_data.get("challenge_url"),
+            }), 200
         else:
-            return (
-                jsonify({"Message": "Failed to preview challenge"}),
-                500,
-            )  # Fixed typo in message
+            return jsonify({
+                "success": False,
+                "message": res_data.get("message", "Failed to preview challenge"),
+            }), 200
 
-    except requests.exceptions.RequestException:
-        return jsonify({"Message": "Connection failed"}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({"success": False, "message": f"Cannot connect to deployment service at {DEPLOYMENT_SERVICE_API}"}), 502
+    except requests.exceptions.Timeout:
+        return jsonify({"success": False, "message": "Control server request timed out"}), 504
+    except requests.exceptions.HTTPError as e:
+        return jsonify({"success": False, "message": f"Control server returned error: {e.response.status_code}"}), 502
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": f"Internal error: {str(e)}"}), 500
