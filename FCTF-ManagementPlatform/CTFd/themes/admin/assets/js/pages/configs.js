@@ -137,7 +137,7 @@ function updateConfigs(event) {
 function uploadLogo(event) {
   event.preventDefault();
   let form = event.target;
-  helpers.files.upload(form, {}, function (response) {
+  helpers.files.upload(form, {}).then(function (response) {
     const f = response.data[0];
     const params = {
       value: f.location,
@@ -163,6 +163,11 @@ function uploadLogo(event) {
   });
 }
 
+// make upload functions globally callable (used by inline onsubmit attributes)
+window.uploadLogo = uploadLogo;
+window.removeLogo = removeLogo;
+window.removeSmallIcon = removeSmallIcon;
+
 function removeLogo() {
   ezQuery({
     title: "Remove logo",
@@ -180,10 +185,12 @@ function removeLogo() {
   });
 }
 
+window.smallIconUpload = smallIconUpload;
+
 function smallIconUpload(event) {
   event.preventDefault();
   let form = event.target;
-  helpers.files.upload(form, {}, function (response) {
+  helpers.files.upload(form, {}).then(function (response) {
     const f = response.data[0];
     const params = {
       value: f.location,

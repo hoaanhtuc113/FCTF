@@ -382,6 +382,11 @@ def create_app(config="CTFd.config.Config"):
                 or path == "/healthcheck"
             ):
                 return
+            # Allow access to uploaded files (logo, banners, etc.) so public users
+            # can view them without logging in.  The `views.files` handler itself
+            # enforces per-file challenge visibility.
+            if path.startswith("/files"):
+                return
 
             # Landing page is public for unauthenticated users
             if path == "/":
