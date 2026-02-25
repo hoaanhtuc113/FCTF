@@ -733,6 +733,21 @@ public class ChallengeController : BaseController
             }
         }
 
+        if(challenge.MaxDeployCount.HasValue && challenge.MaxDeployCount.Value > 0)
+        {
+            var currentDeployCount = await _context.ChallengeStartTrackings
+                .AsNoTracking()
+                .Where(d => d.ChallengeId == challenge.Id && d.TeamId == user.TeamId)
+                .CountAsync();
+            if (currentDeployCount >= challenge.MaxDeployCount.Value)
+            {
+                return BadRequest(new
+                {
+                    error = "You have reached the maximum number of deployments for this challenge. You cannot start this challenge."
+                });
+            }
+        }
+
         var solve = await _context.Solves
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);

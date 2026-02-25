@@ -81,6 +81,10 @@ public class ChallengeService : IChallengeService
             .AsNoTracking()
             .CountAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
 
+        var deployedCount = await _dbContext.ChallengeStartTrackings
+            .AsNoTracking()
+            .CountAsync(d => d.ChallengeId == challenge.Id && d.TeamId == user.TeamId);
+
         var files = new List<object>();
         foreach (var file in challenge.Files)
         {
@@ -103,6 +107,8 @@ public class ChallengeService : IChallengeService
             description = ChallengeHelper.ModifyDescription(challenge),
             max_attempts = challenge.MaxAttempts,
             attemps = attempts,
+            max_deploy_count = challenge.MaxDeployCount,
+            deployed_count = deployedCount,
             category = challenge.Category,
             time_limit = challenge.TimeLimit,
             require_deploy = challenge.RequireDeploy,
