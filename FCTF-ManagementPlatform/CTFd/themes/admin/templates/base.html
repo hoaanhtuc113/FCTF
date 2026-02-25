@@ -411,6 +411,13 @@
                 {% endif %}
             </ul>
         </div>
+
+        <div class="mt-auto w-100 pt-3" style="border-top: 1px solid var(--border-light);">
+            <a class="nav-link" href="{{ url_for('auth.logout') }}" style="color: var(--text-light); transition: color 0.2s;"
+               onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-light)'">
+                <i class="bx bx-log-out"></i> Logout
+            </a>
+        </div>
     </nav>
 
      <div id="content" class="pt-0 mt-0">

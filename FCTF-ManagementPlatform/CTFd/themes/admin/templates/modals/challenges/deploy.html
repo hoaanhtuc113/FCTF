@@ -3,7 +3,7 @@
     <div class="form-group">
         <label class="clean-checkbox-label">
             <input type="checkbox" name="require_deploy" id="setup_docker" {% if challenge.require_deploy %}checked{% endif %} >
-            <span class="ml-2">Setup Docker</span>
+            <span class="ml-2">Setup Deploy</span>
         </label>
     </div>
     <div class="form-group" id="expose_port_container">
@@ -59,6 +59,14 @@
         <option value="true" {% if challenge.use_gvisor %}selected{% endif %}>True</option>
         <option value="false" {% if not challenge.use_gvisor %}selected{% endif %}>False</option>
       </select>
+    </div>
+    <div class="form-group deploy-resource-field">
+      <label class="clean-label">
+        Max Deploy Count <br>
+        <small class="form-text text-muted">Maximum number of times a contestant can start/deploy this challenge. Set 0 for unlimited.</small>
+      </label>
+      <input type="number" class="form-control clean-form-control" name="max_deploy_count" id="max_deploy_count"
+        min="0" value="{{ challenge.max_deploy_count if challenge.max_deploy_count is not none else 0 }}">
     </div>
     <label class="clean-label">
       {% if image_link_display %}
@@ -246,6 +254,7 @@
     const memoryLimitInput = document.getElementById("memory_limit");
     const memoryRequestInput = document.getElementById("memory_request");
     const useGvisorInput = document.getElementById("use_gvisor");
+    const maxDeployCountInput = document.getElementById("max_deploy_count");
     const defaultCpuLimit = 100;
     const defaultCpuRequest = 10;
     const defaultMemoryLimit = 128;
@@ -385,7 +394,8 @@
               use_gvisor: setupDockerCheckbox.checked ? useGvisor : null,
               expose_port: setupDockerCheckbox.checked
                 ? parseInt(exposePortInput?.value || "0", 10)
-                : null
+                : null,
+              max_deploy_count: parseInt(maxDeployCountInput?.value || "0", 10)
             };
 
             const updateResponse = await CTFd.fetch(`/api/v1/challenges/${CHALLENGE_ID}`, {
