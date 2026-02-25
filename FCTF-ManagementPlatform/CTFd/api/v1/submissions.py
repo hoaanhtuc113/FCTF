@@ -242,6 +242,38 @@ class Submission(Resource):
 
             submission = solve
 
+        elif submission_type == "incorrect":
+            # If the submission is currently a Solve (correct), revert it
+            if submission.type == "correct":
+                # Remove the solve record from solves table
+                solve = Solves.query.filter_by(id=submission_id).first()
+                if solve:
+                    db.session.delete(solve)
+                    db.session.flush()
+
+                # Re-create as an incorrect submission
+                new_sub = Submissions(
+                    user_id=submission.user_id,
+                    challenge_id=submission.challenge_id,
+                    team_id=submission.team_id,
+                    ip=submission.ip,
+                    provided=submission.provided,
+                    type="incorrect",
+                    date=submission.date,
+                )
+                db.session.add(new_sub)
+                db.session.commit()
+
+                # Delete standings cache
+                clear_standings()
+                clear_challenges()
+
+                submission = new_sub
+            else:
+                # Already not correct, just update type
+                submission.type = "incorrect"
+                db.session.commit()
+
         schema = SubmissionSchema()
         response = schema.dump(submission)
 

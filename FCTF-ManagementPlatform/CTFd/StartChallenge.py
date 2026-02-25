@@ -254,6 +254,9 @@ def get_all_instance():
         # Get filter and search parameters
         team_filter = request.args.get("team_name", "").strip().lower()
         challenge_search = request.args.get("challenge_name", "").strip().lower()
+        user_filter = request.args.get("user_name", "").strip().lower()
+        category_filter = request.args.get("challenge_category", "").strip().lower()
+        status_filter = request.args.get("status", "").strip().lower()
         
         pattern = "deploy_challenge_*_*"
         cursor = 0
@@ -314,38 +317,34 @@ def get_all_instance():
                 else None
             )
             
+            challenge_category = challenge.category if challenge else "Unknown"
+
+            instance_data = {
+                "challenge_id": challenge_id_key,
+                "team_id": team_id,
+                "challenge_name": challenge.name if challenge else "Unknown Challenge",
+                "challenge_category": challenge_category,
+                "team_name": team_name,
+                "user_name": user.name if user else "Unknown User",
+                "user_id": value.get("user_id"),
+                "challenge_url": value.get("challenge_url"),
+                "status": value.get("status", "Unknown"),
+                "time_finished": finished_time,  # dạng ISO 8601
+                "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
+            }
+
             if team_id == -1:
-                special_cases.append({
-                    "challenge_id": challenge_id_key,
-                    "team_id": team_id,
-                    "challenge_name": challenge.name if challenge else "Unknown Challenge",
-                    "team_name": team_name,
-                    "user_name": user.name if user else "Unknown User",
-                    "user_id": value.get("user_id"),
-                    "challenge_url": value.get("challenge_url"),
-                    "status": value.get("status", "Unknown"),
-                    "time_finished": finished_time,  # dạng ISO 8601
-                    "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
-                })
+                special_cases.append(instance_data)
             else:
-                normal_cases.append({
-                    "challenge_id": challenge_id_key,
-                    "challenge_name": challenge.name if challenge else "Unknown Challenge",
-                    "team_name": team_name,
-                    "user_name": user.name if user else "Unknown User",
-                    "team_id": team_id,
-                    "user_id": value.get("user_id"),
-                    "challenge_url": value.get("challenge_url"),
-                    "status": value.get("status", "Unknown"),
-                    "time_finished": finished_time,  # dạng ISO 8601
-                    "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
-                })
+                normal_cases.append(instance_data)
 
         # Combine all data
         all_data = special_cases + normal_cases
         
-        # Extract unique team names for filtering
+        # Extract unique values for filter dropdowns (before applying filters)
         unique_teams = sorted(list(set(item.get("team_name", "") for item in all_data if item.get("team_name"))))
+        unique_users = sorted(list(set(item.get("user_name", "") for item in all_data if item.get("user_name"))))
+        unique_categories = sorted(list(set(item.get("challenge_category", "") for item in all_data if item.get("challenge_category"))))
         
         # Apply filters
         if team_filter:
@@ -353,6 +352,15 @@ def get_all_instance():
         
         if challenge_search:
             all_data = [item for item in all_data if challenge_search in item.get("challenge_name", "").lower()]
+        
+        if user_filter:
+            all_data = [item for item in all_data if user_filter in item.get("user_name", "").lower()]
+        
+        if category_filter:
+            all_data = [item for item in all_data if category_filter in item.get("challenge_category", "").lower()]
+        
+        if status_filter:
+            all_data = [item for item in all_data if status_filter in item.get("status", "").lower()]
         
         # Sort data
         reverse = (sort_order == "desc")
@@ -382,6 +390,8 @@ def get_all_instance():
             "success": True,
             "data": paginated_data,
             "teams": unique_teams,
+            "users": unique_users,
+            "categories": unique_categories,
             "pagination": {
                 "page": page,
                 "per_page": per_page,
