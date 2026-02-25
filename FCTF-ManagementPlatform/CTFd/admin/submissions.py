@@ -1,7 +1,9 @@
+from datetime import datetime
+
 from flask import render_template, request, url_for, jsonify
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Submissions, db
+from CTFd.models import Challenges, Submissions, Teams, Users, db
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.modes import get_model
@@ -22,6 +24,13 @@ def submissions_listing(submission_type):
     field = request.args.get("field")
     page = abs(request.args.get("page", 1, type=int))
 
+    # New filter parameters
+    team_filter = request.args.get("team_id", "", type=str).strip()
+    user_filter = request.args.get("user_id", "", type=str).strip()
+    challenge_filter = request.args.get("challenge_id", "", type=str).strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+
     filters = build_model_filters(
         model=Submissions,
         query=q,
@@ -31,6 +40,28 @@ def submissions_listing(submission_type):
             "account_id": Submissions.account_id,
         },
     )
+
+    # Apply additional filters
+    if team_filter:
+        filters.append(Submissions.team_id == int(team_filter))
+    if user_filter:
+        filters.append(Submissions.user_id == int(user_filter))
+    if challenge_filter:
+        filters.append(Submissions.challenge_id == int(challenge_filter))
+    if date_from:
+        try:
+            dt_from = datetime.strptime(date_from, "%Y-%m-%d")
+            filters.append(Submissions.date >= dt_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt_to = datetime.strptime(date_to, "%Y-%m-%d")
+            # Include the entire end day
+            dt_to = dt_to.replace(hour=23, minute=59, second=59)
+            filters.append(Submissions.date <= dt_to)
+        except ValueError:
+            pass
 
     Model = get_model()
 
@@ -42,6 +73,11 @@ def submissions_listing(submission_type):
         .order_by(Submissions.date.desc())
         .paginate(page=page, per_page=10, error_out=False)
     )
+
+    # Get unique teams, users, challenges for filter dropdowns
+    all_teams = Teams.query.order_by(Teams.name).all()
+    all_users = Users.query.filter(Users.type != "admin").order_by(Users.name).all()
+    all_challenges = Challenges.query.order_by(Challenges.name).all()
 
     args = dict(request.args)
     args.pop("page", 1)
@@ -64,6 +100,14 @@ def submissions_listing(submission_type):
         type=submission_type,
         q=q,
         field=field,
+        all_teams=all_teams,
+        all_users=all_users,
+        all_challenges=all_challenges,
+        team_filter=team_filter,
+        user_filter=user_filter,
+        challenge_filter=challenge_filter,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
