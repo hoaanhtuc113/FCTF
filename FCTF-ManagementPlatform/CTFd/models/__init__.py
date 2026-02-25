@@ -135,6 +135,7 @@ class Challenges(db.Model):
     memory_limit = db.Column(db.Integer, nullable=True)
     memory_request = db.Column(db.Integer, nullable=True)
     use_gvisor = db.Column(db.Boolean, nullable=True)
+    max_deploy_count = db.Column(db.Integer, default=0, nullable=True)
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")
@@ -246,6 +247,28 @@ class DeployedChallenge(db.Model):
     challenge = db.relationship(
         "Challenges", backref=db.backref("deploy_histories", lazy=True)
     )
+
+
+class ChallengeStartTracking(db.Model):
+    __tablename__ = "challenge_start_tracking"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")
+    
+    def __init__(self, *args, **kwargs):
+        super(ChallengeStartTracking, self).__init__(**kwargs)
+    
+    def __repr__(self):
+        return "<ChallengeStartTracking user_id={} team_id={} challenge_id={}>".format(
+            self.user_id, self.team_id, self.challenge_id
+        )
 
 
 class Awards(db.Model):

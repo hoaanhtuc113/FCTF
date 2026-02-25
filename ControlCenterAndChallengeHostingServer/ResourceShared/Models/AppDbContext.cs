@@ -31,6 +31,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Challenge> Challenges { get; set; }
 
+    public virtual DbSet<ChallengeStartTracking> ChallengeStartTrackings { get; set; }
+
     public virtual DbSet<ChallengeTopic> ChallengeTopics { get; set; }
 
     public virtual DbSet<Comment> Comments { get; set; }
@@ -406,6 +408,9 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("memory_request");
             entity.Property(e => e.UseGvisor)
                 .HasColumnName("use_gvisor");
+            entity.Property(e => e.MaxDeployCount)
+                .HasColumnType("int(11)")
+                .HasColumnName("max_deploy_count");
 
             entity.HasOne(d => d.Next).WithMany(p => p.InverseNext)
                 .HasForeignKey(d => d.NextId)
@@ -416,6 +421,48 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("challenges_ibfk_2");
+        });
+
+        modelBuilder.Entity<ChallengeStartTracking>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("challenge_start_tracking");
+
+            entity.HasIndex(e => new { e.UserId, e.ChallengeId }, "idx_challenge_start_tracking_user_challenge");
+
+            entity.HasIndex(e => new { e.TeamId, e.ChallengeId }, "idx_challenge_start_tracking_team_challenge");
+
+            entity.Property(e => e.Id)
+                .HasColumnType("int(11)")
+                .HasColumnName("id");
+            entity.Property(e => e.UserId)
+                .HasColumnType("int(11)")
+                .HasColumnName("user_id");
+            entity.Property(e => e.TeamId)
+                .HasColumnType("int(11)")
+                .HasColumnName("team_id");
+            entity.Property(e => e.ChallengeId)
+                .HasColumnType("int(11)")
+                .HasColumnName("challenge_id");
+            entity.Property(e => e.StartedAt)
+                .HasMaxLength(6)
+                .HasColumnName("started_at");
+
+            entity.HasOne(d => d.Challenge).WithMany(p => p.ChallengeStartTrackings)
+                .HasForeignKey(d => d.ChallengeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_challenge_start_tracking_challenge_id");
+
+            entity.HasOne(d => d.Team).WithMany()
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_challenge_start_tracking_team_id");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_challenge_start_tracking_user_id");
         });
 
         modelBuilder.Entity<ChallengeTopic>(entity =>

@@ -323,6 +323,7 @@ function handleChallengeOptions(event) {
   let memoryLimit = 0;
   let memoryRequest = 0;
   let useGvisor = true;
+  let maxDeployCount = parseInt(params.max_deploy_count || "0", 10);
 
   if (requireDeploy) {
     cpuLimit = parseInt(params.cpu_limit || "0", 10);
@@ -359,6 +360,7 @@ function handleChallengeOptions(event) {
   let save_challenge = function () {
     const body = {
       state: params.state,
+      max_deploy_count: maxDeployCount,
     };
     if (requireDeploy) {
       body.cpu_limit = cpuLimit;
