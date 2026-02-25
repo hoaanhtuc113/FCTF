@@ -63,4 +63,21 @@ public class ConfigController : BaseController
             });
         }
     }
+
+    // public configuration values used by the contestant portal
+    [AllowAnonymous]
+    [HttpGet("get_public_config")]
+    public IActionResult GetPublicConfig()
+    {
+        var logo = _configHelper.GetConfig("ctf_logo");
+        var icon = _configHelper.GetConfig("ctf_small_icon");
+        var name = _configHelper.GetConfig("ctf_name");
+        return Ok(new
+        {
+            isSuccess = true,
+            ctf_logo = logo,
+            ctf_small_icon = icon,
+            ctf_name = name,
+        });
+    }
 }
