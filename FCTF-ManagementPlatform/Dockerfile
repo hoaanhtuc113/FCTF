@@ -8,7 +8,6 @@ WORKDIR /themes/admin
 COPY CTFd/themes/admin/package.json CTFd/themes/admin/package-lock.json* CTFd/themes/admin/yarn.lock* ./
 RUN npm install
 COPY CTFd/themes/admin/ ./
-COPY CTFd/themes/core/assets/ /themes/core/assets/
 RUN npm run build
 
 # Build core-beta theme
@@ -81,6 +80,7 @@ RUN useradd \
     && mkdir -p /var/log/CTFd /var/uploads \
     && mkdir -p /var/log/CTFd /var/template_challenge \
     && chown -R 1001:1001 /var/template_challenge /var/log/CTFd /var/uploads /opt/CTFd \
+    && sed -i 's/\r//' /opt/CTFd/docker-entrypoint.sh \
     && chmod +x /opt/CTFd/docker-entrypoint.sh 
 
 COPY --chown=1001:1001 --from=build /opt/venv /opt/venv

@@ -348,12 +348,17 @@ def static_html(route):
     :param route:
     :return:
     """
+    # Root path: staff → admin, unauthenticated → landing page
+    if route == "index":
+        if is_setup() is False:
+            return redirect(url_for("views.setup"))
+        if authed():
+            return redirect(url_for("admin.view"))
+        # Show landing page for unauthenticated users
+        return render_template("page.html", content="", title="Welcome")
+
     page = get_page(route)
     if page is None:
-        if route == "index":
-            if is_setup() is False:
-                return redirect(url_for("views.setup"))
-            return redirect(url_for("auth.login"))
         abort(404)
     else:
         if page.auth_required and authed() is False:
