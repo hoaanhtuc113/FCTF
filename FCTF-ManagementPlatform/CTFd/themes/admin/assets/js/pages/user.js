@@ -181,50 +181,6 @@ function awardUser(event) {
     });
 }
 
-function emailUser(event) {
-  event.preventDefault();
-  var params = $("#user-mail-form").serializeJSON(true);
-  CTFd.fetch("/api/v1/users/" + window.USER_ID + "/email", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
-  })
-    .then(function (response) {
-      return response.json();
-    })
-    .then(function (response) {
-      if (response.success) {
-        $("#user-mail-form > #results").append(
-          ezBadge({
-            type: "success",
-            body: "E-Mail sent successfully!",
-          }),
-        );
-        $("#user-mail-form").find("input[type=text], textarea").val("");
-      } else {
-        $("#user-mail-form > #results").empty();
-        Object.keys(response.errors).forEach(function (key, _index) {
-          $("#user-mail-form > #results").append(
-            ezBadge({
-              type: "error",
-              body: response.errors[key],
-            }),
-          );
-          var i = $("#user-mail-form").find(
-            "input[name={0}], textarea[name={0}]".format(key),
-          );
-          var input = $(i);
-          input.addClass("input-filled-invalid");
-          input.removeClass("input-filled-valid");
-        });
-      }
-    });
-}
-
 function correctSubmissions(_event) {
   let submissions = $("input[data-submission-type=incorrect]:checked");
   let submissionIDs = submissions.map(function () {
@@ -467,15 +423,9 @@ $(() => {
     $("#user-award-modal").modal("toggle");
   });
 
-  $(".email-user").click(function (_event) {
-    $("#user-email-modal").modal("toggle");
-  });
-
   $(".addresses-user").click(function (_event) {
     $("#user-addresses-modal").modal("toggle");
   });
-
-  $("#user-mail-form").submit(emailUser);
 
   $("#solves-delete-button").click(function (e) {
     deleteSelectedSubmissions(e, "solves");
