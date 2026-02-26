@@ -462,20 +462,39 @@ function initTimeConfigSection() {
 function showTab(anchorEl) {
   if (!anchorEl) return;
 
-  // Prefer Bootstrap 5 API if available
+  // Bootstrap 5 API (compatible across versions)
   if (globalThis.bootstrap && globalThis.bootstrap.Tab) {
-    globalThis.bootstrap.Tab.getOrCreateInstance(anchorEl).show();
-    return;
+    const TabCtor = globalThis.bootstrap.Tab;
+    try {
+      if (typeof TabCtor.getOrCreateInstance === "function") {
+        TabCtor.getOrCreateInstance(anchorEl).show();
+        return;
+      }
+      if (typeof TabCtor === "function") {
+        new TabCtor(anchorEl).show();
+        return;
+      }
+    } catch (_e) {
+      // Fall through to jQuery/click fallback
+    }
   }
 
   // Fallback to Bootstrap 4 jQuery plugin
-  if (typeof $(anchorEl).tab === "function") {
-    $(anchorEl).tab("show");
-    return;
+  try {
+    if (typeof $(anchorEl).tab === "function") {
+      $(anchorEl).tab("show");
+      return;
+    }
+  } catch (_e) {
+    // Fall through
   }
 
   // Last resort
-  anchorEl.click();
+  try {
+    anchorEl.click();
+  } catch (_e) {
+    // no-op
+  }
 }
 
 function setUrl({ hash, backupTab }) {
@@ -709,24 +728,33 @@ $(() => {
   // Insert FieldList element for users
   const fieldList = Vue.extend(FieldList);
   let userVueContainer = document.createElement("div");
-  document.querySelector("#user-field-list").appendChild(userVueContainer);
-  new fieldList({
-    propsData: {
-      type: "user",
-    },
-  }).$mount(userVueContainer);
+  const userFieldListMount = document.querySelector("#user-field-list");
+  if (userFieldListMount) {
+    userFieldListMount.appendChild(userVueContainer);
+    new fieldList({
+      propsData: {
+        type: "user",
+      },
+    }).$mount(userVueContainer);
+  }
 
   // Insert FieldList element for teams
   let teamVueContainer = document.createElement("div");
-  document.querySelector("#team-field-list").appendChild(teamVueContainer);
-  new fieldList({
-    propsData: {
-      type: "team",
-    },
-  }).$mount(teamVueContainer);
+  const teamFieldListMount = document.querySelector("#team-field-list");
+  if (teamFieldListMount) {
+    teamFieldListMount.appendChild(teamVueContainer);
+    new fieldList({
+      propsData: {
+        type: "team",
+      },
+    }).$mount(teamVueContainer);
+  }
 
   const bracketList = Vue.extend(BracketList);
   let bracketListContainer = document.createElement("div");
-  document.querySelector("#brackets-list").appendChild(bracketListContainer);
-  new bracketList({}).$mount(bracketListContainer);
+  const bracketListMount = document.querySelector("#brackets-list");
+  if (bracketListMount) {
+    bracketListMount.appendChild(bracketListContainer);
+    new bracketList({}).$mount(bracketListContainer);
+  }
 });
