@@ -241,7 +241,7 @@
     <div>
         <div class="row">
             <div class="col-md-12">
-                {% if q and field or tag_terms %}
+                {% if q and field or tag_terms or difficulty or state_filter or has_prereq %}
                 <div class="alert alert-info">
                     <div class="clean-info-text">
                         {% if tag_terms %}
@@ -249,8 +249,18 @@
                             {% for t in tag_terms %}
                                 <span class="clean-badge clean-badge-secondary mr-1">{{ t }}</span>
                             {% endfor %}
-                        {% else %}
+                        {% elif q %}
                             Searching for challenges with <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span>
+                        {% endif %}
+                        {% if difficulty %}
+                            {% set diff_labels = {'1': 'Very Easy', '2': 'Easy', '3': 'Medium', '4': 'Hard', '5': 'Very Hard'} %}
+                            <span class="ml-2">| Difficulty: <span class="clean-highlight">{{ diff_labels[difficulty] }}</span></span>
+                        {% endif %}
+                        {% if state_filter %}
+                            <span class="ml-2">| State: <span class="clean-highlight">{{ state_filter }}</span></span>
+                        {% endif %}
+                        {% if has_prereq %}
+                            <span class="ml-2">| Prerequisites: <span class="clean-highlight">{{ 'Yes' if has_prereq == 'yes' else 'No' }}</span></span>
                         {% endif %}
                     </div>
                     <div class="clean-info-text">
@@ -290,6 +300,37 @@
                 {{ form.q(class="clean-form-control w-100", placeholder="Search keywords...") }}
             </div>
 
+        </div>
+
+        <div class="row no-gutters align-items-center mt-2">
+            <div class="col-md-2 px-1">
+                <select name="difficulty" class="clean-form-control w-100">
+                    <option value="">All Difficulties</option>
+                    <option value="1" {% if difficulty == '1' %}selected{% endif %}>&#9733; Very Easy</option>
+                    <option value="2" {% if difficulty == '2' %}selected{% endif %}>&#9733;&#9733; Easy</option>
+                    <option value="3" {% if difficulty == '3' %}selected{% endif %}>&#9733;&#9733;&#9733; Medium</option>
+                    <option value="4" {% if difficulty == '4' %}selected{% endif %}>&#9733;&#9733;&#9733;&#9733; Hard</option>
+                    <option value="5" {% if difficulty == '5' %}selected{% endif %}>&#9733;&#9733;&#9733;&#9733;&#9733; Very Hard</option>
+                </select>
+            </div>
+
+            <div class="col-md-2 px-1">
+                <select name="state" class="clean-form-control w-100">
+                    <option value="">All States</option>
+                    <option value="visible" {% if state_filter == 'visible' %}selected{% endif %}>Visible</option>
+                    <option value="hidden" {% if state_filter == 'hidden' %}selected{% endif %}>Hidden</option>
+                </select>
+            </div>
+
+            <div class="col-md-2 px-1">
+                <select name="has_prereq" class="clean-form-control w-100">
+                    <option value="">All Prerequisites</option>
+                    <option value="yes" {% if has_prereq == 'yes' %}selected{% endif %}>Has Prerequisites</option>
+                    <option value="no" {% if has_prereq == 'no' %}selected{% endif %}>No Prerequisites</option>
+                </select>
+            </div>
+
+            <div class="col-md-6 px-1"></div>
         </div>
 
         <div class="row no-gutters align-items-center mt-2">
@@ -360,6 +401,7 @@
                             <th class="sort-col text-center"><b>ID</b></th>
                             <th class="sort-col text-center"><b>Name</b></th>
                             <th class="sort-col text-center"><b>Category</b></th>
+                            <th class="sort-col text-center"><b>Difficulty</b></th>
                             <th class="sort-col text-center"><b>Creator</b></th>
                             <th class="sort-col text-center"><b>Value</b></th>
                             <th class="sort-col text-center"><b>Type</b></th>
@@ -390,6 +432,19 @@
                             <td class="text-center text-wrap"> {{ challenge.name }}</td>
                             {% endif %}
                             <td class="text-center text-wrap"> {{ challenge.category }}</td>
+                            <td class="text-center" style="white-space:nowrap">
+                                {% if challenge.difficulty %}
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= challenge.difficulty %}
+                                        <i class="fas fa-star" style="color:#ff6b35;font-size:.75rem"></i>
+                                        {% else %}
+                                        <i class="far fa-star" style="color:#dee2e6;font-size:.75rem"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">&mdash;</span>
+                                {% endif %}
+                            </td>
                             <td class="text-center text-wrap"> {{ challenge.creator }}</td>
 
                             <td class="text-center">{{ challenge.value }}</td>
@@ -470,7 +525,7 @@
                                 
                                 {% if start_page > 1 %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=1, field=field, q=q, category=category, type=type) }}">1</a>
+                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=1, field=field, q=q, category=category, type=type, difficulty=difficulty, state=state_filter, has_prereq=has_prereq) }}">1</a>
                                     </li>
                                     {% if start_page > 2 %}
                                     <li class="page-item disabled">
@@ -481,7 +536,7 @@
                                 
                                 {% for page_num in range(start_page, end_page + 1) %}
                                 <li class="page-item {% if page_num == challenges.page %}active{% endif %}">
-                                    <a class="page-link" href="{{ url_for('admin.challenges_listing', page=page_num, field=field, q=q, category=category, type=type) }}">{{ page_num }}</a>
+                                    <a class="page-link" href="{{ url_for('admin.challenges_listing', page=page_num, field=field, q=q, category=category, type=type, difficulty=difficulty, state=state_filter, has_prereq=has_prereq) }}">{{ page_num }}</a>
                                 </li>
                                 {% endfor %}
                                 
@@ -492,7 +547,7 @@
                                     </li>
                                     {% endif %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=challenges.pages, field=field, q=q, category=category, type=type) }}">{{ challenges.pages }}</a>
+                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=challenges.pages, field=field, q=q, category=category, type=type, difficulty=difficulty, state=state_filter, has_prereq=has_prereq) }}">{{ challenges.pages }}</a>
                                     </li>
                                 {% endif %}
                                 

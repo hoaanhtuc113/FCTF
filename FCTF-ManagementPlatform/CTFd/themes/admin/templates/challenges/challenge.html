@@ -411,6 +411,21 @@
 			<h1 class="text-center">{{ challenge.name }}</h1>
 			<h2 class="text-center">{{ challenge.category }}</h2>
 			<h2 class="text-center text-muted">{{ challenge.type }}</h2>
+			{% if challenge.difficulty %}
+			<div class="text-center my-2">
+				{% for i in range(1, 6) %}
+					{% if i <= challenge.difficulty %}
+					<i class="fas fa-star" style="color:#ff6b35;font-size:1.2rem"></i>
+					{% else %}
+					<i class="far fa-star" style="color:#dee2e6;font-size:1.2rem"></i>
+					{% endif %}
+				{% endfor %}
+				<span class="ml-2 text-muted" style="font-size:.85rem">
+					{% set diff_labels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'] %}
+					{{ diff_labels[challenge.difficulty - 1] }}
+				</span>
+			</div>
+			{% endif %}
 			{% set badge_state = 'clean-badge-danger' if challenge.state == 'hidden' else 'clean-badge-success' %}
 			<h5 class="text-center">
 				<span class="clean-badge {{ badge_state }} challenge-state">

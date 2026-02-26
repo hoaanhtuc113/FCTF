@@ -173,3 +173,16 @@ class ChallengeSchema(ma.ModelSchema):
             )
         ],
     )
+
+    difficulty = field_for(
+        Challenges,
+        "difficulty",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=1,
+                max=5,
+                error="Difficulty must be between 1 and 5",
+            )
+        ],
+    )

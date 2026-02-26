@@ -44,6 +44,9 @@ def challenges_listing():
     field = request.args.get("field") or "name"
     category = request.args.get("category")
     type_ = request.args.get("type")
+    difficulty = request.args.get("difficulty")
+    state_filter = request.args.get("state")
+    has_prereq = request.args.get("has_prereq")
     page = abs(request.args.get("page", 1, type=int))
     filters = []
 
@@ -76,6 +79,19 @@ def challenges_listing():
 
     if type_:
         filters.append(Challenges.type == type_)
+
+    if difficulty:
+        filters.append(Challenges.difficulty == int(difficulty))
+
+    if state_filter:
+        filters.append(Challenges.state == state_filter)
+
+    if has_prereq == "yes":
+        # requirements is a JSON column like {"prerequisites": [1, 2, ...]}
+        # Filter for challenges that have non-null, non-empty requirements
+        filters.append(Challenges.requirements.isnot(None))
+    elif has_prereq == "no":
+        filters.append(Challenges.requirements.is_(None))
 
     # Modify query based on user role
     if is_admin() or is_jury():
@@ -118,6 +134,9 @@ def challenges_listing():
         field=field,
         category=category,
         type=type_,
+        difficulty=difficulty,
+        state_filter=state_filter,
+        has_prereq=has_prereq,
         categories=categories,
         types=types,
         tag_terms=tag_terms,

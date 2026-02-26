@@ -25,6 +25,24 @@
 	</div>
 	{% endblock %}
 
+	{% block difficulty %}
+	<div class="form-group">
+		<label>
+			Difficulty:<br>
+			<small class="form-text text-muted">
+				Rate the difficulty of this challenge (1-5 stars)
+			</small>
+		</label>
+		<div class="star-rating-picker" data-target="difficulty-input-update">
+			{% for i in range(1, 6) %}
+			<i class="far fa-star star-pick" data-value="{{ i }}" style="cursor:pointer;font-size:1.5rem;color:#dee2e6;margin-right:4px;transition:color .15s"></i>
+			{% endfor %}
+			<span class="ml-2 text-muted difficulty-label" style="font-size:.9rem">Not set</span>
+		</div>
+		<input type="hidden" name="difficulty" id="difficulty-input-update" value="{{ challenge.difficulty if challenge.difficulty else '' }}">
+	</div>
+	{% endblock %}
+
 	{% block message %}
 	
 	<div class="form-group">
@@ -215,4 +233,53 @@
 </form>
 
 {% block footer %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+	document.querySelectorAll('.star-rating-picker').forEach(function(picker) {
+		var targetId = picker.getAttribute('data-target');
+		var input = document.getElementById(targetId);
+		var stars = picker.querySelectorAll('.star-pick');
+		var label = picker.querySelector('.difficulty-label');
+		var labels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
+
+		function render(val) {
+			stars.forEach(function(s, idx) {
+				if (idx < val) {
+					s.classList.remove('far');
+					s.classList.add('fas');
+					s.style.color = '#ff6b35';
+				} else {
+					s.classList.remove('fas');
+					s.classList.add('far');
+					s.style.color = '#dee2e6';
+				}
+			});
+			label.textContent = val > 0 ? labels[val - 1] : 'Not set';
+		}
+
+		stars.forEach(function(star) {
+			star.addEventListener('mouseenter', function() {
+				render(parseInt(this.getAttribute('data-value')));
+			});
+			star.addEventListener('click', function() {
+				var v = parseInt(this.getAttribute('data-value'));
+				if (parseInt(input.value) === v) {
+					input.value = '';
+					render(0);
+				} else {
+					input.value = v;
+					render(v);
+				}
+			});
+		});
+
+		picker.addEventListener('mouseleave', function() {
+			render(parseInt(input.value) || 0);
+		});
+
+		// Init from existing value
+		render(parseInt(input.value) || 0);
+	});
+});
+</script>
 {% endblock %}

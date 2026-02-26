@@ -136,6 +136,7 @@ class Challenges(db.Model):
     memory_request = db.Column(db.Integer, nullable=True)
     use_gvisor = db.Column(db.Boolean, nullable=True)
     max_deploy_count = db.Column(db.Integer, default=0, nullable=True)
+    difficulty = db.Column(db.Integer, nullable=True, default=None)
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")
