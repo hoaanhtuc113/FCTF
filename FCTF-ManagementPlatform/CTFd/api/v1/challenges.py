@@ -7,7 +7,6 @@ import requests  # noqa: I001
 
 from flask import abort, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
-from CTFd.utils.notifications import notify_to_contestant
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
@@ -617,19 +616,8 @@ class Challenge(Resource):
         
         print("challengeState:" + challenge.state)
         if challenge.state == "visible":
-            notify_to_contestant(notif_type = "toast",
-                                notif_sound = True,
-                                notif_title = "Thông báo từ ban quản trị",
-                                notif_message = f"Thử thách '{challenge.name}' vừa được cập nhật.")
-            notification_data = {
-                "title": f"Thông báo từ ban quản trị",
-                "content": f"Thử thách '{challenge.name}' vừa được cập nhật.",
-                "date": time.time(),
-                "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa được cập nhật</p>\n",
-                "sound": False,
-                "type": "background",
-            }
-            post_notification(notification_data)
+            # notification to contestants disabled
+            pass
 
         clear_standings()
         clear_challenges()
@@ -681,19 +669,8 @@ class Challenge(Resource):
         )
         
         if(challenge.state == "visible"):
-            notify_to_contestant(notif_type = "toast", 
-                             notif_sound = True,
-                             notif_title= "Thông báo từ ban quản trị",
-                             notif_message= f"Thử thách '{challenge.name}' vừa bị xóa bỏ.")
-            notification_data = {
-            "title": f"Thông báo từ ban quản trị",
-            "content": f"Thử thách '{challenge.name}' vừa bị xóa bỏ.",
-            "date": time.time(),
-            "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa bị xóa bỏ</p>\n",
-            "sound": False,
-            "type": "background",
-            }
-            post_notification(notification_data)
+            # notification to contestants disabled
+            pass
         
 
         return {"success": True}
