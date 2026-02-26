@@ -20,11 +20,20 @@ dayjs.extend(advancedFormat);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+const DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh";
+
 function loadTimestamp(place, timestamp) {
-  if (typeof timestamp == "string") {
-    timestamp = parseInt(timestamp, 10) * 1000;
+  const timezone_string = $("#" + place + "-timezone").val() || DEFAULT_TIMEZONE;
+  let ts = timestamp;
+  if (typeof ts === "string") {
+    ts = parseInt(ts, 10);
   }
-  const d = dayjs(timestamp);
+  if (!Number.isFinite(ts)) {
+    return;
+  }
+
+  // Stored timestamp is UTC seconds. Convert to selected timezone for editing fields.
+  const d = dayjs.unix(ts).tz(timezone_string);
   $("#" + place + "-month").val(d.month() + 1); // Months are zero indexed (https://day.js.org/docs/en/get-set/month)
   $("#" + place + "-day").val(d.date());
   $("#" + place + "-year").val(d.year());
@@ -41,11 +50,26 @@ function loadDateValues(place) {
   const minute = $("#" + place + "-minute").val();
   const timezone_string = $("#" + place + "-timezone").val();
 
-  const utc = convertDateToMoment(month, day, year, hour, minute);
-  if (utc.unix() && month && day && year && hour && minute) {
+  const utc = convertDateToMoment(
+    month,
+    day,
+    year,
+    hour,
+    minute,
+    timezone_string,
+  );
+  if (
+    timezone_string &&
+    utc.isValid() &&
+    month &&
+    day &&
+    year &&
+    hour !== "" &&
+    minute !== ""
+  ) {
     $("#" + place).val(utc.unix());
     $("#" + place + "-local").val(
-      utc.format("dddd, MMMM Do YYYY, h:mm:ss a z (zzz)"),
+      utc.local().format("dddd, MMMM Do YYYY, h:mm:ss a z (zzz)"),
     );
     $("#" + place + "-zonetime").val(
       utc.tz(timezone_string).format("dddd, MMMM Do YYYY, h:mm:ss a z (zzz)"),
@@ -57,7 +81,7 @@ function loadDateValues(place) {
   }
 }
 
-function convertDateToMoment(month, day, year, hour, minute) {
+function convertDateToMoment(month, day, year, hour, minute, timezoneString) {
   let month_num = month.toString();
   if (month_num.length == 1) {
     month_num = "0" + month_num;
@@ -90,7 +114,7 @@ function convertDateToMoment(month, day, year, hour, minute) {
     ":" +
     min_str +
     ":00";
-  return dayjs(date_string);
+  return dayjs.tz(date_string, timezoneString);
 }
 
 function updateConfigs(event) {
@@ -357,12 +381,81 @@ function exportConfig(event) {
 }
 
 function insertTimezones(target) {
-  let current = $("<option>").text(dayjs.tz.guess());
-  $(target).append(current);
-  let tz_names = timezones;
-  for (let i = 0; i < tz_names.length; i++) {
-    let tz = $("<option>").text(tz_names[i]);
-    $(target).append(tz);
+  const guessed = dayjs.tz.guess();
+  const selected = $(target).data("selected") || DEFAULT_TIMEZONE;
+
+  // Ensure we can always render options even if list has duplicates/missing selected
+  const tzSet = new Set([selected, guessed, ...timezones]);
+  $(target).empty();
+
+  for (const tzName of tzSet) {
+    const option = $("<option>").val(tzName).text(tzName);
+    $(target).append(option);
+  }
+
+  $(target).val(selected);
+
+  // Fallback in case selected is invalid
+  if (!$(target).val()) {
+    $(target).val(DEFAULT_TIMEZONE);
+  }
+  if (!$(target).val()) {
+    $(target).val(guessed);
+  }
+}
+
+function initTimeConfigSection() {
+  // Populate timezone selects first
+  insertTimezones($("#start-timezone"));
+  insertTimezones($("#end-timezone"));
+  insertTimezones($("#freeze-timezone"));
+
+  // Recalculate UTC/local/zonetime while typing or when timezone changes
+  $(".start-date").on("input change", function () {
+    loadDateValues("start");
+  });
+  $(".end-date").on("input change", function () {
+    loadDateValues("end");
+  });
+  $(".freeze-date").on("input change", function () {
+    loadDateValues("freeze");
+  });
+
+  // Parse UTC timestamp back to month/day/year/hour/minute
+  $("#start").on("input change", function () {
+    const value = $(this).val();
+    if (value !== "") {
+      loadTimestamp("start", value);
+    }
+  });
+
+  $("#end").on("input change", function () {
+    const value = $(this).val();
+    if (value !== "") {
+      loadTimestamp("end", value);
+    }
+  });
+
+  $("#freeze").on("input change", function () {
+    const value = $(this).val();
+    if (value !== "") {
+      loadTimestamp("freeze", value);
+    }
+  });
+
+  // Initial load from DB values
+  const start = $("#start").val();
+  const end = $("#end").val();
+  const freeze = $("#freeze").val();
+
+  if (start) {
+    loadTimestamp("start", start);
+  }
+  if (end) {
+    loadTimestamp("end", end);
+  }
+  if (freeze) {
+    loadTimestamp("freeze", freeze);
   }
 }
 
@@ -409,6 +502,9 @@ function extractHash(href) {
 }
 
 $(() => {
+  // Init time settings first so it still works even if later sections throw errors
+  initTimeConfigSection();
+
   // Keep users on the same config tab after redirects.
   // - Outer tabs use URL hash: #backup
   // - Backup inner tabs use query param: ?backup_tab=import-csv
@@ -474,42 +570,43 @@ $(() => {
     },
   );
 
-  const theme_header_editor = CodeMirror.fromTextArea(
-    document.getElementById("theme-header"),
-    {
-      lineNumbers: true,
-      lineWrapping: true,
-      mode: "htmlmixed",
-      htmlMode: true,
-    },
-  );
+  const themeHeaderEl = document.getElementById("theme-header");
+  const themeFooterEl = document.getElementById("theme-footer");
+  const themeSettingsEl = document.getElementById("theme-settings");
 
-  const theme_footer_editor = CodeMirror.fromTextArea(
-    document.getElementById("theme-footer"),
-    {
-      lineNumbers: true,
-      lineWrapping: true,
-      mode: "htmlmixed",
-      htmlMode: true,
-    },
-  );
+  const theme_header_editor = themeHeaderEl
+    ? CodeMirror.fromTextArea(themeHeaderEl, {
+        lineNumbers: true,
+        lineWrapping: true,
+        mode: "htmlmixed",
+        htmlMode: true,
+      })
+    : null;
 
-  const theme_settings_editor = CodeMirror.fromTextArea(
-    document.getElementById("theme-settings"),
-    {
-      lineNumbers: true,
-      lineWrapping: true,
-      readOnly: true,
-      mode: { name: "javascript", json: true },
-    },
-  );
+  const theme_footer_editor = themeFooterEl
+    ? CodeMirror.fromTextArea(themeFooterEl, {
+        lineNumbers: true,
+        lineWrapping: true,
+        mode: "htmlmixed",
+        htmlMode: true,
+      })
+    : null;
+
+  const theme_settings_editor = themeSettingsEl
+    ? CodeMirror.fromTextArea(themeSettingsEl, {
+        lineNumbers: true,
+        lineWrapping: true,
+        readOnly: true,
+        mode: { name: "javascript", json: true },
+      })
+    : null;
 
   // Handle refreshing codemirror when switching tabs.
   // Better than the autorefresh approach b/c there's no flicker
   $("a[href='#theme']").on("shown.bs.tab", function (_e) {
-    theme_header_editor.refresh();
-    theme_footer_editor.refresh();
-    theme_settings_editor.refresh();
+    if (theme_header_editor) theme_header_editor.refresh();
+    if (theme_footer_editor) theme_footer_editor.refresh();
+    if (theme_settings_editor) theme_settings_editor.refresh();
   });
 
   $(
@@ -524,6 +621,9 @@ $(() => {
   });
 
   $("#theme-settings-modal form").submit(function (e) {
+    if (!theme_settings_editor) {
+      return;
+    }
     e.preventDefault();
     theme_settings_editor
       .getDoc()
@@ -532,6 +632,9 @@ $(() => {
   });
 
   $("#theme-settings-button").click(function () {
+    if (!theme_settings_editor) {
+      return;
+    }
     let form = $("#theme-settings-modal form");
     let data;
 
@@ -559,10 +662,6 @@ $(() => {
     $("#theme-settings-modal").modal();
   });
 
-  insertTimezones($("#start-timezone"));
-  insertTimezones($("#end-timezone"));
-  insertTimezones($("#freeze-timezone"));
-
   $(".config-section > form:not(.form-upload, .custom-config-form)").submit(
     updateConfigs,
   );
@@ -574,6 +673,9 @@ $(() => {
   $("#import-button").click(importConfig);
   $("#import-csv-form").submit(importCSV);
   $("#config-color-update").click(function () {
+    if (!theme_header_editor) {
+      return;
+    }
     const hex_code = $("#config-color-picker").val();
     const user_css = theme_header_editor.getValue();
     let new_css;
@@ -590,30 +692,6 @@ $(() => {
     }
     theme_header_editor.getDoc().setValue(new_css);
   });
-
-  $(".start-date").change(function () {
-    loadDateValues("start");
-  });
-  $(".end-date").change(function () {
-    loadDateValues("end");
-  });
-  $(".freeze-date").change(function () {
-    loadDateValues("freeze");
-  });
-
-  const start = $("#start").val();
-  const end = $("#end").val();
-  const freeze = $("#freeze").val();
-
-  if (start) {
-    loadTimestamp("start", start);
-  }
-  if (end) {
-    loadTimestamp("end", end);
-  }
-  if (freeze) {
-    loadTimestamp("freeze", freeze);
-  }
 
   // Toggle username and password based on stored value
   $("#mail_useauth")
