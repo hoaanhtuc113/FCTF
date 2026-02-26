@@ -3757,10 +3757,10 @@ function ChallengeDetailPanel({
                       onClick={handleSubmitFlag}
                       disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
                       className={`w-full rounded border px-3 py-2.5 font-mono text-[13px] transition-colors ${(isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain))
-                          ? (theme === 'dark'
-                            ? 'bg-zinc-900 text-zinc-500 border-zinc-800 cursor-not-allowed'
-                            : 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed')
-                          : 'bg-orange-400 hover:bg-orange-500 text-white border-orange-400 hover:border-orange-500 cursor-pointer'
+                        ? (theme === 'dark'
+                          ? 'bg-zinc-900 text-zinc-500 border-zinc-800 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed')
+                        : 'bg-orange-400 hover:bg-orange-500 text-white border-orange-400 hover:border-orange-500 cursor-pointer'
                         }`}
                     >
                       {isSubmittingFlag
