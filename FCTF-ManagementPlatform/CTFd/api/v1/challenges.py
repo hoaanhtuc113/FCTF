@@ -285,6 +285,17 @@ class ChallengeList(Resource):
         if len(data.get("category", "")) > 20:
             return {"success": False, "errors": {"category": ["Category must be 20 characters or less"]}}, 400
 
+        # Normalize difficulty: empty string → None so schema validation passes
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
+
         schema = ChallengeSchema()
         response = schema.load(data)
         if response.errors:
@@ -521,6 +532,16 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+        # Normalize difficulty: empty string → None so schema validation passes
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         data["user_id"] = session["id"]
