@@ -13,7 +13,6 @@ import {
   MenuItem,
   Typography,
   Divider,
-  Badge,
 } from '@mui/material';
 import {
   LogoutOutlined,
@@ -25,7 +24,6 @@ import {
   Security,
   EmojiEvents,
   SupportAgent,
-  Notifications,
   ViewList,
   History,
 } from '@mui/icons-material';
@@ -43,13 +41,6 @@ interface TimeLeft {
   seconds: number;
 }
 
-interface Notification {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  isRead: boolean;
-}
 
 export function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
@@ -58,15 +49,10 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const toast = useToast();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [notificationAnchorEl, setNotificationAnchorEl] = useState<null | HTMLElement>(null);
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [contestStatus, setContestStatus] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [smallIconUrl, setSmallIconUrl] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationPage, setNotificationPage] = useState(1);
-  const notificationsPerPage = 10;
 
   const tabs = [
     { label: 'Home', path: '/dashboard', icon: <Home fontSize="small" /> },
@@ -136,103 +122,6 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [smallIconUrl]);
 
-  // Get read notifications from localStorage
-  const getReadNotifications = (): Set<string> => {
-    try {
-      const stored = localStorage.getItem('readNotifications');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  };
-
-  // Get toasted notifications from localStorage
-  const getToastedNotifications = (): Set<string> => {
-    try {
-      const stored = localStorage.getItem('toastedNotifications');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  };
-
-  // Save read notifications to localStorage
-  const saveReadNotifications = (readIds: Set<string>) => {
-    try {
-      localStorage.setItem('readNotifications', JSON.stringify([...readIds]));
-    } catch (error) {
-      console.error('Error saving read notifications:', error);
-    }
-  };
-
-  // Save toasted notifications to localStorage
-  const saveToastedNotifications = (toastedIds: Set<string>) => {
-    try {
-      localStorage.setItem('toastedNotifications', JSON.stringify([...toastedIds]));
-    } catch (error) {
-      console.error('Error saving toasted notifications:', error);
-    }
-  };
-
-  // Fetch notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await fetchWithAuth('/notifications');
-        const data = await response.json();
-
-        if (data.success && data.data) {
-          const readIds = getReadNotifications();
-          const storedToasted = localStorage.getItem('toastedNotifications');
-          const isFirstLoad = !storedToasted; // Check if this is the first time loading
-          const toastedIds = getToastedNotifications();
-
-          // Sort notifications by date (newest first)
-          const sortedNotifications = data.data
-            .map((notification: any) => ({
-              ...notification,
-              isRead: readIds.has(notification.id),
-            }))
-            .sort((a: Notification, b: Notification) =>
-              new Date(b.date).getTime() - new Date(a.date).getTime()
-            );
-
-          if (isFirstLoad) {
-            // First time loading - mark all existing notifications as toasted without showing toast
-            const allNotificationIds = sortedNotifications.map((n: Notification) => n.id);
-            saveToastedNotifications(new Set(allNotificationIds));
-          } else {
-            // Not first load - find new notifications and show toast
-            const newNotifications = sortedNotifications.filter(
-              (n: Notification) => !toastedIds.has(n.id) && !readIds.has(n.id)
-            );
-
-            // Show toast for new notifications
-            if (newNotifications.length > 0) {
-              newNotifications.forEach((notification: Notification) => {
-                toast.info(`[!] ${notification.title}`);
-              });
-
-              // Mark new notifications as toasted
-              const updatedToastedIds = new Set([...toastedIds, ...newNotifications.map((n: Notification) => n.id)]);
-              saveToastedNotifications(updatedToastedIds);
-            }
-          }
-
-          setNotifications(sortedNotifications);
-          setUnreadCount(sortedNotifications.filter((n: Notification) => !n.isRead).length);
-        }
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      }
-    };
-
-    fetchNotifications();
-
-    // Poll for new notifications every 60 seconds
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   const startCountdown = (targetDate: Date) => {
     const timer = setInterval(() => {
@@ -264,39 +153,6 @@ export function Layout({ children }: LayoutProps) {
     setAnchorEl(null);
   };
 
-  const handleNotificationOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotificationAnchorEl(event.currentTarget);
-    setNotificationPage(1); // Reset to first page when opening
-  };
-
-  const handleNotificationClose = () => {
-    setNotificationAnchorEl(null);
-  };
-
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id ? { ...notification, isRead: true } : notification
-      )
-    );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-
-    // Save to localStorage
-    const readIds = getReadNotifications();
-    readIds.add(id);
-    saveReadNotifications(readIds);
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) =>
-      prev.map((notification) => ({ ...notification, isRead: true }))
-    );
-    setUnreadCount(0);
-
-    // Save all notification IDs to localStorage
-    const readIds = new Set(notifications.map(n => n.id));
-    saveReadNotifications(readIds);
-  };
 
   const formatNotificationDate = (dateString: string) => {
     const date = parseUTCToLocal(dateString);
@@ -397,12 +253,12 @@ export function Layout({ children }: LayoutProps) {
                     key={tab.path}
                     onClick={() => navigate(tab.path)}
                     className={`relative px-4 py-2 rounded-lg font-bold text-sm transition-all font-mono flex items-center gap-2 ${isActive
-                        ? theme === 'dark'
-                          ? 'text-white bg-orange-600 border border-orange-500'
-                          : 'text-white bg-orange-600 border border-orange-500'
-                        : theme === 'dark'
-                          ? 'text-gray-400 hover:text-orange-400 border border-transparent hover:border-gray-700'
-                          : 'text-gray-600 hover:text-orange-600 border border-transparent hover:border-gray-300'
+                      ? theme === 'dark'
+                        ? 'text-white bg-orange-600 border border-orange-500'
+                        : 'text-white bg-orange-600 border border-orange-500'
+                      : theme === 'dark'
+                        ? 'text-gray-400 hover:text-orange-400 border border-transparent hover:border-gray-700'
+                        : 'text-gray-600 hover:text-orange-600 border border-transparent hover:border-gray-300'
                       }`}
                   >
                     {tab.icon}
@@ -418,8 +274,8 @@ export function Layout({ children }: LayoutProps) {
               {timeLeft && (
                 <div
                   className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-lg border ${theme === 'dark'
-                      ? 'bg-gray-800 border-gray-700'
-                      : 'bg-gray-100 border-gray-300'
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-gray-100 border-gray-300'
                     }`}
                 >
                   <TimerIcon
@@ -462,35 +318,6 @@ export function Layout({ children }: LayoutProps) {
                 </Typography>
               </Box>
 
-              {/* Notification Bell */}
-              <div>
-                <IconButton
-                  onClick={handleNotificationOpen}
-                  sx={{ p: 1 }}
-                >
-                  <Badge
-                    badgeContent={unreadCount}
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        backgroundColor: '#ef4444',
-                        color: 'white',
-                        fontSize: '0.625rem',
-                        height: '18px',
-                        minWidth: '18px',
-                        fontFamily: 'ui-monospace, monospace',
-                        fontWeight: 'bold',
-                      }
-                    }}
-                  >
-                    <Notifications
-                      sx={{
-                        color: theme === 'dark' ? 'rgb(156, 163, 175)' : 'rgb(107, 114, 128)',
-                        fontSize: '1.5rem',
-                      }}
-                    />
-                  </Badge>
-                </IconButton>
-              </div>
 
               {/* Avatar */}
               <div>
@@ -661,152 +488,6 @@ export function Layout({ children }: LayoutProps) {
                 <LogoutOutlined fontSize="small" />
                 <span>{'[!]'} Logout</span>
               </MenuItem>
-            </Menu>
-
-            {/* Notification Menu */}
-            <Menu
-              anchorEl={notificationAnchorEl}
-              open={Boolean(notificationAnchorEl)}
-              onClose={handleNotificationClose}
-              PaperProps={{
-                elevation: 0,
-                sx: {
-                  mt: 1.5,
-                  width: 420,
-                  minWidth: 420,
-                  maxWidth: 420,
-                  borderRadius: 2,
-                  backgroundColor: theme === 'dark' ? 'rgb(17, 24, 39)' : 'rgb(255, 255, 255)',
-                  border: theme === 'dark' ? '1px solid rgb(55, 65, 81)' : '1px solid rgb(229, 231, 235)',
-                  overflow: 'hidden',
-                },
-              }}
-            >
-              {/* Header */}
-              <Box className={`px-4 py-3 border-b flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
-                }`}>
-                <Typography className={`text-base font-bold font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-                  }`}>
-                  [NOTIFICATIONS]
-                </Typography>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    className={`text-xs font-bold font-mono px-2 py-1 rounded border transition ${theme === 'dark'
-                        ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
-                        : 'border-orange-300 text-orange-600 hover:bg-orange-50'
-                      }`}
-                  >
-                    {'[✓]'} MARK ALL
-                  </button>
-                )}
-              </Box>
-
-              {/* Notifications List */}
-              <Box
-                className="overflow-y-auto"
-                sx={{
-                  height: '400px',
-                  minHeight: '400px',
-                  maxHeight: '400px',
-                  '&::-webkit-scrollbar': {
-                    width: '6px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: theme === 'dark' ? 'rgb(31, 41, 55)' : 'rgb(243, 244, 246)',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: theme === 'dark' ? 'rgb(75, 85, 99)' : 'rgb(209, 213, 219)',
-                    borderRadius: '3px',
-                  },
-                }}
-              >
-                {notifications.length === 0 ? (
-                  <Box className="px-4 py-8 text-center">
-                    <Typography className={`font-mono text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                      [i] No notifications
-                    </Typography>
-                  </Box>
-                ) : (
-                  notifications
-                    .slice((notificationPage - 1) * notificationsPerPage, notificationPage * notificationsPerPage)
-                    .map((notification) => (
-                      <Box
-                        key={notification.id}
-                        onClick={() => markAsRead(notification.id)}
-                        className={`px-4 py-3 cursor-pointer border-b transition-colors ${notification.isRead
-                            ? theme === 'dark'
-                              ? 'bg-gray-900/50 border-gray-800 opacity-60'
-                              : 'bg-gray-50/50 border-gray-100 opacity-60'
-                            : theme === 'dark'
-                              ? 'bg-gray-900 border-gray-800 hover:bg-gray-800/50'
-                              : 'bg-white border-gray-100 hover:bg-gray-50'
-                          }`}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <Typography className={`text-sm font-bold font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>
-                            {notification.isRead ? '[·]' : '[!]'} {notification.title}
-                          </Typography>
-                          <span className={`text-xs font-mono whitespace-nowrap ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                            }`}>
-                            {formatNotificationDate(notification.date)}
-                          </span>
-                        </div>
-                        <Typography className={`text-xs font-mono leading-relaxed ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                          {notification.content}
-                        </Typography>
-                      </Box>
-                    ))
-                )}
-              </Box>
-
-              {/* Pagination Footer */}
-              {notifications.length > notificationsPerPage && (
-                <Box className={`px-4 py-2 border-t flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
-                  }`}>
-                  <Typography className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                    [{((notificationPage - 1) * notificationsPerPage) + 1}-{Math.min(notificationPage * notificationsPerPage, notifications.length)} / {notifications.length}]
-                  </Typography>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setNotificationPage(prev => Math.max(1, prev - 1))}
-                      disabled={notificationPage === 1}
-                      className={`px-2 py-1 text-xs font-mono font-bold border rounded transition ${notificationPage === 1
-                          ? theme === 'dark'
-                            ? 'border-gray-700 text-gray-600 cursor-not-allowed'
-                            : 'border-gray-300 text-gray-400 cursor-not-allowed'
-                          : theme === 'dark'
-                            ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
-                            : 'border-orange-300 text-orange-600 hover:bg-orange-50'
-                        }`}
-                    >
-                      {'<'}
-                    </button>
-                    <span className={`px-2 py-1 text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                      {notificationPage}/{Math.ceil(notifications.length / notificationsPerPage)}
-                    </span>
-                    <button
-                      onClick={() => setNotificationPage(prev => Math.min(Math.ceil(notifications.length / notificationsPerPage), prev + 1))}
-                      disabled={notificationPage === Math.ceil(notifications.length / notificationsPerPage)}
-                      className={`px-2 py-1 text-xs font-mono font-bold border rounded transition ${notificationPage === Math.ceil(notifications.length / notificationsPerPage)
-                          ? theme === 'dark'
-                            ? 'border-gray-700 text-gray-600 cursor-not-allowed'
-                            : 'border-gray-300 text-gray-400 cursor-not-allowed'
-                          : theme === 'dark'
-                            ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
-                            : 'border-orange-300 text-orange-600 hover:bg-orange-50'
-                        }`}
-                    >
-                      {'>'}
-                    </button>
-                  </div>
-                </Box>
-              )}
             </Menu>
           </div>
         </div>

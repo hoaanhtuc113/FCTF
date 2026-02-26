@@ -348,11 +348,7 @@
                 </li>
                 {% if is_admin() or is_jury() %}
 
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.notifications') }}">
-                        <i class="bx bx-bell"></i> Notifications
-                    </a>
-                </li>
+                {# Notifications menu hidden #}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.users_listing') }}">
                         <i class="bx bx-user"></i> Users
