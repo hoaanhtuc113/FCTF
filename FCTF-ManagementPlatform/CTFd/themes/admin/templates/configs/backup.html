@@ -36,23 +36,27 @@
 			</div>
 		</div>
 		<div role="tabpanel" class="tab-pane" id="import-ctf">
-			<div class="form-group">
-				<p>You can import saved CTFd exports by uploading them below. This will completely wipe your existing
-					CTFd instance and all your data will be replaced by the imported data.
-					You should only import data that you trust!</p>
+			<form method="POST" action="{{ url_for('admin.import_ctf') }}" enctype="multipart/form-data">
+				<input type="hidden" name="nonce" value="{{ Session.nonce }}">
+				<div class="form-group">
+					<p>You can import saved CTFd exports by uploading them below. This will completely wipe your
+						existing
+						CTFd instance and all your data will be replaced by the imported data.
+						You should only import data that you trust!</p>
 
-				<div class="alert alert-warning" role="alert">
-					<small class="text-muted text-right">
-						<i class="fas fa-exclamation pr-2"></i>
-						Importing a CTFd export will completely wipe your existing data
-					</small>
+					<div class="alert alert-warning" role="alert">
+						<small class="text-muted text-right">
+							<i class="fas fa-exclamation pr-2"></i>
+							Importing a CTFd export will completely wipe your existing data
+						</small>
+					</div>
 				</div>
-			</div>
-			<div class="form-group">
-				<label for="container-files">Import File</label>
-				<input class="form-control-file" type="file" name="backup" id="import-file" accept=".zip">
-			</div>
-			<input id="import-button" type="submit" class="btn btn-warning" value="Import">
+				<div class="form-group">
+					<label for="container-files">Import File</label>
+					<input class="form-control-file" type="file" name="backup" id="import-file" accept=".zip">
+				</div>
+				<input id="import-button" type="submit" class="btn btn-warning" value="Import">
+			</form>
 		</div>
 		<div role="tabpanel" class="tab-pane" id="save-csv">
 			<div class="alert alert-warning" role="alert">
