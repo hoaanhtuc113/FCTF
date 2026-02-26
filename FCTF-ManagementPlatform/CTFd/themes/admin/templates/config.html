@@ -414,6 +414,21 @@
 {% block scripts %}
 <script>
 	(function () {
+		// Compatibility shim for bundles that call bootstrap.Tab.getOrCreateInstance
+		// while current bootstrap runtime only exposes constructor API.
+		try {
+			if (window.bootstrap && window.bootstrap.Tab) {
+				var TabCtor = window.bootstrap.Tab;
+				if (typeof TabCtor.getOrCreateInstance !== "function" && typeof TabCtor === "function") {
+					TabCtor.getOrCreateInstance = function (el) {
+						return new TabCtor(el);
+					};
+				}
+			}
+		} catch (e) { }
+	})();
+
+	(function () {
 		function extractHash(href) {
 			if (!href) return "";
 			if (href.charAt(0) === "#") return href;
