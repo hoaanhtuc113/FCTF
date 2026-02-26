@@ -137,7 +137,7 @@ function updateConfigs(event) {
 function uploadLogo(event) {
   event.preventDefault();
   let form = event.target;
-  helpers.files.upload(form, {}, function (response) {
+  helpers.files.upload(form, {}).then(function (response) {
     const f = response.data[0];
     const params = {
       value: f.location,
@@ -163,29 +163,10 @@ function uploadLogo(event) {
   });
 }
 
-function switchUserMode(event) {
-  event.preventDefault();
-  let formData = new FormData(event.target);
-  let msg =
-    "Are you sure you'd like to switch user modes?\n\nAll submissions, awards, unlocks, and tracking will be deleted!";
-  if (formData.get("user_mode") == "users") {
-    msg =
-      "Are you sure you'd like to switch user modes?\n\nAll teams, submissions, awards, unlocks, and tracking will be deleted!";
-  }
-  if (confirm(msg)) {
-    // Use original form to include original input
-    formData.append("submissions", true);
-    formData.append("nonce", CTFd.config.csrfNonce);
-    fetch(CTFd.config.urlRoot + "/admin/reset", {
-      method: "POST",
-      credentials: "same-origin",
-      body: formData,
-    });
-    // Bind `this` so that we can reuse the updateConfigs function
-    let binded = updateConfigs.bind(this);
-    binded(event);
-  }
-}
+// make upload functions globally callable (used by inline onsubmit attributes)
+window.uploadLogo = uploadLogo;
+window.removeLogo = removeLogo;
+window.removeSmallIcon = removeSmallIcon;
 
 function removeLogo() {
   ezQuery({
@@ -204,10 +185,12 @@ function removeLogo() {
   });
 }
 
+window.smallIconUpload = smallIconUpload;
+
 function smallIconUpload(event) {
   event.preventDefault();
   let form = event.target;
-  helpers.files.upload(form, {}, function (response) {
+  helpers.files.upload(form, {}).then(function (response) {
     const f = response.data[0];
     const params = {
       value: f.location,
@@ -383,7 +366,114 @@ function insertTimezones(target) {
   }
 }
 
+function showTab(anchorEl) {
+  if (!anchorEl) return;
+
+  // Prefer Bootstrap 5 API if available
+  if (globalThis.bootstrap && globalThis.bootstrap.Tab) {
+    globalThis.bootstrap.Tab.getOrCreateInstance(anchorEl).show();
+    return;
+  }
+
+  // Fallback to Bootstrap 4 jQuery plugin
+  if (typeof $(anchorEl).tab === "function") {
+    $(anchorEl).tab("show");
+    return;
+  }
+
+  // Last resort
+  anchorEl.click();
+}
+
+function setUrl({ hash, backupTab }) {
+  const url = new URL(globalThis.location.href);
+  if (backupTab) {
+    url.searchParams.set("backup_tab", backupTab);
+    url.hash = "#backup";
+  } else {
+    url.searchParams.delete("backup_tab");
+    url.hash = hash || "";
+  }
+  globalThis.history.replaceState({}, "", url.toString());
+}
+
+function extractHash(href) {
+  if (!href) return "";
+  if (href.startsWith("#")) return href;
+  try {
+    const u = new URL(href, globalThis.location.href);
+    return u.hash || "";
+  } catch (_e) {
+    return "";
+  }
+}
+
 $(() => {
+  // Keep users on the same config tab after redirects.
+  // - Outer tabs use URL hash: #backup
+  // - Backup inner tabs use query param: ?backup_tab=import-csv
+  const params = new URLSearchParams(globalThis.location.search);
+  const backupTab = params.get("backup_tab");
+  const hash = globalThis.location.hash;
+
+  if (backupTab) {
+    showTab(document.querySelector("a[href='#backup'][data-toggle='tab'], a[href='#backup'][data-bs-toggle='tab']"));
+    showTab(document.querySelector(`#backup a[href='#${backupTab}'][data-toggle='tab'], #backup a[href='#${backupTab}'][data-bs-toggle='tab']`));
+  } else if (hash) {
+    showTab(document.querySelector(`a[href='${hash}'][data-toggle='tab'], a[href='${hash}'][data-bs-toggle='tab']`));
+  }
+
+  // Update URL immediately on click (some setups don't emit shown.bs.tab reliably)
+  $(document).on(
+    "click",
+    "a[data-toggle='tab'], a[data-bs-toggle='tab']",
+    function () {
+      const href = $(this).attr("href");
+      const targetHash = extractHash(href);
+      if (!targetHash || !targetHash.startsWith("#")) return;
+
+      const isBackupInner = $(this).closest("#backup").length > 0;
+      if (isBackupInner && targetHash !== "#backup") {
+        setUrl({ backupTab: targetHash.slice(1) });
+        return;
+      }
+
+      if (targetHash === "#backup") {
+        setUrl({ hash: "#backup" });
+        return;
+      }
+
+      setUrl({ hash: targetHash });
+    },
+  );
+
+  // Sync URL with tab changes so refresh keeps the same tab.
+  // Outer tab change: set hash and clear backup_tab unless it's #backup
+  $(document).on(
+    "shown.bs.tab",
+    "a[data-toggle='tab'], a[data-bs-toggle='tab']",
+    function (e) {
+      const target = extractHash($(e.target).attr("href"));
+      if (!target || !target.startsWith("#")) return;
+
+      // Inner tabs in backup section
+      const isBackupInner = $(e.target).closest("#backup").length > 0;
+      if (isBackupInner && target !== "#backup") {
+        setUrl({ backupTab: target.slice(1) });
+        return;
+      }
+
+      if (target === "#backup") {
+        // If entering backup without specifying an inner tab, keep URL hash only
+        setUrl({ hash: "#backup" });
+        return;
+      }
+
+      // Any other outer tab: update hash and clear backup_tab
+      setUrl({ hash: target });
+    },
+  );
+
   const theme_header_editor = CodeMirror.fromTextArea(
     document.getElementById("theme-header"),
     {
@@ -477,7 +567,6 @@ $(() => {
     updateConfigs,
   );
   $("#logo-upload").submit(uploadLogo);
-  $("#user-mode-form").submit(switchUserMode);
   $("#remove-logo").click(removeLogo);
   $("#ctf-small-icon-upload").submit(smallIconUpload);
   $("#remove-small-icon").click(removeSmallIcon);

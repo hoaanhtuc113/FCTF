@@ -444,30 +444,49 @@ def load_challenges_csv(dict_reader):
     return True
 
 
-def load_users_and_teams_csv(csvfile):
-    """Load users and teams from a CSV file and handle creation or retrieval."""
+def load_users_and_teams_csv(csvfile_or_reader):
+    """Load users and teams from a CSV file (or DictReader) and handle creation or retrieval."""
     team_schema = TeamSchema()
     user_schema = UserSchema()
-    reader = csv.DictReader(csvfile)
+    reader = (
+        csvfile_or_reader
+        if isinstance(csvfile_or_reader, csv.DictReader)
+        else csv.DictReader(csvfile_or_reader)
+    )
     created_users = []
-    errors = []
-    users = Users.query.all()
+    warnings = []
+    existing_emails = {u.email.lower() for u in Users.query.with_entities(Users.email).all() if u.email}
     for i, row in enumerate(reader, start=1):
+        row = {
+            (k.strip().lower() if isinstance(k, str) else k): v
+            for k, v in (row or {}).items()
+        }
+        name = (row.get("name") or "").strip()
+        email = (row.get("email") or "").strip()
+        password = (row.get("password") or "").strip()
+        teamname = (row.get("team") or "").strip()
+
         # Skip rows with empty Name or Email
-        if not row.get("Name") or not row.get("Email"):
+        if not name or not email:
+            warnings.append(f"Row {i}: missing name or email; skipped")
             continue
         # Skip rows with empty Password
-        if not row.get("Password"):
+        if not password:
+            warnings.append(f"Row {i}: missing password for {email}; skipped")
             continue
         # Skip rows with email that already exists
-        if any(user.email == row.get("Email") for user in users):
+        if email.lower() in existing_emails:
+            warnings.append(f"Row {i}: email already exists ({email}); skipped")
             continue
         # Skip rows with invalid email
-        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', row.get("Email")):
+        if not re.match(
+            r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+            email,
+        ):
+            warnings.append(f"Row {i}: invalid email ({email}); skipped")
             continue
 
         # Handle team creation or retrieval
-        teamname = row.get("Team")
         team = None
         # If teamname is not empty, create or retrieve team
         if teamname:
@@ -487,16 +506,16 @@ def load_users_and_teams_csv(csvfile):
                     db.session.commit()
             except (ValueError, SQLAlchemyError) as e:
                 db.session.rollback()
-                errors.append((i, {"team_error": str(e)}))
+                warnings.append(
+                    f"Row {i}: failed to create/find team '{teamname}' for {email}; skipped ({e})"
+                )
                 continue
 
         # Create user
-        user_password = ''.join(SystemRandom().choice(
-            'abcdefghijklmnopqrstuvwxyz0123456789') for _ in range(8))
         user_data = {
-            "name": row.get("Name"),
-            "email": row.get("Email"),
-            "password": row.get("Password"),
+            "name": name,
+            "email": email,
+            "password": password,
             "team_id": team.id if team else None
         }
         try:
@@ -507,6 +526,7 @@ def load_users_and_teams_csv(csvfile):
             user = user_response.data
             db.session.add(user)
             db.session.commit()
+            existing_emails.add(email.lower())
             created_users.append({
                 "email": user.email,
                 "name": user.name,
@@ -514,11 +534,12 @@ def load_users_and_teams_csv(csvfile):
             })
         except (ValueError, SQLAlchemyError) as e:
             db.session.rollback()
-            errors.append((i, {"user_error": str(e)}))
+            warnings.append(f"Row {i}: failed to create user {email}; skipped ({e})")
             continue
     # Add created users to the context
     g.created_users = created_users
-    return errors if errors else True
+    g.import_warnings = warnings
+    return {"success": True, "warnings": warnings}
 
 
 

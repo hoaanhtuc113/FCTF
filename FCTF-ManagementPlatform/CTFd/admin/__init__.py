@@ -2,10 +2,12 @@ import csv  # noqa: I001
 import datetime
 import os
 from io import StringIO
+import json
 
 from flask import Blueprint, abort, g
 from flask import current_app as app
 from flask import (
+    flash,
     jsonify,
     redirect,
     render_template,
@@ -34,7 +36,6 @@ from CTFd.admin import Ticket
 from CTFd.admin import monitors
 from CTFd.admin import exports
 from CTFd.admin import estimation
-from CTFd.admin import challengeTemplate
 from CTFd.admin import action_logs  # noqa: F401
 
 from CTFd.cache import (
@@ -134,9 +135,7 @@ def export_ctf():
     ctf_name = ctf_config.ctf_name()
     day = datetime.datetime.now().strftime("%Y-%m-%d_%T")
     full_name = "{}.{}.zip".format(ctf_name, day)
-    return send_file(
-        backup, cache_timeout=-1, as_attachment=True, attachment_filename=full_name
-    )
+    return send_file(backup, as_attachment=True, download_name=full_name, max_age=-1)
 
 
 @admin.route("/admin/import/template/<name>", methods=["GET"])
@@ -159,6 +158,12 @@ def download_template(name):
 @admin.route("/admin/import/csv", methods=["POST"])
 @admins_only
 def import_csv():
+    wants_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes["application/json"]
+        >= request.accept_mimetypes["text/html"]
+    )
+
     csv_type = request.form["csv_type"]
     raw = request.files["csv_file"].stream.read()
     try:
@@ -170,24 +175,135 @@ def import_csv():
             csvdata = raw.decode("latin-1")
     csvfile = StringIO(csvdata)
     reader = csv.DictReader(csvfile)
+
+    def normalize_row(row):
+        # Allow templates to use Titlecase headers (e.g. Name/Email/Password)
+        # while schemas expect lowercase (name/email/password)
+        return {
+            (k.strip().lower() if isinstance(k, str) else k): v
+            for k, v in (row or {}).items()
+        }
+
+    normalized_reader = (normalize_row(row) for row in reader)
+    result = None
+
+    def format_import_errors(res):
+        # Expected shapes:
+        # - True
+        # - [(row_index, {field: [errors]})] from load_users_csv/load_teams_csv
+        # - other objects
+        if isinstance(res, list):
+            # If the importer uses 0-based indexes for first data row, convert to CSV line numbers.
+            # CSV line number = header (1) + data row index (0-based) + 1
+            has_zero_based = any(
+                isinstance(e, tuple)
+                and len(e) == 2
+                and isinstance(e[0], int)
+                and e[0] == 0
+                for e in res
+            )
+            offset = 2 if has_zero_based else 0
+
+            lines = []
+            for entry in res[:50]:
+                if isinstance(entry, tuple) and len(entry) == 2:
+                    row_index, err = entry
+                    row_display = row_index + offset if isinstance(row_index, int) else row_index
+                    if isinstance(err, (dict, list)):
+                        err_text = json.dumps(err, ensure_ascii=False)
+                    else:
+                        err_text = str(err)
+                    lines.append(f"Row {row_display}: {err_text}")
+                else:
+                    lines.append(str(entry))
+
+            remaining = len(res) - len(lines)
+            msg = "Import failed:\n" + "\n".join(lines)
+            if remaining > 0:
+                msg += f"\n... and {remaining} more"
+            return msg
+
+        return f"Import failed:\n{res}"
+
     if csv_type == "users":
-        success = load_users_csv(reader)
+        result = load_users_csv(normalized_reader)
     elif csv_type == "users_and_teams":
-        success = load_users_and_teams_csv(reader)
+        # load_users_and_teams_csv expects a file-like object (or DictReader).
+        # Rewind to ensure it reads the header row.
+        csvfile.seek(0)
+        result = load_users_and_teams_csv(csvfile)
+        warnings = (result or {}).get("warnings") if isinstance(result, dict) else None
+        if warnings and not wants_json:
+            max_lines = 50
+            shown = warnings[:max_lines]
+            remaining = len(warnings) - len(shown)
+            message = "Imported with warnings:\n" + "\n".join(shown)
+            if remaining > 0:
+                message += f"\n... and {remaining} more"
+            flash(message, category="warning")
     elif csv_type == "teams":
-        success = load_teams_csv(reader)
+        result = load_teams_csv(normalized_reader)
     elif csv_type == "challenges":
-        success = load_challenges_csv(reader)
+        result = load_challenges_csv(normalized_reader)
     else:
         # Handle other CSV types
 
-        success = False  # or load other types if implemented
+        result = False  # or load other types if implemented
+
+    redirect_url = url_for("admin.config", backup_tab="import-csv", _anchor="backup")
+
+    success = result is True or (isinstance(result, dict) and result.get("success") is True)
+
+    # AJAX mode: respond with JSON (no redirects) so UI can show feedback without reload
+    if wants_json:
+        payload = {
+            "success": bool(success),
+            "csv_type": csv_type,
+            "warnings": (result or {}).get("warnings") if isinstance(result, dict) else [],
+            "message": "",
+            "errors": [],
+        }
+
+        if success:
+            if payload["warnings"]:
+                payload["message"] = "Imported with warnings"
+            else:
+                payload["message"] = "Import completed successfully"
+            return jsonify(payload), 200
+
+        # Failure formatting
+        if isinstance(result, list):
+            has_zero_based = any(
+                isinstance(e, tuple)
+                and len(e) == 2
+                and isinstance(e[0], int)
+                and e[0] == 0
+                for e in result
+            )
+            offset = 2 if has_zero_based else 0
+            errors = []
+            for entry in result:
+                if isinstance(entry, tuple) and len(entry) == 2:
+                    row_index, err = entry
+                    row_display = row_index + offset if isinstance(row_index, int) else row_index
+                    errors.append({"row": row_display, "error": err})
+                else:
+                    errors.append({"row": None, "error": entry})
+            payload["errors"] = errors
+            payload["message"] = format_import_errors(result)
+        else:
+            payload["message"] = format_import_errors(result)
+
+        return jsonify(payload), 400
+
     if success is True:
+        flash("Import completed successfully", category="success")
         # for user in g.created_users:
         #     user_created_notification(user['email'], user['name'], user['password'])
-        return redirect(url_for("admin.config"))
+        return redirect(redirect_url)
     else:
-        return jsonify(success), 500
+        flash(format_import_errors(result), category="danger")
+        return redirect(redirect_url)
 
 
 
@@ -330,25 +446,38 @@ def dump_csv_without_passwords(field=None, q=None):
 @admin.route("/admin/config", methods=["GET", "POST"])
 @admins_only
 def config():
+    if request.method == "POST":
+        for key, values in request.form.lists():
+            if key in (
+                "nonce",
+                "user_mode",
+                "registration_code",
+                "oauth_client_id",
+                "oauth_client_secret",
+            ):
+                continue
+            if not values:
+                continue
+            value = values[-1]
+            if value in ("true", "false"):
+                value = value == "true"
+            set_config(key=key, value=value)
+
+        clear_config()
+        clear_standings()
+        clear_challenges()
+        return redirect(url_for("admin.config"))
+
     # Clear the config cache so that we don't get stale values
     clear_config()
 
     configs = Configs.query.all()
     configs = {c.key: get_config(c.key) for c in configs}
 
-    themes = ctf_config.get_themes()
-
-    # Remove current theme but ignore failure
-    try:
-        themes.remove(get_config("ctf_theme"))
-    except ValueError:
-        pass
-
     force_html_sanitization = get_app_config("HTML_SANITIZATION")
 
     return render_template(
         "admin/config.html",
-        themes=themes,
         **configs,
         force_html_sanitization=force_html_sanitization
     )
@@ -394,13 +523,6 @@ def reset():
             Awards.query.delete()
             Unlocks.query.delete()
             Tracking.query.delete()
-
-        if data.get("user_mode") == "users":
-            db.session.query(Users).update({Users.team_id: None})
-            Teams.query.delete()
-
-            clear_all_user_sessions()
-            clear_all_team_sessions()
 
         if require_setup:
             set_config("setup", False)

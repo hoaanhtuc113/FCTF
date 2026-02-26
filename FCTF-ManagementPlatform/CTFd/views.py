@@ -54,7 +54,7 @@ from CTFd.utils.email import (
 )
 from CTFd.utils.health import check_config, check_database
 from CTFd.utils.helpers import get_errors, get_infos, markup
-from CTFd.utils.modes import USERS_MODE
+from CTFd.utils.modes import TEAMS_MODE
 from CTFd.utils.security.auth import login_user
 from CTFd.utils.security.csrf import generate_nonce
 from CTFd.utils.security.signing import (
@@ -80,10 +80,9 @@ def setup():
             # General
             ctf_name = request.form.get("ctf_name")
             ctf_description = request.form.get("ctf_description")
-            user_mode = request.form.get("user_mode", USERS_MODE)
             set_config("ctf_name", ctf_name)
             set_config("ctf_description", ctf_description)
-            set_config("user_mode", user_mode)
+            set_config("user_mode", TEAMS_MODE)
 
             # Settings
             challenge_visibility = ChallengeVisibilityTypes(
@@ -297,40 +296,6 @@ def setup():
     return redirect(url_for("views.static_html"))
 
 
-@views.route("/setup/integrations", methods=["GET", "POST"])
-def integrations():
-    if is_admin() or is_setup() is False:
-        name = request.values.get("name")
-        state = request.values.get("state")
-
-        try:
-            state = unserialize(state, max_age=3600)
-        except (BadSignature, BadTimeSignature):
-            state = False
-        except Exception:
-            state = False
-
-        if state:
-            if name == "mlc":
-                mlc_client_id = request.values.get("mlc_client_id")
-                mlc_client_secret = request.values.get("mlc_client_secret")
-                set_config("oauth_client_id", mlc_client_id)
-                set_config("oauth_client_secret", mlc_client_secret)
-                return render_template("admin/integrations.html")
-            else:
-                abort(404)
-        else:
-            abort(403)
-    else:
-        abort(403)
-
-
-@views.route("/notifications", methods=["GET"])
-def notifications():
-    notifications = Notifications.query.order_by(Notifications.id.desc()).all()
-    return render_template("notifications.html", notifications=notifications)
-
-
 @views.route("/settings", methods=["GET"])
 @authed_only
 def settings():
@@ -340,10 +305,9 @@ def settings():
     user = get_current_user()
 
     if is_teams_mode() and get_current_team() is None:
-        team_url = url_for("teams.private")
         infos.append(
             markup(
-                f'In order to participate you must either <a href="{team_url}">join or create a team</a>.'
+                'In order to participate you must either join or create a team.'
             )
         )
 
@@ -384,6 +348,15 @@ def static_html(route):
     :param route:
     :return:
     """
+    # Root path: staff → admin, unauthenticated → landing page
+    if route == "index":
+        if is_setup() is False:
+            return redirect(url_for("views.setup"))
+        if authed():
+            return redirect(url_for("admin.view"))
+        # Show landing page for unauthenticated users
+        return render_template("page.html", content="", title="Welcome")
+
     page = get_page(route)
     if page is None:
         abort(404)

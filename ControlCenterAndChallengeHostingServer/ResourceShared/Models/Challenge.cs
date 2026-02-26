@@ -55,6 +55,8 @@ public partial class Challenge
 
     public bool? UseGvisor { get; set; }
 
+    public int? MaxDeployCount { get; set; }
+
     public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 
     public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();
@@ -64,6 +66,8 @@ public partial class Challenge
     public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
 
     public virtual ICollection<DeployHistory> DeployHistories { get; set; } = new List<DeployHistory>();
+
+    public virtual ICollection<ChallengeStartTracking> ChallengeStartTrackings { get; set; } = new List<ChallengeStartTracking>();
 
     public virtual DynamicChallenge? DynamicChallenge { get; set; }
 

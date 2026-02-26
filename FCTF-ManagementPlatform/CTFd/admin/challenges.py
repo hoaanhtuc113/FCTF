@@ -1,4 +1,3 @@
-from curses import flash
 import hashlib
 import os
 import time
@@ -6,7 +5,7 @@ import requests
 import json
 from flask import (
     abort,
-    current_app,
+    flash,
     jsonify,
     render_template,
     request,
@@ -18,7 +17,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, DeployedChallenge, Flags, Solves, Users, Tags, db
+from CTFd.models import Challenges, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -32,7 +31,7 @@ from CTFd.utils.dates import ctftime
 from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import get_current_team, get_current_user, is_admin,is_jury
 from CTFd.utils.uploads import upload_file
-from CTFd.constants.envvars import API_URL_CONTROLSERVER, PRIVATE_KEY
+from CTFd.constants.envvars import DEPLOYMENT_SERVICE_API, PRIVATE_KEY
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.constants import status_challenge
 
@@ -45,6 +44,9 @@ def challenges_listing():
     field = request.args.get("field") or "name"
     category = request.args.get("category")
     type_ = request.args.get("type")
+    difficulty = request.args.get("difficulty")
+    state_filter = request.args.get("state")
+    has_prereq = request.args.get("has_prereq")
     page = abs(request.args.get("page", 1, type=int))
     filters = []
 
@@ -77,6 +79,19 @@ def challenges_listing():
 
     if type_:
         filters.append(Challenges.type == type_)
+
+    if difficulty:
+        filters.append(Challenges.difficulty == int(difficulty))
+
+    if state_filter:
+        filters.append(Challenges.state == state_filter)
+
+    if has_prereq == "yes":
+        # requirements is a JSON column like {"prerequisites": [1, 2, ...]}
+        # Filter for challenges that have non-null, non-empty requirements
+        filters.append(Challenges.requirements.isnot(None))
+    elif has_prereq == "no":
+        filters.append(Challenges.requirements.is_(None))
 
     # Modify query based on user role
     if is_admin() or is_jury():
@@ -119,6 +134,9 @@ def challenges_listing():
         field=field,
         category=category,
         type=type_,
+        difficulty=difficulty,
+        state_filter=state_filter,
+        has_prereq=has_prereq,
         categories=categories,
         types=types,
         tag_terms=tag_terms,
@@ -180,6 +198,13 @@ def challenges_detail(challenge_id):
         "views.static_html", route=challenge_class.scripts["update"].lstrip("/")
     )
 
+    versions = (
+        ChallengeVersion.query
+        .filter_by(challenge_id=challenge.id)
+        .order_by(ChallengeVersion.version_number.desc())
+        .all()
+    )
+
     return render_template(
         "admin/challenges/challenge.html",
         update_template=update_j2,
@@ -194,11 +219,12 @@ def challenges_detail(challenge_id):
         deploys=len(deploys),
         isDeploySuccess=isDeploySuccess,
         is_detail=is_detail,
-        ctf_is_active=ctf_is_active
+        ctf_is_active=ctf_is_active,
+        versions=versions,
     )
 
 
-@admin.route("/api/challenges/preview/<int:challenge_id>")
+@admin.route("/admin/challenges/preview/<int:challenge_id>")
 @admin_or_challenge_writer_only_or_jury
 def challenges_preview(challenge_id):
     challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
@@ -238,29 +264,22 @@ def challenges_preview(challenge_id):
 @admin.route("/admin/challenges/new")
 @admin_or_challenge_writer_only
 def challenges_new():
-    template_dir = os.path.join(current_app.root_path, "template_challenge")
-    try:
-        template_files = os.listdir(template_dir) 
-        template_files = [file for file in template_files if os.path.isfile(os.path.join(template_dir, file))]
-    except FileNotFoundError:
-        template_files = []
     types = CHALLENGE_CLASSES.keys()
+    return render_template("admin/challenges/new.html", types=types)
 
-    return render_template("admin/challenges/new.html", types=types, template_files=template_files)
 
-@admin.route("/admin/challenges/update")
-@admin_or_challenge_writer_only
-def challenges_teamplate():
-    template_dir = os.path.join(current_app.root_path, "template_challenge")
-    try:
-        print("đã vao day")
-        template_files = os.listdir(template_dir) 
-        template_files = [file for file in template_files if os.path.isfile(os.path.join(template_dir, file))]
-    except FileNotFoundError:
-        template_files = []
-    types = CHALLENGE_CLASSES.keys()
-
-    return render_template("admin/deploy.html", types=types, template_files=template_files)
+@admin.route("/admin/challenges/<int:challenge_id>/versions/<int:version_id>")
+@admin_or_challenge_writer_only_or_jury
+def challenges_version_detail(challenge_id, version_id):
+    challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+    version = ChallengeVersion.query.filter_by(
+        id=version_id, challenge_id=challenge.id
+    ).first_or_404()
+    return render_template(
+        "admin/challenges/version_detail.html",
+        challenge=challenge,
+        version=version,
+    )
 
 
 
@@ -314,52 +333,69 @@ def create_secret_key(
     return hashlib.md5(combine_string.encode()).hexdigest()
 
 
-@admin.route("/api/challenge/preview/<int:challenge_id>")
-@bypass_csrf_protection
+@admin.route("/api/challenge/start", methods=["POST"])
 @admin_or_challenge_writer_only
-def challenge_preview(challenge_id):
-    unix_time = str(int(time.time()))
-    private_key = PRIVATE_KEY
-    challenge = Challenges.query.filter_by(
-        id=challenge_id
-    ).first_or_404()  # Corrected here
-    secret_key = create_secret_key(
-        private_key,
-        unix_time,
-        {
-            "ChallengeId": challenge_id,
-            "TeamId": -1,
-            "ImageLink": challenge.image_link,
-        },  # Corrected here
-    )
-    print(secret_key)
-    payload = {
-        "ChallengeId": challenge_id,
-        "UnixTime": unix_time,
-        "TeamId": -1,
-        "ImageLink": challenge.image_link,  # Corrected here
-    }
-    headers = {"Secretkey": secret_key}
-    api_start = f"{API_URL_CONTROLSERVER}/api/challenge/start"
-
+def challenge_start():
     try:
-        response = requests.post(api_start, data=payload, headers=headers)
-        print(response)
+        data = request.get_json(force=True, silent=True) or {}
+        challenge_id = data.get("challenge_id")
+        if not challenge_id:
+            return jsonify({"success": False, "message": "challenge_id is required"}), 400
+        challenge_id = int(challenge_id)
+
+        private_key = PRIVATE_KEY
+        if not private_key:
+            return jsonify({"success": False, "message": "Server PRIVATE_KEY is not configured"}), 500
+
+        from CTFd.utils.user import get_current_user
+        current_user = get_current_user()
+        user_id = current_user.id if current_user else -1
+
+        unix_time = str(int(time.time()))
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+
+        # Use camelCase keys matching the Deployment Service API contract
+        secret_key = create_secret_key(
+            private_key,
+            unix_time,
+            {
+                "challengeId": challenge_id,
+                "teamId": -1,
+                "userId": user_id,
+            },
+        )
+        payload = {
+            "challengeId": challenge_id,
+            "teamId": -1,
+            "userId": user_id,
+            "unixTime": unix_time,
+        }
+        headers = {"SecretKey": secret_key}
+        api_start = f"{DEPLOYMENT_SERVICE_API}/api/challenge/start"
+
+        response = requests.post(api_start, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
 
         res_data = response.json()
         if res_data.get("success"):
-            return (
-                jsonify(
-                    {"success": True, "challenge_url": res_data.get("challenge_url")}
-                ),
-                200,
-            )
+            return jsonify({
+                "success": True,
+                "message": res_data.get("message", "Challenge started"),
+                "challenge_url": res_data.get("challenge_url"),
+            }), 200
         else:
-            return (
-                jsonify({"Message": "Failed to preview challenge"}),
-                500,
-            )  # Fixed typo in message
+            return jsonify({
+                "success": False,
+                "message": res_data.get("message", "Failed to preview challenge"),
+            }), 200
 
-    except requests.exceptions.RequestException:
-        return jsonify({"Message": "Connection failed"}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({"success": False, "message": f"Cannot connect to deployment service at {DEPLOYMENT_SERVICE_API}"}), 502
+    except requests.exceptions.Timeout:
+        return jsonify({"success": False, "message": "Control server request timed out"}), 504
+    except requests.exceptions.HTTPError as e:
+        return jsonify({"success": False, "message": f"Control server returned error: {e.response.status_code}"}), 502
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": f"Internal error: {str(e)}"}), 500

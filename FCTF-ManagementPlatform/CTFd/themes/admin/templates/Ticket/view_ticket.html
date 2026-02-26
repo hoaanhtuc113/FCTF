@@ -288,6 +288,7 @@
 		<div class="mb-3 d-flex justify-content-between align-items-center">
 			<div></div>	
 			<form id="delete-form" method="post" action="{{ url_for('admin.delete_tickets') }}" onsubmit="return confirmDelete()">
+				<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 				<button type="submit" class="btn btn-danger">
 					<i class="fas fa-trash"></i> Delete
 				</button>
@@ -390,6 +391,13 @@
 			const form = document.createElement('form');
 			form.method = 'POST';
 			form.action = '{{ url_for("admin.delete_tickets") }}';
+			
+			// Add CSRF nonce
+			const nonceInput = document.createElement('input');
+			nonceInput.type = 'hidden';
+			nonceInput.name = 'nonce';
+			nonceInput.value = '{{ Session.nonce }}';
+			form.appendChild(nonceInput);
 			
 			// Add ticket ID
 			const input = document.createElement('input');

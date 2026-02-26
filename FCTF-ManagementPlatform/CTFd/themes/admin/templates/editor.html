@@ -139,6 +139,7 @@
 
 									<div class="form-group float-right pt-3">
 										{{ form.nonce() }}
+										<input type="hidden" name="csrf_token" value="{{ Session.nonce }}">
 										<button class="btn btn-primary" id="save-page">
 											Save
 										</button>

@@ -5,7 +5,6 @@ import requests
 from CTFd.admin import admin
 from CTFd.SendTicket import get_all_tickets, get_ticket_by_id, send_ticket_from_relier
 from CTFd.utils.decorators import admins_only
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.user import get_current_user
 
 
@@ -80,7 +79,6 @@ def view_tickets_detail(ticket_id):
 
 
 @admin.route("/admin/send-ticket-response", methods=['POST'])
-@bypass_csrf_protection
 def send_response():
     try:
         # Get current user
@@ -119,7 +117,6 @@ def send_response():
 
 @admin.route("/admin/tickets/delete", methods=['POST'])
 @admins_only
-@bypass_csrf_protection
 def delete_tickets():
     try:
         from CTFd.models import Tickets, db

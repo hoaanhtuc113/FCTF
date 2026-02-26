@@ -34,7 +34,7 @@ class BaseChallenge(object):
         """
         data = request.form or request.get_json()
         data = dict(data)
-        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request"):
+        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
             if key in data and data[key] is not None:
                 try:
                     data[key] = int(data[key])
@@ -72,6 +72,7 @@ class BaseChallenge(object):
             "max_attempts": challenge.max_attempts,
             "type": challenge.type,
             "require_deploy": challenge.require_deploy,
+            "max_deploy_count": challenge.max_deploy_count,
             "type_data": {
                 "id": cls.id,
                 "name": cls.name,
@@ -94,7 +95,7 @@ class BaseChallenge(object):
         data = request.form or request.get_json()
         data = dict(data)
 
-        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request"):
+        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
             if key in data and data[key] is not None:
                 try:
                     data[key] = int(data[key])

@@ -152,14 +152,60 @@ public class HintService : IHintService
             {
                 return null;
             }
-            var hints = await _context.Hints.Where(h => h.ChallengeId == challengeId).ToListAsync();
+
+            var hints = await _context.Hints
+                .AsNoTracking()
+                .Where(h => h.ChallengeId == challengeId)
+                .ToListAsync();
+
+            var hintIds = hints.Select(h => h.Id).ToList();
+            var unlockedHintIds = new HashSet<int>();
+
+            if (hintIds.Count > 0)
+            {
+                var currentUser = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == user);
+
+                if (currentUser != null)
+                {
+                    var unlocksQuery = _context.Unlocks
+                        .AsNoTracking()
+                        .Where(u =>
+                            u.Target != null &&
+                            hintIds.Contains(u.Target.Value) &&
+                            (u.Type == HintUnlockType || u.Type == null));
+
+                    if (_configHelper.IsTeamsMode())
+                    {
+                        if (currentUser.TeamId != null)
+                        {
+                            unlocksQuery = unlocksQuery.Where(u => u.TeamId == currentUser.TeamId);
+                            var unlocked = await unlocksQuery
+                                .Select(u => u.Target!.Value)
+                                .ToListAsync();
+                            unlockedHintIds = new HashSet<int>(unlocked);
+                        }
+                    }
+                    else
+                    {
+                        unlocksQuery = unlocksQuery.Where(u => u.UserId == currentUser.Id);
+                        var unlocked = await unlocksQuery
+                            .Select(u => u.Target!.Value)
+                            .ToListAsync();
+                        unlockedHintIds = new HashSet<int>(unlocked);
+                    }
+                }
+            }
+
             return new HintListDTO
             {
                 Size = hints.Count,
                 Hints = hints.Select(h => new HintSummaryDTO
                 {
                     Id = h.Id,
-                    Cost = h.Cost
+                    Cost = h.Cost,
+                    IsUnlocked = (h.Cost ?? 0) <= 0 || unlockedHintIds.Contains(h.Id)
                 }).ToList()
             };
         }
@@ -301,7 +347,7 @@ public class HintService : IHintService
                     Date = DateTime.UtcNow
                 };
                 _context.Awards.Add(award);
-                
+
                 await _context.SaveChangesAsync();
 
                 return new UnlockResponseDTO

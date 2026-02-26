@@ -1,22 +1,24 @@
+using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.Utils;
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
 [Authorize]
-public class ConfigController : ControllerBase
+public class ConfigController : BaseController
 {
     private readonly CtfTimeHelper _ctfTimeHelper;
     private readonly ConfigHelper _configHelper;
+
     public ConfigController(
+        IUserContext userContext,
         CtfTimeHelper ctfTimeHelper,
-        ConfigHelper configHelper)
+        ConfigHelper configHelper) : base(userContext)
     {
         _ctfTimeHelper = ctfTimeHelper;
         _configHelper = configHelper;
     }
+
     private long ToLong(object val)
     {
         if (val == null) return 0;
@@ -60,5 +62,22 @@ public class ConfigController : ControllerBase
                 start_date = startFromConfig,
             });
         }
+    }
+
+    // public configuration values used by the contestant portal
+    [AllowAnonymous]
+    [HttpGet("get_public_config")]
+    public IActionResult GetPublicConfig()
+    {
+        var logo = _configHelper.GetConfig("ctf_logo");
+        var icon = _configHelper.GetConfig("ctf_small_icon");
+        var name = _configHelper.GetConfig("ctf_name");
+        return Ok(new
+        {
+            isSuccess = true,
+            ctf_logo = logo,
+            ctf_small_icon = icon,
+            ctf_name = name,
+        });
     }
 }
