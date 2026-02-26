@@ -19,6 +19,7 @@ namespace ResourceShared.DTOs.Challenge
         public ChallengeRequirementsDTO? requirements { get; set; }
         public bool solve_by_myteam { get; set; }
         public string? pod_status { get; set; } = null;
+        public int? difficulty { get; set; }
 
     }
 }

@@ -234,7 +234,7 @@
 
 {% block footer %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
 	document.querySelectorAll('.star-rating-picker').forEach(function(picker) {
 		var targetId = picker.getAttribute('data-target');
 		var input = document.getElementById(targetId);
@@ -280,6 +280,6 @@ document.addEventListener('DOMContentLoaded', function() {
 		// Init from existing value
 		render(parseInt(input.value) || 0);
 	});
-});
+})();
 </script>
 {% endblock %}
