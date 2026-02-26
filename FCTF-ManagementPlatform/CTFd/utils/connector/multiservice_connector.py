@@ -43,6 +43,7 @@ redis_client = redis.StrictRedis(
 from CTFd.models import (
     ChallengeFiles,
     Challenges,
+    ChallengeVersion,
     Teams,
     Tokens,
     Users,
@@ -431,6 +432,45 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"
                 challenge.image_link = json.dumps(object_image)
+
+                # Auto-save challenge version
+                try:
+                    latest_version = (
+                        ChallengeVersion.query
+                        .filter_by(challenge_id=challenge.id)
+                        .order_by(ChallengeVersion.version_number.desc())
+                        .first()
+                    )
+                    next_version = (latest_version.version_number + 1) if latest_version else 1
+
+                    # Deactivate all previous versions
+                    ChallengeVersion.query.filter_by(
+                        challenge_id=challenge.id
+                    ).update({"is_active": False})
+
+                    # Get current user ID from session
+                    from flask import session as flask_session
+                    current_user_id = flask_session.get("id", None)
+
+                    new_version = ChallengeVersion(
+                        challenge_id=challenge.id,
+                        version_number=next_version,
+                        image_link=json.dumps(object_image),
+                        deploy_file=challenge.deploy_file,
+                        cpu_limit=challenge.cpu_limit,
+                        cpu_request=challenge.cpu_request,
+                        memory_limit=challenge.memory_limit,
+                        memory_request=challenge.memory_request,
+                        use_gvisor=challenge.use_gvisor,
+                        is_active=True,
+                        created_by=current_user_id,
+                        notes=f"Auto-created on deploy: {image_tag}",
+                    )
+                    db.session.add(new_version)
+                    print(f"Challenge version v{next_version} created for challenge {challenge.id}")
+                except Exception as ver_err:
+                    print(f"Warning: Failed to save challenge version: {ver_err}")
+
                 db.session.commit()
                 return {
                     "success": True,

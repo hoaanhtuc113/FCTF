@@ -119,3 +119,29 @@ def get_pods_logs(challenge_id):
         challenge_id=challenge_id,
         log_content=logs,
     )
+
+
+@challengeHistory.route("/deploy_History/<int:challenge_id>/pods-logs-api", methods=["GET"])
+@admin_or_challenge_writer_only_or_jury
+def get_pods_logs_api(challenge_id):
+    """API endpoint to fetch pod logs as JSON (used by refresh button)."""
+    user_id = session["id"]
+    user = Users.query.filter_by(id=user_id).first()
+
+    if not user:
+        return jsonify({"success": False, "error": "User not found"}), 403
+
+    if user.type == "user":
+        return jsonify({"success": False, "error": "Permission denied"}), 400
+
+    team_id = user.team_id if user.team_id is not None else -1
+    team_id_param = request.args.get("team_id")
+    if team_id_param is not None:
+        try:
+            team_id = int(team_id_param)
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid team_id"}), 400
+
+    logs = get_challenge_pod_logs(challenge_id, team_id)
+
+    return jsonify({"success": True, "logs": logs}), 200
