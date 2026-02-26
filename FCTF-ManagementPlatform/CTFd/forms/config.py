@@ -4,6 +4,7 @@ from wtforms.widgets.html5 import NumberInput
 
 from CTFd.constants.config import (
     AccountVisibilityTypes,
+    ChallengeDifficultyVisibilityTypes,
     ChallengeVisibilityTypes,
     RegistrationVisibilityTypes,
     ScoreVisibilityTypes,
@@ -165,6 +166,15 @@ class VisibilitySettingsForm(BaseForm):
             (RegistrationVisibilityTypes.MLC, "MajorLeagueCyber Only"),
         ],
         default=RegistrationVisibilityTypes.PUBLIC,
+    )
+    challenge_difficulty_visibility = SelectField(
+        "Challenge Difficulty Visibility",
+        description="Control whether the difficulty level of challenges is visible to contestants",
+        choices=[
+            (ChallengeDifficultyVisibilityTypes.ENABLED, "Enabled"),
+            (ChallengeDifficultyVisibilityTypes.DISABLED, "Disabled"),
+        ],
+        default=ChallengeDifficultyVisibilityTypes.DISABLED,
     )
 
 

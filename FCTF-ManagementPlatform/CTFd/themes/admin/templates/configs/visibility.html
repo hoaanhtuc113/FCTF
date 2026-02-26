@@ -4,7 +4,8 @@
 	challenge_visibility=challenge_visibility,
 	account_visibility=account_visibility,
 	score_visibility=score_visibility,
-	registration_visibility=registration_visibility
+	registration_visibility=registration_visibility,
+	challenge_difficulty_visibility=challenge_difficulty_visibility
 	)
 	%}
 	<form method="POST" autocomplete="off" class="w-100">
@@ -44,6 +45,14 @@
 			{{ form.registration_visibility(class="form-control custom-select") }}
 			<small class="form-text text-muted">
 				{{ form.registration_visibility.description }}
+			</small>
+		</div>
+
+		<div class="form-group">
+			{{ form.challenge_difficulty_visibility.label }}
+			{{ form.challenge_difficulty_visibility(class="form-control custom-select") }}
+			<small class="form-text text-muted">
+				{{ form.challenge_difficulty_visibility.description }}
 			</small>
 		</div>
 
