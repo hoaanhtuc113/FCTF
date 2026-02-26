@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { configService } from '../services/configService';
-import { fetchWithAuth } from '../services/api';
 import {
   Box,
   Avatar,
@@ -20,7 +19,6 @@ import {
   DarkMode,
   LightMode,
   Timer as TimerIcon,
-  Home,
   Security,
   EmojiEvents,
   SupportAgent,
@@ -28,7 +26,6 @@ import {
   History,
 } from '@mui/icons-material';
 import type { ReactNode } from 'react';
-import { parseUTCToLocal, formatUTCToLocaleString, dayjs } from '../utils/timezone';
 
 interface LayoutProps {
   children: ReactNode;
@@ -55,7 +52,6 @@ export function Layout({ children }: LayoutProps) {
   const [smallIconUrl, setSmallIconUrl] = useState<string | null>(null);
 
   const tabs = [
-    { label: 'Home', path: '/dashboard', icon: <Home fontSize="small" /> },
     { label: 'Challenges', path: '/challenges', icon: <Security fontSize="small" /> },
     { label: 'Instances', path: '/instances', icon: <ViewList fontSize="small" /> },
     { label: 'Scoreboard', path: '/scoreboard', icon: <EmojiEvents fontSize="small" /> },
@@ -154,46 +150,6 @@ export function Layout({ children }: LayoutProps) {
   };
 
 
-  const formatNotificationDate = (dateString: string) => {
-    const date = parseUTCToLocal(dateString);
-
-    if (!date.isValid()) {
-      return 'Invalid date';
-    }
-
-    const now = dayjs();
-    const diffMs = now.diff(date);
-    const diffMins = Math.floor(diffMs / 60000);
-
-    // If negative (future date), just show the date
-    if (diffMins < 0) {
-      return formatUTCToLocaleString(dateString, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    // For older dates, show formatted date with time
-    return formatUTCToLocaleString(dateString, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const handleProfile = () => {
     handleMenuClose();
@@ -235,7 +191,7 @@ export function Layout({ children }: LayoutProps) {
             {/* Logo */}
             <Box
               className="flex items-center gap-2 cursor-pointer"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/challenges')}
             >
               <img
                 src={logoUrl || '/assets/fctf-logo.png'}

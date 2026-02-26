@@ -1170,6 +1170,12 @@ function ChallengeDetailPanel({
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [copiedTcp, setCopiedTcp] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
+
+  // derive gateway/ports from environment helper so we can display them in the UI
+  const baseGateway = getBaseGateway();
+  const httpPort = getHttpPort();
+  const tcpPort = getTcpPort();
+
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
@@ -3886,7 +3892,7 @@ function ChallengeDetailPanel({
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Get your Token from [YOUR ACCESS TOKEN]</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Access the challenge with token:</p>
                         <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          http://basegateway:port/YOUR_TOKEN
+                          {`http://${baseGateway}:${httpPort}/YOUR_TOKEN`}
                         </code>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Gateway will remember you</p>
                         <p className={`text-[10px] italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>Note: Re-enter token to switch challenges</p>
@@ -3903,7 +3909,7 @@ function ChallengeDetailPanel({
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Open Terminal/PowerShell</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Connect to gateway:</p>
                         <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          nc basegateway port
+                          {`nc ${baseGateway} ${tcpPort}`}
                         </code>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Enter your token when prompted</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 4:</span> See "Access Granted!" message</p>
