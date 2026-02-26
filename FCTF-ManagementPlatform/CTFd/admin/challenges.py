@@ -17,7 +17,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, DeployedChallenge, Flags, Solves, Users, Tags, db
+from CTFd.models import Challenges, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -179,6 +179,13 @@ def challenges_detail(challenge_id):
         "views.static_html", route=challenge_class.scripts["update"].lstrip("/")
     )
 
+    versions = (
+        ChallengeVersion.query
+        .filter_by(challenge_id=challenge.id)
+        .order_by(ChallengeVersion.version_number.desc())
+        .all()
+    )
+
     return render_template(
         "admin/challenges/challenge.html",
         update_template=update_j2,
@@ -193,7 +200,8 @@ def challenges_detail(challenge_id):
         deploys=len(deploys),
         isDeploySuccess=isDeploySuccess,
         is_detail=is_detail,
-        ctf_is_active=ctf_is_active
+        ctf_is_active=ctf_is_active,
+        versions=versions,
     )
 
 
@@ -239,6 +247,20 @@ def challenges_preview(challenge_id):
 def challenges_new():
     types = CHALLENGE_CLASSES.keys()
     return render_template("admin/challenges/new.html", types=types)
+
+
+@admin.route("/admin/challenges/<int:challenge_id>/versions/<int:version_id>")
+@admin_or_challenge_writer_only_or_jury
+def challenges_version_detail(challenge_id, version_id):
+    challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+    version = ChallengeVersion.query.filter_by(
+        id=version_id, challenge_id=challenge.id
+    ).first_or_404()
+    return render_template(
+        "admin/challenges/version_detail.html",
+        challenge=challenge,
+        version=version,
+    )
 
 
 

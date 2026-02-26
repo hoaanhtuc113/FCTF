@@ -469,6 +469,7 @@
 					<a class="nav-item nav-link small" data-toggle="tab" href="#hints" role="tab">Hints</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#requirements" role="tab">Requirements</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#deploy" role="tab">Deploy</a>
+					<a class="nav-item nav-link small" data-toggle="tab" href="#versions" role="tab">Versions</a>
 					<a class="nav-item nav-link small" data-toggle="tab" href="#next" role="tab">Next</a>
 
 				</nav>
@@ -535,6 +536,58 @@
 							<div class="col-md-12">
 								<h3 class="text-center py-3 d-block">Deploy</h3>
 								{% include "admin/modals/challenges/deploy.html" %}
+							</div>
+						</div>
+					</div>
+					<div class="tab-pane fade" id="versions" role="tabpanel">
+						<div class="row">
+							<div class="col-md-12">
+								<h3 class="text-center py-3 d-block">Image Versions</h3>
+								<div id="versions-list-container" style="overflow-x:auto;">
+									<table class="table table-sm" style="font-size: 0.85rem; margin-bottom:0;">
+										<thead style="background: #f8f9fa;">
+											<tr>
+												<th class="text-center" style="width:60px;">Ver.</th>
+												<th>Image Tag</th>
+												<th class="text-center" style="width:70px;">Status</th>
+												<th class="text-center" style="width:50px;"></th>
+											</tr>
+										</thead>
+										<tbody>
+											{% if not versions %}
+											<tr>
+												<td colspan="4" class="text-center text-muted py-4">
+													<i class="fas fa-code-branch" style="font-size: 1.5rem; color: #dee2e6; display: block; margin-bottom: 0.5rem;"></i>
+													No versions recorded yet.<br>
+													<small>Versions are automatically created when a new image is deployed.</small>
+												</td>
+											</tr>
+											{% else %}
+											{% for version in versions %}
+											<tr>
+												<td class="text-center"><strong>v{{ version.version_number }}</strong></td>
+												<td style="word-break:break-all;">
+													<code style="background:#f8f9fa;padding:0.1rem 0.35rem;border-radius:3px;font-size:0.78rem;">{{ version.image_tag or 'N/A' }}</code>
+													<br><small class="text-muted">{{ version.created_at.strftime('%Y-%m-%d %H:%M') if version.created_at else '' }}</small>
+												</td>
+												<td class="text-center">
+													{% if version.is_active %}
+													<span style="background:#d4edda;color:#155724;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.7rem;font-weight:600;">ACTIVE</span>
+													{% else %}
+													<span style="background:#e2e3e5;color:#6c757d;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.7rem;font-weight:500;">OLD</span>
+													{% endif %}
+												</td>
+												<td class="text-center">
+													<a href="{{ url_for('admin.challenges_version_detail', challenge_id=challenge.id, version_id=version.id) }}" style="color:#ff6b35;" title="View detail">
+														<i class="fas fa-eye"></i>
+													</a>
+												</td>
+											</tr>
+											{% endfor %}
+											{% endif %}
+										</tbody>
+									</table>
+								</div>
 							</div>
 						</div>
 					</div>
