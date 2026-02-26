@@ -172,8 +172,41 @@
 
 	/* Filter controls height consistency */
 	#teamFilter,
+	#userFilter,
+	#categoryFilter,
+	#statusFilter,
 	#challengeSearch {
 		height: 38px;
+	}
+
+	/* Status badge styles */
+	.status-badge {
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+
+	.status-badge-running {
+		background: #d4edda;
+		color: #155724;
+	}
+
+	.status-badge-pending {
+		background: #fff3cd;
+		color: #856404;
+	}
+
+	.status-badge-deleting {
+		background: #f8d7da;
+		color: #721c24;
+	}
+
+	.status-badge-unknown {
+		background: #e2e3e5;
+		color: #6c757d;
 	}
 
 	/* Pagination Styles */
@@ -231,19 +264,39 @@
 	<div class="container monitoring-container">
 		<!-- Filters and Search -->
 		<div class="mb-3">
-			<div class="row">
+			<div class="row mb-2">
 				<div class="col-md-3">
 					<select id="teamFilter" class="form-control" onchange="handleSearch()">
 						<option value="">All Teams</option>
 					</select>
 				</div>
-				<div class="col-md-7">
+				<div class="col-md-3">
+					<select id="userFilter" class="form-control" onchange="handleSearch()">
+						<option value="">All Users</option>
+					</select>
+				</div>
+				<div class="col-md-3">
+					<select id="categoryFilter" class="form-control" onchange="handleSearch()">
+						<option value="">All Categories</option>
+					</select>
+				</div>
+				<div class="col-md-3">
+					<select id="statusFilter" class="form-control" onchange="handleSearch()">
+						<option value="">All Status</option>
+						<option value="pending">Pending</option>
+						<option value="running">Running</option>
+						<option value="deleting">Deleting</option>
+					</select>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-md-10">
 					<input type="text" id="challengeSearch" class="form-control"
 						placeholder="Search by challenge name..." onkeyup="handleSearch()">
 				</div>
 				<div class="col-md-2">
-					<button onclick="clearFilters()" class="btn btn-info">
-						<i class="fas fa-times"></i> Clear
+					<button onclick="clearFilters()" class="btn btn-info btn-block">
+						<i class="fas fa-times"></i> Clear Filters
 					</button>
 				</div>
 			</div>
@@ -278,10 +331,12 @@
 							<input id="selectAll" type="checkbox" onchange="toggleSelectAllOnPage(this.checked)"
 								aria-label="Select all on page" />
 						</th>
-						<th class="sort-col text-center">ID</th>
+						<th class="sort-col text-center" style="width: 50px;">ID</th>
 						<th class="sort-col text-center">Challenge Name</th>
 						<th class="sort-col text-center">Team Name</th>
 						<th class="sort-col text-center">User Name</th>
+						<th class="sort-col text-center">Category</th>
+						<th class="text-center">Status</th>
 						<th class="text-center">Challenge URL</th>
 						<th class="sort-col text-center">Time Finished</th>
 						<th class="text-center">Action</th>
@@ -369,26 +424,39 @@
 		selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
 	}
 
-	// Populate teams dropdown from data
-	function populateTeams(teams) {
-		const teamFilter = document.getElementById("teamFilter");
-		const currentValue = teamFilter.value;
+	// Generic function to populate a dropdown from data
+	function populateDropdown(elementId, items, allLabel) {
+		const dropdown = document.getElementById(elementId);
+		const currentValue = dropdown.value;
 
-		// Clear existing options except "All Teams"
-		teamFilter.innerHTML = '<option value="">All Teams</option>';
+		// Clear existing options except the "All" option
+		dropdown.innerHTML = `<option value="">${allLabel}</option>`;
 
-		// Add team options from the provided list
-		teams.forEach(teamName => {
+		// Add options from the provided list
+		items.forEach(item => {
 			const option = document.createElement("option");
-			option.value = teamName;
-			option.textContent = teamName;
-			teamFilter.appendChild(option);
+			option.value = item;
+			option.textContent = item;
+			dropdown.appendChild(option);
 		});
 
 		// Restore previous selection if exists
-		if (currentValue && teams.includes(currentValue)) {
-			teamFilter.value = currentValue;
+		if (currentValue && items.includes(currentValue)) {
+			dropdown.value = currentValue;
 		}
+	}
+
+	// Populate teams dropdown from data
+	function populateTeams(teams) {
+		populateDropdown("teamFilter", teams, "All Teams");
+	}
+
+	function populateUsers(users) {
+		populateDropdown("userFilter", users, "All Users");
+	}
+
+	function populateCategories(categories) {
+		populateDropdown("categoryFilter", categories, "All Categories");
 	}
 
 	async function loadData(page = 1) {
@@ -396,6 +464,9 @@
 
 		const challengeSearch = document.getElementById("challengeSearch").value.trim();
 		const teamFilter = document.getElementById("teamFilter").value.trim();
+		const userFilter = document.getElementById("userFilter").value.trim();
+		const categoryFilter = document.getElementById("categoryFilter").value.trim();
+		const statusFilter = document.getElementById("statusFilter").value.trim();
 
 		let url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`;
 
@@ -405,8 +476,17 @@
 		if (teamFilter) {
 			url += `&team_name=${encodeURIComponent(teamFilter)}`;
 		}
+		if (userFilter) {
+			url += `&user_name=${encodeURIComponent(userFilter)}`;
+		}
+		if (categoryFilter) {
+			url += `&challenge_category=${encodeURIComponent(categoryFilter)}`;
+		}
+		if (statusFilter) {
+			url += `&status=${encodeURIComponent(statusFilter)}`;
+		}
 
-		const response = await fetch(url, {
+		const response = await CTFd.fetch(url, {
 			method: "GET"
 		});
 
@@ -417,9 +497,15 @@
 		if (result.success) {
 			paginationData = result.pagination;
 
-			// Populate teams dropdown with unique teams from response
+			// Populate filter dropdowns with unique values from response
 			if (result.teams) {
 				populateTeams(result.teams);
+			}
+			if (result.users) {
+				populateUsers(result.users);
+			}
+			if (result.categories) {
+				populateCategories(result.categories);
 			}
 
 			result.data.forEach(row => {
@@ -443,6 +529,8 @@
 					<td class="text-center">${row.challenge_name}</td>
 					<td class="text-center">${row.team_name}</td>
 					<td class="text-center">${row.user_name ?? "N/A"}</td>
+					<td class="text-center">${row.challenge_category ?? "N/A"}</td>
+					<td class="text-center">${formatStatusBadge(row.status)}</td>
 					<td class="text-center" 
 					style="
 						text-align: center;
@@ -451,7 +539,7 @@
 						overflow-wrap: break-word;
 						white-space: normal;
 						">
-						${row.challenge_url ? row.challenge_url : "Processing . . ."}
+						${row.challenge_url ? row.challenge_url : "N/A"}
 					</td>
 
 					<td class="text-center">${row.time_finished
@@ -482,9 +570,21 @@
 		}, 300);
 	}
 
+	function formatStatusBadge(status) {
+		const s = (status || "unknown").toLowerCase();
+		let badgeClass = "status-badge-unknown";
+		if (s === "running") badgeClass = "status-badge-running";
+		else if (s === "pending") badgeClass = "status-badge-pending";
+		else if (s === "deleting") badgeClass = "status-badge-deleting";
+		return `<span class="status-badge ${badgeClass}">${status || "Unknown"}</span>`;
+	}
+
 	function clearFilters() {
 		document.getElementById("challengeSearch").value = "";
 		document.getElementById("teamFilter").value = "";
+		document.getElementById("userFilter").value = "";
+		document.getElementById("categoryFilter").value = "";
+		document.getElementById("statusFilter").value = "";
 		loadData(1);
 	}
 
@@ -563,7 +663,10 @@
 		paginationControls.appendChild(nextLi);
 	}
 
-	loadData(); // Initial load
+	// Initial load when DOM is ready
+	document.addEventListener('DOMContentLoaded', function () {
+		loadData();
+	});
 
 	function viewLogs(challengeId, teamId) {
 		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
@@ -571,11 +674,8 @@
 
 	async function stopChallenge(challengeId, teamId) {
 		try {
-			const response = await fetch("/api/challenge/stop-by-admin", {
+			const response = await CTFd.fetch("/api/challenge/stop-by-admin", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
 				body: JSON.stringify({
 					challenge_id: challengeId,
 					team_id: teamId
@@ -615,11 +715,8 @@
 		}
 
 		try {
-			const response = await fetch("/api/challenge/stop-bulk", {
+			const response = await CTFd.fetch("/api/challenge/stop-bulk", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
 				body: JSON.stringify({ items })
 			});
 
@@ -677,11 +774,8 @@
 		deleteAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping All...';
 
 		try {
-			const response = await fetch("/api/challenge/stop-all", {
-				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json"
-				}
+			const response = await CTFd.fetch("/api/challenge/stop-all", {
+				method: "DELETE"
 			});
 
 			if (response.ok) {

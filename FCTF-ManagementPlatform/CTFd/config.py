@@ -233,7 +233,13 @@ class ServerConfig(object):
 
     SWAGGER_UI: bool = process_boolean_str(empty_str_cast(config_ini["optional"]["SWAGGER_UI"], default=False))
 
-    SWAGGER_UI_ENDPOINT: str = "/" if SWAGGER_UI else None
+    if SWAGGER_UI:
+        SWAGGER_UI_ENDPOINT: str = empty_str_cast(
+            config_ini["optional"].get("SWAGGER_UI_ENDPOINT", fallback="/"),
+            default="/",
+        )
+    else:
+        SWAGGER_UI_ENDPOINT: str = None
 
     UPDATE_CHECK: bool = process_boolean_str(empty_str_cast(config_ini["optional"]["UPDATE_CHECK"], default=True))
 

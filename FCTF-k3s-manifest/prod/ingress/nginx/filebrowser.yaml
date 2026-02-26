@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: filebrowser-tls
   dnsNames:
-    - filebrowser.fctf.mnhduc.site
+    - filebrowser.fctf.site
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer
@@ -22,7 +22,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   rules:
-    - host: filebrowser.fctf.mnhduc.site
+    - host: filebrowser.fctf.site
       http:
         paths:
           - path: /
@@ -34,5 +34,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - filebrowser.fctf.mnhduc.site
+        - filebrowser.fctf.site
       secretName: filebrowser-tls

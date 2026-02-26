@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: rancher-tls
   dnsNames:
-    - k8s-dashboard.fctf.mnhduc.site 
+    - rancher.fctf.site 
   issuerRef:
     name: letsencrypt-dev      
     kind: ClusterIssuer

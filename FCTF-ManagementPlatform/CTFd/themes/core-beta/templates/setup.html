@@ -44,9 +44,6 @@
 						<a class="nav-link active" data-bs-toggle="pill" data-bs-target="#general" role="button">{% trans %}General{% endtrans %}</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" data-bs-toggle="pill" data-bs-target="#mode" role="button">{% trans %}Mode{% endtrans %}</a>
-					</li>
-					<li class="nav-item">
 						<a class="nav-link" data-bs-toggle="pill" data-bs-target="#settings" role="button">{% trans %}Settings{% endtrans %}</a>
 					</li>
 					<li class="nav-item">
@@ -57,9 +54,6 @@
 					</li>
 					<li class="nav-item">
 						<a class="nav-link" data-bs-toggle="pill" data-bs-target="#datetime" role="button">{% trans %}Date &amp; Time{% endtrans %}</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" data-bs-toggle="pill" data-bs-target="#integrations" role="button">{% trans %}Integrations{% endtrans %}</a>
 					</li>
 				</ul>
 
@@ -79,58 +73,6 @@
 							<small class="form-text text-muted">
 								{{ form.ctf_description.description }}
 							</small>
-						</div>
-
-						<div class="text-right float-end">
-							<button type="button" class="btn btn-primary btn-outlined tab-next" data-href="#mode" @click="switchTab">
-								{% trans %}Next{% endtrans %}
-							</button>
-						</div>
-					</div>
-					<div class="tab-pane fade" id="mode" role="tabpanel">
-						<div class="mb-3">
-							<b>{{ form.user_mode.label }}</b>
-							<br>
-							<small class="form-text text-muted">
-								{{ form.user_mode.description }}
-							</small>
-
-							<div class="row pt-3">
-							{% for radio in form.user_mode %}
-								<label class="w-50 p-1">
-									{{ radio(class="card-radio d-none") }}
-									<div class="card rounded-0 h-100">
-										<div class="card-body p-3">
-											<span class="card-title">
-												<div class="form-check">
-													<input class="form-check-input card-radio-clone" type="radio" style="visibility: hidden;" checked>
-													<span class="form-check-label text-center">
-														<h5>{{ radio.label }}</h5>
-													</span>
-													{% if radio.data == "teams" %}
-													<ul class="p-0 small">
-														<li>{% trans %}Participants register accounts and form teams{% endtrans %}</li>
-														<li>{% trans %}If a team member solves a challenge, the entire team receives credit{% endtrans %}</li>
-														<br>
-														<li>{% trans %}Easier to see which team member solved a challenge{% endtrans %}</li>
-														<li>{% trans %}May be slightly more difficult to administer{% endtrans %}</li>
-													</ul>
-													{% elif radio.data == "users" %}
-													<ul class="p-0 small">
-														<li>{% trans %}Participants only register an individual account{% endtrans %}</li>
-														<li>{% trans %}Players can share accounts to form pseudo-teams{% endtrans %}</li>
-														<br>
-														<li>{% trans %}Easier to organize{% endtrans %}</li>
-														<li>{% trans %}Difficult to attribute solutions to individual team members{% endtrans %}</li>
-													</ul>
-													{% endif %}
-												</div>
-											</span>
-										</div>
-									</div>
-								</label>
-							{% endfor %}
-							</div>
 						</div>
 
 						<div class="text-right float-end">
@@ -341,40 +283,13 @@
 						</div>
 
 						<div class="text-right float-end">
-							<button type="button" class="btn btn-primary btn-outlined tab-next" data-href="#integrations" @click="switchTab">
-								{% trans %}Next{% endtrans %}
-							</button>
-						</div>
-					</div>
-					<div class="tab-pane fade" id="integrations" role="tabpanel">
-						<div class="mb-3">
-							<h4>MajorLeagueCyber Integration</h4>
-							<p>
-							MajorLeagueCyber (MLC) is a cyber security event tracker written and maintained by the developers of CTFd.
-							Set up MLC integration to:
-							<ul>
-								<li>display your event on the MLC website and mailing list</li>
-								<li>share and track participant statistics</li>
-								<li>provide live updates in team Slack or Discord groups</li>
-								<li>archive challenges, team participation &amp; more</li>
-							</ul>
-							</p>
-							<button type="button" id="integration-mlc" class="btn btn-primary btn-block" @click="mlcSetup()">
-								Setup
-							</button>
-						</div>
-
-						<br>
-						<hr>
-						<br>
-
-						<div class="submit-row text-right float-end">
 							{{ form.submit(class="btn btn-md btn-primary btn-outlined") }}
 						</div>
 					</div>
 				</div>
 
 				{{ form.nonce() }}
+				<input type="hidden" name="csrf_token" value="{{ Session.nonce }}">
 			</form>
 			{% endwith %}
 		</div>

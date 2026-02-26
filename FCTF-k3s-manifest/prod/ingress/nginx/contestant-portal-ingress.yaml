@@ -9,7 +9,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   rules:
-    - host: contestant.fctf.mnhduc.site
+    - host: contestant.fctf.site
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 5173
   tls:
     - hosts:
-        - contestant.fctf.mnhduc.site
+        - contestant.fctf.site
       secretName: contestant-tls

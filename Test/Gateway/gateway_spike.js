@@ -9,6 +9,8 @@ import {
   isUpstreamSuccessStatus,
 } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
+
 const spikeBlockedRatio = new Rate('gateway_spike_blocked_ratio');
 const spikeUpstream5xx = new Counter('gateway_spike_upstream_5xx');
 

@@ -161,3 +161,28 @@ class ChallengeSchema(ma.ModelSchema):
         "use_gvisor",
         allow_none=True,
     )
+
+    max_deploy_count = field_for(
+        Challenges,
+        "max_deploy_count",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=0,
+                error="Max deploy count must be greater than or equal to 0",
+            )
+        ],
+    )
+
+    difficulty = field_for(
+        Challenges,
+        "difficulty",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=1,
+                max=5,
+                error="Difficulty must be between 1 and 5",
+            )
+        ],
+    )

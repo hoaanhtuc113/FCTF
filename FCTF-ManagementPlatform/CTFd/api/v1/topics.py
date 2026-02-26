@@ -11,7 +11,6 @@ from CTFd.models import ChallengeTopics, Topics, db
 from CTFd.schemas.topics import ChallengeTopicSchema, TopicSchema
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
-from CTFd.plugins import bypass_csrf_protection
 
 topics_namespace = Namespace("topics", description="Endpoint to retrieve Topics")
 
@@ -182,7 +181,6 @@ class Topic(Resource):
         return {"success": True}
 
 @topics_namespace.route("/api/get-listtopic", methods= ['GET'])
-@bypass_csrf_protection
 class Topic(Resource):
     def getlistTopic():
     

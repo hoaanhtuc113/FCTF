@@ -12,7 +12,6 @@ from CTFd.models import Notifications, db
 from CTFd.schemas.notifications import NotificationSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
-from CTFd.plugins import bypass_csrf_protection
 
 notifications_namespace = Namespace(
     "notifications", description="Endpoint to retrieve Notifications"
@@ -119,7 +118,6 @@ class NotificantionList(Resource):
         response.headers["Result-Count"] = notification_count
         return response
 
-    @bypass_csrf_protection
     @notifications_namespace.doc(
         description="Endpoint to create a notification object",
         responses={

@@ -202,11 +202,12 @@ class TeamSearchForm(BaseForm):
             ("id", "ID"),
             ("affiliation", "Affiliation"),
             ("website", "Website"),
+            ("country", "Country"),
         ],
         default="name",
         validators=[InputRequired()],
     )
-    q = StringField("Parameter", validators=[InputRequired()])
+    q = StringField("Parameter")
     submit = SubmitField("Search")
 
 

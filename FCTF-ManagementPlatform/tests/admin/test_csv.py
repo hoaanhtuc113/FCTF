@@ -22,11 +22,11 @@ def test_export_csv_works():
 
 def test_import_csv_works():
     """Test that CSV imports work properly"""
-    USERS_CSV = b"""name,email,password
+    USERS_CSV = b"""Name,Email,Password
 user1,user1@examplectf.com,password
 user2,user2@examplectf.com,password"""
 
-    TEAMS_CSV = b"""name,email,password
+    TEAMS_CSV = b"""Name,Email,Password
 team1,team1@examplectf.com,password
 team2,team2@examplectf.com,password"""
 
@@ -139,5 +139,88 @@ challenge1,category1,description1,100,"[{""type"": ""static"", ""content"": ""fl
         assert f.type == "static"
         assert f.content == "flag3"
         assert f.data is None
+
+    destroy_ctfd(app)
+
+
+def test_import_users_and_teams_csv_works():
+    """Test that users_and_teams CSV import creates users and teams"""
+
+    USERS_AND_TEAMS_CSV = b"""Name,Email,Password,Team
+Alice,alice@examplectf.com,alicePass,Team A
+Bob,bob@examplectf.com,bobPass,Team A
+Charlie,charlie@examplectf.com,charliePass,
+"""
+
+    app = create_ctfd()
+    with app.app_context():
+        client = login_as_user(app, name="admin", password="password")
+
+        with client.session_transaction() as sess:
+            data = {
+                "csv_type": "users_and_teams",
+                "csv_file": (io.BytesIO(USERS_AND_TEAMS_CSV), "users_and_teams.csv"),
+                "nonce": sess.get("nonce"),
+            }
+
+        client.post("/admin/import/csv", data=data, content_type="multipart/form-data")
+
+        # 1 admin + 3 imported users
+        assert Users.query.count() == 4
+
+        team = Teams.query.filter_by(name="Team A").first()
+        assert team is not None
+
+        alice = Users.query.filter_by(email="alice@examplectf.com").first()
+        assert alice is not None
+        assert alice.name == "Alice"
+        assert verify_password("alicePass", alice.password)
+        assert alice.team_id == team.id
+
+        bob = Users.query.filter_by(email="bob@examplectf.com").first()
+        assert bob is not None
+        assert bob.name == "Bob"
+        assert verify_password("bobPass", bob.password)
+        assert bob.team_id == team.id
+
+        charlie = Users.query.filter_by(email="charlie@examplectf.com").first()
+        assert charlie is not None
+        assert charlie.name == "Charlie"
+        assert verify_password("charliePass", charlie.password)
+        assert charlie.team_id is None
+
+    destroy_ctfd(app)
+
+
+def test_import_users_and_teams_csv_warns_but_imports():
+    """Invalid rows should generate warnings but not fail the import."""
+
+    USERS_AND_TEAMS_CSV = b"""Name,Email,Password,Team
+Valid,valid@examplectf.com,pass,Team A
+NoEmail,,pass,Team A
+BadEmail,not-an-email,pass,Team A
+"""
+
+    app = create_ctfd()
+    with app.app_context():
+        client = login_as_user(app, name="admin", password="password")
+
+        with client.session_transaction() as sess:
+            data = {
+                "csv_type": "users_and_teams",
+                "csv_file": (io.BytesIO(USERS_AND_TEAMS_CSV), "users_and_teams.csv"),
+                "nonce": sess.get("nonce"),
+            }
+
+        resp = client.post(
+            "/admin/import/csv",
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert resp.status_code == 200
+        assert Users.query.filter_by(email="valid@examplectf.com").first() is not None
+        assert b"Imported with warnings" in resp.data
 
     destroy_ctfd(app)
