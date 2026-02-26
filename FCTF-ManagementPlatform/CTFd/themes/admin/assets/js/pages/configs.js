@@ -570,36 +570,38 @@ $(() => {
     },
   );
 
-  const themeHeaderEl = document.getElementById("theme-header");
-  const themeFooterEl = document.getElementById("theme-footer");
-  const themeSettingsEl = document.getElementById("theme-settings");
+  function safeFromTextArea(elementId, options) {
+    const el = document.getElementById(elementId);
+    if (!el || el.tagName !== "TEXTAREA") {
+      return null;
+    }
+    try {
+      return CodeMirror.fromTextArea(el, options);
+    } catch (_e) {
+      return null;
+    }
+  }
 
-  const theme_header_editor = themeHeaderEl
-    ? CodeMirror.fromTextArea(themeHeaderEl, {
-        lineNumbers: true,
-        lineWrapping: true,
-        mode: "htmlmixed",
-        htmlMode: true,
-      })
-    : null;
+  const theme_header_editor = safeFromTextArea("theme-header", {
+    lineNumbers: true,
+    lineWrapping: true,
+    mode: "htmlmixed",
+    htmlMode: true,
+  });
 
-  const theme_footer_editor = themeFooterEl
-    ? CodeMirror.fromTextArea(themeFooterEl, {
-        lineNumbers: true,
-        lineWrapping: true,
-        mode: "htmlmixed",
-        htmlMode: true,
-      })
-    : null;
+  const theme_footer_editor = safeFromTextArea("theme-footer", {
+    lineNumbers: true,
+    lineWrapping: true,
+    mode: "htmlmixed",
+    htmlMode: true,
+  });
 
-  const theme_settings_editor = themeSettingsEl
-    ? CodeMirror.fromTextArea(themeSettingsEl, {
-        lineNumbers: true,
-        lineWrapping: true,
-        readOnly: true,
-        mode: { name: "javascript", json: true },
-      })
-    : null;
+  const theme_settings_editor = safeFromTextArea("theme-settings", {
+    lineNumbers: true,
+    lineWrapping: true,
+    readOnly: true,
+    mode: { name: "javascript", json: true },
+  });
 
   // Handle refreshing codemirror when switching tabs.
   // Better than the autorefresh approach b/c there's no flicker
