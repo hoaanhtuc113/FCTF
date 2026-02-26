@@ -6,7 +6,8 @@ import { PrivateRoute } from './components/PrivateRoute';
 import { PageLoader } from './components/PageLoader';
 import { Layout } from './components/Layout';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { useDeploymentNotification } from './hooks/useDeploymentNotification';
+// deployment notifications hook exists but is currently disabled; import when needed
+// import { useDeploymentNotification } from './hooks/useDeploymentNotification';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
@@ -23,9 +24,8 @@ const ActionLogsPage = lazy(() => import('./pages/ActionLogsPage').then(module =
 // Inner component to use theme context
 function AppRoutes() {
   const { theme } = useTheme();
-  
-  // Global deployment notification listener
-  useDeploymentNotification(theme);
+  // const { theme } = useTheme(); // theme used for notifications if enabled
+  // notifications disabled: useDeploymentNotification(theme); // uncomment to re-enable
 
   return (
     <BrowserRouter>
