@@ -41,7 +41,7 @@ const files = {
           if (jqXHR.status === 200) {
             console.log("File uploaded successfully:", data);
             form.reset();
-            resolve();
+            resolve(data);
           } else {
             console.error("Unexpected response status:", jqXHR.status);
             alert("Unexpected response status: " + jqXHR.status);

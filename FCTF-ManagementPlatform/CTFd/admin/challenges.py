@@ -17,7 +17,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, DeployedChallenge, Flags, Solves, Users, Tags, db
+from CTFd.models import Challenges, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -44,6 +44,9 @@ def challenges_listing():
     field = request.args.get("field") or "name"
     category = request.args.get("category")
     type_ = request.args.get("type")
+    difficulty = request.args.get("difficulty")
+    state_filter = request.args.get("state")
+    has_prereq = request.args.get("has_prereq")
     page = abs(request.args.get("page", 1, type=int))
     filters = []
 
@@ -76,6 +79,19 @@ def challenges_listing():
 
     if type_:
         filters.append(Challenges.type == type_)
+
+    if difficulty:
+        filters.append(Challenges.difficulty == int(difficulty))
+
+    if state_filter:
+        filters.append(Challenges.state == state_filter)
+
+    if has_prereq == "yes":
+        # requirements is a JSON column like {"prerequisites": [1, 2, ...]}
+        # Filter for challenges that have non-null, non-empty requirements
+        filters.append(Challenges.requirements.isnot(None))
+    elif has_prereq == "no":
+        filters.append(Challenges.requirements.is_(None))
 
     # Modify query based on user role
     if is_admin() or is_jury():
@@ -118,6 +134,9 @@ def challenges_listing():
         field=field,
         category=category,
         type=type_,
+        difficulty=difficulty,
+        state_filter=state_filter,
+        has_prereq=has_prereq,
         categories=categories,
         types=types,
         tag_terms=tag_terms,
@@ -179,6 +198,13 @@ def challenges_detail(challenge_id):
         "views.static_html", route=challenge_class.scripts["update"].lstrip("/")
     )
 
+    versions = (
+        ChallengeVersion.query
+        .filter_by(challenge_id=challenge.id)
+        .order_by(ChallengeVersion.version_number.desc())
+        .all()
+    )
+
     return render_template(
         "admin/challenges/challenge.html",
         update_template=update_j2,
@@ -193,7 +219,8 @@ def challenges_detail(challenge_id):
         deploys=len(deploys),
         isDeploySuccess=isDeploySuccess,
         is_detail=is_detail,
-        ctf_is_active=ctf_is_active
+        ctf_is_active=ctf_is_active,
+        versions=versions,
     )
 
 
@@ -239,6 +266,20 @@ def challenges_preview(challenge_id):
 def challenges_new():
     types = CHALLENGE_CLASSES.keys()
     return render_template("admin/challenges/new.html", types=types)
+
+
+@admin.route("/admin/challenges/<int:challenge_id>/versions/<int:version_id>")
+@admin_or_challenge_writer_only_or_jury
+def challenges_version_detail(challenge_id, version_id):
+    challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+    version = ChallengeVersion.query.filter_by(
+        id=version_id, challenge_id=challenge.id
+    ).first_or_404()
+    return render_template(
+        "admin/challenges/version_detail.html",
+        challenge=challenge,
+        version=version,
+    )
 
 
 

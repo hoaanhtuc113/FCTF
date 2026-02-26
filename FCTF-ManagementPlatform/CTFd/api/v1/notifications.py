@@ -1,6 +1,5 @@
 from typing import List
 
-from CTFd.utils.notifications import notify_to_contestant
 from flask import current_app, make_response, request
 from flask_restx import Namespace, Resource
 
@@ -150,10 +149,7 @@ class NotificantionList(Resource):
             response.data["sound"] = notif_sound
             
             current_app.events_manager.publish(data=response.data, type="notification")
-            notify_to_contestant(notif_type = response.data["type"], 
-                                 notif_sound = response.data["sound"],
-                                 notif_title= response.data["title"],
-                                 notif_message= response.data["content"])
+            # notify_to_contestant disabled
             return {"success": True, "data": response.data}
         except Exception as e:
             print("Loi roiiiii")

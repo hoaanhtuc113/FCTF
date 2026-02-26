@@ -6,10 +6,11 @@ export const API_ENDPOINTS = {
   },
   CONFIG: {
     DATE_CONFIG: '/Config/get_date_config',
+    PUBLIC: '/Config/get_public_config',
   },
   CHALLENGES: {
     BY_TOPIC: '/challenge/by-topic',
-    LIST: '/challenge/list_challenge/', 
+    LIST: '/challenge/list_challenge/',
     DETAIL: (id: string | number) => `/challenge/${id}`,
     SUBMIT: (id: string | number) => `/challenges/${id}/submit`,
     START: '/challenge/start',
