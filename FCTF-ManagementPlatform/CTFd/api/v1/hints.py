@@ -15,7 +15,6 @@ from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins
 from CTFd.utils.decorators.visibility import check_challenge_visibility
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.user import get_current_user, is_admin
-from CTFd.plugins import bypass_csrf_protection
 
 hints_namespace = Namespace("hints", description="Endpoint to retrieve Hints")
 
@@ -249,7 +248,6 @@ class Hint(Resource):
 @hints_namespace.route("/<int:challenge_id>/all")
 class HintListByChallenge(Resource):
     @during_ctf_time_only
-    @bypass_csrf_protection
     def get(self, challenge_id):
         auth_header = request.headers.get('Authorization', None)
         if not auth_header or not auth_header.startswith('Bearer '):

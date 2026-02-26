@@ -24,6 +24,7 @@ from CTFd.models import (
     Tokens,
     Users,
     DeployedChallenge,
+    ChallengeVersion,
 )
 from CTFd.models import Challenges
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
@@ -74,7 +75,6 @@ from CTFd.utils.user import (
     is_jury,
 )
 
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification, get_workflow_status ,get_workflow_name, delete_cached_files
 from CTFd.utils.uploads import delete_folder
 
@@ -723,7 +723,6 @@ def get_token_from_header():
 @challenges_namespace.route("/attempt")
 class ChallengeAttempt(Resource):
     @during_ctf_time_only
-    @bypass_csrf_protection
     def post(self):
         print("Chay vao day")
         auth_header = get_token_from_header()
@@ -1204,4 +1203,126 @@ class ChallengeDeploy(Resource):
             }
         except Exception as e:
             return {"success": False, "error": str(e)}, 500
+
+
+@challenges_namespace.route("/<challenge_id>/versions")
+class ChallengeVersionList(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, challenge_id):
+        """List all versions for a challenge"""
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        versions = (
+            ChallengeVersion.query
+            .filter_by(challenge_id=challenge.id)
+            .order_by(ChallengeVersion.version_number.desc())
+            .all()
+        )
+        data = []
+        for v in versions:
+            data.append({
+                "id": v.id,
+                "challenge_id": v.challenge_id,
+                "version_number": v.version_number,
+                "image_tag": v.image_tag,
+                "expose_port": v.expose_port,
+                "deploy_file": v.deploy_file,
+                "cpu_limit": v.cpu_limit,
+                "cpu_request": v.cpu_request,
+                "memory_limit": v.memory_limit,
+                "memory_request": v.memory_request,
+                "use_gvisor": v.use_gvisor,
+                "is_active": v.is_active,
+                "created_by": v.creator.name if v.creator else "Unknown",
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+                "notes": v.notes,
+            })
+        return {"success": True, "data": data}
+
+
+@challenges_namespace.route("/<challenge_id>/versions/<version_id>")
+class ChallengeVersionDetail(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, challenge_id, version_id):
+        """Get a specific version detail"""
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        version = ChallengeVersion.query.filter_by(
+            id=version_id, challenge_id=challenge.id
+        ).first_or_404()
+        data = {
+            "id": version.id,
+            "challenge_id": version.challenge_id,
+            "version_number": version.version_number,
+            "image_link": version.image_link,
+            "image_tag": version.image_tag,
+            "expose_port": version.expose_port,
+            "deploy_file": version.deploy_file,
+            "cpu_limit": version.cpu_limit,
+            "cpu_request": version.cpu_request,
+            "memory_limit": version.memory_limit,
+            "memory_request": version.memory_request,
+            "use_gvisor": version.use_gvisor,
+            "is_active": version.is_active,
+            "created_by": version.creator.name if version.creator else "Unknown",
+            "created_at": version.created_at.isoformat() if version.created_at else None,
+            "notes": version.notes,
+        }
+        return {"success": True, "data": data}
+
+
+@challenges_namespace.route("/<challenge_id>/versions/<version_id>/rollback")
+class ChallengeVersionRollback(Resource):
+    @admins_only
+    def post(self, challenge_id, version_id):
+        """Rollback a challenge to a specific version"""
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        version = ChallengeVersion.query.filter_by(
+            id=version_id, challenge_id=challenge.id
+        ).first_or_404()
+
+        if version.is_active:
+            return {"success": False, "message": "This version is already active"}, 400
+
+        if not version.image_link:
+            return {"success": False, "message": "This version has no image to rollback to"}, 400
+
+        try:
+            # Deactivate all versions for this challenge
+            ChallengeVersion.query.filter_by(
+                challenge_id=challenge.id
+            ).update({"is_active": False})
+
+            # Activate the target version
+            version.is_active = True
+
+            # Update challenge with the version's config
+            challenge.image_link = version.image_link
+            if version.deploy_file:
+                challenge.deploy_file = version.deploy_file
+            if version.cpu_limit is not None:
+                challenge.cpu_limit = version.cpu_limit
+            if version.cpu_request is not None:
+                challenge.cpu_request = version.cpu_request
+            if version.memory_limit is not None:
+                challenge.memory_limit = version.memory_limit
+            if version.memory_request is not None:
+                challenge.memory_request = version.memory_request
+            if version.use_gvisor is not None:
+                challenge.use_gvisor = version.use_gvisor
+
+            challenge.deploy_status = "DEPLOY_SUCCESS"
+            challenge.last_update = datetime.utcnow()
+
+            db.session.commit()
+
+            return {
+                "success": True,
+                "message": f"Challenge rolled back to version {version.version_number}",
+                "data": {
+                    "version_number": version.version_number,
+                    "image_tag": version.image_tag,
+                }
+            }
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "message": f"Rollback failed: {str(e)}"}, 500
 

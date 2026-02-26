@@ -30,14 +30,11 @@ def ctf_logo():
 
 
 def ctf_theme():
-    theme = get_config("ctf_theme")
-    return theme if theme else ""
+    return "core-beta"
 
 
 def ctf_theme_candidates():
-    yield ctf_theme()
-    if bool(get_app_config("THEME_FALLBACK")):
-        yield DEFAULT_THEME
+    yield "core-beta"
 
 
 def is_setup():

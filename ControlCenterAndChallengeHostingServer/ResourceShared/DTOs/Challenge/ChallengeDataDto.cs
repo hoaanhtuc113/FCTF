@@ -13,6 +13,8 @@ namespace ResourceShared.DTOs.Challenge
         public string description { get; set; } = "";
         public int? max_attempts { get; set; }
         public int attemps { get; set; }
+        public int? max_deploy_count { get; set; }
+        public int deployed_count { get; set; }
         public string? category { get; set; }
         public int? time_limit { get; set; }
         public bool require_deploy { get; set; }

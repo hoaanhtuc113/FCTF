@@ -95,6 +95,7 @@
 					<br>
 
 					{{ form.nonce() }}
+					<input type="hidden" name="csrf_token" value="{{ Session.nonce }}">
 
 					{{ form.submit(class="btn btn-warning btn-lg btn-block") }}
 				</form>

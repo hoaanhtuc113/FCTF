@@ -28,5 +28,6 @@ namespace ResourceShared.DTOs.Hint
     {
         public int Id { get; set; }
         public int? Cost { get; set; }
+        public bool IsUnlocked { get; set; }
     }
 }

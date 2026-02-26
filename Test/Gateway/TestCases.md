@@ -2,7 +2,7 @@
 
 Test Case ID: GW-INT-001  
 Test Case Description: [Integration] Health endpoint availability  
-Test Case Procedure: 1) `cd Test\\Gateway` 2) `k6 run --env-file .env gateway_auth_flow.js` 3) kiểm tra group health endpoint  
+Test Case Procedure: 1) `cd Test\\Gateway` 2) export env vars từ `.env` rồi chạy `k6 run gateway_auth_flow.js` 3) kiểm tra group health endpoint  
 Expected Output: `GET /healthz` trả `200`, check pass  
 Pre-condition: Gateway đang chạy tại `GATEWAY_BASE_URL`
 
@@ -38,7 +38,7 @@ Pre-condition: Upstream route trong token reachable
 
 Test Case ID: GW-INT-007  
 Test Case Description: [Integration] Token aliases `token`, `t`, `access_token`  
-Test Case Procedure: `k6 run --env-file .env gateway_integration_extended.js`, xem group token aliases  
+Test Case Procedure: export env vars từ `.env` rồi chạy `k6 run gateway_integration_extended.js`, xem group token aliases  
 Expected Output: Cả 3 alias đều redirect + set cookie thành công  
 Pre-condition: `VALID_TOKEN` hợp lệ
 
@@ -56,7 +56,7 @@ Pre-condition: Upstream có khả năng echo headers (httpbin-like)
 
 Test Case ID: GW-INT-010  
 Test Case Description: [Integration] Body nhỏ đi qua bình thường  
-Test Case Procedure: Set `SMALL_BODY_BYTES`, chạy `k6 run --env-file .env gateway_body_limits.js`  
+Test Case Procedure: Set `SMALL_BODY_BYTES`, export env vars từ `.env` rồi chạy `k6 run gateway_body_limits.js`  
 Expected Output: Body nhỏ không trả `413`, không bị `401`  
 Pre-condition: `VALID_TOKEN` hợp lệ
 
@@ -68,19 +68,19 @@ Pre-condition: Gateway bật `HTTP_MAX_BODY_BYTES`
 
 Test Case ID: GW-INT-012  
 Test Case Description: [Integration/Policy] Rate limit hoạt động khi flood  
-Test Case Procedure: Set `RATE_LIMIT_VUS`, `MIN_429_RATIO`, chạy `k6 run --env-file .env gateway_rate_limit.js`  
+Test Case Procedure: Set `RATE_LIMIT_VUS`, `MIN_429_RATIO`, export env vars từ `.env` rồi chạy `k6 run gateway_rate_limit.js`  
 Expected Output: Xuất hiện `429`, metric `gateway_rate_limit_seen` vượt ngưỡng  
 Pre-condition: Redis limiter hoạt động + policy bật
 
 Test Case ID: GW-INT-013  
 Test Case Description: [Integration] Passthrough payload exploit-like  
-Test Case Procedure: Chạy `k6 run --env-file .env gateway_passthrough_load.js`  
+Test Case Procedure: export env vars từ `.env` rồi chạy `k6 run gateway_passthrough_load.js`  
 Expected Output: Payload hợp lệ được proxy, không chặn sai khi auth đúng  
 Pre-condition: Upstream ổn định, token hợp lệ
 
 Test Case ID: GW-SEC-014  
 Test Case Description: [Security-Negative] Token fuzzing không bypass auth  
-Test Case Procedure: Chạy `k6 run --env-file .env gateway_security_negative.js`  
+Test Case Procedure: export env vars từ `.env` rồi chạy `k6 run gateway_security_negative.js`  
 Expected Output: Fuzz token luôn bị reject `401`, bypass rate = 0  
 Pre-condition: Gateway auth đang bật
 
@@ -92,7 +92,7 @@ Pre-condition: `PROTECTED_PATH` đúng
 
 Test Case ID: GW-RES-016  
 Test Case Description: [Resilience] Broken upstream trả lỗi có kiểm soát  
-Test Case Procedure: Set `BROKEN_TOKEN` hoặc `BROKEN_ROUTE`, chạy `k6 run --env-file .env gateway_resilience.js`  
+Test Case Procedure: Set `BROKEN_TOKEN` hoặc `BROKEN_ROUTE`, export env vars từ `.env` rồi chạy `k6 run gateway_resilience.js`  
 Expected Output: Proxy request trả `502`, không panic  
 Pre-condition: Có `PRIVATE_KEY` để sinh token broken route
 
@@ -110,15 +110,21 @@ Pre-condition: Hạ tầng đủ tải + upstream chạy ổn
 
 Test Case ID: GW-SPIKE-019  
 Test Case Description: [Spike] Chịu tải đột biến  
-Test Case Procedure: Set `SPIKE_WARM_VUS`, `SPIKE_PEAK_VUS`, chạy `k6 run --env-file .env gateway_spike.js`  
+Test Case Procedure: Set `SPIKE_WARM_VUS`, `SPIKE_PEAK_VUS`, export env vars từ `.env` rồi chạy `k6 run gateway_spike.js`  
 Expected Output: Hệ thống xử lý spike, không 5xx bất thường kéo dài  
 Pre-condition: Gateway + upstream được monitor trong lúc test
 
 Test Case ID: GW-SOAK-020  
 Test Case Description: [Soak] Ổn định dài hạn  
-Test Case Procedure: Set `SOAK_VUS`, `SOAK_DURATION`, chạy `k6 run --env-file .env gateway_soak.js`  
+Test Case Procedure: Set `SOAK_VUS`, `SOAK_DURATION`, export env vars từ `.env` rồi chạy `k6 run gateway_soak.js`  
 Expected Output: Không suy giảm rõ rệt, giữ threshold p95/p99/error  
 Pre-condition: Môi trường test ổn định, không deploy trong lúc soak
+
+Test Case ID: GW-RACE-026  
+Test Case Description: [Race/Load] Kiểm tra burst concurrent (race-style) dưới nền tải cao  
+Test Case Procedure: Set `RACE_TOTAL_DURATION_SECONDS`, `RACE_BACKGROUND_RPS`, `RACE_BURST_VUS`, `RACE_BURST_REQUESTS`. Nếu muốn mô phỏng nhiều team, set thêm `RACE_TOKENS_CSV` (nhiều token, phân tách bằng dấu phẩy) hoặc `RACE_TOKENS_FILE` (mỗi dòng 1 token, dùng khi chạy bằng runner bash). Export env vars từ `.env` rồi chạy `k6 run gateway_race_under_load.js` (hoặc `./run-gateway-tests.sh --type race`)  
+Expected Output: Không có 5xx bất thường từ gateway; burst không bị throttle 100%; tỷ lệ 429 trong burst không vượt `MAX_RACE_429_RATIO` (default 0.5)  
+Pre-condition: Có `VALID_TOKEN` hợp lệ hoặc `RACE_TOKENS_CSV` (multi-team); upstream route ổn định; limiter Redis đang chạy
 
 Test Case ID: GW-TCP-021  
 Test Case Description: [TCP Integration] Empty/invalid token bị từ chối  

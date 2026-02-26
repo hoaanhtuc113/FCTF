@@ -1,38 +1,33 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
+using ContestantBE.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.Logger;
-using System.Security.Claims;
 
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
 [Authorize]
-public class FilesController : ControllerBase
+public class FilesController : BaseController
 {
     private readonly IFileService _fileService;
     private readonly AppLogger _userBehaviorLogger;
 
     public FilesController(
+        IUserContext userContext,
         IFileService fileService,
-        AppLogger userBehaviorLogger)
+        AppLogger userBehaviorLogger) : base(userContext)
     {
         _fileService = fileService;
         _userBehaviorLogger = userBehaviorLogger;
     }
 
     [HttpGet("")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     [DuringCtfTimeOnly]
     public async Task<IActionResult> GetFile([FromQuery] string path, [FromQuery] string token)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var teamId = int.Parse(User.FindFirstValue("teamId")!);
+        var userId = UserContext.UserId;
+        var teamId = UserContext.TeamId;
         _userBehaviorLogger.Log("GET_FILE", userId, teamId, new { file_path = path });
 
         if (string.IsNullOrWhiteSpace(path))

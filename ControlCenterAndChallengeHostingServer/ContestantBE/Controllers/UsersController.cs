@@ -1,23 +1,23 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using ContestantBE.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.User;
 using ResourceShared.Logger;
 using ResourceShared.Models;
-using System.Security.Claims;
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
 [Authorize]
-public class UsersController : ControllerBase
+public class UsersController : BaseController
 {
 
     private readonly AppDbContext _context;
     private readonly AppLogger _userBehaviorLogger;
+
     public UsersController(
+        IUserContext userContext,
         AppDbContext context,
-        AppLogger userBehaviorLogger)
+        AppLogger userBehaviorLogger) : base(userContext)
     {
         _context = context;
         _userBehaviorLogger = userBehaviorLogger;
@@ -26,11 +26,11 @@ public class UsersController : ControllerBase
     [HttpGet("profile")]
     public async Task<IActionResult> GetProfile()
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        var userId = UserContext.UserId;
         var user = await _context.Users
                          .Include(u => u.Team)
                          .FirstOrDefaultAsync(u => u.Id == userId);
-        _userBehaviorLogger.Log("GET_PROFILE", userId, int.Parse(User.FindFirstValue("teamId")), null);
+        _userBehaviorLogger.Log("GET_PROFILE", userId, UserContext.TeamId, null);
         if (user == null || user is not User currentUser)
         {
             return NotFound(new
@@ -42,7 +42,6 @@ public class UsersController : ControllerBase
                 }
             });
         }
-
 
         if ((currentUser.Banned.GetValueOrDefault() || currentUser.Hidden.GetValueOrDefault()))
         {
@@ -73,6 +72,5 @@ public class UsersController : ControllerBase
             success = true,
             data = response
         });
-
     }
 }

@@ -135,6 +135,8 @@ class Challenges(db.Model):
     memory_limit = db.Column(db.Integer, nullable=True)
     memory_request = db.Column(db.Integer, nullable=True)
     use_gvisor = db.Column(db.Boolean, nullable=True)
+    max_deploy_count = db.Column(db.Integer, default=0, nullable=True)
+    difficulty = db.Column(db.Integer, nullable=True, default=None)
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")
@@ -246,6 +248,82 @@ class DeployedChallenge(db.Model):
     challenge = db.relationship(
         "Challenges", backref=db.backref("deploy_histories", lazy=True)
     )
+
+
+class ChallengeVersion(db.Model):
+    __tablename__ = "challenge_versions"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
+    version_number = db.Column(db.Integer, nullable=False, default=1)
+    image_link = db.Column(db.Text, nullable=True)
+    deploy_file = db.Column(db.String(256), nullable=True)
+    cpu_limit = db.Column(db.Integer, nullable=True)
+    cpu_request = db.Column(db.Integer, nullable=True)
+    memory_limit = db.Column(db.Integer, nullable=True)
+    memory_request = db.Column(db.Integer, nullable=True)
+    use_gvisor = db.Column(db.Boolean, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+    challenge = db.relationship("Challenges", backref=db.backref("versions", lazy="dynamic", order_by="ChallengeVersion.version_number.desc()"))
+    creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeVersion, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeVersion challenge_id={} version={}>".format(
+            self.challenge_id, self.version_number
+        )
+
+    @property
+    def image_tag(self):
+        """Extract the image tag from the image_link JSON"""
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                link = obj.get("imageLink", "")
+                return link.split(":")[-1] if link else ""
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
+    @property
+    def expose_port(self):
+        """Extract the exposed port from the image_link JSON"""
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                return obj.get("exposedPort", "")
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
+
+class ChallengeStartTracking(db.Model):
+    __tablename__ = "challenge_start_tracking"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")
+    
+    def __init__(self, *args, **kwargs):
+        super(ChallengeStartTracking, self).__init__(**kwargs)
+    
+    def __repr__(self):
+        return "<ChallengeStartTracking user_id={} team_id={} challenge_id={}>".format(
+            self.user_id, self.team_id, self.challenge_id
+        )
 
 
 class Awards(db.Model):

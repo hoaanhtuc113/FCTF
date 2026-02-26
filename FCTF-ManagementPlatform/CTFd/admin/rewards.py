@@ -1,7 +1,6 @@
 from flask import jsonify, request, render_template
 
 from CTFd.admin import admin
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils.rewards.query_engine import QuerySpecError, execute_query, validate_query_spec
 from CTFd.utils.rewards.reward_templates import (
@@ -19,7 +18,6 @@ from CTFd.utils.rewards.multi_criteria import (
 
 
 @admin.route("/admin/rewards/query", methods=["POST"])
-@bypass_csrf_protection
 @admin_or_jury
 def rewards_query():
     """Legacy endpoint for raw query execution."""
@@ -33,7 +31,6 @@ def rewards_query():
 
 
 @admin.route("/admin/rewards/templates", methods=["GET"])
-@bypass_csrf_protection
 @admin_or_jury
 def list_reward_templates():
     """List all available reward templates."""
@@ -59,7 +56,6 @@ def list_reward_templates():
 
 
 @admin.route("/admin/rewards/templates/<template_id>", methods=["GET"])
-@bypass_csrf_protection
 @admin_or_jury
 def get_reward_template(template_id):
     """Get details of a specific reward template."""
@@ -83,7 +79,6 @@ def get_reward_template(template_id):
 
 
 @admin.route("/admin/rewards/preview", methods=["POST"])
-@bypass_csrf_protection
 @admin_or_jury
 def preview_reward():
     """Preview results for a reward template with custom parameters."""
@@ -119,7 +114,6 @@ def preview_reward():
 
 
 @admin.route("/admin/rewards/multi-criteria/presets", methods=["GET"])
-@bypass_csrf_protection
 @admin_or_jury
 def list_multi_criteria():
     """List all multi-criteria presets."""
@@ -131,7 +125,6 @@ def list_multi_criteria():
 
 
 @admin.route("/admin/rewards/multi-criteria/preview", methods=["POST"])
-@bypass_csrf_protection
 @admin_or_jury
 def preview_multi_criteria():
     """Preview results for a multi-criteria query."""

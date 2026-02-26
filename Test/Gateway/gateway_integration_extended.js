@@ -9,10 +9,12 @@ import {
   isUpstreamSuccessStatus,
 } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
+
 const integrationUnexpected = new Counter('gateway_integration_unexpected');
 
 const validToken = () => requireEnv('VALID_TOKEN');
-const protectedPath = __ENV.PROTECTED_PATH || '/anything/fctf-gateway';
+const protectedPath = __ENV.PROTECTED_PATH || '/';
 const authCookieName = __ENV.AUTH_COOKIE_NAME || 'FCTF_Auth_Token';
 const strictEcho = (__ENV.STRICT_ECHO || 'false').toLowerCase() === 'true';
 
@@ -33,12 +35,23 @@ function assertOrCount(result) {
 }
 
 function validateBootstrap(bootstrap, label) {
+  const hasParam = (location, name) => {
+    if (!location) {
+      return false;
+    }
+    // Avoid naive substring matches (e.g. gw_test=1 contains 't=').
+    // Match only actual query param boundaries.
+    const s = String(location);
+    const re = new RegExp(`(?:\\?|&)${name}=`);
+    return re.test(s);
+  };
+
   const ok = check(bootstrap, {
     [`${label} returns 302`]: (s) => s.bootstrapStatus === 302,
     [`${label} sets auth cookie`]: (s) => !!s.cookieHeader,
-    [`${label} redirect strips token`]: (s) => s.location && !s.location.includes('token='),
-    [`${label} redirect strips access_token`]: (s) => s.location && !s.location.includes('access_token='),
-    [`${label} redirect strips t`]: (s) => s.location && !s.location.includes('t='),
+    [`${label} redirect strips token`]: (s) => s.location && !hasParam(s.location, 'token'),
+    [`${label} redirect strips access_token`]: (s) => s.location && !hasParam(s.location, 'access_token'),
+    [`${label} redirect strips t`]: (s) => s.location && !hasParam(s.location, 't'),
   });
   assertOrCount(ok);
 }

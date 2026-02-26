@@ -3,7 +3,7 @@
     <div class="form-group">
         <label class="clean-checkbox-label">
             <input type="checkbox" name="require_deploy" id="setup_docker" {% if challenge.require_deploy %}checked{% endif %} >
-            <span class="ml-2">Setup Docker</span>
+            <span class="ml-2">Setup Deploy</span>
         </label>
     </div>
     <div class="form-group" id="expose_port_container">
@@ -60,33 +60,38 @@
         <option value="false" {% if not challenge.use_gvisor %}selected{% endif %}>False</option>
       </select>
     </div>
-    <label class="clean-label">Files template:</label>
-    <ul id="template-list" class="clean-file-list">
-      {% for filename in template_files %}
-      <li class="clean-file-item">
-        <a href="{{ url_for('admin.download_template', filename=filename) }}" download class="clean-file-link">
-          <i class="fas fa-file-archive"></i> {{ filename }}
-        </a>
-      </li>
-      {% else %}
-      <li class="text-muted">No templates available.</li>
-      {% endfor %}
-    </ul>
+    <div class="form-group deploy-resource-field">
+      <label class="clean-label">
+        Max Deploy Count <br>
+        <small class="form-text text-muted">Maximum number of times a contestant can start/deploy this challenge. Set 0 for unlimited.</small>
+      </label>
+      <input type="number" class="form-control clean-form-control" name="max_deploy_count" id="max_deploy_count"
+        min="0" value="{{ challenge.max_deploy_count if challenge.max_deploy_count is not none else 0 }}">
+    </div>
     <label class="clean-label">
+      {% if image_link_display %}
+        <div class="form-group">
+          <label class="clean-label">
+            Image name <br>
+            <small class="form-text text-muted">Current deployed image</small>
+          </label>
+          <input type="text" class="form-control clean-form-control" value="{{ image_link_display }}" disabled readonly>
+        </div>
+      {% else %}
+        <div class="form-group">
+          <label class="clean-label">
+            Image name <br>
+            <small class="form-text text-muted">Current deployed image</small>
+          </label>
+          <input type="text" class="form-control clean-form-control" value="No image deployed" disabled readonly>
+        </div>
+      {% endif %}
+
       {% if challenge.deploy_status == "DEPLOY_SUCCESS" %}
-          {% if image_link_display %}
-            <div class="form-group">
-              <label class="clean-label">
-                Image name <br>
-                <small class="form-text text-muted">Current deployed image</small>
-              </label>
-              <input type="text" class="form-control clean-form-control" value="{{ image_link_display }}" disabled readonly>
-            </div>
-          {% endif %}
-          Change deploy file:
+        Change deploy file:
         <small class="form-text text-muted">Upload a new deploy file</small>
       {% else %}
-        Files:
+        Deploy Files:
         <small class="form-text text-muted">Files distributed along with your challenge</small>
       {% endif %}
     </label>
@@ -249,6 +254,7 @@
     const memoryLimitInput = document.getElementById("memory_limit");
     const memoryRequestInput = document.getElementById("memory_request");
     const useGvisorInput = document.getElementById("use_gvisor");
+    const maxDeployCountInput = document.getElementById("max_deploy_count");
     const defaultCpuLimit = 100;
     const defaultCpuRequest = 10;
     const defaultMemoryLimit = 128;
@@ -388,7 +394,8 @@
               use_gvisor: setupDockerCheckbox.checked ? useGvisor : null,
               expose_port: setupDockerCheckbox.checked
                 ? parseInt(exposePortInput?.value || "0", 10)
-                : null
+                : null,
+              max_deploy_count: parseInt(maxDeployCountInput?.value || "0", 10)
             };
 
             const updateResponse = await CTFd.fetch(`/api/v1/challenges/${CHALLENGE_ID}`, {

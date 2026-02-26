@@ -249,6 +249,7 @@
 				{% else %}
 					<h3>Write Your Response</h3>
 					<form action="{{ url_for('admin.send_response') }}" method="post">
+						<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 						<div class="form-group">
 							<label for="response">Response:</label>
 							<textarea id="response" name="response" class="form-control" rows="6" required placeholder="Enter your response to this ticket..."></textarea>

@@ -1,12 +1,9 @@
 ﻿using DeploymentCenter.Middlewares;
 using DeploymentCenter.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using ResourceShared.DTOs.Auth;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
-using Sprache;
 using System.Net;
 
 namespace DeploymentCenter.Controllers;

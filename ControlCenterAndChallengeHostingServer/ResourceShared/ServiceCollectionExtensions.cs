@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
-using ResourceShared.Configs;
 using ResourceShared.Logger;
 using ResourceShared.Services;
 using ResourceShared.Utils;
@@ -18,7 +17,7 @@ namespace ResourceShared
             services.AddSingleton<IConnectionMultiplexer>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger<IConnectionMultiplexer>>();
-                var options = ConfigurationOptions.Parse(RedisConfigs.ConnectionString);
+                var options = ConfigurationOptions.Parse(SharedConfig.REDIS_CONNECTION_STRING);
 
                 options.AbortOnConnectFail = false;
                 options.ConnectRetry = 3;

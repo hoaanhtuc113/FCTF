@@ -3,6 +3,8 @@ import { check, group } from 'k6';
 import { Counter, Rate } from 'k6/metrics';
 import { buildGatewayUrl } from './gateway_helpers.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 499 }));
+
 const securityUnexpected = new Counter('gateway_security_unexpected');
 const authBypassRate = new Rate('gateway_auth_bypass_rate');
 

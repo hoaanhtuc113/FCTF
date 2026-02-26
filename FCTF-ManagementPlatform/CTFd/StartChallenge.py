@@ -13,7 +13,6 @@ from CTFd.models import (
     Users,
     db,
 )
-from CTFd.plugins import bypass_csrf_protection
 from CTFd.constants.envvars import (
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
@@ -53,49 +52,7 @@ redis_client = redis.StrictRedis(
     decode_responses=True
 )
    
-@challenge.route("/api/challenge/start", methods=["POST"])
-@during_ctf_time_only
-@bypass_csrf_protection
-def start_challenge():
-    data = request.get_json() or request.form.to_dict()
-    challenge_id = data.get("challenge_id")
-    user_id = session["id"]
-
-    if user_id is None:
-        generatedToken = get_token_from_header()
-        print("Generated Token:", generatedToken)
-        token = Tokens.query.filter_by(value=generatedToken).first()
-        if not token:
-            return jsonify({"error": "Token not found"}), 404
-        else:
-            user_id = token.user_id
-
-    if not user_id:
-        return jsonify({"error": "Please login"}), 400
-
-    if not challenge_id:
-        return jsonify({"error": "ChallengeId is required"}), 400
-
-    user = Users.query.filter_by(id=user_id).first()
-    if not user:
-        return jsonify({"error": "User Not found"}), 404
-
-    challenge = Challenges.query.filter_by(id=challenge_id).first()
-    # lấy ra team_id theo user_id
-    team_id, cache_key = get_team_id_and_cache_key(user, challenge_id)
-    team = Teams.query.filter_by(id=team_id).first()
-    if not team_id or not challenge:
-        return jsonify({"error": "Invalid team or challenge"}), 400
-
-    print("User {} from team {} is starting challenge {}".format(user_id, team_id, challenge_id))
-    if challenge.require_deploy:
-        # Chuẩn bị payload và headers
-        payload, headers, api_start = prepare_start_challenge_payload(challenge, user_id, team_id)
-
-        return challenge_start(payload, headers, api_start)
-
 @challenge.route("/api/challenge/status-check/<challenge_id>", methods=["GET"])
-@bypass_csrf_protection
 def check_challenge_status(challenge_id):
     if not challenge_id or challenge_id == 'undefined':
         return jsonify({"error": "ChallengeId is required"}), 400
@@ -103,7 +60,6 @@ def check_challenge_status(challenge_id):
     return start_challenge_status_checking(challenge_id, -1)  # -1 for preview mode
     
 @challenge.route("/api/challenge/stop-by-admin", methods=["POST"])
-@bypass_csrf_protection
 def stop_challenge_by_admin():
     data = request.get_json() or request.form.to_dict()
     team_id = data.get("team_id")
@@ -158,7 +114,6 @@ def stop_challenge_by_admin():
 
 
 @challenge.route("/api/challenge/stop-bulk", methods=["POST"])
-@bypass_csrf_protection
 def stop_challenge_bulk_by_admin():
     data = request.get_json(silent=True) or {}
     items = data.get("items")
@@ -260,7 +215,6 @@ def stop_challenge_bulk_by_admin():
     }), 200
 
 @challenge.route("/api/challenge/stop-all", methods=["DELETE"])
-@bypass_csrf_protection
 def stop_all_challenges():
     user_id = session["id"]
     print("useriddddd" +str(user_id))
@@ -284,7 +238,6 @@ def stop_all_challenges():
 
 
 @challenge.route("/api/challenge/get-all-instance", methods=["POST", "GET"])
-@bypass_csrf_protection
 def get_all_instance():
     try:
         # Kiểm tra quyền truy cập của người dùng
@@ -301,6 +254,9 @@ def get_all_instance():
         # Get filter and search parameters
         team_filter = request.args.get("team_name", "").strip().lower()
         challenge_search = request.args.get("challenge_name", "").strip().lower()
+        user_filter = request.args.get("user_name", "").strip().lower()
+        category_filter = request.args.get("challenge_category", "").strip().lower()
+        status_filter = request.args.get("status", "").strip().lower()
         
         pattern = "deploy_challenge_*_*"
         cursor = 0
@@ -361,36 +317,34 @@ def get_all_instance():
                 else None
             )
             
+            challenge_category = challenge.category if challenge else "Unknown"
+
+            instance_data = {
+                "challenge_id": challenge_id_key,
+                "team_id": team_id,
+                "challenge_name": challenge.name if challenge else "Unknown Challenge",
+                "challenge_category": challenge_category,
+                "team_name": team_name,
+                "user_name": user.name if user else "Unknown User",
+                "user_id": value.get("user_id"),
+                "challenge_url": value.get("challenge_url"),
+                "status": value.get("status", "Unknown"),
+                "time_finished": finished_time,  # dạng ISO 8601
+                "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
+            }
+
             if team_id == -1:
-                special_cases.append({
-                    "challenge_id": challenge_id_key,
-                    "team_id": team_id,
-                    "challenge_name": challenge.name if challenge else "Unknown Challenge",
-                    "team_name": team_name,
-                    "user_name": user.name if user else "Unknown User",
-                    "user_id": value.get("user_id"),
-                    "challenge_url": value.get("challenge_url"),
-                    "time_finished": finished_time,  # dạng ISO 8601
-                    "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
-                })
+                special_cases.append(instance_data)
             else:
-                normal_cases.append({
-                    "challenge_id": challenge_id_key,
-                    "challenge_name": challenge.name if challenge else "Unknown Challenge",
-                    "team_name": team_name,
-                    "user_name": user.name if user else "Unknown User",
-                    "team_id": team_id,
-                    "user_id": value.get("user_id"),
-                    "challenge_url": value.get("challenge_url"),
-                    "time_finished": finished_time,  # dạng ISO 8601
-                    "time_finished_timestamp": raw_timestamp if raw_timestamp else 0
-                })
+                normal_cases.append(instance_data)
 
         # Combine all data
         all_data = special_cases + normal_cases
         
-        # Extract unique team names for filtering
+        # Extract unique values for filter dropdowns (before applying filters)
         unique_teams = sorted(list(set(item.get("team_name", "") for item in all_data if item.get("team_name"))))
+        unique_users = sorted(list(set(item.get("user_name", "") for item in all_data if item.get("user_name"))))
+        unique_categories = sorted(list(set(item.get("challenge_category", "") for item in all_data if item.get("challenge_category"))))
         
         # Apply filters
         if team_filter:
@@ -398,6 +352,15 @@ def get_all_instance():
         
         if challenge_search:
             all_data = [item for item in all_data if challenge_search in item.get("challenge_name", "").lower()]
+        
+        if user_filter:
+            all_data = [item for item in all_data if user_filter in item.get("user_name", "").lower()]
+        
+        if category_filter:
+            all_data = [item for item in all_data if category_filter in item.get("challenge_category", "").lower()]
+        
+        if status_filter:
+            all_data = [item for item in all_data if status_filter in item.get("status", "").lower()]
         
         # Sort data
         reverse = (sort_order == "desc")
@@ -427,6 +390,8 @@ def get_all_instance():
             "success": True,
             "data": paginated_data,
             "teams": unique_teams,
+            "users": unique_users,
+            "categories": unique_categories,
             "pagination": {
                 "page": page,
                 "per_page": per_page,
@@ -444,43 +409,3 @@ def get_all_instance():
         }), 500
 
 
-@challenge.route("/api/attempt/check_cache", methods=["POST"])
-@bypass_csrf_protection
-def check_user_attempt_cache():
-    data = request.get_json() or request.form.to_dict()
-    if data == request.form.to_dict():
-        challenge_id = data.get("challenge_id")
-        generatedToken = data.get("generatedToken")
-    else:
-        challenge_id = data.get("ChallengeId")
-        generatedToken = data.get("generatedToken")
-    if not challenge_id or not generatedToken:
-
-        return jsonify({"error": "Missing challengeId or generated Token"}), 404
-    challenge = Challenges.query.filter_by(id=challenge_id).first()
-    if not challenge:
-        return jsonify({"error": "Challenge not found"})
-
-    token = Tokens.query.filter_by(value=generatedToken).first()
-    if token is None:
-        return jsonify({"error": "Token not found"}), 404
-
-    user = Users.query.filter_by(id=token.user_id).first()
-    if user is None:
-        return jsonify({"error": "User not found"}), 404
-
-    team_id = user.team_id
-    cache_key = generate_cache_attempt_key(challenge_id, team_id)
-    exist = redis_client.exists(cache_key)
-    if exist:
-        return (
-            jsonify(
-                {
-                    "status": "Submitted",
-                    "message": "This challenge is solved by you or your teamate",
-                }
-            ),
-            200,
-        )
-    else:
-        return jsonify({"status": "Not Submitted"}), 404

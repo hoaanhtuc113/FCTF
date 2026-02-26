@@ -8,7 +8,7 @@ import weakref
 from distutils.version import StrictVersion
 from flask_caching import Cache
 import jinja2
-from flask import Flask, Request, request
+from flask import Flask, Request, abort, redirect, request, url_for
 from flask_babel import Babel
 from flask_migrate import upgrade
 from jinja2 import FileSystemLoader
@@ -32,7 +32,7 @@ from CTFd.utils.initialization import (
 from CTFd.utils.migrations import create_database, migrations, stamp_latest_revision
 from CTFd.utils.sessions import CachingSessionInterface
 from CTFd.utils.updates import update_check
-from CTFd.utils.user import get_locale
+from CTFd.utils.user import is_admin
 
 __version__ = "3.7.3"
 __channel__ = "oss"
@@ -84,8 +84,7 @@ class SandboxedBaseEnvironment(SandboxedEnvironment):
         # Add theme to the LRUCache cache key
         cache_name = name
         if name.startswith("admin/") is False:
-            theme = str(utils.get_config("ctf_theme"))
-            cache_name = theme + "/" + name
+            cache_name = "core-beta/" + name
 
         # Rest of this code roughly copied from Jinja
         # https://github.com/pallets/jinja/blob/b08cd4bc64bb980df86ed2876978ae5735572280/src/jinja2/environment.py#L956-L973
@@ -135,7 +134,7 @@ class ThemeLoader(FileSystemLoader):
             if self.theme_name != ADMIN_THEME:
                 raise jinja2.TemplateNotFound(template)
             template = template[len(self._ADMIN_THEME_PREFIX) :]
-        theme_name = self.theme_name or str(utils.get_config("ctf_theme"))
+        theme_name = self.theme_name or "core-beta"
         template = safe_join(theme_name, "templates", template)
         return super(ThemeLoader, self).get_source(environment, template)
 
@@ -234,8 +233,8 @@ def create_app(config="CTFd.config.Config"):
         # Register Flask-Migrate
         migrations.init_app(app, db)
 
+        # Localization removed – always use English (no locale selector)
         babel = Babel()
-        babel.locale_selector_func = get_locale
         babel.init_app(app)
 
         # Alembic sqlite support is lacking so we should just create_all anyway
@@ -290,8 +289,8 @@ def create_app(config="CTFd.config.Config"):
         if not version:
             utils.set_config("ctf_version", __version__)
 
-        if not utils.get_config("ctf_theme"):
-            utils.set_config("ctf_theme", "core-beta")
+        # Theme is always core-beta
+        utils.set_config("ctf_theme", "core-beta")
 
         update_check(force=True)
 
@@ -303,39 +302,21 @@ def create_app(config="CTFd.config.Config"):
         from CTFd.admin import admin
         from CTFd.api import api
         from CTFd.auth import auth
-        from CTFd.challenges import challenges
         from CTFd.errors import render_error
         from CTFd.events import events
-        from CTFd.scoreboard import scoreboard
-        from CTFd.share import social
-        from CTFd.teams import teams
-        from CTFd.users import users
         from CTFd.views import views
         from CTFd.StartChallenge import challenge
-        from CTFd.SendTicket import sendticket
         from CTFd.DeployHistory import challengeHistory
-        from CTFd.loginApi import LoginUser
         from CTFd.ManageInstances import ManageInstance
-        from CTFd.getTimeFromConfig import get_date_config
-        from CTFd.registrationConfig import get_registration_config
 
         app.register_blueprint(views)
-        app.register_blueprint(teams)
-        app.register_blueprint(users)
-        app.register_blueprint(challenges)
-        app.register_blueprint(scoreboard)
         app.register_blueprint(auth)
         app.register_blueprint(api)
         app.register_blueprint(events)
-        app.register_blueprint(social)
         app.register_blueprint(challenge)
-        app.register_blueprint(sendticket)
         app.register_blueprint(challengeHistory)
-        app.register_blueprint(LoginUser)
         app.register_blueprint(admin)
         app.register_blueprint(ManageInstance)
-        app.register_blueprint(get_date_config)
-        app.register_blueprint(get_registration_config)
 
         for code in {403, 404, 500, 502}:
             app.register_error_handler(code, render_error)
@@ -344,6 +325,100 @@ def create_app(config="CTFd.config.Config"):
         init_events(app)
         init_plugins(app)
         init_cli(app)
+
+        @app.before_request
+        def _restrict_swagger_to_admins():
+            swagger_ui_endpoint = app.config.get("SWAGGER_UI_ENDPOINT")
+            if not swagger_ui_endpoint:
+                return
+
+            path = request.path or ""
+
+            if not swagger_ui_endpoint.startswith("/"):
+                swagger_ui_endpoint = f"/{swagger_ui_endpoint}"
+
+            if swagger_ui_endpoint == "/":
+                swagger_ui_paths = {"/api/v1/", "/api/v1"}
+                is_swagger_ui = path in swagger_ui_paths
+            else:
+                swagger_ui_base = f"/api/v1{swagger_ui_endpoint}"
+                is_swagger_ui = path == swagger_ui_base or path == f"{swagger_ui_base}/"
+
+            is_swagger_spec = path == "/api/v1/swagger.json"
+            is_swagger_asset = path.startswith("/swaggerui/")
+
+            if not (is_swagger_ui or is_swagger_spec or is_swagger_asset):
+                return
+
+            if is_admin():
+                return
+
+            # Swagger UI: redirect browsers to login, block JSON requests
+            if is_swagger_ui:
+                if request.content_type == "application/json":
+                    abort(403)
+                return redirect(url_for("auth.login", next=request.full_path))
+
+            # Swagger spec + assets: always block for non-admins
+            abort(403)
+
+        @app.before_request
+        def _restrict_non_staff_access():
+            """This deployment is an admin/staff UI.
+
+            Contestants have a separate portal/backend, so we restrict *all* non-staff
+            access (including legacy /api/* endpoints) to reduce attack surface.
+            """
+            from CTFd.utils.user import authed, is_challenge_writer, is_jury
+
+            path = request.path or ""
+
+            # Always allow static assets
+            if (
+                path.startswith("/themes/")
+                or path.startswith("/static/")
+                or path.startswith("/favicon")
+                or path == "/robots.txt"
+                or path == "/healthcheck"
+            ):
+                return
+            # Allow access to uploaded files (logo, banners, etc.) so public users
+            # can view them without logging in.  The `views.files` handler itself
+            # enforces per-file challenge visibility.
+            if path.startswith("/files"):
+                return
+
+            # Landing page is public for unauthenticated users
+            if path == "/":
+                return
+
+            # Allow auth endpoints necessary for staff login flows
+            if (
+                path.startswith("/login")
+                or path.startswith("/logout")
+                or path.startswith("/oauth")
+                or path.startswith("/redirect")
+                or path.startswith("/reset_password")
+                or path.startswith("/confirm")
+            ):
+                return
+
+            # Always allow /setup – the view itself redirects away when already configured
+            if path.startswith("/setup"):
+                return
+
+            # For everything else, require staff roles
+            if is_admin() or is_challenge_writer() or is_jury():
+                return
+
+            # Block anonymous + logged-in non-staff
+            if authed():
+                abort(403)
+
+            # Browsers get redirected to login, API clients get 403
+            if path.startswith("/api") or request.content_type == "application/json":
+                abort(403)
+            return redirect(url_for("auth.login", next=request.full_path))
 
         return app
 

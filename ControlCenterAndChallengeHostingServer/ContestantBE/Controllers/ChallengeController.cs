@@ -1,4 +1,5 @@
 ﻿using ContestantBE.Attribute;
+using ContestantBE.Interfaces;
 using ContestantBE.Services;
 using ContestantBE.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -10,44 +11,38 @@ using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using System.Net;
-using System.Security.Claims;
 using static ResourceShared.Enums;
 
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
 [Authorize]
-public class ChallengeController : ControllerBase
+public class ChallengeController : BaseController
 {
-
     private readonly AppDbContext _context;
-    private readonly CtfTimeHelper _ctfTimeHelper;
     private readonly ConfigHelper _configHelper;
     private readonly UserHelper _userHelper;
-    private readonly IChallengeServices _challengeServices;
+    private readonly IChallengeService _challengeServices;
     private readonly RedisHelper _redisHelper;
     private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
 
     public ChallengeController(
+        IUserContext userContext,
         AppDbContext context,
-        CtfTimeHelper ctfTimeHelper,
         ConfigHelper configHelper,
         UserHelper userHelper,
-        IChallengeServices challengeServices,
+        IChallengeService challengeService,
         RedisHelper redisHelper,
         RedisLockHelper redisLockHelper,
-        AppLogger userBehavior)
+        AppLogger userBehaviorLogger) : base(userContext)
     {
         _context = context;
-        _ctfTimeHelper = ctfTimeHelper;
         _configHelper = configHelper;
         _userHelper = userHelper;
-        _challengeServices = challengeServices;
+        _challengeServices = challengeService;
         _redisHelper = redisHelper;
         _redisLockHelper = redisLockHelper;
-        _userBehaviorLogger = userBehavior;
+        _userBehaviorLogger = userBehaviorLogger;
     }
 
     private static bool IsDuplicateKey(DbUpdateException ex)
@@ -95,11 +90,11 @@ public class ChallengeController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = UserContext.UserId;
             var user = await _context.Users
                 .Include(u => u.Team)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
+                .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
                 return NotFound(new { error = "User not found" });
@@ -154,11 +149,11 @@ public class ChallengeController : ControllerBase
     [HttpGet("by-topic")]
     public async Task<IActionResult> GetByTopic()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = UserContext.UserId;
         var user = await _context.Users
             .Include(u => u.Team)
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
+            .FirstOrDefaultAsync(u => u.Id == userId);
 
         if (user == null)
             return NotFound(new { error = "User not found" });
@@ -186,9 +181,9 @@ public class ChallengeController : ControllerBase
     [HttpGet("list_challenge/{category_name}")]
     public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var teamId = int.Parse(User.FindFirstValue("teamId")!);
-        _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", int.Parse(userId ?? "0"), teamId, new { category = category_name });
+        var userId = UserContext.UserId;
+        var teamId = UserContext.TeamId;
+        _userBehaviorLogger.Log("VIEW_CHALLENGES_BY_CATEGORY", userId, teamId, new { category = category_name });
         var challenges = await _challengeServices.GetChallengeByCategories(category_name, teamId);
         return Ok(new
         {
@@ -202,10 +197,10 @@ public class ChallengeController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var teamId = int.Parse(User.FindFirstValue("teamId")!);
+            var userId = UserContext.UserId;
+            var teamId = UserContext.TeamId;
 
-            _userBehaviorLogger.Log("VIEW_TEAM_CHALLENGE_INSTANCES", int.Parse(userId ?? "0"), teamId, null);
+            _userBehaviorLogger.Log("VIEW_TEAM_CHALLENGE_INSTANCES", userId, teamId, null);
             var instances = await _challengeServices.GetAllInstances(teamId);
             return Ok(new
             {
@@ -227,11 +222,11 @@ public class ChallengeController : ControllerBase
     [HttpPost("attempt")]
     public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = UserContext.UserId;
         var user = await _context.Users
             .Include(u => u.Team)
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
+            .FirstOrDefaultAsync(u => u.Id == userId);
 
         if (request.ChallengeId == 0)
             return BadRequest(new { error = "ChallengeId is required" });
@@ -661,12 +656,13 @@ public class ChallengeController : ControllerBase
     public async Task<IActionResult> StartChallenge([FromBody] ChallengeStartStopReqDTO challengeStartReq)
     {
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = UserContext.UserId;
         var user = await _context.Users
             .AsNoTracking()
             .Include(u => u.Team)
-            .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
-        if (user.Team == null || user.TeamId == null) return NotFound(new { error = "Team not found" });
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user?.Team == null || user.TeamId == null)
+            return NotFound(new { error = "Team not found" });
 
         _userBehaviorLogger.Log("START_CHALLENGE", user.Id, user.TeamId, new { challengeId = challengeStartReq.challengeId });
         var challenge = await _context.Challenges
@@ -676,7 +672,6 @@ public class ChallengeController : ControllerBase
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
         if (challenge.State == ChallengeState.HIDDEN) return BadRequest(new { error = "This challenge is not available for deployment" });
-
 
         // Check prerequisites from Requirements JSON
         if (!string.IsNullOrEmpty(challenge.Requirements))
@@ -720,13 +715,37 @@ public class ChallengeController : ControllerBase
             }
         }
 
-        var submission = await _context.Submissions
-            .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId)
-            .AsNoTracking()
-            .ToArrayAsync();
-        if (challenge.MaxAttempts > 0 && submission.Length >= challenge.MaxAttempts)
+        if (challenge.MaxAttempts.HasValue && challenge.MaxAttempts.Value > 0)
         {
-            return BadRequest(new { error = "Your team has reached the maximum number of attempts for this challenge. You cannot start this challenge." });
+            var incorrectSubmissionCount = await _context.Submissions
+                .AsNoTracking()
+                .Where(s => s.ChallengeId == challenge.Id
+                    && s.TeamId == user.TeamId
+                    && s.Type == SubmissionTypes.INCORRECT)
+                .CountAsync();
+
+            if (incorrectSubmissionCount >= challenge.MaxAttempts.Value)
+            {
+                return BadRequest(new
+                {
+                    error = "You have 0 tries remaining. You cannot start this challenge."
+                });
+            }
+        }
+
+        if(challenge.MaxDeployCount.HasValue && challenge.MaxDeployCount.Value > 0)
+        {
+            var currentDeployCount = await _context.ChallengeStartTrackings
+                .AsNoTracking()
+                .Where(d => d.ChallengeId == challenge.Id && d.TeamId == user.TeamId)
+                .CountAsync();
+            if (currentDeployCount >= challenge.MaxDeployCount.Value)
+            {
+                return BadRequest(new
+                {
+                    error = "You have reached the maximum number of deployments for this challenge. You cannot start this challenge."
+                });
+            }
         }
 
         var solve = await _context.Solves
@@ -860,15 +879,15 @@ public class ChallengeController : ControllerBase
         if (challengeStartReq == null || challengeStartReq.challengeId <= 0)
             return BadRequest(new { error = "ChallengeId is required" });
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = UserContext.UserId;
         var user = await _context.Users
             .Include(u => u.Team)
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
-        if (user.TeamId == null || user.Team == null)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user?.TeamId == null || user.Team == null)
             return BadRequest(new { error = "User no join team" });
 
-        _userBehaviorLogger.Log("STOP_CHALLENGE", user.Id, user.TeamId, new { challengeId = challengeStartReq.challengeId });
+        _userBehaviorLogger.Log("STOP_CHALLENGE", user.Id, user.TeamId, new { challengeStartReq.challengeId });
 
         var challenge = await _context.Challenges
             .AsNoTracking()
@@ -917,12 +936,12 @@ public class ChallengeController : ControllerBase
                 pod_status = Enums.DeploymentStatusEnum.Failed
             });
         }
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = UserContext.UserId;
         var user = await _context.Users
             .Include(u => u.Team)
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
-        if (user.TeamId == null || user.Team == null)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user?.TeamId == null || user.Team == null)
         {
             return BadRequest(new ChallengeDeployResponeDTO
             {

@@ -35,7 +35,7 @@ def during_ctf_time_only(f):
                     abort(403, description=error)
             if ctf_started() is False:
                 if is_teams_mode() and get_current_team() is None:
-                    return redirect(url_for("teams.private", next=request.full_path))
+                    return redirect(url_for("auth.login", next=request.full_path))
                 else:
                     error = "{} has not started yet".format(config.ctf_name())
                     abort(403, description=error)
@@ -219,7 +219,7 @@ def require_team(f):
                 if request.content_type == "application/json":
                     abort(403)
                 else:
-                    return redirect(url_for("teams.private", next=request.full_path))
+                    return redirect(url_for("auth.login", next=request.full_path))
             return f(*args, **kwargs)
         else:
             abort(404)

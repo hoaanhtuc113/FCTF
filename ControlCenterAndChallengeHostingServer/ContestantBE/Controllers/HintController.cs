@@ -1,29 +1,28 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
+using ContestantBE.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Logger;
 using ResourceShared.Models;
-using System.Security.Claims;
 using static ResourceShared.Enums;
 
 namespace ContestantBE.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
 [Authorize]
-public class HintController : ControllerBase
+public class HintController : BaseController
 {
     private readonly IHintService _hintService;
     private readonly AppDbContext _context;
     private readonly AppLogger _userBehaviorLogger;
 
     public HintController(
+        IUserContext userContext,
         IHintService hintService,
         AppDbContext context,
-        AppLogger userBehaviorLogger)
+        AppLogger userBehaviorLogger) : base(userContext)
     {
         _hintService = hintService;
         _context = context;
@@ -34,13 +33,13 @@ public class HintController : ControllerBase
     [DuringCtfTimeOnly]
     public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = UserContext.UserId;
 
         _userBehaviorLogger.Log(
             "GET_HINT",
             userId,
-            int.Parse(User.FindFirstValue("teamId")!),
-            new { hint_id = id, preview = preview });
+            UserContext.TeamId,
+            new { hint_id = id, preview });
 
         var hint = await _hintService.GetHintById(id, userId, preview);
         if (hint == null) return NotFound(new { message = "Hint not found" });
@@ -51,9 +50,9 @@ public class HintController : ControllerBase
     [DuringCtfTimeOnly]
     public async Task<IActionResult> GetHintByChallengeId(int id)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userId = UserContext.UserId;
 
-        _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, int.Parse(User.FindFirstValue("teamId")!), new { challenge_id = id });
+        _userBehaviorLogger.Log("GET_HINTS_BY_CHALLENGE", userId, UserContext.TeamId, new { challenge_id = id });
         var data = await _hintService.GetHintsByChallengeId(id, userId);
         return Ok(new { success = true, hints = data });
     }
@@ -62,8 +61,8 @@ public class HintController : ControllerBase
     [DuringCtfTimeOnly]
     public async Task<IActionResult> PostUnlock([FromBody] UnlockRequestDto req)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var teamId = int.Parse(User.FindFirstValue("teamId")!);
+        var userId = UserContext.UserId;
+        var teamId = UserContext.TeamId;
 
         if (teamId == 0 || userId == 0)
         {
@@ -103,10 +102,6 @@ public class HintController : ControllerBase
 
             return Ok(new { success = true, data = result });
         }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { success = false, error = ex.Message });
-        }
         catch (Exception ex)
         {
             _userBehaviorLogger.Log(
@@ -114,8 +109,7 @@ public class HintController : ControllerBase
                 userId,
                 teamId,
                 new { hint_id = req.Target, error = ex.Message });
-
-            return StatusCode(500, new { success = false, error = "Internal server error" });
+            throw;
         }
     }
 }
