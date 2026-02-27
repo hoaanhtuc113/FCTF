@@ -72,6 +72,9 @@ interface Challenge {
   captain_only_submit?: boolean;
   requirements?: ChallengeRequirements | null;
   pod_status?: string | null;
+  difficulty?: number | null;
+  max_deploy_count?: number | null;
+  deployed_count?: number;
 }
 
 interface PrerequisiteChallenge {
@@ -1170,6 +1173,12 @@ function ChallengeDetailPanel({
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [copiedTcp, setCopiedTcp] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
+
+  // derive gateway/ports from environment helper so we can display them in the UI
+  const baseGateway = getBaseGateway();
+  const httpPort = getHttpPort();
+  const tcpPort = getTcpPort();
+
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
@@ -3513,7 +3522,47 @@ function ChallengeDetailPanel({
                   {challenge.solves} solves
                 </span>
               )}
+              {challenge.require_deploy && (
+                <span className={`px-2 py-1 rounded border ${
+                  challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
+                  (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                    ? theme === 'dark'
+                      ? 'bg-red-900/30 text-red-400 border-red-700'
+                      : 'bg-red-50 text-red-700 border-red-300'
+                    : theme === 'dark'
+                      ? 'bg-gray-700 text-gray-300 border-gray-600'
+                      : 'bg-gray-100 text-gray-700 border-gray-300'
+                }`}>
+                  Deploys: {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0) ? '∞' : `${challenge.deployed_count ?? 0}/${challenge.max_deploy_count}`}
+                </span>
+              )}
             </div>
+
+            {/* Difficulty Stars */}
+            {challenge.difficulty != null && (
+              <div>
+                <div className={`text-xs font-mono font-bold mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  [DIFFICULTY]
+                </div>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span
+                      key={i}
+                      className={`text-base leading-none ${
+                        i < (challenge.difficulty ?? 0)
+                          ? theme === 'dark' ? 'text-yellow-400' : 'text-yellow-500'
+                          : theme === 'dark' ? 'text-gray-600' : 'text-gray-300'
+                      }`}
+                    >
+                      {i < (challenge.difficulty ?? 0) ? '★' : '☆'}
+                    </span>
+                  ))}
+                  <span className={`ml-1 text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {challenge.difficulty}/5
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Description - Show in right column when no PDF, or always show */}
             {hasDescription && (
@@ -3886,7 +3935,7 @@ function ChallengeDetailPanel({
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Get your Token from [YOUR ACCESS TOKEN]</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Access the challenge with token:</p>
                         <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          http://basegateway:port/YOUR_TOKEN
+                          {`http://${baseGateway}:${httpPort}/YOUR_TOKEN`}
                         </code>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Gateway will remember you</p>
                         <p className={`text-[10px] italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>Note: Re-enter token to switch challenges</p>
@@ -3903,7 +3952,7 @@ function ChallengeDetailPanel({
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Open Terminal/PowerShell</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Connect to gateway:</p>
                         <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          nc basegateway port
+                          {`nc ${baseGateway} ${tcpPort}`}
                         </code>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Enter your token when prompted</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 4:</span> See "Access Granted!" message</p>
