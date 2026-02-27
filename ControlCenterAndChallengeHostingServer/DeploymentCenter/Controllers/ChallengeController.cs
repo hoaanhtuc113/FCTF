@@ -132,4 +132,18 @@ public class ChallengeController : ControllerBase
             _ => StatusCode((int)response.HttpStatusCode, response)
         };
     }
+
+    [HttpPost("request-logs")]
+    [RequireSecretKey]
+    public async Task<IActionResult> GetPodRequestLog([FromBody] ChallengeStartStopReqDTO challengeReq)
+    {
+        var response = await _deployService.GetPodRequestLog(challengeReq);
+        return response.HttpStatusCode switch
+        {
+            HttpStatusCode.OK => Ok(response),
+            HttpStatusCode.BadRequest => BadRequest(response),
+            HttpStatusCode.NotFound => NotFound(response),
+            _ => StatusCode((int)response.HttpStatusCode, response)
+        };
+    }
 }

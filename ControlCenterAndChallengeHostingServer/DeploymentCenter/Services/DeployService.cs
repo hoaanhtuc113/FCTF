@@ -8,6 +8,8 @@ using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
 using System.Net;
+using System.Text;
+using System.Text.Json;
 using static ResourceShared.Enums;
 using DeploymentCenter.Utils;
 
@@ -22,6 +24,7 @@ public interface IDeployService
     Task<BaseResponseDTO> HandleMessageFromArgo(WorkflowStatusDTO message);
     Task<BaseResponseDTO<DeploymentLogsDTO>> GetDeploymentLogs(string workflowName);
     Task<BaseResponseDTO<PodLogsDTO>> GetPodLogs(ChallengeStartStopReqDTO challengeReq);
+    Task<BaseResponseDTO<PodLogsDTO>> GetPodRequestLog(ChallengeStartStopReqDTO challengeReq);
 }
 public class DeployService : IDeployService
 {
@@ -538,6 +541,110 @@ public class DeployService : IDeployService
                 Success = false,
                 HttpStatusCode = HttpStatusCode.InternalServerError,
                 Message = "Error retrieving pod logs"
+            };
+        }
+    }
+
+    public async Task<BaseResponseDTO<PodLogsDTO>> GetPodRequestLog(ChallengeStartStopReqDTO challengeReq)
+    {
+        try
+        {
+            using var httpClient = new HttpClient
+            {
+                BaseAddress = new Uri("http://loki-stack:3100"),
+                Timeout = TimeSpan.FromSeconds(15),
+            };
+
+            var endNs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
+            var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
+            var logql = $"{{app=\"challenge-gateway\"}} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\"";
+            var query = Uri.EscapeDataString(logql);
+            var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
+
+            var response = await httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = false,
+                    HttpStatusCode = response.StatusCode,
+                    Message = "Error retrieving request logs from Loki"
+                };
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("data", out var dataElem)
+                || !dataElem.TryGetProperty("result", out var resultElem)
+                || resultElem.ValueKind != JsonValueKind.Array)
+            {
+                return new BaseResponseDTO<PodLogsDTO>
+                {
+                    Success = true,
+                    HttpStatusCode = HttpStatusCode.OK,
+                    Data = new PodLogsDTO
+                    {
+                        TeamId = challengeReq.teamId,
+                        ChallengeId = challengeReq.challengeId,
+                        PodName = "challenge-gateway",
+                        Logs = string.Empty,
+                    }
+                };
+            }
+
+            var lines = new List<(long Ts, string LogLine)>();
+
+            foreach (var stream in resultElem.EnumerateArray())
+            {
+                if (!stream.TryGetProperty("values", out var valuesElem) || valuesElem.ValueKind != JsonValueKind.Array)
+                    continue;
+
+                foreach (var pair in valuesElem.EnumerateArray())
+                {
+                    if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() < 2)
+                        continue;
+
+                    var tsRaw = pair[0].GetString() ?? "0";
+                    var logLine = pair[1].GetString() ?? string.Empty;
+                    if (!long.TryParse(tsRaw, out var tsNs))
+                        continue;
+
+                    lines.Add((tsNs, logLine.TrimEnd()));
+                }
+            }
+
+            var builder = new StringBuilder();
+            foreach (var item in lines.OrderByDescending(x => x.Ts))
+            {
+                var tsMs = item.Ts / 1_000_000;
+                var localTime = DateTimeOffset.FromUnixTimeMilliseconds(tsMs).ToLocalTime();
+                builder.AppendLine(localTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+                builder.AppendLine(item.LogLine);
+                builder.AppendLine();
+            }
+
+            return new BaseResponseDTO<PodLogsDTO>
+            {
+                Success = true,
+                HttpStatusCode = HttpStatusCode.OK,
+                Data = new PodLogsDTO
+                {
+                    TeamId = challengeReq.teamId,
+                    ChallengeId = challengeReq.challengeId,
+                    PodName = "challenge-gateway",
+                    Logs = builder.ToString().TrimEnd()
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
+            await Console.Error.WriteLineAsync($"Error retrieving request logs: {ex.Message}");
+            return new BaseResponseDTO<PodLogsDTO>
+            {
+                Success = false,
+                HttpStatusCode = HttpStatusCode.InternalServerError,
+                Message = "Error retrieving request logs"
             };
         }
     }

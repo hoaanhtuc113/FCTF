@@ -105,7 +105,7 @@ func HandleConnection(clientConn net.Conn) {
 	defer clientConn.Close()
 	remoteAddr := clientConn.RemoteAddr().String()
 	clientIP := parseRemoteIP(remoteAddr)
-	log.Printf("[+] TCP connection from %s", remoteAddr)
+	log.Printf("[+] TCP connection from %s proto=\"tcp\" event=\"connect\"", remoteAddr)
 
 	if tcpConn, ok := clientConn.(*net.TCPConn); ok {
 		_ = tcpConn.SetKeepAlive(true)
@@ -122,7 +122,7 @@ func HandleConnection(clientConn net.Conn) {
 	payload, token, err := authenticateClient(clientConn)
 	if err != nil {
 		fmt.Fprintln(clientConn, "Auth failed!")
-		log.Printf("[-] Auth failed from %s: %v", remoteAddr, err)
+		log.Printf("[-] Auth failed from %s proto=\"tcp\" event=\"auth_failed\": %v", remoteAddr, err)
 		return
 	}
 
@@ -147,9 +147,9 @@ func HandleConnection(clientConn net.Conn) {
 		teamID, challengeID, ok = parseTeamChallengeFromRoute(host)
 	}
 	if ok {
-		log.Printf("[+] Auth OK from %s team=%d challenge=%d -> %s", remoteAddr, teamID, challengeID, host)
+		log.Printf("[+] Auth OK from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"auth_ok\" -> %s", remoteAddr, teamID, challengeID, host)
 	} else {
-		log.Printf("[+] Auth OK from %s -> %s", remoteAddr, host)
+		log.Printf("[+] Auth OK from %s proto=\"tcp\" event=\"auth_ok\" -> %s", remoteAddr, host)
 	}
 
 	fmt.Fprintf(clientConn, "Access Granted! Connecting to challenge...\n")
@@ -157,9 +157,9 @@ func HandleConnection(clientConn net.Conn) {
 	if err != nil {
 		fmt.Fprintf(clientConn, "[!] Could not connect to challenge server.\n")
 		if ok {
-			log.Printf("[-] Dial failed from %s team=%d challenge=%d -> %s: %v", remoteAddr, teamID, challengeID, host, err)
+			log.Printf("[-] Dial failed from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"dial_failed\" -> %s: %v", remoteAddr, teamID, challengeID, host, err)
 		} else {
-			log.Printf("[-] Dial failed from %s -> %s: %v", remoteAddr, host, err)
+			log.Printf("[-] Dial failed from %s proto=\"tcp\" event=\"dial_failed\" -> %s: %v", remoteAddr, host, err)
 		}
 		return
 	}
@@ -178,9 +178,9 @@ func HandleConnection(clientConn net.Conn) {
 	untilExpiry := time.Until(expiry)
 	if untilExpiry <= 0 {
 		if ok {
-			log.Printf("[-] Token already expired for %s team=%d challenge=%d -> %s", remoteAddr, teamID, challengeID, host)
+			log.Printf("[-] Token already expired for %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"token_expired\" -> %s", remoteAddr, teamID, challengeID, host)
 		} else {
-			log.Printf("[-] Token already expired for %s -> %s", remoteAddr, host)
+			log.Printf("[-] Token already expired for %s proto=\"tcp\" event=\"token_expired\" -> %s", remoteAddr, host)
 		}
 		closeOnce.Do(closeAll)
 		return
@@ -202,9 +202,9 @@ func HandleConnection(clientConn net.Conn) {
 		select {
 		case <-expiryTimer.C:
 			if ok {
-				log.Printf("[*] Token expired; closing session for %s team=%d challenge=%d -> %s", remoteAddr, teamID, challengeID, host)
+				log.Printf("[*] Token expired; closing session for %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"session_expired\" -> %s", remoteAddr, teamID, challengeID, host)
 			} else {
-				log.Printf("[*] Token expired; closing session for %s -> %s", remoteAddr, host)
+				log.Printf("[*] Token expired; closing session for %s proto=\"tcp\" event=\"session_expired\" -> %s", remoteAddr, host)
 			}
 			closeOnce.Do(closeAll)
 		case <-expiryCtx.Done():
@@ -229,15 +229,15 @@ func HandleConnection(clientConn net.Conn) {
 		//Summary log
 		if ok {
 			if sampleB64 != "" {
-				log.Printf("[~] TCP proxy %s from %s team=%d challenge=%d bytes=%d sample_b64=%s%s", direction, remoteAddr, teamID, challengeID, bytesCopied, sampleB64, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s", direction, remoteAddr, teamID, challengeID, direction, bytesCopied, sampleB64, errSuffix)
 			} else {
-				log.Printf("[~] TCP proxy %s from %s team=%d challenge=%d bytes=%d%s", direction, remoteAddr, teamID, challengeID, bytesCopied, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" direction=\"%s\" bytes=%d%s", direction, remoteAddr, teamID, challengeID, direction, bytesCopied, errSuffix)
 			}
 		} else {
 			if sampleB64 != "" {
-				log.Printf("[~] TCP proxy %s from %s bytes=%d sample_b64=%s%s", direction, remoteAddr, bytesCopied, sampleB64, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s", direction, remoteAddr, direction, bytesCopied, sampleB64, errSuffix)
 			} else {
-				log.Printf("[~] TCP proxy %s from %s bytes=%d%s", direction, remoteAddr, bytesCopied, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s proto=\"tcp\" direction=\"%s\" bytes=%d%s", direction, remoteAddr, direction, bytesCopied, errSuffix)
 			}
 		}
 
@@ -250,7 +250,11 @@ func HandleConnection(clientConn net.Conn) {
 
 	<-done
 	cancelExpiry()
-	log.Printf("[+] Session ended: %s", remoteAddr)
+	if ok {
+		log.Printf("[+] Session ended: %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" event=\"session_end\"", remoteAddr, teamID, challengeID)
+	} else {
+		log.Printf("[+] Session ended: %s proto=\"tcp\" event=\"session_end\"", remoteAddr)
+	}
 }
 
 func proxyCopyWithSample(dst io.Writer, src io.Reader, buf []byte, sampleLimit int) (bytesCopied int64, sampleB64 string, err error) {
