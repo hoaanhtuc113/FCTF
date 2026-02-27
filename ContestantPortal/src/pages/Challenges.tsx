@@ -72,6 +72,7 @@ interface Challenge {
   captain_only_submit?: boolean;
   requirements?: ChallengeRequirements | null;
   pod_status?: string | null;
+  difficulty?: number | null;
 }
 
 interface PrerequisiteChallenge {
@@ -3520,6 +3521,32 @@ function ChallengeDetailPanel({
                 </span>
               )}
             </div>
+
+            {/* Difficulty Stars */}
+            {challenge.difficulty != null && (
+              <div>
+                <div className={`text-xs font-mono font-bold mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  [DIFFICULTY]
+                </div>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span
+                      key={i}
+                      className={`text-base leading-none ${
+                        i < (challenge.difficulty ?? 0)
+                          ? theme === 'dark' ? 'text-yellow-400' : 'text-yellow-500'
+                          : theme === 'dark' ? 'text-gray-600' : 'text-gray-300'
+                      }`}
+                    >
+                      {i < (challenge.difficulty ?? 0) ? '★' : '☆'}
+                    </span>
+                  ))}
+                  <span className={`ml-1 text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {challenge.difficulty}/5
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Description - Show in right column when no PDF, or always show */}
             {hasDescription && (
