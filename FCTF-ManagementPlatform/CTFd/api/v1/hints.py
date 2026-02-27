@@ -14,6 +14,7 @@ from CTFd.schemas.hints import HintSchema
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only, during_ctf_time_only
 from CTFd.utils.decorators.visibility import check_challenge_visibility
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.user import get_current_user, is_admin
 
 hints_namespace = Namespace("hints", description="Endpoint to retrieve Hints")
@@ -104,6 +105,15 @@ class HintList(Resource):
         db.session.commit()
 
         response = schema.dump(response.data)
+
+        log_audit(
+            action="hint_create",
+            data={
+                "hint_id": response.data.get("id"),
+                "challenge_id": response.data.get("challenge_id"),
+                "cost": response.data.get("cost"),
+            },
+        )
 
         return {"success": True, "data": response.data}
 
@@ -219,6 +229,12 @@ class Hint(Resource):
         if cost is not None and cost < 0:
             return {"success": False, "errors": {"cost": ["Cost must be a positive number"]}}, 400
 
+        before_state = {
+            "challenge_id": hint.challenge_id,
+            "content": hint.content,
+            "cost": hint.cost,
+        }
+
         schema = HintSchema(view="admin")
         response = schema.load(req, instance=hint, partial=True, session=db.session)
 
@@ -230,6 +246,17 @@ class Hint(Resource):
 
         response = schema.dump(response.data)
 
+        log_audit(
+            action="hint_update",
+            before=before_state,
+            after={
+                "challenge_id": response.data.get("challenge_id"),
+                "content": response.data.get("content"),
+                "cost": response.data.get("cost"),
+            },
+            data={"hint_id": int(hint_id)},
+        )
+
         return {"success": True, "data": response.data}
 
     @admin_or_challenge_writer_only_or_jury
@@ -239,9 +266,20 @@ class Hint(Resource):
     )
     def delete(self, hint_id):
         hint = Hints.query.filter_by(id=hint_id).first_or_404()
+        hint_info = {
+            "hint_id": hint.id,
+            "challenge_id": hint.challenge_id,
+            "cost": hint.cost,
+        }
         db.session.delete(hint)
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="hint_delete",
+            before=hint_info,
+            data={"hint_id": int(hint_id)},
+        )
 
         return {"success": True}
     
