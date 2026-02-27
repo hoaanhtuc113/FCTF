@@ -35,7 +35,8 @@ export function Login() {
     try {
       await login(username, password);
       toast.success('auth_success');
-      navigate('/dashboard');
+      // after authentication, go directly to the challenges page
+      navigate('/challenges');
     } catch (err) {
       console.log(err);
       // Display error message from backend 
