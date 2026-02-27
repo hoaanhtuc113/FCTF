@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 import { useTheme } from '../context/ThemeContext';
 import { scoreboardService } from '../services/scoreboardService';
 import type { TeamScore } from '../services/scoreboardService';
+import { ScoreboardVisibilityError } from '../services/publicScoreboardService';
 import {
   Search,
   ChevronUp,
@@ -21,6 +22,7 @@ export function Scoreboard() {
   const { theme } = useTheme();
   const [scores, setScores] = useState<Record<string, TeamScore>>({});
   const [error, setError] = useState("");
+  const [visibilityError, setVisibilityError] = useState<{ status: number; message: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
@@ -87,8 +89,15 @@ export function Scoreboard() {
       const data = await scoreboardService.getTopStandings();
       setScores(data);
       setError("");
+      setVisibilityError(null);
     } catch (err: any) {
-      setError(err.message || "Failed to fetch scoreboard data");
+      if (err instanceof ScoreboardVisibilityError) {
+        setVisibilityError({ status: err.status, message: err.message });
+        setError("");
+      } else {
+        setError(err.message || "Failed to fetch scoreboard data");
+        setVisibilityError(null);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -112,6 +121,32 @@ export function Scoreboard() {
         <Typography className={`font-mono text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
           {'>'} Loading scoreboard...
         </Typography>
+      </Box>
+    );
+  }
+
+  if (visibilityError) {
+    return (
+      <Box className="flex items-center justify-center min-h-[60vh]">
+        <div className={`text-center font-mono p-8 rounded-lg border max-w-md ${
+          theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+        }`}>
+          <div className={`text-4xl mb-4 ${
+            visibilityError.status === 403 ? 'text-red-500' : 'text-yellow-500'
+          }`}>
+            {visibilityError.status === 403 ? '[✕]' : '[🔒]'}
+          </div>
+          <div className={`text-lg font-bold mb-2 ${
+            theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+          }`}>
+            {visibilityError.status === 403 ? 'SCOREBOARD HIDDEN' : 'LOGIN REQUIRED'}
+          </div>
+          <div className={`text-sm ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          }`}>
+            {visibilityError.message}
+          </div>
+        </div>
       </Box>
     );
   }
