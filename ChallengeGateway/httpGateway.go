@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -29,6 +31,13 @@ type requestInfo struct {
 }
 
 const requestInfoKey ctxKey = "requestInfo"
+
+const maxLoggedPostBodyBytes = 2048
+
+type teeReadCloser struct {
+	io.Reader
+	io.Closer
+}
 
 func startHTTPGateway(cfg gatewayConfig) *http.Server {
 	transport := &http.Transport{
@@ -214,6 +223,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 
+		var postBodyBuf bytes.Buffer
+		capturePostBody := r.Method == http.MethodPost && r.Body != nil
+		if capturePostBody {
+			r.Body = &teeReadCloser{
+				Reader: io.TeeReader(r.Body, &postBodyBuf),
+				Closer: r.Body,
+			}
+		}
+
 		// Create requestInfo to capture target host
 		info := &requestInfo{}
 		ctx := context.WithValue(r.Context(), requestInfoKey, info)
@@ -224,13 +242,29 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		if targetHost == "" {
 			targetHost = "-"
 		}
-		if targetHost != "-" {
-			if teamID, challengeID, ok := parseTeamChallengeFromRoute(targetHost); ok {
-				log.Printf("HTTP %s %s %d %s team=%d challenge=%d -> %s", r.Method, r.URL.Path, recorder.status, time.Since(start), teamID, challengeID, targetHost)
+
+		// Skip logging initial token redirect requests (avoid noisy logs with token in URL path)
+		if r.Method == http.MethodGet && recorder.status == http.StatusFound && targetHost == "-" {
+			if token, _ := extractTokenFromRequest(r); token != "" {
 				return
 			}
 		}
-		log.Printf("HTTP %s %s %d %s -> %s", r.Method, r.URL.Path, recorder.status, time.Since(start), targetHost)
+
+		logPostBodySuffix := ""
+		if capturePostBody {
+			body := postBodyBuf.String()
+			if len(body) > maxLoggedPostBodyBytes {
+				body = body[:maxLoggedPostBodyBytes] + "... (truncated)"
+			}
+			logPostBodySuffix = fmt.Sprintf(" body=%q", body)
+		}
+		if targetHost != "-" {
+			if teamID, challengeID, ok := parseTeamChallengeFromRoute(targetHost); ok {
+				log.Printf("HTTP %s %s %d %s team=\"%d\" challenge=\"%d\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, recorder.status, time.Since(start), teamID, challengeID, r.Method, recorder.status, targetHost, logPostBodySuffix)
+				return
+			}
+		}
+		log.Printf("HTTP %s %s %d %s method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, recorder.status, time.Since(start), r.Method, recorder.status, targetHost, logPostBodySuffix)
 	})
 }
 

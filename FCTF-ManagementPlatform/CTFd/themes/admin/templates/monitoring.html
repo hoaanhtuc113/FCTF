@@ -127,6 +127,29 @@
 		overflow: auto;
 	}
 
+	/* Challenge token cell */
+	.token-cell {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+	}
+
+	.token-value {
+		display: inline-block;
+		max-width: 220px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		vertical-align: middle;
+	}
+
+	.btn-copy-token {
+		padding: 0.2rem 0.45rem;
+		font-size: 0.75rem;
+		line-height: 1.2;
+	}
+
 	.monitoring-table tbody td a {
 		color: #ff6b35;
 		text-decoration: none;
@@ -337,7 +360,7 @@
 						<th class="sort-col text-center">User Name</th>
 						<th class="sort-col text-center">Category</th>
 						<th class="text-center">Status</th>
-						<th class="text-center">Challenge URL</th>
+						<th class="text-center">Challenge Token</th>
 						<th class="sort-col text-center">Time Finished</th>
 						<th class="text-center">Action</th>
 					</tr>
@@ -512,6 +535,8 @@
 				const tr = document.createElement("tr");
 				const key = makeInstanceKey(row.challenge_id, row.team_id);
 				const isChecked = selectedInstances.has(key);
+				const tokenValue = row.challenge_url ?? "";
+				const encodedToken = encodeURIComponent(tokenValue);
 
 				tr.innerHTML = `
 					<td class="text-center">
@@ -531,15 +556,10 @@
 					<td class="text-center">${row.user_name ?? "N/A"}</td>
 					<td class="text-center">${row.challenge_category ?? "N/A"}</td>
 					<td class="text-center">${formatStatusBadge(row.status)}</td>
-					<td class="text-center" 
-					style="
-						text-align: center;
-						max-width: 250px;
-						word-break: break-all;
-						overflow-wrap: break-word;
-						white-space: normal;
-						">
-						${row.challenge_url ? row.challenge_url : "N/A"}
+					<td class="text-center">
+						${tokenValue
+							? `<div class="token-cell"><span class="token-value" title="${tokenValue}">${tokenValue}</span><button type="button" class="btn btn-sm btn-outline-secondary btn-copy-token" data-token="${encodedToken}" onclick="copyChallengeToken(this)" aria-label="Copy challenge token"><i class="fas fa-copy"></i></button></div>`
+							: "N/A"}
 					</td>
 
 					<td class="text-center">${row.time_finished
@@ -547,6 +567,7 @@
 						: "N/A"}</td>
 					<td class="text-center text-nowrap">
 						<button onclick="viewLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-info d-inline-block">Logs</button>
+						<button onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-secondary d-inline-block ml-1">Request Logs</button>
 						<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block ml-1">Stop</button>
 					</td>
 				`;
@@ -670,6 +691,30 @@
 
 	function viewLogs(challengeId, teamId) {
 		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
+	}
+
+	function viewRequestLogs(challengeId, teamId) {
+		window.location.href = `/deploy_History/${challengeId}/request-logs?team_id=${teamId}`;
+	}
+
+	async function copyChallengeToken(button) {
+		try {
+			const encodedToken = button?.dataset?.token || "";
+			const token = decodeURIComponent(encodedToken);
+			if (!token) return;
+
+			await navigator.clipboard.writeText(token);
+
+			const originalHtml = button.innerHTML;
+			button.innerHTML = '<i class="fas fa-check"></i>';
+			button.disabled = true;
+			setTimeout(() => {
+				button.innerHTML = originalHtml;
+				button.disabled = false;
+			}, 1200);
+		} catch (error) {
+			alert("Cannot copy token: " + error.message);
+		}
 	}
 
 	async function stopChallenge(challengeId, teamId) {
