@@ -310,7 +310,13 @@
 		<h1 id="team-id" class="text-center p-0 m-0" style="text-transform: none;">{{ user.name }}</h1>
 		<div class="mb-2 text-center"  style="text-transform: none;">
 			{% if user.type == 'admin' %}
-			<span class="badge badge-primary">admin</span>
+			<span class="badge badge-primary">Admin</span>
+			{% elif user.type == 'challenge_writer' %}
+			<span class="badge badge-info">Challenge Writer</span>
+			{% elif user.type == 'jury' %}
+			<span class="badge" style="background-color:#6f42c1;color:#fff;">Jury</span>
+			{% else %}
+			<span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
 			{% endif %}
 			{% if user.verified %}
 			<span class="badge badge-success">verified</span>
