@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { publicScoreboardService, type TeamScore } from "../services/publicScoreboardService";
+import { publicScoreboardService, type TeamScore, ScoreboardVisibilityError } from "../services/publicScoreboardService";
 
 const PublicChartComponent = lazy(() => import("../components/PublicChartComponent"));
 
@@ -8,6 +8,7 @@ export function PublicScoreboard() {
   const [scores, setScores] = useState<Record<string, TeamScore>>({});
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [visibilityError, setVisibilityError] = useState<{ status: number; message: string } | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [contestStart, setContestStart] = useState(new Date());
   const [contestEnd, setContestEnd] = useState(new Date(Date.now() + 12 * 60 * 60 * 1000));
@@ -32,8 +33,13 @@ export function PublicScoreboard() {
       try {
         const data = await publicScoreboardService.getPublicScoreboard();
         setScores(data);
+        setVisibilityError(null);
       } catch (err: any) {
-        console.error('Failed to fetch scoreboard:', err.message);
+        if (err instanceof ScoreboardVisibilityError) {
+          setVisibilityError({ status: err.status, message: err.message });
+        } else {
+          console.error('Failed to fetch scoreboard:', err.message);
+        }
       } finally {
         if (initialLoad) {
           setLoading(false);
@@ -155,6 +161,33 @@ export function PublicScoreboard() {
         <div className="text-center space-y-4">
           <div className="text-2xl animate-pulse">[LOADING...]</div>
           <div className="text-sm opacity-60">{'>'} Initializing scoreboard system...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (visibilityError) {
+    return (
+      <div className="min-h-screen bg-black text-orange-400 font-mono flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md px-4">
+          <div className="text-4xl mb-4">
+            {visibilityError.status === 401 ? '[🔒]' : '[✕]'}
+          </div>
+          <div className="text-2xl font-bold tracking-wider">
+            {visibilityError.status === 401 ? 'ACCESS RESTRICTED' : 'SCOREBOARD HIDDEN'}
+          </div>
+          <div className="border border-orange-400/30 rounded p-4 text-sm text-orange-300">
+            <div className="text-orange-600 mb-2">{'>'} scoreboard.status</div>
+            <div>{visibilityError.message}</div>
+          </div>
+          {visibilityError.status === 401 && (
+            <a
+              href="/login"
+              className="inline-block mt-4 px-6 py-2 border border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-black transition-colors text-sm tracking-wider"
+            >
+              [LOGIN]
+            </a>
+          )}
         </div>
       </div>
     );
