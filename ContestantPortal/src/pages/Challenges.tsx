@@ -3496,61 +3496,68 @@ function ChallengeDetailPanel({
 
             {/* Info Badges */}
             <div className="flex flex-wrap gap-2 text-xs font-mono">
-              <span
-                title="Point value of this challenge"
-                className={`px-2 py-1 rounded border ${theme === 'dark'
-                ? 'bg-gray-700 text-gray-300 border-gray-600'
-                : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                {challenge.value} pts
-              </span>
-              <span
-                title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`}
-                className={`px-2 py-1 rounded border ${theme === 'dark'
-                ? 'bg-gray-700 text-gray-300 border-gray-600'
-                : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
-              </span>
-              <span
-                title={challenge.max_attempts === 0 ? 'Unlimited submission attempts' : `Maximum ${challenge.max_attempts} submission attempt${challenge.max_attempts === 1 ? '' : 's'}`}
-                className={`px-2 py-1 rounded border ${theme === 'dark'
-                ? 'bg-gray-700 text-gray-300 border-gray-600'
-                : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
-              </span>
-              {challenge.solves !== undefined && (
-                <span
-                  title={`${challenge.solves} team${challenge.solves === 1 ? '' : 's'} have solved this challenge`}
-                  className={`px-2 py-1 rounded border ${theme === 'dark'
-                  ? 'bg-gray-700 text-gray-300 border-gray-600'
-                  : 'bg-gray-100 text-gray-700 border-gray-300'
-                  }`}>
-                  {challenge.solves} solves
+              {/* pts */}
+              <div className="relative group cursor-help">
+                <span className={`px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                  {challenge.value} pts
                 </span>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded text-xs whitespace-nowrap bg-gray-900 text-white opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-none">
+                  Point value of this challenge
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                </div>
+              </div>
+              {/* Time */}
+              <div className="relative group cursor-help">
+                <span className={`px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                  Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
+                </span>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded text-xs whitespace-nowrap bg-gray-900 text-white opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-none">
+                  {challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                </div>
+              </div>
+              {/* Attempts */}
+              <div className="relative group cursor-help">
+                <span className={`px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                  Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
+                </span>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded text-xs whitespace-nowrap bg-gray-900 text-white opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-none">
+                  {challenge.max_attempts === 0 ? 'Unlimited submission attempts' : `Maximum ${challenge.max_attempts} submission attempt${challenge.max_attempts === 1 ? '' : 's'}`}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                </div>
+              </div>
+              {/* Solves */}
+              {challenge.solves !== undefined && (
+                <div className="relative group cursor-help">
+                  <span className={`px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                    {challenge.solves} solves
+                  </span>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded text-xs whitespace-nowrap bg-gray-900 text-white opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-none">
+                    {`${challenge.solves} team${challenge.solves === 1 ? '' : 's'} have solved this challenge`}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                  </div>
+                </div>
               )}
+              {/* Deploys */}
               {challenge.require_deploy && (
-                <span
-                  title={
-                    (challenge.max_deploy_count == null || challenge.max_deploy_count === 0)
+                <div className="relative group cursor-help">
+                  <span className={`px-2 py-1 rounded border ${
+                    challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
+                    (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                      ? theme === 'dark' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-red-50 text-red-700 border-red-300'
+                      : theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'
+                  }`}>
+                    Deploys: {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0) ? '∞' : `${challenge.deployed_count ?? 0}/${challenge.max_deploy_count}`}
+                  </span>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded text-xs whitespace-nowrap bg-gray-900 text-white opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-none">
+                    {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0)
                       ? 'Unlimited deployments allowed'
                       : (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
                         ? `Deploy limit reached (${challenge.deployed_count}/${challenge.max_deploy_count})`
-                        : `${challenge.deployed_count ?? 0} of ${challenge.max_deploy_count} deployments used`
-                  }
-                  className={`px-2 py-1 rounded border ${
-                  challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
-                  (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
-                    ? theme === 'dark'
-                      ? 'bg-red-900/30 text-red-400 border-red-700'
-                      : 'bg-red-50 text-red-700 border-red-300'
-                    : theme === 'dark'
-                      ? 'bg-gray-700 text-gray-300 border-gray-600'
-                      : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                  Deploys: {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0) ? '∞' : `${challenge.deployed_count ?? 0}/${challenge.max_deploy_count}`}
-                </span>
+                        : `${challenge.deployed_count ?? 0} of ${challenge.max_deploy_count} deployments used`}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                  </div>
+                </div>
               )}
             </div>
 
