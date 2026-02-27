@@ -610,6 +610,43 @@ def get_challenge_pod_logs(challenge_id, team_id):
         print(f"Error getting pod logs: {e}")
         return str(e)
 
+def get_challenge_request_logs(challenge_id, team_id):
+    if team_id is None:
+        team_id = -1
+
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY, unix_time, {
+            "challengeId": challenge_id,
+            "teamId": team_id,
+        }
+    )
+    payload = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+        "unixTime": unix_time,
+    }
+    headers = {"SecretKey": secret_key}
+
+    logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/request-logs"
+    try:
+        response = requests.post(logs_url, headers=headers, json=payload)
+        print(f"Get request logs response status: {response.status_code}")
+
+        if response.status_code == 200:
+            response_data = response.json()
+            if response_data.get("success") and "data" in response_data:
+                logs = response_data["data"].get("logs", "")
+                return logs
+            return response_data.get("logs", "")
+
+        print(f"Get request logs failed: {response.text}")
+        response_data = response.json()
+        return response_data.get("message", "")
+    except requests.exceptions.RequestException as e:
+        print(f"Error getting request logs: {e}")
+        return str(e)
+
 def start_challenge_status_checking(challenge_id, team_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
