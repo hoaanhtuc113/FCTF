@@ -549,15 +549,18 @@ public class DeployService : IDeployService
     {
         try
         {
+            var lokiBaseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
+            var lokiSelector = (DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR ?? "{app=\"challenge-gateway\"}").Trim();
+
             using var httpClient = new HttpClient
             {
-                BaseAddress = new Uri("http://loki-stack:3100"),
+                BaseAddress = new Uri(lokiBaseUrl),
                 Timeout = TimeSpan.FromSeconds(15),
             };
 
             var endNs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
             var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
-            var logql = $"{{app=\"challenge-gateway\"}} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\"";
+            var logql = $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\"";
             var query = Uri.EscapeDataString(logql);
             var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
 
