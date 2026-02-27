@@ -3496,26 +3496,34 @@ function ChallengeDetailPanel({
 
             {/* Info Badges */}
             <div className="flex flex-wrap gap-2 text-xs font-mono">
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
+              <span
+                title="Point value of this challenge"
+                className={`px-2 py-1 rounded border ${theme === 'dark'
                 ? 'bg-gray-700 text-gray-300 border-gray-600'
                 : 'bg-gray-100 text-gray-700 border-gray-300'
                 }`}>
                 {challenge.value} pts
               </span>
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
+              <span
+                title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`}
+                className={`px-2 py-1 rounded border ${theme === 'dark'
                 ? 'bg-gray-700 text-gray-300 border-gray-600'
                 : 'bg-gray-100 text-gray-700 border-gray-300'
                 }`}>
                 Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
               </span>
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
+              <span
+                title={challenge.max_attempts === 0 ? 'Unlimited submission attempts' : `Maximum ${challenge.max_attempts} submission attempt${challenge.max_attempts === 1 ? '' : 's'}`}
+                className={`px-2 py-1 rounded border ${theme === 'dark'
                 ? 'bg-gray-700 text-gray-300 border-gray-600'
                 : 'bg-gray-100 text-gray-700 border-gray-300'
                 }`}>
                 Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
               </span>
               {challenge.solves !== undefined && (
-                <span className={`px-2 py-1 rounded border ${theme === 'dark'
+                <span
+                  title={`${challenge.solves} team${challenge.solves === 1 ? '' : 's'} have solved this challenge`}
+                  className={`px-2 py-1 rounded border ${theme === 'dark'
                   ? 'bg-gray-700 text-gray-300 border-gray-600'
                   : 'bg-gray-100 text-gray-700 border-gray-300'
                   }`}>
@@ -3523,7 +3531,15 @@ function ChallengeDetailPanel({
                 </span>
               )}
               {challenge.require_deploy && (
-                <span className={`px-2 py-1 rounded border ${
+                <span
+                  title={
+                    (challenge.max_deploy_count == null || challenge.max_deploy_count === 0)
+                      ? 'Unlimited deployments allowed'
+                      : (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                        ? `Deploy limit reached (${challenge.deployed_count}/${challenge.max_deploy_count})`
+                        : `${challenge.deployed_count ?? 0} of ${challenge.max_deploy_count} deployments used`
+                  }
+                  className={`px-2 py-1 rounded border ${
                   challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
                   (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
                     ? theme === 'dark'
