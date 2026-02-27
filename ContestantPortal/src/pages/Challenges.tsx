@@ -73,6 +73,8 @@ interface Challenge {
   requirements?: ChallengeRequirements | null;
   pod_status?: string | null;
   difficulty?: number | null;
+  max_deploy_count?: number | null;
+  deployed_count?: number;
 }
 
 interface PrerequisiteChallenge {
@@ -3518,6 +3520,20 @@ function ChallengeDetailPanel({
                   : 'bg-gray-100 text-gray-700 border-gray-300'
                   }`}>
                   {challenge.solves} solves
+                </span>
+              )}
+              {challenge.require_deploy && (
+                <span className={`px-2 py-1 rounded border ${
+                  challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
+                  (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                    ? theme === 'dark'
+                      ? 'bg-red-900/30 text-red-400 border-red-700'
+                      : 'bg-red-50 text-red-700 border-red-300'
+                    : theme === 'dark'
+                      ? 'bg-gray-700 text-gray-300 border-gray-600'
+                      : 'bg-gray-100 text-gray-700 border-gray-300'
+                }`}>
+                  Deploys: {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0) ? '∞' : `${challenge.deployed_count ?? 0}/${challenge.max_deploy_count}`}
                 </span>
               )}
             </div>
