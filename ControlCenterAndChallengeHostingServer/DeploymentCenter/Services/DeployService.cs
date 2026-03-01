@@ -10,6 +10,7 @@ using ResourceShared.Utils;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static ResourceShared.Enums;
 using DeploymentCenter.Utils;
 
@@ -552,6 +553,31 @@ public class DeployService : IDeployService
             var lokiBaseUrl = (DeploymentCenterConfigHelper.LOKI_BASE_URL ?? "http://loki-stack:3100").Trim();
             var lokiSelector = (DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR ?? "{app=\"challenge-gateway\"}").Trim();
 
+            // Handle escaped quotes from env files, e.g. {app=\"challenge-gateway\"}
+            lokiSelector = lokiSelector.Replace("\\\"", "\"");
+
+            // Normalize selector to valid LogQL (handle env like: app=challenge-gateway)
+            if (string.IsNullOrWhiteSpace(lokiSelector))
+            {
+                lokiSelector = "{app=\"challenge-gateway\"}";
+            }
+            while (lokiSelector.StartsWith("{{") && lokiSelector.EndsWith("}}") && lokiSelector.Length >= 4)
+            {
+                lokiSelector = lokiSelector[1..^1].Trim();
+            }
+            if (!lokiSelector.StartsWith("{"))
+            {
+                lokiSelector = "{" + lokiSelector;
+            }
+            if (!lokiSelector.EndsWith("}"))
+            {
+                lokiSelector = lokiSelector + "}";
+            }
+            lokiSelector = Regex.Replace(
+                lokiSelector,
+                @"(?<key>[a-zA-Z_][a-zA-Z0-9_]*)=(?<val>[a-zA-Z0-9._:-]+)",
+                "${key}=\"${val}\"");
+
             using var httpClient = new HttpClient
             {
                 BaseAddress = new Uri(lokiBaseUrl),
@@ -563,15 +589,23 @@ public class DeployService : IDeployService
             var logql = $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\"";
             var query = Uri.EscapeDataString(logql);
             var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
+            await Console.Out.WriteLineAsync($"Loki request. BaseUrl={lokiBaseUrl}, Selector={lokiSelector}, LogQL={logql}, Url={url}");
 
             var response = await httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode)
             {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                if (errorBody.Length > 500)
+                {
+                    errorBody = errorBody[..500] + "...";
+                }
+                var errorMessage = $"Error retrieving request logs from Loki. Status={(int)response.StatusCode} ({response.ReasonPhrase}). Body={errorBody}";
+                await Console.Error.WriteLineAsync(errorMessage);
                 return new BaseResponseDTO<PodLogsDTO>
                 {
                     Success = false,
                     HttpStatusCode = response.StatusCode,
-                    Message = "Error retrieving request logs from Loki"
+                    Message = errorMessage
                 };
             }
 
@@ -642,12 +676,12 @@ public class DeployService : IDeployService
         catch (Exception ex)
         {
             _logger.LogError(ex, null, challengeReq.teamId, new { challengeId = challengeReq.challengeId });
-            await Console.Error.WriteLineAsync($"Error retrieving request logs: {ex.Message}");
+            await Console.Error.WriteLineAsync($"Error retrieving request logs from Loki. BaseUrl={DeploymentCenterConfigHelper.LOKI_BASE_URL}, Selector={DeploymentCenterConfigHelper.LOKI_QUERY_SELECTOR}, Error={ex.Message}");
             return new BaseResponseDTO<PodLogsDTO>
             {
                 Success = false,
                 HttpStatusCode = HttpStatusCode.InternalServerError,
-                Message = "Error retrieving request logs"
+                Message = $"Error retrieving request logs from Loki: {ex.Message}"
             };
         }
     }
