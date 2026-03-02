@@ -75,6 +75,9 @@ interface Challenge {
   difficulty?: number | null;
   max_deploy_count?: number | null;
   deployed_count?: number;
+  // backend now provides the ID and name of the "next" challenge in a sequence
+  next_id?: number | null;
+  next_name?: string | null;
 }
 
 interface PrerequisiteChallenge {
@@ -1139,7 +1142,8 @@ function ChallengeDetailPanel({
   onClose,
   onFlagSuccess,
   isSidebarVisible = true,
-  onToggleSidebar
+  onToggleSidebar,
+  onNavigate
 }: {
   challenge: Challenge;
   theme: string;
@@ -1147,6 +1151,7 @@ function ChallengeDetailPanel({
   onFlagSuccess?: () => Promise<void>;
   isSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
+  onNavigate?: (id: number) => void; // optional callback when user wants to jump to another challenge
 }) {
   const [answer, setAnswer] = useState('');
   const [hints, setHints] = useState<Hint[]>([]);
@@ -3243,6 +3248,8 @@ function ChallengeDetailPanel({
               {challenge.solve_by_myteam && '[✓] '}
               {challenge.name}
             </h2>
+
+            {/* header no longer shows next challenge; recommendation moved down below guidelines */}
           </div>
 
           <div className="flex items-center gap-2">
@@ -3985,6 +3992,34 @@ function ChallengeDetailPanel({
                 )}
               </div>
             )}
+
+            {challenge.next_id && (
+              <div className="mt-6 flex items-center gap-3">
+                {/* Nhãn trạng thái - Dùng "Lộ trình" hoặc "Kế tiếp" cho chuyên nghiệp */}
+                <span className="shrink-0 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter text-gray-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                  Thử thách kế tiếp:
+                </span>
+
+                <button
+                  onClick={() => onNavigate && challenge.next_id && onNavigate(challenge.next_id)}
+                  className="group flex items-center gap-2 px-3 py-1.5 rounded-lg border border-orange-200 bg-white text-orange-700 shadow-sm transition-all duration-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md active:scale-95"
+                >
+                  <span className="text-xs font-mono font-bold">
+                    {challenge.next_name}
+                  </span>
+
+                  {/* Icon mũi tên kiểu 'Double Arrow' cho cảm giác tiến tới */}
+                  <svg
+                    className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+   
 
           </div>
         </div>
