@@ -210,6 +210,7 @@ def create_app(config="CTFd.config.Config"):
         app.jinja_loader = jinja2.ChoiceLoader(loaders)
 
         from CTFd.models import (  # noqa: F401
+            AdminAuditLog,
             Challenges,
             Fails,
             Files,
