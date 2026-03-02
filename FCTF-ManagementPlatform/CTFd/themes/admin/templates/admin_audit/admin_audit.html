@@ -485,12 +485,13 @@
 		}
 	}
 
-	diffModal.addEventListener('show.bs.modal', function (event) {
+	// Bootstrap 4 fires modal events through jQuery — must use $.on(), not addEventListener
+	$(diffModal).on('show.bs.modal', function (event) {
 		var btn = event.relatedTarget;
 		if (!btn) return;
 
-		var logId  = btn.getAttribute('data-log-id') || '';
-		var action = btn.getAttribute('data-action') || '';
+		var logId  = $(btn).data('log-id') || btn.getAttribute('data-log-id') || '';
+		var action = $(btn).data('action') || btn.getAttribute('data-action') || '';
 		var before = btn.getAttribute('data-before') || '';
 		var after  = btn.getAttribute('data-after') || '';
 		var extra  = btn.getAttribute('data-extra') || '';
