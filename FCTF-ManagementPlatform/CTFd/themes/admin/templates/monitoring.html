@@ -565,10 +565,10 @@
 					<td class="text-center">${row.time_finished
 						? new Date(row.time_finished).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
 						: "N/A"}</td>
-					<td class="text-center text-nowrap">
-						<button onclick="viewLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-info d-inline-block">Logs</button>
-						<button onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-secondary d-inline-block ml-1">Request Logs</button>
-						<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block ml-1">Stop</button>
+					<td class="text-center">
+						<button onclick="viewLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-info d-inline-block" style="margin: 5px;">Logs</button>
+						<button onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-secondary d-inline-block" style="margin: 5px;">Request Logs</button>
+						<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block" style="margin: 5px;">Stop</button>
 					</td>
 				`;
 

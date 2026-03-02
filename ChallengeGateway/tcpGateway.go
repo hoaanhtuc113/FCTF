@@ -35,6 +35,8 @@ var tcpCopyBufPool = sync.Pool{
 }
 
 func startTCPGateway(ctx context.Context, cfg gatewayConfig) net.Listener {
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime | log.Lmicroseconds))
+
 	listenPort := ":1337"
 	if cfg.TCPCopyBufBytes > 0 {
 		tcpCopyBufBytes = cfg.TCPCopyBufBytes
