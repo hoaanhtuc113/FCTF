@@ -13,6 +13,7 @@ from CTFd.schemas.awards import AwardSchema
 from CTFd.utils.config import is_teams_mode
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 
 awards_namespace = Namespace("awards", description="Endpoint to retrieve Awards")
 
@@ -132,6 +133,17 @@ class AwardList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        log_audit(
+            action="award_create",
+            data={
+                "award_id": response.data.get("id"),
+                "user_id": response.data.get("user_id"),
+                "team_id": response.data.get("team_id"),
+                "name": response.data.get("name"),
+                "value": response.data.get("value"),
+            },
+        )
+
         # Delete standings cache because awards can change scores
         clear_standings()
 
@@ -167,9 +179,22 @@ class Award(Resource):
     )
     def delete(self, award_id):
         award = Awards.query.filter_by(id=award_id).first_or_404()
+        award_info = {
+            "award_id": award.id,
+            "user_id": award.user_id,
+            "team_id": award.team_id,
+            "name": award.name,
+            "value": award.value,
+        }
         db.session.delete(award)
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="award_delete",
+            before=award_info,
+            data={"award_id": int(award_id)},
+        )
 
         # Delete standings cache because awards can change scores
         clear_standings()

@@ -40,6 +40,8 @@ type teeReadCloser struct {
 }
 
 func startHTTPGateway(cfg gatewayConfig) *http.Server {
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime | log.Lmicroseconds))
+
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
@@ -220,7 +222,6 @@ func (sr *statusRecorder) WriteHeader(code int) {
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 
 		var postBodyBuf bytes.Buffer
@@ -260,11 +261,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		}
 		if targetHost != "-" {
 			if teamID, challengeID, ok := parseTeamChallengeFromRoute(targetHost); ok {
-				log.Printf("HTTP %s %s %d %s team=\"%d\" challenge=\"%d\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, recorder.status, time.Since(start), teamID, challengeID, r.Method, recorder.status, targetHost, logPostBodySuffix)
+				log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, recorder.status, teamID, challengeID, r.Method, recorder.status, targetHost, logPostBodySuffix)
 				return
 			}
 		}
-		log.Printf("HTTP %s %s %d %s method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, recorder.status, time.Since(start), r.Method, recorder.status, targetHost, logPostBodySuffix)
+		log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, recorder.status, r.Method, recorder.status, targetHost, logPostBodySuffix)
 	})
 }
 
