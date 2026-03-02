@@ -1,60 +1,106 @@
 {% extends "admin/base.html" %}
 
+{% block stylesheets %}
+<style>
+  .rewards-page .page-header {
+    background: #ffffff;
+    padding: 2rem 0 1rem 0;
+    margin-bottom: 2rem;
+  }
+
+  .rewards-page .page-header h1 {
+    color: #2c3e50;
+    font-weight: 700;
+    font-size: 1.75rem;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .rewards-page .page-subtitle {
+    margin-top: 0.5rem;
+    color: #6c757d;
+    font-size: 0.95rem;
+  }
+
+  .section-card {
+    background: #ffffff;
+    padding: 1.25rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e8e8e8;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-title {
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e8e8e8;
+    margin-bottom: 1rem;
+  }
+
+  .template-card {
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+  }
+
+  .template-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    transition: all 0.2s;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-  <div class="row">
-    <div class="col-md-12">
-      <!-- Header -->
-      <div class="card mt-2 mb-3">
-        <div class="card-body p-3">
-          <h4 class="mb-1"><i class="fas fa-award text-warning"></i> Reward Query & Export</h4>
-          <p class="text-muted mb-0 small">Chọn template, xem kết quả, và export Excel để trao giải</p>
-        </div>
-      </div>
+<div class="rewards-page">
+  <div class="jumbotron page-header">
+    <div class="container">
+      <h1><i class="fas fa-award text-warning"></i> Reward Query & Export</h1>
+      <div class="page-subtitle">Select a template, preview results, and export for awarding</div>
+    </div>
+  </div>
 
-      <!-- Template Selector -->
-      <div class="card mb-3">
-        <div class="card-header bg-primary text-white py-2">
-          <strong><i class="fas fa-th-large"></i> Chọn Template</strong>
-        </div>
+  <div class="container">
+    <!-- Template Selector -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-th-large"></i> Choose Template</div>
 
-        <div class="row" id="template-cards">
-          <div class="col-12 text-center py-3">
-            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-          </div>
+      <div class="row" id="template-cards">
+        <div class="col-12 text-center py-3">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
         </div>
       </div>
     </div>
 
     <!-- Parameters -->
-    <div class="card mb-3" id="params-card" style="display: none;">
-      <div class="card-header bg-info text-white py-2">
-        <strong><i class="fas fa-sliders-h"></i> Tùy chỉnh Parameters</strong>
+    <div class="section-card" id="params-card" style="display: none;">
+      <div class="section-title"><i class="fas fa-sliders-h"></i> Parameters</div>
+      <div class="alert alert-info py-2 mb-3">
+        <strong id="selected-template-name" class="d-block"></strong>
+        <small class="text-muted" id="selected-template-desc"></small>
       </div>
-      <div class="card-body p-3">
-        <div class="alert alert-info py-2 mb-2">
-          <strong id="selected-template-name" class="d-block"></strong>
-          <small class="text-muted" id="selected-template-desc"></small>
-        </div>
-        <div id="params-container"></div>
-        <div class="mt-2">
-          <button id="preview-btn" class="btn btn-primary">
-            <i class="fas fa-eye"></i> Xem kết quả
-          </button>
-          <button id="reset-btn" class="btn btn-outline-secondary ml-2">
-            <i class="fas fa-undo"></i> Reset
-          </button>
-        </div>
+      <div id="params-container"></div>
+      <div class="mt-2">
+        <button id="preview-btn" class="btn btn-primary">
+          <i class="fas fa-eye"></i> Preview Results
+        </button>
+        <button id="reset-btn" class="btn btn-outline-secondary ml-2">
+          <i class="fas fa-undo"></i> Reset
+        </button>
       </div>
     </div>
 
     <!-- Results -->
-    <div class="card mb-3" id="results-card" style="display: none;">
-      <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
-        <strong><i class="fas fa-list"></i> Kết quả</strong>
+    <div class="section-card" id="results-card" style="display: none;">
+      <div class="section-title d-flex justify-content-between align-items-center">
+        <div><i class="fas fa-list"></i> Results</div>
         <span class="badge badge-light" id="result-count">0</span>
       </div>
-      <div class="card-body p-2">
+
+      <div class="card-body p-0">
         <!-- Stats Row -->
         <div class="row mb-2" id="stats-row">
           <div class="col-md-3">
@@ -119,7 +165,6 @@
       </div>
     </div>
   </div>
-</div>
 </div>
 
 <!-- Error Modal -->
@@ -204,7 +249,7 @@
     if (params.length === 0) {
       container.innerHTML = '<p class="text-muted small mb-0">No customizable parameters</p>';
     } else {
-      container.innerHTML = params.map(p => {
+      const buildField = (p) => {
         const label = p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         let input = '';
 
@@ -225,12 +270,42 @@
         }
 
         return `
-          <div class="form-group mb-2">
-            <label class="mb-1 small">${label}</label>
+          <div class="form-group col-md-6 mb-2">
+            <label class="mb-1 small font-weight-bold">${label}</label>
             ${input}
           </div>
         `;
-      }).join('');
+      };
+
+      const isTeamParam = (p) => /team|teams|team_id|team_name/i.test(p);
+      const isUserParam = (p) => /user|users|user_id|user_name|account|email|username/i.test(p);
+
+      const teamParams = params.filter(p => isTeamParam(p));
+      const userParams = params.filter(p => !isTeamParam(p) && isUserParam(p));
+      const otherParams = params.filter(p => !isTeamParam(p) && !isUserParam(p));
+
+      const renderSection = (title, desc, sectionParams) => {
+        if (sectionParams.length === 0) return '';
+        return `
+          <div class="card mb-3">
+            <div class="card-header bg-light py-2">
+              <strong>${title}</strong>
+              <div class="text-muted small">${desc}</div>
+            </div>
+            <div class="card-body p-3">
+              <div class="form-row">
+                ${sectionParams.map(buildField).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      };
+
+      container.innerHTML = [
+        renderSection('Criteria for Teams', 'Team-related fields and filters', teamParams),
+        renderSection('Criteria for Users', 'User-related fields and filters', userParams),
+        renderSection('Other Criteria', 'Shared filters and general parameters', otherParams)
+      ].join('');
     }
 
     document.getElementById("params-card").style.display = "block";
