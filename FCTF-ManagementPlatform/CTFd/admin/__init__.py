@@ -38,6 +38,7 @@ from CTFd.admin import exports
 from CTFd.admin import estimation
 from CTFd.admin import action_logs  # noqa: F401
 from CTFd.admin import admin_audit  # noqa: F401
+from CTFd.admin import instances_history  # noqa: F401
 
 from CTFd.cache import (
     cache,
