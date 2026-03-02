@@ -298,9 +298,9 @@
 								data-bs-target="#diffModal"
 								data-log-id="{{ log.id }}"
 								data-action="{{ log.action }}"
-								data-before="{{ log.before_state | tojson if log.before_state else '{}' }}"
-								data-after="{{ log.after_state | tojson if log.after_state else '{}' }}"
-								data-extra="{{ log.extra_data | tojson if log.extra_data else '{}' }}">
+								data-before='{{ log.before_state | tojson if log.before_state else "{}" }}'
+								data-after='{{ log.after_state | tojson if log.after_state else "{}" }}'
+								data-extra='{{ log.extra_data | tojson if log.extra_data else "{}" }}'>
 								<i class="bx bx-search-alt-2"></i> View
 							</button>
 							{% else %}
