@@ -277,6 +277,10 @@
 								<a href="{{ url_for('admin.users_detail', user_id=log.target_id) }}">#{{ log.target_id }}</a>
 								{% elif log.target_type == 'team' %}
 								<a href="{{ url_for('admin.teams_detail', team_id=log.target_id) }}">#{{ log.target_id }}</a>
+								{% elif log.target_type == 'challenge' %}
+								<a href="{{ url_for('admin.challenges_detail', challenge_id=log.target_id) }}">#{{ log.target_id }}</a>
+								{% elif log.target_type == 'submission' %}
+								<a href="{{ url_for('admin.submissions_listing', submission_type=None) }}">#{{ log.target_id }}</a>
 								{% else %}
 								#{{ log.target_id }}
 								{% endif %}
@@ -294,8 +298,8 @@
 						<td>
 							{% if log.before_state or log.after_state or log.extra_data %}
 							<button class="btn btn-outline-secondary view-diff-btn"
-								data-bs-toggle="modal"
-								data-bs-target="#diffModal"
+								data-toggle="modal"
+								data-target="#diffModal"
 								data-log-id="{{ log.id }}"
 								data-action="{{ log.action }}"
 								data-before='{{ log.before_state | tojson if log.before_state else "{}" }}'
@@ -380,15 +384,15 @@
 </div><!-- /admin-audit-page -->
 
 <!-- ── Diff modal ──────────────────────────────────────────────────────────── -->
-<div class="modal fade" id="diffModal" tabindex="-1" aria-labelledby="diffModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal fade" id="diffModal" tabindex="-1" role="dialog" aria-labelledby="diffModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
 				<h5 class="modal-title" id="diffModalLabel">
 					<i class="bx bx-detail"></i> Change Details — <span id="diffModalAction"></span>
 					<span class="text-muted small ms-2">#<span id="diffModalId"></span></span>
 				</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 			</div>
 			<div class="modal-body">
 				<!-- Before / After side-by-side -->
@@ -419,7 +423,7 @@
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+				<button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
 			</div>
 		</div>
 	</div>
