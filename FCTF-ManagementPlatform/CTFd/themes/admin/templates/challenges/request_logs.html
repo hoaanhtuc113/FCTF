@@ -51,10 +51,17 @@
 			padding: 1rem;
 			height: 70vh;
 			overflow: auto;
-			white-space: pre-wrap;
 			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 			font-size: 0.85rem;
-			line-height: 1.5;
+			line-height: 1.6;
+		}
+		.log-entry {
+			padding: 1px 0;
+			white-space: pre-wrap;
+			word-break: break-all;
+		}
+		.log-entry + .log-entry {
+			border-top: 1px solid #2a2a2a;
 		}
 		@keyframes spin {
 			from { transform: rotate(0deg); }
@@ -90,10 +97,12 @@
         </div>
         <div class="row">
             <div class="col-md-12">
-                <div id="log-content" class="log-box">{{ log_content }}</div>
+                <div id="log-content" class="log-box"></div>
             </div>
         </div>
     </div>
+    {# Store raw log data safely for JS consumption #}
+    <script id="raw-log-data" type="application/json">{{ log_content | tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
@@ -101,31 +110,173 @@
     var challengeId = {{ challenge_id }};
     var teamId = new URLSearchParams(window.location.search).get('team_id') || '';
 
+    /* ── helpers ── */
+    function escHtml(s) {
+        return s.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+    }
+
+    function decodeB64(b64) {
+        try {
+            var raw = atob(b64);
+            /* replace non-printable (except tab / newline) with middle-dot */
+            return raw.replace(/[^\x20-\x7E\t]/g, '·');
+        } catch (e) { return b64; }
+    }
+
+    /* ── parser: split raw text into [{time, log}] entries ── */
+    function parseLogs(rawText) {
+        if (!rawText) return [];
+        var lines = rawText.split('\n');
+        var entries = [];
+        var i = 0;
+        var TS_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+$/;
+
+        while (i < lines.length) {
+            var line = lines[i].trim();
+            if (TS_RE.test(line)) {
+                var time = line;
+                i++;
+                /* collect the first non-empty line as the log body */
+                var logLine = '';
+                while (i < lines.length) {
+                    var next = lines[i].trim();
+                    if (TS_RE.test(next)) break;
+                    i++;
+                    if (next) { logLine = next; break; }
+                }
+                if (logLine) entries.push({ time: time, log: logLine });
+            } else {
+                i++;
+            }
+        }
+        return entries;
+    }
+
+    /* ── renderer: returns HTML string or null to skip ── */
+    function renderEntry(entry) {
+        var time = entry.time;
+        var log  = entry.log;
+
+        var timeHtml = '<span style="color:#858585">' + time + '</span>';
+
+        /* ── TCP [~] entries only ── */
+        if (log.charAt(0) === '[') {
+            if (log.charAt(1) !== '~') return null; /* skip [+] etc. */
+
+            var dirM   = log.match(/direction="([^"]+)"/);
+            var bytesM = log.match(/bytes=(\d+)/);
+            var b64M   = log.match(/sample_b64=(\S+)/);
+            /* content after  bytes=N: <text>  (error / disconnect messages) */
+            var afterM = log.match(/bytes=\d+:\s*(.+)$/);
+
+            var direction = dirM   ? dirM[1]   : '?';
+            var bytes     = bytesM ? bytesM[1] : '?';
+
+            var content = '';
+            if (b64M) {
+                content = escHtml(decodeB64(b64M[1])).replace(/\r\n|\r|\n/g, '<span style="color:#569cd6">↵</span>');
+            } else if (afterM) {
+                content = '<span style="color:#858585">' + escHtml(afterM[1]) + '</span>';
+            }
+
+            var dirColor = direction === 'c2s' ? '#4ec9b0' : '#ce9178';
+            var html = timeHtml
+                + ': <span style="color:#569cd6;font-weight:bold">TCP</span>'
+                + ' <span style="color:' + dirColor + ';font-weight:bold">' + direction + '</span>'
+                + ' <span style="color:#b5cea8">' + bytes + 'B</span>'
+                + (content ? ': ' + content : '');
+            return '<div class="log-entry">' + html + '</div>';
+        }
+
+        /* ── HTTP entries ── */
+        if (log.substring(0, 4) === 'HTTP') {
+            var methodM = log.match(/^HTTP (\w+) /);
+            var pathM   = log.match(/^HTTP \w+ (\S+) /);
+            var statusM = log.match(/status="([^"]+)"/);
+            var bodyM   = log.match(/body="((?:[^"\\]|\\.)*)"/);
+
+            var method = methodM ? methodM[1] : '?';
+            var path   = pathM   ? pathM[1]   : '/';
+            var status = statusM ? statusM[1] : '?';
+            var body   = bodyM   ? bodyM[1]   : null;
+
+            var methodColors = { GET:'#4ec9b0', POST:'#dcdcaa', PUT:'#569cd6', DELETE:'#f44747', PATCH:'#c586c0', HEAD:'#9cdcfe', OPTIONS:'#9cdcfe' };
+            var methodColor  = methodColors[method] || '#d4d4d4';
+            var statusCode   = parseInt(status, 10);
+            var statusColor  = statusCode < 300 ? '#4ec9b0' : statusCode < 400 ? '#dcdcaa' : statusCode < 500 ? '#ce9178' : '#f44747';
+
+            var bodyHtml = body
+                ? ' <span style="color:#858585">body=</span><span style="color:#d7ba7d">&quot;' + escHtml(body) + '&quot;</span>'
+                : '';
+
+            var html = timeHtml
+                + ': <span style="color:#569cd6;font-weight:bold">HTTP</span>'
+                + ' <span style="color:' + methodColor + ';font-weight:bold">' + method + '</span>'
+                + ' <span style="color:#d4d4d4">' + escHtml(path) + '</span>'
+                + ' <span style="color:' + statusColor + '">' + status + '</span>'
+                + bodyHtml;
+            return '<div class="log-entry">' + html + '</div>';
+        }
+
+        return null; /* skip everything else */
+    }
+
+    /* ── main render function ── */
+    function renderLogs(rawText) {
+        var logBox  = document.getElementById('log-content');
+        var entries = parseLogs(rawText);
+
+        if (!entries.length) {
+            logBox.innerHTML = '<span style="color:#858585">No log data available.</span>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < entries.length; i++) {
+            var rendered = renderEntry(entries[i]);
+            if (rendered) html += rendered;
+        }
+
+        logBox.innerHTML = html || '<span style="color:#858585">No relevant log entries.</span>';
+    }
+
+    /* ── initial render from server-side data ── */
+    (function () {
+        var el = document.getElementById('raw-log-data');
+        if (el) {
+            try { renderLogs(JSON.parse(el.textContent)); }
+            catch (e) { document.getElementById('log-content').textContent = el.textContent; }
+        }
+    })();
+
+    /* ── refresh button ── */
     function refreshLogs() {
-        var btn = document.getElementById('refreshBtn');
+        var btn  = document.getElementById('refreshBtn');
         var icon = document.getElementById('refreshIcon');
-        var logContent = document.getElementById('log-content');
 
         btn.disabled = true;
         icon.classList.add('fa-spin');
 
-        var url = `/deploy_History/${challengeId}/request-logs-api?team_id=${teamId}`;
+        var url = '/deploy_History/' + challengeId + '/request-logs-api?team_id=' + teamId;
 
         fetch(url)
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
                 if (data.success) {
-                    logContent.textContent = data.logs;
+                    renderLogs(data.logs);
                 } else {
-                    logContent.textContent = 'Error: ' + (data.error || 'Failed to fetch logs');
+                    document.getElementById('log-content').textContent = 'Error: ' + (data.error || 'Failed to fetch logs');
                 }
                 var now = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
                 document.getElementById('lastRefreshed').textContent = 'Last refreshed: ' + now;
             })
-            .catch(function(error) {
-                logContent.textContent = 'Network error: ' + error.message;
+            .catch(function (err) {
+                document.getElementById('log-content').textContent = 'Network error: ' + err.message;
             })
-            .finally(function() {
+            .finally(function () {
                 btn.disabled = false;
                 icon.classList.remove('fa-spin');
             });
