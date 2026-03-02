@@ -101,6 +101,18 @@ public class ChallengeService : IChallengeService
         var captainOnlyStart = _configHelper.GetConfig<bool>("captain_only_start_challenge", true);
         var captainOnlySubmit = _configHelper.GetConfig<bool>("captain_only_submit_challenge", true);
         var difficultyVisible = _configHelper.GetConfig<string>("challenge_difficulty_visibility", "disabled") == "enabled";
+
+        // attempt to resolve the name for next challenge if available
+        string? nextName = null;
+        if (challenge.NextId.HasValue)
+        {
+            nextName = await _dbContext.Challenges
+                .AsNoTracking()
+                .Where(c => c.Id == challenge.NextId.Value)
+                .Select(c => c.Name)
+                .FirstOrDefaultAsync();
+        }
+
         var challenge_data = new ChallengeDataDto
         {
             id = challenge.Id,
@@ -115,6 +127,7 @@ public class ChallengeService : IChallengeService
             require_deploy = challenge.RequireDeploy,
             type = challenge.Type,
             next_id = challenge.NextId,
+            next_name = nextName,
             solve_by_myteam = solve_id != null ? true : false,
             files = files,
             is_captain = user.Id == user.Team.CaptainId,
