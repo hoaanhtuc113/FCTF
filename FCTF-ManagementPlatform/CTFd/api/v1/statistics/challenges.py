@@ -206,6 +206,15 @@ class ChallengeAnalytics(Resource):
             .subquery()
         )
 
+        hint_count_sub = (
+            db.session.query(
+                Hints.challenge_id,
+                func.count(Hints.id).label("hint_count"),
+            )
+            .group_by(Hints.challenge_id)
+            .subquery()
+        )
+
         challenges = (
             db.session.query(
                 Challenges.id,
@@ -215,10 +224,12 @@ class ChallengeAnalytics(Resource):
                 solves_sub.c.avg_solve_seconds,
                 fails_sub.c.wrong_attempts,
                 hint_usage_sub.c.hint_usage,
+                hint_count_sub.c.hint_count,
             )
             .outerjoin(solves_sub, Challenges.id == solves_sub.c.challenge_id)
             .outerjoin(fails_sub, Challenges.id == fails_sub.c.challenge_id)
             .outerjoin(hint_usage_sub, Challenges.id == hint_usage_sub.c.challenge_id)
+            .outerjoin(hint_count_sub, Challenges.id == hint_count_sub.c.challenge_id)
             .filter(and_(Challenges.state != "hidden", Challenges.state != "locked"))
             .order_by(Challenges.category, Challenges.name)
             .all()
@@ -228,6 +239,11 @@ class ChallengeAnalytics(Resource):
         for chal in challenges:
             solve_count = int(chal.solve_count or 0)
             solve_rate = (float(solve_count) / float(total_accounts)) if total_accounts else 0.0
+            hint_usage = int(chal.hint_usage or 0)
+            hint_count = int(chal.hint_count or 0)
+            hint_usage_per_hint = (
+                float(hint_usage) / float(hint_count) if hint_count else None
+            )
             response.append(
                 {
                     "id": chal.id,
@@ -241,7 +257,9 @@ class ChallengeAnalytics(Resource):
                         else None
                     ),
                     "wrong_attempts": int(chal.wrong_attempts or 0),
-                    "hint_usage": int(chal.hint_usage or 0),
+                    "hint_usage": hint_usage,
+                    "hint_count": hint_count,
+                    "hint_usage_per_hint": hint_usage_per_hint,
                 }
             )
 
