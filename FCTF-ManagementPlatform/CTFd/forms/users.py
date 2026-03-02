@@ -145,8 +145,6 @@ class UserSearchForm(BaseForm):
             ("name", "Name"),
             ("id", "ID"),
             ("email", "Email"),
-            ("affiliation", "Affiliation"),
-            ("website", "Website"),
             ("ip", "IP Address"),
         ],
         default="name",
