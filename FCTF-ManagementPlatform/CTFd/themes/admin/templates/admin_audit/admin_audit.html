@@ -439,28 +439,68 @@
 	var diffModal = document.getElementById('diffModal');
 	if (!diffModal) return;
 
+	function decodeHtmlEntities(input) {
+		if (input == null) return '';
+		var txt = document.createElement('textarea');
+		txt.innerHTML = String(input);
+		return txt.value;
+	}
+
+	function prettyFromRaw(raw) {
+		var normalized = decodeHtmlEntities(raw || '').trim();
+		if (!normalized || normalized === '{}' || normalized === 'null') {
+			return '';
+		}
+
+		function tryParse(value) {
+			try {
+				return JSON.parse(value);
+			} catch (e) {
+				return null;
+			}
+		}
+
+		var parsed = tryParse(normalized);
+		if (parsed === null) {
+			return normalized;
+		}
+
+		if (typeof parsed === 'string') {
+			var reparsed = tryParse(parsed);
+			if (reparsed !== null) {
+				parsed = reparsed;
+			} else {
+				return parsed;
+			}
+		}
+
+		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
+			return '';
+		}
+
+		try {
+			return JSON.stringify(parsed, null, 2);
+		} catch (e) {
+			return normalized;
+		}
+	}
+
 	diffModal.addEventListener('show.bs.modal', function (event) {
-		var btn    = event.relatedTarget;
-		var logId  = btn.getAttribute('data-log-id');
-		var action = btn.getAttribute('data-action');
-		var before = btn.getAttribute('data-before');
-		var after  = btn.getAttribute('data-after');
-		var extra  = btn.getAttribute('data-extra');
+		var btn = event.relatedTarget;
+		if (!btn) return;
+
+		var logId  = btn.getAttribute('data-log-id') || '';
+		var action = btn.getAttribute('data-action') || '';
+		var before = btn.getAttribute('data-before') || '';
+		var after  = btn.getAttribute('data-after') || '';
+		var extra  = btn.getAttribute('data-extra') || '';
 
 		document.getElementById('diffModalAction').textContent = action;
 		document.getElementById('diffModalId').textContent     = logId;
 
-		function fmtJson(raw) {
-			try {
-				var obj = JSON.parse(raw);
-				if (!obj || (typeof obj === 'object' && Object.keys(obj).length === 0)) return '';
-				return JSON.stringify(obj, null, 2);
-			} catch (e) { return raw || ''; }
-		}
-
-		var beforeStr = fmtJson(before);
-		var afterStr  = fmtJson(after);
-		var extraStr  = fmtJson(extra);
+		var beforeStr = prettyFromRaw(before);
+		var afterStr  = prettyFromRaw(after);
+		var extraStr  = prettyFromRaw(extra);
 
 		document.getElementById('diffBefore').textContent = beforeStr || '(no before state)';
 		document.getElementById('diffAfter').textContent  = afterStr  || '(no after state)';
