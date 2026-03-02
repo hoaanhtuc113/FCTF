@@ -92,11 +92,15 @@
 		width: 100%;
 	}
 
+	.monitoring-table-wrapper {
+		overflow-x: auto;
+	}
+
 	.monitoring-table {
 		margin: 0;
 		font-size: 0.9rem;
 		width: 100%;
-		table-layout: fixed;
+		table-layout: auto;
 	}
 
 	.monitoring-table thead th {
@@ -124,7 +128,40 @@
 		padding: 0.875rem 0.75rem;
 		color: #495057;
 		vertical-align: middle;
-		overflow: auto;
+		white-space: nowrap;
+	}
+
+	.monitoring-table tbody td.allow-wrap {
+		white-space: normal;
+	}
+
+	/* Action dropdown */
+	.action-dropdown .dropdown-toggle {
+		padding: 0.3rem 0.65rem;
+		font-size: 0.8rem;
+		border-radius: 4px;
+	}
+
+	.action-dropdown .dropdown-menu {
+		min-width: 150px;
+		font-size: 0.85rem;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+		border: 1px solid #e0e0e0;
+		border-radius: 6px;
+		padding: 4px 0;
+	}
+
+	.action-dropdown .dropdown-item {
+		padding: 0.45rem 1rem;
+		transition: background 0.15s;
+	}
+
+	.action-dropdown .dropdown-item:hover {
+		background: #fff5f2;
+	}
+
+	.action-dropdown .dropdown-item.text-danger:hover {
+		background: #fdf3f3;
 	}
 
 	/* Challenge token cell */
@@ -566,9 +603,23 @@
 						? new Date(row.time_finished).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
 						: "N/A"}</td>
 					<td class="text-center">
-						<button onclick="viewLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-info d-inline-block" style="margin: 5px;">Logs</button>
-						<button onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-secondary d-inline-block" style="margin: 5px;">Request Logs</button>
-						<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block" style="margin: 5px;">Stop</button>
+					<div class="dropdown action-dropdown">
+						<button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+							Actions
+						</button>
+						<div class="dropdown-menu dropdown-menu-right">
+							<a class="dropdown-item" href="#" onclick="viewLogs(${row.challenge_id}, ${row.team_id}); return false;">
+								<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs
+							</a>
+							<a class="dropdown-item" href="#" onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id}); return false;">
+								<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs
+							</a>
+							<div class="dropdown-divider"></div>
+							<a class="dropdown-item text-danger" href="#" onclick="stopChallenge(${row.challenge_id}, ${row.team_id}); return false;">
+								<i class="fas fa-stop-circle fa-fw mr-1"></i> Stop
+							</a>
+						</div>
+					</div>
 					</td>
 				`;
 
