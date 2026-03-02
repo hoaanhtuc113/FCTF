@@ -1,4 +1,5 @@
 import csv
+import re
 from datetime import datetime, timedelta
 from io import StringIO
 
@@ -25,13 +26,30 @@ def _escape_like_pattern(value):
     return value
 
 
-def _parse_date(value):
+def _parse_datetime(value):
     if not value:
         return None
     try:
-        return datetime.strptime(value, "%Y-%m-%d")
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M")
     except ValueError:
         return None
+
+
+def _parse_quick_range(value):
+    if not value:
+        return None
+    match = re.match(r"^(\d+)(m|h)$", value.strip())
+    if not match:
+        return None
+    amount = int(match.group(1))
+    unit = match.group(2)
+    if amount <= 0:
+        return None
+    if unit == "m":
+        return timedelta(minutes=amount)
+    if unit == "h":
+        return timedelta(hours=amount)
+    return None
 
 
 def _apply_user_team_filters(query, user_filter, team_filter):
@@ -57,13 +75,23 @@ def _apply_user_team_filters(query, user_filter, team_filter):
     return query
 
 
+def _apply_challenge_filter(query, challenge_filter):
+    challenge_id = _parse_int(challenge_filter)
+    if challenge_filter:
+        if challenge_id is not None:
+            query = query.filter(Challenges.id == challenge_id)
+        else:
+            escaped_filter = _escape_like_pattern(challenge_filter)
+            search_pattern = f"%{escaped_filter}%"
+            query = query.filter(Challenges.name.ilike(search_pattern, escape="\\"))
+    return query
+
+
 def _apply_date_filters(query, start_date, end_date):
     if start_date:
         query = query.filter(ChallengeStartTracking.started_at >= start_date)
     if end_date:
-        query = query.filter(
-            ChallengeStartTracking.started_at < (end_date + timedelta(days=1))
-        )
+        query = query.filter(ChallengeStartTracking.started_at <= end_date)
     return query
 
 
@@ -94,14 +122,21 @@ def instances_history_listing():
 
     user_filter = (request.args.get("user") or "").strip()
     team_filter = (request.args.get("team") or "").strip()
+    challenge_filter = (request.args.get("challenge") or "").strip()
     start_filter = (request.args.get("start") or "").strip()
     end_filter = (request.args.get("end") or "").strip()
+    quick_filter = (request.args.get("quick") or "").strip()
 
-    start_date = _parse_date(start_filter)
-    end_date = _parse_date(end_filter)
+    start_date = _parse_datetime(start_filter)
+    end_date = _parse_datetime(end_filter)
+    quick_range = _parse_quick_range(quick_filter)
+    if quick_range:
+        end_date = datetime.utcnow()
+        start_date = end_date - quick_range
 
     query = _base_instances_query()
     query = _apply_user_team_filters(query, user_filter=user_filter, team_filter=team_filter)
+    query = _apply_challenge_filter(query, challenge_filter=challenge_filter)
     query = _apply_date_filters(query, start_date=start_date, end_date=end_date)
 
     logs = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -116,8 +151,10 @@ def instances_history_listing():
         next_page=url_for(request.endpoint, page=logs.next_num, **args),
         user_filter=user_filter,
         team_filter=team_filter,
+        challenge_filter=challenge_filter,
         start_filter=start_filter,
         end_filter=end_filter,
+        quick_filter=quick_filter,
         per_page=per_page,
     )
 
@@ -127,14 +164,21 @@ def instances_history_listing():
 def instances_history_export_csv():
     user_filter = (request.args.get("user") or "").strip()
     team_filter = (request.args.get("team") or "").strip()
+    challenge_filter = (request.args.get("challenge") or "").strip()
     start_filter = (request.args.get("start") or "").strip()
     end_filter = (request.args.get("end") or "").strip()
+    quick_filter = (request.args.get("quick") or "").strip()
 
-    start_date = _parse_date(start_filter)
-    end_date = _parse_date(end_filter)
+    start_date = _parse_datetime(start_filter)
+    end_date = _parse_datetime(end_filter)
+    quick_range = _parse_quick_range(quick_filter)
+    if quick_range:
+        end_date = datetime.utcnow()
+        start_date = end_date - quick_range
 
     query = _base_instances_query()
     query = _apply_user_team_filters(query, user_filter=user_filter, team_filter=team_filter)
+    query = _apply_challenge_filter(query, challenge_filter=challenge_filter)
     query = _apply_date_filters(query, start_date=start_date, end_date=end_date)
 
     def generate():
