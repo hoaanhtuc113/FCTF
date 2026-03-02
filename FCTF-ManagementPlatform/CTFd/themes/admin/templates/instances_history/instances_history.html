@@ -71,23 +71,44 @@
         <div class="filter-section">
             <form method="GET" action="{{ url_for('admin.instances_history_listing') }}" class="form">
                 <div class="row">
-                    <div class="col-md-3 mb-2">
+                    <div class="col-md-4 mb-2">
                         <label for="user" class="mb-1">User (id or name)</label>
                         <input class="form-control" id="user" name="user" value="{{ user_filter }}"
                             placeholder="e.g. 12 or alice" />
                     </div>
-                    <div class="col-md-3 mb-2">
+                    <div class="col-md-4 mb-2">
                         <label for="team" class="mb-1">Team (id or name)</label>
                         <input class="form-control" id="team" name="team" value="{{ team_filter }}"
                             placeholder="e.g. 3 or Team A" />
                     </div>
-                    <div class="col-md-2 mb-2">
-                        <label for="start" class="mb-1">Start date</label>
-                        <input type="date" class="form-control" id="start" name="start" value="{{ start_filter }}" />
+                    <div class="col-md-4 mb-2">
+                        <label for="challenge" class="mb-1">Challenge (id or name)</label>
+                        <input class="form-control" id="challenge" name="challenge" value="{{ challenge_filter }}"
+                            placeholder="e.g. 42 or Crypto 101" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <label for="start" class="mb-1">Start time</label>
+                        <input type="datetime-local" class="form-control" id="start" name="start"
+                            value="{{ start_filter }}" />
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label for="end" class="mb-1">End time</label>
+                        <input type="datetime-local" class="form-control" id="end" name="end"
+                            value="{{ end_filter }}" />
                     </div>
                     <div class="col-md-2 mb-2">
-                        <label for="end" class="mb-1">End date</label>
-                        <input type="date" class="form-control" id="end" name="end" value="{{ end_filter }}" />
+                        <label for="quick" class="mb-1">Quick range</label>
+                        <select class="form-control" id="quick" name="quick">
+                            <option value="" {% if not quick_filter %}selected{% endif %}>Custom</option>
+                            <option value="15m" {% if quick_filter=="15m" %}selected{% endif %}>Last 15 minutes</option>
+                            <option value="30m" {% if quick_filter=="30m" %}selected{% endif %}>Last 30 minutes</option>
+                            <option value="1h" {% if quick_filter=="1h" %}selected{% endif %}>Last 1 hour</option>
+                            <option value="6h" {% if quick_filter=="6h" %}selected{% endif %}>Last 6 hours</option>
+                            <option value="12h" {% if quick_filter=="12h" %}selected{% endif %}>Last 12 hours</option>
+                            <option value="24h" {% if quick_filter=="24h" %}selected{% endif %}>Last 24 hours</option>
+                        </select>
                     </div>
                     <div class="col-md-2 mb-2">
                         <label for="per_page" class="mb-1">Per page</label>
@@ -108,7 +129,7 @@
                     </div>
                     <div>
                         <a class="btn btn-outline-secondary"
-                            href="{{ url_for('admin.instances_history_export_csv', user=user_filter, team=team_filter, start=start_filter, end=end_filter) }}">Export
+                            href="{{ url_for('admin.instances_history_export_csv', user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter) }}">Export
                             CSV</a>
                     </div>
                 </div>

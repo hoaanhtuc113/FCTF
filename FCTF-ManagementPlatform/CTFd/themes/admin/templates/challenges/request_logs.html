@@ -171,9 +171,12 @@
             var b64M   = log.match(/sample_b64=(\S+)/);
             /* content after  bytes=N: <text>  (error / disconnect messages) */
             var afterM = log.match(/bytes=\d+:\s*(.+)$/);
+            /* client IP:port — "from 1.2.3.4:5678" or "from [::1]:5678" */
+            var ipM    = log.match(/from ([\w.\[\]:]+:\d+)/);
 
             var direction = dirM   ? dirM[1]   : '?';
             var bytes     = bytesM ? bytesM[1] : '?';
+            var ip        = ipM    ? ipM[1]    : null;
 
             var content = '';
             if (b64M) {
@@ -183,9 +186,11 @@
             }
 
             var dirColor = direction === 'c2s' ? '#4ec9b0' : '#ce9178';
+            var ipHtml   = ip ? ' <span style="color:#9cdcfe">' + escHtml(ip) + '</span>' : '';
             var html = timeHtml
                 + ': <span style="color:#569cd6;font-weight:bold">TCP</span>'
                 + ' <span style="color:' + dirColor + ';font-weight:bold">' + direction + '</span>'
+                + ipHtml
                 + ' <span style="color:#b5cea8">' + bytes + 'B</span>'
                 + (content ? ': ' + content : '');
             return '<div class="log-entry">' + html + '</div>';
