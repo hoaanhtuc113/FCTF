@@ -82,6 +82,20 @@
 		padding: .4rem;
 	}
 
+	/* ── Field-diff table ─────────────────────────────────────────────────── */
+	#diffFieldTable th { background: #f8f9fa; font-size: .8rem; white-space: nowrap; }
+	#diffFieldTable td { font-size: .8rem; vertical-align: top; word-break: break-all; }
+	.diff-row-changed { background-color: #fff9e6 !important; }
+	.diff-row-added   { background-color: #eaffea !important; }
+	.diff-row-removed { background-color: #fff0f0 !important; }
+	.diff-val-before  { color: #b02a37; }
+	.diff-val-after   { color: #0a6640; }
+	.diff-val-same    { color: #495057; }
+	.diff-sensitive   { font-style: italic; color: #6c757d; letter-spacing: .05em; }
+	.badge-changed    { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #fd7e14; color: #fff; border-radius: .25rem; }
+	.badge-added      { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #198754; color: #fff; border-radius: .25rem; }
+	.badge-removed    { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #dc3545; color: #fff; border-radius: .25rem; }
+
 	/* ── Badges ──────────────────────────────────────────────────────────── */
 	.badge-action {
 		font-size: .7rem;
@@ -395,26 +409,40 @@
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 			</div>
 			<div class="modal-body">
-				<!-- Before / After side-by-side -->
-				<h6 class="mb-2">Before &rarr; After</h6>
-				<table class="table table-bordered table-sm mb-0">
-					<thead>
-						<tr>
+				<!-- Summary badges -->
+				<div id="diffSummary" class="mb-2"></div>
+
+				<!-- Field-by-field diff table -->
+				<div id="diffTableSection">
+					<h6 class="mb-2">Before &rarr; After</h6>
+					<div style="max-height:420px;overflow-y:auto;">
+						<table id="diffFieldTable" class="table table-bordered table-sm mb-0">
+							<thead>
+								<tr>
+									<th style="width:22%">Field</th>
+									<th style="width:39%" class="text-danger">Before</th>
+									<th style="width:39%" class="text-success">After</th>
+								</tr>
+							</thead>
+							<tbody id="diffFieldBody"></tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- Fallback raw view (used when before/after are not objects) -->
+				<div id="diffRawSection" style="display:none">
+					<h6 class="mb-2">Before &rarr; After</h6>
+					<table class="table table-bordered table-sm mb-0">
+						<thead><tr>
 							<th class="diff-col text-danger">Before</th>
 							<th class="diff-col text-success">After</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td class="diff-col">
-								<pre id="diffBefore" class="diff-pre mb-0"></pre>
-							</td>
-							<td class="diff-col">
-								<pre id="diffAfter" class="diff-pre mb-0"></pre>
-							</td>
-						</tr>
-					</tbody>
-				</table>
+						</tr></thead>
+						<tbody><tr>
+							<td class="diff-col"><pre id="diffBefore" class="diff-pre mb-0"></pre></td>
+							<td class="diff-col"><pre id="diffAfter" class="diff-pre mb-0"></pre></td>
+						</tr></tbody>
+					</table>
+				</div>
 
 				<!-- Extra data -->
 				<div id="extraDataSection" class="mt-3">
@@ -439,6 +467,17 @@
 	var diffModal = document.getElementById('diffModal');
 	if (!diffModal) return;
 
+	// ── Sensitive field names (shown as masked) ──────────────────────────────
+	var SENSITIVE_KEYS = [
+		'password', 'passwd', 'secret', 'token', 'api_key', 'apikey',
+		'access_token', 'refresh_token', 'private_key', 'hash', 'salt'
+	];
+
+	function isSensitive(key) {
+		var k = String(key).toLowerCase();
+		return SENSITIVE_KEYS.some(function (s) { return k === s || k.indexOf(s) !== -1; });
+	}
+
 	function decodeHtmlEntities(input) {
 		if (input == null) return '';
 		var txt = document.createElement('textarea');
@@ -446,43 +485,137 @@
 		return txt.value;
 	}
 
-	function prettyFromRaw(raw) {
+	function tryParse(value) {
+		try { return JSON.parse(value); } catch (e) { return null; }
+	}
+
+	function parseRaw(raw) {
+		// Returns the parsed JS value (object/array/string/number) or null
 		var normalized = decodeHtmlEntities(raw || '').trim();
-		if (!normalized || normalized === '{}' || normalized === 'null') {
-			return '';
-		}
-
-		function tryParse(value) {
-			try {
-				return JSON.parse(value);
-			} catch (e) {
-				return null;
-			}
-		}
-
+		if (!normalized || normalized === '{}' || normalized === 'null') return null;
 		var parsed = tryParse(normalized);
-		if (parsed === null) {
-			return normalized;
-		}
-
+		if (parsed === null) return normalized;          // raw non-JSON string
 		if (typeof parsed === 'string') {
 			var reparsed = tryParse(parsed);
-			if (reparsed !== null) {
-				parsed = reparsed;
-			} else {
-				return parsed;
+			return reparsed !== null ? reparsed : parsed;
+		}
+		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) return null;
+		return parsed;
+	}
+
+	function prettyValue(val) {
+		if (val === null || val === undefined) return '—';
+		if (typeof val === 'object') return JSON.stringify(val, null, 2);
+		return String(val);
+	}
+
+	function valuesEqual(a, b) {
+		if (typeof a === 'object' || typeof b === 'object')
+			return JSON.stringify(a) === JSON.stringify(b);
+		return a === b;
+	}
+
+	// Build a <td> element for a field value
+	function makeCell(key, val, isChanged, side) {
+		var td = document.createElement('td');
+		td.className = 'mono';
+
+		if (isSensitive(key)) {
+			// Always mask the actual value
+			var masked = document.createElement('span');
+			masked.className = 'diff-sensitive';
+			masked.textContent = '••••••••';
+			td.appendChild(masked);
+			if (isChanged) {
+				var badge = document.createElement('span');
+				badge.className = 'badge-changed ms-1';
+				badge.textContent = 'changed';
+				td.appendChild(document.createTextNode(' '));
+				td.appendChild(badge);
 			}
+			return td;
 		}
 
-		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) {
-			return '';
-		}
+		var text = (val === undefined || val === null) ? '—' : prettyValue(val);
+		var span = document.createElement('span');
+		span.className = isChanged ? (side === 'before' ? 'diff-val-before' : 'diff-val-after') : 'diff-val-same';
+		span.style.whiteSpace = 'pre-wrap';
+		span.textContent = text;
+		td.appendChild(span);
+		return td;
+	}
 
-		try {
-			return JSON.stringify(parsed, null, 2);
-		} catch (e) {
-			return normalized;
+	function buildDiffTable(beforeObj, afterObj) {
+		var tbody = document.getElementById('diffFieldBody');
+		tbody.innerHTML = '';
+
+		var allKeys = {};
+		if (beforeObj && typeof beforeObj === 'object') Object.keys(beforeObj).forEach(function (k) { allKeys[k] = true; });
+		if (afterObj  && typeof afterObj  === 'object') Object.keys(afterObj).forEach(function  (k) { allKeys[k] = true; });
+
+		var keys = Object.keys(allKeys);
+		if (keys.length === 0) return false;
+
+		var nChanged = 0, nAdded = 0, nRemoved = 0;
+
+		keys.forEach(function (key) {
+			var bVal = beforeObj ? beforeObj[key] : undefined;
+			var aVal = afterObj  ? afterObj[key]  : undefined;
+
+			var inBefore = beforeObj && Object.prototype.hasOwnProperty.call(beforeObj, key);
+			var inAfter  = afterObj  && Object.prototype.hasOwnProperty.call(afterObj,  key);
+
+			var isAdded   = !inBefore && inAfter;
+			var isRemoved = inBefore && !inAfter;
+			var isChanged = inBefore && inAfter && !valuesEqual(bVal, aVal);
+
+			if (isAdded)   nAdded++;
+			if (isRemoved) nRemoved++;
+			if (isChanged) nChanged++;
+
+			var tr = document.createElement('tr');
+			if (isChanged)      tr.className = 'diff-row-changed';
+			else if (isAdded)   tr.className = 'diff-row-added';
+			else if (isRemoved) tr.className = 'diff-row-removed';
+
+			// Key cell
+			var tdKey = document.createElement('td');
+			tdKey.className = 'mono fw-semibold';
+			tdKey.style.whiteSpace = 'nowrap';
+			tdKey.textContent = key;
+			if (isAdded) {
+				var b = document.createElement('span');
+				b.className = 'badge-added ms-1'; b.textContent = 'new';
+				tdKey.appendChild(document.createTextNode(' ')); tdKey.appendChild(b);
+			} else if (isRemoved) {
+				var b = document.createElement('span');
+				b.className = 'badge-removed ms-1'; b.textContent = 'removed';
+				tdKey.appendChild(document.createTextNode(' ')); tdKey.appendChild(b);
+			} else if (isChanged) {
+				var b = document.createElement('span');
+				b.className = 'badge-changed ms-1'; b.textContent = 'changed';
+				tdKey.appendChild(document.createTextNode(' ')); tdKey.appendChild(b);
+			}
+
+			tr.appendChild(tdKey);
+			tr.appendChild(makeCell(key, inBefore ? bVal : undefined, isChanged || isRemoved, 'before'));
+			tr.appendChild(makeCell(key, inAfter  ? aVal : undefined, isChanged || isAdded,   'after'));
+			tbody.appendChild(tr);
+		});
+
+		// Summary badges
+		var summary = document.getElementById('diffSummary');
+		summary.innerHTML = '';
+		function addBadge(cls, text) {
+			var sp = document.createElement('span');
+			sp.className = cls + ' me-1'; sp.textContent = text;
+			summary.appendChild(sp);
 		}
+		if (nChanged) addBadge('badge-changed', nChanged + ' changed');
+		if (nAdded)   addBadge('badge-added',   nAdded   + ' added');
+		if (nRemoved) addBadge('badge-removed', nRemoved + ' removed');
+
+		return true;
 	}
 
 	// Bootstrap 4 fires modal events through jQuery — must use $.on(), not addEventListener
@@ -490,25 +623,47 @@
 		var btn = event.relatedTarget;
 		if (!btn) return;
 
-		var logId  = $(btn).data('log-id') || btn.getAttribute('data-log-id') || '';
-		var action = $(btn).data('action') || btn.getAttribute('data-action') || '';
+		var logId  = btn.getAttribute('data-log-id') || '';
+		var action = btn.getAttribute('data-action') || '';
 		var before = btn.getAttribute('data-before') || '';
 		var after  = btn.getAttribute('data-after') || '';
 		var extra  = btn.getAttribute('data-extra') || '';
 
 		document.getElementById('diffModalAction').textContent = action;
 		document.getElementById('diffModalId').textContent     = logId;
+		document.getElementById('diffSummary').innerHTML       = '';
 
-		var beforeStr = prettyFromRaw(before);
-		var afterStr  = prettyFromRaw(after);
-		var extraStr  = prettyFromRaw(extra);
+		var beforeObj = parseRaw(before);
+		var afterObj  = parseRaw(after);
+		var extraObj  = parseRaw(extra);
 
-		document.getElementById('diffBefore').textContent = beforeStr || '(no before state)';
-		document.getElementById('diffAfter').textContent  = afterStr  || '(no after state)';
+		var isObjects = (beforeObj && typeof beforeObj === 'object') ||
+					   (afterObj  && typeof afterObj  === 'object');
+
+		var tableSection = document.getElementById('diffTableSection');
+		var rawSection   = document.getElementById('diffRawSection');
+
+		if (isObjects) {
+			buildDiffTable(
+				(beforeObj && typeof beforeObj === 'object') ? beforeObj : {},
+				(afterObj  && typeof afterObj  === 'object') ? afterObj  : {}
+			);
+			tableSection.style.display = '';
+			rawSection.style.display   = 'none';
+		} else {
+			// Fallback: raw text side-by-side
+			document.getElementById('diffBefore').textContent = (beforeObj != null ? String(beforeObj) : '') || '(no before state)';
+			document.getElementById('diffAfter').textContent  = (afterObj  != null ? String(afterObj)  : '') || '(no after state)';
+			tableSection.style.display = 'none';
+			rawSection.style.display   = '';
+		}
 
 		var extraSection = document.getElementById('extraDataSection');
-		if (extraStr) {
-			document.getElementById('diffExtra').textContent = extraStr;
+		if (extraObj != null) {
+			var extraText = typeof extraObj === 'object'
+				? JSON.stringify(extraObj, null, 2)
+				: String(extraObj);
+			document.getElementById('diffExtra').textContent = extraText;
 			extraSection.style.display = '';
 		} else {
 			extraSection.style.display = 'none';
