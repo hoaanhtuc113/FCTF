@@ -37,6 +37,7 @@ from CTFd.admin import monitors
 from CTFd.admin import exports
 from CTFd.admin import estimation
 from CTFd.admin import action_logs  # noqa: F401
+from CTFd.admin import admin_audit  # noqa: F401
 
 from CTFd.cache import (
     cache,
@@ -67,6 +68,7 @@ from CTFd.utils.csv import dump_csv, load_challenges_csv, load_teams_csv, load_u
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.exports import background_import_ctf
 from CTFd.utils.exports import export_ctf as export_ctf_util
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.auth import logout_user
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import is_admin,is_challenge_writer,is_jury
@@ -408,6 +410,12 @@ def dump_csv_with_passwords(field=None, q=None):
 
     db.session.commit()
     output.seek(0)
+
+    log_audit(
+        action="bulk_password_reset",
+        data={"count": len(results)},
+    )
+
     return io.BytesIO(output.getvalue().encode("utf-8"))
 
 def dump_csv_without_passwords(field=None, q=None):
@@ -531,6 +539,13 @@ def reset():
             next_url = url_for("views.setup")
 
         db.session.commit()
+
+        # Audit: record what was wiped
+        reset_scope = [k for k in ["pages", "notifications", "challenges", "accounts", "submissions"] if data.get(k)]
+        log_audit(
+            action="ctf_reset",
+            data={"wiped_sections": reset_scope},
+        )
 
         clear_pages()
         clear_standings()
