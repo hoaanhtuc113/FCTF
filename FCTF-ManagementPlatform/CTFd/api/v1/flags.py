@@ -13,6 +13,7 @@ from CTFd.plugins.flags import FLAG_CLASSES, get_flag_class
 from CTFd.schemas.flags import FlagSchema
 from CTFd.utils.decorators import admins_only,admin_or_challenge_writer_only_or_jury
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 
 flags_namespace = Namespace("flags", description="Endpoint to retrieve Flags")
 
@@ -122,6 +123,15 @@ class FlagList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        log_audit(
+            action="flag_create",
+            data={
+                "flag_id": response.data.get("id"),
+                "challenge_id": response.data.get("challenge_id"),
+                "type": response.data.get("type"),
+            },
+        )
+
         return {"success": True, "data": response.data}
 
 
@@ -177,10 +187,21 @@ class Flag(Resource):
     )
     def delete(self, flag_id):
         flag = Flags.query.filter_by(id=flag_id).first_or_404()
+        flag_info = {
+            "flag_id": flag.id,
+            "challenge_id": flag.challenge_id,
+            "type": flag.type,
+        }
 
         db.session.delete(flag)
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="flag_delete",
+            before=flag_info,
+            data={"flag_id": int(flag_id)},
+        )
 
         return {"success": True}
 
@@ -209,5 +230,14 @@ class Flag(Resource):
 
         response = schema.dump(response.data)
         db.session.close()
+
+        log_audit(
+            action="flag_update",
+            data={
+                "flag_id": int(flag_id),
+                "challenge_id": response.data.get("challenge_id"),
+                "type": response.data.get("type"),
+            },
+        )
 
         return {"success": True, "data": response.data}
