@@ -53,7 +53,7 @@ const renderChallengeAnalytics = (force = false) => {
       if (!rows.length) {
         const emptyRow = document.createElement("tr");
         emptyRow.innerHTML =
-          '<td colspan="5" class="text-center">No data</td>';
+          '<td colspan="7" class="text-center">No data</td>';
         tableBody.appendChild(emptyRow);
       } else {
         rows
@@ -61,12 +61,17 @@ const renderChallengeAnalytics = (force = false) => {
           .forEach((row) => {
             const tr = document.createElement("tr");
             const percent = (row.solve_rate * 100).toFixed(1);
+            const hintUsage = row.hint_usage || 0;
+            const hintCount = row.hint_count || 0;
+            const hintUsageDisplay = hintCount ? `${hintUsage}/${hintCount}` : "-";
             tr.innerHTML = `
               <td>${row.name}</td>
               <td>${percent}%</td>
               <td>${formatDuration(row.avg_solve_seconds)}</td>
               <td>${row.wrong_attempts}</td>
               <td>${row.hint_usage}</td>
+              <td>${row.hint_count}</td>
+              <td>${hintUsageDisplay}</td>
             `;
             tableBody.appendChild(tr);
           });
@@ -96,6 +101,8 @@ const exportChallengeAnalytics = () => {
       "Avg Time (seconds)",
       "Wrong Attempts",
       "Hint Usage",
+      "Hint Count",
+      "Hint Usage/Hints",
     ];
     const lines = [header.join(",")];
     rows.forEach((row) => {
@@ -104,11 +111,20 @@ const exportChallengeAnalytics = () => {
         row.avg_solve_seconds === null || row.avg_solve_seconds === undefined
           ? ""
           : Math.round(row.avg_solve_seconds);
+      const hintUsage = row.hint_usage || 0;
+      const hintCount = row.hint_count || 0;
+      const hintUsageDisplay = hintCount ? `${hintUsage}/${hintCount}` : "";
       const name = String(row.name).replace(/"/g, '""');
       lines.push(
-        [`"${name}"`, percent, avg, row.wrong_attempts, row.hint_usage].join(
-          ","
-        )
+        [
+          `"${name}"`,
+          percent,
+          avg,
+          row.wrong_attempts,
+          row.hint_usage,
+          row.hint_count,
+          hintUsageDisplay,
+        ].join(",")
       );
     });
 

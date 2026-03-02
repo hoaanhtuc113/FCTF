@@ -502,6 +502,62 @@ export function Challenges() {
     await handleChallengeClickInternal(challenge);
   };
 
+  const handleNavigateToChallenge = async (challengeId: number) => {
+    let targetChallenge: Challenge | null = null;
+    let targetCategory: string | null = null;
+
+    challengesByCategory.forEach((list, categoryName) => {
+      if (targetChallenge) return;
+      const found = list.find(item => item.id === challengeId);
+      if (found) {
+        targetChallenge = found;
+        targetCategory = categoryName;
+      }
+    });
+
+    if (!targetChallenge) {
+      for (const category of categories) {
+        const categoryName = category.topic_name;
+        const list = challengesByCategory.get(categoryName) ?? await fetchChallenges(categoryName);
+        const found = list.find(item => item.id === challengeId);
+        if (found) {
+          targetChallenge = found;
+          targetCategory = categoryName;
+          break;
+        }
+      }
+    }
+
+    if (!targetChallenge || !targetCategory) {
+      await Swal.fire({
+        html: '<div class="font-mono text-sm text-red-400">[!] Challenge not found</div>',
+        icon: 'error',
+        iconColor: '#ef4444',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
+      });
+      return;
+    }
+
+    const resolvedCategory = targetCategory;
+
+    setExpandedCategories(prev => new Set(prev).add(resolvedCategory));
+    setSelectedCategory(resolvedCategory);
+    processedChallengeRef.current = null;
+
+    setSearchParams({
+      category: resolvedCategory,
+      challenge: targetChallenge.id.toString(),
+    }, { replace: true });
+
+    await handleChallengeClickInternal(targetChallenge);
+  };
+
   const getCategoryIcon = (name: string) => {
     const iconMap: { [key: string]: React.JSX.Element } = {
       'Web': <Security className="text-lg" />,
@@ -727,6 +783,7 @@ export function Challenges() {
               onFlagSuccess={refreshChallengeData}
               isSidebarVisible={isSidebarVisible}
               onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+              onNavigate={handleNavigateToChallenge}
             />
           </motion.div>
         ) : null}
@@ -3536,12 +3593,11 @@ function ChallengeDetailPanel({
                   }
                   placement="top" arrow enterDelay={0} enterNextDelay={0}
                 >
-                  <span className={`cursor-help px-2 py-1 rounded border ${
-                    challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
-                    (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                  <span className={`cursor-help px-2 py-1 rounded border ${challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
+                      (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
                       ? theme === 'dark' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-red-50 text-red-700 border-red-300'
                       : theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'
-                  }`}>
+                    }`}>
                     Deploys: {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0) ? '∞' : `${challenge.deployed_count ?? 0}/${challenge.max_deploy_count}`}
                   </span>
                 </Tooltip>
@@ -3558,11 +3614,10 @@ function ChallengeDetailPanel({
                   {Array.from({ length: 5 }, (_, i) => (
                     <span
                       key={i}
-                      className={`text-base leading-none ${
-                        i < (challenge.difficulty ?? 0)
+                      className={`text-base leading-none ${i < (challenge.difficulty ?? 0)
                           ? theme === 'dark' ? 'text-yellow-400' : 'text-yellow-500'
                           : theme === 'dark' ? 'text-gray-600' : 'text-gray-300'
-                      }`}
+                        }`}
                     >
                       {i < (challenge.difficulty ?? 0) ? '★' : '☆'}
                     </span>
@@ -3975,10 +4030,10 @@ function ChallengeDetailPanel({
 
             {challenge.next_id && (
               <div className="mt-6 flex items-center gap-3">
-                {/* Nhãn trạng thái - Dùng "Lộ trình" hoặc "Kế tiếp" cho chuyên nghiệp */}
+                {/* Status label - keep it concise and professional */}
                 <span className="shrink-0 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter text-gray-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                  Thử thách kế tiếp:
+                  We Recommend You Try This Challenge Next:
                 </span>
 
                 <button
@@ -3999,7 +4054,7 @@ function ChallengeDetailPanel({
                 </button>
               </div>
             )}
-   
+
 
           </div>
         </div>
