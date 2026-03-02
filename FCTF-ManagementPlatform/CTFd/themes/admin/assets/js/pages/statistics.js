@@ -4,6 +4,126 @@ import $ from "jquery";
 import echarts from "echarts/dist/echarts.common";
 import { colorHash } from "../compat/styles";
 
+const analyticsEndpoint = "/api/v1/statistics/challenges/analytics";
+const analyticsCacheMs = 60000;
+let analyticsCache = null;
+let analyticsCacheAt = 0;
+
+const fetchChallengeAnalytics = (force = false) => {
+  const now = Date.now();
+  if (
+    force ||
+    !analyticsCache ||
+    now - analyticsCacheAt > analyticsCacheMs
+  ) {
+    analyticsCache = CTFd.fetch(analyticsEndpoint).then((response) =>
+      response.json()
+    );
+    analyticsCacheAt = now;
+  }
+  return analyticsCache;
+};
+
+const formatDuration = (seconds) => {
+  if (seconds === null || seconds === undefined) {
+    return "-";
+  }
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+};
+
+const renderChallengeAnalytics = (force = false) => {
+  fetchChallengeAnalytics(force).then((response) => {
+    if (!response || !response.success) {
+      return;
+    }
+    const data = response.data;
+    const rows = data.challenges || [];
+
+    const tableBody = document.querySelector(
+      "#challenge-analytics-table tbody"
+    );
+    if (tableBody) {
+      tableBody.innerHTML = "";
+      if (!rows.length) {
+        const emptyRow = document.createElement("tr");
+        emptyRow.innerHTML =
+          '<td colspan="5" class="text-center">No data</td>';
+        tableBody.appendChild(emptyRow);
+      } else {
+        rows
+          .sort((a, b) => b.solve_rate - a.solve_rate)
+          .forEach((row) => {
+            const tr = document.createElement("tr");
+            const percent = (row.solve_rate * 100).toFixed(1);
+            tr.innerHTML = `
+              <td>${row.name}</td>
+              <td>${percent}%</td>
+              <td>${formatDuration(row.avg_solve_seconds)}</td>
+              <td>${row.wrong_attempts}</td>
+              <td>${row.hint_usage}</td>
+            `;
+            tableBody.appendChild(tr);
+          });
+      }
+    }
+
+    const mostSolved = document.getElementById("category-most-solved");
+    const leastSolved = document.getElementById("category-least-solved");
+    if (mostSolved) {
+      mostSolved.textContent = data.category_most_solved?.name || "-";
+    }
+    if (leastSolved) {
+      leastSolved.textContent = data.category_least_solved?.name || "-";
+    }
+  });
+};
+
+const exportChallengeAnalytics = () => {
+  fetchChallengeAnalytics().then((response) => {
+    if (!response || !response.success) {
+      return;
+    }
+    const rows = response.data?.challenges || [];
+    const header = [
+      "Challenge",
+      "% Solve",
+      "Avg Time (seconds)",
+      "Wrong Attempts",
+      "Hint Usage",
+    ];
+    const lines = [header.join(",")];
+    rows.forEach((row) => {
+      const percent = (row.solve_rate * 100).toFixed(2);
+      const avg =
+        row.avg_solve_seconds === null || row.avg_solve_seconds === undefined
+          ? ""
+          : Math.round(row.avg_solve_seconds);
+      const name = String(row.name).replace(/"/g, '""');
+      lines.push(
+        [`"${name}"`, percent, avg, row.wrong_attempts, row.hint_usage].join(
+          ","
+        )
+      );
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "challenge-analytics.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+};
+
 const graph_configs = {
   "#solves-graph": {
     data: () => CTFd.api.get_challenge_solve_statistics(),
@@ -326,6 +446,76 @@ const graph_configs = {
     },
   },
 
+  "#category-solves-graph": {
+    data: () => fetchChallengeAnalytics(),
+    format: (response) => {
+      const data = response.data?.categories || {};
+      const categories = Object.keys(data);
+      const values = categories.map((key) => data[key]);
+
+      const paired = categories.map((name, index) => ({
+        name,
+        value: values[index],
+      }));
+      paired.sort((a, b) => b.value - a.value);
+
+      const names = paired.map((item) => item.name);
+      const counts = paired.map((item) => item.value);
+
+      return {
+        title: {
+          left: "center",
+          text: "Category Solves",
+          textStyle: {
+            fontFamily: "Space Mono",
+            color: "#ff5500",
+          },
+        },
+        tooltip: {
+          trigger: "item",
+          textStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        toolbox: {
+          show: true,
+          feature: {
+            dataView: { show: true, readOnly: false },
+            saveAsImage: { show: true },
+          },
+          emphasis: {
+            iconStyle: {
+              borderColor: "#ff5500",
+            },
+          },
+        },
+        xAxis: {
+          type: "value",
+          name: "Solves",
+          nameTextStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        yAxis: {
+          type: "category",
+          data: names,
+          nameTextStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        series: [
+          {
+            type: "bar",
+            data: counts,
+            itemStyle: {
+              color: (params) => colorHash(names[params.dataIndex]),
+            },
+          },
+        ],
+      };
+    },
+  },
+
   "#solve-percentages-graph": {
     layout: (annotations) => ({
       title: "Solve Percentages per Challenge",
@@ -333,10 +523,9 @@ const graph_configs = {
         title: "Challenge Name",
       },
       yaxis: {
-        title: `Percentage of ${
-          CTFd.config.userMode.charAt(0).toUpperCase() +
+        title: `Percentage of ${CTFd.config.userMode.charAt(0).toUpperCase() +
           CTFd.config.userMode.slice(1)
-        } (%)`,
+          } (%)`,
         range: [0, 100],
       },
       annotations: annotations,
@@ -416,10 +605,9 @@ const graph_configs = {
           },
         },
         yAxis: {
-          name: `"Percentage of ${
-            CTFd.config.userMode.charAt(0).toUpperCase() +
+          name: `Percentage of ${CTFd.config.userMode.charAt(0).toUpperCase() +
             CTFd.config.userMode.slice(1)
-          } (%)`,
+            } (%)`,
           nameGap: 50,
           nameLocation: "middle",
           type: "value",
@@ -476,6 +664,144 @@ const graph_configs = {
     },
   },
 
+  "#avg-solve-time-graph": {
+    data: () => fetchChallengeAnalytics(),
+    format: (response) => {
+      const rows = response.data?.challenges || [];
+      const filtered = rows
+        .filter((row) => row.avg_solve_seconds !== null)
+        .map((row) => ({
+          name: row.name,
+          value: row.avg_solve_seconds,
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 20);
+
+      const names = filtered.map((row) => row.name);
+      const values = filtered.map((row) => Math.round(row.value / 60));
+
+      return {
+        title: {
+          left: "center",
+          text: "Avg Solve Time (minutes)",
+          textStyle: {
+            fontFamily: "Space Mono",
+            color: "#ff5500",
+          },
+        },
+        tooltip: {
+          trigger: "item",
+          formatter: function (data) {
+            return `${data.name} - ${data.value}m`;
+          },
+          textStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        toolbox: {
+          show: true,
+          feature: {
+            dataView: { show: true, readOnly: false },
+            saveAsImage: { show: true },
+          },
+          emphasis: {
+            iconStyle: {
+              borderColor: "#ff5500",
+            },
+          },
+        },
+        xAxis: {
+          type: "value",
+          name: "Minutes",
+          nameTextStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        yAxis: {
+          type: "category",
+          data: names,
+          nameTextStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        series: [
+          {
+            itemStyle: { normal: { color: "#ff5500" } },
+            data: values,
+            type: "bar",
+          },
+        ],
+      };
+    },
+  },
+
+  "#wrong-attempts-graph": {
+    data: () => fetchChallengeAnalytics(),
+    format: (response) => {
+      const rows = response.data?.challenges || [];
+      const sorted = rows
+        .map((row) => ({
+          name: row.name,
+          value: row.wrong_attempts || 0,
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 20);
+
+      const names = sorted.map((row) => row.name);
+      const values = sorted.map((row) => row.value);
+
+      return {
+        title: {
+          left: "center",
+          text: "Wrong Attempts (top 20)",
+          textStyle: {
+            fontFamily: "Space Mono",
+            color: "#ff5500",
+          },
+        },
+        tooltip: {
+          trigger: "item",
+          textStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        toolbox: {
+          show: true,
+          feature: {
+            dataView: { show: true, readOnly: false },
+            saveAsImage: { show: true },
+          },
+          emphasis: {
+            iconStyle: {
+              borderColor: "#ff5500",
+            },
+          },
+        },
+        xAxis: {
+          type: "value",
+          name: "Attempts",
+          nameTextStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        yAxis: {
+          type: "category",
+          data: names,
+          nameTextStyle: {
+            fontFamily: "Space Mono",
+          },
+        },
+        series: [
+          {
+            itemStyle: { normal: { color: "#cf2600" } },
+            data: values,
+            type: "bar",
+          },
+        ],
+      };
+    },
+  },
+
   "#score-distribution-graph": {
     layout: (annotations) => ({
       title: "Score Distribution",
@@ -485,10 +811,9 @@ const graph_configs = {
         type: "category",
       },
       yaxis: {
-        title: `Number of ${
-          CTFd.config.userMode.charAt(0).toUpperCase() +
+        title: `Number of ${CTFd.config.userMode.charAt(0).toUpperCase() +
           CTFd.config.userMode.slice(1)
-        }`,
+          }`,
       },
       annotations: annotations,
     }),
@@ -562,10 +887,9 @@ const graph_configs = {
           },
         },
         yAxis: {
-          name: `Number of ${
-            CTFd.config.userMode.charAt(0).toUpperCase() +
+          name: `Number of ${CTFd.config.userMode.charAt(0).toUpperCase() +
             CTFd.config.userMode.slice(1)
-          }`,
+            }`,
           nameGap: 50,
           nameLocation: "middle",
           type: "value",
@@ -659,5 +983,13 @@ function updateGraphs() {
 
 $(() => {
   createGraphs();
-  setInterval(updateGraphs, 300000);
+  renderChallengeAnalytics();
+  const exportBtn = document.getElementById("challenge-analytics-export");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", exportChallengeAnalytics);
+  }
+  setInterval(() => {
+    updateGraphs();
+    renderChallengeAnalytics(true);
+  }, 300000);
 });
