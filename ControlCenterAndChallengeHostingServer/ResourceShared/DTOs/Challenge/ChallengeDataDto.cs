@@ -20,6 +20,8 @@ namespace ResourceShared.DTOs.Challenge
         public bool require_deploy { get; set; }
         public string? type { get; set; }
         public int? next_id { get; set; }
+        // name of the challenge referenced by next_id, for UI convenience
+        public string? next_name { get; set; }
         public bool solve_by_myteam { get; set; }
         public List<object> files { get; set; } = new();
         public bool is_captain { get; set; }
