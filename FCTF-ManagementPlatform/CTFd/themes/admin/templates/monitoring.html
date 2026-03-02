@@ -94,6 +94,7 @@
 
 	.monitoring-table-wrapper {
 		overflow-x: auto;
+		overflow-y: visible;
 	}
 
 	.monitoring-table {
@@ -101,6 +102,13 @@
 		font-size: 0.9rem;
 		width: 100%;
 		table-layout: auto;
+	}
+
+	/* Prevent dropdown-menu from affecting layout — JS will fix position */
+	.action-dropdown .dropdown-menu {
+		position: fixed !important;
+		top: 0;
+		left: 0;
 	}
 
 	.monitoring-table thead th {
@@ -135,15 +143,38 @@
 		white-space: normal;
 	}
 
-	/* Action dropdown */
-	.action-dropdown .dropdown-toggle {
-		padding: 0.3rem 0.65rem;
-		font-size: 0.8rem;
+	/* Action dropdown — toggle styled as clean-btn */
+	.clean-btn {
+		border: 1px solid #dee2e6;
+		background: #ffffff;
+		color: #495057;
+		padding: 0.5rem 1rem;
 		border-radius: 4px;
+		font-size: 0.9rem;
+		font-weight: 500;
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+
+	.clean-btn:hover,
+	.clean-btn:focus {
+		border-color: #ff6b35;
+		color: #ff6b35;
+		background: #fff5f2;
+		outline: none;
+		box-shadow: none;
+	}
+
+	.clean-action-btn-sm {
+		padding: 0.375rem 0.75rem;
+		font-size: 0.875rem;
 	}
 
 	.action-dropdown .dropdown-menu {
-		min-width: 150px;
+		position: fixed !important;
+		top: 0;
+		left: 0;
+		min-width: 160px;
 		font-size: 0.85rem;
 		box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 		border: 1px solid #e0e0e0;
@@ -153,15 +184,17 @@
 
 	.action-dropdown .dropdown-item {
 		padding: 0.45rem 1rem;
-		transition: background 0.15s;
+		transition: background 0.15s, color 0.15s;
 	}
 
 	.action-dropdown .dropdown-item:hover {
 		background: #fff5f2;
+		color: #ff6b35;
 	}
 
 	.action-dropdown .dropdown-item.text-danger:hover {
 		background: #fdf3f3;
+		color: #dc3545 !important;
 	}
 
 	/* Challenge token cell */
@@ -604,8 +637,8 @@
 						: "N/A"}</td>
 					<td class="text-center">
 					<div class="dropdown action-dropdown">
-						<button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-							Actions
+						<button type="button" class="clean-btn clean-action-btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+							<i class="fas fa-cog fa-fw"></i> Actions
 						</button>
 						<div class="dropdown-menu dropdown-menu-right">
 							<a class="dropdown-item" href="#" onclick="viewLogs(${row.challenge_id}, ${row.team_id}); return false;">
@@ -890,6 +923,52 @@
 			deleteAllBtn.innerHTML = originalContent;
 		}
 	}
+
+	/* ── Fix dropdown positioning inside scrollable table ──
+	   .dropdown-menu is position:fixed (CSS), so it never affects
+	   table layout. We calculate coords from the toggle's bounding rect. */
+	(function () {
+		var _activeMenu   = null;
+		var _activeToggle = null;
+
+		function positionMenu(menu, toggle) {
+			var rect  = toggle.getBoundingClientRect();
+			var menuW = menu.offsetWidth || 150;
+			var left  = rect.right - menuW;
+			if (left < 4) left = rect.left;
+			menu.style.top  = rect.bottom + 'px';
+			menu.style.left = left + 'px';
+		}
+
+		/* Bootstrap 4 fires on the .dropdown wrapper element */
+		document.addEventListener('show.bs.dropdown', function (e) {
+			var wrapper = (e.target || e.relatedTarget);
+			if (!wrapper || !wrapper.classList.contains('action-dropdown')) return;
+			var toggle = wrapper.querySelector('.dropdown-toggle');
+			var menu   = wrapper.querySelector('.dropdown-menu');
+			if (!toggle || !menu) return;
+			_activeMenu   = menu;
+			_activeToggle = toggle;
+			/* defer one tick so Bootstrap finishes adding .show */
+			setTimeout(function () { positionMenu(menu, toggle); }, 0);
+		});
+
+		document.addEventListener('hide.bs.dropdown', function (e) {
+			_activeMenu   = null;
+			_activeToggle = null;
+		});
+
+		/* Keep menu attached while user scrolls the table or the page */
+		var tableWrapper = document.querySelector('.monitoring-table-wrapper');
+		if (tableWrapper) {
+			tableWrapper.addEventListener('scroll', function () {
+				if (_activeMenu && _activeToggle) positionMenu(_activeMenu, _activeToggle);
+			});
+		}
+		window.addEventListener('scroll', function () {
+			if (_activeMenu && _activeToggle) positionMenu(_activeMenu, _activeToggle);
+		});
+	})();
 </script>
 
 {% endblock %}
