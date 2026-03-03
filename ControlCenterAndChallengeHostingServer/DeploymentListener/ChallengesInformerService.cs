@@ -241,7 +241,6 @@ public class ChallengesInformerService
     {
         _logger.LogDebug($"Final cleanup for Challenge {challengeId} (Team {teamId})");
         await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
-        await _k8sService.HandleChallengeStopped(teamId, challengeId);
         await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.STOPPED, null);
 
     }
@@ -251,11 +250,6 @@ public class ChallengesInformerService
         if (deleted)
         {
             await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
-            if (status.Equals(DeploymentStatus.STOPPED, StringComparison.OrdinalIgnoreCase) ||
-                status.Equals(DeploymentStatus.FAILED, StringComparison.OrdinalIgnoreCase))
-            {
-                await _k8sService.HandleChallengeStopped(teamId, challengeId);
-            }
             await onStatusChange.Invoke(teamId, challengeId, 0, status, null);
         }
     }
