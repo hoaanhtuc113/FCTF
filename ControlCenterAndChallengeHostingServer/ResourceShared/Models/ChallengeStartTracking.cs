@@ -14,6 +14,10 @@ public partial class ChallengeStartTracking
 
     public DateTime StartedAt { get; set; }
 
+    public DateTime? StoppedAt { get; set; }
+
+    public string? Label { get; set; }
+
     public virtual Challenge Challenge { get; set; } = null!;
 
     public virtual Team? Team { get; set; }
