@@ -299,12 +299,12 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 		if targetHost != "-" {
 			if teamID, challengeID, ok := ParseTeamChallengeFromRoute(targetHost); ok {
-				log.Printf("HTTP %s %s %d team=%q challenge=%q -> %s%s",
-					r.Method, r.URL.Path, rec.status, teamID, challengeID, targetHost, postSuffix)
+				log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" method=\"%s\" status=\"%d\" -> %s%s",
+					r.Method, r.URL.Path, rec.status, teamID, challengeID, r.Method, rec.status, targetHost, postSuffix)
 				return
 			}
 		}
-		log.Printf("HTTP %s %s %d -> %s%s", r.Method, r.URL.Path, rec.status, targetHost, postSuffix)
+		log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, rec.status, r.Method, rec.status, targetHost, postSuffix)
 	})
 }
 
