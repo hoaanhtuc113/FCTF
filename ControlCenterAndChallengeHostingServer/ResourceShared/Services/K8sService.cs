@@ -273,7 +273,8 @@ public class K8sService : IK8sService
                 {
                     ChallengeId = challengeId,
                     TeamId = teamId,
-                    StartedAt = now.DateTime
+                    StartedAt = now.DateTime,
+                    Label = $"{podName}"
                 });
                 await dbContext.SaveChangesAsync();
             }
