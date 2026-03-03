@@ -8,18 +8,25 @@
 		border-bottom: 2px solid #e8e8e8;
 		margin-bottom: 0;
 		padding: 3rem 0;
+		text-align: center;
+		text-transform: none;
 	}
 	
 	.user-detail-page .jumbotron h1,
 	.user-detail-page .jumbotron h2,
 	.user-detail-page .jumbotron h3 {
 		color: #2c3e50;
+		text-align: center;
 	}
 	
 	.user-detail-page .jumbotron h1 {
+		display: block;
+		text-align: center;
+		text-transform: none;
 		font-weight: 700;
 		font-size: 2.2rem;
 		margin-bottom: 1rem;
+		letter-spacing: normal;
 	}
 	
 	.user-detail-page .jumbotron h2 {
@@ -36,6 +43,8 @@
 	.user-detail-page .jumbotron hr {
 		border-top: 2px solid #e8e8e8;
 		opacity: 0.3;
+		margin-left: auto;
+		margin-right: auto;
 	}
 	
 	/* Action Icons */
@@ -292,7 +301,7 @@
 </div>
 
 <div class="jumbotron">
-	<div class="container">
+	<div class="container text-center">
 		<h1 id="team-id" class="text-center p-0 m-0" style="text-transform: none;">{{ user.name }}</h1>
 		<div class="mb-2 text-center"  style="text-transform: none;">
 			{% if user.type == 'admin' %}
@@ -363,7 +372,7 @@
 			<small>points</small>
 			{% endif %}
 		</h3>
-		<hr class="w-50">
+		<hr class="w-50 mx-auto">
 		<div class="pt-3 text-center" style="text-transform: none;">
 			{% if not is_jury()%}
 
@@ -466,7 +475,7 @@
 										{{ solve.challenge.name }}
 									</a>
 								</td>
-								<td class="flag" id="{{ solve.id }}">
+								<td class="text-center flag" id="{{ solve.id }}">
 									<pre>{{ solve.provided }}</pre>
 								</td>
 								<td class="text-center">{{ solve.challenge.category }}</td>
@@ -529,7 +538,7 @@
 										{{ fail.challenge.name }}
 									</a>
 								</td>
-								<td class="flag" id="{{ fail.id }}">
+								<td class="text-center flag" id="{{ fail.id }}">
 									<pre>{{ fail.provided }}</pre>
 								</td>
 								<td class="text-center solve-time">
@@ -584,7 +593,7 @@
 										data-award-name="{{ award.name }}">
 								</td>
 								<td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
-								<td class="">
+								<td class="text-center">
 									<pre>{{ award.description }}</pre>
 								</td>
 								<td class="text-center solve-time">
@@ -660,6 +669,7 @@
 	<div class="row min-vh-25 pt-5">
 		<div class="col-md-10 offset-md-1">
 			<div id="comment-box">
+			</div>
 		</div>
 	</div>
 </div>

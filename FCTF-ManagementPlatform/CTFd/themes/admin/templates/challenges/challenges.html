@@ -185,7 +185,7 @@
                             </td>
                             <td class="text-center">{{ challenge.id }}</td>
                             {% if not is_jury() %}
-                            <td cllass="text-center text-wrap">
+                            <td class="text-center text-wrap">
                                 <a href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
                                     {{ challenge.name }}
                                 </a>

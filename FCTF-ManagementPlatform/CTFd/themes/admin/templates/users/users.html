@@ -168,7 +168,7 @@
 						<input type="checkbox" class="table-check" autocomplete="off" value="{{ user.id }}" data-user-id="{{ user.id }}">
 					</td>
 					<td class="text-center" value="{{ user.id }}">{{ user.id }}</td>
-					<td value="{{ user.name }}">
+					<td class="text-center" value="{{ user.name }}">
 						<a href="{{ url_for('admin.users_detail', user_id=user.id) }}">
 							{{ user.name | truncate(32) }}
 						</a>
