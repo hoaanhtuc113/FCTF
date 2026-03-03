@@ -2,70 +2,14 @@
 
 {% block stylesheets %}
 <style>
-	/* ── Page header ─────────────────────────────────────────────────────── */
-	.admin-audit-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem;
-		margin-bottom: 2rem;
-	}
-	.admin-audit-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-
-	/* ── Filter card ─────────────────────────────────────────────────────── */
-	.filter-section {
-		background: #ffffff;
-		padding: 1.25rem;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
-		border: 1px solid #e8e8e8;
-		margin-bottom: 1.5rem;
-	}
-	.filter-section label {
-		font-size: .85rem;
-		font-weight: 600;
-		color: #495057;
-	}
-
-	/* ── Table ───────────────────────────────────────────────────────────── */
-	.table-card {
-		background: #ffffff;
-		padding: 1.25rem;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
-		border: 1px solid #e8e8e8;
-	}
-	.table thead th {
-		background-color: #f8f9fa;
-		color: #2c3e50;
-		font-weight: 600;
-		border-bottom: 2px solid #e8e8e8;
-		padding: .9rem .75rem;
-		vertical-align: middle;
-		white-space: nowrap;
-	}
-	.table tbody td {
-		padding: .8rem .75rem;
-		vertical-align: top;
-		color: #495057;
-		border-bottom: 1px solid #f1f1f1;
-	}
-	.table tbody tr:hover {
-		background-color: #fafafa;
-	}
-
-	/* ── Diff/snapshot modal ─────────────────────────────────────────────── */
+	/* Admin audit page — only page-specific overrides; shared styles in base.html */
 	.mono {
 		font-family: "Space Mono", monospace;
 		font-size: .8rem;
 		white-space: pre-wrap;
 		word-break: break-word;
 	}
+	/* Diff/snapshot modal */
 	.diff-pre {
 		background: #f4f4f4;
 		border-radius: 4px;
@@ -81,8 +25,7 @@
 		vertical-align: top;
 		padding: .4rem;
 	}
-
-	/* ── Field-diff table ─────────────────────────────────────────────────── */
+	/* Field-diff table */
 	#diffFieldTable th { background: #f8f9fa; font-size: .8rem; white-space: nowrap; }
 	#diffFieldTable td { font-size: .8rem; vertical-align: top; word-break: break-all; }
 	.diff-row-changed { background-color: #fff9e6 !important; }
@@ -95,30 +38,17 @@
 	.badge-changed    { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #fd7e14; color: #fff; border-radius: .25rem; }
 	.badge-added      { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #198754; color: #fff; border-radius: .25rem; }
 	.badge-removed    { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #dc3545; color: #fff; border-radius: .25rem; }
-
-	/* ── Badges ──────────────────────────────────────────────────────────── */
-	.badge-action {
-		font-size: .7rem;
-		padding: .3em .6em;
-		border-radius: 4px;
-	}
+	/* Custom action/role/target badges */
+	.badge-action { font-size: .7rem; padding: .3em .6em; border-radius: 4px; }
 	.badge-create  { background: #d4edda; color: #155724; }
 	.badge-update  { background: #fff3cd; color: #856404; }
 	.badge-delete  { background: #f8d7da; color: #721c24; }
 	.badge-bulk    { background: #d1ecf1; color: #0c5460; }
-
 	.badge-role-admin    { background: #e2d9f3; color: #432874; }
 	.badge-role-jury     { background: #d1ecf1; color: #0c5460; }
 	.badge-role-writer   { background: #d4edda; color: #155724; }
 	.badge-role-unknown  { background: #f8f9fa; color: #6c757d; }
-
 	.badge-target { font-size: .7rem; }
-
-	/* ── Pagination ──────────────────────────────────────────────────────── */
-	.pagination .page-item.active .page-link {
-		background-color: #0d6efd;
-		border-color: #0d6efd;
-	}
 	.view-diff-btn {
 		font-size: .75rem;
 		padding: .2rem .5rem;
@@ -127,277 +57,250 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-audit-page">
-	<!-- ── Page header ── -->
-	<div class="jumbotron page-header">
-		<div class="container">
-			<h1><i class="bx bx-shield-quarter"></i> Audit Logs</h1>
-		</div>
-	</div>
-
+<div class="page-header">
 	<div class="container">
-
-		<!-- ── Filters ── -->
-		<div class="filter-section">
-			<form method="GET" action="{{ url_for('admin.admin_audit_listing') }}">
-				<div class="row g-2">
-					<!-- Actor -->
-					<div class="col-md-3">
-						<label for="actor">Actor (id or name)</label>
-						<input class="form-control form-control-sm" id="actor" name="actor"
-							value="{{ actor_filter }}" placeholder="e.g. 5 or alice" />
-					</div>
-					<!-- Role -->
-					<div class="col-md-2">
-						<label for="role">Role</label>
-						<select class="form-control form-control-sm" id="role" name="role">
-							<option value="" {% if not role_filter %}selected{% endif %}>All roles</option>
-							{% for r in actor_roles %}
-							<option value="{{ r }}" {% if role_filter == r %}selected{% endif %}>{{ r }}</option>
-							{% endfor %}
-						</select>
-					</div>
-					<!-- Action -->
-					<div class="col-md-3">
-						<label for="action">Action</label>
-						<select class="form-control form-control-sm" id="action" name="action">
-							<option value="" {% if not action_filter %}selected{% endif %}>All actions</option>
-							{% for a in all_actions %}
-							<option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>
-								{{ action_labels.get(a, a) }}
-							</option>
-							{% endfor %}
-						</select>
-					</div>
-					<!-- Target type -->
-					<div class="col-md-2">
-						<label for="target_type">Target type</label>
-						<select class="form-control form-control-sm" id="target_type" name="target_type">
-							<option value="" {% if not target_type_filter %}selected{% endif %}>All</option>
-							{% for t in target_types %}
-							<option value="{{ t }}" {% if target_type_filter == t %}selected{% endif %}>{{ t }}</option>
-							{% endfor %}
-						</select>
-					</div>
-					<!-- Target ID -->
-					<div class="col-md-2">
-						<label for="target_id">Target ID</label>
-						<input class="form-control form-control-sm" id="target_id" name="target_id"
-							value="{{ target_id_filter }}" placeholder="e.g. 42" />
-					</div>
-					<!-- Date from -->
-					<div class="col-md-2">
-						<label for="date_from">From (UTC)</label>
-						<input class="form-control form-control-sm" type="date" id="date_from"
-							name="date_from" value="{{ date_from }}" />
-					</div>
-					<!-- Date to -->
-					<div class="col-md-2">
-						<label for="date_to">To (UTC)</label>
-						<input class="form-control form-control-sm" type="date" id="date_to"
-							name="date_to" value="{{ date_to }}" />
-					</div>
-					<!-- Per page -->
-					<div class="col-md-2">
-						<label for="per_page">Per page</label>
-						<select class="form-control form-control-sm" id="per_page" name="per_page">
-							{% for n in [25, 50, 100, 200] %}
-							<option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
-							{% endfor %}
-						</select>
-					</div>
-					<!-- Buttons -->
-					<div class="col-md-2 d-flex align-items-end gap-1">
-						<button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
-						<a href="{{ url_for('admin.admin_audit_listing') }}"
-							class="btn btn-outline-secondary btn-sm">Clear</a>
-					</div>
+		<h1><i class="bx bx-shield-quarter"></i> Audit Logs</h1>
+	</div>
+</div>
+<div class="container">
+	<!-- Filters -->
+	<div class="clean-search-container">
+		<form method="GET" action="{{ url_for('admin.admin_audit_listing') }}" class="m-0">
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-3 px-1">
+					<label for="actor">Actor (id or name)</label>
+					<input class="clean-form-control w-100" id="actor" name="actor"
+						value="{{ actor_filter }}" placeholder="e.g. 5 or alice" />
 				</div>
-
-				<!-- Summary + export row -->
-				<div class="d-flex justify-content-between align-items-center mt-3">
-					<span class="text-muted small">
-						Page {{ logs.page }} of {{ logs.pages }} &mdash; {{ logs.total }} record{{ 's' if logs.total != 1 else '' }}
-					</span>
-					<a class="btn btn-outline-secondary btn-sm"
-						href="{{ url_for('admin.admin_audit_export_csv',
-									actor=actor_filter, role=role_filter, action=action_filter,
-									target_type=target_type_filter, target_id=target_id_filter,
-									date_from=date_from, date_to=date_to) }}">
-						<i class="bx bx-download"></i> Export CSV
+				<div class="col-md-2 px-1">
+					<label for="role">Role</label>
+					<select class="clean-form-control ss-select w-100" id="role" name="role">
+						<option value="" {% if not role_filter %}selected{% endif %}>All roles</option>
+						{% for r in actor_roles %}
+						<option value="{{ r }}" {% if role_filter == r %}selected{% endif %}>{{ r }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="action">Action</label>
+					<select class="clean-form-control ss-select w-100" id="action" name="action">
+						<option value="" {% if not action_filter %}selected{% endif %}>All actions</option>
+						{% for a in all_actions %}
+						<option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>
+							{{ action_labels.get(a, a) }}
+						</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="target_type">Target type</label>
+					<select class="clean-form-control ss-select w-100" id="target_type" name="target_type">
+						<option value="" {% if not target_type_filter %}selected{% endif %}>All</option>
+						{% for t in target_types %}
+						<option value="{{ t }}" {% if target_type_filter == t %}selected{% endif %}>{{ t }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="target_id">Target ID</label>
+					<input class="clean-form-control w-100" id="target_id" name="target_id"
+						value="{{ target_id_filter }}" placeholder="e.g. 42" />
+				</div>
+			</div>
+			<div class="row no-gutters align-items-end mt-1">
+				<div class="col-md-2 px-1">
+					<label for="date_from">From (UTC)</label>
+					<input class="clean-form-control w-100" type="date" id="date_from"
+						name="date_from" value="{{ date_from }}" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="date_to">To (UTC)</label>
+					<input class="clean-form-control w-100" type="date" id="date_to"
+						name="date_to" value="{{ date_to }}" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="per_page">Per page</label>
+					<select class="clean-form-control ss-select w-100" id="per_page" name="per_page">
+						{% for n in [25, 50, 100, 200] %}
+						<option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-3 px-1"></div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Filter
+					</button>
+					<a href="{{ url_for('admin.admin_audit_listing') }}"
+					   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+					   style="width: 40px;" title="Clear">
+						<i class="fas fa-sync-alt"></i>
 					</a>
 				</div>
-			</form>
-		</div><!-- /filter-section -->
-
-		<!-- ── Table ── -->
-		<div class="table-card table-responsive">
-			<table class="table table-hover mb-0">
-				<thead>
-					<tr>
-						<th>#</th>
-						<th>Timestamp (UTC)</th>
-						<th>Actor</th>
-						<th>Action</th>
-						<th>Target</th>
-						<th>IP</th>
-						<th>Changes</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for log in logs.items %}
-					{% set action_verb = log.action.split('_')[-1] %}
-					<tr>
-						<!-- ID -->
-						<td class="text-muted mono small">{{ log.id }}</td>
-
-						<!-- Timestamp -->
-						<td class="mono small">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}</td>
-
-						<!-- Actor -->
-						<td>
-							{% if log.actor_id %}
-							<a href="{{ url_for('admin.users_detail', user_id=log.actor_id) }}"
-								class="fw-semibold">{{ log.actor_name or ('User #' ~ log.actor_id) }}</a>
-							<div class="text-muted small">#{{ log.actor_id }}</div>
-							{% else %}
-							<span class="text-muted">—</span>
-							{% endif %}
-							{% if log.actor_type %}
-							<span class="badge badge-role-{{ log.actor_type }} ms-1">{{ log.actor_type }}</span>
-							{% endif %}
-						</td>
-
-						<!-- Action -->
-						<td>
-							{% if action_verb == 'create' %}
-							<span class="badge badge-action badge-create">{{ action_labels.get(log.action, log.action) }}</span>
-							{% elif action_verb == 'update' %}
-							<span class="badge badge-action badge-update">{{ action_labels.get(log.action, log.action) }}</span>
-							{% elif action_verb == 'delete' %}
-							<span class="badge badge-action badge-delete">{{ action_labels.get(log.action, log.action) }}</span>
-							{% else %}
-							<span class="badge badge-action badge-bulk">{{ action_labels.get(log.action, log.action) }}</span>
-							{% endif %}
-						</td>
-
-						<!-- Target -->
-						<td>
-							{% if log.target_type %}
-							<span class="badge bg-secondary badge-target">{{ log.target_type }}</span>
-							{% if log.target_id %}
-							<span class="text-muted small ms-1">
-								{% if log.target_type == 'user' %}
-								<a href="{{ url_for('admin.users_detail', user_id=log.target_id) }}">#{{ log.target_id }}</a>
-								{% elif log.target_type == 'team' %}
-								<a href="{{ url_for('admin.teams_detail', team_id=log.target_id) }}">#{{ log.target_id }}</a>
-								{% elif log.target_type == 'challenge' %}
-								<a href="{{ url_for('admin.challenges_detail', challenge_id=log.target_id) }}">#{{ log.target_id }}</a>
-								{% elif log.target_type == 'submission' %}
-								<a href="{{ url_for('admin.submissions_listing', submission_type=None) }}">#{{ log.target_id }}</a>
-								{% else %}
-								#{{ log.target_id }}
-								{% endif %}
-							</span>
-							{% endif %}
-							{% else %}
-							<span class="text-muted">—</span>
-							{% endif %}
-						</td>
-
-						<!-- IP -->
-						<td class="mono small text-muted">{{ log.ip_address or '—' }}</td>
-
-						<!-- Changes (before/after diff + extra data) -->
-						<td>
-							{% if log.before_state or log.after_state or log.extra_data %}
-							<button class="btn btn-outline-secondary view-diff-btn"
-								data-toggle="modal"
-								data-target="#diffModal"
-								data-log-id="{{ log.id }}"
-								data-action="{{ log.action }}"
-								data-before='{{ log.before_state | tojson if log.before_state else "{}" }}'
-								data-after='{{ log.after_state | tojson if log.after_state else "{}" }}'
-								data-extra='{{ log.extra_data | tojson if log.extra_data else "{}" }}'>
-								<i class="bx bx-search-alt-2"></i> View
-							</button>
-							{% else %}
-							<span class="text-muted">—</span>
-							{% endif %}
-						</td>
-					</tr>
-					{% endfor %}
-
-					{% if logs.total == 0 %}
-					<tr>
-						<td colspan="7" class="text-center text-muted py-4">
-							No audit records match the current filters.
-						</td>
-					</tr>
-					{% endif %}
-				</tbody>
-			</table>
-
-			<!-- ── Pagination ── -->
-			{% if logs.pages > 1 %}
-			<div class="mt-3">
-				<nav aria-label="Audit logs pagination">
-					<ul class="pagination pagination-sm mb-0">
-
-						<li class="page-item {% if logs.page == 1 %}disabled{% endif %}">
-							<a class="page-link" href="{{ prev_page if logs.page > 1 else '#' }}">&laquo;</a>
-						</li>
-
-						{% set sp = [1, logs.page - 2] | max %}
-						{% set ep = [logs.pages, logs.page + 2] | min %}
-
-						{% if sp > 1 %}
-						<li class="page-item">
-							<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=1,
-									actor=actor_filter, role=role_filter, action=action_filter,
-									target_type=target_type_filter, target_id=target_id_filter,
-									date_from=date_from, date_to=date_to, per_page=per_page) }}">1</a>
-						</li>
-						{% if sp > 2 %}
-						<li class="page-item disabled"><span class="page-link">…</span></li>
-						{% endif %}
-						{% endif %}
-
-						{% for pn in range(sp, ep + 1) %}
-						<li class="page-item {% if pn == logs.page %}active{% endif %}">
-							<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=pn,
-									actor=actor_filter, role=role_filter, action=action_filter,
-									target_type=target_type_filter, target_id=target_id_filter,
-									date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ pn }}</a>
-						</li>
-						{% endfor %}
-
-						{% if ep < logs.pages %}
-						{% if ep < logs.pages - 1 %}
-						<li class="page-item disabled"><span class="page-link">…</span></li>
-						{% endif %}
-						<li class="page-item">
-							<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=logs.pages,
-									actor=actor_filter, role=role_filter, action=action_filter,
-									target_type=target_type_filter, target_id=target_id_filter,
-									date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ logs.pages }}</a>
-						</li>
-						{% endif %}
-
-						<li class="page-item {% if logs.page == logs.pages %}disabled{% endif %}">
-							<a class="page-link" href="{{ next_page if logs.page < logs.pages else '#' }}">&raquo;</a>
-						</li>
-
-					</ul>
-				</nav>
 			</div>
-			{% endif %}
+		</form>
+	</div>
 
-		</div><!-- /table-card -->
-	</div><!-- /container -->
-</div><!-- /admin-audit-page -->
+	<!-- Summary + export -->
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+		<div class="clean-info-text">
+			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} record{{ 's' if logs.total != 1 else '' }}
+		</div>
+		<a class="clean-btn" href="{{ url_for('admin.admin_audit_export_csv',
+					actor=actor_filter, role=role_filter, action=action_filter,
+					target_type=target_type_filter, target_id=target_id_filter,
+					date_from=date_from, date_to=date_to) }}">
+			<i class="fas fa-download"></i> Export CSV
+		</a>
+	</div>
 
-<!-- ── Diff modal ──────────────────────────────────────────────────────────── -->
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		<table class="clean-table table">
+			<thead>
+				<tr>
+					<th class="text-center"><b>#</b></th>
+					<th class="text-center"><b>Timestamp (UTC)</b></th>
+					<th class="text-center"><b>Actor</b></th>
+					<th class="text-center"><b>Action</b></th>
+					<th class="text-center"><b>Target</b></th>
+					<th class="text-center"><b>IP</b></th>
+					<th class="text-center"><b>Changes</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for log in logs.items %}
+				{% set action_verb = log.action.split('_')[-1] %}
+				<tr>
+					<td class="text-muted mono small text-center">{{ log.id }}</td>
+					<td class="mono small text-center">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}</td>
+					<td class="text-center">
+						{% if log.actor_id %}
+						<a href="{{ url_for('admin.users_detail', user_id=log.actor_id) }}">{{ log.actor_name or ('User #' ~ log.actor_id) }}</a>
+						<div class="text-muted small">#{{ log.actor_id }}</div>
+						{% else %}
+						<span class="text-muted">—</span>
+						{% endif %}
+						{% if log.actor_type %}
+						<span class="badge badge-role-{{ log.actor_type }} ms-1">{{ log.actor_type }}</span>
+						{% endif %}
+					</td>
+					<td class="text-center">
+						{% if action_verb == 'create' %}
+						<span class="badge badge-action badge-create">{{ action_labels.get(log.action, log.action) }}</span>
+						{% elif action_verb == 'update' %}
+						<span class="badge badge-action badge-update">{{ action_labels.get(log.action, log.action) }}</span>
+						{% elif action_verb == 'delete' %}
+						<span class="badge badge-action badge-delete">{{ action_labels.get(log.action, log.action) }}</span>
+						{% else %}
+						<span class="badge badge-action badge-bulk">{{ action_labels.get(log.action, log.action) }}</span>
+						{% endif %}
+					</td>
+					<td class="text-center">
+						{% if log.target_type %}
+						<span class="badge bg-secondary badge-target">{{ log.target_type }}</span>
+						{% if log.target_id %}
+						<span class="text-muted small ms-1">
+							{% if log.target_type == 'user' %}
+							<a href="{{ url_for('admin.users_detail', user_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% elif log.target_type == 'team' %}
+							<a href="{{ url_for('admin.teams_detail', team_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% elif log.target_type == 'challenge' %}
+							<a href="{{ url_for('admin.challenges_detail', challenge_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% elif log.target_type == 'submission' %}
+							<a href="{{ url_for('admin.submissions_listing', submission_type=None) }}">#{{ log.target_id }}</a>
+							{% else %}
+							#{{ log.target_id }}
+							{% endif %}
+						</span>
+						{% endif %}
+						{% else %}
+						<span class="text-muted">—</span>
+						{% endif %}
+					</td>
+					<td class="mono small text-muted text-center">{{ log.ip_address or '—' }}</td>
+					<td class="text-center">
+						{% if log.before_state or log.after_state or log.extra_data %}
+						<button class="clean-btn view-diff-btn"
+							data-toggle="modal"
+							data-target="#diffModal"
+							data-log-id="{{ log.id }}"
+							data-action="{{ log.action }}"
+							data-before='{{ log.before_state | tojson if log.before_state else "{}" }}'
+							data-after='{{ log.after_state | tojson if log.after_state else "{}" }}'
+							data-extra='{{ log.extra_data | tojson if log.extra_data else "{}" }}'>
+							<i class="bx bx-search-alt-2"></i> View
+						</button>
+						{% else %}
+						<span class="text-muted">—</span>
+						{% endif %}
+					</td>
+				</tr>
+				{% endfor %}
+				{% if logs.total == 0 %}
+				<tr>
+					<td colspan="7" class="text-center text-muted py-4">
+						No audit records match the current filters.
+					</td>
+				</tr>
+				{% endif %}
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Pagination -->
+	{% if logs.pages > 1 %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} total
+		</div>
+		<nav aria-label="Audit logs pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if logs.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if logs.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set sp = [1, logs.page - 2] | max %}
+				{% set ep = [logs.pages, logs.page + 2] | min %}
+				{% if sp > 1 %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=1,
+								actor=actor_filter, role=role_filter, action=action_filter,
+								target_type=target_type_filter, target_id=target_id_filter,
+								date_from=date_from, date_to=date_to, per_page=per_page) }}">1</a>
+					</li>
+					{% if sp > 2 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+				{% endif %}
+				{% for pn in range(sp, ep + 1) %}
+				<li class="page-item {% if pn == logs.page %}active{% endif %}">
+					<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=pn,
+							actor=actor_filter, role=role_filter, action=action_filter,
+							target_type=target_type_filter, target_id=target_id_filter,
+							date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ pn }}</a>
+				</li>
+				{% endfor %}
+				{% if ep < logs.pages %}
+					{% if ep < logs.pages - 1 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=logs.pages,
+								actor=actor_filter, role=role_filter, action=action_filter,
+								target_type=target_type_filter, target_id=target_id_filter,
+								date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ logs.pages }}</a>
+					</li>
+				{% endif %}
+				<li class="page-item {% if logs.page == logs.pages %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page if logs.page < logs.pages else '#' }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+	</div>
+	{% endif %}
+</div>
+
+<!-- Diff modal -->
 <div class="modal fade" id="diffModal" tabindex="-1" role="dialog" aria-labelledby="diffModalLabel" aria-hidden="true">
 	<div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
 		<div class="modal-content">
@@ -409,10 +312,7 @@
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 			</div>
 			<div class="modal-body">
-				<!-- Summary badges -->
 				<div id="diffSummary" class="mb-2"></div>
-
-				<!-- Field-by-field diff table -->
 				<div id="diffTableSection">
 					<h6 class="mb-2">Before &rarr; After</h6>
 					<div style="max-height:420px;overflow-y:auto;">
@@ -428,8 +328,6 @@
 						</table>
 					</div>
 				</div>
-
-				<!-- Fallback raw view (used when before/after are not objects) -->
 				<div id="diffRawSection" style="display:none">
 					<h6 class="mb-2">Before &rarr; After</h6>
 					<table class="table table-bordered table-sm mb-0">
@@ -443,15 +341,13 @@
 						</tr></tbody>
 					</table>
 				</div>
-
-				<!-- Extra data -->
 				<div id="extraDataSection" class="mt-3">
 					<h6>Extra data</h6>
 					<pre id="diffExtra" class="diff-pre"></pre>
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+				<button type="button" class="clean-btn" data-dismiss="modal">Close</button>
 			</div>
 		</div>
 	</div>
@@ -467,7 +363,6 @@
 	var diffModal = document.getElementById('diffModal');
 	if (!diffModal) return;
 
-	// ── Sensitive field names (shown as masked) ──────────────────────────────
 	var SENSITIVE_KEYS = [
 		'password', 'passwd', 'secret', 'token', 'api_key', 'apikey',
 		'access_token', 'refresh_token', 'private_key', 'hash', 'salt'
@@ -490,11 +385,10 @@
 	}
 
 	function parseRaw(raw) {
-		// Returns the parsed JS value (object/array/string/number) or null
 		var normalized = decodeHtmlEntities(raw || '').trim();
 		if (!normalized || normalized === '{}' || normalized === 'null') return null;
 		var parsed = tryParse(normalized);
-		if (parsed === null) return normalized;          // raw non-JSON string
+		if (parsed === null) return normalized;
 		if (typeof parsed === 'string') {
 			var reparsed = tryParse(parsed);
 			return reparsed !== null ? reparsed : parsed;
@@ -515,13 +409,10 @@
 		return a === b;
 	}
 
-	// Build a <td> element for a field value
 	function makeCell(key, val, isChanged, side) {
 		var td = document.createElement('td');
 		td.className = 'mono';
-
 		if (isSensitive(key)) {
-			// Always mask the actual value
 			var masked = document.createElement('span');
 			masked.className = 'diff-sensitive';
 			masked.textContent = '••••••••';
@@ -535,7 +426,6 @@
 			}
 			return td;
 		}
-
 		var text = (val === undefined || val === null) ? '—' : prettyValue(val);
 		var span = document.createElement('span');
 		span.className = isChanged ? (side === 'before' ? 'diff-val-before' : 'diff-val-after') : 'diff-val-same';
@@ -548,37 +438,27 @@
 	function buildDiffTable(beforeObj, afterObj) {
 		var tbody = document.getElementById('diffFieldBody');
 		tbody.innerHTML = '';
-
 		var allKeys = {};
 		if (beforeObj && typeof beforeObj === 'object') Object.keys(beforeObj).forEach(function (k) { allKeys[k] = true; });
 		if (afterObj  && typeof afterObj  === 'object') Object.keys(afterObj).forEach(function  (k) { allKeys[k] = true; });
-
 		var keys = Object.keys(allKeys);
 		if (keys.length === 0) return false;
-
 		var nChanged = 0, nAdded = 0, nRemoved = 0;
-
 		keys.forEach(function (key) {
 			var bVal = beforeObj ? beforeObj[key] : undefined;
 			var aVal = afterObj  ? afterObj[key]  : undefined;
-
 			var inBefore = beforeObj && Object.prototype.hasOwnProperty.call(beforeObj, key);
 			var inAfter  = afterObj  && Object.prototype.hasOwnProperty.call(afterObj,  key);
-
 			var isAdded   = !inBefore && inAfter;
 			var isRemoved = inBefore && !inAfter;
 			var isChanged = inBefore && inAfter && !valuesEqual(bVal, aVal);
-
 			if (isAdded)   nAdded++;
 			if (isRemoved) nRemoved++;
 			if (isChanged) nChanged++;
-
 			var tr = document.createElement('tr');
 			if (isChanged)      tr.className = 'diff-row-changed';
 			else if (isAdded)   tr.className = 'diff-row-added';
 			else if (isRemoved) tr.className = 'diff-row-removed';
-
-			// Key cell
 			var tdKey = document.createElement('td');
 			tdKey.className = 'mono fw-semibold';
 			tdKey.style.whiteSpace = 'nowrap';
@@ -596,14 +476,11 @@
 				b.className = 'badge-changed ms-1'; b.textContent = 'changed';
 				tdKey.appendChild(document.createTextNode(' ')); tdKey.appendChild(b);
 			}
-
 			tr.appendChild(tdKey);
 			tr.appendChild(makeCell(key, inBefore ? bVal : undefined, isChanged || isRemoved, 'before'));
 			tr.appendChild(makeCell(key, inAfter  ? aVal : undefined, isChanged || isAdded,   'after'));
 			tbody.appendChild(tr);
 		});
-
-		// Summary badges
 		var summary = document.getElementById('diffSummary');
 		summary.innerHTML = '';
 		function addBadge(cls, text) {
@@ -614,35 +491,27 @@
 		if (nChanged) addBadge('badge-changed', nChanged + ' changed');
 		if (nAdded)   addBadge('badge-added',   nAdded   + ' added');
 		if (nRemoved) addBadge('badge-removed', nRemoved + ' removed');
-
 		return true;
 	}
 
-	// Bootstrap 4 fires modal events through jQuery — must use $.on(), not addEventListener
 	$(diffModal).on('show.bs.modal', function (event) {
 		var btn = event.relatedTarget;
 		if (!btn) return;
-
 		var logId  = btn.getAttribute('data-log-id') || '';
 		var action = btn.getAttribute('data-action') || '';
 		var before = btn.getAttribute('data-before') || '';
 		var after  = btn.getAttribute('data-after') || '';
 		var extra  = btn.getAttribute('data-extra') || '';
-
 		document.getElementById('diffModalAction').textContent = action;
 		document.getElementById('diffModalId').textContent     = logId;
 		document.getElementById('diffSummary').innerHTML       = '';
-
 		var beforeObj = parseRaw(before);
 		var afterObj  = parseRaw(after);
 		var extraObj  = parseRaw(extra);
-
 		var isObjects = (beforeObj && typeof beforeObj === 'object') ||
 					   (afterObj  && typeof afterObj  === 'object');
-
 		var tableSection = document.getElementById('diffTableSection');
 		var rawSection   = document.getElementById('diffRawSection');
-
 		if (isObjects) {
 			buildDiffTable(
 				(beforeObj && typeof beforeObj === 'object') ? beforeObj : {},
@@ -651,13 +520,11 @@
 			tableSection.style.display = '';
 			rawSection.style.display   = 'none';
 		} else {
-			// Fallback: raw text side-by-side
 			document.getElementById('diffBefore').textContent = (beforeObj != null ? String(beforeObj) : '') || '(no before state)';
 			document.getElementById('diffAfter').textContent  = (afterObj  != null ? String(afterObj)  : '') || '(no after state)';
 			tableSection.style.display = 'none';
 			rawSection.style.display   = '';
 		}
-
 		var extraSection = document.getElementById('extraDataSection');
 		if (extraObj != null) {
 			var extraText = typeof extraObj === 'object'
