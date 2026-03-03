@@ -3,244 +3,19 @@
 {% block stylesheets %}
 {{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
 <style>
-/* Minimalist Clean Design - White background with orange accents */
-.page-header {
-    background: #ffffff;
-    padding: 2rem 0 1rem 0;
-    margin-bottom: 2rem;
-}
-
-.page-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #2c3e50;
-    margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.clean-icon-btn {
-    color: #6c757d;
-    transition: all 0.2s ease;
-    font-size: 1.5rem;
-}
-
-.clean-icon-btn:hover {
-    color: #ff6b35;
-    transform: translateY(-2px);
-}
-
-.clean-search-container {
-    background: #ffffff;
-    border: 1px solid #e8e8e8;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-.clean-form-control {
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-}
-
-.clean-form-control:focus {
-    border-color: #ff6b35;
-    box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
-    outline: none;
-}
-
-.clean-btn {
-    border: 1px solid #dee2e6;
-    background: #ffffff;
-    color: #495057;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.clean-btn:hover {
-    border-color: #ff6b35;
-    color: #ff6b35;
-    background: #fff5f2;
-}
-
-.clean-btn-primary {
-    background: #ff6b35;
-    color: #ffffff;
-    border-color: #ff6b35;
-}
-
-.clean-btn-primary:hover {
-    background: #e85d2a;
-    border-color: #e85d2a;
-    color: #ffffff;
-}
-
-.clean-btn-danger {
-    border-color: #dc3545;
-    color: #dc3545;
-}
-
-.clean-btn-danger:hover {
-    background: #dc3545;
-    color: #ffffff;
-}
-
-.clean-table-wrapper {
-    background: #ffffff;
-    border: 1px solid #e8e8e8;
-    border-radius: 8px;
-
-    overflow-y: visible;
-}
-
-.clean-table {
-    margin: 0;
-    font-size: 0.9rem;
-    width: 100%;
-    white-space: nowrap;
-}
-
-.clean-table thead th {
-    background: #f8f9fa;
-    border-bottom: 2px solid #e8e8e8;
-    color: #495057;
-    font-weight: 600;
-    padding: 1rem 0.75rem;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.5px;
-}
-
-.clean-table thead td {
-    background: #f8f9fa;
-    border-bottom: 2px solid #e8e8e8;
-}
-
-.clean-table tbody tr {
-    border-bottom: 1px solid #f1f1f1;
-    transition: all 0.15s ease;
-}
-
-.clean-table tbody tr:hover {
-    background: #fffbf9;
-    cursor: pointer;
-}
-
-.clean-table tbody tr:hover td a {
-    color: #ff6b35;
-}
-
-.clean-table tbody td {
-    padding: 0.875rem 0.75rem;
-    color: #495057;
-    vertical-align: middle;
-}
-
-.clean-table tbody td a {
-    color: #495057;
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-.clean-badge {
-    padding: 0.35rem 0.65rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-.clean-badge-success {
-    background: #d4edda;
-    color: #155724;
-}
-
-.clean-badge-danger {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.clean-badge-warning {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.clean-badge-primary {
-    background: #ffe8df;
-    color: #ff6b35;
-}
-
-.clean-badge-secondary {
-    background: #e2e3e5;
-    color: #6c757d;
-}
-
-.clean-pagination {
-    margin: 0;
-}
-
-.clean-pagination .page-link {
-    border: 1px solid #dee2e6;
-    color: #495057;
-    padding: 0.5rem 0.75rem;
-    margin: 0 0.15rem;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-}
-
-.clean-pagination .page-link:hover {
-    background: #ff6b35;
-    border-color: #ff6b35;
-    color: #ffffff;
-}
-
-.clean-pagination .page-item.active .page-link {
-    background: #ff6b35;
-    border-color: #ff6b35;
-    color: #ffffff;
-}
-
-.clean-pagination .page-item.disabled .page-link {
-    background: #f8f9fa;
-    color: #6c757d;
-    cursor: not-allowed;
-}
-
-.clean-info-text {
-    color: #6c757d;
-    font-size: 0.9rem;
-}
-
-.clean-highlight {
-    color: #ff6b35;
-    font-weight: 500;
-}
-
-.clean-action-btn-sm {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.875rem;
-}
+/* Challenges page — only page-specific overrides; shared styles in base.html */
+.clean-icon-btn { color: #6c757d; transition: all 0.2s ease; font-size: 1.3rem; }
+.clean-icon-btn:hover { color: var(--primary-orange); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="container">
-        <h1>Challenges</h1>
+        <h1><i class="bx bx-book"></i> Challenges</h1>
     </div>
 </div>
 <div class="container">
-    <div>
-        <div class="row">
-            <div class="col-md-12">
                 {% if q and field or tag_terms or difficulty or state_filter or has_prereq %}
                 <div class="alert alert-info">
                     <div class="clean-info-text">
@@ -270,12 +45,12 @@
                 {% endif %}
 
 {% with form = Forms.challenges.ChallengeSearchForm(field=field, q=q) %}
-<div class="clean-search-container p-2 bg-white rounded border shadow-sm">
+<div class="clean-search-container">
     <form method="GET" class="m-0">
         <div class="row no-gutters align-items-center">
             
             <div class="col-md-2 px-1">
-                <select name="category" class="clean-form-control w-100">
+                <select name="category" class="clean-form-control ss-select w-100">
                     <option value="">All Categories</option>
                     {% for cat in categories %}
                     <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
@@ -284,7 +59,7 @@
             </div>
 
             <div class="col-md-2 px-1">
-                <select name="type" class="clean-form-control w-100">
+                <select name="type" class="clean-form-control ss-select w-100">
                     <option value="">All Types</option>
                     {% for t in types %}
                     <option value="{{ t }}" {% if t == type %}selected{% endif %}>{{ t }}</option>
@@ -293,7 +68,7 @@
             </div>
 
             <div class="col-md-2 px-1">
-                {{ form.field(class="clean-form-control w-100") }}
+                {{ form.field(class="clean-form-control ss-select w-100") }}
             </div>
 
             <div class="col-md-6 px-1">
@@ -302,9 +77,9 @@
 
         </div>
 
-        <div class="row no-gutters align-items-center mt-2">
+        <div class="row no-gutters align-items-center mt-1">
             <div class="col-md-2 px-1">
-                <select name="difficulty" class="clean-form-control w-100">
+                <select name="difficulty" class="clean-form-control ss-select w-100">
                     <option value="">All Difficulties</option>
                     <option value="1" {% if difficulty == '1' %}selected{% endif %}>&#9733; Very Easy</option>
                     <option value="2" {% if difficulty == '2' %}selected{% endif %}>&#9733;&#9733; Easy</option>
@@ -315,7 +90,7 @@
             </div>
 
             <div class="col-md-2 px-1">
-                <select name="state" class="clean-form-control w-100">
+                <select name="state" class="clean-form-control ss-select w-100">
                     <option value="">All States</option>
                     <option value="visible" {% if state_filter == 'visible' %}selected{% endif %}>Visible</option>
                     <option value="hidden" {% if state_filter == 'hidden' %}selected{% endif %}>Hidden</option>
@@ -323,7 +98,7 @@
             </div>
 
             <div class="col-md-2 px-1">
-                <select name="has_prereq" class="clean-form-control w-100">
+                <select name="has_prereq" class="clean-form-control ss-select w-100">
                     <option value="">All Prerequisites</option>
                     <option value="yes" {% if has_prereq == 'yes' %}selected{% endif %}>Has Prerequisites</option>
                     <option value="no" {% if has_prereq == 'no' %}selected{% endif %}>No Prerequisites</option>
@@ -333,11 +108,11 @@
             <div class="col-md-6 px-1"></div>
         </div>
 
-        <div class="row no-gutters align-items-center mt-2">
+        <div class="row no-gutters align-items-center mt-1">
             
             <div class="col-md-9 px-1">
                 <div id="tags-picker" class="border rounded d-flex align-items-center px-2 bg-light" 
-                     style="min-height: 38px;"
+                     style="min-height: 34px;"
                      data-init-tags="{% if tag_terms %}{{ tag_terms|join(',') }}{% endif %}">
                     </div>
                 <input type="hidden" name="tags" id="tags-hidden" value="{% if tag_terms %}{{ tag_terms|join(',') }}{% endif %}">
@@ -358,46 +133,35 @@
     </form>
 </div>
 {% endwith %}
-        </div>
 
         {% if not is_jury() %}
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <div class="float-left pb-3">
-                    <a href="{{ url_for('admin.challenges_new') }}" class="clean-btn clean-btn-primary">
-                        <i class="fas fa-plus"></i> Create Challenge
-                    </a>
-
-                </div>
-                <div class="float-right pb-3">
-                    <div class="btn-group" role="group">
-                        <button type="button" class="clean-btn" data-toggle="tooltip"
-                            title="Edit Challenges" id="challenges-edit-button">
-                            <i class="btn-fa fas fa-pencil-alt"></i> Edit
-                        </button>
-                        <button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip" title="Delete Challenges"
-                            id="challenges-delete-button">
-                            <i class="btn-fa fas fa-trash-alt"></i> Delete
-                        </button>
-                    </div>
-                </div>
+        <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+            <div>
+                <a href="{{ url_for('admin.challenges_new') }}" class="clean-btn clean-btn-primary">
+                    <i class="fas fa-plus"></i> Create Challenge
+                </a>
+            </div>
+            <div class="btn-group" role="group">
+                <button type="button" class="clean-btn" data-toggle="tooltip"
+                    title="Edit Challenges" id="challenges-edit-button">
+                    <i class="btn-fa fas fa-pencil-alt"></i> Edit
+                </button>
+                <button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip" title="Delete Challenges"
+                    id="challenges-delete-button">
+                    <i class="btn-fa fas fa-trash-alt"></i> Delete
+                </button>
             </div>
         </div>
         {%endif%}
 
         <!-- Table -->
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="clean-table-wrapper">
+        <div class="clean-table-wrapper mt-2">
                     <table id="challenges" class="clean-table table">
                     <thead>
                         <tr>
-                            <td class="d-block border-right border-bottom text-center" data-checkbox>
-                                <div class="form-check">
-                                    <input type="checkbox" class="form-check-input" autocomplete="off"
-                                        data-checkbox-all>
-                                </div>
-                            </td>
+                            <th data-checkbox>
+                                <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                            </th>
                             <th class="sort-col text-center"><b>ID</b></th>
                             <th class="sort-col text-center"><b>Name</b></th>
                             <th class="sort-col text-center"><b>Category</b></th>
@@ -415,15 +179,13 @@
                     <tbody>
                         {% for challenge in challenges.items %}
                         <tr {% if not is_jury() %} data-href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
-                            <td class="d-block border-right text-center" data-checkbox>
-                                <div class="form-check">
-                                    <input type="checkbox" class="form-check-input" value="{{ challenge.id }}"
-                                        autocomplete="off" data-challenge-id="{{ challenge.id }}">
-                                </div>
+                            <td data-checkbox>
+                                <input type="checkbox" class="table-check" value="{{ challenge.id }}"
+                                    autocomplete="off" data-challenge-id="{{ challenge.id }}">
                             </td>
                             <td class="text-center">{{ challenge.id }}</td>
                             {% if not is_jury() %}
-                            <td cllass="text-center text-wrap">
+                            <td class="text-center text-wrap">
                                 <a href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
                                     {{ challenge.name }}
                                 </a>
@@ -507,15 +269,13 @@
 
             <!-- Backend Pagination Controls -->
             {% if challenges.pages > 0 %}
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="clean-info-text" role="status" aria-live="polite">
-                            Page <span class="clean-highlight">{{ challenges.page }}</span> of <span class="clean-highlight">{{ challenges.pages }}</span> • {{ challenges.total }} total
-                        </div>
-                        {% if challenges.pages > 1 %}
-                        <nav aria-label="Challenge pagination">
-                            <ul class="clean-pagination pagination mb-0">
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <div class="clean-info-text" role="status" aria-live="polite">
+                    Page <span class="clean-highlight">{{ challenges.page }}</span> of <span class="clean-highlight">{{ challenges.pages }}</span> • {{ challenges.total }} total
+                </div>
+                {% if challenges.pages > 1 %}
+                <nav aria-label="Challenge pagination">
+                    <ul class="clean-pagination pagination mb-0">
                                 <li class="page-item {% if challenges.page == 1 %}disabled{% endif %}">
                                     <a class="page-link" href="{{ prev_page if challenges.page > 1 else '#' }}">&laquo;</a>
                                 </li>
@@ -554,15 +314,11 @@
                                 <li class="page-item {% if challenges.page == challenges.pages %}disabled{% endif %}">
                                     <a class="page-link" href="{{ next_page if challenges.page < challenges.pages else '#' }}">&raquo;</a>
                                 </li>
-                            </ul>
-                        </nav>
-                        {% endif %}
-                    </div>
-                </div>
+                    </ul>
+                </nav>
+                {% endif %}
             </div>
             {% endif %}
-        </div>
-    </div>
 </div>
 
 {% endblock %}
