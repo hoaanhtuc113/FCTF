@@ -2,21 +2,7 @@
 {% block stylesheets %} {{
 Assets.css("assets/css/challenge-board.scss", theme="admin") }} 
 <style>
-/* Minimalist Clean Design - White background with orange accents */
-.page-header {
-    background: #ffffff;
-    padding: 2rem 0 1rem 0;
-    margin-bottom: 2rem;
-}
-
-.page-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #2c3e50;
-    margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+/* Deploy History — header inherits from base.html */
 
 .clean-table-wrapper {
     background: #ffffff;
@@ -106,7 +92,7 @@ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
 {% block content %}
 <div class="page-header">
   <div class="container">
-    <h1>Deploy History</h1>
+    <h1><i class="bx bx-rocket"></i> Deploy History</h1>
   </div>
 </div>
 <div class="container">
