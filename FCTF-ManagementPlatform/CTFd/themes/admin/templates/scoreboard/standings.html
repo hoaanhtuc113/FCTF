@@ -17,9 +17,9 @@
 				<input type="checkbox" class="table-check" value="{{ standing.account_id }}" data-account-id="{{ standing.account_id }}" autocomplete="off">
 			</td>
 			<td class="text-center" width="10%">{{ loop.index }}</td>
-			<td>
+			<td class="cell-truncate">
 				<a href="{{ generate_account_url(standing.account_id, admin=True) }}">
-					{{ standing.name }}
+					{{ standing.name | truncate(32) }}
 					{% if standing.oauth_id %}
 						{% if get_config('user_mode') == 'teams' %}
 							<a href="https://majorleaguecyber.org/t/{{ standing.name }}">

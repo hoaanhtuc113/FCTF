@@ -600,6 +600,22 @@
         .clean-table tbody td { padding: 0.5rem 0.6rem; color: var(--text-medium); vertical-align: middle; }
         .clean-table tbody td a { color: var(--text-medium); text-decoration: none; transition: color 0.2s ease; }
 
+        /* ── Cell truncation utility ──────────────────────────────────── */
+        .cell-truncate {
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .cell-truncate-sm { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cell-truncate-lg { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cell-wrap-detail {
+            max-width: 360px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 0.8rem;
+        }
+
         .clean-form-control {
             border: 1px solid var(--border-medium);
             border-radius: 4px;

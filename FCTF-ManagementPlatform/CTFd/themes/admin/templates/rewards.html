@@ -328,6 +328,8 @@
     }
   }
 
+  function truncText(s, n) { return s.length > n ? s.substring(0, n) + '…' : s; }
+
   function renderResults(data) {
     const results = data.result || [];
 
@@ -362,16 +364,16 @@
     tbody.innerHTML = results.map((r, i) => {
       let teamOrUserCol = '';
       if (hasTeam || hasUser) {
-        teamOrUserCol = `<td>${r.team_name || r.user_name || ''}</td>`;
+        teamOrUserCol = `<td class="cell-truncate" title="${(r.team_name || r.user_name || '').replace(/"/g, '&quot;')}">${truncText(r.team_name || r.user_name || '', 28)}</td>`;
       }
 
       return `
         <tr>
           <td>${i + 1}</td>
           <td>${r.entity_id || ''}</td>
-          <td>${r.entity_name || ''}</td>
+          <td class="cell-truncate" title="${(r.entity_name || '').replace(/"/g, '&quot;')}">${truncText(r.entity_name || '', 28)}</td>
           ${teamOrUserCol}
-          ${hasCategory ? `<td>${r.category || ''}</td>` : ''}
+          ${hasCategory ? `<td class="cell-truncate-sm" title="${(r.category || '').replace(/"/g, '&quot;')}">${truncText(r.category || '', 20)}</td>` : ''}
           <td>${r.metric_value !== null && r.metric_value !== undefined ? r.metric_value : ''}</td>
           <td style="display:none;"></td>
         </tr>

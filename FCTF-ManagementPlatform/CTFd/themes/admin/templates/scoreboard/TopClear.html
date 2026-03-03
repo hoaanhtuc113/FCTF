@@ -14,7 +14,7 @@
         {% for topic, teams in top_solves_with_topics.items() %}
             <!-- Display the topic name as a row spanning all columns -->
             <tr>
-                <td colspan="4" class="font-weight-bold">{{ topic }}</td>
+                <td colspan="4" class="font-weight-bold cell-truncate-lg" title="{{ topic }}">{{ topic | truncate(40) }}</td>
             </tr>
             {% for team in teams %}
             <tr name="{{ team.team_id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">

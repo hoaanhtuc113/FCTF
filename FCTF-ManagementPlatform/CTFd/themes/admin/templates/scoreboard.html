@@ -83,8 +83,8 @@
 							<tbody>
 								{% for challenge_master in challenge_masters %}
 								<tr>
-									<td class="text-center">{{ challenge_master.challenge_name }}</td>
-									<td class="text-center">{{ challenge_master.team_name or challenge_master.user_name }}</td>
+									<td class="text-center cell-truncate" title="{{ challenge_master.challenge_name }}">{{ challenge_master.challenge_name | truncate(28) }}</td>
+									<td class="text-center cell-truncate" title="{{ challenge_master.team_name or challenge_master.user_name }}">{{ (challenge_master.team_name or challenge_master.user_name) | truncate(28) }}</td>
 									<td class="text-center">{{ challenge_master.max_score }}</td>
 								</tr>
 								{% endfor %}
@@ -103,9 +103,9 @@
 							<tbody>
 								{% for first_blood in first_bloods %}
 								<tr>
-									<td class="text-center">{{ first_blood.challenge }}</td>
-									<td class="text-center">{{ first_blood.user_name }}</td>
-									<td class="text-center">{{ first_blood.team_name }}</td>
+									<td class="text-center cell-truncate" title="{{ first_blood.challenge }}">{{ first_blood.challenge | truncate(28) }}</td>
+									<td class="text-center cell-truncate" title="{{ first_blood.user_name }}">{{ first_blood.user_name | truncate(24) }}</td>
+									<td class="text-center cell-truncate" title="{{ first_blood.team_name }}">{{ first_blood.team_name | truncate(24) }}</td>
 								</tr>
 								{% endfor %}
 							</tbody>
