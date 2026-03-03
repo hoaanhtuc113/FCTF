@@ -151,27 +151,27 @@
 				{% for row in logs.items %}
 				<tr>
 					<td class="mono text-center">{{ row.ChallengeStartTracking.started_at }}</td>
-					<td class="text-center">
+					<td class="text-center cell-truncate" title="{{ row.challenge_name }}">
 						{% if row.challenge_id %}
 						<a href="{{ url_for('admin.challenges_detail', challenge_id=row.challenge_id) }}">
-							{{ row.challenge_name }}
+							{{ row.challenge_name | truncate(28) }}
 						</a>
 						<div class="text-muted small">#{{ row.challenge_id }}</div>
 						{% else %}
 						-
 						{% endif %}
 					</td>
-					<td class="text-center">
+					<td class="text-center cell-truncate" title="{{ row.user_name }}">
 						{% if row.user_id %}
-						<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name }}</a>
+						<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name | truncate(24) }}</a>
 						<div class="text-muted small">#{{ row.user_id }}</div>
 						{% else %}
 						-
 						{% endif %}
 					</td>
-					<td class="text-center">
+					<td class="text-center cell-truncate" title="{{ row.team_name }}">
 						{% if row.team_id %}
-						<a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">{{ row.team_name }}</a>
+						<a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">{{ row.team_name | truncate(24) }}</a>
 						<div class="text-muted small">#{{ row.team_id }}</div>
 						{% else %}
 						-

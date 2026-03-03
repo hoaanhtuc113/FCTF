@@ -161,20 +161,20 @@
 						{{ sub.id }}
 					</td>
 					{% if mode == UserModeTypes.TEAMS %}
-					<td class="text-center">
+					<td class="text-center cell-truncate" title="{{ sub.user.name }}">
 						<a href="{{ url_for('admin.users_detail', user_id=sub.user_id) }}">
-							{{ sub.user.name }}
+							{{ sub.user.name | truncate(28) }}
 						</a>
 					</td>
 					{% endif %}
-					<td class="text-center" id="{{ sub.account_id }}">
+					<td class="text-center cell-truncate" id="{{ sub.account_id }}" title="{{ sub.account.name }}">
 						<a href="{{ generate_account_url(sub.account_id, admin=True) }}">
-							{{ sub.account.name }}
+							{{ sub.account.name | truncate(28) }}
 						</a>
 					</td>
-					<td class="text-center" id="{{ sub.challenge_id }}">
+					<td class="text-center cell-truncate" id="{{ sub.challenge_id }}" title="{{ sub.challenge.name }}">
 						<a href="{{ url_for('admin.challenges_detail', challenge_id=sub.challenge_id) }}">
-							{{ sub.challenge.name }}
+							{{ sub.challenge.name | truncate(28) }}
 						</a>
 					</td>
 					<td class="text-center">

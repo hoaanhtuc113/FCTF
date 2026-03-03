@@ -287,6 +287,14 @@
 				<tbody class="small">
 					<!-- Dynamic rows go here -->
 				</tbody>
+				<tfoot id="tableFooter" style="display: none;">
+					<tr>
+						<td colspan="10" class="text-center py-4" style="color: #999; font-style: italic;">
+							<i class="bx bx-info-circle" style="font-size: 1.2rem; vertical-align: middle;"></i>
+							<span id="footerMsg">No instances found</span>
+						</td>
+					</tr>
+				</tfoot>
 			</table>
 		</div>
 
@@ -369,13 +377,15 @@
 	// Generic function to populate a dropdown from data
 	function populateDropdown(elementId, items, allLabel) {
 		const dropdown = document.getElementById(elementId);
+		if (!dropdown) return;
+		const normalizedItems = Array.isArray(items) ? items : [];
 		const currentValue = dropdown.value;
 
 		// Clear existing options except the "All" option
 		dropdown.innerHTML = `<option value="">${allLabel}</option>`;
 
 		// Add options from the provided list
-		items.forEach(item => {
+		normalizedItems.forEach(item => {
 			const option = document.createElement("option");
 			option.value = item;
 			option.textContent = item;
@@ -383,7 +393,7 @@
 		});
 
 		// Restore previous selection if exists
-		if (currentValue && items.includes(currentValue)) {
+		if (currentValue && normalizedItems.includes(currentValue)) {
 			dropdown.value = currentValue;
 		}
 	}
@@ -401,14 +411,30 @@
 		populateDropdown("categoryFilter", categories, "All Categories");
 	}
 
+	function showTableFooter(msg) {
+		const tfoot = document.getElementById("tableFooter");
+		const footerMsg = document.getElementById("footerMsg");
+		if (tfoot) { tfoot.style.display = ""; }
+		if (footerMsg) { footerMsg.textContent = msg || "No instances found"; }
+	}
+
+	function hideTableFooter() {
+		const tfoot = document.getElementById("tableFooter");
+		if (tfoot) { tfoot.style.display = "none"; }
+	}
+
 	async function loadData(page = 1) {
 		currentPage = page;
 
-		const challengeSearch = document.getElementById("challengeSearch").value.trim();
-		const teamFilter = document.getElementById("teamFilter").value.trim();
-		const userFilter = document.getElementById("userFilter").value.trim();
-		const categoryFilter = document.getElementById("categoryFilter").value.trim();
-		const statusFilter = document.getElementById("statusFilter").value.trim();
+		const tbody = document.querySelector("#challengeTable tbody");
+		if (tbody) { tbody.innerHTML = ""; }
+		showTableFooter("Loading...");
+
+		const challengeSearch = (document.getElementById("challengeSearch")?.value ?? "").trim();
+		const teamFilter = (document.getElementById("teamFilter")?.value ?? "").trim();
+		const userFilter = (document.getElementById("userFilter")?.value ?? "").trim();
+		const categoryFilter = (document.getElementById("categoryFilter")?.value ?? "").trim();
+		const statusFilter = (document.getElementById("statusFilter")?.value ?? "").trim();
 
 		let url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`;
 
@@ -428,13 +454,23 @@
 			url += `&status=${encodeURIComponent(statusFilter)}`;
 		}
 
-		const response = await CTFd.fetch(url, {
-			method: "GET"
+		try {
+		const fetchFn = (typeof CTFd !== "undefined" && CTFd.fetch) ? CTFd.fetch : window.fetch;
+		const response = await fetchFn(url, {
+			method: "GET",
+			credentials: "same-origin",
+			headers: { "Accept": "application/json" }
 		});
 
+		if (!response.ok) {
+			const errBody = await response.text();
+			console.error("Monitoring API error:", response.status, errBody);
+			showTableFooter(`Error ${response.status}: ${response.statusText}`);
+			return;
+		}
+
 		const result = await response.json();
-		const tbody = document.querySelector("#challengeTable tbody");
-		tbody.innerHTML = "";
+		if (tbody) { tbody.innerHTML = ""; }
 
 		if (result.success) {
 			paginationData = result.pagination;
@@ -450,6 +486,13 @@
 				populateCategories(result.categories);
 			}
 
+			if (!result.data || result.data.length === 0) {
+				showTableFooter("No instances found");
+				updatePagination();
+				return;
+			}
+
+			hideTableFooter();
 			result.data.forEach(row => {
 				const tr = document.createElement("tr");
 				const key = makeInstanceKey(row.challenge_id, row.team_id);
@@ -512,7 +555,14 @@
 			syncSelectAllCheckbox();
 			updateSelectedUI();
 		} else {
-			alert("Error loading data: " + result.error);
+			console.error("API returned error:", result.error);
+			showTableFooter("Error: " + (result.error || "Unknown error"));
+		}
+		} catch (error) {
+			console.error("loadData failed:", error);
+			const tbodyErr = document.querySelector("#challengeTable tbody");
+			if (tbodyErr) tbodyErr.innerHTML = "";
+			showTableFooter("Failed to load data: " + error.message);
 		}
 	}
 
@@ -533,11 +583,17 @@
 	}
 
 	function clearFilters() {
-		document.getElementById("challengeSearch").value = "";
-		document.getElementById("teamFilter").value = "";
-		document.getElementById("userFilter").value = "";
-		document.getElementById("categoryFilter").value = "";
-		document.getElementById("statusFilter").value = "";
+		const challengeSearch = document.getElementById("challengeSearch");
+		const teamFilter = document.getElementById("teamFilter");
+		const userFilter = document.getElementById("userFilter");
+		const categoryFilter = document.getElementById("categoryFilter");
+		const statusFilter = document.getElementById("statusFilter");
+
+		if (challengeSearch) challengeSearch.value = "";
+		if (teamFilter) teamFilter.value = "";
+		if (userFilter) userFilter.value = "";
+		if (categoryFilter) categoryFilter.value = "";
+		if (statusFilter) statusFilter.value = "";
 		loadData(1);
 	}
 

@@ -93,23 +93,23 @@
 					<td class="mono text-center">{{ row.ActionLogs.actionDate }}</td>
 					<td class="text-center">
 						{% if row.user_id %}
-						<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name }}</a>
+						<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name | truncate(24) }}</a>
 						<div class="text-muted small">#{{ row.user_id }}</div>
 						{% else %}
 						-
 						{% endif %}
 					</td>
-					<td class="text-center">
+					<td class="text-center cell-truncate">
 						{% if row.team_id %}
-						<a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">{{ row.team_name }}</a>
+						<a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">{{ row.team_name | truncate(24) }}</a>
 						<div class="text-muted small">#{{ row.team_id }}</div>
 						{% else %}
 						-
 						{% endif %}
 					</td>
 					<td class="mono text-center">{{ row.ActionLogs.actionType }} - {{ action_type_labels.get(row.ActionLogs.actionType, 'UNKNOWN') }}</td>
-					<td class="mono text-center">{{ row.ActionLogs.topicName or '' }}</td>
-					<td class="mono">{{ row.ActionLogs.actionDetail }}</td>
+					<td class="mono text-center cell-truncate-sm" title="{{ row.ActionLogs.topicName or '' }}">{{ (row.ActionLogs.topicName or '') | truncate(20) }}</td>
+					<td class="mono cell-wrap-detail" title="{{ row.ActionLogs.actionDetail }}">{{ row.ActionLogs.actionDetail | truncate(120) }}</td>
 				</tr>
 				{% endfor %}
 				{% if logs.total == 0 %}

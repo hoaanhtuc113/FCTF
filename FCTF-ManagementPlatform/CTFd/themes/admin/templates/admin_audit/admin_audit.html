@@ -174,9 +174,9 @@
 				<tr>
 					<td class="text-muted mono small text-center">{{ log.id }}</td>
 					<td class="mono small text-center">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}</td>
-					<td class="text-center">
+					<td class="text-center cell-truncate">
 						{% if log.actor_id %}
-						<a href="{{ url_for('admin.users_detail', user_id=log.actor_id) }}">{{ log.actor_name or ('User #' ~ log.actor_id) }}</a>
+						<a href="{{ url_for('admin.users_detail', user_id=log.actor_id) }}">{{ (log.actor_name or ('User #' ~ log.actor_id)) | truncate(24) }}</a>
 						<div class="text-muted small">#{{ log.actor_id }}</div>
 						{% else %}
 						<span class="text-muted">—</span>
