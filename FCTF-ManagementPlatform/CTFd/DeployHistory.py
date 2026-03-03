@@ -173,6 +173,7 @@ def get_request_logs(challenge_id):
     return render_template(
         "admin/challenges/request_logs.html",
         challenge_id=challenge_id,
+        team_id=team_id,
         log_content=logs,
     )
 
