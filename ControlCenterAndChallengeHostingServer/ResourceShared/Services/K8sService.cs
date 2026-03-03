@@ -33,6 +33,8 @@ public interface IK8sService
         string podName,
         ChallengeDeploymentCacheDTO deploymentCache);
 
+    Task HandleChallengeStopped(int teamId, int challengeId);
+
     Task<WorkflowPhase> GetWorkflowStatus(
         string wfName,
         string namespaceName = "argo");
@@ -229,7 +231,7 @@ public class K8sService : IK8sService
                     IsPending = false,
                 });
 
- 
+
             }
         }
         catch (Exception ex)
@@ -273,7 +275,8 @@ public class K8sService : IK8sService
                 {
                     ChallengeId = challengeId,
                     TeamId = teamId,
-                    StartedAt = now.DateTime 
+                    StartedAt = now.DateTime,
+                    Label = podName
                 });
                 await dbContext.SaveChangesAsync();
             }
@@ -316,6 +319,37 @@ public class K8sService : IK8sService
                 message = "Internal server error.",
                 status = (int)HttpStatusCode.InternalServerError
             };
+        }
+    }
+
+    public async Task HandleChallengeStopped(int teamId, int challengeId)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetService<AppDbContext>();
+            if (dbContext == null)
+            {
+                _logger.LogError(new InvalidOperationException("dbcontext null"));
+                return;
+            }
+
+            var tracking = await dbContext.ChallengeStartTrackings
+                .Where(t => t.TeamId == teamId && t.ChallengeId == challengeId && t.StoppedAt == null)
+                .OrderByDescending(t => t.StartedAt)
+                .FirstOrDefaultAsync();
+
+            if (tracking == null)
+            {
+                return;
+            }
+
+            tracking.StoppedAt = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { teamId, challengeId, errorType = "HandleChallengeStoppedError" });
         }
     }
 

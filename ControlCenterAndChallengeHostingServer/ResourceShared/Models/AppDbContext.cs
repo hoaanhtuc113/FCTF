@@ -86,15 +86,15 @@ public partial class AppDbContext : DbContext
     //            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     //            .AddEnvironmentVariables();
     //    IConfigurationRoot configuration = builder.Build();
-        
+
     //    var connectionString = configuration["DB_CONNECTION"] 
     //                        ?? configuration.GetConnectionString("DbConnection");
-                            
+
     //    if (string.IsNullOrEmpty(connectionString))
     //    {
     //        throw new InvalidOperationException("Database connection string not found. Please set DB_CONNECTION environment variable.");
     //    }
-        
+
     //    optionsBuilder.UseMySql(
     //        connectionString,
     //        new MySqlServerVersion(new Version(10, 11, 0)),
@@ -448,6 +448,12 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.StartedAt)
                 .HasMaxLength(6)
                 .HasColumnName("started_at");
+            entity.Property(e => e.StoppedAt)
+                .HasMaxLength(6)
+                .HasColumnName("stopped_at");
+            entity.Property(e => e.Label)
+                .HasMaxLength(255)
+                .HasColumnName("label");
 
             entity.HasOne(d => d.Challenge).WithMany(p => p.ChallengeStartTrackings)
                 .HasForeignKey(d => d.ChallengeId)

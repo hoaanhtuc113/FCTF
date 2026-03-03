@@ -188,6 +188,8 @@ def instances_history_export_csv():
             [
                 "id",
                 "started_at",
+                "stopped_at",
+                "label",
                 "challenge_id",
                 "challenge_name",
                 "user_id",
@@ -206,6 +208,8 @@ def instances_history_export_csv():
                 [
                     tracking.id,
                     tracking.started_at.isoformat() if tracking.started_at else "",
+                    tracking.stopped_at.isoformat() if tracking.stopped_at else "",
+                    tracking.label or "",
                     row.challenge_id,
                     row.challenge_name or "",
                     row.user_id or "",
