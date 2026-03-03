@@ -2,570 +2,282 @@
 
 {% block stylesheets %}
 <style>
-	/* Clean Users Page Styles */
-	.users-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem 0;
-		margin-bottom: 2rem;
-	}
-	
-	.users-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-	
-	.users-container {
-		padding: 2rem 0;
-	}
-	
-	/* Action Buttons */
-	.action-buttons {
-		margin-bottom: 1.5rem;
-	}
-	
-	.btn-outline-secondary {
-		border: 1px solid #dee2e6;
-		color: #495057;
-		transition: all 0.2s ease;
-	}
-	
-	.btn-outline-secondary:hover {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-		transform: translateY(-2px);
-	}
-	
-	.btn-outline-danger {
-		border: 1px solid #dc3545;
-		color: #dc3545;
-		transition: all 0.2s ease;
-	}
-	
-	.btn-outline-danger:hover {
-		background-color: #dc3545;
-		border-color: #dc3545;
-		transform: translateY(-2px);
-	}
-	
-	/* Export Dropdown */
-	.dropdown .btn-secondary {
-		background-color: #495057;
-		border-color: #495057;
-		transition: all 0.2s ease;
-	}
-	
-	.dropdown .btn-secondary:hover {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		transform: translateY(-2px);
-	}
-	
-	.dropdown-menu {
-		border: 1px solid #e8e8e8;
-		box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-		border-radius: 8px;
-		padding: 1rem;
-	}
-	
-	#export-csv-button + .dropdown-menu {
-		position: absolute !important;
-		top: 100% !important;
-		left: auto !important;
-		right: 0 !important;
-		transform: none !important;
-		margin-top: 10px !important;
-		will-change: auto !important;
-	}
-	
-	.dropdown-menu .btn-warning {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		transition: all 0.2s ease;
-	}
-	
-	.dropdown-menu .btn-warning:hover {
-		background-color: #e85d2a;
-		border-color: #e85d2a;
-		transform: translateY(-2px);
-	}
-	
-	/* Table Styles */
-	.table-responsive {
-		background: #ffffff;
-		padding: 1.5rem;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		border: 1px solid #e8e8e8;
-	}
-	
-	.table {
-		margin-bottom: 0;
-	}
-	
-	.table thead th {
-		background-color: #f8f9fa;
-		color: #2c3e50;
-		font-weight: 600;
-		border-bottom: 2px solid #e8e8e8;
-		padding: 1rem 0.75rem;
-		vertical-align: middle;
-	}
-	
-	.table tbody tr {
-		transition: all 0.2s ease;
-		cursor: pointer;
-	}
-	
-	.table tbody tr:hover {
-		background-color: #fff5f2;
-		transform: translateX(3px);
-	}
-	
-	.table tbody td {
-		padding: 0.9rem 0.75rem;
-		vertical-align: middle;
-		color: #495057;
-		border-bottom: 1px solid #f1f1f1;
-	}
-	
-	.table tbody td a {
-		color: #2c3e50;
-		font-weight: 500;
-		transition: color 0.2s ease;
-	}
-	
-	.table tbody td a:hover {
-		color: #ff6b35;
-		text-decoration: none;
-	}
-	
-	/* Badges */
-	.badge {
-		padding: 0.35rem 0.65rem;
-		border-radius: 4px;
-		font-weight: 500;
-		font-size: 0.75rem;
-	}
-	
-	.badge-primary {
-		background-color: #ff6b35;
-		color: #ffffff;
-	}
-	
-	.badge-success {
-		background-color: #28a745;
-		color: #ffffff;
-	}
-	
-	.badge-danger {
-		background-color: #dc3545;
-		color: #ffffff;
-	}
-	
-	.badge-info {
-		background-color: #17a2b8;
-		color: #ffffff;
-	}
-
-	/* Unified Filter & Search Section */
-	.filter-search-section {
-		background: #ffffff;
-		padding: 1.25rem 1.5rem;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		border: 1px solid #e8e8e8;
-		margin-bottom: 1.5rem;
-	}
-
-	.filter-search-section label {
-		font-size: 0.78rem;
-		font-weight: 600;
-		color: #495057;
-		text-transform: uppercase;
-		letter-spacing: 0.3px;
-		margin-bottom: 0.25rem;
-	}
-
-	.filter-search-section .form-control,
-	.filter-search-section .custom-select {
-		border: 1px solid #dee2e6;
-		border-radius: 6px;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.9rem;
-		transition: all 0.2s ease;
-		height: 38px;
-	}
-
-	.filter-search-section .form-control:focus,
-	.filter-search-section .custom-select:focus {
-		border-color: #ff6b35;
-		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
-	}
-
-	.btn-filter {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-		height: 38px;
-	}
-
-	.btn-filter:hover {
-		background-color: #e85d2a;
-		border-color: #e85d2a;
-		color: #ffffff;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-	}
-
-	.btn-clear-filter {
-		border: 1px solid #dee2e6;
-		color: #495057;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-		height: 38px;
-	}
-
-	.btn-clear-filter:hover {
-		background-color: #f8f9fa;
-		transform: translateY(-2px);
-	}
-	
-	/* Pagination */
-	.pagination {
-		margin-top: 1.5rem;
-	}
-	
-	.page-link {
-		color: #495057;
-		border: 1px solid #dee2e6;
-		padding: 0.5rem 0.75rem;
-		transition: all 0.2s ease;
-	}
-	
-	.page-link:hover {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-	}
-	
-	.page-item.active .page-link {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-	}
-	
-	.page-item.disabled .page-link {
-		color: #6c757d;
-		background-color: #f8f9fa;
-	}
+/* Users page — only page-specific overrides; shared styles in base.html */
+#export-csv-button + .dropdown-menu {
+	position: absolute !important;
+	top: 100% !important;
+	left: auto !important;
+	right: 0 !important;
+	transform: none !important;
+	margin-top: 6px !important;
+	will-change: auto !important;
+}
+.dropdown .btn-secondary { background-color: #495057; border-color: #495057; transition: all 0.2s ease; }
+.dropdown .btn-secondary:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); }
+.dropdown-menu .btn-warning { background-color: var(--primary-orange); border-color: var(--primary-orange); }
+.dropdown-menu .btn-warning:hover { background-color: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="users-page">
-	<div class="page-header">
-		<div class="container">
-			<h1>Users</h1>
-		</div>
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-user"></i> Users</h1>
 	</div>
-
-	<div class="container users-container">
-		<div class="row">
-			<div class="col-md-12">
-				{% if q and field %}
-				<div class="text-center mb-3">
-					<h6 class="text-muted mb-0">
-						Searching <strong>{{ field }}</strong> matching <strong>{{ q }}</strong> &mdash; {{ users.total }} results
-					</h6>
-				</div>
-				{% endif %}
-
-				<!-- Unified Filter & Search -->
-				<div class="filter-search-section">
-					<form method="GET" id="filterForm">
-						<div class="row mb-2">
-							<div class="col-md-2">
-								<label for="role">Role</label>
-								<select name="role" id="role" class="form-control custom-select">
-									<option value="">All Roles</option>
-							<option value="user" {% if role_filter == 'user' %}selected{% endif %}>User</option>
-							<option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
-							<option value="challenge_writer" {% if role_filter == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
-							<option value="jury" {% if role_filter == 'jury' %}selected{% endif %}>Jury</option>
-								</select>
-							</div>
-							<div class="col-md-2">
-								<label for="verified">Verified</label>
-								<select name="verified" id="verified" class="form-control custom-select">
-									<option value="">All</option>
-									<option value="true" {% if verified_filter == 'true' %}selected{% endif %}>Verified</option>
-									<option value="false" {% if verified_filter == 'false' %}selected{% endif %}>Not Verified</option>
-								</select>
-							</div>
-							<div class="col-md-2">
-								<label for="hidden">Hidden</label>
-								<select name="hidden" id="hidden" class="form-control custom-select">
-									<option value="">All</option>
-									<option value="true" {% if hidden_filter == 'true' %}selected{% endif %}>Hidden</option>
-									<option value="false" {% if hidden_filter == 'false' %}selected{% endif %}>Not Hidden</option>
-								</select>
-							</div>
-							<div class="col-md-2">
-								<label for="banned">Banned</label>
-								<select name="banned" id="banned" class="form-control custom-select">
-									<option value="">All</option>
-									<option value="true" {% if banned_filter == 'true' %}selected{% endif %}>Banned</option>
-									<option value="false" {% if banned_filter == 'false' %}selected{% endif %}>Not Banned</option>
-								</select>
-							</div>
-							<div class="col-md-2">
-								<label>Search Field</label>
-								{% with form = Forms.users.UserSearchForm(field=field, q=q) %}
-								{{ form.field(class="form-control custom-select w-100") }}
-								{% endwith %}
-							</div>
-							<div class="col-md-2">
-								<label>Search Text</label>
-								<input type="text" name="q" class="form-control" placeholder="Search users..." value="{{ q or '' }}">
-							</div>
-						</div>
-						<div class="row">
-							<div class="col-md-12 d-flex justify-content-end">
-								<button type="submit" class="btn btn-filter mr-1">
-									<i class="fas fa-search"></i> Search &amp; Filter
-								</button>
-								<button type="button" class="btn btn-clear-filter" onclick="clearAllFilters()">
-									<i class="fas fa-times"></i> Clear
-								</button>
-							</div>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-
-		<div class="row">
-			<div class="col-md-12">
-				<div class="d-flex justify-content-between align-items-center action-buttons">
-					<div>
-						{%if not is_jury()%}
-						<a href="{{ url_for('admin.users_new') }}" class="btn btn-primary">
-							<i class="fas fa-plus"></i> Create User
-						</a>
-						{%endif%}
-					</div>
-					<div>
-						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-outline-secondary" data-toggle="tooltip" title="Edit Users" id="users-edit-button">
-								<i class="btn-fa fas fa-pencil-alt"></i>
-							</button>
-							{% if not is_jury()%}
-							<button type="button" class="btn btn-outline-danger" data-toggle="tooltip" title="Delete Users" id="users-delete-button">
-								<i class="btn-fa fas fa-trash-alt"></i>
-							</button>
-							{%endif%}
-						</div>
-
-						<div class="dropdown d-inline-block ml-2" style="position: relative;">
-						<button class="btn btn-secondary dropdown-toggle"
-								type="button"
-								id="export-csv-button"
-								aria-haspopup="true"
-								aria-expanded="false">
-							Export CSV
-						</button>
-
-						<div class="dropdown-menu shadow-sm p-3"
-							id="export-csv-dropdown"
-							aria-labelledby="export-csv-button"
-							style="min-width: 250px;">
-
-							<div class="form-check mb-3">
-								<input class="form-check-input" type="checkbox" id="include-passwords-visible">
-								<label class="form-check-label small font-weight-bold" for="include-passwords-visible">
-									Include Passwords (Reset)
-								</label>
-								<small class="form-text text-muted d-block mt-1">
-									Reset and export passwords for all users
-								</small>
-							</div>
-
-							<div id="ctf-active-warning" class="alert alert-warning py-2 px-2 mb-2" style="display: none; font-size: 0.85rem;">
-								<i class="fas fa-exclamation-triangle"></i>
-								<small>CTF is active. Password export is disabled.</small>
-							</div>
-
-							<button class="btn btn-warning btn-sm w-100 text-white font-weight-bold" id="export-btn">
-								Export
-							</button>
-						</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	
-		<div class="row">
-			<div class="col-md-12 table-responsive">
-			<table id="teamsboard" class="table table-striped border">
-				<thead>
-					<tr>
-						<th class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" autocomplete="off" data-checkbox-all>&nbsp;
-							</div>
-						</th>
-						<th class="sort-col text-center"><b>ID</b></th>
-						<th class="sort-col text-center"><b>User</b></th>
-						<th class="sort-col text-center"><b>Team</b></th>
-
-						<th class="sort-col text-center px-0"><b>Role</b></th>
-						<th class="sort-col text-center px-0"><b>Verified</b></th>
-						<th class="sort-col text-center px-0"><b>Hidden</b></th>
-						<th class="sort-col text-center px-0"><b>Banned</b></th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for user in users.items %}
-					<tr name="{{ user.id }}" data-href="{{ url_for('admin.users_detail', user_id=user.id) }}">
-						<td class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" autocomplete="off" value="{{ user.id }}" data-user-id="{{ user.id }}">&nbsp;
-							</div>
-						</td>
-						<td class="team-id text-center" value="{{ user.id }}">{{ user.id }}</td>
-						<td class="team-name" value="{{ user.name }}">
-							<a href="{{ url_for('admin.users_detail', user_id=user.id) }}">
-								{{ user.name | truncate(32) }}
-							</a>
-							{% if user.oauth_id %}
-								<a href="https://majorleaguecyber.org/u/{{ user.name }}">
-									<span class="badge badge-primary">Official</span>
-								</a>
-							{% endif %}
-							{% if user.website %}
-								<a href="{{ user.website }}" target="_blank" class="badge badge-info" rel="noopener">
-									<i class="btn-fa fas fa-external-link-alt" data-toggle="tooltip" data-placement="top"
-									   title="{{ user.website }}" aria-hidden="true"></i>
-								</a>
-							{% endif %}
-							{% if user.affiliation %}
-								<span class="d-block text-muted"><small>{{ user.affiliation | truncate(20) }}</small></span>
-							{% endif %}
-						</td>
-						<td class="text-center" value="{{ user.team.name if user.team else '' }}">
-							{% if user.team %}
-								<a href="{{ url_for('admin.teams_detail', team_id=user.team_id) }}">{{ user.team.name | truncate(32) }}</a>
-							{% else %}
-								<span class="text-muted">-</span>
-							{% endif %}
-						</td>
-						<td class="team-admin d-md-table-cell d-lg-table-cell text-center" value="{{ user.type }}">
-							{% if user.type == 'admin' %}
-							<span class="badge badge-primary">Admin</span>
-						{% elif user.type == 'challenge_writer' %}
-							<span class="badge badge-info">Challenge Writer</span>
-						{% elif user.type == 'jury' %}
-							<span class="badge" style="background-color:#6f42c1;color:#fff;">Jury</span>
-						{% else %}
-							<span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
-							{% endif %}
-						</td>
-						<td class="team-verified d-md-table-cell d-lg-table-cell text-center" value="{{ user.verified }}">
-							{% if user.verified %}
-								<span class="badge badge-success">verified</span>
-							{% endif %}
-						</td>
-						<td class="team-hidden d-md-table-cell d-lg-table-cell text-center" value="{{ user.hidden }}">
-							{% if user.hidden %}
-								<span class="badge badge-danger">hidden</span>
-							{% endif %}
-						</td>
-						<td class="team-banned d-md-table-cell d-lg-table-cell text-center" value="{{ user.banned }}">
-							{% if user.banned %}
-								<span class="badge badge-danger">banned</span>
-							{% endif %}
-						</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-			
-			<!-- Backend Pagination Controls -->
-			{% if users.pages > 0 %}
-			{% set filter_args = {} %}
-			{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
-			{% if role_filter %}{% set _ = filter_args.update({"role": role_filter}) %}{% endif %}
-			{% if verified_filter %}{% set _ = filter_args.update({"verified": verified_filter}) %}{% endif %}
-			{% if hidden_filter %}{% set _ = filter_args.update({"hidden": hidden_filter}) %}{% endif %}
-			{% if banned_filter %}{% set _ = filter_args.update({"banned": banned_filter}) %}{% endif %}
-			<div class="row mt-3">
-				<div class="col-md-12">
-					<div class="d-flex justify-content-between align-items-center">
-						<div class="dataTables_info" role="status" aria-live="polite">
-							Showing page {{ users.page }} of {{ users.pages }} ({{ users.total }} total users)
-						</div>
-						{% if users.pages > 1 %}
-						<nav aria-label="User pagination">
-							<ul class="pagination mb-0">
-								<li class="page-item {% if users.page == 1 %}disabled{% endif %}">
-									<a class="page-link" href="{{ prev_page if users.page > 1 else '#' }}">&laquo;</a>
-								</li>
-								
-								{% set start_page = [1, users.page - 2]|max %}
-								{% set end_page = [users.pages, users.page + 2]|min %}
-								
-								{% if start_page > 1 %}
-									<li class="page-item">
-										<a class="page-link" href="{% if q %}{{ url_for('admin.users_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.users_listing', page=1) }}{% endif %}">1</a>
-									</li>
-									{% if start_page > 2 %}
-									<li class="page-item disabled">
-										<span class="page-link">...</span>
-									</li>
-									{% endif %}
-								{% endif %}
-								
-								{% for page_num in range(start_page, end_page + 1) %}
-								<li class="page-item {% if page_num == users.page %}active{% endif %}">
-									<a class="page-link" href="{{ url_for('admin.users_listing', page=page_num, **filter_args) }}">{{ page_num }}</a>
-								</li>
-								{% endfor %}
-								
-								{% if end_page < users.pages %}
-									{% if end_page < users.pages - 1 %}
-									<li class="page-item disabled">
-										<span class="page-link">...</span>
-									</li>
-									{% endif %}
-									<li class="page-item">
-									<a class="page-link" href="{{ url_for('admin.users_listing', page=users.pages, **filter_args) }}">{{ users.pages }}</a>
-									</li>
-								{% endif %}
-								
-								<li class="page-item {% if users.page == users.pages %}disabled{% endif %}">
-									<a class="page-link" href="{{ next_page if users.page < users.pages else '#' }}">&raquo;</a>
-								</li>
-							</ul>
-						</nav>
-						{% endif %}
-					</div>
-				</div>
-			</div>
-			{% endif %}
-		</div>
-	</div>
-	<input type="hidden" id="is_jury" value="{{ 'true' if is_jury() else 'false' }}">
 </div>
+<div class="container">
+	{% if q and field %}
+	<div class="alert alert-info">
+		<div class="clean-info-text">
+			Searching <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span> &mdash; {{ users.total }} results
+		</div>
+	</div>
+	{% endif %}
+
+	<div class="clean-search-container">
+		<form method="GET" id="filterForm">
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-2 px-1">
+					<label for="role">Role</label>
+					<select name="role" id="role" class="clean-form-control ss-select w-100">
+						<option value="">All Roles</option>
+						<option value="user" {% if role_filter == 'user' %}selected{% endif %}>User</option>
+						<option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+						<option value="challenge_writer" {% if role_filter == 'challenge_writer' %}selected{% endif %}>Challenge Writer</option>
+						<option value="jury" {% if role_filter == 'jury' %}selected{% endif %}>Jury</option>
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="verified">Verified</label>
+					<select name="verified" id="verified" class="clean-form-control ss-select w-100">
+						<option value="">All</option>
+						<option value="true" {% if verified_filter == 'true' %}selected{% endif %}>Verified</option>
+						<option value="false" {% if verified_filter == 'false' %}selected{% endif %}>Not Verified</option>
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="hidden">Hidden</label>
+					<select name="hidden" id="hidden" class="clean-form-control ss-select w-100">
+						<option value="">All</option>
+						<option value="true" {% if hidden_filter == 'true' %}selected{% endif %}>Hidden</option>
+						<option value="false" {% if hidden_filter == 'false' %}selected{% endif %}>Not Hidden</option>
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="banned">Banned</label>
+					<select name="banned" id="banned" class="clean-form-control ss-select w-100">
+						<option value="">All</option>
+						<option value="true" {% if banned_filter == 'true' %}selected{% endif %}>Banned</option>
+						<option value="false" {% if banned_filter == 'false' %}selected{% endif %}>Not Banned</option>
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Search Field</label>
+					{% with form = Forms.users.UserSearchForm(field=field, q=q) %}
+					{{ form.field(class="clean-form-control ss-select w-100") }}
+					{% endwith %}
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Search Text</label>
+					<input type="text" name="q" class="clean-form-control w-100" placeholder="Search users..." value="{{ q or '' }}">
+				</div>
+			</div>
+			<div class="row no-gutters align-items-center mt-1">
+				<div class="col-md-9 px-1"></div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Search
+					</button>
+					<button type="button" class="clean-btn btn-outline-secondary" onclick="clearAllFilters()" title="Reset">
+						<i class="fas fa-sync-alt"></i>
+					</button>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+		<div>
+			{%if not is_jury()%}
+			<a href="{{ url_for('admin.users_new') }}" class="clean-btn clean-btn-primary">
+				<i class="fas fa-plus"></i> Create User
+			</a>
+			{%endif%}
+		</div>
+		<div class="d-flex align-items-center">
+			<div class="btn-group mr-2" role="group">
+				<button type="button" class="clean-btn" data-toggle="tooltip" title="Edit Users" id="users-edit-button">
+					<i class="btn-fa fas fa-pencil-alt"></i> Edit
+				</button>
+				{% if not is_jury()%}
+				<button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip" title="Delete Users" id="users-delete-button">
+					<i class="btn-fa fas fa-trash-alt"></i> Delete
+				</button>
+				{%endif%}
+			</div>
+
+			<div class="dropdown d-inline-block" style="position: relative;">
+				<button class="clean-btn dropdown-toggle" type="button" id="export-csv-button"
+					aria-haspopup="true" aria-expanded="false">
+					Export CSV
+				</button>
+				<div class="dropdown-menu shadow-sm p-3" id="export-csv-dropdown"
+					aria-labelledby="export-csv-button" style="min-width: 250px;">
+					<div class="form-check mb-3">
+						<input class="form-check-input" type="checkbox" id="include-passwords-visible">
+						<label class="form-check-label small font-weight-bold" for="include-passwords-visible">
+							Include Passwords (Reset)
+						</label>
+						<small class="form-text text-muted d-block mt-1">
+							Reset and export passwords for all users
+						</small>
+					</div>
+					<div id="ctf-active-warning" class="alert alert-warning py-2 px-2 mb-2" style="display: none; font-size: 0.85rem;">
+						<i class="fas fa-exclamation-triangle"></i>
+						<small>CTF is active. Password export is disabled.</small>
+					</div>
+					<button class="btn btn-warning btn-sm w-100 text-white font-weight-bold" id="export-btn">
+						Export
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		<table id="teamsboard" class="clean-table table">
+			<thead>
+				<tr>
+					<th data-checkbox>
+						<input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+					</th>
+					<th class="sort-col text-center"><b>ID</b></th>
+					<th class="sort-col text-center"><b>User</b></th>
+					<th class="sort-col text-center"><b>Team</b></th>
+					<th class="sort-col text-center"><b>Role</b></th>
+					<th class="sort-col text-center"><b>Verified</b></th>
+					<th class="sort-col text-center"><b>Hidden</b></th>
+					<th class="sort-col text-center"><b>Banned</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for user in users.items %}
+				<tr name="{{ user.id }}" data-href="{{ url_for('admin.users_detail', user_id=user.id) }}">
+					<td data-checkbox>
+						<input type="checkbox" class="table-check" autocomplete="off" value="{{ user.id }}" data-user-id="{{ user.id }}">
+					</td>
+					<td class="text-center" value="{{ user.id }}">{{ user.id }}</td>
+					<td value="{{ user.name }}">
+						<a href="{{ url_for('admin.users_detail', user_id=user.id) }}">
+							{{ user.name | truncate(32) }}
+						</a>
+						{% if user.oauth_id %}
+							<a href="https://majorleaguecyber.org/u/{{ user.name }}">
+								<span class="clean-badge clean-badge-primary">Official</span>
+							</a>
+						{% endif %}
+						{% if user.website %}
+							<a href="{{ user.website }}" target="_blank" rel="noopener">
+								<span class="clean-badge clean-badge-secondary">
+									<i class="fas fa-external-link-alt" data-toggle="tooltip" title="{{ user.website }}"></i>
+								</span>
+							</a>
+						{% endif %}
+						{% if user.affiliation %}
+							<span class="d-block text-muted"><small>{{ user.affiliation | truncate(20) }}</small></span>
+						{% endif %}
+					</td>
+					<td class="text-center" value="{{ user.team.name if user.team else '' }}">
+						{% if user.team %}
+							<a href="{{ url_for('admin.teams_detail', team_id=user.team_id) }}">{{ user.team.name | truncate(32) }}</a>
+						{% else %}
+							<span class="text-muted">-</span>
+						{% endif %}
+					</td>
+					<td class="text-center" value="{{ user.type }}">
+						{% if user.type == 'admin' %}
+							<span class="clean-badge clean-badge-primary">Admin</span>
+						{% elif user.type == 'challenge_writer' %}
+							<span class="clean-badge" style="background:#d1ecf1;color:#0c5460;">Challenge Writer</span>
+						{% elif user.type == 'jury' %}
+							<span class="clean-badge" style="background:#e2d9f3;color:#432874;">Jury</span>
+						{% else %}
+							<span class="clean-badge clean-badge-secondary">User</span>
+						{% endif %}
+					</td>
+					<td class="text-center" value="{{ user.verified }}">
+						{% if user.verified %}
+							<span class="clean-badge clean-badge-success">verified</span>
+						{% endif %}
+					</td>
+					<td class="text-center" value="{{ user.hidden }}">
+						{% if user.hidden %}
+							<span class="clean-badge clean-badge-danger">hidden</span>
+						{% endif %}
+					</td>
+					<td class="text-center" value="{{ user.banned }}">
+						{% if user.banned %}
+							<span class="clean-badge clean-badge-danger">banned</span>
+						{% endif %}
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Pagination -->
+	{% if users.pages > 0 %}
+	{% set filter_args = {} %}
+	{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
+	{% if role_filter %}{% set _ = filter_args.update({"role": role_filter}) %}{% endif %}
+	{% if verified_filter %}{% set _ = filter_args.update({"verified": verified_filter}) %}{% endif %}
+	{% if hidden_filter %}{% set _ = filter_args.update({"hidden": hidden_filter}) %}{% endif %}
+	{% if banned_filter %}{% set _ = filter_args.update({"banned": banned_filter}) %}{% endif %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ users.page }}</span> of <span class="clean-highlight">{{ users.pages }}</span> &bull; {{ users.total }} total
+		</div>
+		{% if users.pages > 1 %}
+		<nav aria-label="User pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if users.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if users.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set start_page = [1, users.page - 2]|max %}
+				{% set end_page = [users.pages, users.page + 2]|min %}
+				{% if start_page > 1 %}
+					<li class="page-item">
+						<a class="page-link" href="{% if q %}{{ url_for('admin.users_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.users_listing', page=1) }}{% endif %}">1</a>
+					</li>
+					{% if start_page > 2 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+				{% endif %}
+				{% for page_num in range(start_page, end_page + 1) %}
+				<li class="page-item {% if page_num == users.page %}active{% endif %}">
+					<a class="page-link" href="{{ url_for('admin.users_listing', page=page_num, **filter_args) }}">{{ page_num }}</a>
+				</li>
+				{% endfor %}
+				{% if end_page < users.pages %}
+					{% if end_page < users.pages - 1 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.users_listing', page=users.pages, **filter_args) }}">{{ users.pages }}</a>
+					</li>
+				{% endif %}
+				<li class="page-item {% if users.page == users.pages %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page if users.page < users.pages else '#' }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+		{% endif %}
+	</div>
+	{% endif %}
+
+	<input type="hidden" id="is_jury" value="{{ 'true' if is_jury() else 'false' }}">
 </div>
 
 {% endblock %}

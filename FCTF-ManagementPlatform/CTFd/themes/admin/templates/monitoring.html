@@ -2,70 +2,10 @@
 
 {% block stylesheets %}
 <style>
-	/* Clean Monitoring Page Styles */
-	.monitoring-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem 0;
-		margin-bottom: 2rem;
-	}
-
-	.monitoring-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
+	/* Clean Monitoring Page Styles — header inherits from base.html */
 
 	.monitoring-container {
-		padding: 2rem 0;
-	}
-
-	/* Action Button */
-	.action-section {
-		margin-bottom: 1.5rem;
-		padding: 1rem;
-		background: #ffffff;
-		border: 1px solid #e8e8e8;
-		border-radius: 8px;
-	}
-
-	.btn-load {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-		padding: 0.65rem 1.5rem;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-	}
-
-	.btn-load:hover {
-		background-color: #e85d2a;
-		border-color: #e85d2a;
-		color: #ffffff;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-	}
-
-	.btn-danger {
-		padding: 0.65rem 1.5rem;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-	}
-
-	.btn-danger:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-	}
-
-	.btn-danger:disabled {
-		opacity: 0.65;
-		cursor: not-allowed;
-		transform: none;
-		box-shadow: none;
+		padding: 0;
 	}
 
 	/* Spinner animation */
@@ -84,63 +24,11 @@
 	}
 
 	/* Table Styles */
-	.monitoring-table-wrapper {
-		background: #ffffff;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-		border: 1px solid #e8e8e8;
-		
-	}
-
-	.monitoring-table-wrapper {
-		overflow-y: visible;
-	}
-
-	.monitoring-table {
-		margin: 0;
-		font-size: 0.9rem;
-		width: 100%;
-		table-layout: auto;
-	}
-
-	/* Prevent dropdown-menu from affecting layout — JS will fix position */
-	.action-dropdown .dropdown-menu {
-		position: fixed !important;
-		top: 0;
-		left: 0;
-	}
-
-	.monitoring-table thead th {
-		background: #f8f9fa;
-		border-bottom: 2px solid #e8e8e8;
-		color: #495057;
-		font-weight: 600;
-		padding: 1rem;
-		text-transform: uppercase;
-		font-size: 0.70rem;
-		letter-spacing: 0.5px;
-		white-space: nowrap;
-	}
-
-	.monitoring-table tbody tr {
-		border-bottom: 1px solid #f1f1f1;
-		transition: all 0.15s ease;
-	}
-
-	.monitoring-table tbody tr:hover {
-		background: #fff5f2;
-	}
-
-	.monitoring-table tbody td {
-		padding: 0.875rem 0.75rem;
-		color: #495057;
-		vertical-align: middle;
-		overflow-wrap: anywhere;
-	}
-
-	.monitoring-table tbody td.allow-wrap {
-		white-space: normal;
-	}
+	/* Table — uses clean-table from base.html; only page-specific overrides here */
+	.clean-table { table-layout: auto; white-space: normal; }
+	.clean-table-wrapper { overflow-y: visible; }
+	.clean-table tbody td { overflow-wrap: anywhere; }
+	.clean-table tbody td.allow-wrap { white-space: normal; }
 
 	/* Action dropdown — no Bootstrap JS / Popper, fully manual */
 	.action-dropdown {
@@ -148,32 +36,7 @@
 		display: inline-block;
 	}
 
-	/* clean-btn: matches theme from challenges.html */
-	.clean-btn {
-		border: 1px solid #dee2e6;
-		background: #ffffff;
-		color: #495057;
-		padding: 0.5rem 1rem;
-		border-radius: 4px;
-		font-size: 0.9rem;
-		font-weight: 500;
-		transition: all 0.2s ease;
-		cursor: pointer;
-	}
-
-	.clean-btn:hover,
-	.clean-btn:focus {
-		border-color: #ff6b35;
-		color: #ff6b35;
-		background: #fff5f2;
-		outline: none;
-		box-shadow: none;
-	}
-
-	.clean-action-btn-sm {
-		padding: 0.375rem 0.75rem;
-		font-size: 0.875rem;
-	}
+	/* clean-btn already defined in base.html */
 
 	.action-menu {
 		display: none;
@@ -248,58 +111,6 @@
 		padding: 0.2rem 0.45rem;
 		font-size: 0.75rem;
 		line-height: 1.2;
-	}
-
-	.monitoring-table tbody td a {
-		color: #ff6b35;
-		text-decoration: none;
-		font-weight: 500;
-		transition: color 0.2s ease;
-	}
-
-	.monitoring-table tbody td a:hover {
-		color: #e85d2a;
-		text-decoration: underline;
-	}
-
-	/* Stop Button */
-	.btn-stop {
-		background-color: #dc3545;
-		border-color: #dc3545;
-		color: #ffffff;
-		padding: 0.375rem 0.75rem;
-		font-size: 0.875rem;
-		border-radius: 4px;
-		transition: all 0.2s ease;
-	}
-
-	.btn-stop:hover {
-		background-color: #c82333;
-		border-color: #bd2130;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-	}
-
-	/* Info Button */
-	.btn-info {
-		padding: 0.375rem 0.75rem;
-		font-size: 0.875rem;
-		border-radius: 4px;
-		transition: all 0.2s ease;
-	}
-
-	.btn-info:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
-	}
-
-	/* Filter controls height consistency */
-	#teamFilter,
-	#userFilter,
-	#categoryFilter,
-	#statusFilter,
-	#challengeSearch {
-		height: 38px;
 	}
 
 	/* Status badge styles */
@@ -380,31 +191,31 @@
 <div class="monitoring-page">
 	<div class="page-header">
 		<div class="container">
-			<h1>Challenge Instance</h1>
+			<h1><i class="bx bx-server"></i> Challenge Instance</h1>
 		</div>
 	</div>
 
 	<div class="container monitoring-container">
 		<!-- Filters and Search -->
-		<div class="mb-3">
-			<div class="row mb-2">
-				<div class="col-md-3">
-					<select id="teamFilter" class="form-control" onchange="handleSearch()">
+		<div class="clean-search-container">
+			<div class="row no-gutters align-items-center">
+				<div class="col-md-3 px-1">
+					<select id="teamFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Teams</option>
 					</select>
 				</div>
-				<div class="col-md-3">
-					<select id="userFilter" class="form-control" onchange="handleSearch()">
+				<div class="col-md-3 px-1">
+					<select id="userFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Users</option>
 					</select>
 				</div>
-				<div class="col-md-3">
-					<select id="categoryFilter" class="form-control" onchange="handleSearch()">
+				<div class="col-md-3 px-1">
+					<select id="categoryFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Categories</option>
 					</select>
 				</div>
-				<div class="col-md-3">
-					<select id="statusFilter" class="form-control" onchange="handleSearch()">
+				<div class="col-md-3 px-1">
+					<select id="statusFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Status</option>
 						<option value="pending">Pending</option>
 						<option value="running">Running</option>
@@ -412,44 +223,39 @@
 					</select>
 				</div>
 			</div>
-			<div class="row">
-				<div class="col-md-10">
-					<input type="text" id="challengeSearch" class="form-control"
+			<div class="row no-gutters align-items-center mt-1">
+				<div class="col-md-9 px-1">
+					<input type="text" id="challengeSearch" class="clean-form-control w-100"
 						placeholder="Search by challenge name..." onkeyup="handleSearch()">
 				</div>
-				<div class="col-md-2">
-					<button onclick="clearFilters()" class="btn btn-info btn-block">
-						<i class="fas fa-times"></i> Clear Filters
+				<div class="col-md-3 px-1 d-flex">
+					<button onclick="clearFilters()" class="clean-btn flex-grow-1 mr-1">
+						<i class="fas fa-times"></i> Clear
+					</button>
+					<button onclick="loadData()" class="clean-btn clean-btn-primary flex-grow-1">
+						<i class="fas fa-sync-alt"></i> Refresh
 					</button>
 				</div>
 			</div>
 		</div>
 
-		<!-- Action Buttons -->
-		<div class="mb-3 d-flex justify-content-between align-items-center">
-			<div>
-				<button onclick="loadData()" class="btn btn-load mr-2">
-					<i class="fas fa-sync-alt"></i> Refresh Data
-				</button>
-			</div>
-			<div>
-				<span class="clean-info-text mr-2">
-					Selected: <span class="clean-highlight" id="selectedCountTop">0</span>
-				</span>
-				<button id="bulkStopBtnTop" onclick="bulkStopSelected()" class="btn btn-stop mr-2" disabled>
-					<i class="fas fa-stop-circle"></i> Stop Selected
-				</button>
-				<button onclick="DeleteAll()" class="btn btn-danger">
-					<i class="fas fa-trash-alt"></i> Stop All
-				</button>
-			</div>
+		<!-- Action Bar -->
+		<div class="d-flex justify-content-end align-items-center mb-2">
+			<span class="clean-info-text mr-2">
+				Selected: <span class="clean-highlight" id="selectedCountTop">0</span>
+			</span>
+			<button id="bulkStopBtnTop" onclick="bulkStopSelected()" class="clean-btn clean-btn-danger mr-1" disabled>
+				<i class="fas fa-stop-circle"></i> Stop Selected
+			</button>
+			<button onclick="DeleteAll()" class="clean-btn clean-btn-danger">
+				<i class="fas fa-trash-alt"></i> Stop All
+			</button>
 		</div>
 
 		<!-- Table -->
-		<div class="monitoring-table-wrapper">
-			<table id="challengeTable" class="table monitoring-table mb-0">
-				<colgroup>
-					<col style="width: 3%;">          <!-- checkbox -->
+		<div class="clean-table-wrapper">
+			<table id="challengeTable" class="table clean-table mb-0">
+				<colgroup>\n\t\t\t\t\t<col style=\"width: 36px;\">        <!-- checkbox -->
 					<col style="width: 4%;">          <!-- ID -->
 					<col style="width: 15%;">         <!-- Challenge Name -->
 					<col style="width: 10%;">         <!-- Team Name -->
@@ -462,8 +268,8 @@
 				</colgroup>
 				<thead>
 					<tr>
-						<th class="text-center">
-							<input id="selectAll" type="checkbox" onchange="toggleSelectAllOnPage(this.checked)"
+						<th data-checkbox>
+							<input id="selectAll" type="checkbox" class="table-check" onchange="toggleSelectAllOnPage(this.checked)"
 								aria-label="Select all on page" />
 						</th>
 						<th class="sort-col text-center">ID</th>
@@ -651,10 +457,10 @@
 				const encodedToken = encodeURIComponent(tokenValue);
 
 				tr.innerHTML = `
-					<td class="text-center">
+					<td data-checkbox>
 						<input
 							type="checkbox"
-							class="instance-checkbox"
+							class="table-check instance-checkbox"
 							data-challenge-id="${row.challenge_id}"
 							data-team-id="${row.team_id}"
 							${isChecked ? 'checked' : ''}

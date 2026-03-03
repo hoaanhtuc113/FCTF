@@ -2,527 +2,258 @@
 
 {% block stylesheets %}
 <style>
-	/* Clean Submissions Page Styles */
-	.submissions-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem 0;
-		margin-bottom: 2rem;
-	}
-	
-	.submissions-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-	
-	.submissions-container {
-		padding: 2rem 0;
-	}
-	
-	/* Action Buttons */
-	.action-buttons {
-		margin-bottom: 1.5rem;
-	}
-	
-	.btn-outline-primary,
-	.btn-outline-success,
-	.btn-outline-danger {
-		border: 1px solid;
-		transition: all 0.2s ease;
-	}
-	
-	.btn-outline-primary {
-		border-color: #dee2e6;
-		color: #495057;
-	}
-	
-	.btn-outline-primary:hover {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-		transform: translateY(-2px);
-	}
-	
-	.btn-outline-success:hover {
-		transform: translateY(-2px);
-	}
-	
-	.btn-outline-danger:hover {
-		transform: translateY(-2px);
-	}
-	
-	/* Table */
-	.table-responsive {
-		background: #ffffff;
-		padding: 1.5rem;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		border: 1px solid #e8e8e8;
-	}
-	
-	.table thead th {
-		background-color: #f8f9fa;
-		color: #2c3e50;
-		font-weight: 600;
-		border-bottom: 2px solid #e8e8e8;
-		padding: 1rem 0.75rem;
-	}
-	
-	.table tbody tr {
-		transition: all 0.2s ease;
-		cursor: pointer;
-	}
-	
-	.table tbody tr:hover {
-		background-color: #fff5f2;
-	}
-	
-	.table tbody td {
-		padding: 0.9rem 0.75rem;
-		vertical-align: middle;
-		color: #495057;
-		border-bottom: 1px solid #f1f1f1;
-	}
-	
-	.table tbody td a {
-		color: #2c3e50;
-		font-weight: 500;
-		transition: color 0.2s ease;
-	}
-	
-	.table tbody td a:hover {
-		color: #ff6b35;
-		text-decoration: none;
-	}
-	
-	/* Badges */
-	.badge-success {
-		background-color: #28a745;
-	}
-	
-	.badge-danger {
-		background-color: #dc3545;
-	}
-
-	/* Unified Filter & Search Section */
-	.filter-search-section {
-		background: #ffffff;
-		padding: 1.25rem 1.5rem;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		border: 1px solid #e8e8e8;
-		margin-bottom: 1.5rem;
-	}
-
-	.filter-search-section label {
-		font-size: 0.78rem;
-		font-weight: 600;
-		color: #495057;
-		text-transform: uppercase;
-		letter-spacing: 0.3px;
-		margin-bottom: 0.25rem;
-	}
-
-	.filter-search-section .form-control,
-	.filter-search-section .custom-select {
-		border: 1px solid #dee2e6;
-		border-radius: 6px;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.9rem;
-		transition: all 0.2s ease;
-		height: 38px;
-	}
-
-	.filter-search-section .form-control:focus,
-	.filter-search-section .custom-select:focus {
-		border-color: #ff6b35;
-		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
-	}
-
-	.btn-filter {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-		height: 38px;
-	}
-
-	.btn-filter:hover {
-		background-color: #e85d2a;
-		border-color: #e85d2a;
-		color: #ffffff;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-	}
-
-	.btn-clear-filter {
-		border: 1px solid #dee2e6;
-		color: #495057;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-		height: 38px;
-	}
-
-	.btn-clear-filter:hover {
-		background-color: #f8f9fa;
-		transform: translateY(-2px);
-	}
-
-	/* Searchable Select Wrapper */
-	.searchable-select-wrapper {
-		position: relative;
-	}
-
-	.searchable-select-wrapper .ss-input {
-		width: 100%;
-		cursor: text;
-		background: #fff;
-	}
-
-	.searchable-select-wrapper .ss-dropdown {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		z-index: 1050;
-		max-height: 220px;
-		overflow-y: auto;
-		background: #ffffff;
-		border: 1px solid #dee2e6;
-		border-top: none;
-		border-radius: 0 0 6px 6px;
-		box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-		display: none;
-	}
-
-	.searchable-select-wrapper .ss-dropdown.show {
-		display: block;
-	}
-
-	.searchable-select-wrapper .ss-option {
-		padding: 0.45rem 0.75rem;
-		cursor: pointer;
-		font-size: 0.9rem;
-		color: #495057;
-		transition: background 0.1s;
-	}
-
-	.searchable-select-wrapper .ss-option:hover,
-	.searchable-select-wrapper .ss-option.active {
-		background: #fff5f2;
-		color: #ff6b35;
-	}
-
-	.searchable-select-wrapper .ss-option.selected {
-		background: #ff6b35;
-		color: #fff;
-	}
-	
-	/* Pagination */
-	.page-link {
-		color: #495057;
-		border: 1px solid #dee2e6;
-		transition: all 0.2s ease;
-	}
-	
-	.page-link:hover {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-	}
-	
-	.page-item.active .page-link {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-	}
+	/* Submissions page — only page-specific overrides; shared styles in base.html */
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="submissions-page">
 <div class="page-header">
 	<div class="container">
-		<h1>{% if type %}{{ type|title }} {% endif %}Submissions</h1>
+		<h1><i class="bx bx-down-arrow-circle"></i> {% if type %}{{ type|title }} {% endif %}Submissions</h1>
 	</div>
 </div>
-
-<div class="container submissions-container">
-
-	<div class="row">
-		<div class="col-md-12">
-			{% if q and field %}
-			<div class="text-center mb-3">
-				<h6 class="text-muted mb-0">
-					Searching <strong>{{ field }}</strong> matching <strong>{{ q }}</strong> &mdash; {{ submissions.total }} results
-				</h6>
-			</div>
-			{% endif %}
-
-			<!-- Unified Filter & Search -->
-			<div class="filter-search-section">
-				<form method="GET" id="filterForm">
-					{% if type %}<input type="hidden" name="submission_type" value="{{ type }}">{% endif %}
-					<div class="row mb-2">
-						<div class="col-md-3">
-							<label for="team_id">Team</label>
-							<div class="searchable-select-wrapper" data-ss-target="team_id">
-								<input type="hidden" name="team_id" id="team_id" value="{{ team_filter }}">
-								<input type="text" class="form-control ss-input" placeholder="All Teams" autocomplete="off">
-								<div class="ss-dropdown">
-									<div class="ss-option" data-value="">All Teams</div>
-									{% for team in all_teams %}
-									<div class="ss-option" data-value="{{ team.id }}">{{ team.name }}</div>
-									{% endfor %}
-								</div>
-							</div>
-						</div>
-						<div class="col-md-3">
-							<label for="user_id">User</label>
-							<div class="searchable-select-wrapper" data-ss-target="user_id">
-								<input type="hidden" name="user_id" id="user_id" value="{{ user_filter }}">
-								<input type="text" class="form-control ss-input" placeholder="All Users" autocomplete="off">
-								<div class="ss-dropdown">
-									<div class="ss-option" data-value="">All Users</div>
-									{% for user in all_users %}
-									<div class="ss-option" data-value="{{ user.id }}">{{ user.name }}</div>
-									{% endfor %}
-								</div>
-							</div>
-						</div>
-						<div class="col-md-3">
-							<label for="challenge_id">Challenge</label>
-							<div class="searchable-select-wrapper" data-ss-target="challenge_id">
-								<input type="hidden" name="challenge_id" id="challenge_id" value="{{ challenge_filter }}">
-								<input type="text" class="form-control ss-input" placeholder="All Challenges" autocomplete="off">
-								<div class="ss-dropdown">
-									<div class="ss-option" data-value="">All Challenges</div>
-									{% for ch in all_challenges %}
-									<div class="ss-option" data-value="{{ ch.id }}">{{ ch.name }}</div>
-									{% endfor %}
-								</div>
-							</div>
-						</div>
-						<div class="col-md-3">
-							<label for="date_from">From Date</label>
-							<input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
-						</div>
-					</div>
-					<div class="row mb-2">
-						<div class="col-md-3">
-							<label for="date_to">To Date</label>
-							<input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
-						</div>
-						<div class="col-md-2">
-							<label>Search Field</label>
-							{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
-							{{ form.field(class="form-control custom-select w-100") }}
-							{% endwith %}
-						</div>
-						<div class="col-md-4">
-							<label>Search Text</label>
-							<input type="text" name="q" class="form-control" placeholder="Search for matching submission" value="{{ q or '' }}">
-						</div>
-						<div class="col-md-3">
-							<label>&nbsp;</label>
-							<div class="d-flex">
-								<button type="submit" class="btn btn-filter flex-grow-1 mr-1">
-									<i class="fas fa-search"></i> Search &amp; Filter
-								</button>
-								<button type="button" class="btn btn-clear-filter" onclick="clearAllFilters()">
-									<i class="fas fa-times"></i>
-								</button>
-							</div>
-						</div>
-					</div>
-				</form>
-			</div>
+<div class="container">
+	{% if q and field %}
+	<div class="alert alert-info">
+		<div class="clean-info-text">
+			Searching <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span> &mdash; {{ submissions.total }} results
 		</div>
 	</div>
+	{% endif %}
 
-	<div class="row">
-		<div class="col-md-12">
-			<div class="float-right action-buttons">
-				<div class="btn-group" role="group">
-					{% if type != 'correct' %}
-					<button type="button" class="btn btn-outline-success" data-toggle="tooltip" title="Mark selected as correct" id="correct-flags-button">
-						<i class="btn-fa fas fa-check"></i>
-					</button>
-					{% endif %}
-					{% if type != 'incorrect' %}
-					<button type="button" class="btn btn-outline-warning" data-toggle="tooltip" title="Mark selected as incorrect" id="incorrect-flags-button">
-						<i class="btn-fa fas fa-times"></i>
-					</button>
-					{% endif %}
-					{% if request.args.get("full") %}
-					<button type="button" class="btn btn-outline-primary" data-toggle="tooltip" title="Show truncated flags" id="show-short-flags-button">
-						<i class="btn-fa far fa-flag"></i>
-					</button>
-					{% else %}
-					<button type="button" class="btn btn-outline-primary" data-toggle="tooltip" title="Show full flags" id="show-full-flags-button">
-						<i class="btn-fa fas fa-flag"></i>
-					</button>
-					{% endif %}
-					<button type="button" class="btn btn-outline-danger" data-toggle="tooltip" title="Delete selected submissions" id="submission-delete-button">
-						<i class="btn-fa fas fa-trash-alt"></i>
-					</button>
-					<button type="button" class="btn btn-outline-info" data-toggle="tooltip" title="Resync Dynamic Challenges" id="resync-dynamic-button">
-						<i class="btn-fa fas fa-sync-alt"></i>
-					</button>
-					<a href="{{ url_for('admin.export_submission_data') }}" class="btn btn-outline-primary" title="Export Data">
-                        <i class="btn-fa fas fa-file-excel"></i> Export
-                    </a>
+	<!-- Filter & Search -->
+	<div class="clean-search-container">
+		<form method="GET" id="filterForm" class="m-0">
+			{% if type %}<input type="hidden" name="submission_type" value="{{ type }}">{% endif %}
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-3 px-1">
+					<label for="team_id">Team</label>
+					<div class="searchable-select-wrapper" data-ss-target="team_id">
+						<input type="hidden" name="team_id" id="team_id" value="{{ team_filter }}">
+						<input type="text" class="clean-form-control ss-input w-100" placeholder="All Teams" autocomplete="off">
+						<div class="ss-dropdown">
+							<div class="ss-option" data-value="">All Teams</div>
+							{% for team in all_teams %}
+							<div class="ss-option" data-value="{{ team.id }}">{{ team.name }}</div>
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="user_id">User</label>
+					<div class="searchable-select-wrapper" data-ss-target="user_id">
+						<input type="hidden" name="user_id" id="user_id" value="{{ user_filter }}">
+						<input type="text" class="clean-form-control ss-input w-100" placeholder="All Users" autocomplete="off">
+						<div class="ss-dropdown">
+							<div class="ss-option" data-value="">All Users</div>
+							{% for user in all_users %}
+							<div class="ss-option" data-value="{{ user.id }}">{{ user.name }}</div>
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="challenge_id">Challenge</label>
+					<div class="searchable-select-wrapper" data-ss-target="challenge_id">
+						<input type="hidden" name="challenge_id" id="challenge_id" value="{{ challenge_filter }}">
+						<input type="text" class="clean-form-control ss-input w-100" placeholder="All Challenges" autocomplete="off">
+						<div class="ss-dropdown">
+							<div class="ss-option" data-value="">All Challenges</div>
+							{% for ch in all_challenges %}
+							<div class="ss-option" data-value="{{ ch.id }}">{{ ch.name }}</div>
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="date_from">From Date</label>
+					<input type="date" name="date_from" id="date_from" class="clean-form-control w-100" value="{{ date_from }}">
 				</div>
 			</div>
+			<div class="row no-gutters align-items-end mt-1">
+				<div class="col-md-2 px-1">
+					<label for="date_to">To Date</label>
+					<input type="date" name="date_to" id="date_to" class="clean-form-control w-100" value="{{ date_to }}">
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Search Field</label>
+					{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
+					{{ form.field(class="clean-form-control ss-select w-100") }}
+					{% endwith %}
+				</div>
+				<div class="col-md-5 px-1">
+					<label>Search Text</label>
+					<input type="text" name="q" class="clean-form-control w-100" placeholder="Search for matching submission" value="{{ q or '' }}">
+				</div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Search
+					</button>
+					<button type="button" class="clean-btn btn-outline-secondary" onclick="clearAllFilters()" title="Reset">
+						<i class="fas fa-sync-alt"></i>
+					</button>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<!-- Action Buttons -->
+	<div class="d-flex justify-content-end align-items-center action-buttons mt-2">
+		<div class="btn-group" role="group">
+			{% if type != 'correct' %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Mark selected as correct" id="correct-flags-button">
+				<i class="btn-fa fas fa-check" style="color:#28a745"></i>
+			</button>
+			{% endif %}
+			{% if type != 'incorrect' %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Mark selected as incorrect" id="incorrect-flags-button">
+				<i class="btn-fa fas fa-times" style="color:#ffc107"></i>
+			</button>
+			{% endif %}
+			{% if request.args.get("full") %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Show truncated flags" id="show-short-flags-button">
+				<i class="btn-fa far fa-flag"></i>
+			</button>
+			{% else %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Show full flags" id="show-full-flags-button">
+				<i class="btn-fa fas fa-flag"></i>
+			</button>
+			{% endif %}
+			<button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip" title="Delete selected submissions" id="submission-delete-button">
+				<i class="btn-fa fas fa-trash-alt"></i> Delete
+			</button>
+			<button type="button" class="clean-btn ml-2" data-toggle="tooltip" title="Resync Dynamic Challenges" id="resync-dynamic-button">
+				<i class="btn-fa fas fa-sync-alt"></i>
+			</button>
+			<a href="{{ url_for('admin.export_submission_data') }}" class="clean-btn ml-2" title="Export Data">
+				<i class="btn-fa fas fa-file-excel"></i> Export
+			</a>
 		</div>
 	</div>
-	<div class="row">
-		<div class="col-md-12 table-responsive">
-			{% set mode = Configs.user_mode %}
-			<table id="teamsboard" class="table table-striped border">
-				<thead>
-					<tr>
-						<th class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" autocomplete="off" data-checkbox-all>&nbsp;
-							</div>
-						</th>
-						<th class="text-center sort-col"><b>ID</b></th>
-						{% if mode == UserModeTypes.TEAMS %}
-						<th class="sort-col"><b>User</b></th>
-						{% endif %}
-						<th class="sort-col"><b>{{ get_mode_as_word(capitalize=True) }}</b></th>
-						<th class="sort-col"><b>Challenge</b></th>
-						<th class="sort-col"><b>Type</b></th>
-						<th class="sort-col"><b>Provided</b></th>
-						<th class="text-center sort-col"><b>Date</b></th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for sub in submissions.items %}
-					<tr>
-						<td class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" value="{{ sub.id }}" data-submission-id="{{ sub.id }}" autocomplete="off">&nbsp;
-							</div>
-						</td>
-						<td class="text-center" id="{{ sub.id }}">
-							{{ sub.id }}
-						</td>
-						{% if mode == UserModeTypes.TEAMS %}
-						<td>
-							<a href="{{ url_for('admin.users_detail', user_id=sub.user_id) }}">
-								{{ sub.user.name }}
-							</a>
-						</td>
-						{% endif %}
-						<td class="team" id="{{ sub.account_id }}">
-							<a href="{{ generate_account_url(sub.account_id, admin=True) }}">
-								{{ sub.account.name }}
-							</a>
-						</td>
-						<td class="chal" id="{{ sub.challenge_id }}">
-							<a href="{{ url_for('admin.challenges_detail', challenge_id=sub.challenge_id) }}">
-								{{ sub.challenge.name }}
-							</a>
-						</td>
-						<td>
-							{{ sub.type }}
-						</td>
-						<td class="flag" id="{{ sub.id }}">
-							<button class="btn btn-link p-0 float-left copy-flag" type="button">
-								<i class="fas fa-clipboard"></i>
-							</button>
-							{% if request.args.get('full') %}
-								<pre class="mb-0 pl-2" title="{{ sub.provided }}">{{ sub.provided }}</pre>
-							{% else %}
-								<pre class="mb-0 pl-2 float-left" title="{{ sub.provided }}">{{ sub.provided | truncate(45, True) }}</pre>
-								{% if sub.provided | length > 50 %}
-									<button class="btn btn-link p-0 pl-1 float-left show-flag">
-										<i class="fas fa-eye"></i>
-									</button>
-								{% endif %}
+
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		{% set mode = Configs.user_mode %}
+		<table id="teamsboard" class="clean-table table">
+			<thead>
+				<tr>
+					<th data-checkbox>
+						<input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+					</th>
+					<th class="text-center sort-col"><b>ID</b></th>
+					{% if mode == UserModeTypes.TEAMS %}
+					<th class="sort-col text-center"><b>User</b></th>
+					{% endif %}
+					<th class="sort-col text-center"><b>{{ get_mode_as_word(capitalize=True) }}</b></th>
+					<th class="sort-col text-center"><b>Challenge</b></th>
+					<th class="sort-col text-center"><b>Type</b></th>
+					<th class="sort-col text-center"><b>Provided</b></th>
+					<th class="text-center sort-col"><b>Date</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for sub in submissions.items %}
+				<tr>
+					<td data-checkbox>
+						<input type="checkbox" class="table-check" value="{{ sub.id }}" data-submission-id="{{ sub.id }}" autocomplete="off">
+					</td>
+					<td class="text-center" id="{{ sub.id }}">
+						{{ sub.id }}
+					</td>
+					{% if mode == UserModeTypes.TEAMS %}
+					<td class="text-center">
+						<a href="{{ url_for('admin.users_detail', user_id=sub.user_id) }}">
+							{{ sub.user.name }}
+						</a>
+					</td>
+					{% endif %}
+					<td class="text-center" id="{{ sub.account_id }}">
+						<a href="{{ generate_account_url(sub.account_id, admin=True) }}">
+							{{ sub.account.name }}
+						</a>
+					</td>
+					<td class="text-center" id="{{ sub.challenge_id }}">
+						<a href="{{ url_for('admin.challenges_detail', challenge_id=sub.challenge_id) }}">
+							{{ sub.challenge.name }}
+						</a>
+					</td>
+					<td class="text-center">
+						{{ sub.type }}
+					</td>
+					<td class="flag" id="{{ sub.id }}">
+						<button class="btn btn-link p-0 float-left copy-flag" type="button">
+							<i class="fas fa-clipboard"></i>
+						</button>
+						{% if request.args.get('full') %}
+							<pre class="mb-0 pl-2" title="{{ sub.provided }}">{{ sub.provided }}</pre>
+						{% else %}
+							<pre class="mb-0 pl-2 float-left" title="{{ sub.provided }}">{{ sub.provided | truncate(45, True) }}</pre>
+							{% if sub.provided | length > 50 %}
+								<button class="btn btn-link p-0 pl-1 float-left show-flag">
+									<i class="fas fa-eye"></i>
+								</button>
 							{% endif %}
-						</td>
-						<td class="text-center solve-time">
-							<span>{{ sub.date.strftime('%Y-%m-%dT%H:%M:%S.%f') if sub.date else 'N/A' }}</span>
-						</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-			
-			<!-- Backend Pagination Controls -->
-			{% if submissions.pages > 0 %}
-			{% set filter_args = {} %}
-			{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
-			{% if team_filter %}{% set _ = filter_args.update({"team_id": team_filter}) %}{% endif %}
-			{% if user_filter %}{% set _ = filter_args.update({"user_id": user_filter}) %}{% endif %}
-			{% if challenge_filter %}{% set _ = filter_args.update({"challenge_id": challenge_filter}) %}{% endif %}
-			{% if date_from %}{% set _ = filter_args.update({"date_from": date_from}) %}{% endif %}
-			{% if date_to %}{% set _ = filter_args.update({"date_to": date_to}) %}{% endif %}
-			<div class="row mt-3">
-				<div class="col-md-12">
-					<div class="d-flex justify-content-between align-items-center">
-						<div class="dataTables_info" role="status" aria-live="polite">
-							Showing page {{ submissions.page }} of {{ submissions.pages }} ({{ submissions.total }} total submissions)
-						</div>
-						{% if submissions.pages > 1 %}
-						<nav aria-label="Submission pagination">
-							<ul class="pagination mb-0">
-								<li class="page-item {% if submissions.page == 1 %}disabled{% endif %}">
-									<a class="page-link" href="{{ prev_page if submissions.page > 1 else '#' }}">&laquo;</a>
-								</li>
-								
-								{% set start_page = [1, submissions.page - 2]|max %}
-								{% set end_page = [submissions.pages, submissions.page + 2]|min %}
-								
-								{% if start_page > 1 %}
-								<li class="page-item">
-									<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=1, **filter_args) }}">1</a>
-								</li>
-								{% if start_page > 2 %}
-								<li class="page-item disabled">
-									<span class="page-link">...</span>
-								</li>
-								{% endif %}
-								{% endif %}
-								
-								{% for page_num in range(start_page, end_page + 1) %}
-								<li class="page-item {% if page_num == submissions.page %}active{% endif %}">
-									<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=page_num, **filter_args) }}">{{ page_num }}</a>
-								</li>
-								{% endfor %}
-								
-								{% if end_page < submissions.pages %}
-								{% if end_page < submissions.pages - 1 %}
-								<li class="page-item disabled">
-									<span class="page-link">...</span>
-								</li>
-								{% endif %}
-								<li class="page-item">
-									<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=submissions.pages, **filter_args) }}">{{ submissions.pages }}</a>
-								</li>
-								{% endif %}
-								
-								<li class="page-item {% if submissions.page == submissions.pages %}disabled{% endif %}">
-									<a class="page-link" href="{{ next_page if submissions.page < submissions.pages else '#' }}">&raquo;</a>
-								</li>
-							</ul>
-						</nav>
 						{% endif %}
-					</div>
-				</div>
-			</div>
-			{% endif %}
-		</div>
+					</td>
+					<td class="text-center solve-time">
+						<span>{{ sub.date.strftime('%Y-%m-%dT%H:%M:%S.%f') if sub.date else 'N/A' }}</span>
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
 	</div>
-</div>
+
+	<!-- Pagination -->
+	{% if submissions.pages > 0 %}
+	{% set filter_args = {} %}
+	{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
+	{% if team_filter %}{% set _ = filter_args.update({"team_id": team_filter}) %}{% endif %}
+	{% if user_filter %}{% set _ = filter_args.update({"user_id": user_filter}) %}{% endif %}
+	{% if challenge_filter %}{% set _ = filter_args.update({"challenge_id": challenge_filter}) %}{% endif %}
+	{% if date_from %}{% set _ = filter_args.update({"date_from": date_from}) %}{% endif %}
+	{% if date_to %}{% set _ = filter_args.update({"date_to": date_to}) %}{% endif %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ submissions.page }}</span> of <span class="clean-highlight">{{ submissions.pages }}</span> &bull; {{ submissions.total }} total
+		</div>
+		{% if submissions.pages > 1 %}
+		<nav aria-label="Submission pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if submissions.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if submissions.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set start_page = [1, submissions.page - 2]|max %}
+				{% set end_page = [submissions.pages, submissions.page + 2]|min %}
+				{% if start_page > 1 %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=1, **filter_args) }}">1</a>
+					</li>
+					{% if start_page > 2 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+				{% endif %}
+				{% for page_num in range(start_page, end_page + 1) %}
+				<li class="page-item {% if page_num == submissions.page %}active{% endif %}">
+					<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=page_num, **filter_args) }}">{{ page_num }}</a>
+				</li>
+				{% endfor %}
+				{% if end_page < submissions.pages %}
+					{% if end_page < submissions.pages - 1 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.submissions_listing', submission_type=type, page=submissions.pages, **filter_args) }}">{{ submissions.pages }}</a>
+					</li>
+				{% endif %}
+				<li class="page-item {% if submissions.page == submissions.pages %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page if submissions.page < submissions.pages else '#' }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+		{% endif %}
+	</div>
+	{% endif %}
 </div>
 {% endblock %}
 
@@ -531,103 +262,6 @@
 function clearAllFilters() {
 	window.location.href = window.location.pathname;
 }
-
-/* Searchable Select Component */
-(function() {
-	document.querySelectorAll('.searchable-select-wrapper').forEach(function(wrapper) {
-		var hiddenInput = wrapper.querySelector('input[type="hidden"]');
-		var textInput = wrapper.querySelector('.ss-input');
-		var dropdown = wrapper.querySelector('.ss-dropdown');
-		var options = wrapper.querySelectorAll('.ss-option');
-		var placeholder = textInput.getAttribute('placeholder');
-
-		// Set initial display text from selected value
-		var currentVal = hiddenInput.value;
-		if (currentVal) {
-			var matched = wrapper.querySelector('.ss-option[data-value="' + currentVal + '"]');
-			if (matched) {
-				textInput.value = matched.textContent.trim();
-				matched.classList.add('selected');
-			}
-		}
-
-		textInput.addEventListener('focus', function() {
-			dropdown.classList.add('show');
-			textInput.select();
-			filterOptions('');
-		});
-
-		textInput.addEventListener('input', function() {
-			filterOptions(textInput.value);
-			dropdown.classList.add('show');
-		});
-
-		options.forEach(function(opt) {
-			opt.addEventListener('mousedown', function(e) {
-				e.preventDefault(); // prevent blur before click registers
-				selectOption(opt);
-			});
-		});
-
-		textInput.addEventListener('blur', function() {
-			setTimeout(function() {
-				dropdown.classList.remove('show');
-				// Reset display to selected option or placeholder
-				if (hiddenInput.value) {
-					var sel = wrapper.querySelector('.ss-option.selected');
-					textInput.value = sel ? sel.textContent.trim() : '';
-				} else {
-					textInput.value = '';
-				}
-			}, 150);
-		});
-
-		// Keyboard nav
-		textInput.addEventListener('keydown', function(e) {
-			var visible = Array.from(options).filter(function(o) { return o.style.display !== 'none'; });
-			var activeIdx = visible.findIndex(function(o) { return o.classList.contains('active'); });
-
-			if (e.key === 'ArrowDown') {
-				e.preventDefault();
-				if (activeIdx < visible.length - 1) {
-					if (activeIdx >= 0) visible[activeIdx].classList.remove('active');
-					visible[activeIdx + 1].classList.add('active');
-					visible[activeIdx + 1].scrollIntoView({ block: 'nearest' });
-				}
-			} else if (e.key === 'ArrowUp') {
-				e.preventDefault();
-				if (activeIdx > 0) {
-					visible[activeIdx].classList.remove('active');
-					visible[activeIdx - 1].classList.add('active');
-					visible[activeIdx - 1].scrollIntoView({ block: 'nearest' });
-				}
-			} else if (e.key === 'Enter') {
-				e.preventDefault();
-				var act = visible.find(function(o) { return o.classList.contains('active'); });
-				if (act) selectOption(act);
-			} else if (e.key === 'Escape') {
-				textInput.blur();
-			}
-		});
-
-		function filterOptions(query) {
-			var q = query.toLowerCase().trim();
-			options.forEach(function(opt) {
-				var text = opt.textContent.toLowerCase();
-				opt.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
-				opt.classList.remove('active');
-			});
-		}
-
-		function selectOption(opt) {
-			options.forEach(function(o) { o.classList.remove('selected'); });
-			opt.classList.add('selected');
-			hiddenInput.value = opt.getAttribute('data-value');
-			textInput.value = opt.getAttribute('data-value') ? opt.textContent.trim() : '';
-			dropdown.classList.remove('show');
-		}
-	});
-})();
 </script>
 {% endblock %}
 

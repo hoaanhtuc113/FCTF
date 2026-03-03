@@ -2,270 +2,129 @@
 
 {% block stylesheets %}
 <style>
-	/* Clean Scoreboard Page Styles */
-	.scoreboard-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem 0;
-		margin-bottom: 2rem;
-	}
-	
-	.scoreboard-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-	
-	.scoreboard-container {
-		padding: 2rem 0;
-	}
-	
-	/* Action Buttons */
-	.action-buttons {
-		margin-bottom: 1.5rem;
-	}
-	
-	.btn-outline-secondary,
-	.btn-outline-primary {
-		border: 1px solid #dee2e6;
-		color: #495057;
-		transition: all 0.2s ease;
-	}
-	
-	.btn-outline-secondary:hover,
-	.btn-outline-primary:hover {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-		transform: translateY(-2px);
-	}
-	
-	/* Tabs */
-	.nav-tabs {
-		border-bottom: 2px solid #e8e8e8;
-		background: #ffffff;
-		padding: 0.5rem 1rem 0 1rem;
-		border-radius: 8px 8px 0 0;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		margin-bottom: 0;
-	}
-	
-	.nav-tabs .nav-link {
-		color: #495057;
-		border: none;
-		border-bottom: 3px solid transparent;
-		padding: 0.75rem 1.5rem;
-		font-weight: 500;
-		transition: all 0.2s ease;
-	}
-	
-	.nav-tabs .nav-link:hover {
-		color: #ff6b35;
-		border-bottom-color: #ff6b35;
-		background-color: transparent !important;
-	}
-	
-	.nav-tabs .nav-link.active {
-		color: #ff6b35 !important;
-		background-color: transparent !important;
-		border-bottom-color: #ff6b35 !important;
-		font-weight: 600;
-	}
-	
-	/* Tab Content */
+	/* Scoreboard page — only page-specific overrides; shared styles in base.html */
 	.tab-content {
-		background: #ffffff;
-		padding: 2rem;
-		border-radius: 0 0 8px 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-		border: 1px solid #e8e8e8;
-		border-top: none;
+		padding: 1rem;
 	}
-	
 	.tab-content h3 {
 		color: #2c3e50;
 		font-weight: 600;
-		margin-bottom: 1.5rem;
-	}
-	
-	/* Table Styles */
-	.table-responsive {
-		background: transparent;
-		padding: 0;
-	}
-	
-	.table {
-		margin-bottom: 0;
-	}
-	
-	.table thead th {
-		background-color: #f8f9fa;
-		color: #2c3e50;
-		font-weight: 600;
-		border-bottom: 2px solid #e8e8e8;
-		padding: 1rem 0.75rem;
-	}
-	
-	.table tbody tr {
-		transition: all 0.2s ease;
-	}
-	
-	.table tbody tr:hover {
-		background-color: #fff5f2;
-	}
-	
-	.table tbody td {
-		padding: 0.9rem 0.75rem;
-		vertical-align: middle;
-		color: #495057;
-		border-bottom: 1px solid #f1f1f1;
-	}
-	
-	.table tbody td a {
-		color: #2c3e50;
-		font-weight: 500;
-		transition: color 0.2s ease;
-	}
-	
-	.table tbody td a:hover {
-		color: #ff6b35;
-		text-decoration: none;
-	}
-	
-	/* Badges */
-	.badge {
-		padding: 0.35rem 0.65rem;
-		border-radius: 4px;
-		font-weight: 500;
+		margin-bottom: 1rem;
 	}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="scoreboard-page">
 <div class="page-header">
-    <div class="container">
-        <h1>Scoreboard</h1>
-    </div>
+	<div class="container">
+		<h1><i class="bx bx-trophy"></i> Scoreboard</h1>
+	</div>
 </div>
+<div class="container">
+	<!-- Action Buttons -->
+	<div class="d-flex justify-content-end align-items-center action-buttons mt-2">
+		<div class="btn-group" role="group">
+			<button type="button" class="clean-btn" id="scoreboard-edit-button"
+				data-toggle="tooltip" title="Hide/Unhide Accounts">
+				<i class="btn-fa fas fa-eye"></i> Visibility
+			</button>
+			<a href="{{ url_for('admin.export_data') }}" class="clean-btn ml-2" title="Export Data">
+				<i class="btn-fa fas fa-file-excel"></i> Export
+			</a>
+		</div>
+	</div>
 
-<div class="container scoreboard-container">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="float-right pb-3">
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-secondary" id="scoreboard-edit-button"
-                        data-toggle="tooltip" title="Hide/Unhide Accounts">
-                        <i class="btn-fa fas fa-eye"></i>
-                    </button>
-                    <a href="{{ url_for('admin.export_data') }}" class="btn btn-outline-primary" title="Export Data">
-                        <i class="btn-fa fas fa-file-excel"></i> Export
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+	{% if Configs.user_mode == UserModeTypes.TEAMS %}
+	<ul class="nav nav-tabs nav-fill mt-2" role="tablist">
+		<li class="nav-item">
+			<a class="nav-link active" data-toggle="tab" href="#standings" role="tab">Teams</a>
+		</li>
+		<li class="nav-item">
+			<a class="nav-link" data-toggle="tab" href="#user-standings" role="tab">Users</a>
+		</li>
+		<li class="nav-item">
+			<a class="nav-link" data-toggle="tab" href="#awards" role="tab">Awards</a>
+		</li>
+	</ul>
+	{% endif %}
 
-    {% if Configs.user_mode == UserModeTypes.TEAMS %}
-    <div class="row pb-4">
-        <div class="col-md-12">
-            <ul class="nav nav-tabs nav-fill" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link active" data-toggle="tab" href="#standings" role="tab">Teams</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="#user-standings" role="tab">Users</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="#awards" role="tab">Awards</a>
-                </li>
-            </ul>
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="row">
-        <div class="col-md-12 table-responsive">
-            <div class="tab-content">
-                <div class="tab-pane fade show active" id="standings" role="tabpanel">
-                    {% include "admin/scoreboard/standings.html" %}
-                </div>
-                {% if Configs.user_mode == UserModeTypes.TEAMS %}
-                <div class="tab-pane fade" id="user-standings" role="tabpanel">
-                    {% include "admin/scoreboard/users.html" %}
-                </div>
-                <div class="tab-pane fade" id="awards" role="tabpanel">
-                    <h3 class="text-center m-5">Awards</h3>
-                    <ul class="nav nav-tabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#first-blood" role="tab">First Blood Awards</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#top-solves" role="tab">Top Solves Teams</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#top-solves-topic" role="tab">Top Teams Clears All Challenges</a>
-                        </li>
-                    </ul>
-                    <div class="tab-content">
-                        <div class="tab-pane fade show active" id="challenge-master" role="tabpanel">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Challenge</th>
-                                        <th>Team</th>
-                                        <th>Score</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for challenge_master in challenge_masters %}
-                                    <tr>
-                                        <td>{{ challenge_master.challenge_name }}</td>
-                                        <td>{{ challenge_master.team_name or challenge_master.user_name }}</td>
-                                        <td>{{ challenge_master.max_score }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="tab-pane fade" id="first-blood" role="tabpanel">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Challenge</th>
-                                        <th>User</th>
-                                        <th>Team</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for first_blood in first_bloods %}
-                                    <tr>
-                                        <td>{{ first_blood.challenge }}</td>
-                                        <td>{{ first_blood.user_name }}</td>
-                                        <td>{{ first_blood.team_name }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="tab-pane fade" id="top-submitssion" role="tabpanel">
-                            {% include "admin/scoreboard/FastSubmission.html" %}
-                        </div>
-                        <div class="tab-pane fade" id="top-solves" role="tabpanel">
-                            {% include "admin/scoreboard/TopTeamSolves.html" %}
-                        </div>
-                        <div class="tab-pane fade" id="top-solves-topic" role="tabpanel">
-                            {% include "admin/scoreboard/TopClear.html" %}
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
+	<div class="clean-table-wrapper mt-2">
+		<div class="tab-content">
+			<div class="tab-pane fade show active" id="standings" role="tabpanel">
+				{% include "admin/scoreboard/standings.html" %}
+			</div>
+			{% if Configs.user_mode == UserModeTypes.TEAMS %}
+			<div class="tab-pane fade" id="user-standings" role="tabpanel">
+				{% include "admin/scoreboard/users.html" %}
+			</div>
+			<div class="tab-pane fade" id="awards" role="tabpanel">
+				<h3 class="text-center m-5">Awards</h3>
+				<ul class="nav nav-tabs" role="tablist">
+					<li class="nav-item">
+						<a class="nav-link" data-toggle="tab" href="#first-blood" role="tab">First Blood Awards</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" data-toggle="tab" href="#top-solves" role="tab">Top Solves Teams</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" data-toggle="tab" href="#top-solves-topic" role="tab">Top Teams Clears All Challenges</a>
+					</li>
+				</ul>
+				<div class="tab-content">
+					<div class="tab-pane fade show active" id="challenge-master" role="tabpanel">
+						<table class="clean-table table">
+							<thead>
+								<tr>
+									<th class="text-center"><b>Challenge</b></th>
+									<th class="text-center"><b>Team</b></th>
+									<th class="text-center"><b>Score</b></th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for challenge_master in challenge_masters %}
+								<tr>
+									<td class="text-center">{{ challenge_master.challenge_name }}</td>
+									<td class="text-center">{{ challenge_master.team_name or challenge_master.user_name }}</td>
+									<td class="text-center">{{ challenge_master.max_score }}</td>
+								</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+					<div class="tab-pane fade" id="first-blood" role="tabpanel">
+						<table class="clean-table table">
+							<thead>
+								<tr>
+									<th class="text-center"><b>Challenge</b></th>
+									<th class="text-center"><b>User</b></th>
+									<th class="text-center"><b>Team</b></th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for first_blood in first_bloods %}
+								<tr>
+									<td class="text-center">{{ first_blood.challenge }}</td>
+									<td class="text-center">{{ first_blood.user_name }}</td>
+									<td class="text-center">{{ first_blood.team_name }}</td>
+								</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+					<div class="tab-pane fade" id="top-submitssion" role="tabpanel">
+						{% include "admin/scoreboard/FastSubmission.html" %}
+					</div>
+					<div class="tab-pane fade" id="top-solves" role="tabpanel">
+						{% include "admin/scoreboard/TopTeamSolves.html" %}
+					</div>
+					<div class="tab-pane fade" id="top-solves-topic" role="tabpanel">
+						{% include "admin/scoreboard/TopClear.html" %}
+					</div>
+				</div>
+			</div>
+			{% endif %}
+		</div>
+	</div>
 </div>
 {% endblock %}
 

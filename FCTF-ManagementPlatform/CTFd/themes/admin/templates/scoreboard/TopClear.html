@@ -1,10 +1,8 @@
-<table id="scoreboard" class="table table-striped border">
+<table id="scoreboard" class="clean-table table">
     <thead>
         <tr>
-            <th class="border-right" data-checkbox>
-                <div class="form-check text-center">
-                    <input type="checkbox" class="form-check-input" id="scoreboard-bulk-select" autocomplete="off" data-checkbox-all>&nbsp;
-                </div>
+            <th data-checkbox>
+                <input type="checkbox" class="table-check" id="scoreboard-bulk-select" autocomplete="off" data-checkbox-all>
             </th>
             <th class="sort-col text-center"><b>Team ID</b></th>
             <th class="sort-col"><b>Team Name</b></th>
@@ -20,10 +18,8 @@
             </tr>
             {% for team in teams %}
             <tr name="{{ team.team_id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.team_id) }}">
-                <td>
-                    <div class="form-check text-center">
-                        <input type="checkbox" class="form-check-input" name="select-team" autocomplete="off">&nbsp;
-                    </div>
+                <td data-checkbox>
+                    <input type="checkbox" class="table-check" name="select-team" autocomplete="off">
                 </td>
                 <td class="team-id text-center">{{ team.team_id }}</td>
                 <td class="team-name">
