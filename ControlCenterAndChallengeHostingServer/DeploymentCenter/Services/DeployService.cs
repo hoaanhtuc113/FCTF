@@ -232,6 +232,15 @@ public class DeployService : IDeployService
             // Delete namespace - watcher sẽ bắn STOPPED event khi nhận Terminating
             var isDelete = await _k8SHealthService.DeleteNamespace(deployInfo._namespace);
 
+            
+            var challengeTracking = await _dbContext.ChallengeStartTrackings
+                .FirstOrDefaultAsync(ct => ct.TeamId == stopReq.teamId && ct.ChallengeId == stopReq.challengeId);
+            if (challengeTracking != null)
+            {
+                challengeTracking.StoppedAt = DateTime.UtcNow;
+            }
+            await _dbContext.SaveChangesAsync();
+
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.OK,
