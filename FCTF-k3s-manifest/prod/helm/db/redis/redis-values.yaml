@@ -446,7 +446,7 @@ master:
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
   ##
   nodeSelector: 
-    kubernetes.io/hostname: server-1-master
+    kubernetes.io/hostname: server-1-master-new
   ## @param master.tolerations Tolerations for Redis(R) master pods assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   ##

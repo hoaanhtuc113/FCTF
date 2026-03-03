@@ -370,7 +370,7 @@ controller:
   # -- [Node selector]
   nodeSelector:
     kubernetes.io/os: linux
-    kubernetes.io/hostname: server-1-master
+    kubernetes.io/hostname: server-1-master-new
   # -- [Tolerations] for use with node taints
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
@@ -637,7 +637,7 @@ server:
   # -- [Node selector]
   nodeSelector:
     kubernetes.io/os: linux
-    kubernetes.io/hostname: server-1-master
+    kubernetes.io/hostname: server-1-master-new
 
   # -- [Tolerations] for use with node taints
   tolerations:
