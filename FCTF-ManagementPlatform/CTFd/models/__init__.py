@@ -311,6 +311,8 @@ class ChallengeStartTracking(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
     challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
     started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    stopped_at = db.Column(db.DateTime, nullable=True)
+    label = db.Column(db.String(255), nullable=True)
     
     # Relationships
     user = db.relationship("Users", foreign_keys=[user_id], lazy="select")

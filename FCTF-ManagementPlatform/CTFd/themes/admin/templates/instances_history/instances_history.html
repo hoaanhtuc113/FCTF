@@ -56,6 +56,81 @@
         white-space: pre-wrap;
         word-break: break-word;
     }
+
+    /* Action dropdown (match monitoring) */
+    .action-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .clean-btn {
+        border: 1px solid #dee2e6;
+        background: #ffffff;
+        color: #495057;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .clean-btn:hover,
+    .clean-btn:focus {
+        border-color: #ff6b35;
+        color: #ff6b35;
+        background: #fff5f2;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .clean-action-btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .action-menu {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        min-width: 160px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 4px 0;
+        font-size: 0.875rem;
+    }
+
+    .action-menu.open {
+        display: block;
+    }
+
+    .action-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.45rem 0.9rem;
+        color: #495057 !important;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .action-menu-item:hover {
+        background: #fff5f2;
+        color: #ff6b35 !important;
+        text-decoration: none;
+        border-color: #ff6b35;
+    }
+
+    .action-menu-divider {
+        height: 1px;
+        background: #dee2e6;
+        margin: 4px 0;
+    }
 </style>
 {% endblock %}
 
@@ -141,16 +216,21 @@
                 <thead>
                     <tr>
                         <th>Started At</th>
+                        <th>Stopped At</th>
+                        <th>Label</th>
                         <th>Challenge</th>
                         <th>User</th>
                         <th>Team</th>
                         <th>Tracking ID</th>
+                        <th>Logs</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in logs.items %}
                     <tr>
                         <td class="mono">{{ row.ChallengeStartTracking.started_at }}</td>
+                        <td class="mono">{{ row.ChallengeStartTracking.stopped_at or "-" }}</td>
+                        <td class="mono">{{ row.ChallengeStartTracking.label or "-" }}</td>
                         <td>
                             {% if row.challenge_id %}
                             <a href="{{ url_for('admin.challenges_detail', challenge_id=row.challenge_id) }}">
@@ -178,11 +258,33 @@
                             {% endif %}
                         </td>
                         <td class="mono">{{ row.ChallengeStartTracking.id }}</td>
+                        <td>
+                            {% if row.challenge_id and row.team_id %}
+                            <div class="action-dropdown">
+                                <button type="button" class="clean-btn clean-action-btn-sm"
+                                    onclick="toggleActionMenu(this, event)">
+                                    Actions
+                                </button>
+                                <div class="action-menu">
+                                    <a class="action-menu-item"
+                                        href="/deploy_History/{{ row.challenge_id }}/pods-logs?team_id={{ row.team_id }}">
+                                        <i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs
+                                    </a>
+                                    <a class="action-menu-item"
+                                        href="/deploy_History/{{ row.challenge_id }}/request-logs?team_id={{ row.team_id }}">
+                                        <i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs
+                                    </a>
+                                </div>
+                            </div>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                     {% if logs.total == 0 %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted">No entries found</td>
+                        <td colspan="8" class="text-center text-muted">No entries found</td>
                     </tr>
                     {% endif %}
                 </tbody>
@@ -203,4 +305,51 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function closeAllActionMenus() {
+        document.querySelectorAll('.action-menu.open').forEach(function (m) {
+            m.classList.remove('open');
+        });
+    }
+
+    function toggleActionMenu(btn, event) {
+        event.stopPropagation();
+        var menu = btn.nextElementSibling;
+        if (!menu) return;
+        var isOpen = menu.classList.contains('open');
+        closeAllActionMenus();
+        if (!isOpen) {
+            menu.classList.add('open');
+            positionActionMenu(menu, btn);
+        }
+    }
+
+    function positionActionMenu(menu, btn) {
+        var rect = btn.getBoundingClientRect();
+        var menuW = menu.offsetWidth || 160;
+        var left = rect.right - menuW;
+        if (left < 4) left = rect.left;
+        menu.style.top = (rect.bottom + 2) + 'px';
+        menu.style.left = left + 'px';
+    }
+
+    document.addEventListener('click', function () {
+        closeAllActionMenus();
+    });
+
+    (function () {
+        function repositionOpenMenu() {
+            var menu = document.querySelector('.action-menu.open');
+            if (!menu) return;
+            var btn = menu.previousElementSibling;
+            if (btn) positionActionMenu(menu, btn);
+        }
+        var tableWrapper = document.querySelector('.table-responsive');
+        if (tableWrapper) tableWrapper.addEventListener('scroll', repositionOpenMenu);
+        window.addEventListener('scroll', repositionOpenMenu);
+    })();
+</script>
 {% endblock %}
