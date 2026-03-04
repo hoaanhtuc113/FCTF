@@ -13,13 +13,9 @@ from CTFd.constants.formats import FORMAT_DATETIME
 from CTFd.StartChallenge import generate_cache_key
 from CTFd.constants.status_challenge import STATUS
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, PRIVATE_KEY
-from CTFd.api.v1.notifications import NotificantionList
 from CTFd.utils.security.auth import generate_user_token
-from CTFd.schemas.notifications import NotificationSchema
 from CTFd.utils.connector.multiservice_connector import (
-    create_notification_data,
     delete_cached_files,
-    handle_zip_file_upload,
     redeploy,
     handle_challenge_upload,
 )
@@ -83,13 +79,8 @@ def upload_file(challenge_id, file_path, exposed_port=None):
 
     challenge = Challenges.query.filter_by(id=challenge_id).first()
     
-    if challenge.require_deploy:
-        notification_data = create_notification_data(challenge.name)
-    else:
-        notification_data = None
-    
     if allowed_file(file_path) and file_path.endswith(".zip"):
-        return handle_challenge_upload(challenge, file_path, notification_data, exposed_port)
+        return handle_challenge_upload(challenge, file_path, exposed_port)
     else:
         return {"success": False, "error": "File type not allowed. Only zip files are allowed."}, 400
 
