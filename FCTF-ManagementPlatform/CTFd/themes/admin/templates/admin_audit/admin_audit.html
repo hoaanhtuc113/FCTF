@@ -1,0 +1,541 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+	/* Admin audit page — only page-specific overrides; shared styles in base.html */
+	.mono {
+		font-family: "Space Mono", monospace;
+		font-size: .8rem;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+	/* Diff/snapshot modal */
+	.diff-pre {
+		background: #f4f4f4;
+		border-radius: 4px;
+		padding: .6rem .8rem;
+		font-size: .8rem;
+		white-space: pre-wrap;
+		word-break: break-all;
+		max-height: 400px;
+		overflow-y: auto;
+	}
+	.diff-col {
+		width: 50%;
+		vertical-align: top;
+		padding: .4rem;
+	}
+	/* Field-diff table */
+	#diffFieldTable th { background: #f8f9fa; font-size: .8rem; white-space: nowrap; }
+	#diffFieldTable td { font-size: .8rem; vertical-align: top; word-break: break-all; }
+	.diff-row-changed { background-color: #fff9e6 !important; }
+	.diff-row-added   { background-color: #eaffea !important; }
+	.diff-row-removed { background-color: #fff0f0 !important; }
+	.diff-val-before  { color: #b02a37; }
+	.diff-val-after   { color: #0a6640; }
+	.diff-val-same    { color: #495057; }
+	.diff-sensitive   { font-style: italic; color: #6c757d; letter-spacing: .05em; }
+	.badge-changed    { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #fd7e14; color: #fff; border-radius: .25rem; }
+	.badge-added      { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #198754; color: #fff; border-radius: .25rem; }
+	.badge-removed    { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #dc3545; color: #fff; border-radius: .25rem; }
+	/* Custom action/role/target badges */
+	.badge-action { font-size: .7rem; padding: .3em .6em; border-radius: 4px; }
+	.badge-create  { background: #d4edda; color: #155724; }
+	.badge-update  { background: #fff3cd; color: #856404; }
+	.badge-delete  { background: #f8d7da; color: #721c24; }
+	.badge-bulk    { background: #d1ecf1; color: #0c5460; }
+	.badge-role-admin    { background: #e2d9f3; color: #432874; }
+	.badge-role-jury     { background: #d1ecf1; color: #0c5460; }
+	.badge-role-writer   { background: #d4edda; color: #155724; }
+	.badge-role-unknown  { background: #f8f9fa; color: #6c757d; }
+	.badge-target { font-size: .7rem; }
+	.view-diff-btn {
+		font-size: .75rem;
+		padding: .2rem .5rem;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-shield-quarter"></i> Audit Logs</h1>
+	</div>
+</div>
+<div class="container">
+	<!-- Filters -->
+	<div class="clean-search-container">
+		<form method="GET" action="{{ url_for('admin.admin_audit_listing') }}" class="m-0">
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-3 px-1">
+					<label for="actor">Actor (id or name)</label>
+					<input class="clean-form-control w-100" id="actor" name="actor"
+						value="{{ actor_filter }}" placeholder="e.g. 5 or alice" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="role">Role</label>
+					<select class="clean-form-control ss-select w-100" id="role" name="role">
+						<option value="" {% if not role_filter %}selected{% endif %}>All roles</option>
+						{% for r in actor_roles %}
+						<option value="{{ r }}" {% if role_filter == r %}selected{% endif %}>{{ r }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="action">Action</label>
+					<select class="clean-form-control ss-select w-100" id="action" name="action">
+						<option value="" {% if not action_filter %}selected{% endif %}>All actions</option>
+						{% for a in all_actions %}
+						<option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>
+							{{ action_labels.get(a, a) }}
+						</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="target_type">Target type</label>
+					<select class="clean-form-control ss-select w-100" id="target_type" name="target_type">
+						<option value="" {% if not target_type_filter %}selected{% endif %}>All</option>
+						{% for t in target_types %}
+						<option value="{{ t }}" {% if target_type_filter == t %}selected{% endif %}>{{ t }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="target_id">Target ID</label>
+					<input class="clean-form-control w-100" id="target_id" name="target_id"
+						value="{{ target_id_filter }}" placeholder="e.g. 42" />
+				</div>
+			</div>
+			<div class="row no-gutters align-items-end mt-1">
+				<div class="col-md-2 px-1">
+					<label for="date_from">From (UTC)</label>
+					<input class="clean-form-control w-100" type="date" id="date_from"
+						name="date_from" value="{{ date_from }}" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="date_to">To (UTC)</label>
+					<input class="clean-form-control w-100" type="date" id="date_to"
+						name="date_to" value="{{ date_to }}" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="per_page">Per page</label>
+					<select class="clean-form-control ss-select w-100" id="per_page" name="per_page">
+						{% for n in [25, 50, 100, 200] %}
+						<option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-3 px-1"></div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Filter
+					</button>
+					<a href="{{ url_for('admin.admin_audit_listing') }}"
+					   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+					   style="width: 40px;" title="Clear">
+						<i class="fas fa-sync-alt"></i>
+					</a>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<!-- Summary + export -->
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+		<div class="clean-info-text">
+			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} record{{ 's' if logs.total != 1 else '' }}
+		</div>
+		<a class="clean-btn" href="{{ url_for('admin.admin_audit_export_csv',
+					actor=actor_filter, role=role_filter, action=action_filter,
+					target_type=target_type_filter, target_id=target_id_filter,
+					date_from=date_from, date_to=date_to) }}">
+			<i class="fas fa-download"></i> Export CSV
+		</a>
+	</div>
+
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		<table class="clean-table table">
+			<thead>
+				<tr>
+					<th class="text-center"><b>#</b></th>
+					<th class="text-center"><b>Timestamp (UTC)</b></th>
+					<th class="text-center"><b>Actor</b></th>
+					<th class="text-center"><b>Action</b></th>
+					<th class="text-center"><b>Target</b></th>
+					<th class="text-center"><b>IP</b></th>
+					<th class="text-center"><b>Changes</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for log in logs.items %}
+				{% set action_verb = log.action.split('_')[-1] %}
+				<tr>
+					<td class="text-muted mono small text-center">{{ log.id }}</td>
+					<td class="mono small text-center">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}</td>
+					<td class="text-center cell-truncate">
+						{% if log.actor_id %}
+						<a href="{{ url_for('admin.users_detail', user_id=log.actor_id) }}">{{ (log.actor_name or ('User #' ~ log.actor_id)) | truncate(24) }}</a>
+						<div class="text-muted small">#{{ log.actor_id }}</div>
+						{% else %}
+						<span class="text-muted">—</span>
+						{% endif %}
+						{% if log.actor_type %}
+						<span class="badge badge-role-{{ log.actor_type }} ms-1">{{ log.actor_type }}</span>
+						{% endif %}
+					</td>
+					<td class="text-center">
+						{% if action_verb == 'create' %}
+						<span class="badge badge-action badge-create">{{ action_labels.get(log.action, log.action) }}</span>
+						{% elif action_verb == 'update' %}
+						<span class="badge badge-action badge-update">{{ action_labels.get(log.action, log.action) }}</span>
+						{% elif action_verb == 'delete' %}
+						<span class="badge badge-action badge-delete">{{ action_labels.get(log.action, log.action) }}</span>
+						{% else %}
+						<span class="badge badge-action badge-bulk">{{ action_labels.get(log.action, log.action) }}</span>
+						{% endif %}
+					</td>
+					<td class="text-center">
+						{% if log.target_type %}
+						<span class="badge bg-secondary badge-target">{{ log.target_type }}</span>
+						{% if log.target_id %}
+						<span class="text-muted small ms-1">
+							{% if log.target_type == 'user' %}
+							<a href="{{ url_for('admin.users_detail', user_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% elif log.target_type == 'team' %}
+							<a href="{{ url_for('admin.teams_detail', team_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% elif log.target_type == 'challenge' %}
+							<a href="{{ url_for('admin.challenges_detail', challenge_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% elif log.target_type == 'submission' %}
+							<a href="{{ url_for('admin.submissions_listing', submission_type=None) }}">#{{ log.target_id }}</a>
+							{% else %}
+							#{{ log.target_id }}
+							{% endif %}
+						</span>
+						{% endif %}
+						{% else %}
+						<span class="text-muted">—</span>
+						{% endif %}
+					</td>
+					<td class="mono small text-muted text-center">{{ log.ip_address or '—' }}</td>
+					<td class="text-center">
+						{% if log.before_state or log.after_state or log.extra_data %}
+						<button class="clean-btn view-diff-btn"
+							data-toggle="modal"
+							data-target="#diffModal"
+							data-log-id="{{ log.id }}"
+							data-action="{{ log.action }}"
+							data-before='{{ log.before_state | tojson if log.before_state else "{}" }}'
+							data-after='{{ log.after_state | tojson if log.after_state else "{}" }}'
+							data-extra='{{ log.extra_data | tojson if log.extra_data else "{}" }}'>
+							<i class="bx bx-search-alt-2"></i> View
+						</button>
+						{% else %}
+						<span class="text-muted">—</span>
+						{% endif %}
+					</td>
+				</tr>
+				{% endfor %}
+				{% if logs.total == 0 %}
+				<tr>
+					<td colspan="7" class="text-center text-muted py-4">
+						No audit records match the current filters.
+					</td>
+				</tr>
+				{% endif %}
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Pagination -->
+	{% if logs.pages > 1 %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} total
+		</div>
+		<nav aria-label="Audit logs pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if logs.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if logs.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set sp = [1, logs.page - 2] | max %}
+				{% set ep = [logs.pages, logs.page + 2] | min %}
+				{% if sp > 1 %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=1,
+								actor=actor_filter, role=role_filter, action=action_filter,
+								target_type=target_type_filter, target_id=target_id_filter,
+								date_from=date_from, date_to=date_to, per_page=per_page) }}">1</a>
+					</li>
+					{% if sp > 2 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+				{% endif %}
+				{% for pn in range(sp, ep + 1) %}
+				<li class="page-item {% if pn == logs.page %}active{% endif %}">
+					<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=pn,
+							actor=actor_filter, role=role_filter, action=action_filter,
+							target_type=target_type_filter, target_id=target_id_filter,
+							date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ pn }}</a>
+				</li>
+				{% endfor %}
+				{% if ep < logs.pages %}
+					{% if ep < logs.pages - 1 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=logs.pages,
+								actor=actor_filter, role=role_filter, action=action_filter,
+								target_type=target_type_filter, target_id=target_id_filter,
+								date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ logs.pages }}</a>
+					</li>
+				{% endif %}
+				<li class="page-item {% if logs.page == logs.pages %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page if logs.page < logs.pages else '#' }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+	</div>
+	{% endif %}
+</div>
+
+<!-- Diff modal -->
+<div class="modal fade" id="diffModal" tabindex="-1" role="dialog" aria-labelledby="diffModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="diffModalLabel">
+					<i class="bx bx-detail"></i> Change Details — <span id="diffModalAction"></span>
+					<span class="text-muted small ms-2">#<span id="diffModalId"></span></span>
+				</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+			</div>
+			<div class="modal-body">
+				<div id="diffSummary" class="mb-2"></div>
+				<div id="diffTableSection">
+					<h6 class="mb-2">Before &rarr; After</h6>
+					<div style="max-height:420px;overflow-y:auto;">
+						<table id="diffFieldTable" class="table table-bordered table-sm mb-0">
+							<thead>
+								<tr>
+									<th style="width:22%">Field</th>
+									<th style="width:39%" class="text-danger">Before</th>
+									<th style="width:39%" class="text-success">After</th>
+								</tr>
+							</thead>
+							<tbody id="diffFieldBody"></tbody>
+						</table>
+					</div>
+				</div>
+				<div id="diffRawSection" style="display:none">
+					<h6 class="mb-2">Before &rarr; After</h6>
+					<table class="table table-bordered table-sm mb-0">
+						<thead><tr>
+							<th class="diff-col text-danger">Before</th>
+							<th class="diff-col text-success">After</th>
+						</tr></thead>
+						<tbody><tr>
+							<td class="diff-col"><pre id="diffBefore" class="diff-pre mb-0"></pre></td>
+							<td class="diff-col"><pre id="diffAfter" class="diff-pre mb-0"></pre></td>
+						</tr></tbody>
+					</table>
+				</div>
+				<div id="extraDataSection" class="mt-3">
+					<h6>Extra data</h6>
+					<pre id="diffExtra" class="diff-pre"></pre>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="clean-btn" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+	'use strict';
+
+	var diffModal = document.getElementById('diffModal');
+	if (!diffModal) return;
+
+	var SENSITIVE_KEYS = [
+		'password', 'passwd', 'secret', 'token', 'api_key', 'apikey',
+		'access_token', 'refresh_token', 'private_key', 'hash', 'salt'
+	];
+
+	function isSensitive(key) {
+		var k = String(key).toLowerCase();
+		return SENSITIVE_KEYS.some(function (s) { return k === s || k.indexOf(s) !== -1; });
+	}
+
+	function decodeHtmlEntities(input) {
+		if (input == null) return '';
+		var txt = document.createElement('textarea');
+		txt.innerHTML = String(input);
+		return txt.value;
+	}
+
+	function tryParse(value) {
+		try { return JSON.parse(value); } catch (e) { return null; }
+	}
+
+	function parseRaw(raw) {
+		var normalized = decodeHtmlEntities(raw || '').trim();
+		if (!normalized || normalized === '{}' || normalized === 'null') return null;
+		var parsed = tryParse(normalized);
+		if (parsed === null) return normalized;
+		if (typeof parsed === 'string') {
+			var reparsed = tryParse(parsed);
+			return reparsed !== null ? reparsed : parsed;
+		}
+		if (parsed && typeof parsed === 'object' && Object.keys(parsed).length === 0) return null;
+		return parsed;
+	}
+
+	function prettyValue(val) {
+		if (val === null || val === undefined) return '—';
+		if (typeof val === 'object') return JSON.stringify(val, null, 2);
+		return String(val);
+	}
+
+	function valuesEqual(a, b) {
+		if (typeof a === 'object' || typeof b === 'object')
+			return JSON.stringify(a) === JSON.stringify(b);
+		return a === b;
+	}
+
+	function makeCell(key, val, isChanged, side) {
+		var td = document.createElement('td');
+		td.className = 'mono';
+		if (isSensitive(key)) {
+			var masked = document.createElement('span');
+			masked.className = 'diff-sensitive';
+			masked.textContent = '••••••••';
+			td.appendChild(masked);
+			if (isChanged) {
+				var badge = document.createElement('span');
+				badge.className = 'badge-changed ms-1';
+				badge.textContent = 'changed';
+				td.appendChild(document.createTextNode(' '));
+				td.appendChild(badge);
+			}
+			return td;
+		}
+		var text = (val === undefined || val === null) ? '—' : prettyValue(val);
+		var span = document.createElement('span');
+		span.className = isChanged ? (side === 'before' ? 'diff-val-before' : 'diff-val-after') : 'diff-val-same';
+		span.style.whiteSpace = 'pre-wrap';
+		span.textContent = text;
+		td.appendChild(span);
+		return td;
+	}
+
+	function buildDiffTable(beforeObj, afterObj) {
+		var tbody = document.getElementById('diffFieldBody');
+		tbody.innerHTML = '';
+		var allKeys = {};
+		if (beforeObj && typeof beforeObj === 'object') Object.keys(beforeObj).forEach(function (k) { allKeys[k] = true; });
+		if (afterObj  && typeof afterObj  === 'object') Object.keys(afterObj).forEach(function  (k) { allKeys[k] = true; });
+		var keys = Object.keys(allKeys);
+		if (keys.length === 0) return false;
+		var nChanged = 0, nAdded = 0, nRemoved = 0;
+		keys.forEach(function (key) {
+			var bVal = beforeObj ? beforeObj[key] : undefined;
+			var aVal = afterObj  ? afterObj[key]  : undefined;
+			var inBefore = beforeObj && Object.prototype.hasOwnProperty.call(beforeObj, key);
+			var inAfter  = afterObj  && Object.prototype.hasOwnProperty.call(afterObj,  key);
+			var isAdded   = !inBefore && inAfter;
+			var isRemoved = inBefore && !inAfter;
+			var isChanged = inBefore && inAfter && !valuesEqual(bVal, aVal);
+			if (isAdded)   nAdded++;
+			if (isRemoved) nRemoved++;
+			if (isChanged) nChanged++;
+			var tr = document.createElement('tr');
+			if (isChanged)      tr.className = 'diff-row-changed';
+			else if (isAdded)   tr.className = 'diff-row-added';
+			else if (isRemoved) tr.className = 'diff-row-removed';
+			var tdKey = document.createElement('td');
+			tdKey.className = 'mono fw-semibold';
+			tdKey.style.whiteSpace = 'nowrap';
+			tdKey.textContent = key;
+			if (isAdded) {
+				var b = document.createElement('span');
+				b.className = 'badge-added ms-1'; b.textContent = 'new';
+				tdKey.appendChild(document.createTextNode(' ')); tdKey.appendChild(b);
+			} else if (isRemoved) {
+				var b = document.createElement('span');
+				b.className = 'badge-removed ms-1'; b.textContent = 'removed';
+				tdKey.appendChild(document.createTextNode(' ')); tdKey.appendChild(b);
+			} else if (isChanged) {
+				var b = document.createElement('span');
+				b.className = 'badge-changed ms-1'; b.textContent = 'changed';
+				tdKey.appendChild(document.createTextNode(' ')); tdKey.appendChild(b);
+			}
+			tr.appendChild(tdKey);
+			tr.appendChild(makeCell(key, inBefore ? bVal : undefined, isChanged || isRemoved, 'before'));
+			tr.appendChild(makeCell(key, inAfter  ? aVal : undefined, isChanged || isAdded,   'after'));
+			tbody.appendChild(tr);
+		});
+		var summary = document.getElementById('diffSummary');
+		summary.innerHTML = '';
+		function addBadge(cls, text) {
+			var sp = document.createElement('span');
+			sp.className = cls + ' me-1'; sp.textContent = text;
+			summary.appendChild(sp);
+		}
+		if (nChanged) addBadge('badge-changed', nChanged + ' changed');
+		if (nAdded)   addBadge('badge-added',   nAdded   + ' added');
+		if (nRemoved) addBadge('badge-removed', nRemoved + ' removed');
+		return true;
+	}
+
+	$(diffModal).on('show.bs.modal', function (event) {
+		var btn = event.relatedTarget;
+		if (!btn) return;
+		var logId  = btn.getAttribute('data-log-id') || '';
+		var action = btn.getAttribute('data-action') || '';
+		var before = btn.getAttribute('data-before') || '';
+		var after  = btn.getAttribute('data-after') || '';
+		var extra  = btn.getAttribute('data-extra') || '';
+		document.getElementById('diffModalAction').textContent = action;
+		document.getElementById('diffModalId').textContent     = logId;
+		document.getElementById('diffSummary').innerHTML       = '';
+		var beforeObj = parseRaw(before);
+		var afterObj  = parseRaw(after);
+		var extraObj  = parseRaw(extra);
+		var isObjects = (beforeObj && typeof beforeObj === 'object') ||
+					   (afterObj  && typeof afterObj  === 'object');
+		var tableSection = document.getElementById('diffTableSection');
+		var rawSection   = document.getElementById('diffRawSection');
+		if (isObjects) {
+			buildDiffTable(
+				(beforeObj && typeof beforeObj === 'object') ? beforeObj : {},
+				(afterObj  && typeof afterObj  === 'object') ? afterObj  : {}
+			);
+			tableSection.style.display = '';
+			rawSection.style.display   = 'none';
+		} else {
+			document.getElementById('diffBefore').textContent = (beforeObj != null ? String(beforeObj) : '') || '(no before state)';
+			document.getElementById('diffAfter').textContent  = (afterObj  != null ? String(afterObj)  : '') || '(no after state)';
+			tableSection.style.display = 'none';
+			rawSection.style.display   = '';
+		}
+		var extraSection = document.getElementById('extraDataSection');
+		if (extraObj != null) {
+			var extraText = typeof extraObj === 'object'
+				? JSON.stringify(extraObj, null, 2)
+				: String(extraObj);
+			document.getElementById('diffExtra').textContent = extraText;
+			extraSection.style.display = '';
+		} else {
+			extraSection.style.display = 'none';
+		}
+	});
+})();
+</script>
+{% endblock %}

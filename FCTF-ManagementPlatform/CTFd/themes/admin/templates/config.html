@@ -2,24 +2,10 @@
 
 {% block stylesheets %}
 <style>
-	/* Clean Config Page Styles */
-	.config-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem 0;
-		margin-bottom: 2rem;
-	}
-
-	.config-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
+	/* Clean Config Page Styles — header inherits from base.html */
 
 	.config-container {
-		padding: 2rem 0;
+		padding: 0.75rem 0;
 	}
 
 	/* Sidebar Navigation */
@@ -225,7 +211,7 @@
 <div class="config-page">
 	<div class="page-header">
 		<div class="container">
-			<h1>Configuration</h1>
+			<h1><i class="bx bx-cog"></i> Configuration</h1>
 		</div>
 	</div>
 	<div class="container config-container">
@@ -413,6 +399,21 @@
 
 {% block scripts %}
 <script>
+	(function () {
+		// Compatibility shim for bundles that call bootstrap.Tab.getOrCreateInstance
+		// while current bootstrap runtime only exposes constructor API.
+		try {
+			if (window.bootstrap && window.bootstrap.Tab) {
+				var TabCtor = window.bootstrap.Tab;
+				if (typeof TabCtor.getOrCreateInstance !== "function" && typeof TabCtor === "function") {
+					TabCtor.getOrCreateInstance = function (el) {
+						return new TabCtor(el);
+					};
+				}
+			}
+		} catch (e) { }
+	})();
+
 	(function () {
 		function extractHash(href) {
 			if (!href) return "";

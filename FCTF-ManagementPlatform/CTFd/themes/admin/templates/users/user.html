@@ -8,18 +8,25 @@
 		border-bottom: 2px solid #e8e8e8;
 		margin-bottom: 0;
 		padding: 3rem 0;
+		text-align: center;
+		text-transform: none;
 	}
 	
 	.user-detail-page .jumbotron h1,
 	.user-detail-page .jumbotron h2,
 	.user-detail-page .jumbotron h3 {
 		color: #2c3e50;
+		text-align: center;
 	}
 	
 	.user-detail-page .jumbotron h1 {
+		display: block;
+		text-align: center;
+		text-transform: none;
 		font-weight: 700;
 		font-size: 2.2rem;
 		margin-bottom: 1rem;
+		letter-spacing: normal;
 	}
 	
 	.user-detail-page .jumbotron h2 {
@@ -36,6 +43,8 @@
 	.user-detail-page .jumbotron hr {
 		border-top: 2px solid #e8e8e8;
 		opacity: 0.3;
+		margin-left: auto;
+		margin-right: auto;
 	}
 	
 	/* Action Icons */
@@ -292,11 +301,17 @@
 </div>
 
 <div class="jumbotron">
-	<div class="container">
+	<div class="container text-center">
 		<h1 id="team-id" class="text-center p-0 m-0" style="text-transform: none;">{{ user.name }}</h1>
 		<div class="mb-2 text-center"  style="text-transform: none;">
 			{% if user.type == 'admin' %}
-			<span class="badge badge-primary">admin</span>
+			<span class="badge badge-primary">Admin</span>
+			{% elif user.type == 'challenge_writer' %}
+			<span class="badge badge-info">Challenge Writer</span>
+			{% elif user.type == 'jury' %}
+			<span class="badge" style="background-color:#6f42c1;color:#fff;">Jury</span>
+			{% else %}
+			<span class="badge" style="background-color:#6c757d;color:#fff;">User</span>
 			{% endif %}
 			{% if user.verified %}
 			<span class="badge badge-success">verified</span>
@@ -357,7 +372,7 @@
 			<small>points</small>
 			{% endif %}
 		</h3>
-		<hr class="w-50">
+		<hr class="w-50 mx-auto">
 		<div class="pt-3 text-center" style="text-transform: none;">
 			{% if not is_jury()%}
 
@@ -428,15 +443,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Challenge</b></th>
 								<th class="sort-col text-center"><b>Submitted</b></th>
@@ -449,13 +463,11 @@
 							{% for solve in solves %}
 							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
 								challenge_id=solve.challenge_id) }}">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ solve.id }}"
-											autocomplete="off" data-submission-id="{{ solve.id }}"
-											data-submission-type="{{ solve.type }}"
-											data-submission-challenge="{{ solve.challenge.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ solve.id }}"
+										autocomplete="off" data-submission-id="{{ solve.id }}"
+										data-submission-type="{{ solve.type }}"
+										data-submission-challenge="{{ solve.challenge.name }}">
 								</td>
 								<td class="text-center chal" id="{{ solve.challenge_id }}">
 									<a href="{{ url_for("admin.challenges_detail", challenge_id=solve.challenge_id)
@@ -463,7 +475,7 @@
 										{{ solve.challenge.name }}
 									</a>
 								</td>
-								<td class="flag" id="{{ solve.id }}">
+								<td class="text-center flag" id="{{ solve.id }}">
 									<pre>{{ solve.provided }}</pre>
 								</td>
 								<td class="text-center">{{ solve.challenge.category }}</td>
@@ -475,6 +487,7 @@
 							{% endfor %}
 						</tbody>
 					</table>
+				</div>
 				</div>
 			</div>
 		</div>
@@ -496,15 +509,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Challenge</b></th>
 								<th class="sort-col text-center"><b>Submitted</b></th>
@@ -515,20 +527,18 @@
 							{% for fail in fails %}
 							<tr class="chal-wrong"
 								data-href="{{ url_for('admin.challenges_detail', challenge_id=fail.challenge_id) }}">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ fail.id }}"
-											autocomplete="off" data-submission-id="{{ fail.id }}"
-											data-submission-type="{{ fail.type }}"
-											data-submission-challenge="{{ fail.challenge.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ fail.id }}"
+										autocomplete="off" data-submission-id="{{ fail.id }}"
+										data-submission-type="{{ fail.type }}"
+										data-submission-challenge="{{ fail.challenge.name }}">
 								</td>
 								<td class="text-center chal" id="{{ fail.challenge_id }}">
 									<a href="{{ url_for("admin.challenges_detail", challenge_id=fail.challenge_id) }}">
 										{{ fail.challenge.name }}
 									</a>
 								</td>
-								<td class="flag" id="{{ fail.id }}">
+								<td class="text-center flag" id="{{ fail.id }}">
 									<pre>{{ fail.provided }}</pre>
 								</td>
 								<td class="text-center solve-time">
@@ -538,6 +548,7 @@
 							{% endfor %}
 						</tbody>
 					</table>
+				</div>
 				</div>
 			</div>
 		</div>
@@ -556,15 +567,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Name</b></th>
 								<th class="sort-col text-center"><b>Description</b></th>
@@ -577,15 +587,13 @@
 						<tbody id="awards-body">
 							{% for award in awards %}
 							<tr class="award-row">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ award.id }}"
-											autocomplete="off" data-award-id="{{ award.id }}"
-											data-award-name="{{ award.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ award.id }}"
+										autocomplete="off" data-award-id="{{ award.id }}"
+										data-award-name="{{ award.name }}">
 								</td>
 								<td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
-								<td class="">
+								<td class="text-center">
 									<pre>{{ award.description }}</pre>
 								</td>
 								<td class="text-center solve-time">
@@ -599,6 +607,7 @@
 							{% endfor %}
 						</tbody>
 					</table>
+				</div>
 				</div>
 			</div>
 		</div>
@@ -617,15 +626,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Challenge</b></th>
 								<th class="sort-col text-center"><b>Category</b></th>
@@ -636,12 +644,10 @@
 							{% for challenge in missing %}
 							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
 								challenge_id=challenge.id) }}">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ challenge.id }}"
-											autocomplete="off" data-missing-challenge-id="{{ challenge.id }}"
-											data-missing-challenge-name="{{ challenge.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ challenge.id }}"
+										autocomplete="off" data-missing-challenge-id="{{ challenge.id }}"
+										data-missing-challenge-name="{{ challenge.name }}">
 								</td>
 								<td class="text-center chal" id="{{ challenge.id }}">
 									<a href="{{ url_for("admin.challenges_detail", challenge_id=challenge.id) }}">
@@ -655,6 +661,7 @@
 						</tbody>
 					</table>
 				</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -662,6 +669,7 @@
 	<div class="row min-vh-25 pt-5">
 		<div class="col-md-10 offset-md-1">
 			<div id="comment-box">
+			</div>
 		</div>
 	</div>
 </div>

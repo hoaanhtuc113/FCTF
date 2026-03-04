@@ -4,6 +4,7 @@ from wtforms.widgets.html5 import NumberInput
 
 from CTFd.constants.config import (
     AccountVisibilityTypes,
+    ChallengeDifficultyVisibilityTypes,
     ChallengeVisibilityTypes,
     RegistrationVisibilityTypes,
     ScoreVisibilityTypes,
@@ -26,11 +27,12 @@ class ResetInstanceForm(BaseForm):
     challenges = BooleanField(
         "Challenges", description="Deletes all challenges and associated data"
     )
+    logs = BooleanField(
+        "Logs",
+        description="Deletes all action logs and admin audit logs",
+    )
     pages = BooleanField(
         "Pages", description="Deletes all pages and their associated files"
-    )
-    notifications = BooleanField(
-        "Notifications", description="Deletes all notifications"
     )
     submit = SubmitField("Reset CTF")
 
@@ -165,6 +167,15 @@ class VisibilitySettingsForm(BaseForm):
             (RegistrationVisibilityTypes.MLC, "MajorLeagueCyber Only"),
         ],
         default=RegistrationVisibilityTypes.PUBLIC,
+    )
+    challenge_difficulty_visibility = SelectField(
+        "Challenge Difficulty Visibility",
+        description="Control whether the difficulty level of challenges is visible to contestants",
+        choices=[
+            (ChallengeDifficultyVisibilityTypes.ENABLED, "Enabled"),
+            (ChallengeDifficultyVisibilityTypes.DISABLED, "Disabled"),
+        ],
+        default=ChallengeDifficultyVisibilityTypes.DISABLED,
     )
 
 

@@ -102,6 +102,7 @@
     color: #2c3e50;
     font-size: 0.9rem;
     flex: 1;
+    overflow-wrap: anywhere;
 }
 
 .detail-value code {
@@ -464,6 +465,16 @@
                             <span class="clean-badge clean-badge-secondary">Disabled</span>
                             {% else %}
                             N/A
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Max Deploy Count</span>
+                        <span class="detail-value">
+                            {% if version.max_deploy_count is not none and version.max_deploy_count != 0 %}
+                            {{ version.max_deploy_count }}
+                            {% else %}
+                            <span class="text-muted">Unlimited (0)</span>
                             {% endif %}
                         </span>
                     </div>

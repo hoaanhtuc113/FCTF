@@ -10,3 +10,7 @@ data:
   DEPLOYMENT_QUEUE_TIMEOUT_MINUTES: "5"
 
   POW_DIFFICULTY_SECONDS: "5" 
+
+  LOKI_BASE_URL: "http://loki-stack:3100"
+
+  LOKI_QUERY_SELECTOR: "{app=\"challenge-gateway\"}"

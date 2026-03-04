@@ -13,7 +13,6 @@ from CTFd.cache import clear_auth_cache, clear_challenges, clear_standings, clea
 from CTFd.constants import RawEnum
 from CTFd.models import (
     Awards,
-    Notifications,
     Solves,
     Submissions,
     Tracking,
@@ -322,7 +321,6 @@ class UserPublic(Resource):
             "type": user.type
         }
 
-        Notifications.query.filter_by(user_id=user_id).delete()
         Awards.query.filter_by(user_id=user_id).delete()
         Unlocks.query.filter_by(user_id=user_id).delete()
         Submissions.query.filter_by(user_id=user_id).delete()

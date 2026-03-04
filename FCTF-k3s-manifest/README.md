@@ -59,7 +59,7 @@ sudo cat /var/lib/rancher/k3s/server/node-token
 
 # Cài k3s worker-node
 # Truy cập vào worker-node và chạy lệnh này để join vào master node
-curl -sfL https://get.k3s.io | K3S_URL=https://10.170.0.2:6443 \
+curl -sfL https://get.k3s.io | K3S_URL=https://10.148.0.2:6443 \
   K3S_TOKEN=K109f8ed7afed5666089849417efb9f78175bcb8dec748f6438057065f5140ba4b9::server:05a87db197bea859c1d1cba005a0b78c \
   INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 ```
@@ -117,7 +117,7 @@ sudo exportfs -v
 ```bash
 # thường sẽ là IP đầu tiên 
 hostname -I
-# Ví dụ tôi có 10.170.0.2 
+# Ví dụ tôi có 10.148.0.2 
 # Cần sửa trong prod\storage\nfs-pv-pvc.yaml phàn spec.nfs.server ở đây thay thế bằng IP của bạn 
 # Tương tự những chỗ mount nfs ở các file sau  
 #    prod\app\admin-mvc\deployment.yaml 

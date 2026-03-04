@@ -58,7 +58,11 @@
 					<!-- TODO: Better Timezone options (e.g. with UTC offset info like "UTC+1")-->
 					<div class="form-group col-md-12">
 						<label for="start-timezone">Timezone:</label>
-						<select class="form-control custom-select start-date" id="start-timezone">
+						<select class="form-control custom-select start-date" id="start-timezone" name="start_timezone"
+							data-selected="{% if start_timezone is defined and start_timezone %}{{ start_timezone }}{% endif %}">
+							<option value="{% if start_timezone is defined and start_timezone %}{{ start_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}" selected>
+								{% if start_timezone is defined and start_timezone %}{{ start_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}
+							</option>
 						</select>
 					</div>
 
@@ -76,7 +80,7 @@
 					<div class="form-group col-md-12">
 						<label>UTC Timestamp:</label>
 						<input class="form-control" id='start' name='start' type='number' {% if start is defined and
-							start !=None %}value="{{ start }}" {% endif %} readonly>
+							start !=None %}value="{{ start }}" {% endif %}>
 					</div>
 				</div>
 			</div>
@@ -115,7 +119,11 @@
 
 					<div class="form-group col-md-12">
 						<label for="end-timezone">Timezone:</label>
-						<select class="form-control custom-select end-date" id="end-timezone">
+						<select class="form-control custom-select end-date" id="end-timezone" name="end_timezone"
+							data-selected="{% if end_timezone is defined and end_timezone %}{{ end_timezone }}{% endif %}">
+							<option value="{% if end_timezone is defined and end_timezone %}{{ end_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}" selected>
+								{% if end_timezone is defined and end_timezone %}{{ end_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}
+							</option>
 						</select>
 					</div>
 
@@ -150,7 +158,7 @@
 					<div class="form-group col-md-12">
 						<label for="end">UTC Timestamp:</label>
 						<input class="form-control" id='end' name='end' type='number' {% if end is defined and end
-							!=None %}value="{{ end }}" {% endif %} readonly>
+							!=None %}value="{{ end }}" {% endif %}>
 					</div>
 				</div>
 			</div>
@@ -191,7 +199,11 @@
 
 					<div class="form-group col-md-12">
 						<label for="freeze-timezone">CTF Timezone:</label>
-						<select class="form-control custom-select freeze-date" id="freeze-timezone">
+						<select class="form-control custom-select freeze-date" id="freeze-timezone" name="freeze_timezone"
+							data-selected="{% if freeze_timezone is defined and freeze_timezone %}{{ freeze_timezone }}{% endif %}">
+							<option value="{% if freeze_timezone is defined and freeze_timezone %}{{ freeze_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}" selected>
+								{% if freeze_timezone is defined and freeze_timezone %}{{ freeze_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}
+							</option>
 						</select>
 					</div>
 
@@ -209,7 +221,7 @@
 					<div class="form-group col-md-12">
 						<label for="freeze">UTC Timestamp:</label>
 						<input class="form-control" id='freeze' name='freeze' type='number' {% if freeze is defined and
-							freeze !=None %}value="{{ freeze }}" {% endif %} readonly>
+							freeze !=None %}value="{{ freeze }}" {% endif %}>
 					</div>
 				</div>
 			</div>

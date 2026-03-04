@@ -2,70 +2,10 @@
 
 {% block stylesheets %}
 <style>
-	/* Clean Monitoring Page Styles */
-	.monitoring-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem 0;
-		margin-bottom: 2rem;
-	}
-
-	.monitoring-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
+	/* Clean Monitoring Page Styles — header inherits from base.html */
 
 	.monitoring-container {
-		padding: 2rem 0;
-	}
-
-	/* Action Button */
-	.action-section {
-		margin-bottom: 1.5rem;
-		padding: 1rem;
-		background: #ffffff;
-		border: 1px solid #e8e8e8;
-		border-radius: 8px;
-	}
-
-	.btn-load {
-		background-color: #ff6b35;
-		border-color: #ff6b35;
-		color: #ffffff;
-		padding: 0.65rem 1.5rem;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-	}
-
-	.btn-load:hover {
-		background-color: #e85d2a;
-		border-color: #e85d2a;
-		color: #ffffff;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
-	}
-
-	.btn-danger {
-		padding: 0.65rem 1.5rem;
-		font-weight: 600;
-		border-radius: 6px;
-		transition: all 0.2s ease;
-	}
-
-	.btn-danger:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-	}
-
-	.btn-danger:disabled {
-		opacity: 0.65;
-		cursor: not-allowed;
-		transform: none;
-		box-shadow: none;
+		padding: 0;
 	}
 
 	/* Spinner animation */
@@ -84,99 +24,93 @@
 	}
 
 	/* Table Styles */
-	.monitoring-table-wrapper {
-		background: #ffffff;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-		border: 1px solid #e8e8e8;
-		width: 100%;
+	/* Table — uses clean-table from base.html; only page-specific overrides here */
+	.clean-table { table-layout: auto; white-space: normal; }
+	.clean-table-wrapper { overflow-y: visible; }
+	.clean-table tbody td { overflow-wrap: anywhere; }
+	.clean-table tbody td.allow-wrap { white-space: normal; }
+
+	/* Action dropdown — no Bootstrap JS / Popper, fully manual */
+	.action-dropdown {
+		position: relative;
+		display: inline-block;
 	}
 
-	.monitoring-table {
-		margin: 0;
-		font-size: 0.9rem;
-		width: 100%;
-		table-layout: fixed;
+	/* clean-btn already defined in base.html */
+
+	.action-menu {
+		display: none;
+		position: fixed;
+		z-index: 9999;
+		min-width: 160px;
+		background: #fff;
+		border: 1px solid #dee2e6;
+		border-radius: 4px;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+		padding: 4px 0;
+		font-size: 0.875rem;
 	}
 
-	.monitoring-table thead th {
-		background: #f8f9fa;
-		border-bottom: 2px solid #e8e8e8;
-		color: #495057;
-		font-weight: 600;
-		padding: 1rem 0.75rem;
-		text-transform: uppercase;
-		font-size: 0.75rem;
-		letter-spacing: 0.5px;
+	.action-menu.open {
+		display: block;
+	}
+
+	.action-menu-item {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0.45rem 0.9rem;
+		color: #495057 !important;
+		text-decoration: none;
+		font-weight: 500;
+		font-size: 0.875rem;
+		transition: all 0.15s ease;
 		white-space: nowrap;
 	}
 
-	.monitoring-table tbody tr {
-		border-bottom: 1px solid #f1f1f1;
-		transition: all 0.15s ease;
-	}
-
-	.monitoring-table tbody tr:hover {
+	.action-menu-item:hover {
 		background: #fff5f2;
-	}
-
-	.monitoring-table tbody td {
-		padding: 0.875rem 0.75rem;
-		color: #495057;
-		vertical-align: middle;
-		overflow: auto;
-	}
-
-	.monitoring-table tbody td a {
-		color: #ff6b35;
+		color: #ff6b35 !important;
 		text-decoration: none;
-		font-weight: 500;
-		transition: color 0.2s ease;
+		border-color: #ff6b35;
 	}
 
-	.monitoring-table tbody td a:hover {
-		color: #e85d2a;
-		text-decoration: underline;
+	.action-menu-item-danger {
+		color: #dc3545 !important;
 	}
 
-	/* Stop Button */
-	.btn-stop {
-		background-color: #dc3545;
-		border-color: #dc3545;
-		color: #ffffff;
-		padding: 0.375rem 0.75rem;
-		font-size: 0.875rem;
-		border-radius: 4px;
-		transition: all 0.2s ease;
+	.action-menu-item-danger:hover {
+		background: #dc3545;
+		color: #ffffff !important;
 	}
 
-	.btn-stop:hover {
-		background-color: #c82333;
-		border-color: #bd2130;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+	.action-menu-divider {
+		height: 1px;
+		background: #dee2e6;
+		margin: 4px 0;
 	}
 
-	/* Info Button */
-	.btn-info {
-		padding: 0.375rem 0.75rem;
-		font-size: 0.875rem;
-		border-radius: 4px;
-		transition: all 0.2s ease;
+	/* Challenge token cell */
+	.token-cell {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
 	}
 
-	.btn-info:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+	.token-value {
+		display: inline-block;
+		max-width: 220px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		vertical-align: middle;
 	}
 
-	/* Filter controls height consistency */
-	#teamFilter,
-	#userFilter,
-	#categoryFilter,
-	#statusFilter,
-	#challengeSearch {
-		height: 38px;
+	.btn-copy-token {
+		padding: 0.2rem 0.45rem;
+		font-size: 0.75rem;
+		line-height: 1.2;
 	}
 
 	/* Status badge styles */
@@ -257,31 +191,31 @@
 <div class="monitoring-page">
 	<div class="page-header">
 		<div class="container">
-			<h1>Challenge Instance</h1>
+			<h1><i class="bx bx-server"></i> Challenge Instance</h1>
 		</div>
 	</div>
 
 	<div class="container monitoring-container">
 		<!-- Filters and Search -->
-		<div class="mb-3">
-			<div class="row mb-2">
-				<div class="col-md-3">
-					<select id="teamFilter" class="form-control" onchange="handleSearch()">
+		<div class="clean-search-container">
+			<div class="row no-gutters align-items-center">
+				<div class="col-md-3 px-1">
+					<select id="teamFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Teams</option>
 					</select>
 				</div>
-				<div class="col-md-3">
-					<select id="userFilter" class="form-control" onchange="handleSearch()">
+				<div class="col-md-3 px-1">
+					<select id="userFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Users</option>
 					</select>
 				</div>
-				<div class="col-md-3">
-					<select id="categoryFilter" class="form-control" onchange="handleSearch()">
+				<div class="col-md-3 px-1">
+					<select id="categoryFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Categories</option>
 					</select>
 				</div>
-				<div class="col-md-3">
-					<select id="statusFilter" class="form-control" onchange="handleSearch()">
+				<div class="col-md-3 px-1">
+					<select id="statusFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
 						<option value="">All Status</option>
 						<option value="pending">Pending</option>
 						<option value="running">Running</option>
@@ -289,55 +223,63 @@
 					</select>
 				</div>
 			</div>
-			<div class="row">
-				<div class="col-md-10">
-					<input type="text" id="challengeSearch" class="form-control"
+			<div class="row no-gutters align-items-center mt-1">
+				<div class="col-md-9 px-1">
+					<input type="text" id="challengeSearch" class="clean-form-control w-100"
 						placeholder="Search by challenge name..." onkeyup="handleSearch()">
 				</div>
-				<div class="col-md-2">
-					<button onclick="clearFilters()" class="btn btn-info btn-block">
-						<i class="fas fa-times"></i> Clear Filters
+				<div class="col-md-3 px-1 d-flex">
+					<button onclick="clearFilters()" class="clean-btn flex-grow-1 mr-1">
+						<i class="fas fa-times"></i> Clear
+					</button>
+					<button onclick="loadData()" class="clean-btn clean-btn-primary flex-grow-1">
+						<i class="fas fa-sync-alt"></i> Refresh
 					</button>
 				</div>
 			</div>
 		</div>
 
-		<!-- Action Buttons -->
-		<div class="mb-3 d-flex justify-content-between align-items-center">
-			<div>
-				<button onclick="loadData()" class="btn btn-load mr-2">
-					<i class="fas fa-sync-alt"></i> Refresh Data
-				</button>
-			</div>
-			<div>
-				<span class="clean-info-text mr-2">
-					Selected: <span class="clean-highlight" id="selectedCountTop">0</span>
-				</span>
-				<button id="bulkStopBtnTop" onclick="bulkStopSelected()" class="btn btn-stop mr-2" disabled>
-					<i class="fas fa-stop-circle"></i> Stop Selected
-				</button>
-				<button onclick="DeleteAll()" class="btn btn-danger">
-					<i class="fas fa-trash-alt"></i> Stop All
-				</button>
-			</div>
+		<!-- Action Bar -->
+		<div class="d-flex justify-content-end align-items-center mb-2">
+			<span class="clean-info-text mr-2">
+				Selected: <span class="clean-highlight" id="selectedCountTop">0</span>
+			</span>
+			<button id="bulkStopBtnTop" onclick="bulkStopSelected()" class="clean-btn clean-btn-danger mr-1" disabled>
+				<i class="fas fa-stop-circle"></i> Stop Selected
+			</button>
+			<button onclick="DeleteAll()" class="clean-btn clean-btn-danger">
+				<i class="fas fa-trash-alt"></i> Stop All
+			</button>
 		</div>
 
 		<!-- Table -->
-		<div class="monitoring-table-wrapper">
-			<table id="challengeTable" class="table monitoring-table mb-0">
+		<div class="clean-table-wrapper">
+			<table id="challengeTable" class="table clean-table mb-0">
+				<colgroup>
+					<col style="width: 36px;">          <!-- checkbox -->
+					<col style="width: 4%;">          <!-- ID -->
+					<col style="width: 15%;">         <!-- Challenge Name -->
+					<col style="width: 10%;">         <!-- Team Name -->
+					<col style="width: 10%;">         <!-- User Name -->
+					<col style="width: 8%;">          <!-- Category -->
+					<col style="width: 20%;">          <!-- Status -->
+					<col style="width: 10%;">         <!-- Token -->
+					<col style="width: 10%;">         <!-- Time Finished -->
+					<col style="width: 10%;">          <!-- Action -->
+				</colgroup>
 				<thead>
 					<tr>
-						<th class="text-center" style="width: 44px;">
-							<input id="selectAll" type="checkbox" onchange="toggleSelectAllOnPage(this.checked)"
+						<th data-checkbox>
+							<input id="selectAll" type="checkbox" class="table-check" onchange="toggleSelectAllOnPage(this.checked)"
 								aria-label="Select all on page" />
 						</th>
-						<th class="sort-col text-center" style="width: 50px;">ID</th>
+						<th class="sort-col text-center">ID</th>
 						<th class="sort-col text-center">Challenge Name</th>
 						<th class="sort-col text-center">Team Name</th>
 						<th class="sort-col text-center">User Name</th>
 						<th class="sort-col text-center">Category</th>
 						<th class="text-center">Status</th>
-						<th class="text-center">Challenge URL</th>
+						<th class="text-center">Challenge Token</th>
 						<th class="sort-col text-center">Time Finished</th>
 						<th class="text-center">Action</th>
 					</tr>
@@ -345,6 +287,14 @@
 				<tbody class="small">
 					<!-- Dynamic rows go here -->
 				</tbody>
+				<tfoot id="tableFooter" style="display: none;">
+					<tr>
+						<td colspan="10" class="text-center py-4" style="color: #999; font-style: italic;">
+							<i class="bx bx-info-circle" style="font-size: 1.2rem; vertical-align: middle;"></i>
+							<span id="footerMsg">No instances found</span>
+						</td>
+					</tr>
+				</tfoot>
 			</table>
 		</div>
 
@@ -427,13 +377,15 @@
 	// Generic function to populate a dropdown from data
 	function populateDropdown(elementId, items, allLabel) {
 		const dropdown = document.getElementById(elementId);
+		if (!dropdown) return;
+		const normalizedItems = Array.isArray(items) ? items : [];
 		const currentValue = dropdown.value;
 
 		// Clear existing options except the "All" option
 		dropdown.innerHTML = `<option value="">${allLabel}</option>`;
 
 		// Add options from the provided list
-		items.forEach(item => {
+		normalizedItems.forEach(item => {
 			const option = document.createElement("option");
 			option.value = item;
 			option.textContent = item;
@@ -441,7 +393,7 @@
 		});
 
 		// Restore previous selection if exists
-		if (currentValue && items.includes(currentValue)) {
+		if (currentValue && normalizedItems.includes(currentValue)) {
 			dropdown.value = currentValue;
 		}
 	}
@@ -459,14 +411,30 @@
 		populateDropdown("categoryFilter", categories, "All Categories");
 	}
 
+	function showTableFooter(msg) {
+		const tfoot = document.getElementById("tableFooter");
+		const footerMsg = document.getElementById("footerMsg");
+		if (tfoot) { tfoot.style.display = ""; }
+		if (footerMsg) { footerMsg.textContent = msg || "No instances found"; }
+	}
+
+	function hideTableFooter() {
+		const tfoot = document.getElementById("tableFooter");
+		if (tfoot) { tfoot.style.display = "none"; }
+	}
+
 	async function loadData(page = 1) {
 		currentPage = page;
 
-		const challengeSearch = document.getElementById("challengeSearch").value.trim();
-		const teamFilter = document.getElementById("teamFilter").value.trim();
-		const userFilter = document.getElementById("userFilter").value.trim();
-		const categoryFilter = document.getElementById("categoryFilter").value.trim();
-		const statusFilter = document.getElementById("statusFilter").value.trim();
+		const tbody = document.querySelector("#challengeTable tbody");
+		if (tbody) { tbody.innerHTML = ""; }
+		showTableFooter("Loading...");
+
+		const challengeSearch = (document.getElementById("challengeSearch")?.value ?? "").trim();
+		const teamFilter = (document.getElementById("teamFilter")?.value ?? "").trim();
+		const userFilter = (document.getElementById("userFilter")?.value ?? "").trim();
+		const categoryFilter = (document.getElementById("categoryFilter")?.value ?? "").trim();
+		const statusFilter = (document.getElementById("statusFilter")?.value ?? "").trim();
 
 		let url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`;
 
@@ -486,13 +454,23 @@
 			url += `&status=${encodeURIComponent(statusFilter)}`;
 		}
 
-		const response = await CTFd.fetch(url, {
-			method: "GET"
+		try {
+		const fetchFn = (typeof CTFd !== "undefined" && CTFd.fetch) ? CTFd.fetch : window.fetch;
+		const response = await fetchFn(url, {
+			method: "GET",
+			credentials: "same-origin",
+			headers: { "Accept": "application/json" }
 		});
 
+		if (!response.ok) {
+			const errBody = await response.text();
+			console.error("Monitoring API error:", response.status, errBody);
+			showTableFooter(`Error ${response.status}: ${response.statusText}`);
+			return;
+		}
+
 		const result = await response.json();
-		const tbody = document.querySelector("#challengeTable tbody");
-		tbody.innerHTML = "";
+		if (tbody) { tbody.innerHTML = ""; }
 
 		if (result.success) {
 			paginationData = result.pagination;
@@ -508,16 +486,25 @@
 				populateCategories(result.categories);
 			}
 
+			if (!result.data || result.data.length === 0) {
+				showTableFooter("No instances found");
+				updatePagination();
+				return;
+			}
+
+			hideTableFooter();
 			result.data.forEach(row => {
 				const tr = document.createElement("tr");
 				const key = makeInstanceKey(row.challenge_id, row.team_id);
 				const isChecked = selectedInstances.has(key);
+				const tokenValue = row.challenge_url ?? "";
+				const encodedToken = encodeURIComponent(tokenValue);
 
 				tr.innerHTML = `
-					<td class="text-center">
+					<td data-checkbox>
 						<input
 							type="checkbox"
-							class="instance-checkbox"
+							class="table-check instance-checkbox"
 							data-challenge-id="${row.challenge_id}"
 							data-team-id="${row.team_id}"
 							${isChecked ? 'checked' : ''}
@@ -531,23 +518,32 @@
 					<td class="text-center">${row.user_name ?? "N/A"}</td>
 					<td class="text-center">${row.challenge_category ?? "N/A"}</td>
 					<td class="text-center">${formatStatusBadge(row.status)}</td>
-					<td class="text-center" 
-					style="
-						text-align: center;
-						max-width: 250px;
-						word-break: break-all;
-						overflow-wrap: break-word;
-						white-space: normal;
-						">
-						${row.challenge_url ? row.challenge_url : "N/A"}
+					<td class="text-center">
+						${tokenValue
+							? `<div class="token-cell"><span class="token-value" title="${tokenValue}">${tokenValue.substring(0, 8)}...</span><button type="button" class="btn btn-sm btn-outline-secondary btn-copy-token" data-token="${encodedToken}" onclick="copyChallengeToken(this)" aria-label="Copy challenge token"><i class="fas fa-copy"></i></button></div>`
+							: "N/A"}
 					</td>
-
 					<td class="text-center">${row.time_finished
 						? new Date(row.time_finished).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
 						: "N/A"}</td>
-					<td class="text-center text-nowrap">
-						<button onclick="viewLogs(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-info d-inline-block">Logs</button>
-						<button onclick="stopChallenge(${row.challenge_id}, ${row.team_id})" class="btn btn-sm btn-stop d-inline-block ml-1">Stop</button>
+					<td class="text-center">
+						<div class="action-dropdown">
+							<button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this, event)">
+								Actions
+							</button>
+							<div class="action-menu">
+								<a class="action-menu-item" href="#" onclick="viewLogs(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
+									<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs
+								</a>
+								<a class="action-menu-item" href="#" onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
+									<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs
+								</a>
+								<div class="action-menu-divider"></div>
+								<a class="action-menu-item action-menu-item-danger" href="#" onclick="stopChallenge(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
+									<i class="fas fa-stop-circle fa-fw mr-1"></i> Stop
+								</a>
+							</div>
+						</div>
 					</td>
 				`;
 
@@ -559,7 +555,14 @@
 			syncSelectAllCheckbox();
 			updateSelectedUI();
 		} else {
-			alert("Error loading data: " + result.error);
+			console.error("API returned error:", result.error);
+			showTableFooter("Error: " + (result.error || "Unknown error"));
+		}
+		} catch (error) {
+			console.error("loadData failed:", error);
+			const tbodyErr = document.querySelector("#challengeTable tbody");
+			if (tbodyErr) tbodyErr.innerHTML = "";
+			showTableFooter("Failed to load data: " + error.message);
 		}
 	}
 
@@ -580,11 +583,17 @@
 	}
 
 	function clearFilters() {
-		document.getElementById("challengeSearch").value = "";
-		document.getElementById("teamFilter").value = "";
-		document.getElementById("userFilter").value = "";
-		document.getElementById("categoryFilter").value = "";
-		document.getElementById("statusFilter").value = "";
+		const challengeSearch = document.getElementById("challengeSearch");
+		const teamFilter = document.getElementById("teamFilter");
+		const userFilter = document.getElementById("userFilter");
+		const categoryFilter = document.getElementById("categoryFilter");
+		const statusFilter = document.getElementById("statusFilter");
+
+		if (challengeSearch) challengeSearch.value = "";
+		if (teamFilter) teamFilter.value = "";
+		if (userFilter) userFilter.value = "";
+		if (categoryFilter) categoryFilter.value = "";
+		if (statusFilter) statusFilter.value = "";
 		loadData(1);
 	}
 
@@ -670,6 +679,30 @@
 
 	function viewLogs(challengeId, teamId) {
 		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
+	}
+
+	function viewRequestLogs(challengeId, teamId) {
+		window.location.href = `/deploy_History/${challengeId}/request-logs?team_id=${teamId}`;
+	}
+
+	async function copyChallengeToken(button) {
+		try {
+			const encodedToken = button?.dataset?.token || "";
+			const token = decodeURIComponent(encodedToken);
+			if (!token) return;
+
+			await navigator.clipboard.writeText(token);
+
+			const originalHtml = button.innerHTML;
+			button.innerHTML = '<i class="fas fa-check"></i>';
+			button.disabled = true;
+			setTimeout(() => {
+				button.innerHTML = originalHtml;
+				button.disabled = false;
+			}, 1200);
+		} catch (error) {
+			alert("Cannot copy token: " + error.message);
+		}
 	}
 
 	async function stopChallenge(challengeId, teamId) {
@@ -794,6 +827,52 @@
 			deleteAllBtn.innerHTML = originalContent;
 		}
 	}
+
+	/* ── Manual action-menu open/close/position ── */
+	function closeAllActionMenus() {
+		document.querySelectorAll('.action-menu.open').forEach(function (m) {
+			m.classList.remove('open');
+		});
+	}
+
+	function toggleActionMenu(btn, event) {
+		event.stopPropagation();
+		var menu = btn.nextElementSibling;
+		if (!menu) return;
+		var isOpen = menu.classList.contains('open');
+		closeAllActionMenus();
+		if (!isOpen) {
+			menu.classList.add('open');
+			positionActionMenu(menu, btn);
+		}
+	}
+
+	function positionActionMenu(menu, btn) {
+		var rect  = btn.getBoundingClientRect();
+		var menuW = menu.offsetWidth || 160;
+		var left  = rect.right - menuW;
+		if (left < 4) left = rect.left;
+		menu.style.top  = (rect.bottom + 2) + 'px';
+		menu.style.left = left + 'px';
+	}
+
+	/* Close on outside click */
+	document.addEventListener('click', function () {
+		closeAllActionMenus();
+	});
+
+	/* Reposition on scroll */
+	(function () {
+		function repositionOpenMenu() {
+			var menu = document.querySelector('.action-menu.open');
+			if (!menu) return;
+			var btn = menu.previousElementSibling;
+			if (btn) positionActionMenu(menu, btn);
+		}
+		var tableWrapper = document.querySelector('.monitoring-table-wrapper');
+		if (tableWrapper) tableWrapper.addEventListener('scroll', repositionOpenMenu);
+		window.addEventListener('scroll', repositionOpenMenu);
+	})();
 </script>
 
 {% endblock %}
