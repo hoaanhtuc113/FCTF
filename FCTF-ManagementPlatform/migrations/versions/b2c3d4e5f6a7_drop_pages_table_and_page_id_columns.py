@@ -7,6 +7,7 @@ Create Date: 2026-03-04 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
 
 
 # revision identifiers, used by Alembic.
@@ -16,19 +17,43 @@ branch_labels = None
 depends_on = None
 
 
+def _fk_exists(bind, table_name, fk_name):
+    inspector = Inspector.from_engine(bind)
+    fks = inspector.get_foreign_keys(table_name)
+    return any(fk.get("name") == fk_name for fk in fks)
+
+
+def _column_exists(bind, table_name, column_name):
+    inspector = Inspector.from_engine(bind)
+    cols = inspector.get_columns(table_name)
+    return any(col["name"] == column_name for col in cols)
+
+
+def _table_exists(bind, table_name):
+    inspector = Inspector.from_engine(bind)
+    return table_name in inspector.get_table_names()
+
+
 def upgrade():
+    bind = op.get_bind()
+
     # Drop foreign key + column page_id from comments
     with op.batch_alter_table("comments", schema=None) as batch_op:
-        batch_op.drop_constraint("comments_ibfk_page", type_="foreignkey")
-        batch_op.drop_column("page_id")
+        if _fk_exists(bind, "comments", "comments_ibfk_page"):
+            batch_op.drop_constraint("comments_ibfk_page", type_="foreignkey")
+        if _column_exists(bind, "comments", "page_id"):
+            batch_op.drop_column("page_id")
 
     # Drop foreign key + column page_id from files
     with op.batch_alter_table("files", schema=None) as batch_op:
-        batch_op.drop_constraint("files_ibfk_page", type_="foreignkey")
-        batch_op.drop_column("page_id")
+        if _fk_exists(bind, "files", "files_ibfk_page"):
+            batch_op.drop_constraint("files_ibfk_page", type_="foreignkey")
+        if _column_exists(bind, "files", "page_id"):
+            batch_op.drop_column("page_id")
 
     # Drop the pages table
-    op.drop_table("pages")
+    if _table_exists(bind, "pages"):
+        op.drop_table("pages")
 
 
 def downgrade():
