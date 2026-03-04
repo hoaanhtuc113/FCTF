@@ -27,11 +27,12 @@ class ResetInstanceForm(BaseForm):
     challenges = BooleanField(
         "Challenges", description="Deletes all challenges and associated data"
     )
+    logs = BooleanField(
+        "Logs",
+        description="Deletes all action logs and admin audit logs",
+    )
     pages = BooleanField(
         "Pages", description="Deletes all pages and their associated files"
-    )
-    notifications = BooleanField(
-        "Notifications", description="Deletes all notifications"
     )
     submit = SubmitField("Reset CTF")
 

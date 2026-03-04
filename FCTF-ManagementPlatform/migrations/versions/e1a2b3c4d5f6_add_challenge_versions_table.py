@@ -31,6 +31,7 @@ def upgrade():
         sa.Column('memory_limit', sa.Integer(), nullable=True),
         sa.Column('memory_request', sa.Integer(), nullable=True),
         sa.Column('use_gvisor', sa.Boolean(), nullable=True),
+        sa.Column('max_deploy_count', sa.Integer(), nullable=True, server_default='0'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='0'),
         sa.Column('created_by', sa.Integer(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),

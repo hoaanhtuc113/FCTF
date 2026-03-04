@@ -239,7 +239,8 @@
                             <td class="text-center">
                                 <small>
                                     CPU: {{ version.cpu_limit or '-' }}/{{ version.cpu_request or '-' }}m<br>
-                                    Mem: {{ version.memory_limit or '-' }}/{{ version.memory_request or '-' }}Mi
+                                    Mem: {{ version.memory_limit or '-' }}/{{ version.memory_request or '-' }}Mi<br>
+                                    Max Deploy: {{ version.max_deploy_count if version.max_deploy_count else '∞' }}
                                 </small>
                             </td>
                             <td class="text-center">

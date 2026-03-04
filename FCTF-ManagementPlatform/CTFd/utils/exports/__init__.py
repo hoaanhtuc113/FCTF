@@ -261,7 +261,6 @@ def import_ctf(backup, erase=True):
         "db/submissions.json",
         "db/solves.json",
         "db/files.json",
-        "db/notifications.json",
         "db/pages.json",
         "db/tracking.json",
         "db/config.json",
