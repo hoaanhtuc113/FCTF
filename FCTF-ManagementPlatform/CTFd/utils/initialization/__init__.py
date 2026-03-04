@@ -19,7 +19,6 @@ from CTFd.utils.config import (
     integrations,
     is_setup,
 )
-from CTFd.utils.config.pages import get_pages
 from CTFd.utils.dates import isoformat, unix_time, unix_time_millis, unix_time_to_utc
 from CTFd.utils.events import EventManager, RedisEventManager
 from CTFd.utils.humanize.words import pluralize
@@ -81,7 +80,6 @@ def init_template_globals(app):
     from CTFd.utils.countries.geoip import lookup_ip_address, lookup_ip_address_city
 
     app.jinja_env.globals.update(config=config)
-    app.jinja_env.globals.update(get_pages=get_pages)
     app.jinja_env.globals.update(can_send_mail=can_send_mail)
     app.jinja_env.globals.update(get_ctf_name=ctf_name)
     app.jinja_env.globals.update(get_ctf_logo=ctf_logo)

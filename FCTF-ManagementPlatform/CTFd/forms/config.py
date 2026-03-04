@@ -31,9 +31,6 @@ class ResetInstanceForm(BaseForm):
         "Logs",
         description="Deletes all action logs and admin audit logs",
     )
-    pages = BooleanField(
-        "Pages", description="Deletes all pages and their associated files"
-    )
     submit = SubmitField("Reset CTF")
 
 

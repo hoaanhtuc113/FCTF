@@ -10,7 +10,6 @@ from CTFd.constants import RawEnum
 from CTFd.models import (
     ChallengeComments,
     Comments,
-    PageComments,
     TeamComments,
     UserComments,
     db,
@@ -51,8 +50,6 @@ def get_comment_model(data):
         model = UserComments
     elif "team_id" in data:
         model = TeamComments
-    elif "page_id" in data:
-        model = PageComments
     else:
         model = Comments
     return model
@@ -76,7 +73,6 @@ class CommentList(Resource):
             "challenge_id": (int, None),
             "user_id": (int, None),
             "team_id": (int, None),
-            "page_id": (int, None),
             "q": (str, None),
             "field": (RawEnum("CommentFields", {"content": "content"}), None),
         },
@@ -151,7 +147,6 @@ class CommentList(Resource):
                 "challenge_id": response.data.get("challenge_id"),
                 "user_id": response.data.get("user_id"),
                 "team_id": response.data.get("team_id"),
-                "page_id": response.data.get("page_id"),
                 "author_id": response.data.get("author_id"),
             },
         )
@@ -178,7 +173,6 @@ class Comment(Resource):
             "challenge_id": comment.challenge_id if hasattr(comment, 'challenge_id') else None,
             "user_id": comment.user_id if hasattr(comment, 'user_id') else None,
             "team_id": comment.team_id if hasattr(comment, 'team_id') else None,
-            "page_id": comment.page_id if hasattr(comment, 'page_id') else None,
         }
 
         db.session.delete(comment)

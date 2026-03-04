@@ -57,9 +57,6 @@ ALL_ACTIONS = [
     "tag_delete",
     "award_create",
     "award_delete",
-    "page_create",
-    "page_update",
-    "page_delete",
     "file_create",
     "file_delete",
     "comment_create",
@@ -74,7 +71,7 @@ ALL_ACTIONS = [
 TARGET_TYPES = [
     "challenge", "user", "team", "submission", "config",
     "hint", "flag", "tag", "award",
-    "page", "file", "comment", "bracket",
+    "file", "comment", "bracket",
     "system",
 ]
 
@@ -109,9 +106,6 @@ ACTION_LABELS: dict[str, str] = {
     "tag_delete": "Delete Tag",
     "award_create": "Create Award",
     "award_delete": "Delete Award",
-    "page_create": "Create Page",
-    "page_update": "Update Page",
-    "page_delete": "Delete Page",
     "file_create": "Upload File",
     "file_delete": "Delete File",
     "comment_create": "Create Comment",
