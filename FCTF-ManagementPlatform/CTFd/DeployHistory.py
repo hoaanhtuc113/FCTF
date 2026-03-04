@@ -168,12 +168,14 @@ def get_request_logs(challenge_id):
         except ValueError:
             return jsonify({"error": "Invalid team_id"}), 400
 
-    logs = get_challenge_request_logs(challenge_id, team_id)
+    ns = request.args.get("ns") or None
+    logs = get_challenge_request_logs(challenge_id, team_id, ns)
 
     return render_template(
         "admin/challenges/request_logs.html",
         challenge_id=challenge_id,
         team_id=team_id,
+        ns=ns or "",
         log_content=logs,
     )
 
@@ -198,6 +200,7 @@ def get_request_logs_api(challenge_id):
         except ValueError:
             return jsonify({"success": False, "error": "Invalid team_id"}), 400
 
-    logs = get_challenge_request_logs(challenge_id, team_id)
+    ns = request.args.get("ns") or None
+    logs = get_challenge_request_logs(challenge_id, team_id, ns)
 
     return jsonify({"success": True, "logs": logs}), 200
