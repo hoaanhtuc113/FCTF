@@ -153,9 +153,7 @@
 				{% for row in logs.items %}
 				<tr>
 					<td class="mono text-center">{{ row.ChallengeStartTracking.started_at }}</td>
-					<td class="mono text-center">
-						{% if row.ChallengeStartTracking.stopped_at %}{{ row.ChallengeStartTracking.stopped_at | trim }}{% else %}-{% endif %}
-					</td>
+					<td class="mono text-center">{% if row.ChallengeStartTracking.stopped_at %}{{ row.ChallengeStartTracking.stopped_at | trim }}{% else %}-{% endif %}</td>
 					<td class="text-center cell-truncate" title="{{ row.ChallengeStartTracking.label }}">
 						{% if row.ChallengeStartTracking.label %}
 							{{ row.ChallengeStartTracking.label | truncate(24) }}
