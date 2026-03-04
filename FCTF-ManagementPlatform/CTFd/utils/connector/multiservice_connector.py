@@ -403,7 +403,8 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
 
                 redis_client.set(
                     f"{get_workflow_key(challenge.id)}",
-                    workflow_name
+                    workflow_name,
+                    ex=86400  # TTL: 1 day
                 )
                 workflow_phase, started_at, estimated_duration = get_workflow_status(workflow_name)
                 if workflow_phase is None:
