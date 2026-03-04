@@ -158,7 +158,9 @@
 {% block scripts %}
 <script>
     var challengeId = {{ challenge_id }};
-    var teamId = new URLSearchParams(window.location.search).get('team_id') || '';
+    var _qs = new URLSearchParams(window.location.search);
+    var teamId = _qs.get('team_id') || '';
+    var ns     = _qs.get('ns')      || '';
 
     var _autoSyncTimer = null;
     var _countdownTimer = null;
@@ -348,7 +350,7 @@
         logBox.innerHTML = html || '<span style="color:#858585">No relevant log entries.</span>';
     }
 
-    /* ── initial render from server-side data ── */
+    /* ── initial render: show server-side data immediately, then refresh live ── */
     (function () {
         var el = document.getElementById('raw-log-data');
         if (el) {
@@ -356,6 +358,10 @@
             catch (e) { document.getElementById('log-content').textContent = el.textContent; }
         }
     })();
+
+    document.addEventListener('DOMContentLoaded', function () {
+        refreshLogs();
+    });
 
     /* ── refresh button ── */
     function refreshLogs() {
@@ -365,7 +371,8 @@
         btn.disabled = true;
         icon.classList.add('fa-spin');
 
-        var url = '/deploy_History/' + challengeId + '/request-logs-api?team_id=' + teamId;
+        var nsParam = ns ? '&ns=' + encodeURIComponent(ns) : '';
+        var url = '/deploy_History/' + challengeId + '/request-logs-api?team_id=' + teamId + nsParam;
 
         fetch(url)
             .then(function (r) { return r.json(); })
