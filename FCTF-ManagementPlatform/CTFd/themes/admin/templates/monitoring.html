@@ -535,7 +535,11 @@
 								<a class="action-menu-item" href="#" onclick="viewLogs(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
 									<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs
 								</a>
-								<a class="action-menu-item" href="#" onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id}, '${(row.ns ?? '').replace(/'/g, "\\'")}'); closeAllActionMenus(); return false;">
+							<a class="action-menu-item" href="#"
+								data-challenge-id="${row.challenge_id}"
+								data-team-id="${row.team_id}"
+								data-ns="${encodeURIComponent(row.ns ?? '')}"
+								onclick="handleViewRequestLogs(this); closeAllActionMenus(); return false;">
 									<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs
 								</a>
 								<div class="action-menu-divider"></div>
@@ -679,6 +683,13 @@
 
 	function viewLogs(challengeId, teamId) {
 		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
+	}
+
+	function handleViewRequestLogs(el) {
+		const challengeId = el.dataset.challengeId;
+		const teamId = el.dataset.teamId;
+		const ns = decodeURIComponent(el.dataset.ns || '');
+		viewRequestLogs(challengeId, teamId, ns);
 	}
 
 	function viewRequestLogs(challengeId, teamId, ns) {
