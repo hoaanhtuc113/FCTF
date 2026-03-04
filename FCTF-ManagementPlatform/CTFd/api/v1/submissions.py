@@ -13,7 +13,7 @@ from CTFd.api.v1.schemas import (
 from CTFd.cache import clear_challenges, clear_standings
 from CTFd.constants import RawEnum
 from CTFd.constants.envvars import REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
-from CTFd.models import Solves, Submissions, Tokens, Users, db
+from CTFd.models import Challenges, Solves, Submissions, Tokens, Users, db
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
@@ -154,15 +154,27 @@ class SubmissionsList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         # Audit log
         log_audit(
             action="submission_create",
             data={
                 "id": response.data["id"],
                 "type": response.data.get("type"),
-                "challenge_id": response.data.get("challenge_id"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
                 "user_id": response.data.get("user_id"),
                 "team_id": response.data.get("team_id"),
+                "provided": response.data.get("provided"),
+                "ip": response.data.get("ip"),
+                "date": str(response.data.get("date")) if response.data.get("date") else None,
             }
         )
 
@@ -218,6 +230,9 @@ class Submission(Resource):
             "challenge_id": submission.challenge_id,
             "user_id": submission.user_id,
             "team_id": submission.team_id,
+            "provided": submission.provided,
+            "ip": submission.ip,
+            "date": str(submission.date) if submission.date else None,
         }
 
         req = request.get_json()
@@ -281,17 +296,29 @@ class Submission(Resource):
             return {"success": False, "errors": response.errors}, 400
 
         # Audit log
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         after_state = {
             "type": response.data.get("type"),
-            "challenge_id": response.data.get("challenge_id"),
+            "challenge_id": _cid,
+            "challenge_name": _challenge_name,
             "user_id": response.data.get("user_id"),
             "team_id": response.data.get("team_id"),
+            "provided": response.data.get("provided"),
+            "ip": response.data.get("ip"),
+            "date": str(response.data.get("date")) if response.data.get("date") else None,
         }
         log_audit(
             action="submission_update",
             before=before_state,
             after=after_state,
-            data={"id": submission_id}
+            data={"id": submission_id, "challenge_name": _challenge_name}
         )
 
         return {"success": True, "data": response.data}
@@ -310,14 +337,24 @@ class Submission(Resource):
     def delete(self, submission_id):
         submission = Submissions.query.filter_by(id=submission_id).first_or_404()
         
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        if submission.challenge_id:
+            _ch = Challenges.query.filter_by(id=submission.challenge_id).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         # Capture submission info before deletion
         submission_info = {
             "id": submission.id,
             "type": submission.type,
             "challenge_id": submission.challenge_id,
+            "challenge_name": _challenge_name,
             "user_id": submission.user_id,
             "team_id": submission.team_id,
             "provided": submission.provided,
+            "ip": submission.ip,
+            "date": str(submission.date) if submission.date else None,
         }
         
         # Decrement Redis attempt counter if submission type is "incorrect"
@@ -341,7 +378,8 @@ class Submission(Resource):
         # Audit log
         log_audit(
             action="submission_delete",
-            data=submission_info
+            before=submission_info,
+            data={"id": submission_info["id"]}
         )
 
         # Delete standings cache

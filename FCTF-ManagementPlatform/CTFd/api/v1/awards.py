@@ -141,6 +141,11 @@ class AwardList(Resource):
                 "team_id": response.data.get("team_id"),
                 "name": response.data.get("name"),
                 "value": response.data.get("value"),
+                "type": response.data.get("type"),
+                "description": response.data.get("description"),
+                "date": str(response.data.get("date")) if response.data.get("date") else None,
+                "category": response.data.get("category"),
+                "icon": response.data.get("icon"),
             },
         )
 
@@ -185,6 +190,11 @@ class Award(Resource):
             "team_id": award.team_id,
             "name": award.name,
             "value": award.value,
+            "type": award.type,
+            "description": award.description,
+            "date": str(award.date) if award.date else None,
+            "category": award.category,
+            "icon": award.icon,
         }
         db.session.delete(award)
         db.session.commit()
@@ -193,7 +203,7 @@ class Award(Resource):
         log_audit(
             action="award_delete",
             before=award_info,
-            data={"award_id": int(award_id)},
+            data={"award_id": int(award_id), "name": award_info["name"]},
         )
 
         # Delete standings cache because awards can change scores

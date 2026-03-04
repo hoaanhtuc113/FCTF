@@ -12,6 +12,7 @@ from CTFd.models import Pages, db
 from CTFd.schemas.pages import PageSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 
 pages_namespace = Namespace("pages", description="Endpoint to retrieve Pages")
 
@@ -113,6 +114,21 @@ class PageList(Resource):
 
         clear_pages()
 
+        log_audit(
+            action="page_create",
+            data={
+                "page_id": response.data.get("id"),
+                "title": response.data.get("title"),
+                "route": response.data.get("route"),
+                "content": response.data.get("content"),
+                "draft": response.data.get("draft"),
+                "hidden": response.data.get("hidden"),
+                "auth_required": response.data.get("auth_required"),
+                "format": response.data.get("format"),
+                "link_target": response.data.get("link_target"),
+            },
+        )
+
         return {"success": True, "data": response.data}
 
 
@@ -144,6 +160,18 @@ class PageDetail(Resource):
     @pages_namespace.doc(description="Endpoint to edit a page object")
     def patch(self, page_id):
         page = Pages.query.filter_by(id=page_id).first_or_404()
+
+        before_state = {
+            "title": page.title,
+            "route": page.route,
+            "content": page.content,
+            "draft": page.draft,
+            "hidden": page.hidden,
+            "auth_required": page.auth_required,
+            "format": page.format,
+            "link_target": page.link_target,
+        }
+
         req = request.get_json()
 
         schema = PageSchema(partial=True)
@@ -159,6 +187,26 @@ class PageDetail(Resource):
 
         clear_pages()
 
+        log_audit(
+            action="page_update",
+            before=before_state,
+            after={
+                "title": response.data.get("title"),
+                "route": response.data.get("route"),
+                "content": response.data.get("content"),
+                "draft": response.data.get("draft"),
+                "hidden": response.data.get("hidden"),
+                "auth_required": response.data.get("auth_required"),
+                "format": response.data.get("format"),
+                "link_target": response.data.get("link_target"),
+            },
+            data={
+                "page_id": int(page_id),
+                "title": response.data.get("title"),
+                "route": response.data.get("route"),
+            },
+        )
+
         return {"success": True, "data": response.data}
 
     @admins_only
@@ -168,10 +216,29 @@ class PageDetail(Resource):
     )
     def delete(self, page_id):
         page = Pages.query.filter_by(id=page_id).first_or_404()
+
+        page_info = {
+            "page_id": page.id,
+            "title": page.title,
+            "route": page.route,
+            "content": page.content,
+            "draft": page.draft,
+            "hidden": page.hidden,
+            "auth_required": page.auth_required,
+            "format": page.format,
+            "link_target": page.link_target,
+        }
+
         db.session.delete(page)
         db.session.commit()
         db.session.close()
 
         clear_pages()
+
+        log_audit(
+            action="page_delete",
+            before=page_info,
+            data={"page_id": int(page_id), "title": page_info["title"], "route": page_info["route"]},
+        )
 
         return {"success": True}

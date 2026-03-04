@@ -316,9 +316,29 @@ class ChallengeList(Resource):
             data={
                 "challenge_id": challenge.id,
                 "name": challenge.name,
+                "description": challenge.description,
                 "category": challenge.category,
                 "type": challenge.type,
-                "value": challenge.value
+                "value": challenge.value,
+                "state": challenge.state,
+                "max_attempts": challenge.max_attempts,
+                "connection_info": challenge.connection_info,
+                "time_limit": challenge.time_limit,
+                "cooldown": challenge.cooldown,
+                "difficulty": challenge.difficulty,
+                "requirements": challenge.requirements,
+                "next_id": challenge.next_id,
+                "user_id": challenge.user_id,
+                "require_deploy": challenge.require_deploy,
+                "deploy_status": challenge.deploy_status,
+                "image_link": challenge.image_link,
+                "deploy_file": challenge.deploy_file,
+                "cpu_limit": challenge.cpu_limit,
+                "cpu_request": challenge.cpu_request,
+                "memory_limit": challenge.memory_limit,
+                "memory_request": challenge.memory_request,
+                "use_gvisor": challenge.use_gvisor,
+                "max_deploy_count": challenge.max_deploy_count,
             }
         )
 
@@ -564,10 +584,29 @@ class Challenge(Resource):
         # Store before state for audit
         before_state = {
             "name": challenge.name,
+            "description": challenge.description,
             "category": challenge.category,
+            "type": challenge.type,
             "value": challenge.value,
             "state": challenge.state,
-            "type": challenge.type
+            "max_attempts": challenge.max_attempts,
+            "connection_info": challenge.connection_info,
+            "time_limit": challenge.time_limit,
+            "cooldown": challenge.cooldown,
+            "difficulty": challenge.difficulty,
+            "requirements": challenge.requirements,
+            "next_id": challenge.next_id,
+            "user_id": challenge.user_id,
+            "require_deploy": challenge.require_deploy,
+            "deploy_status": challenge.deploy_status,
+            "image_link": challenge.image_link,
+            "deploy_file": challenge.deploy_file,
+            "cpu_limit": challenge.cpu_limit,
+            "cpu_request": challenge.cpu_request,
+            "memory_limit": challenge.memory_limit,
+            "memory_request": challenge.memory_request,
+            "use_gvisor": challenge.use_gvisor,
+            "max_deploy_count": challenge.max_deploy_count,
         }
 
         if user.type == "admin":
@@ -633,12 +672,31 @@ class Challenge(Resource):
             before=before_state,
             after={
                 "name": challenge.name,
+                "description": challenge.description,
                 "category": challenge.category,
+                "type": challenge.type,
                 "value": challenge.value,
                 "state": challenge.state,
-                "type": challenge.type
+                "max_attempts": challenge.max_attempts,
+                "connection_info": challenge.connection_info,
+                "time_limit": challenge.time_limit,
+                "cooldown": challenge.cooldown,
+                "difficulty": challenge.difficulty,
+                "requirements": challenge.requirements,
+                "next_id": challenge.next_id,
+                "user_id": challenge.user_id,
+                "require_deploy": challenge.require_deploy,
+                "deploy_status": challenge.deploy_status,
+                "image_link": challenge.image_link,
+                "deploy_file": challenge.deploy_file,
+                "cpu_limit": challenge.cpu_limit,
+                "cpu_request": challenge.cpu_request,
+                "memory_limit": challenge.memory_limit,
+                "memory_request": challenge.memory_request,
+                "use_gvisor": challenge.use_gvisor,
+                "max_deploy_count": challenge.max_deploy_count,
             },
-            data={"challenge_id": challenge_id}
+            data={"challenge_id": challenge_id, "name": challenge.name}
         )
         
         print("challengeState:" + challenge.state)
@@ -665,10 +723,29 @@ class Challenge(Resource):
         challenge_info = {
             "challenge_id": challenge.id,
             "name": challenge.name,
+            "description": challenge.description,
             "category": challenge.category,
             "type": challenge.type,
             "value": challenge.value,
-            "state": challenge.state
+            "state": challenge.state,
+            "max_attempts": challenge.max_attempts,
+            "connection_info": challenge.connection_info,
+            "time_limit": challenge.time_limit,
+            "cooldown": challenge.cooldown,
+            "difficulty": challenge.difficulty,
+            "requirements": challenge.requirements,
+            "next_id": challenge.next_id,
+            "user_id": challenge.user_id,
+            "require_deploy": challenge.require_deploy,
+            "deploy_status": challenge.deploy_status,
+            "image_link": challenge.image_link,
+            "deploy_file": challenge.deploy_file,
+            "cpu_limit": challenge.cpu_limit,
+            "cpu_request": challenge.cpu_request,
+            "memory_limit": challenge.memory_limit,
+            "memory_request": challenge.memory_request,
+            "use_gvisor": challenge.use_gvisor,
+            "max_deploy_count": challenge.max_deploy_count,
         }
         
         if challenge.require_deploy:
@@ -692,7 +769,7 @@ class Challenge(Resource):
         log_audit(
             action="challenge_delete",
             before=challenge_info,
-            data={"challenge_id": challenge_id}
+            data={"challenge_id": challenge_id, "name": challenge_info["name"]}
         )
         
         if(challenge.state == "visible"):
