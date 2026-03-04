@@ -1229,6 +1229,7 @@ class ChallengeVersionList(Resource):
                 "memory_limit": v.memory_limit,
                 "memory_request": v.memory_request,
                 "use_gvisor": v.use_gvisor,
+                "max_deploy_count": v.max_deploy_count,
                 "is_active": v.is_active,
                 "created_by": v.creator.name if v.creator else "Unknown",
                 "created_at": v.created_at.isoformat() if v.created_at else None,
@@ -1259,6 +1260,7 @@ class ChallengeVersionDetail(Resource):
             "memory_limit": version.memory_limit,
             "memory_request": version.memory_request,
             "use_gvisor": version.use_gvisor,
+            "max_deploy_count": version.max_deploy_count,
             "is_active": version.is_active,
             "created_by": version.creator.name if version.creator else "Unknown",
             "created_at": version.created_at.isoformat() if version.created_at else None,
@@ -1306,6 +1308,8 @@ class ChallengeVersionRollback(Resource):
                 challenge.memory_request = version.memory_request
             if version.use_gvisor is not None:
                 challenge.use_gvisor = version.use_gvisor
+            if version.max_deploy_count is not None:
+                challenge.max_deploy_count = version.max_deploy_count
 
             challenge.deploy_status = "DEPLOY_SUCCESS"
             challenge.last_update = datetime.utcnow()
@@ -1318,6 +1322,7 @@ class ChallengeVersionRollback(Resource):
                 "data": {
                     "version_number": version.version_number,
                     "image_tag": version.image_tag,
+                    "max_deploy_count": version.max_deploy_count,
                 }
             }
         except Exception as e:
