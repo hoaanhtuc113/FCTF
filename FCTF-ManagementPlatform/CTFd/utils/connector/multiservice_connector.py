@@ -599,12 +599,13 @@ def get_challenge_request_logs(challenge_id, team_id, ns=None):
         team_id = -1
 
     unix_time = str(int(time.time()))
-    secret_key = create_secret_key(
-        PRIVATE_KEY, unix_time, {
-            "challengeId": challenge_id,
-            "teamId": team_id,
-        }
-    )
+    signing_data = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+    }
+    if ns:
+        signing_data["ns"] = ns
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
     payload = {
         "challengeId": challenge_id,
         "teamId": team_id,
