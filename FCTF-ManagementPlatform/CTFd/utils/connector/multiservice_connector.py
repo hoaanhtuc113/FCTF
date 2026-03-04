@@ -462,6 +462,7 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
                         memory_limit=challenge.memory_limit,
                         memory_request=challenge.memory_request,
                         use_gvisor=challenge.use_gvisor,
+                        max_deploy_count=challenge.max_deploy_count,
                         is_active=True,
                         created_by=current_user_id,
                         notes=f"Auto-created on deploy: {image_tag}",
