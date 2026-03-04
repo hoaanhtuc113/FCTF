@@ -261,7 +261,8 @@ class Config(Resource):
         # Audit log
         log_audit(
             action="config_delete",
-            data=config_info
+            before=config_info,
+            data={"key": config_info["key"]}
         )
 
         clear_config()

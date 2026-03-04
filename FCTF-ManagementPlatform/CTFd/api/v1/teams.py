@@ -171,7 +171,14 @@ class TeamList(Resource):
             data={
                 "team_id": response.data.id,
                 "name": response.data.name,
-                "email": response.data.email
+                "email": response.data.email,
+                "website": response.data.website,
+                "affiliation": response.data.affiliation,
+                "country": response.data.country,
+                "bracket_id": response.data.bracket_id,
+                "hidden": response.data.hidden,
+                "banned": response.data.banned,
+                "captain_id": response.data.captain_id,
             }
         )
 
@@ -238,7 +245,11 @@ class TeamPublic(Resource):
             "email": team.email,
             "banned": team.banned,
             "hidden": team.hidden,
-            "captain_id": team.captain_id
+            "captain_id": team.captain_id,
+            "website": team.website,
+            "affiliation": team.affiliation,
+            "country": team.country,
+            "bracket_id": team.bracket_id,
         }
         
         data = request.get_json()
@@ -261,9 +272,14 @@ class TeamPublic(Resource):
                 "email": team.email,
                 "banned": team.banned,
                 "hidden": team.hidden,
-                "captain_id": team.captain_id
+                "captain_id": team.captain_id,
+                "website": team.website,
+                "affiliation": team.affiliation,
+                "country": team.country,
+                "bracket_id": team.bracket_id,
+                "password_changed": bool(data.get("password")),
             },
-            data={"team_id": team_id}
+            data={"team_id": team_id, "name": team.name}
         )
 
         clear_team_session(team_id=team.id)
@@ -288,7 +304,14 @@ class TeamPublic(Resource):
             "team_id": team.id,
             "name": team.name,
             "email": team.email,
-            "member_count": len(team.members)
+            "member_count": len(team.members),
+            "website": team.website,
+            "affiliation": team.affiliation,
+            "country": team.country,
+            "bracket_id": team.bracket_id,
+            "hidden": team.hidden,
+            "banned": team.banned,
+            "captain_id": team.captain_id,
         }
 
         for member in team.members:
@@ -301,7 +324,7 @@ class TeamPublic(Resource):
         log_audit(
             action="team_delete",
             before=team_info,
-            data={"team_id": team_id}
+            data={"team_id": team_id, "name": team_info["name"]}
         )
 
         clear_team_session(team_id=team_id)

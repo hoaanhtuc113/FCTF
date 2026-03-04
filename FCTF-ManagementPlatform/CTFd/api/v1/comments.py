@@ -18,6 +18,7 @@ from CTFd.models import (
 from CTFd.schemas.comments import CommentSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 
 comments_namespace = Namespace("comments", description="Endpoint to retrieve Comments")
 
@@ -140,6 +141,21 @@ class CommentList(Resource):
         response = schema.dump(m)
         db.session.close()
 
+        log_audit(
+            action="comment_create",
+            data={
+                "comment_id": response.data.get("id"),
+                "type": response.data.get("type"),
+                "content": response.data.get("content"),
+                "date": str(response.data.get("date")) if response.data.get("date") else None,
+                "challenge_id": response.data.get("challenge_id"),
+                "user_id": response.data.get("user_id"),
+                "team_id": response.data.get("team_id"),
+                "page_id": response.data.get("page_id"),
+                "author_id": response.data.get("author_id"),
+            },
+        )
+
         return {"success": True, "data": response.data}
 
 
@@ -152,8 +168,27 @@ class Comment(Resource):
     )
     def delete(self, comment_id):
         comment = Comments.query.filter_by(id=comment_id).first_or_404()
+
+        comment_info = {
+            "comment_id": comment.id,
+            "type": comment.type,
+            "content": comment.content,
+            "date": str(comment.date) if comment.date else None,
+            "author_id": comment.author_id,
+            "challenge_id": comment.challenge_id if hasattr(comment, 'challenge_id') else None,
+            "user_id": comment.user_id if hasattr(comment, 'user_id') else None,
+            "team_id": comment.team_id if hasattr(comment, 'team_id') else None,
+            "page_id": comment.page_id if hasattr(comment, 'page_id') else None,
+        }
+
         db.session.delete(comment)
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="comment_delete",
+            before=comment_info,
+            data={"comment_id": int(comment_id)},
+        )
 
         return {"success": True}

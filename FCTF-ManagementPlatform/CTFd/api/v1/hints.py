@@ -106,12 +106,24 @@ class HintList(Resource):
 
         response = schema.dump(response.data)
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         log_audit(
             action="hint_create",
             data={
                 "hint_id": response.data.get("id"),
-                "challenge_id": response.data.get("challenge_id"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+                "type": response.data.get("type"),
+                "content": response.data.get("content"),
                 "cost": response.data.get("cost"),
+                "requirements": response.data.get("requirements"),
             },
         )
 
@@ -231,8 +243,10 @@ class Hint(Resource):
 
         before_state = {
             "challenge_id": hint.challenge_id,
+            "type": hint.type,
             "content": hint.content,
             "cost": hint.cost,
+            "requirements": hint.requirements,
         }
 
         schema = HintSchema(view="admin")
@@ -246,15 +260,30 @@ class Hint(Resource):
 
         response = schema.dump(response.data)
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         log_audit(
             action="hint_update",
             before=before_state,
             after={
-                "challenge_id": response.data.get("challenge_id"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+                "type": response.data.get("type"),
                 "content": response.data.get("content"),
                 "cost": response.data.get("cost"),
+                "requirements": response.data.get("requirements"),
             },
-            data={"hint_id": int(hint_id)},
+            data={
+                "hint_id": int(hint_id),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+            },
         )
 
         return {"success": True, "data": response.data}
@@ -266,10 +295,22 @@ class Hint(Resource):
     )
     def delete(self, hint_id):
         hint = Hints.query.filter_by(id=hint_id).first_or_404()
+
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        if hint.challenge_id:
+            _ch = Challenges.query.filter_by(id=hint.challenge_id).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         hint_info = {
             "hint_id": hint.id,
             "challenge_id": hint.challenge_id,
+            "challenge_name": _challenge_name,
+            "type": hint.type,
+            "content": hint.content,
             "cost": hint.cost,
+            "requirements": hint.requirements,
         }
         db.session.delete(hint)
         db.session.commit()
@@ -278,7 +319,11 @@ class Hint(Resource):
         log_audit(
             action="hint_delete",
             before=hint_info,
-            data={"hint_id": int(hint_id)},
+            data={
+                "hint_id": int(hint_id),
+                "challenge_id": hint_info["challenge_id"],
+                "challenge_name": _challenge_name,
+            },
         )
 
         return {"success": True}

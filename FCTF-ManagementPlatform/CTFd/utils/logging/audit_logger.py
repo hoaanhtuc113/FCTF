@@ -35,6 +35,16 @@ _ACTION_TARGET_TYPES = {
     "tag_delete": "tag",
     "award_create": "award",
     "award_delete": "award",
+    "page_create": "page",
+    "page_update": "page",
+    "page_delete": "page",
+    "file_create": "file",
+    "file_delete": "file",
+    "comment_create": "comment",
+    "comment_delete": "comment",
+    "bracket_create": "bracket",
+    "bracket_update": "bracket",
+    "bracket_delete": "bracket",
     # Bulk / destructive admin operations
     "bulk_password_reset": "user",
     "ctf_reset": "system",
@@ -45,7 +55,7 @@ def _extract_target_id(action: str, data: dict | None) -> int | None:
     """Pull the primary-key integer of the affected entity from *data*."""
     if not data:
         return None
-    if action.startswith("user"):
+    if action.startswith("user") or action == "bulk_password_reset":
         return data.get("user_id")
     if action.startswith("team"):
         return data.get("team_id")
@@ -61,6 +71,14 @@ def _extract_target_id(action: str, data: dict | None) -> int | None:
         return data.get("tag_id")
     if action.startswith("award"):
         return data.get("award_id")
+    if action.startswith("page"):
+        return data.get("page_id")
+    if action.startswith("file"):
+        return data.get("file_id")
+    if action.startswith("comment"):
+        return data.get("comment_id")
+    if action.startswith("bracket"):
+        return data.get("bracket_id")
     return None
 
 
