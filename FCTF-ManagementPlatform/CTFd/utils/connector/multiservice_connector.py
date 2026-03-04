@@ -30,7 +30,6 @@ from CTFd.constants.envvars import (
     DOCKER_USERNAME,
 )
 import random 
-from CTFd.schemas.notifications import NotificationSchema
     
 redis_client = redis.StrictRedis(
     host=f"{REDIS_HOST}",
@@ -273,18 +272,7 @@ def delete_cached_files(challenge_id):
     print(f"Deleted {deleted_count} cache entries for challenge_id: {challenge_id}")
 
 
-def create_notification_data(challenge_name):
-    return {
-        "title": f"The challenge '{challenge_name}' is being redeployed",
-        "content": f"The challenge '{challenge_name}' is being redeployed. Please wait a few minutes",
-        "date": time.time(),
-        "html": f"<p>The challenge '<strong>{challenge_name}</strong>' is being redeployed. Please wait a few minutes</p>\n",
-        "sound": True,
-        "type": "toast",
-    }
-
-
-def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data):
+def handle_zip_file_upload(challenge, file_path, challenge_id):
     """
     Handle the zip file upload process
     """
@@ -309,9 +297,6 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
 
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
-                if(challenge.state != "hidden"):
-                    print("Gui thong bao")
-                    post_notification(notification_data)
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"
@@ -327,7 +312,7 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
         else:
             return jsonify({"error": "Challenge already pending deploy"}), 400
 
-def handle_challenge_upload(challenge, file_path, notification_data, expose_port=None):
+def handle_challenge_upload(challenge, file_path, expose_port=None):
     """
     Handle the challenge upload process
     - Unzip the uploaded file
@@ -397,9 +382,6 @@ def handle_challenge_upload(challenge, file_path, notification_data, expose_port
         # Update challenge status
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
-                if challenge.state != "hidden":
-                    print("Sending notification...")
-                    post_notification(notification_data)
                 unix_time = str(int(time.time()))
                 image_tag = f"challenge-{challenge.id}-{safe_folder_name}-{unix_time}"
                 image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}:{image_tag}"
@@ -678,25 +660,6 @@ def start_challenge_status_checking(challenge_id, team_id):
         print(f"Error connecting to API: {e}")
         return {"success": False, "message": "Connection url failed"}, 400
 
-def post_notification(notify_data):
-
-    schema = NotificationSchema()
-    result = schema.load(notify_data)
-    if result.errors:
-        return {"success": False, "errors": result.errors}, 400
-
-    db.session.add(result.data)
-    db.session.commit()
-
-    response = schema.dump(result.data)
-
-    # Grab additional settings
-    notif_type = notify_data.get("type", "alert")
-    notif_sound = notify_data.get("sound", True)
-    response.data["type"] = notif_type
-    response.data["sound"] = notif_sound
-    return {"success": True}
-    
 def delete_challenge(challenge_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
