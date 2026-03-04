@@ -17,10 +17,15 @@ branch_labels = None
 depends_on = None
 
 
-def _fk_exists(bind, table_name, fk_name):
+def _fks_on_column(bind, table_name, column_name):
+    """Return names of all FKs that include the given column."""
     inspector = Inspector.from_engine(bind)
     fks = inspector.get_foreign_keys(table_name)
-    return any(fk.get("name") == fk_name for fk in fks)
+    return [
+        fk["name"]
+        for fk in fks
+        if fk.get("name") and column_name in fk.get("constrained_columns", [])
+    ]
 
 
 def _column_exists(bind, table_name, column_name):
@@ -37,17 +42,17 @@ def _table_exists(bind, table_name):
 def upgrade():
     bind = op.get_bind()
 
-    # Drop foreign key + column page_id from comments
+    # Drop any foreign keys on page_id + the column itself from comments
     with op.batch_alter_table("comments", schema=None) as batch_op:
-        if _fk_exists(bind, "comments", "comments_ibfk_page"):
-            batch_op.drop_constraint("comments_ibfk_page", type_="foreignkey")
+        for fk_name in _fks_on_column(bind, "comments", "page_id"):
+            batch_op.drop_constraint(fk_name, type_="foreignkey")
         if _column_exists(bind, "comments", "page_id"):
             batch_op.drop_column("page_id")
 
-    # Drop foreign key + column page_id from files
+    # Drop any foreign keys on page_id + the column itself from files
     with op.batch_alter_table("files", schema=None) as batch_op:
-        if _fk_exists(bind, "files", "files_ibfk_page"):
-            batch_op.drop_constraint("files_ibfk_page", type_="foreignkey")
+        for fk_name in _fks_on_column(bind, "files", "page_id"):
+            batch_op.drop_constraint(fk_name, type_="foreignkey")
         if _column_exists(bind, "files", "page_id"):
             batch_op.drop_column("page_id")
 
