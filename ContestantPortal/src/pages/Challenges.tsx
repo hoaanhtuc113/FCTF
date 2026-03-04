@@ -1,4 +1,4 @@
-import { Typography, CircularProgress, Box, Tabs, Tab } from '@mui/material';
+import { Typography, CircularProgress, Box, Tabs, Tab, Tooltip } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -72,6 +72,12 @@ interface Challenge {
   captain_only_submit?: boolean;
   requirements?: ChallengeRequirements | null;
   pod_status?: string | null;
+  difficulty?: number | null;
+  max_deploy_count?: number | null;
+  deployed_count?: number;
+  // backend now provides the ID and name of the "next" challenge in a sequence
+  next_id?: number | null;
+  next_name?: string | null;
 }
 
 interface PrerequisiteChallenge {
@@ -496,6 +502,62 @@ export function Challenges() {
     await handleChallengeClickInternal(challenge);
   };
 
+  const handleNavigateToChallenge = async (challengeId: number) => {
+    let targetChallenge: Challenge | null = null;
+    let targetCategory: string | null = null;
+
+    challengesByCategory.forEach((list, categoryName) => {
+      if (targetChallenge) return;
+      const found = list.find(item => item.id === challengeId);
+      if (found) {
+        targetChallenge = found;
+        targetCategory = categoryName;
+      }
+    });
+
+    if (!targetChallenge) {
+      for (const category of categories) {
+        const categoryName = category.topic_name;
+        const list = challengesByCategory.get(categoryName) ?? await fetchChallenges(categoryName);
+        const found = list.find(item => item.id === challengeId);
+        if (found) {
+          targetChallenge = found;
+          targetCategory = categoryName;
+          break;
+        }
+      }
+    }
+
+    if (!targetChallenge || !targetCategory) {
+      await Swal.fire({
+        html: '<div class="font-mono text-sm text-red-400">[!] Challenge not found</div>',
+        icon: 'error',
+        iconColor: '#ef4444',
+        confirmButtonText: 'OK',
+        background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+        color: theme === 'dark' ? '#ef4444' : '#000000',
+        customClass: {
+          popup: 'rounded-lg border border-red-500/30',
+          confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-mono px-4 py-2 rounded',
+        },
+      });
+      return;
+    }
+
+    const resolvedCategory = targetCategory;
+
+    setExpandedCategories(prev => new Set(prev).add(resolvedCategory));
+    setSelectedCategory(resolvedCategory);
+    processedChallengeRef.current = null;
+
+    setSearchParams({
+      category: resolvedCategory,
+      challenge: targetChallenge.id.toString(),
+    }, { replace: true });
+
+    await handleChallengeClickInternal(targetChallenge);
+  };
+
   const getCategoryIcon = (name: string) => {
     const iconMap: { [key: string]: React.JSX.Element } = {
       'Web': <Security className="text-lg" />,
@@ -721,6 +783,7 @@ export function Challenges() {
               onFlagSuccess={refreshChallengeData}
               isSidebarVisible={isSidebarVisible}
               onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+              onNavigate={handleNavigateToChallenge}
             />
           </motion.div>
         ) : null}
@@ -1136,7 +1199,8 @@ function ChallengeDetailPanel({
   onClose,
   onFlagSuccess,
   isSidebarVisible = true,
-  onToggleSidebar
+  onToggleSidebar,
+  onNavigate
 }: {
   challenge: Challenge;
   theme: string;
@@ -1144,6 +1208,7 @@ function ChallengeDetailPanel({
   onFlagSuccess?: () => Promise<void>;
   isSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
+  onNavigate?: (id: number) => void; // optional callback when user wants to jump to another challenge
 }) {
   const [answer, setAnswer] = useState('');
   const [hints, setHints] = useState<Hint[]>([]);
@@ -1170,6 +1235,12 @@ function ChallengeDetailPanel({
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [copiedTcp, setCopiedTcp] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
+
+  // derive gateway/ports from environment helper so we can display them in the UI
+  const baseGateway = getBaseGateway();
+  const httpPort = getHttpPort();
+  const tcpPort = getTcpPort();
+
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
@@ -3234,6 +3305,8 @@ function ChallengeDetailPanel({
               {challenge.solve_by_myteam && '[✓] '}
               {challenge.name}
             </h2>
+
+            {/* header no longer shows next challenge; recommendation moved down below guidelines */}
           </div>
 
           <div className="flex items-center gap-2">
@@ -3487,33 +3560,74 @@ function ChallengeDetailPanel({
 
             {/* Info Badges */}
             <div className="flex flex-wrap gap-2 text-xs font-mono">
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
-                ? 'bg-gray-700 text-gray-300 border-gray-600'
-                : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                {challenge.value} pts
-              </span>
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
-                ? 'bg-gray-700 text-gray-300 border-gray-600'
-                : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
-              </span>
-              <span className={`px-2 py-1 rounded border ${theme === 'dark'
-                ? 'bg-gray-700 text-gray-300 border-gray-600'
-                : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}>
-                Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
-              </span>
-              {challenge.solves !== undefined && (
-                <span className={`px-2 py-1 rounded border ${theme === 'dark'
-                  ? 'bg-gray-700 text-gray-300 border-gray-600'
-                  : 'bg-gray-100 text-gray-700 border-gray-300'
-                  }`}>
-                  {challenge.solves} solves
+              <Tooltip title="Point value of this challenge" placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                  {challenge.value} pts
                 </span>
+              </Tooltip>
+              <Tooltip title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                  Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
+                </span>
+              </Tooltip>
+              <Tooltip title={challenge.max_attempts === 0 ? 'Unlimited submission attempts' : `Maximum ${challenge.max_attempts} submission attempt${challenge.max_attempts === 1 ? '' : 's'}`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                  Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
+                </span>
+              </Tooltip>
+              {challenge.solves !== undefined && (
+                <Tooltip title={`${challenge.solves} team${challenge.solves === 1 ? '' : 's'} have solved this challenge`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                  <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                    {challenge.solves} solves
+                  </span>
+                </Tooltip>
+              )}
+              {challenge.require_deploy && (
+                <Tooltip
+                  title={
+                    (challenge.max_deploy_count == null || challenge.max_deploy_count === 0)
+                      ? 'Unlimited deployments allowed'
+                      : (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                        ? `Deploy limit reached (${challenge.deployed_count}/${challenge.max_deploy_count})`
+                        : `${challenge.deployed_count ?? 0} of ${challenge.max_deploy_count} deployments used`
+                  }
+                  placement="top" arrow enterDelay={0} enterNextDelay={0}
+                >
+                  <span className={`cursor-help px-2 py-1 rounded border ${challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
+                      (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                      ? theme === 'dark' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-red-50 text-red-700 border-red-300'
+                      : theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'
+                    }`}>
+                    Deploys: {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0) ? '∞' : `${challenge.deployed_count ?? 0}/${challenge.max_deploy_count}`}
+                  </span>
+                </Tooltip>
               )}
             </div>
+
+            {/* Difficulty Stars */}
+            {challenge.difficulty != null && (
+              <div>
+                <div className={`text-xs font-mono font-bold mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  [DIFFICULTY]
+                </div>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span
+                      key={i}
+                      className={`text-base leading-none ${i < (challenge.difficulty ?? 0)
+                          ? theme === 'dark' ? 'text-yellow-400' : 'text-yellow-500'
+                          : theme === 'dark' ? 'text-gray-600' : 'text-gray-300'
+                        }`}
+                    >
+                      {i < (challenge.difficulty ?? 0) ? '★' : '☆'}
+                    </span>
+                  ))}
+                  <span className={`ml-1 text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {challenge.difficulty}/5
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Description - Show in right column when no PDF, or always show */}
             {hasDescription && (
@@ -3757,10 +3871,10 @@ function ChallengeDetailPanel({
                       onClick={handleSubmitFlag}
                       disabled={isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain)}
                       className={`w-full rounded border px-3 py-2.5 font-mono text-[13px] transition-colors ${(isSubmittingFlag || !answer.trim() || cooldownRemaining > 0 || (challenge.captain_only_submit && !challenge.is_captain))
-                          ? (theme === 'dark'
-                            ? 'bg-zinc-900 text-zinc-500 border-zinc-800 cursor-not-allowed'
-                            : 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed')
-                          : 'bg-orange-400 hover:bg-orange-500 text-white border-orange-400 hover:border-orange-500 cursor-pointer'
+                        ? (theme === 'dark'
+                          ? 'bg-zinc-900 text-zinc-500 border-zinc-800 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed')
+                        : 'bg-orange-400 hover:bg-orange-500 text-white border-orange-400 hover:border-orange-500 cursor-pointer'
                         }`}
                     >
                       {isSubmittingFlag
@@ -3886,7 +4000,7 @@ function ChallengeDetailPanel({
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Get your Token from [YOUR ACCESS TOKEN]</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Access the challenge with token:</p>
                         <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          http://basegateway:port/YOUR_TOKEN
+                          {`http://${baseGateway}:${httpPort}/YOUR_TOKEN`}
                         </code>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Gateway will remember you</p>
                         <p className={`text-[10px] italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>Note: Re-enter token to switch challenges</p>
@@ -3903,7 +4017,7 @@ function ChallengeDetailPanel({
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Open Terminal/PowerShell</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Connect to gateway:</p>
                         <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          nc basegateway port
+                          {`nc ${baseGateway} ${tcpPort}`}
                         </code>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Enter your token when prompted</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 4:</span> See "Access Granted!" message</p>
@@ -3913,6 +4027,34 @@ function ChallengeDetailPanel({
                 )}
               </div>
             )}
+
+            {challenge.next_id && (
+              <div className="mt-6 flex items-center gap-3">
+                {/* Status label - keep it concise and professional */}
+                <span className="shrink-0 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter text-gray-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                  We Recommend You Try This Challenge Next:
+                </span>
+
+                <button
+                  onClick={() => onNavigate && challenge.next_id && onNavigate(challenge.next_id)}
+                  className="group flex items-center gap-2 px-3 py-1.5 rounded-lg border border-orange-200 bg-white text-orange-700 shadow-sm transition-all duration-300 hover:border-orange-500 hover:bg-orange-50 hover:shadow-md active:scale-95"
+                >
+                  <span className="text-xs font-mono font-bold">
+                    {challenge.next_name}
+                  </span>
+
+                  {/* Icon mũi tên kiểu 'Double Arrow' cho cảm giác tiến tới */}
+                  <svg
+                    className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
 
           </div>
         </div>

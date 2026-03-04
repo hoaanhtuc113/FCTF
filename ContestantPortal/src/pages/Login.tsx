@@ -35,7 +35,8 @@ export function Login() {
     try {
       await login(username, password);
       toast.success('auth_success');
-      navigate('/dashboard');
+      // after authentication, go directly to the challenges page
+      navigate('/challenges');
     } catch (err) {
       console.log(err);
       // Display error message from backend 
@@ -74,23 +75,22 @@ export function Login() {
       <Box sx={{ maxWidth: '500px', width: '100%' }}>
         {/* Logo or ASCII Header */}
         <Box sx={{ mb: 4, color: colors.text, textAlign: 'center' }}>
-          {logoUrl ? (
+          <Box
+            sx={{
+              mb: 4,
+              color: colors.text,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center',
+            }}
+          >
             <img
-              src={logoUrl}
+              src={logoUrl || '/assets/fctf-logo.png'}
               alt="logo"
-              className="mx-auto mb-2"
               style={{ maxWidth: '150px' }}
             />
-          ) : (
-            <pre style={{ fontSize: '10px', lineHeight: '1.2', margin: 0 }}>
-              {`  ███████╗ ██████╗████████╗███████╗
-  ██╔════╝██╔════╝╚══██╔══╝██╔════╝
-  █████╗  ██║        ██║   █████╗  
-  ██╔══╝  ██║        ██║   ██╔══╝  
-  ██║     ╚██████╗   ██║   ██║     
-  ╚═╝      ╚═════╝   ╚═╝   ╚═╝`}
-            </pre>
-          )}
+          </Box>
 
           <Box sx={{ mt: 2, color: colors.textSecondary, fontSize: '13px' }}>
             FPT_CAPTURE_THE_FLAG

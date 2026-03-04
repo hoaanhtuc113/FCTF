@@ -11,6 +11,8 @@ namespace ResourceShared.DTOs.Challenge
         public int id { get; set; }
         public string name { get; set; } = "";
         public int? next_id { get; set; }
+        // human readable name of the next challenge
+        public string? next_name { get; set; }
         public int? max_attempts { get; set; }
         public int? value { get; set; }
         public string? category { get; set; }
@@ -19,6 +21,7 @@ namespace ResourceShared.DTOs.Challenge
         public ChallengeRequirementsDTO? requirements { get; set; }
         public bool solve_by_myteam { get; set; }
         public string? pod_status { get; set; } = null;
+        public int? difficulty { get; set; }
 
     }
 }

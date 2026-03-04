@@ -1,7 +1,6 @@
 import { authService } from './authService';
 
 export const API_BASE_URL = window?.__ENV__?.VITE_API_URL || import.meta.env.VITE_API_URL;
-
 export async function fetchWithAuth(url: string, options: RequestInit = {}, API = API_BASE_URL) {
   const token = authService.getToken();
   

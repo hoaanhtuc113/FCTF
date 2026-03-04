@@ -24,6 +24,15 @@ export interface ContestConfig {
   name?: string;
 }
 
+export class ScoreboardVisibilityError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ScoreboardVisibilityError';
+    this.status = status;
+  }
+}
+
 class PublicScoreboardService {
   private baseUrl: string;
 
@@ -33,32 +42,35 @@ class PublicScoreboardService {
   }
 
   async getPublicScoreboard(): Promise<ScoreboardData> {
-    try {
-      const response = await fetch(`${this.baseUrl}/scoreboard/top/1000`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch public scoreboard');
-      }
-      
-      const result = await response.json();
-      
-      // Handle different response structures
-      if (result.data) {
-        return result.data;
-      } else if (result.success && result.data) {
-        return result.data;
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Error fetching public scoreboard:', error);
-      throw error;
+    const response = await fetch(`${this.baseUrl}/scoreboard/top/1000`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.status === 403) {
+      throw new ScoreboardVisibilityError('Scores are currently hidden.', 403);
     }
+
+    if (response.status === 401) {
+      throw new ScoreboardVisibilityError('Scores are private. Please log in to view the scoreboard.', 401);
+    }
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch public scoreboard');
+    }
+
+    const result = await response.json();
+
+    // Handle different response structures
+    if (result.data) {
+      return result.data;
+    } else if (result.success && result.data) {
+      return result.data;
+    }
+
+    return result;
   }
 
   async getContestConfig(): Promise<ContestConfig> {

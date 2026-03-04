@@ -317,7 +317,7 @@ function loadChalTemplate(challenge) {
 function handleChallengeOptions(event) {
   event.preventDefault();
   var params = $(event.target).serializeJSON(true);
-  const requireDeploy = params.require_deploy === true || params.require_deploy === "true";
+  const requireDeploy = params.require_deploy === true || params.require_deploy === "true" || params.require_deploy === "on";
   let cpuLimit = 0;
   let cpuRequest = 0;
   let memoryLimit = 0;
@@ -356,47 +356,29 @@ function handleChallengeOptions(event) {
     type: params.flag_type,
     data: params.flag_data ? params.flag_data : "",
   };
-  // Define a save_challenge function
-  let save_challenge = function () {
-    const body = {
-      state: params.state,
-      max_deploy_count: maxDeployCount,
-    };
-    if (requireDeploy) {
-      body.cpu_limit = cpuLimit;
-      body.cpu_request = cpuRequest;
-      body.memory_limit = memoryLimit;
-      body.memory_request = memoryRequest;
-      body.use_gvisor = useGvisor;
-    } else {
-      body.cpu_limit = null;
-      body.cpu_request = null;
-      body.memory_limit = null;
-      body.memory_request = null;
-      body.use_gvisor = null;
-    }
-    CTFd.fetch("/api/v1/challenges/" + params.challenge_id, {
-      method: "PATCH",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    })
-      .then(function (response) {
-        return response.json();
-      })
-      .then(function (data) {
-        if (data.success) {
-          setTimeout(function () {
-            window.location =
-              CTFd.config.urlRoot + "/admin/challenges/" + params.challenge_id;
-          }, 700);
-        }
-      });
+  // Build PATCH body for challenge update
+  const patchBody = {
+    state: params.state,
+    max_deploy_count: maxDeployCount,
+    require_deploy: requireDeploy,
   };
+  if (requireDeploy) {
+    patchBody.cpu_limit = cpuLimit;
+    patchBody.cpu_request = cpuRequest;
+    patchBody.memory_limit = memoryLimit;
+    patchBody.memory_request = memoryRequest;
+    patchBody.use_gvisor = useGvisor;
+  } else {
+    patchBody.cpu_limit = null;
+    patchBody.cpu_request = null;
+    patchBody.memory_limit = null;
+    patchBody.memory_request = null;
+    patchBody.use_gvisor = null;
+  }
 
+  // Step 1: Save flag + PATCH challenge in parallel.
+  // PATCH must complete BEFORE file upload so that when handle_challenge_upload
+  // creates a ChallengeVersion it reads the correct cpu/mem/gvisor from the DB.
   Promise.all([
     // Save flag
     new Promise(function (resolve, _reject) {
@@ -416,21 +398,32 @@ function handleChallengeOptions(event) {
         resolve(response.json());
       });
     }),
-    // Upload files
-    new Promise(function (resolve, _reject) {
-      const btnFinish = $(event.target).find('#deploy-btn');
-      btnFinish.prop('disabled', true);
+    // PATCH challenge first so cpu/mem/gvisor are persisted before deploy file upload
+    CTFd.fetch("/api/v1/challenges/" + params.challenge_id, {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(patchBody),
+    }).then(function (response) {
+      return response.json();
+    }),
+  ]).then(function (_responses) {
+    // Step 2: Upload files AFTER PATCH has committed cpu/mem/gvisor to DB
+    const btnFinish = $(event.target).find('#deploy-btn');
+    btnFinish.prop('disabled', true);
+    return new Promise(function (resolve, _reject) {
       try {
         let form = event.target;
         let data = {
-          challenge: params.challenge_id,
+          challenge_id: params.challenge_id,
           type: "challenge",
         };
         let filepath = $(form.elements["file"]).val();
         let deploy_file_path = $(form.elements["deploy_file"]).val();
         if (filepath || deploy_file_path) {
-          console.log("Uploading files with data:", data);
-          console.log("Form being submitted:", form);
           helpers.files
             .upload(form, data)
             .then(() => {
@@ -439,19 +432,23 @@ function handleChallengeOptions(event) {
             })
             .catch((error) => {
               btnFinish.prop('disabled', false);
-              reject(`Error uploading files: ${error.message}`);
+              resolve(); // Don't block redirect on upload error
             });
         } else {
           btnFinish.prop('disabled', false);
-          resolve(); // Không có file để upload
+          resolve();
         }
       } catch (error) {
         btnFinish.prop('disabled', false);
-        _reject(`Unexpected error during file upload: ${error.message}`);
+        resolve();
       }
-    }),
-  ]).then((_responses) => {
-    save_challenge();
+    });
+  }).then(function () {
+    // Step 3: Redirect to challenge detail page
+    setTimeout(function () {
+      window.location =
+        CTFd.config.urlRoot + "/admin/challenges/" + params.challenge_id;
+    }, 700);
   });
 }
 

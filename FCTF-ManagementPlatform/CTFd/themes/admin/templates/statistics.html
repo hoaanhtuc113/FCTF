@@ -2,34 +2,20 @@
 
 {% block content %}
 <style>
-	/* Clean Dashboard Page Styles */
-	.statistics-page .page-header {
-		background: #ffffff;
-		padding: 2rem 0 1rem 0;
-		margin-bottom: 2rem;
-	}
-	
-	.statistics-page .page-header h1 {
-		color: #2c3e50;
-		font-weight: 700;
-		font-size: 1.75rem;
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-	
+	/* Clean Dashboard Page Styles — header inherits from base.html */
+
 	.statistics-container {
-		padding: 2rem 0;
+		padding: 0;
 	}
-	
+
 	.statistics-text {
 		background: #ffffff;
 		padding: 2rem;
 		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 		border: 1px solid #e8e8e8;
 	}
-	
+
 	.statistics-text h5 {
 		color: #495057;
 		font-size: 0.95rem;
@@ -37,27 +23,27 @@
 		font-weight: 500;
 		line-height: 1.6;
 	}
-	
+
 	.statistics-text h5 b {
 		color: #2c3e50;
 		font-weight: 700;
 		font-size: 1.1rem;
 	}
-	
+
 	.statistics-text hr {
 		border-top: 2px solid #e8e8e8;
 		margin: 1.5rem 0;
 	}
-	
+
 	.graph-container {
 		background: #ffffff;
 		padding: 2rem;
 		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 		border: 1px solid #e8e8e8;
 		min-height: 400px;
 	}
-	
+
 	.graph-title {
 		color: #2c3e50;
 		font-weight: 600;
@@ -66,18 +52,18 @@
 		padding-bottom: 0.75rem;
 		border-bottom: 2px solid #e8e8e8;
 	}
-	
+
 	.spinner {
 		color: #ff6b35;
 	}
-	
+
 	.section-divider {
 		border: 0;
 		height: 2px;
 		background: linear-gradient(to right, transparent, #e8e8e8, transparent);
 		margin: 2rem 0;
 	}
-	
+
 	.stats-highlight {
 		display: inline-block;
 		padding: 0.25rem 0.5rem;
@@ -86,7 +72,7 @@
 		color: #ff6b35;
 		font-weight: 700;
 	}
-	
+
 	.pie-stats {
 		text-align: center;
 		margin-top: 1.5rem;
@@ -94,13 +80,13 @@
 		background: #f8f9fa;
 		border-radius: 6px;
 	}
-	
+
 	.pie-stats h5 {
 		color: #495057;
 		font-size: 0.9rem;
 		margin: 0.5rem 0;
 	}
-	
+
 	.pie-stats h5 b {
 		color: #ff6b35;
 		font-size: 1.2rem;
@@ -110,10 +96,10 @@
 <div class="statistics-page">
 	<div class="page-header">
 		<div class="container">
-			<h1>Statistics</h1>
+			<h1><i class="bx bx-bar-chart-alt-2"></i> Statistics</h1>
 		</div>
 	</div>
-	
+
 	<div class="container statistics-container">
 		<div class="row d-flex align-items-stretch">
 			<div class="col-md-4 mb-4">
@@ -127,10 +113,12 @@
 					<h5><b>{{ total_points }}</b> total possible points</h5>
 					<h5><b>{{ challenge_count }}</b> challenges</h5>
 					{% if most_solved %}
-						<h5><span class="stats-highlight">{{ most_solved }}</span> has the most solves with <br><b>{{ solve_data[most_solved] }}</b> solves</h5>
+					<h5><span class="stats-highlight">{{ most_solved }}</span> has the most solves with <br><b>{{
+							solve_data[most_solved] }}</b> solves</h5>
 					{% endif %}
 					{% if least_solved %}
-					<h5><span class="stats-highlight">{{ least_solved }}</span> has the least solves with <br><b>{{ solve_data[least_solved] }}</b> solves</h5>
+					<h5><span class="stats-highlight">{{ least_solved }}</span> has the least solves with <br><b>{{
+							solve_data[least_solved] }}</b> solves</h5>
 					{% endif %}
 				</div>
 			</div>
@@ -182,6 +170,31 @@
 		<div class="row">
 			<div class="col-md-6 mb-4">
 				<div class="graph-container">
+					<div class="graph-title">Avg Solve Time per Challenge</div>
+					<div id="avg-solve-time-graph" class="d-flex align-items-center" style="min-height: 320px;">
+						<div class="text-center w-100">
+							<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-6 mb-4">
+				<div class="graph-container">
+					<div class="graph-title">Wrong Attempts per Challenge</div>
+					<div id="wrong-attempts-graph" class="d-flex align-items-center" style="min-height: 320px;">
+						<div class="text-center w-100">
+							<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<hr class="section-divider">
+
+		<div class="row">
+			<div class="col-md-6 mb-4">
+				<div class="graph-container">
 					<div class="graph-title">Submission Results</div>
 					<div id="keys-pie-graph" class="d-flex align-items-center" style="min-height: 300px;">
 						<div class="text-center w-100">
@@ -205,6 +218,57 @@
 				</div>
 			</div>
 		</div>
+
+		<hr class="section-divider">
+
+		<div class="row">
+			<div class="col-md-12 mb-4">
+				<div class="graph-container">
+					<div class="d-flex align-items-center justify-content-between graph-title">
+						<span>Challenge Analytics (CTF Time)</span>
+						<button type="button" class="btn btn-sm btn-outline-primary" id="challenge-analytics-export">
+							Export CSV
+						</button>
+					</div>
+					<div class="row">
+						<div class="col-md-8">
+							<div class="table-responsive">
+								<table class="table table-sm" id="challenge-analytics-table">
+									<thead>
+										<tr>
+											<th>Challenge</th>
+											<th>% Solve</th>
+											<th>Avg Time</th>
+											<th>Wrong Attempts</th>
+											<th>Hint Usage</th>
+											<th>Hints</th>
+											<th>Hint Usage/Hints</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td colspan="7" class="text-center">Loading...</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+						<div class="col-md-4">
+							<div id="category-solves-graph" class="d-flex align-items-center"
+								style="min-height: 320px;">
+								<div class="text-center w-100">
+									<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+								</div>
+							</div>
+							<div class="pie-stats">
+								<h5>Most solved category: <b id="category-most-solved">-</b></h5>
+								<h5>Least solved category: <b id="category-least-solved">-</b></h5>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
 {% endblock %}
@@ -213,5 +277,5 @@
 {% endblock %}
 
 {% block entrypoint %}
-	{{ Assets.js("assets/js/pages/statistics.js", theme="admin") }}
+{{ Assets.js("assets/js/pages/statistics.js", theme="admin") }}
 {% endblock %}

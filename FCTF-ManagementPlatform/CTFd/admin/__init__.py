@@ -25,7 +25,6 @@ admin = Blueprint("admin", __name__)
 # isort:imports-firstparty
 from CTFd.admin import rewards  # noqa: F401,I001
 from CTFd.admin import challenges  # noqa: F401,I001
-from CTFd.admin import notifications  # noqa: F401,I001
 from CTFd.admin import pages  # noqa: F401,I001
 from CTFd.admin import scoreboard  # noqa: F401,I001
 from CTFd.admin import statistics  # noqa: F401,I001
@@ -37,6 +36,8 @@ from CTFd.admin import monitors
 from CTFd.admin import exports
 from CTFd.admin import estimation
 from CTFd.admin import action_logs  # noqa: F401
+from CTFd.admin import admin_audit  # noqa: F401
+from CTFd.admin import instances_history  # noqa: F401
 
 from CTFd.cache import (
     cache,
@@ -48,17 +49,27 @@ from CTFd.cache import (
     clear_standings,
 )
 from CTFd.models import (
+    Achievements,
+    ActionLogs,
+    AdminAuditLog,
     Awards,
+    ChallengeStartTracking,
+    ChallengeVersion,
     Challenges,
     Configs,
-    Notifications,
+    DeployedChallenge,
+    FieldEntries,
+    Fields,
     Pages,
     Solves,
     Submissions,
+    Tickets,
     Teams,
     Tracking,
+    Tokens,
     Unlocks,
     Users,
+    AwardBadges,
     db,
 )
 from CTFd.utils import config as ctf_config
@@ -67,6 +78,7 @@ from CTFd.utils.csv import dump_csv, load_challenges_csv, load_teams_csv, load_u
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.exports import background_import_ctf
 from CTFd.utils.exports import export_ctf as export_ctf_util
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.auth import logout_user
 from CTFd.utils.uploads import delete_file
 from CTFd.utils.user import is_admin,is_challenge_writer,is_jury
@@ -408,6 +420,12 @@ def dump_csv_with_passwords(field=None, q=None):
 
     db.session.commit()
     output.seek(0)
+
+    log_audit(
+        action="bulk_password_reset",
+        data={"count": len(results)},
+    )
+
     return io.BytesIO(output.getvalue().encode("utf-8"))
 
 def dump_csv_without_passwords(field=None, q=None):
@@ -493,6 +511,24 @@ def reset():
 
         data = request.form
 
+        if data.get("challenges"):
+            ChallengeStartTracking.query.delete()
+            ChallengeVersion.query.delete()
+            DeployedChallenge.query.delete()
+            Achievements.query.delete()
+            AwardBadges.query.delete()
+
+        if data.get("accounts"):
+            ActionLogs.query.delete()
+            Tickets.query.delete()
+            Tokens.query.delete()
+            FieldEntries.query.delete()
+            Fields.query.delete()
+
+        if data.get("logs"):
+            ActionLogs.query.delete()
+            AdminAuditLog.query.delete()
+
         if data.get("pages"):
             _pages = Pages.query.all()
             for p in _pages:
@@ -500,9 +536,6 @@ def reset():
                     delete_file(file_id=f.id)
 
             Pages.query.delete()
-
-        if data.get("notifications"):
-            Notifications.query.delete()
 
         if data.get("challenges"):
             _challenges = Challenges.query.all()
@@ -531,6 +564,17 @@ def reset():
             next_url = url_for("views.setup")
 
         db.session.commit()
+
+        # Audit: record what was wiped
+        reset_scope = [
+            k
+            for k in ["pages", "challenges", "accounts", "submissions", "logs"]
+            if data.get(k)
+        ]
+        log_audit(
+            action="ctf_reset",
+            data={"wiped_sections": reset_scope},
+        )
 
         clear_pages()
         clear_standings()

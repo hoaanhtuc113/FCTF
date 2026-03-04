@@ -7,7 +7,6 @@ import requests  # noqa: I001
 
 from flask import abort, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
-from CTFd.utils.notifications import notify_to_contestant
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
@@ -75,7 +74,13 @@ from CTFd.utils.user import (
     is_jury,
 )
 
-from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification, get_workflow_status ,get_workflow_name, delete_cached_files
+from CTFd.utils.connector.multiservice_connector import (
+    delete_challenge,
+    force_stop,
+    get_workflow_status,
+    get_workflow_name,
+    delete_cached_files,
+)
 from CTFd.utils.uploads import delete_folder
 
 challenges_namespace = Namespace(
@@ -284,6 +289,17 @@ class ChallengeList(Resource):
         # Validate category max length
         if len(data.get("category", "")) > 20:
             return {"success": False, "errors": {"category": ["Category must be 20 characters or less"]}}, 400
+
+        # Normalize difficulty: empty string → None so schema validation passes
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
 
         schema = ChallengeSchema()
         response = schema.load(data)
@@ -521,6 +537,16 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+        # Normalize difficulty: empty string → None so schema validation passes
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         data["user_id"] = session["id"]
@@ -617,19 +643,8 @@ class Challenge(Resource):
         
         print("challengeState:" + challenge.state)
         if challenge.state == "visible":
-            notify_to_contestant(notif_type = "toast",
-                                notif_sound = True,
-                                notif_title = "Thông báo từ ban quản trị",
-                                notif_message = f"Thử thách '{challenge.name}' vừa được cập nhật.")
-            notification_data = {
-                "title": f"Thông báo từ ban quản trị",
-                "content": f"Thử thách '{challenge.name}' vừa được cập nhật.",
-                "date": time.time(),
-                "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa được cập nhật</p>\n",
-                "sound": False,
-                "type": "background",
-            }
-            post_notification(notification_data)
+            # notification to contestants disabled
+            pass
 
         clear_standings()
         clear_challenges()
@@ -681,19 +696,8 @@ class Challenge(Resource):
         )
         
         if(challenge.state == "visible"):
-            notify_to_contestant(notif_type = "toast", 
-                             notif_sound = True,
-                             notif_title= "Thông báo từ ban quản trị",
-                             notif_message= f"Thử thách '{challenge.name}' vừa bị xóa bỏ.")
-            notification_data = {
-            "title": f"Thông báo từ ban quản trị",
-            "content": f"Thử thách '{challenge.name}' vừa bị xóa bỏ.",
-            "date": time.time(),
-            "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa bị xóa bỏ</p>\n",
-            "sound": False,
-            "type": "background",
-            }
-            post_notification(notification_data)
+            # notification to contestants disabled
+            pass
         
 
         return {"success": True}
@@ -1231,6 +1235,7 @@ class ChallengeVersionList(Resource):
                 "memory_limit": v.memory_limit,
                 "memory_request": v.memory_request,
                 "use_gvisor": v.use_gvisor,
+                "max_deploy_count": v.max_deploy_count,
                 "is_active": v.is_active,
                 "created_by": v.creator.name if v.creator else "Unknown",
                 "created_at": v.created_at.isoformat() if v.created_at else None,
@@ -1261,6 +1266,7 @@ class ChallengeVersionDetail(Resource):
             "memory_limit": version.memory_limit,
             "memory_request": version.memory_request,
             "use_gvisor": version.use_gvisor,
+            "max_deploy_count": version.max_deploy_count,
             "is_active": version.is_active,
             "created_by": version.creator.name if version.creator else "Unknown",
             "created_at": version.created_at.isoformat() if version.created_at else None,
@@ -1308,6 +1314,8 @@ class ChallengeVersionRollback(Resource):
                 challenge.memory_request = version.memory_request
             if version.use_gvisor is not None:
                 challenge.use_gvisor = version.use_gvisor
+            if version.max_deploy_count is not None:
+                challenge.max_deploy_count = version.max_deploy_count
 
             challenge.deploy_status = "DEPLOY_SUCCESS"
             challenge.last_update = datetime.utcnow()
@@ -1320,6 +1328,7 @@ class ChallengeVersionRollback(Resource):
                 "data": {
                     "version_number": version.version_number,
                     "image_tag": version.image_tag,
+                    "max_deploy_count": version.max_deploy_count,
                 }
             }
         except Exception as e:

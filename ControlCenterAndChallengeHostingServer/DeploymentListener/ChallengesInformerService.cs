@@ -242,7 +242,7 @@ public class ChallengesInformerService
         _logger.LogDebug($"Final cleanup for Challenge {challengeId} (Team {teamId})");
         await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
         await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.STOPPED, null);
-        
+
     }
     private async Task CleanupGhostResources(string ns, int teamId, int challengeId, string key, OnDeploymentStatusChanged onStatusChange, string status = DeploymentStatus.STOPPED)
     {

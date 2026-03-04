@@ -229,7 +229,7 @@ public class K8sService : IK8sService
                     IsPending = false,
                 });
 
- 
+
             }
         }
         catch (Exception ex)
@@ -269,13 +269,18 @@ public class K8sService : IK8sService
                 int minutes = challenge.TimeLimit ?? 30;
                 var now = DateTimeOffset.UtcNow;
                 finalUnixFinished = now.AddMinutes(minutes).ToUnixTimeSeconds();
-                dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
+                //if admin preview challenge skip tracking
+                if(teamId != -1)
                 {
-                    ChallengeId = challengeId,
-                    TeamId = teamId,
-                    StartedAt = now.DateTime 
-                });
-                await dbContext.SaveChangesAsync();
+                    dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
+                    {
+                        ChallengeId = challengeId,
+                        TeamId = teamId,
+                        StartedAt = now.DateTime,
+                        Label = $"{podName}"
+                    });
+                    await dbContext.SaveChangesAsync();
+                }
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);

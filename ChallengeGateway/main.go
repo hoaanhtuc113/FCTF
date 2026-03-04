@@ -9,6 +9,10 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+
+	"challenge-gateway/internal/config"
+	"challenge-gateway/internal/gateway"
+	"challenge-gateway/internal/limiter"
 )
 
 func main() {
@@ -16,17 +20,19 @@ func main() {
 		log.Println("Warning: No .env file found, reading system environment variables")
 	}
 
-	cfg := loadConfig()
-	redisClient := initRedis(cfg)
-	if err := initLimiters(cfg, redisClient); err != nil {
+	cfg := config.Load()
+
+	redisClient := limiter.InitRedis(cfg)
+	limiters, err := limiter.Init(cfg, redisClient)
+	if err != nil {
 		log.Fatalf("Limiter initialization failed: %v", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	httpServer := startHTTPGateway(cfg)
-	tcpListener := startTCPGateway(ctx, cfg)
+	httpServer := gateway.StartHTTP(cfg, limiters)
+	tcpListener := gateway.StartTCP(ctx, cfg, limiters)
 
 	<-ctx.Done()
 	log.Println("Shutting down gateways...")

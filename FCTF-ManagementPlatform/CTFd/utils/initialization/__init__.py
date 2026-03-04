@@ -291,8 +291,6 @@ def init_request_processors(app):
     def banned():
         if request.endpoint == "views.themes":
             return
-        if request.endpoint == "api.notifications_notificantion_list":
-            return
 
         if authed():
             user = get_current_user_attrs()

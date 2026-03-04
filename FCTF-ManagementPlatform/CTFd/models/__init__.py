@@ -52,29 +52,6 @@ def compile_datetime_mysql(_type, _compiler, **kw):
     return "DATETIME(6)"
 
 
-class Notifications(db.Model):
-    __tablename__ = "notifications"
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.Text)
-    content = db.Column(db.Text)
-    date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"))
-
-    user = db.relationship("Users", foreign_keys="Notifications.user_id", lazy="select")
-    team = db.relationship("Teams", foreign_keys="Notifications.team_id", lazy="select")
-
-    @property
-    def html(self):
-        from CTFd.utils.config.pages import build_markdown
-        from CTFd.utils.helpers import markup
-
-        return markup(build_markdown(self.content))
-
-    def __init__(self, *args, **kwargs):
-        super(Notifications, self).__init__(**kwargs)
-
-
 class Pages(db.Model):
     __tablename__ = "pages"
     id = db.Column(db.Integer, primary_key=True)
@@ -262,6 +239,7 @@ class ChallengeVersion(db.Model):
     memory_limit = db.Column(db.Integer, nullable=True)
     memory_request = db.Column(db.Integer, nullable=True)
     use_gvisor = db.Column(db.Boolean, nullable=True)
+    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
     is_active = db.Column(db.Boolean, nullable=False, default=False)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
@@ -311,6 +289,8 @@ class ChallengeStartTracking(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
     challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
     started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    stopped_at = db.Column(db.DateTime, nullable=True)
+    label = db.Column(db.String(255), nullable=True)
     
     # Relationships
     user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
@@ -1341,3 +1321,73 @@ class Brackets(db.Model):
     type = db.Column(db.String(80))
 
 
+class AdminAuditLog(db.Model):
+    """
+    Persistent audit trail for all privileged operations performed by
+    admins, jury members, and challenge writers.
+
+    Tracked actions include: user CRUD, team CRUD, challenge CRUD,
+    configuration changes, and manual submission override
+    (mark correct / incorrect / delete).
+    """
+
+    __tablename__ = "admin_audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # ── Who did it ─────────────────────────────────────────────────────────
+    actor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Cached so the record survives user deletion
+    actor_name = db.Column(db.String(128), nullable=True)
+    actor_type = db.Column(db.String(80), nullable=True)   # admin / jury / challenge_writer
+
+    # ── What happened ──────────────────────────────────────────────────────
+    action = db.Column(db.String(128), nullable=False)     # e.g. "challenge_update"
+    target_type = db.Column(db.String(80), nullable=True)  # user / team / challenge / config / submission
+    target_id = db.Column(db.Integer, nullable=True)       # PK of the affected entity
+
+    # ── Change snapshots ───────────────────────────────────────────────────
+    before_state = db.Column(db.JSON, nullable=True)
+    after_state = db.Column(db.JSON, nullable=True)
+    extra_data = db.Column(db.JSON, nullable=True)         # arbitrary extra context
+
+    # ── Request metadata ───────────────────────────────────────────────────
+    ip_address = db.Column(db.String(46), nullable=True)
+    timestamp = db.Column(
+        db.DateTime,
+        default=datetime.datetime.utcnow,
+        nullable=False,
+        index=True,
+    )
+
+    actor = db.relationship(
+        "Users",
+        foreign_keys=[actor_id],
+        lazy="select",
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "actor_id": self.actor_id,
+            "actor_name": self.actor_name,
+            "actor_type": self.actor_type,
+            "action": self.action,
+            "target_type": self.target_type,
+            "target_id": self.target_id,
+            "before_state": self.before_state,
+            "after_state": self.after_state,
+            "extra_data": self.extra_data,
+            "ip_address": self.ip_address,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+    def __repr__(self):
+        return (
+            f"<AdminAuditLog id={self.id} action={self.action!r} "
+            f"actor_id={self.actor_id}>"
+        )
