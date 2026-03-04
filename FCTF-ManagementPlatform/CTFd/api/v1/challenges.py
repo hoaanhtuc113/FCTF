@@ -74,7 +74,13 @@ from CTFd.utils.user import (
     is_jury,
 )
 
-from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification, get_workflow_status ,get_workflow_name, delete_cached_files
+from CTFd.utils.connector.multiservice_connector import (
+    delete_challenge,
+    force_stop,
+    get_workflow_status,
+    get_workflow_name,
+    delete_cached_files,
+)
 from CTFd.utils.uploads import delete_folder
 
 challenges_namespace = Namespace(
