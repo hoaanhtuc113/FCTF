@@ -602,7 +602,12 @@ public class DeployService : IDeployService
 
             var endNs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
             var startNs = DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds() * 1_000_000;
-            var logql = $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\"";
+
+            // Base filter: team + challenge. Optionally narrow to a specific namespace.
+            var logql = string.IsNullOrWhiteSpace(challengeReq.ns)
+                ? $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\""
+                : $"{lokiSelector} | logfmt | team=\"{challengeReq.teamId}\" | challenge=\"{challengeReq.challengeId}\" | ns=\"{challengeReq.ns}\"";
+
             var query = Uri.EscapeDataString(logql);
             var url = $"/loki/api/v1/query_range?query={query}&start={startNs}&end={endNs}&limit=2000&direction=backward";
             await Console.Out.WriteLineAsync($"Loki request. BaseUrl={lokiBaseUrl}, Selector={lokiSelector}, LogQL={logql}, Url={url}");

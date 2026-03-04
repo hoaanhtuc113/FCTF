@@ -117,7 +117,7 @@
 {% block content %}
     <div class="pod-logs-header">
         <div class="container">
-            <h1>Request Logs - Challenge ID {{ challenge_id }} - Team ID {{ team_id }}</h1>
+            <h1>Request Logs - Challenge ID {{ challenge_id }} - Team ID {{ team_id }}{% if ns %} - {{ ns }}{% endif %}</h1>
         </div>
     </div>
     <div class="container">
@@ -211,8 +211,9 @@
     function decodeB64(b64) {
         try {
             var raw = atob(b64);
-            /* replace non-printable (except tab / newline) with middle-dot */
-            return raw.replace(/[^\x20-\x7E\t]/g, '·');
+            /* replace non-printable (except tab / CR / LF) with middle-dot;
+               keep \r and \n so the caller can render them as ↵ arrows */
+            return raw.replace(/[^\x20-\x7E\t\r\n]/g, '·');
         } catch (e) { return b64; }
     }
 
@@ -256,27 +257,35 @@
         if (log.charAt(0) === '[') {
             if (log.charAt(1) !== '~') return null; /* skip [+] etc. */
 
-            var dirM   = log.match(/direction="([^"]+)"/);
-            var bytesM = log.match(/bytes=(\d+)/);
-            var b64M   = log.match(/sample_b64=(\S+)/);
-            /* content after  bytes=N: <text>  (error / disconnect messages) */
-            var afterM = log.match(/bytes=\d+:\s*(.+)$/);
+            var dirM      = log.match(/direction="([^"]+)"/);
+            var bytesM    = log.match(/bytes=(\d+)/);
+            /* b64 value ends at a space — never includes trailing ':' or error text */
+            var b64M      = log.match(/sample_b64=([A-Za-z0-9+\/=]+)/);
+            /* new-format disconnect error field: conn_err="…" */
+            var connErrM  = log.match(/conn_err="((?:[^"\\]|\\.)*)"/);
+            /* old-format: bytes=N: <error text>  (s2c disconnect, no b64) */
+            var afterM    = log.match(/bytes=\d+:\s*(.+)$/);
             /* client IP:port — "from 1.2.3.4:5678" or "from [::1]:5678" */
-            var ipM    = log.match(/from ([\w.\[\]:]+:\d+)/);
+            var ipM       = log.match(/from ([\w.\[\]:]+:\d+)/);
+            var nsM       = log.match(/ns="([^"]+)"/);
 
-            var direction = dirM   ? dirM[1]   : '?';
+            var direction = dirM  ? dirM[1]  : '?';
             var bytes     = bytesM ? bytesM[1] : '?';
-            var ip        = ipM    ? ipM[1]    : null;
+            var ip        = ipM   ? ipM[1]   : null;
 
             var content = '';
             if (b64M) {
-                content = escHtml(decodeB64(b64M[1])).replace(/\r\n|\r|\n/g, '<span style="color:#569cd6">↵</span>');
+                var decoded = escHtml(decodeB64(b64M[1])).replace(/\r\n|\r|\n/g, '<span style="color:#569cd6">↵</span>');
+                var connErrHtml = connErrM
+                    ? ' <span style="color:#858585">(' + escHtml(connErrM[1]) + ')</span>'
+                    : '';
+                content = decoded + connErrHtml;
             } else if (afterM) {
                 content = '<span style="color:#858585">' + escHtml(afterM[1]) + '</span>';
             }
 
             var dirColor = direction === 'c2s' ? '#4ec9b0' : '#ce9178';
-            var ipHtml   = ip ? ' <span style="color:#9cdcfe">' + escHtml(ip) + '</span>' : '';
+            var ipHtml   = ip ? ' <span style="color:#9cdcfe">'  + escHtml(ip) + '</span>' : '';
             var html = timeHtml
                 + ': <span style="color:#569cd6;font-weight:bold">TCP</span>'
                 + ' <span style="color:' + dirColor + ';font-weight:bold">' + direction + '</span>'
@@ -292,6 +301,7 @@
             var pathM   = log.match(/^HTTP \w+ (\S+) /);
             var statusM = log.match(/status="([^"]+)"/);
             var bodyM   = log.match(/body="((?:[^"\\]|\\.)*)"/);
+            var nsM     = log.match(/ns="([^"]+)"/);
 
             var method = methodM ? methodM[1] : '?';
             var path   = pathM   ? pathM[1]   : '/';

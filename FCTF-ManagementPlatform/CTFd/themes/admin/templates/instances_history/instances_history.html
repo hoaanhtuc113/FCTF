@@ -203,7 +203,7 @@
 									<i class="fas fa-file-alt fa-fw"></i> Pod Logs
 								</a>
 								<a class="action-menu-item"
-									href="/deploy_History/{{ row.challenge_id }}/request-logs?team_id={{ row.team_id }}">
+									href="/deploy_History/{{ row.challenge_id }}/request-logs?team_id={{ row.team_id }}{% if row.ChallengeStartTracking.label %}&ns={{ row.ChallengeStartTracking.label | urlencode }}{% endif %}">
 									<i class="fas fa-exchange-alt fa-fw"></i> Request Logs
 								</a>
 							</div>

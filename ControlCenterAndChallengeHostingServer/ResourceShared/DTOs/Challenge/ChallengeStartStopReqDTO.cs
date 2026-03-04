@@ -13,5 +13,6 @@ namespace ResourceShared.DTOs.Challenge
         public int teamId { get; set; }
         public int? userId { get; set; }
         public string? unixTime { get; set; }
+        public string? ns { get; set; }
     }
 }

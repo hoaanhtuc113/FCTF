@@ -535,7 +535,7 @@
 								<a class="action-menu-item" href="#" onclick="viewLogs(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
 									<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs
 								</a>
-								<a class="action-menu-item" href="#" onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
+								<a class="action-menu-item" href="#" onclick="viewRequestLogs(${row.challenge_id}, ${row.team_id}, ${JSON.stringify(row.ns ?? '')}); closeAllActionMenus(); return false;">
 									<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs
 								</a>
 								<div class="action-menu-divider"></div>
@@ -681,8 +681,9 @@
 		window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
 	}
 
-	function viewRequestLogs(challengeId, teamId) {
-		window.location.href = `/deploy_History/${challengeId}/request-logs?team_id=${teamId}`;
+	function viewRequestLogs(challengeId, teamId, ns) {
+		const nsParam = ns ? `&ns=${encodeURIComponent(ns)}` : '';
+		window.location.href = `/deploy_History/${challengeId}/request-logs?team_id=${teamId}${nsParam}`;
 	}
 
 	async function copyChallengeToken(button) {
