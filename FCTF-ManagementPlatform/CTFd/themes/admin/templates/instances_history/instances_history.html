@@ -140,6 +140,8 @@
 			<thead>
 				<tr>
 					<th class="text-center"><b>Started At</b></th>
+					<th class="text-center"><b>Stopped At</b></th>
+					<th class="text-center"><b>Label</b></th>
 					<th class="text-center"><b>Challenge</b></th>
 					<th class="text-center"><b>User</b></th>
 					<th class="text-center"><b>Team</b></th>
@@ -151,6 +153,20 @@
 				{% for row in logs.items %}
 				<tr>
 					<td class="mono text-center">{{ row.ChallengeStartTracking.started_at }}</td>
+					<td class="mono text-center">
+						{% if row.ChallengeStartTracking.stopped_at %}
+							{{ row.ChallengeStartTracking.stopped_at }}
+						{% else %}
+							-
+						{% endif %}
+					</td>
+					<td class="text-center cell-truncate" title="{{ row.ChallengeStartTracking.label }}">
+						{% if row.ChallengeStartTracking.label %}
+							{{ row.ChallengeStartTracking.label | truncate(24) }}
+						{% else %}
+							-
+						{% endif %}
+					</td>
 					<td class="text-center cell-truncate" title="{{ row.challenge_name }}">
 						{% if row.challenge_id %}
 						<a href="{{ url_for('admin.challenges_detail', challenge_id=row.challenge_id) }}">
@@ -204,7 +220,7 @@
 				{% endfor %}
 				{% if logs.total == 0 %}
 				<tr>
-					<td colspan="6" class="text-center text-muted">No entries found</td>
+					<td colspan="8" class="text-center text-muted">No entries found</td>
 				</tr>
 				{% endif %}
 			</tbody>
