@@ -44,7 +44,7 @@
 						</div>
 						<span class="text-muted">
 							Deletes all user and team accounts and their associated information<br>
-							<small>(Users, Teams, Submissions, Tracking)</small>
+							<small>(Users, Teams, Submissions, Tracking, Tokens, Tickets, Action Logs, Field Entries)</small>
 						</span>
 					</div>
 
@@ -66,7 +66,7 @@
 						</div>
 						<span class="text-muted">
 							Deletes all challenges and associated data<br>
-							<small>(Challenges, Flags, Hints, Tags, Challenge Files)</small>
+							<small>(Challenges, Flags, Hints, Tags, Topics, Challenge Files, Versions, Deploy Histories, Start Tracking, Badges)</small>
 						</span>
 					</div>
 
@@ -89,6 +89,17 @@
 						<span class="text-muted">
 							Deletes all notifications<br>
 							<small>(Notifications)</small>
+						</span>
+					</div>
+
+					<div class="form-group pb-2">
+						<div class="form-check">
+							{{ form.logs(class="form-check-input", autocomplete="off") }}
+							{{ form.logs.label(class="form-check-label") }}
+						</div>
+						<span class="text-muted">
+							Deletes all action logs and admin audit logs<br>
+							<small>(Action Logs, Admin Audit Logs)</small>
 						</span>
 					</div>
 
