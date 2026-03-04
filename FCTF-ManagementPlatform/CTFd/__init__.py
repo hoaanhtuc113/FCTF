@@ -379,8 +379,7 @@ def create_app(config="CTFd.config.Config"):
                 path.startswith("/themes/")
                 or path.startswith("/static/")
                 or path.startswith("/favicon")
-                or path == "/robots.txt"
-                or path == "/healthcheck"
+                    or path == "/healthcheck"
             ):
                 return
             # Allow access to uploaded files (logo, banners, etc.) so public users

@@ -282,27 +282,6 @@
 						</a>
 					</li>
 
-					<!-- Pages -->
-					<small class="section-title">Pages</small>
-					<li class="nav-item">
-						<a class="nav-link rounded-0 py-1" href="#legal" role="tab" data-toggle="tab">
-							<i class="fa fa-scale-balanced action-icon"></i>Legal
-						</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link rounded-0 py-1" href="#robots" role="tab" data-toggle="tab">
-							<i class="fa fa-robot action-icon"></i>Robots.txt
-						</a>
-					</li>
-
-					<!-- Integrations -->
-					<small class="section-title">Integrations</small>
-					<li class="nav-item">
-						<a class="nav-link rounded-0 py-1" href="#email" role="tab" data-toggle="tab">
-							<i class="fa fa-envelope action-icon"></i>Email Notifications
-						</a>
-					</li>
-
 					<!-- Plugins -->
 					{% set plugins = get_configurable_plugins() %}
 					{% if plugins %}
@@ -366,16 +345,6 @@
 					{% include "admin/configs/backup.html" %}
 
 					{% include "admin/configs/sanitize.html" %}
-
-					<!-- Pages -->
-
-					{% include "admin/configs/legal.html" %}
-
-					{% include "admin/configs/robots.html" %}
-
-					<!-- Integrations -->
-
-					{% include "admin/configs/email.html" %}
 
 					<!-- Plugins -->
 

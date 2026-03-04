@@ -37,7 +37,7 @@ from CTFd.utils import config, get_config, set_config
 from CTFd.utils import user as current_user
 from CTFd.utils import validators
 from CTFd.utils.config import is_setup, is_teams_mode
-from CTFd.utils.config.pages import build_markdown, get_page
+from CTFd.utils.config.pages import get_page
 from CTFd.utils.config.visibility import challenges_visible
 from CTFd.utils.dates import ctf_ended, ctftime, view_after_ctf
 from CTFd.utils.decorators import authed_only
@@ -366,30 +366,6 @@ def static_html(route):
         return render_template("page.html", content=page.html, title=page.title)
 
 
-@views.route("/tos")
-def tos():
-    tos_url = get_config("tos_url")
-    tos_text = get_config("tos_text")
-    if tos_url:
-        return redirect(tos_url)
-    elif tos_text:
-        return render_template("page.html", content=build_markdown(tos_text))
-    else:
-        abort(404)
-
-
-@views.route("/privacy")
-def privacy():
-    privacy_url = get_config("privacy_url")
-    privacy_text = get_config("privacy_text")
-    if privacy_url:
-        return redirect(privacy_url)
-    elif privacy_text:
-        return render_template("page.html", content=build_markdown(privacy_text))
-    else:
-        abort(404)
-
-
 @views.route("/files", defaults={"path": ""})
 @views.route("/files/<path:path>")
 def files(path):
@@ -537,9 +513,3 @@ def debug():
     abort(404)
 
 
-@views.route("/robots.txt")
-def robots():
-    text = get_config("robots_txt", "User-agent: *\nDisallow: /admin\n")
-    r = make_response(text, 200)
-    r.mimetype = "text/plain"
-    return r
