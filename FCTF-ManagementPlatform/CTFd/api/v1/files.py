@@ -99,8 +99,6 @@ class FilesList(Resource):
         challenge_id = request.form.to_dict().get("challenge_id")
         temp_file_path = ""
         objs = []
-        # challenge_id
-        # page_id
 
         if expose_port and not re.fullmatch(r"^[1-9]\d*$", expose_port) and require_deploy:
             return {"success": False, "errors": "Expose port must be a positive integer"}, 400
@@ -184,7 +182,6 @@ class FilesList(Resource):
                     "sha1sum": item.get("sha1sum"),
                     "challenge_id": _cid,
                     "challenge_name": _challenge_name,
-                    "page_id": item.get("page_id"),
                 },
             )
 
@@ -237,7 +234,6 @@ class FilesDetail(Resource):
             "sha1sum": f.sha1sum if hasattr(f, 'sha1sum') else None,
             "challenge_id": _cid,
             "challenge_name": _challenge_name,
-            "page_id": f.page_id if hasattr(f, 'page_id') else None,
         }
 
         uploads.delete_file(file_id=f.id)

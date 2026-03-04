@@ -35,9 +35,6 @@ _ACTION_TARGET_TYPES = {
     "tag_delete": "tag",
     "award_create": "award",
     "award_delete": "award",
-    "page_create": "page",
-    "page_update": "page",
-    "page_delete": "page",
     "file_create": "file",
     "file_delete": "file",
     "comment_create": "comment",
@@ -71,8 +68,6 @@ def _extract_target_id(action: str, data: dict | None) -> int | None:
         return data.get("tag_id")
     if action.startswith("award"):
         return data.get("award_id")
-    if action.startswith("page"):
-        return data.get("page_id")
     if action.startswith("file"):
         return data.get("file_id")
     if action.startswith("comment"):
