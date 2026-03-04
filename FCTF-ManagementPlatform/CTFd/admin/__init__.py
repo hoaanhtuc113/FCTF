@@ -25,7 +25,6 @@ admin = Blueprint("admin", __name__)
 # isort:imports-firstparty
 from CTFd.admin import rewards  # noqa: F401,I001
 from CTFd.admin import challenges  # noqa: F401,I001
-from CTFd.admin import pages  # noqa: F401,I001
 from CTFd.admin import scoreboard  # noqa: F401,I001
 from CTFd.admin import statistics  # noqa: F401,I001
 from CTFd.admin import submissions  # noqa: F401,I001
@@ -45,7 +44,6 @@ from CTFd.cache import (
     clear_all_user_sessions,
     clear_challenges,
     clear_config,
-    clear_pages,
     clear_standings,
 )
 from CTFd.models import (
@@ -60,7 +58,6 @@ from CTFd.models import (
     DeployedChallenge,
     FieldEntries,
     Fields,
-    Pages,
     Solves,
     Submissions,
     Tickets,
@@ -529,14 +526,6 @@ def reset():
             ActionLogs.query.delete()
             AdminAuditLog.query.delete()
 
-        if data.get("pages"):
-            _pages = Pages.query.all()
-            for p in _pages:
-                for f in p.files:
-                    delete_file(file_id=f.id)
-
-            Pages.query.delete()
-
         if data.get("challenges"):
             _challenges = Challenges.query.all()
             for c in _challenges:
@@ -568,7 +557,7 @@ def reset():
         # Audit: record what was wiped
         reset_scope = [
             k
-            for k in ["pages", "challenges", "accounts", "submissions", "logs"]
+            for k in ["challenges", "accounts", "submissions", "logs"]
             if data.get(k)
         ]
         log_audit(
@@ -576,7 +565,6 @@ def reset():
             data={"wiped_sections": reset_scope},
         )
 
-        clear_pages()
         clear_standings()
         clear_challenges()
         clear_config()

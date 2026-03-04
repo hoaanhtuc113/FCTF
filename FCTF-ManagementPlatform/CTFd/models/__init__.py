@@ -52,38 +52,6 @@ def compile_datetime_mysql(_type, _compiler, **kw):
     return "DATETIME(6)"
 
 
-class Pages(db.Model):
-    __tablename__ = "pages"
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(80))
-    route = db.Column(db.String(128), unique=True)
-    content = db.Column(db.Text)
-    draft = db.Column(db.Boolean)
-    hidden = db.Column(db.Boolean)
-    auth_required = db.Column(db.Boolean)
-    format = db.Column(db.String(80), default="markdown")
-    link_target = db.Column(db.String(80), nullable=True)
-
-    files = db.relationship("PageFiles", backref="page")
-
-    @property
-    def html(self):
-        from CTFd.utils.config.pages import build_html, build_markdown
-
-        if self.format == "markdown":
-            return build_markdown(self.content)
-        elif self.format == "html":
-            return build_html(self.content)
-        else:
-            return build_markdown(self.content)
-
-    def __init__(self, *args, **kwargs):
-        super(Pages, self).__init__(**kwargs)
-
-    def __repr__(self):
-        return "<Pages {0}>".format(self.route)
-
-
 class Challenges(db.Model):
     __tablename__ = "challenges"
     id = db.Column(db.Integer, primary_key=True)
@@ -405,14 +373,6 @@ class ChallengeFiles(Files):
 
     def __init__(self, *args, **kwargs):
         super(ChallengeFiles, self).__init__(**kwargs)
-
-
-class PageFiles(Files):
-    __mapper_args__ = {"polymorphic_identity": "page"}
-    page_id = db.Column(db.Integer, db.ForeignKey("pages.id"))
-
-    def __init__(self, *args, **kwargs):
-        super(PageFiles, self).__init__(**kwargs)
 
 
 class Flags(db.Model):
@@ -1246,11 +1206,6 @@ class UserComments(Comments):
 class TeamComments(Comments):
     __mapper_args__ = {"polymorphic_identity": "team"}
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
-
-
-class PageComments(Comments):
-    __mapper_args__ = {"polymorphic_identity": "page"}
-    page_id = db.Column(db.Integer, db.ForeignKey("pages.id", ondelete="CASCADE"))
 
 
 class Fields(db.Model):
