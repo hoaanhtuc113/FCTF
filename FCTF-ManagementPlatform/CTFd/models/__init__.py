@@ -52,29 +52,6 @@ def compile_datetime_mysql(_type, _compiler, **kw):
     return "DATETIME(6)"
 
 
-class Notifications(db.Model):
-    __tablename__ = "notifications"
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.Text)
-    content = db.Column(db.Text)
-    date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"))
-
-    user = db.relationship("Users", foreign_keys="Notifications.user_id", lazy="select")
-    team = db.relationship("Teams", foreign_keys="Notifications.team_id", lazy="select")
-
-    @property
-    def html(self):
-        from CTFd.utils.config.pages import build_markdown
-        from CTFd.utils.helpers import markup
-
-        return markup(build_markdown(self.content))
-
-    def __init__(self, *args, **kwargs):
-        super(Notifications, self).__init__(**kwargs)
-
-
 class Pages(db.Model):
     __tablename__ = "pages"
     id = db.Column(db.Integer, primary_key=True)

@@ -1,7 +1,6 @@
 from flask import render_template, request, url_for
 
 from CTFd.admin import admin
-from CTFd.models import Notifications
 from CTFd.utils.decorators import admin_or_jury, admins_only
 
 

@@ -25,7 +25,6 @@ admin = Blueprint("admin", __name__)
 # isort:imports-firstparty
 from CTFd.admin import rewards  # noqa: F401,I001
 from CTFd.admin import challenges  # noqa: F401,I001
-from CTFd.admin import notifications  # noqa: F401,I001
 from CTFd.admin import pages  # noqa: F401,I001
 from CTFd.admin import scoreboard  # noqa: F401,I001
 from CTFd.admin import statistics  # noqa: F401,I001
@@ -61,7 +60,6 @@ from CTFd.models import (
     DeployedChallenge,
     FieldEntries,
     Fields,
-    Notifications,
     Pages,
     Solves,
     Submissions,
@@ -539,9 +537,6 @@ def reset():
 
             Pages.query.delete()
 
-        if data.get("notifications"):
-            Notifications.query.delete()
-
         if data.get("challenges"):
             _challenges = Challenges.query.all()
             for c in _challenges:
@@ -573,7 +568,7 @@ def reset():
         # Audit: record what was wiped
         reset_scope = [
             k
-            for k in ["pages", "notifications", "challenges", "accounts", "submissions", "logs"]
+            for k in ["pages", "challenges", "accounts", "submissions", "logs"]
             if data.get(k)
         ]
         log_audit(

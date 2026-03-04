@@ -34,9 +34,6 @@ class ResetInstanceForm(BaseForm):
     pages = BooleanField(
         "Pages", description="Deletes all pages and their associated files"
     )
-    notifications = BooleanField(
-        "Notifications", description="Deletes all notifications"
-    )
     submit = SubmitField("Reset CTF")
 
 
