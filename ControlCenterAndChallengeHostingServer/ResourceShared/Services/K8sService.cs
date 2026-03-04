@@ -269,14 +269,21 @@ public class K8sService : IK8sService
                 int minutes = challenge.TimeLimit ?? 30;
                 var now = DateTimeOffset.UtcNow;
                 finalUnixFinished = now.AddMinutes(minutes).ToUnixTimeSeconds();
-                dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
+                try
                 {
-                    ChallengeId = challengeId,
-                    TeamId = teamId,
-                    StartedAt = now.DateTime,
-                    Label = $"{podName}"
-                });
-                await dbContext.SaveChangesAsync();
+                    dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
+                    {
+                        ChallengeId = challengeId,
+                        TeamId = teamId,
+                        StartedAt = now.DateTime,
+                        Label = $"{podName}"
+                    });
+                    await dbContext.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, null, teamId, new { challengeId, podName, errorType = "ChallengeStartTrackingSaveError" });
+                }
             }
 
             var expiryOffset = DateTimeOffset.FromUnixTimeSeconds(finalUnixFinished);
