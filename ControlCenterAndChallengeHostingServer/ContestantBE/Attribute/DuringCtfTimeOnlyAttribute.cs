@@ -94,7 +94,7 @@ public class ViewOrDuringCtfTimeOnlyFilter : IAsyncActionFilter
             return;
         }
 
-        if (_ctfTimeHelper.CtfEnded() && ToBool(_ctfTimeHelper.ViewAfterCtf()))
+        if (_ctfTimeHelper.CtfEnded() && _ctfTimeHelper.ViewAfterCtf())
         {
             await next();
             return;
@@ -120,12 +120,5 @@ public class ViewOrDuringCtfTimeOnlyFilter : IAsyncActionFilter
         }
 
         await next();
-    }
-
-    private static bool ToBool(object? val)
-    {
-        if (val == null) return false;
-        if (bool.TryParse(val.ToString(), out var result)) return result;
-        return false;
     }
 }

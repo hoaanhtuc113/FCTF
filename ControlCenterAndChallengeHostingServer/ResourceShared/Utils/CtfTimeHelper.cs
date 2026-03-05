@@ -60,9 +60,9 @@ namespace ResourceShared.Utils
             return end > 0 && now > end;
         }
 
-        public object ViewAfterCtf()
+        public bool ViewAfterCtf()
         {
-            return _config.GetConfig("view_after_ctf");
+            return _config.GetConfig<bool>("view_after_ctf");
         }
 
 
