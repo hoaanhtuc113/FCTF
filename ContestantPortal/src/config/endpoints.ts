@@ -7,6 +7,7 @@ export const API_ENDPOINTS = {
   CONFIG: {
     DATE_CONFIG: '/Config/get_date_config',
     PUBLIC: '/Config/get_public_config',
+    CONTEST_ACCESS: '/Config/contest_access',
   },
   CHALLENGES: {
     BY_TOPIC: '/challenge/by-topic',
