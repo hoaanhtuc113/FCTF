@@ -199,20 +199,42 @@
 					<td class="text-center">
 						{% if log.target_type %}
 						<span class="badge bg-secondary badge-target">{{ log.target_type }}</span>
+						{% set extra = log.extra_data or {} %}
 						{% if log.target_id %}
 						<span class="text-muted small ms-1">
 							{% if log.target_type == 'user' %}
 							<a href="{{ url_for('admin.users_detail', user_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
 							{% elif log.target_type == 'team' %}
 							<a href="{{ url_for('admin.teams_detail', team_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
 							{% elif log.target_type == 'challenge' %}
 							<a href="{{ url_for('admin.challenges_detail', challenge_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
 							{% elif log.target_type == 'submission' %}
 							<a href="{{ url_for('admin.submissions_listing', submission_type=None) }}">#{{ log.target_id }}</a>
+							{% if extra.get('challenge_name') %}<br><span class="text-info">{{ extra['challenge_name'] | truncate(30) }}</span>{% endif %}
+							{% elif log.target_type in ('tag', 'flag', 'hint') %}
+							#{{ log.target_id }}
+							{% if extra.get('challenge_name') %}<br><span class="text-info">{{ extra['challenge_name'] | truncate(30) }}</span>{% endif %}
+							{% if log.target_type == 'tag' and extra.get('value') %}<br><code>{{ extra['value'] | truncate(24) }}</code>{% endif %}
+							{% elif log.target_type == 'file' %}
+							#{{ log.target_id }}
+							{% if extra.get('location') %}<br><code class="small">{{ extra['location'] | truncate(30) }}</code>{% endif %}
+							{% elif log.target_type == 'bracket' %}
+							#{{ log.target_id }}
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
+							{% elif log.target_type == 'award' %}
+							#{{ log.target_id }}
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
+							{% elif log.target_type == 'config' %}
+							{% if extra.get('key') %}<code>{{ extra['key'] | truncate(30) }}</code>{% endif %}
 							{% else %}
 							#{{ log.target_id }}
 							{% endif %}
 						</span>
+						{% elif log.target_type == 'config' and extra.get('key') %}
+						<span class="text-muted small ms-1"><code>{{ extra['key'] | truncate(30) }}</code></span>
 						{% endif %}
 						{% else %}
 						<span class="text-muted">—</span>

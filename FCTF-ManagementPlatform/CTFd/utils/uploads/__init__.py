@@ -4,7 +4,7 @@ import os
 import logging
 from pathlib import Path
 import traceback
-from CTFd.models import ChallengeFiles, Files, PageFiles, db
+from CTFd.models import ChallengeFiles, Files, db
 from CTFd.utils import get_app_config
 from CTFd.utils.uploads.uploaders import FilesystemUploader, S3Uploader,NFSUploader
 from flask import current_app
@@ -24,7 +24,6 @@ def upload_file(*args, **kwargs):
     try:
         file_obj = kwargs.get("file")
         challenge_id = kwargs.get("challenge_id") or kwargs.get("challenge")
-        page_id = kwargs.get("page_id") or kwargs.get("page")
         file_type = kwargs.get("type", "standard")
         location = kwargs.get("location")
         file_upload = kwargs.get("file_upload")
@@ -47,9 +46,6 @@ def upload_file(*args, **kwargs):
         if file_type == "challenge":
             model = ChallengeFiles
             model_args["challenge_id"] = challenge_id
-        if file_type == "page":
-            model = PageFiles
-            model_args["page_id"] = page_id
 
         sha1sum = hash_file(fp=file_obj)
 

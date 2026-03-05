@@ -175,7 +175,16 @@ class UserList(Resource):
                 "user_id": response.data.id,
                 "name": response.data.name,
                 "email": response.data.email,
-                "type": response.data.type
+                "type": response.data.type,
+                "website": response.data.website,
+                "affiliation": response.data.affiliation,
+                "country": response.data.country,
+                "bracket_id": response.data.bracket_id,
+                "hidden": response.data.hidden,
+                "banned": response.data.banned,
+                "verified": response.data.verified,
+                "language": response.data.language,
+                "team_id": response.data.team_id,
             }
         )
 
@@ -246,7 +255,13 @@ class UserPublic(Resource):
             "type": user.type,
             "banned": user.banned,
             "hidden": user.hidden,
-            "verified": user.verified
+            "verified": user.verified,
+            "website": user.website,
+            "affiliation": user.affiliation,
+            "country": user.country,
+            "bracket_id": user.bracket_id,
+            "language": user.language,
+            "team_id": user.team_id,
         }
         
         data = request.get_json()
@@ -281,7 +296,14 @@ class UserPublic(Resource):
             "type": user.type,
             "banned": user.banned,
             "hidden": user.hidden,
-            "verified": user.verified
+            "verified": user.verified,
+            "website": user.website,
+            "affiliation": user.affiliation,
+            "country": user.country,
+            "bracket_id": user.bracket_id,
+            "language": user.language,
+            "team_id": user.team_id,
+            "password_changed": bool(data.get("password")),
         }
         
         db.session.close()
@@ -290,7 +312,7 @@ class UserPublic(Resource):
             action="user_update",
             before=before_state,
             after=after_state,
-            data={"user_id": user_id}
+            data={"user_id": user_id, "name": after_state["name"]}
         )
 
         clear_user_session(user_id=user_id)
@@ -318,7 +340,16 @@ class UserPublic(Resource):
             "user_id": user.id,
             "name": user.name,
             "email": user.email,
-            "type": user.type
+            "type": user.type,
+            "website": user.website,
+            "affiliation": user.affiliation,
+            "country": user.country,
+            "bracket_id": user.bracket_id,
+            "hidden": user.hidden,
+            "banned": user.banned,
+            "verified": user.verified,
+            "language": user.language,
+            "team_id": user.team_id,
         }
 
         Awards.query.filter_by(user_id=user_id).delete()
@@ -333,7 +364,7 @@ class UserPublic(Resource):
         log_audit(
             action="user_delete",
             before=user_info,
-            data={"user_id": user_id}
+            data={"user_id": user_id, "name": user_info["name"]}
         )
 
         clear_user_session(user_id=user_id)

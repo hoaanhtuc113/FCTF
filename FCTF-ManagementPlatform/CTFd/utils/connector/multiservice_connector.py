@@ -594,22 +594,25 @@ def get_challenge_pod_logs(challenge_id, team_id):
         print(f"Error getting pod logs: {e}")
         return str(e)
 
-def get_challenge_request_logs(challenge_id, team_id):
+def get_challenge_request_logs(challenge_id, team_id, ns=None):
     if team_id is None:
         team_id = -1
 
     unix_time = str(int(time.time()))
-    secret_key = create_secret_key(
-        PRIVATE_KEY, unix_time, {
-            "challengeId": challenge_id,
-            "teamId": team_id,
-        }
-    )
+    signing_data = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+    }
+    if ns:
+        signing_data["ns"] = ns
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
     payload = {
         "challengeId": challenge_id,
         "teamId": team_id,
         "unixTime": unix_time,
     }
+    if ns:
+        payload["ns"] = ns
     headers = {"SecretKey": secret_key}
 
     logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/request-logs"

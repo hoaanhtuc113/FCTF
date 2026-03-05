@@ -7,6 +7,7 @@ from CTFd.models import Brackets, db
 from CTFd.schemas.brackets import BracketSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 
 brackets_namespace = Namespace("brackets", description="Endpoint to retrieve Brackets")
 
@@ -56,6 +57,16 @@ class BracketList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        log_audit(
+            action="bracket_create",
+            data={
+                "bracket_id": response.data.get("id"),
+                "name": response.data.get("name"),
+                "description": response.data.get("description"),
+                "type": response.data.get("type"),
+            },
+        )
+
         return {"success": True, "data": response.data}
 
 
@@ -64,6 +75,13 @@ class Bracket(Resource):
     @admins_only
     def patch(self, bracket_id):
         bracket = Brackets.query.filter_by(id=bracket_id).first_or_404()
+
+        before_state = {
+            "name": bracket.name,
+            "description": bracket.description,
+            "type": bracket.type,
+        }
+
         schema = BracketSchema()
 
         req = request.get_json()
@@ -77,13 +95,41 @@ class Bracket(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        log_audit(
+            action="bracket_update",
+            before=before_state,
+            after={
+                "name": response.data.get("name"),
+                "description": response.data.get("description"),
+                "type": response.data.get("type"),
+            },
+            data={
+                "bracket_id": bracket_id,
+                "name": response.data.get("name"),
+            },
+        )
+
         return {"success": True, "data": response.data}
 
     @admins_only
     def delete(self, bracket_id):
         bracket = Brackets.query.filter_by(id=bracket_id).first_or_404()
+
+        bracket_info = {
+            "bracket_id": bracket.id,
+            "name": bracket.name,
+            "description": bracket.description,
+            "type": bracket.type,
+        }
+
         db.session.delete(bracket)
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="bracket_delete",
+            before=bracket_info,
+            data={"bracket_id": bracket_id, "name": bracket_info["name"]},
+        )
 
         return {"success": True}

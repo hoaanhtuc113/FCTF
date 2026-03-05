@@ -57,11 +57,23 @@ ALL_ACTIONS = [
     "tag_delete",
     "award_create",
     "award_delete",
+    "file_create",
+    "file_delete",
+    "comment_create",
+    "comment_delete",
+    "bracket_create",
+    "bracket_update",
+    "bracket_delete",
     "bulk_password_reset",
     "ctf_reset",
 ]
 
-TARGET_TYPES = ["challenge", "user", "team", "submission", "config", "hint", "flag", "tag", "award", "system"]
+TARGET_TYPES = [
+    "challenge", "user", "team", "submission", "config",
+    "hint", "flag", "tag", "award",
+    "file", "comment", "bracket",
+    "system",
+]
 
 ACTOR_ROLES = ["admin", "jury", "challenge_writer"]
 
@@ -94,6 +106,13 @@ ACTION_LABELS: dict[str, str] = {
     "tag_delete": "Delete Tag",
     "award_create": "Create Award",
     "award_delete": "Delete Award",
+    "file_create": "Upload File",
+    "file_delete": "Delete File",
+    "comment_create": "Create Comment",
+    "comment_delete": "Delete Comment",
+    "bracket_create": "Create Bracket",
+    "bracket_update": "Update Bracket",
+    "bracket_delete": "Delete Bracket",
     "bulk_password_reset": "Bulk Password Reset",
     "ctf_reset": "CTF Reset (Wipe Data)",
 }
