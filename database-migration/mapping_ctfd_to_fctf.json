@@ -26,25 +26,6 @@
     },
 
     {
-    
-      "name": "pages",
-      "source": { "table": "pages", "pk": ["id"] },
-      "target": { "table": "pages", "pk": ["id"] },
-      "mode": "upsert",
-      "columns": {
-        "id": { "from": "id" },
-        "title": { "from": "title" },
-        "route": { "from": "route" },
-        "content": { "from": "content" },
-        "draft": { "from": "draft" },
-        "hidden": { "from": "hidden" },
-        "auth_required": { "from": "auth_required" },
-        "format": { "from": "format" },
-        "link_target": { "from": "link_target" }
-      }
-    },
-
-    {
       "name": "teams",
       "source": { "table": "teams", "pk": ["id"] },
       "target": { "table": "teams", "pk": ["id"] },
@@ -273,8 +254,7 @@
         "author_id": { "from": "author_id" },
         "challenge_id": { "from": "challenge_id" },
         "user_id": { "from": "user_id" },
-        "team_id": { "from": "team_id" },
-        "page_id": { "from": "page_id" }
+        "team_id": { "from": "team_id" }
       }
     },
     {
@@ -317,7 +297,6 @@
         "type": { "from": "type" },
         "location": { "from": "location" },
         "challenge_id": { "from": "challenge_id" },
-        "page_id": { "from": "page_id" },
         "sha1sum": { "from": "sha1sum" }
       }
     },

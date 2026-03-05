@@ -13,11 +13,7 @@ public partial class File
 
     public int? ChallengeId { get; set; }
 
-    public int? PageId { get; set; }
-
     public string? Sha1sum { get; set; }
 
     public virtual Challenge? Challenge { get; set; }
-
-    public virtual Page? Page { get; set; }
 }
