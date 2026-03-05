@@ -10,51 +10,41 @@ metadata:
   name: argo-challenge-runner
 rules:
 
-# Namespace (workflow tạo namespace challenge)
 - apiGroups: [""]
   resources:
     - namespaces
-  verbs:
-    - get
-    - create
+  verbs: ["get","create"]
 
-# Services + Secrets
 - apiGroups: [""]
   resources:
     - services
     - secrets
-  verbs:
-    - get
-    - list
-    - create
-    - update
-    - patch
-    - delete
+  verbs: ["get","list","create","update","patch","delete"]
 
-# Jobs
 - apiGroups: ["batch"]
   resources:
     - jobs
-  verbs:
-    - get
-    - list
-    - create
-    - update
-    - patch
-    - delete
+  verbs: ["get","list","create","update","patch","delete"]
 
-# NetworkPolicies
 - apiGroups: ["networking.k8s.io"]
   resources:
     - networkpolicies
+  verbs: ["get","list","create","update","patch","delete"]
+
+# quyền cho argo
+- apiGroups: ["argoproj.io"]
+  resources:
+    - workflows
+    - workflowtemplates
+    - cronworkflows
   verbs:
     - get
     - list
+    - watch
     - create
     - update
     - patch
     - delete
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
