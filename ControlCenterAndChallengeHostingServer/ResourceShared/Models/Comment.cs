@@ -21,13 +21,9 @@ public partial class Comment
 
     public int? TeamId { get; set; }
 
-    public int? PageId { get; set; }
-
     public virtual User? Author { get; set; }
 
     public virtual Challenge? Challenge { get; set; }
-
-    public virtual Page? Page { get; set; }
 
     public virtual Team? Team { get; set; }
 
