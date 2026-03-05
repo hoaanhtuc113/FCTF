@@ -10,11 +10,11 @@ metadata:
   name: argo-challenge-runner
 rules:
 
-# namespace: tạo namespace cho challenge, xóa khi cleanup
+# namespace: tạo namespace cho challenge, update labels (pod-security), xóa khi cleanup
 - apiGroups: [""]
   resources:
     - namespaces
-  verbs: ["get","list","watch","create","delete"]
+  verbs: ["get","list","watch","create","update","patch","delete"]
 
 # services, secrets, configmaps
 - apiGroups: [""]
