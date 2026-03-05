@@ -225,25 +225,31 @@ func handleTCPConnection(clientConn net.Conn, authTimeout time.Duration, limiter
 		copied, sampleB64, copyErr := proxyCopyWithSample(dst, src, buf, sampleLimit)
 		copyBufPool.Put(buf)
 
+		// errSuffix is appended when there is no b64 sample (e.g. s2c disconnect).
+		// errB64Suffix is a separate space-prefixed field used when a b64 sample IS
+		// present, so the b64 value is cleanly terminated by a space and not glued
+		// to the error text (which would make it unparseable / invalid base64).
 		errSuffix := ""
+		errB64Suffix := ""
 		if copyErr != nil {
 			errSuffix = ": " + copyErr.Error()
+			errB64Suffix = fmt.Sprintf(" conn_err=%q", copyErr.Error())
 		}
 		if ok {
 			if sampleB64 != "" {
-				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s",
-					direction, remoteAddr, teamID, challengeID, direction, copied, sampleB64, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s",
+					direction, remoteAddr, teamID, challengeID, payload.Route, direction, copied, sampleB64, errB64Suffix)
 			} else {
-				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" proto=\"tcp\" direction=\"%s\" bytes=%d%s",
-					direction, remoteAddr, teamID, challengeID, direction, copied, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s team=\"%d\" challenge=\"%d\" ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d%s",
+					direction, remoteAddr, teamID, challengeID, payload.Route, direction, copied, errSuffix)
 			}
 		} else {
 			if sampleB64 != "" {
-				log.Printf("[~] TCP proxy %s from %s proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s",
-					direction, remoteAddr, direction, copied, sampleB64, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d sample_b64=%s%s",
+					direction, remoteAddr, payload.Route, direction, copied, sampleB64, errB64Suffix)
 			} else {
-				log.Printf("[~] TCP proxy %s from %s proto=\"tcp\" direction=\"%s\" bytes=%d%s",
-					direction, remoteAddr, direction, copied, errSuffix)
+				log.Printf("[~] TCP proxy %s from %s ns=\"%s\" proto=\"tcp\" direction=\"%s\" bytes=%d%s",
+					direction, remoteAddr, payload.Route, direction, copied, errSuffix)
 			}
 		}
 

@@ -1,5 +1,5 @@
-from wtforms import BooleanField, FileField, SelectField, StringField, TextAreaField
-from wtforms.fields.html5 import IntegerField, URLField
+from wtforms import BooleanField, FileField, SelectField, StringField
+from wtforms.fields.html5 import IntegerField
 from wtforms.widgets.html5 import NumberInput
 
 from CTFd.constants.config import (
@@ -31,17 +31,10 @@ class ResetInstanceForm(BaseForm):
         "Logs",
         description="Deletes all action logs and admin audit logs",
     )
-    pages = BooleanField(
-        "Pages", description="Deletes all pages and their associated files"
-    )
     submit = SubmitField("Reset CTF")
 
 
 class AccountSettingsForm(BaseForm):
-    domain_whitelist = StringField(
-        "Email Domain Allowlist",
-        description="Comma-seperated list of allowable email domains which users can register under (e.g. examplectf.com, example.com, *.example.com)",
-    )
     team_creation = SelectField(
         "Team Creation",
         description="Control whether users can create their own teams (Teams mode only)",
@@ -56,17 +49,6 @@ class AccountSettingsForm(BaseForm):
         "Maximum Number of Teams",
         widget=NumberInput(min=0),
         description="Maximum number of teams allowed to register with this CTF (Teams mode only)",
-    )
-    num_users = IntegerField(
-        "Maximum Number of Users",
-        widget=NumberInput(min=0),
-        description="Maximum number of user accounts allowed to register with this CTF",
-    )
-    verify_emails = SelectField(
-        "Verify Emails",
-        description="Control whether users must confirm their email addresses before playing",
-        choices=[("true", "Enabled"), ("false", "Disabled")],
-        default="false",
     )
     team_disbanding = SelectField(
         "Team Disbanding",
@@ -104,26 +86,6 @@ class ImportCSVForm(BaseForm):
         description="Type of CSV data",
     )
     csv_file = FileField("CSV File", description="CSV file contents")
-
-
-class LegalSettingsForm(BaseForm):
-    tos_url = URLField(
-        "Terms of Service URL",
-        description="External URL to a Terms of Service document hosted elsewhere",
-    )
-    tos_text = TextAreaField(
-        "Terms of Service",
-        description="Text shown on the Terms of Service page",
-    )
-    privacy_url = URLField(
-        "Privacy Policy URL",
-        description="External URL to a Privacy Policy document hosted elsewhere",
-    )
-    privacy_text = TextAreaField(
-        "Privacy Policy",
-        description="Text shown on the Privacy Policy page",
-    )
-    submit = SubmitField("Update")
 
 
 class VisibilitySettingsForm(BaseForm):

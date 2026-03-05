@@ -27,7 +27,6 @@ from CTFd.constants.themes import DEFAULT_THEME
 from CTFd.models import (
     Admins,
     Files,
-    Pages,
     Teams,
     Users,
     UserTokens,
@@ -37,7 +36,6 @@ from CTFd.utils import config, get_config, set_config
 from CTFd.utils import user as current_user
 from CTFd.utils import validators
 from CTFd.utils.config import is_setup, is_teams_mode
-from CTFd.utils.config.pages import build_markdown, get_page
 from CTFd.utils.config.visibility import challenges_visible
 from CTFd.utils.dates import ctf_ended, ctftime, view_after_ctf
 from CTFd.utils.decorators import authed_only
@@ -191,18 +189,13 @@ def setup():
                 name=name, email=email, password=password, type="admin", hidden=True
             )
 
-            # Create an empty index page
-            page = Pages(title=ctf_name, route="index", content="", draft=False)
-
             # Upload banner
             default_ctf_banner_location = url_for("views.themes", path="img/logo.png")
             ctf_banner = request.files.get("ctf_banner")
             if ctf_banner:
-                f = upload_file(file=ctf_banner, page_id=page.id)
+                f = upload_file(file=ctf_banner)
                 default_ctf_banner_location = url_for("views.files", path=f.location)
                 set_config("ctf_banner", f.location)
-
-            page.content = ""
 
             # Visibility
             set_config(ConfigTypes.CHALLENGE_VISIBILITY, challenge_visibility)
@@ -273,12 +266,6 @@ def setup():
             except IntegrityError:
                 db.session.rollback()
 
-            try:
-                db.session.add(page)
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-
             login_user(admin)
 
             db.session.close()
@@ -339,55 +326,17 @@ def settings():
     )
 
 
-@views.route("/", defaults={"route": "index"})
-@views.route("/<path:route>")
-def static_html(route):
+@views.route("/")
+def static_html():
     """
-    Route in charge of routing users to Pages.
-    :param route:
-    :return:
+    Root route: redirect staff to admin, show landing page for unauthenticated users.
     """
-    # Root path: staff → admin, unauthenticated → landing page
-    if route == "index":
-        if is_setup() is False:
-            return redirect(url_for("views.setup"))
-        if authed():
-            return redirect(url_for("admin.view"))
-        # Show landing page for unauthenticated users
-        return render_template("page.html", content="", title="Welcome")
-
-    page = get_page(route)
-    if page is None:
-        abort(404)
-    else:
-        if page.auth_required and authed() is False:
-            return redirect(url_for("auth.login", next=request.full_path))
-
-        return render_template("page.html", content=page.html, title=page.title)
-
-
-@views.route("/tos")
-def tos():
-    tos_url = get_config("tos_url")
-    tos_text = get_config("tos_text")
-    if tos_url:
-        return redirect(tos_url)
-    elif tos_text:
-        return render_template("page.html", content=build_markdown(tos_text))
-    else:
-        abort(404)
-
-
-@views.route("/privacy")
-def privacy():
-    privacy_url = get_config("privacy_url")
-    privacy_text = get_config("privacy_text")
-    if privacy_url:
-        return redirect(privacy_url)
-    elif privacy_text:
-        return render_template("page.html", content=build_markdown(privacy_text))
-    else:
-        abort(404)
+    if is_setup() is False:
+        return redirect(url_for("views.setup"))
+    if authed():
+        return redirect(url_for("admin.view"))
+    # Show landing page for unauthenticated users
+    return render_template("page.html", content="", title="Welcome")
 
 
 @views.route("/files", defaults={"path": ""})
@@ -537,9 +486,3 @@ def debug():
     abort(404)
 
 
-@views.route("/robots.txt")
-def robots():
-    text = get_config("robots_txt", "User-agent: *\nDisallow: /admin\n")
-    r = make_response(text, 200)
-    r.mimetype = "text/plain"
-    return r

@@ -33,6 +33,7 @@ const (
 
 type requestInfo struct {
 	TargetHost string
+	Route      string
 }
 
 type teeReadCloser struct {
@@ -168,6 +169,7 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 	host := token.ExpandRoute(payload.Route)
 	if info, ok := r.Context().Value(requestInfoKey).(*requestInfo); ok {
 		info.TargetHost = host
+		info.Route = payload.Route
 	}
 
 	ctx := context.WithValue(r.Context(), targetHostKey, host)
@@ -280,6 +282,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		if targetHost == "" {
 			targetHost = "-"
 		}
+		nsName := info.Route
 
 		// Suppress noisy token-redirect log lines.
 		if r.Method == http.MethodGet && rec.status == http.StatusFound && targetHost == "-" {
@@ -299,12 +302,16 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 		if targetHost != "-" {
 			if teamID, challengeID, ok := ParseTeamChallengeFromRoute(targetHost); ok {
-				log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" method=\"%s\" status=\"%d\" -> %s%s",
-					r.Method, r.URL.Path, rec.status, teamID, challengeID, r.Method, rec.status, targetHost, postSuffix)
+					log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s",
+						r.Method, r.URL.Path, rec.status, teamID, challengeID, nsName, r.Method, rec.status, targetHost, postSuffix)
 				return
 			}
 		}
-		log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, rec.status, r.Method, rec.status, targetHost, postSuffix)
+		if nsName != "" {
+			log.Printf("HTTP %s %s %d ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, rec.status, nsName, r.Method, rec.status, targetHost, postSuffix)
+		} else {
+			log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, rec.status, r.Method, rec.status, targetHost, postSuffix)
+		}
 	})
 }
 

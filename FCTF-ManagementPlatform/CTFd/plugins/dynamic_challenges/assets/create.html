@@ -54,8 +54,25 @@
 			This is the lowest that the challenge can be worth
 		</small>
 	</label>
-	<input type="number" class="form-control" name="minimum" placeholder="Enter minimum value" required>
+	<input type="number" class="form-control" id="dyn-minimum" name="minimum" min="0" placeholder="Enter minimum value" required>
 </div>
+<script>
+(function () {
+	var initialInput = document.querySelector('input[name="initial"]');
+	var minimumInput = document.getElementById('dyn-minimum');
+	function validate() {
+		var iv = parseInt(initialInput.value, 10);
+		var mv = parseInt(minimumInput.value, 10);
+		if (!isNaN(iv) && !isNaN(mv) && mv > iv) {
+			minimumInput.setCustomValidity('Minimum value cannot be greater than Initial value (' + iv + ')');
+		} else {
+			minimumInput.setCustomValidity('');
+		}
+	}
+	initialInput.addEventListener('input', validate);
+	minimumInput.addEventListener('input', validate);
+})();
+</script>
 {% endblock %}
 
 {% block type %}
