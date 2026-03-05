@@ -53,6 +53,19 @@ spec:
             timeoutSeconds: 2
             failureThreshold: 3
           imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - NET_RAW
+            seLinuxOptions:
+              type: container_t
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: nfs-shared-data
               mountPath: /mnt/nfs/data
