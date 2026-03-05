@@ -103,7 +103,10 @@ export function Challenges() {
   const [loading, setLoading] = useState(true);
   const [loadingChallengeDetail, setLoadingChallengeDetail] = useState(false);
   const [error, setError] = useState('');
-  const [isContestActive, setIsContestActive] = useState(false);
+  const [isContestActive, setIsContestActive] = useState(true);
+  const [contestReason, setContestReason] = useState<import('../services/challengeService').ContestAccessReason>('active');
+  // true when CTF is active OR ended but view_after_ctf is enabled — controls card click & appearance
+  const canViewChallenges = isContestActive || contestReason === 'ended_view_allowed';
   const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
 
   // State to track which categories are expanded
@@ -210,8 +213,9 @@ export function Challenges() {
       try {
         setLoading(true);
 
-        const config = await challengeService.getContestStatus();
-        setIsContestActive(config?.isActive || false);
+        const access = await challengeService.getContestAccess();
+        setIsContestActive(access.reason === 'active');
+        setContestReason(access.reason);
 
         const data = await challengeService.getCategories();
         setCategories(Array.isArray(data) ? data : []);
@@ -247,7 +251,7 @@ export function Challenges() {
     const challengeParam = searchParams.get('challenge');
     const categoryParam = searchParams.get('category');
 
-    if (challengeParam && categoryParam && isContestActive && !selectedChallenge && !loadingChallengeDetail) {
+    if (challengeParam && categoryParam && !selectedChallenge && !loadingChallengeDetail) {
       const challengeId = parseInt(challengeParam, 10);
       if (!isNaN(challengeId)) {
         if (processedChallengeRef.current === challengeId) {
@@ -280,7 +284,7 @@ export function Challenges() {
         loadAndOpen();
       }
     }
-  }, [challengesByCategory, isContestActive]);
+  }, [challengesByCategory, isContestActive, contestReason]);
 
   const fetchChallenges = async (categoryName: string): Promise<Challenge[]> => {
     try {
@@ -351,7 +355,7 @@ export function Challenges() {
 
   // Internal function to load challenge details without updating URL
   const handleChallengeClickInternal = async (challenge: Challenge) => {
-    if (!isContestActive) return;
+    if (!canViewChallenges) return;
 
     // Check prerequisites directly from API to ensure fresh data
     const { locked, unmetPrereqs } = await checkPrerequisites(challenge);
@@ -607,7 +611,19 @@ export function Challenges() {
         transition={{ duration: 0.3 }}
         className={`overflow-hidden ${!selectedChallenge ? 'flex-1' : ''} ${selectedChallenge ? 'relative' : ''}`}
       >
-        {!isContestActive && (
+        {contestReason === 'ended_view_allowed' && (
+          <div className={`mb-4 p-3 rounded border ${theme === 'dark'
+            ? 'bg-blue-900/20 border-blue-500/30'
+            : 'bg-blue-50 border-blue-300'
+            }`}>
+            <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
+              }`}>
+              <LockOpen fontSize="small" />
+              [i] CTF HAS ENDED &mdash; VIEW ONLY
+            </Typography>
+          </div>
+        )}
+        {!isContestActive && contestReason !== 'ended_view_allowed' && (
           <div className={`mb-4 p-3 rounded border ${theme === 'dark'
             ? 'bg-orange-900/20 border-orange-500/30'
             : 'bg-orange-50 border-orange-300'
@@ -615,7 +631,9 @@ export function Challenges() {
             <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
               }`}>
               <Lock fontSize="small" />
-              [!] CONTEST NOT ACTIVE
+              {contestReason === 'ended' && '[!] CTF HAS ENDED'}
+              {contestReason === 'not_started' && '[!] CTF HAS NOT STARTED YET'}
+              {(contestReason === 'not_accessible' || !contestReason) && '[!] CONTEST NOT ACCESSIBLE'}
             </Typography>
           </div>
         )}
@@ -714,7 +732,7 @@ export function Challenges() {
                               <ChallengeListItem
                                 key={challenge.id}
                                 challenge={challenge}
-                                isContestActive={isContestActive}
+                                isContestActive={canViewChallenges}
                                 onClick={() => handleChallengeClick(challenge)}
                                 isSelected={selectedChallenge?.id === challenge.id}
                                 isLocked={(prerequisiteInfo.get(challenge.id) || []).length > 0}
