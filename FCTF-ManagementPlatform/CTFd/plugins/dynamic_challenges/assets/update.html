@@ -65,4 +65,23 @@
 	</label>
 	<input type="number" class="form-control chal-minimum" name="minimum" value="{{ challenge.minimum }}" min="0" required>
 </div>
+<script>
+(function () {
+	var initialInput = document.querySelector('.chal-initial');
+	var minimumInput = document.querySelector('.chal-minimum');
+	if (!initialInput || !minimumInput) return;
+	function validate() {
+		var iv = parseInt(initialInput.value, 10);
+		var mv = parseInt(minimumInput.value, 10);
+		if (!isNaN(iv) && !isNaN(mv) && mv > iv) {
+			minimumInput.setCustomValidity('Minimum value cannot be greater than Initial value (' + iv + ')');
+		} else {
+			minimumInput.setCustomValidity('');
+		}
+	}
+	initialInput.addEventListener('input', validate);
+	minimumInput.addEventListener('input', validate);
+	validate();
+})();
+</script>
 {% endblock %}

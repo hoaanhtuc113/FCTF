@@ -57,8 +57,6 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Notification> Notifications { get; set; }
 
-    public virtual DbSet<Page> Pages { get; set; }
-
     public virtual DbSet<Solf> Solves { get; set; }
 
     public virtual DbSet<Submission> Submissions { get; set; }
@@ -512,8 +510,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ChallengeId, "challenge_id");
 
-            entity.HasIndex(e => e.PageId, "page_id");
-
             entity.HasIndex(e => e.TeamId, "team_id");
 
             entity.HasIndex(e => e.UserId, "user_id");
@@ -533,9 +529,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Date)
                 .HasMaxLength(6)
                 .HasColumnName("date");
-            entity.Property(e => e.PageId)
-                .HasColumnType("int(11)")
-                .HasColumnName("page_id");
             entity.Property(e => e.TeamId)
                 .HasColumnType("int(11)")
                 .HasColumnName("team_id");
@@ -555,11 +548,6 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.ChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("comments_ibfk_2");
-
-            entity.HasOne(d => d.Page).WithMany(p => p.Comments)
-                .HasForeignKey(d => d.PageId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("comments_ibfk_3");
 
             entity.HasOne(d => d.Team).WithMany(p => p.Comments)
                 .HasForeignKey(d => d.TeamId)
@@ -728,8 +716,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ChallengeId, "files_ibfk_1");
 
-            entity.HasIndex(e => e.PageId, "page_id");
-
             entity.Property(e => e.Id)
                 .HasColumnType("int(11)")
                 .HasColumnName("id");
@@ -739,9 +725,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Location)
                 .HasColumnType("text")
                 .HasColumnName("location");
-            entity.Property(e => e.PageId)
-                .HasColumnType("int(11)")
-                .HasColumnName("page_id");
             entity.Property(e => e.Sha1sum)
                 .HasMaxLength(40)
                 .HasColumnName("sha1sum");
@@ -753,10 +736,6 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.ChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("files_ibfk_1");
-
-            entity.HasOne(d => d.Page).WithMany(p => p.Files)
-                .HasForeignKey(d => d.PageId)
-                .HasConstraintName("files_ibfk_2");
         });
 
         modelBuilder.Entity<Flag>(entity =>
@@ -874,37 +853,6 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.Notifications)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("notifications_ibfk_2");
-        });
-
-        modelBuilder.Entity<Page>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("pages");
-
-            entity.HasIndex(e => e.Route, "route").IsUnique();
-
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.AuthRequired).HasColumnName("auth_required");
-            entity.Property(e => e.Content)
-                .HasColumnType("text")
-                .HasColumnName("content");
-            entity.Property(e => e.Draft).HasColumnName("draft");
-            entity.Property(e => e.Format)
-                .HasMaxLength(80)
-                .HasColumnName("format");
-            entity.Property(e => e.Hidden).HasColumnName("hidden");
-            entity.Property(e => e.LinkTarget)
-                .HasMaxLength(80)
-                .HasColumnName("link_target");
-            entity.Property(e => e.Route)
-                .HasMaxLength(128)
-                .HasColumnName("route");
-            entity.Property(e => e.Title)
-                .HasMaxLength(80)
-                .HasColumnName("title");
         });
 
         modelBuilder.Entity<Solf>(entity =>

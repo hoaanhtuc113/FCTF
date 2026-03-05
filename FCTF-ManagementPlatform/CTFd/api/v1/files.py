@@ -12,6 +12,7 @@ from CTFd.schemas.files import FileSchema
 from CTFd.utils import uploads
 from CTFd.utils.decorators import admin_or_challenge_writer_only_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 import CTFd.plugins.upload_zip_files.routes as upload_helper
 from werkzeug.utils import secure_filename
 import os
@@ -98,8 +99,6 @@ class FilesList(Resource):
         challenge_id = request.form.to_dict().get("challenge_id")
         temp_file_path = ""
         objs = []
-        # challenge_id
-        # page_id
 
         if expose_port and not re.fullmatch(r"^[1-9]\d*$", expose_port) and require_deploy:
             return {"success": False, "errors": "Expose port must be a positive integer"}, 400
@@ -166,6 +165,26 @@ class FilesList(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
+        for item in response.data:
+            # Resolve challenge name for audit context
+            _challenge_name = None
+            _cid = item.get("challenge_id")
+            if _cid:
+                _ch = Challenges.query.filter_by(id=_cid).first()
+                if _ch:
+                    _challenge_name = _ch.name
+            log_audit(
+                action="file_create",
+                data={
+                    "file_id": item.get("id"),
+                    "type": item.get("type"),
+                    "location": item.get("location"),
+                    "sha1sum": item.get("sha1sum"),
+                    "challenge_id": _cid,
+                    "challenge_name": _challenge_name,
+                },
+            )
+
         return {"success": True, "data": response.data}
 
 
@@ -200,9 +219,32 @@ class FilesDetail(Resource):
     def delete(self, file_id):
         f = Files.query.filter_by(id=file_id).first_or_404()
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = f.challenge_id if hasattr(f, 'challenge_id') else None
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        file_info = {
+            "file_id": f.id,
+            "type": f.type,
+            "location": f.location,
+            "sha1sum": f.sha1sum if hasattr(f, 'sha1sum') else None,
+            "challenge_id": _cid,
+            "challenge_name": _challenge_name,
+        }
+
         uploads.delete_file(file_id=f.id)
         db.session.delete(f)
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="file_delete",
+            before=file_info,
+            data={"file_id": int(file_id)},
+        )
 
         return {"success": True}

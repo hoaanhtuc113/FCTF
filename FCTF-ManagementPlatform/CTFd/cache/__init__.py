@@ -159,13 +159,6 @@ def clear_challenges():
     cache.delete_memoized(get_solve_counts_for_challenges)
 
 
-def clear_pages():
-    from CTFd.utils.config.pages import get_page, get_pages
-
-    cache.delete_memoized(get_pages)
-    cache.delete_memoized(get_page)
-
-
 def clear_user_recent_ips(user_id):
     from CTFd.utils.user import get_user_recent_ips
 

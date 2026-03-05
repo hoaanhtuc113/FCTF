@@ -7,7 +7,7 @@ from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
 from CTFd.constants import RawEnum
-from CTFd.models import Tags, db
+from CTFd.models import Challenges, Tags, db
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
@@ -99,11 +99,20 @@ class TagList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         log_audit(
             action="tag_create",
             data={
                 "tag_id": response.data.get("id"),
-                "challenge_id": response.data.get("challenge_id"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
                 "value": response.data.get("value"),
             },
         )
@@ -162,15 +171,28 @@ class Tag(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
         log_audit(
             action="tag_update",
             before=before_state,
             after={
                 "tag_id": response.data.get("id"),
-                "challenge_id": response.data.get("challenge_id"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
                 "value": response.data.get("value"),
             },
-            data={"tag_id": int(tag_id)},
+            data={
+                "tag_id": int(tag_id),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+            },
         )
 
         return {"success": True, "data": response.data}
@@ -182,7 +204,20 @@ class Tag(Resource):
     )
     def delete(self, tag_id):
         tag = Tags.query.filter_by(id=tag_id).first_or_404()
-        tag_info = {"tag_id": tag.id, "challenge_id": tag.challenge_id, "value": tag.value}
+
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        if tag.challenge_id:
+            _ch = Challenges.query.filter_by(id=tag.challenge_id).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        tag_info = {
+            "tag_id": tag.id,
+            "challenge_id": tag.challenge_id,
+            "challenge_name": _challenge_name,
+            "value": tag.value,
+        }
         db.session.delete(tag)
         db.session.commit()
         db.session.close()
@@ -190,7 +225,11 @@ class Tag(Resource):
         log_audit(
             action="tag_delete",
             before=tag_info,
-            data={"tag_id": int(tag_id)},
+            data={
+                "tag_id": int(tag_id),
+                "challenge_id": tag_info["challenge_id"],
+                "challenge_name": _challenge_name,
+            },
         )
 
         return {"success": True}

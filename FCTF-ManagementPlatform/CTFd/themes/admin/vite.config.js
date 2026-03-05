@@ -79,8 +79,6 @@ export default defineConfig({
           __dirname,
           "assets/js/pages/notifications.js"
         ),
-        "pages/editor": resolve(__dirname, "assets/js/pages/editor.js"),
-        "pages/pages": resolve(__dirname, "assets/js/pages/pages.js"),
         "pages/reset": resolve(__dirname, "assets/js/pages/reset.js"),
         "pages/scoreboard": resolve(__dirname, "assets/js/pages/scoreboard.js"),
         "pages/statistics": resolve(__dirname, "assets/js/pages/statistics.js"),

@@ -1,7 +1,5 @@
 from flask import current_app
 
-from CTFd.cache import cache
-from CTFd.models import Pages, db
 from CTFd.utils import get_config, markdown
 from CTFd.utils.dates import isoformat, unix_time_to_utc
 from CTFd.utils.formatters import safe_format
@@ -55,25 +53,3 @@ def build_markdown(md, sanitize=False):
     ):
         html = sanitize_html(html)
     return html
-
-
-@cache.memoize()
-def get_pages():
-    db_pages = Pages.query.filter(
-        Pages.route != "index", Pages.draft.isnot(True), Pages.hidden.isnot(True)
-    ).all()
-    return db_pages
-
-
-@cache.memoize()
-def get_page(route):
-    page = db.session.execute(
-        Pages.__table__.select()
-        .where(Pages.route == route)
-        .where(Pages.draft.isnot(True))
-    ).fetchone()
-    if page:
-        # Convert the row into a transient ORM object so this change isn't commited accidentally
-        p = Pages(**page)
-        return p
-    return None
