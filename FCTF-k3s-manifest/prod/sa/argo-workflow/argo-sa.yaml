@@ -5,13 +5,65 @@ metadata:
   namespace: argo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argo-challenge-runner
+rules:
+
+# Namespace (workflow tạo namespace challenge)
+- apiGroups: [""]
+  resources:
+    - namespaces
+  verbs:
+    - get
+    - create
+
+# Services + Secrets
+- apiGroups: [""]
+  resources:
+    - services
+    - secrets
+  verbs:
+    - get
+    - list
+    - create
+    - update
+    - patch
+    - delete
+
+# Jobs
+- apiGroups: ["batch"]
+  resources:
+    - jobs
+  verbs:
+    - get
+    - list
+    - create
+    - update
+    - patch
+    - delete
+
+# NetworkPolicies
+- apiGroups: ["networking.k8s.io"]
+  resources:
+    - networkpolicies
+  verbs:
+    - get
+    - list
+    - create
+    - update
+    - patch
+    - delete
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: argo-sa-cluster-admin
+  name: argo-challenge-runner-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: argo-challenge-runner
 subjects:
   - kind: ServiceAccount
     name: argo-sa
