@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center">
+  <h1 class="text-center mt-5">Welcome to FCTF Platform</h1>
+  <h3 class="text-center m-5">A Comprehensive Platform for Capture The Flag (CTF) Jeopardy Competitions, Seamlessly
+    Powered by the Robust CTFd Framework and Enhanced with KCTF Integration for Dynamic Cybersecurity Challenges.</h3>
+  {% if Configs.ctf_logo %}
+  <img height="300" width="400" src="{{ url_for('views.files', path=Configs.ctf_logo) }}" alt="{{ Configs.ctf_name }}">
+  {% else %}
+  <img height="300" width="400" src="{{ url_for('views.themes', theme='admin', path='img/logo.png') }}" alt="F-CTF">
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ Assets.js("assets/js/page.js") }}
+{% endblock %}
