@@ -1,6 +1,7 @@
 from flask import jsonify, request, render_template
 
 from CTFd.admin import admin
+from CTFd.models import Challenges, Teams, db
 from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils.rewards.query_engine import QuerySpecError, execute_query, validate_query_spec
 from CTFd.utils.rewards.reward_templates import (
@@ -170,3 +171,52 @@ def preview_multi_criteria():
 @admin_or_jury
 def rewards_page():
     return render_template("admin/rewards.html")
+
+
+@admin.route("/admin/rewards/categories", methods=["GET"])
+@admin_or_jury
+def rewards_categories():
+    """Get all challenge categories from the database."""
+    categories = (
+        db.session.query(Challenges.category)
+        .distinct()
+        .order_by(Challenges.category)
+        .all()
+    )
+    return jsonify({
+        "success": True,
+        "categories": [c[0] for c in categories if c[0]],
+    })
+
+
+@admin.route("/admin/rewards/challenges", methods=["GET"])
+@admin_or_jury
+def rewards_challenges():
+    """Get all challenges, optionally filtered by search term."""
+    search = request.args.get("search", "").strip()
+    q = Challenges.query
+    if search:
+        q = q.filter(Challenges.name.ilike(f"%{search}%"))
+    challenges = q.order_by(Challenges.name).all()
+    return jsonify({
+        "success": True,
+        "challenges": [
+            {"id": c.id, "name": c.name, "category": c.category}
+            for c in challenges
+        ],
+    })
+
+
+@admin.route("/admin/rewards/teams", methods=["GET"])
+@admin_or_jury
+def rewards_teams():
+    """Get all teams, optionally filtered by search term."""
+    search = request.args.get("search", "").strip()
+    q = Teams.query
+    if search:
+        q = q.filter(Teams.name.ilike(f"%{search}%"))
+    teams = q.order_by(Teams.name).all()
+    return jsonify({
+        "success": True,
+        "teams": [{"id": t.id, "name": t.name} for t in teams],
+    })
