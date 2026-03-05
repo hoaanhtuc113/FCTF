@@ -58,3 +58,74 @@ public class DuringCtfTimeOnlyFilter : IAsyncActionFilter
         await next();
     }
 }
+
+/// <summary>
+/// Allows access during CTF time OR after CTF ended when view_after_ctf is enabled.
+/// Use this on read-only endpoints (view challenge, hints) — not on attempt/submit.
+/// </summary>
+public class ViewOrDuringCtfTimeOnlyAttribute : TypeFilterAttribute
+{
+    public ViewOrDuringCtfTimeOnlyAttribute()
+        : base(typeof(ViewOrDuringCtfTimeOnlyFilter))
+    {
+    }
+}
+
+public class ViewOrDuringCtfTimeOnlyFilter : IAsyncActionFilter
+{
+    private readonly CtfTimeHelper _ctfTimeHelper;
+    private readonly ConfigHelper _configHelper;
+
+    public ViewOrDuringCtfTimeOnlyFilter(
+        CtfTimeHelper ctfTimeHelper,
+        ConfigHelper configHelper)
+    {
+        _ctfTimeHelper = ctfTimeHelper;
+        _configHelper = configHelper;
+    }
+
+    public async Task OnActionExecutionAsync(
+        ActionExecutingContext context,
+        ActionExecutionDelegate next)
+    {
+        if (_ctfTimeHelper.CtfTime())
+        {
+            await next();
+            return;
+        }
+
+        if (_ctfTimeHelper.CtfEnded() && ToBool(_ctfTimeHelper.ViewAfterCtf()))
+        {
+            await next();
+            return;
+        }
+
+        if (_ctfTimeHelper.CtfEnded())
+        {
+            context.Result = new JsonResult(new { error = $"{_configHelper.CtfName()} has ended" }) { StatusCode = 403 };
+            return;
+        }
+
+        if (!_ctfTimeHelper.CtfStarted())
+        {
+            context.Result = new JsonResult(new { error = $"{_configHelper.GetConfig("ctf_name")} has not started yet" }) { StatusCode = 403 };
+            return;
+        }
+
+        if (_configHelper.IsTeamsMode()
+            && context.HttpContext.User.FindFirstValue("teamId") == null)
+        {
+            context.Result = new JsonResult(new { error = "You must join a team to participate in this CTF" }) { StatusCode = 403 };
+            return;
+        }
+
+        await next();
+    }
+
+    private static bool ToBool(object? val)
+    {
+        if (val == null) return false;
+        if (bool.TryParse(val.ToString(), out var result)) return result;
+        return false;
+    }
+}
