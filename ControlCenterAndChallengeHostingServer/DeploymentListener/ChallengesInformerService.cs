@@ -1,8 +1,11 @@
 ﻿using k8s;
 using k8s.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Logger;
+using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
 using System.Text.Json;
@@ -20,6 +23,7 @@ public class ChallengesInformerService
     private const string LabelSelector = "ctf/kind=challenge";
     private readonly RedisHelper _redisHelper;
     private readonly IK8sService _k8sService;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     private const int WorkerCount = 20;
     private readonly Channel<(WatchEventType, V1Pod)>[] _shards;
@@ -27,12 +31,14 @@ public class ChallengesInformerService
         IKubernetes kubernetes,
         AppLogger logger,
         RedisHelper redisHelper,
-        IK8sService k8sService)
+        IK8sService k8sService,
+        IServiceScopeFactory scopeFactory)
     {
         _kubernetes = kubernetes;
         _logger = logger;
         _redisHelper = redisHelper;
         _k8sService = k8sService;
+        _scopeFactory = scopeFactory;
 
         //initialize channelshards allows one worker each
         _shards = new Channel<(WatchEventType, V1Pod)>[WorkerCount];
@@ -199,7 +205,7 @@ public class ChallengesInformerService
         // pod deleted
         if (eventType == WatchEventType.Deleted)
         {
-            await HandleDeletion(teamId, challengeId, key, cache, onStatusChange);
+            await HandleDeletion(teamId, challengeId, key, cache, ns, onStatusChange);
             return;
         }
 
@@ -237,12 +243,30 @@ public class ChallengesInformerService
 
     #region Sub-Logics
 
-    private async Task HandleDeletion(int teamId, int challengeId, string key, ChallengeDeploymentCacheDTO? cache, OnDeploymentStatusChanged onStatusChange)
+    private async Task HandleDeletion(int teamId, int challengeId, string key, ChallengeDeploymentCacheDTO? cache, string ns, OnDeploymentStatusChanged onStatusChange)
     {
-        _logger.LogDebug($"Final cleanup for Challenge {challengeId} (Team {teamId})");
+        _logger.LogDebug($"Final cleanup for Challenge {challengeId} (Team {teamId}) (Namespace: {ns})");
         await _redisHelper.AtomicRemoveDeploymentZSet(teamId.ToString(), key, challengeId.ToString());
-        await onStatusChange.Invoke(teamId, challengeId, cache.user_id, DeploymentStatus.STOPPED, null);
+        await onStatusChange.Invoke(teamId, challengeId, cache?.user_id ?? 0, DeploymentStatus.STOPPED, null);
 
+        try
+        {
+
+            using var scope = _scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var challengeTracking = await dbContext.ChallengeStartTrackings
+                .FirstOrDefaultAsync(ct => ct.Label == ns && ct.StoppedAt == null);
+            if (challengeTracking != null)
+            {
+                challengeTracking.StoppedAt = DateTime.UtcNow;
+                await dbContext.SaveChangesAsync();
+            }
+            
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, data: new { challengeId, teamId, errorType = "ChallengeStopTrackingSaveError" });
+        }
     }
     private async Task CleanupGhostResources(string ns, int teamId, int challengeId, string key, OnDeploymentStatusChanged onStatusChange, string status = DeploymentStatus.STOPPED)
     {
