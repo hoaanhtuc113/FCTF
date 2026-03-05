@@ -599,6 +599,31 @@ export function Challenges() {
   }
 
   return (
+    <>
+      {contestReason === 'ended_view_allowed' && (
+        <div className={`mb-4 p-3 rounded border ${theme === 'dark'
+          ? 'bg-blue-900/20 border-blue-500/30'
+          : 'bg-blue-50 border-blue-300'
+          }`}>
+          <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}`}>
+            <LockOpen fontSize="small" />
+            [i] CTF HAS ENDED &mdash; VIEW ONLY
+          </Typography>
+        </div>
+      )}
+      {!isContestActive && contestReason !== 'ended_view_allowed' && (
+        <div className={`mb-4 p-3 rounded border ${theme === 'dark'
+          ? 'bg-orange-900/20 border-orange-500/30'
+          : 'bg-orange-50 border-orange-300'
+          }`}>
+          <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'}`}>
+            <Lock fontSize="small" />
+            {contestReason === 'ended' && '[!] CTF HAS ENDED'}
+            {contestReason === 'not_started' && '[!] CTF HAS NOT STARTED YET'}
+            {(contestReason === 'not_accessible' || !contestReason) && '[!] CONTEST NOT ACCESSIBLE'}
+          </Typography>
+        </div>
+      )}
     <div className="flex gap-4 min-h-[70vh] relative">
       {/* Column: Categories with Challenges Dropdown */}
       <motion.div
@@ -611,32 +636,7 @@ export function Challenges() {
         transition={{ duration: 0.3 }}
         className={`overflow-hidden ${!selectedChallenge ? 'flex-1' : ''} ${selectedChallenge ? 'relative' : ''}`}
       >
-        {contestReason === 'ended_view_allowed' && (
-          <div className={`mb-4 p-3 rounded border ${theme === 'dark'
-            ? 'bg-blue-900/20 border-blue-500/30'
-            : 'bg-blue-50 border-blue-300'
-            }`}>
-            <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
-              }`}>
-              <LockOpen fontSize="small" />
-              [i] CTF HAS ENDED &mdash; VIEW ONLY
-            </Typography>
-          </div>
-        )}
-        {!isContestActive && contestReason !== 'ended_view_allowed' && (
-          <div className={`mb-4 p-3 rounded border ${theme === 'dark'
-            ? 'bg-orange-900/20 border-orange-500/30'
-            : 'bg-orange-50 border-orange-300'
-            }`}>
-            <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
-              }`}>
-              <Lock fontSize="small" />
-              {contestReason === 'ended' && '[!] CTF HAS ENDED'}
-              {contestReason === 'not_started' && '[!] CTF HAS NOT STARTED YET'}
-              {(contestReason === 'not_accessible' || !contestReason) && '[!] CONTEST NOT ACCESSIBLE'}
-            </Typography>
-          </div>
-        )}
+
 
         <div className={`mb-4 pb-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
           <div className="flex items-center justify-between gap-2">
@@ -807,6 +807,7 @@ export function Challenges() {
         ) : null}
       </AnimatePresence>
     </div>
+    </>
   );
 }
 
