@@ -217,6 +217,23 @@
   let challengesCache = [];
   let teamsCache = [];
 
+  // ===== Fetch helper — works whether CTFd is loaded or not =====
+  function apiFetch(url, options) {
+    if (window.CTFd && window.CTFd.fetch) {
+      return window.CTFd.fetch(url, options);
+    }
+    // Fallback: plain fetch with CSRF nonce + urlRoot prefix
+    const root = (typeof init !== 'undefined' && init.urlRoot) ? init.urlRoot : '';
+    const nonce = (typeof init !== 'undefined' && init.csrfNonce) ? init.csrfNonce : '';
+    options = options || { method: "GET" };
+    options.credentials = "same-origin";
+    if (!options.headers) options.headers = {};
+    options.headers["Accept"] = "application/json";
+    options.headers["Content-Type"] = "application/json";
+    options.headers["CSRF-Token"] = nonce;
+    return fetch(root + url, options);
+  }
+
   // ===== Param label mapping =====
   const PARAM_LABELS = {
     limit: 'Max Results',
@@ -253,13 +270,13 @@
   };
 
   // ===== Init =====
-  async function init() {
+  async function initPage() {
     await Promise.all([loadTemplates(), loadCategories(), loadChallenges(), loadTeams()]);
   }
 
   async function loadTemplates() {
     try {
-      const res = await CTFd.fetch("/admin/rewards/templates");
+      const res = await apiFetch("/admin/rewards/templates");
       const data = await res.json();
       if (data.success) {
         allTemplates = data.templates;
@@ -272,7 +289,7 @@
 
   async function loadCategories() {
     try {
-      const res = await CTFd.fetch("/admin/rewards/categories");
+      const res = await apiFetch("/admin/rewards/categories");
       const data = await res.json();
       if (data.success) categoriesCache = data.categories;
     } catch (err) { /* ignore */ }
@@ -280,7 +297,7 @@
 
   async function loadChallenges() {
     try {
-      const res = await CTFd.fetch("/admin/rewards/challenges");
+      const res = await apiFetch("/admin/rewards/challenges");
       const data = await res.json();
       if (data.success) challengesCache = data.challenges;
     } catch (err) { /* ignore */ }
@@ -288,7 +305,7 @@
 
   async function loadTeams() {
     try {
-      const res = await CTFd.fetch("/admin/rewards/teams");
+      const res = await apiFetch("/admin/rewards/teams");
       const data = await res.json();
       if (data.success) teamsCache = data.teams;
     } catch (err) { /* ignore */ }
@@ -325,7 +342,7 @@
 
   async function selectTemplate(templateId) {
     try {
-      const res = await CTFd.fetch(`/admin/rewards/templates/${templateId}`);
+      const res = await apiFetch(`/admin/rewards/templates/${templateId}`);
       const data = await res.json();
       if (data.success) {
         selectedTemplate = data.template;
@@ -471,7 +488,7 @@
       document.getElementById("preview-btn").disabled = true;
       document.getElementById("preview-btn").innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
 
-      const res = await CTFd.fetch("/admin/rewards/preview", {
+      const res = await apiFetch("/admin/rewards/preview", {
         method: "POST",
         body: JSON.stringify({ template_id: selectedTemplate.id, params })
       });
@@ -647,10 +664,10 @@
 
   function showError(msg) {
     document.getElementById("errorMessage").textContent = msg;
-    const errorModal = document.getElementById("errorModal");
-    if (errorModal) {
-      const modal = new bootstrap.Modal(errorModal);
-      modal.show();
+    try {
+      $('#errorModal').modal('show');
+    } catch (e) {
+      alert(msg);
     }
   }
 
@@ -660,7 +677,7 @@
   document.getElementById("export-csv-btn").addEventListener("click", exportToCSV);
 
   document.addEventListener('DOMContentLoaded', function () {
-    init();
+    initPage();
   });
 </script>
 {% endblock %}

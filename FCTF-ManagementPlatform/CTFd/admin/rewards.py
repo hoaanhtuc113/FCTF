@@ -2,6 +2,7 @@ from flask import jsonify, request, render_template
 
 from CTFd.admin import admin
 from CTFd.models import Challenges, Teams, db
+from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils.rewards.query_engine import QuerySpecError, execute_query, validate_query_spec
 from CTFd.utils.rewards.reward_templates import (
@@ -174,6 +175,7 @@ def rewards_page():
 
 
 @admin.route("/admin/rewards/categories", methods=["GET"])
+@bypass_csrf_protection
 @admin_or_jury
 def rewards_categories():
     """Get all challenge categories from the database."""
@@ -190,6 +192,7 @@ def rewards_categories():
 
 
 @admin.route("/admin/rewards/challenges", methods=["GET"])
+@bypass_csrf_protection
 @admin_or_jury
 def rewards_challenges():
     """Get all challenges, optionally filtered by search term."""
@@ -208,6 +211,7 @@ def rewards_challenges():
 
 
 @admin.route("/admin/rewards/teams", methods=["GET"])
+@bypass_csrf_protection
 @admin_or_jury
 def rewards_teams():
     """Get all teams, optionally filtered by search term."""
