@@ -138,6 +138,8 @@ class ServerConfig(object):
     SESSION_COOKIE_SAMESITE: str = empty_str_cast(config_ini["security"]["SESSION_COOKIE_SAMESITE"]) \
         or "Lax"
 
+    SESSION_COOKIE_SECURE: bool = config_ini["security"].getboolean("SESSION_COOKIE_SECURE", fallback=False)
+
     PERMANENT_SESSION_LIFETIME: int = config_ini["security"].getint("PERMANENT_SESSION_LIFETIME") \
         or 604800
 
