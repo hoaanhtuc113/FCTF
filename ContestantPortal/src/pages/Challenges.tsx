@@ -601,14 +601,29 @@ export function Challenges() {
   return (
     <>
       {contestReason === 'ended_view_allowed' && (
-        <div className={`mb-4 p-3 rounded border ${theme === 'dark'
-          ? 'bg-blue-900/20 border-blue-500/30'
-          : 'bg-blue-50 border-blue-300'
+        <div className={`mb-4 rounded-lg overflow-hidden ${theme === 'dark'
+          ? 'bg-gradient-to-r from-blue-950/60 via-indigo-950/60 to-blue-950/60 border border-blue-500/20 shadow-[0_0_24px_0_rgba(99,102,241,0.08)]'
+          : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-200 shadow-sm'
           }`}>
-          <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}`}>
-            <LockOpen fontSize="small" />
-            [i] CTF HAS ENDED &mdash; VIEW ONLY
-          </Typography>
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-2.5">
+              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
+                ${theme === 'dark' ? 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-400/40' : 'bg-blue-100 text-blue-600 ring-1 ring-blue-300'}`}>
+                i
+              </span>
+              <span className={`font-mono font-semibold text-sm tracking-wide ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
+                CTF HAS ENDED
+              </span>
+              <span className={`hidden sm:block text-xs font-mono px-2 py-0.5 rounded-full
+                ${theme === 'dark' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-100 text-blue-600 border border-blue-200'}`}>
+                VIEW ONLY
+              </span>
+            </div>
+          </div>
+          <div className={`h-0.5 w-full ${theme === 'dark'
+            ? 'bg-gradient-to-r from-transparent via-blue-500/40 to-transparent'
+            : 'bg-gradient-to-r from-transparent via-blue-300/60 to-transparent'}`}
+          />
         </div>
       )}
       {!isContestActive && contestReason !== 'ended_view_allowed' && (
@@ -618,9 +633,9 @@ export function Challenges() {
           }`}>
           <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'}`}>
             <Lock fontSize="small" />
-            {contestReason === 'ended' && '[!] CTF HAS ENDED'}
-            {contestReason === 'not_started' && '[!] CTF HAS NOT STARTED YET'}
-            {(contestReason === 'not_accessible' || !contestReason) && '[!] CONTEST NOT ACCESSIBLE'}
+            {contestReason === 'ended' && ' CTF HAS ENDED'}
+            {contestReason === 'not_started' && ' CTF HAS NOT STARTED YET'}
+            {(contestReason === 'not_accessible' || !contestReason) && ' CONTEST NOT ACCESSIBLE'}
           </Typography>
         </div>
       )}
