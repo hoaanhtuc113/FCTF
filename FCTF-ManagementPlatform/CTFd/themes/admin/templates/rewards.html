@@ -289,7 +289,6 @@
     first_blood_by_category: 'First Blood',
     specific_challenge_solvers: 'Solved',
     no_hints_solvers: 'No-Hint Solves',
-    fastest_solvers: 'Score',
     teams_clear_all_challenges: 'Score',
   };
 
@@ -343,17 +342,25 @@
       return;
     }
 
-    container.innerHTML = allTemplates.map(t => `
+    const CATEGORY_BADGE = {
+      ranking:     'badge-primary',
+      achievement: 'badge-success',
+      special:     'badge-info',
+    };
+    container.innerHTML = allTemplates.map(t => {
+      const badgeClass = CATEGORY_BADGE[t.category] || 'badge-secondary';
+      return `
       <div class="col-md-4 col-lg-3 mb-2">
         <div class="card template-card h-100" style="cursor: pointer;" data-template-id="${t.id}">
           <div class="card-body p-2">
             <h6 class="mb-1"><i class="fas fa-${t.icon}"></i> ${t.name}</h6>
             <p class="small text-muted mb-1">${t.description}</p>
-            <span class="badge badge-secondary badge-sm">${t.category}</span>
+            <span class="badge ${badgeClass} badge-sm">${t.category}</span>
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     document.querySelectorAll(".template-card").forEach(card => {
       card.addEventListener("click", () => {
@@ -623,7 +630,13 @@
     if (results.length > 0) {
       const values = results.map(r => r.metric_value || 0);
       const sum = values.reduce((a, b) => a + b, 0);
-      document.getElementById("stat-avg").textContent = (sum / values.length).toFixed(2);
+      const avg = sum / values.length;
+
+      document.getElementById("stat-avg").textContent =
+        Number.isFinite(avg) ? avg.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }) : "0.00";
       document.getElementById("stat-max").textContent = Math.max(...values);
       document.getElementById("stat-min").textContent = Math.min(...values);
     } else {

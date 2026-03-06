@@ -213,20 +213,7 @@ REWARD_TEMPLATES = {
     ),
     
     # ===== SPEED TEMPLATES =====
-    "fastest_solvers": RewardTemplate(
-        id="fastest_solvers",
-        name="Fastest Solvers",
-        description="Award teams who completed all their solves earliest (by last submission time)",
-        category="achievement",
-        icon="bolt",
-        query_config={
-            "entity": "team",
-            "metric": "TEAM_TOTAL_SCORE",
-            "order": {"field": "last_solve_date", "direction": "asc"},
-        },
-        customizable_params=["limit", "min_score"],
-        example_usage="Fastest 5 teams: limit=5"
-    ),
+    "fastest_solvers": None,  # Removed
     
     # ===== CLEAR ALL TEMPLATES =====
     "teams_clear_all_challenges": RewardTemplate(
@@ -489,14 +476,14 @@ def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optio
     if template_id == "teams_clear_all_challenges":
         from CTFd.models import Challenges
         cat = params.get("category")
-        q = Challenges.query
+        q = Challenges.query.filter_by(state="visible")
         if cat:
             q = q.filter_by(category=cat)
         total = q.count()
         if total > 0:
             builder.add_solve_count_filter(min_solves=total)
         else:
-            # No challenges exist; filter will match nothing
+            # No visible challenges; filter will match nothing
             builder.add_solve_count_filter(min_solves=999999)
     
     return builder.build()
