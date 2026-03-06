@@ -468,4 +468,74 @@ test.describe('Stop Challenge Functionality Suite', () => {
         await user1Ctx.close();
         await user2Ctx.close();
     });
+
+    // STOP-012: Verify Max Deploy Count limit
+    test('STOP-012: Verify Max Deploy Count limit', async ({ browser }) => {
+        test.setTimeout(600000);
+        const adminPage = await browser.newPage();
+        const userPage = await browser.newPage();
+        const chalName = 'pwn';
+        const username = 'user802';
+
+        try {
+            await loginAdmin(adminPage);
+
+            // 1. Admin sets max_deploy_count = 1
+            await adminPage.goto(`${ADMIN_URL}/admin/challenges`);
+            const row = adminPage.locator('tr', { hasText: chalName }).first();
+            await row.locator('a').first().click();
+            await adminPage.locator('a[href="#deploy"]').click();
+            await adminPage.locator('input[name="max_deploy_count"]').fill('1');
+            await adminPage.getByRole('button', { name: 'Save Changes' }).click();
+            await adminPage.waitForTimeout(2000);
+
+            await loginUser(userPage, username);
+
+            // 2. First deployment should succeed
+            await startChallenge(userPage, chalName);
+            console.log('ℹ️ STOP-012: First deployment command sent.');
+
+            // Give it some time for the UI to stabilize and health checks to pass
+            await userPage.waitForTimeout(10000);
+
+            // 3. Stop the challenge
+            await stopChallengeFromModal(userPage, chalName);
+            console.log('ℹ️ STOP-012: First instance stop command sent.');
+
+            // Wait for backend to fully clean up and UI to show Start button again
+            await userPage.waitForTimeout(10000);
+            await openChallenge(userPage, chalName);
+            const startBtnAfterStop = userPage.locator('button').filter({ hasText: /\[\+\] Start Challenge/i });
+            await expect(startBtnAfterStop).toBeVisible({ timeout: 60000 });
+            console.log('ℹ️ STOP-012: Verified challenge is stopped and [START] is back.');
+
+            // 4. Second deployment should fail
+            await startBtnAfterStop.click();
+
+            const swal = userPage.locator('.swal2-popup');
+            await expect(swal).toContainText(/You have reached the maximum number of deployments for this challenge/i, { timeout: 30000 });
+            console.log('✅ STOP-012: Max deploy count error message verified - PASS');
+
+            // Close error Swal
+            const okBtn = userPage.locator('.swal2-confirm');
+            if (await okBtn.isVisible()) {
+                await okBtn.click();
+            }
+
+        } finally {
+            // Restore max_deploy_count to 0 (Unlimited)
+            try {
+                await adminPage.goto(`${ADMIN_URL}/admin/challenges`);
+                const row = adminPage.locator('tr', { hasText: chalName }).first();
+                await row.locator('a').first().click();
+                await adminPage.locator('a[href="#deploy"]').click();
+                await adminPage.locator('input[name="max_deploy_count"]').fill('0');
+                await adminPage.getByRole('button', { name: 'Save Changes' }).click();
+            } catch (e) {
+                console.log('⚠️ STOP-012 cleanup failed:', e);
+            }
+            await adminPage.close();
+            await userPage.close();
+        }
+    });
 });
