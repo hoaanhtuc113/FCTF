@@ -343,9 +343,9 @@
     }
 
     const CATEGORY_BADGE = {
-      ranking: 'badge-warning',
-      achievement: 'badge-warning',
-      special: 'badge-warning',
+      ranking: 'badge-primary',
+      achievement: 'badge-primary',
+      special: 'badge-primary',
     };
     container.innerHTML = allTemplates.map(t => {
       const badgeClass = CATEGORY_BADGE[t.category] || 'badge-secondary';
@@ -632,12 +632,14 @@
       const sum = values.reduce((a, b) => a + b, 0);
       const avg = sum / values.length;
 
+      const rounded = Math.round((avg + Number.EPSILON) * 100) / 100;
+
       let display;
 
-      if (Math.abs(avg) >= 1e12) {
-        display = avg.toExponential(2);
+      if (Math.abs(rounded) >= 1e12) {
+        display = rounded.toExponential(2);
       } else {
-        display = avg.toFixed(2);
+        display = rounded.toFixed(2);
       }
 
       document.getElementById("stat-avg").textContent = display;
