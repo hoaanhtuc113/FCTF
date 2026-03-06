@@ -65,6 +65,15 @@
 				%}value="{{ limit_challenges }}" {% endif %}>
 		</div>
 
+		<div class="form-group">
+			<label for="incorrect_submissions_per_min">
+				Incorrect Submissions per Minute
+				<small class="form-text text-muted">Number of submissions allowed per minute for flag bruteforce protection (default: 10)</small>
+			</label>
+			<input class="form-control" id="incorrect_submissions_per_min" name="incorrect_submissions_per_min" type="number" min="1"
+				placeholder="10" {% if incorrect_submissions_per_min is defined and incorrect_submissions_per_min != None %}value="{{ incorrect_submissions_per_min }}" {% endif %}>
+		</div>
+
 		<button type="submit" class="btn btn-md btn-primary float-right">Update</button>
 	</form>
 </div>
