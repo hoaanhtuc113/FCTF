@@ -213,7 +213,38 @@ window.smallIconUpload = smallIconUpload;
 
 function smallIconUpload(event) {
   event.preventDefault();
-  let form = event.target;
+  const fileInput = document.getElementById("ctf_small_icon_file");
+  const file = fileInput && fileInput.files[0];
+  if (!file) {
+    ezAlert({ title: "Error!", body: "Please select a file.", button: "Okay" });
+    return;
+  }
+  if (file.type !== "image/png") {
+    ezAlert({ title: "Invalid file type", body: "Only PNG files are accepted.", button: "Okay" });
+    return;
+  }
+  const objectUrl = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = function () {
+    URL.revokeObjectURL(objectUrl);
+    if (img.naturalWidth !== 32 || img.naturalHeight !== 32) {
+      ezAlert({
+        title: "Invalid dimensions",
+        body: `Image must be exactly 32x32px. Uploaded image is ${img.naturalWidth}x${img.naturalHeight}px.`,
+        button: "Okay",
+      });
+      return;
+    }
+    _doSmallIconUpload(event.target);
+  };
+  img.onerror = function () {
+    URL.revokeObjectURL(objectUrl);
+    ezAlert({ title: "Error!", body: "Could not read the image file.", button: "Okay" });
+  };
+  img.src = objectUrl;
+}
+
+function _doSmallIconUpload(form) {
   helpers.files.upload(form, {}).then(function (response) {
     const f = response.data[0];
     const params = {

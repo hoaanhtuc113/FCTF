@@ -376,7 +376,7 @@ ranked AS (
         RANK() OVER (ORDER BY ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC) AS rank
     FROM team_agg ta
 )
-SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date
+SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date, solved_count, rank
 FROM ranked
 {final_where}
 {order_clause}
@@ -426,7 +426,7 @@ ranked AS (
         RANK() OVER (ORDER BY ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC) AS rank
     FROM user_agg ua
 )
-SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date,
+SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date, solved_count, rank,
        (SELECT t.name FROM teams t WHERE t.id = ranked.team_id) AS team_name
 FROM ranked
 {final_where}
@@ -493,6 +493,10 @@ def execute_query(spec: QuerySpec) -> Dict[str, Any]:
         if "last_solve_date" in row._mapping:
             val = row._mapping.get("last_solve_date")
             payload["last_solve_date"] = str(val) if val else None
+        if "solved_count" in row._mapping:
+            payload["solved_count"] = row._mapping.get("solved_count")
+        if "rank" in row._mapping:
+            payload["rank"] = row._mapping.get("rank")
         result_rows.append(payload)
 
     return {
