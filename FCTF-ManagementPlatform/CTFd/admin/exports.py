@@ -156,9 +156,18 @@ def export_submission_data():
 
         # Xuất ra Excel
         output = BytesIO()
+
+        def normalize_sheet_name(name: str) -> str:
+            # Excel sheet name must be <= 31 chars and cannot contain []:*?/\
+            safe = "".join("_" if ch in "[]:*?/\\" else ch for ch in name)
+            safe = safe.strip() or "Sheet1"
+            return safe[:31]
+
         sheet_name = "All Submissions"
         if submission_type:
             sheet_name = f"{submission_type.title()} Submissions"
+        sheet_name = normalize_sheet_name(sheet_name)
+
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             submission_df.to_excel(writer, sheet_name=sheet_name, index=False)
 

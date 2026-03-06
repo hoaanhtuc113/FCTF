@@ -105,7 +105,6 @@
 		</form>
 	</div>
 
-	{% set export_args = request.args.to_dict(flat=True) %}
 	<!-- Action Buttons -->
 	<div class="d-flex justify-content-end align-items-center action-buttons mt-2">
 		<div class="btn-group" role="group">
@@ -140,7 +139,7 @@
 				id="resync-dynamic-button">
 				<i class="btn-fa fas fa-sync-alt"></i>
 			</button>
-			<a href="{{ url_for('admin.export_submission_data', submission_type=type, **export_args) }}"
+			<a href="{{ url_for('admin.export_submission_data') }}{% if export_query %}?{{ export_query }}{% endif %}"
 				class="clean-btn ml-2" title="Export Data">
 				<i class="btn-fa fas fa-file-excel"></i> Export
 			</a>
