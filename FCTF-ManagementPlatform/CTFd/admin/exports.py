@@ -1,11 +1,13 @@
 from io import BytesIO
 
-from flask import send_file
+from flask import request, send_file
 from CTFd.admin import admin
 from CTFd.models import Challenges, Teams, Tracking, Submissions, Users
 from CTFd.utils.decorators import admin_or_jury, admins_only
+from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.scores import get_standings, get_user_standings, getSubmitStandings, get_team_challenge_counts, get_teams_cleared_all_challenges_by_topic
 from CTFd.utils.modes import get_model
+from datetime import datetime
 
 try:
     import pandas as pd
@@ -76,9 +78,53 @@ def export_submission_data():
         return {"success": False, "error": "pandas library not installed"}, 500
         
     try:
-        # Truy vấn dữ liệu submissions đầy đủ
+        submission_type = request.args.get("submission_type") or request.args.get("type")
+
+        q = request.args.get("q")
+        field = request.args.get("field")
+        team_filter = request.args.get("team_id", "", type=str).strip()
+        user_filter = request.args.get("user_id", "", type=str).strip()
+        challenge_filter = request.args.get("challenge_id", "", type=str).strip()
+        date_from = request.args.get("date_from", "").strip()
+        date_to = request.args.get("date_to", "").strip()
+
+        filters_by = {}
+        if submission_type:
+            filters_by["type"] = submission_type
+
+        filters = build_model_filters(
+            model=Submissions,
+            query=q,
+            field=field,
+            extra_columns={
+                "challenge_name": Challenges.name,
+                "account_id": Submissions.account_id,
+            },
+        )
+
+        if team_filter:
+            filters.append(Submissions.team_id == int(team_filter))
+        if user_filter:
+            filters.append(Submissions.user_id == int(user_filter))
+        if challenge_filter:
+            filters.append(Submissions.challenge_id == int(challenge_filter))
+        if date_from:
+            try:
+                dt_from = datetime.strptime(date_from, "%Y-%m-%d")
+                filters.append(Submissions.date >= dt_from)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                dt_to = datetime.strptime(date_to, "%Y-%m-%d")
+                dt_to = dt_to.replace(hour=23, minute=59, second=59)
+                filters.append(Submissions.date <= dt_to)
+            except ValueError:
+                pass
+
         submissions = (
-            Submissions.query
+            Submissions.query.filter_by(**filters_by)
+            .filter(*filters)
             .join(Challenges, Submissions.challenge_id == Challenges.id)
             .join(Teams, Submissions.team_id == Teams.id)
             .join(Users, Submissions.user_id == Users.id)
@@ -110,15 +156,21 @@ def export_submission_data():
 
         # Xuất ra Excel
         output = BytesIO()
+        sheet_name = "All Submissions"
+        if submission_type:
+            sheet_name = f"{submission_type.title()} Submissions"
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            submission_df.to_excel(writer, sheet_name='All Submissions', index=False)
+            submission_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
         output.seek(0)
 
+        filename = "submissions"
+        if submission_type:
+            filename = f"{submission_type}-submissions"
         return send_file(
             output,
             as_attachment=True,
-            download_name='submissions.xlsx',
+            download_name=f"{filename}.xlsx",
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
     except Exception as e:
