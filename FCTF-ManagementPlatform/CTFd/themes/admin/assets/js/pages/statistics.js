@@ -61,17 +61,17 @@ const renderChallengeAnalytics = (force = false) => {
           .forEach((row) => {
             const tr = document.createElement("tr");
             const percent = (row.solve_rate * 100).toFixed(1);
-            const hintUsage = row.hint_usage || 0;
             const hintCount = row.hint_count || 0;
-            const hintUsageDisplay = hintCount ? `${hintUsage}/${hintCount}` : "-";
+            const pctUsedHints = row.pct_teams_used_hints != null ? `${row.pct_teams_used_hints}%` : "-";
+            const avgHintsPerSolve = row.avg_hints_per_solve != null ? row.avg_hints_per_solve.toFixed(2) : "-";
             tr.innerHTML = `
               <td>${row.name}</td>
               <td>${percent}%</td>
               <td>${formatDuration(row.avg_solve_seconds)}</td>
               <td>${row.wrong_attempts}</td>
-              <td>${row.hint_usage}</td>
-              <td>${row.hint_count}</td>
-              <td>${hintUsageDisplay}</td>
+              <td>${hintCount}</td>
+              <td>${pctUsedHints}</td>
+              <td>${avgHintsPerSolve}</td>
             `;
             tableBody.appendChild(tr);
           });
@@ -100,9 +100,9 @@ const exportChallengeAnalytics = () => {
       "% Solve",
       "Avg Time (seconds)",
       "Wrong Attempts",
-      "Hint Usage",
-      "Hint Count",
-      "Hint Usage/Hints",
+      "Hints Available",
+      "% Teams Used Hints",
+      "Avg Hints/Solve",
     ];
     const lines = [header.join(",")];
     rows.forEach((row) => {
@@ -111,9 +111,9 @@ const exportChallengeAnalytics = () => {
         row.avg_solve_seconds === null || row.avg_solve_seconds === undefined
           ? ""
           : Math.round(row.avg_solve_seconds);
-      const hintUsage = row.hint_usage || 0;
       const hintCount = row.hint_count || 0;
-      const hintUsageDisplay = hintCount ? `${hintUsage}/${hintCount}` : "";
+      const pctUsedHints = row.pct_teams_used_hints != null ? row.pct_teams_used_hints : "";
+      const avgHintsPerSolve = row.avg_hints_per_solve != null ? row.avg_hints_per_solve : "";
       const name = String(row.name).replace(/"/g, '""');
       lines.push(
         [
@@ -121,9 +121,9 @@ const exportChallengeAnalytics = () => {
           percent,
           avg,
           row.wrong_attempts,
-          row.hint_usage,
-          row.hint_count,
-          hintUsageDisplay,
+          hintCount,
+          pctUsedHints,
+          avgHintsPerSolve,
         ].join(",")
       );
     });
