@@ -628,7 +628,8 @@
     // Stats
     document.getElementById("stat-count").textContent = results.length;
     if (results.length > 0) {
-      const values = results.map(r => r.metric_value || 0);
+      const values = results.map(r => Number(r.metric_value) || 0);
+
       const sum = values.reduce((a, b) => a + b, 0);
       const avg = sum / values.length;
 
