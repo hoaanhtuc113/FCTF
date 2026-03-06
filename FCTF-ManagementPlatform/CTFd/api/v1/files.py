@@ -3,6 +3,8 @@ from typing import List
 from flask import request
 from flask_restx import Namespace, Resource
 from pathlib import Path
+from PIL import Image
+import io
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
@@ -93,6 +95,26 @@ class FilesList(Resource):
     )
     def post(self):
         files = request.files.getlist("file")
+        upload_type = request.form.get("upload_type")
+
+        if upload_type == "small_icon" and files:
+            f = files[0]
+            data = f.read()
+            f.seek(0)
+            if f.mimetype not in ("image/png",) and not f.filename.lower().endswith(".png"):
+                return {"success": False, "errors": "Only PNG files are accepted for the favicon."}, 400
+            try:
+                img = Image.open(io.BytesIO(data))
+                if img.format != "PNG":
+                    return {"success": False, "errors": "Only PNG files are accepted for the favicon."}, 400
+                if img.size != (32, 32):
+                    return {
+                        "success": False,
+                        "errors": f"Favicon must be exactly 32x32px. Got {img.size[0]}x{img.size[1]}px.",
+                    }, 400
+            except Exception:
+                return {"success": False, "errors": "Could not read the image file."}, 400
+
         deploy_file = request.files.get("deploy_file")
         require_deploy = request.form.get("require_deploy") in ["on", "true", "True", "1"]
         expose_port = request.form.get("expose_port")
