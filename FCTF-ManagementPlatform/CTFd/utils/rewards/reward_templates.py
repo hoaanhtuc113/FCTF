@@ -98,7 +98,7 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_FIRST_BLOOD_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_count"],
+        customizable_params=["limit", "min_count", "group_by"],
         example_usage="Top 3 first blood hunters: limit=3, min_count=1"
     ),
     
@@ -113,7 +113,7 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_CATEGORY_CLEAR_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_categories_solved"],
+        customizable_params=["limit", "min_categories_solved", "group_by"],
         example_usage="Teams clearing 3+ categories: min_categories_solved=3"
     ),
     
@@ -128,24 +128,11 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_PERFECT_SOLVE_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_perfect_solves"],
+        customizable_params=["limit", "min_perfect_solves", "group_by"],
         example_usage="Top 5 perfect solvers: limit=5, min_perfect_solves=3"
     ),
     
-    "most_attempts": RewardTemplate(
-        id="most_attempts",
-        name="Most Persistent (Most Attempts)",
-        description="Award teams/users with most wrong submissions (persistence award)",
-        category="achievement",
-        icon="redo",
-        query_config={
-            "entity": "team",
-            "metric": "WRONG_SUBMISSION_COUNT",
-            "order": {"field": "metric_value", "direction": "desc"},
-        },
-        customizable_params=["limit", "min_attempts"],
-        example_usage="Top 3 most persistent: limit=3"
-    ),
+    "most_attempts": None,  # Removed
     
     "solve_count_champions": RewardTemplate(
         id="solve_count_champions",
@@ -158,7 +145,7 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_SOLVED_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_solves"],
+        customizable_params=["limit", "min_solves", "group_by"],
         example_usage="Most challenges solved: limit=5, min_solves=10"
     ),
     
@@ -166,7 +153,7 @@ REWARD_TEMPLATES = {
     "category_specific_top": RewardTemplate(
         id="category_specific_top",
         name="Category-Specific Top Teams",
-        description="Award top teams/users in a specific category (e.g., Web, Crypto)",
+        description="Top teams/users in a specific category ranked by score and solve count in that category",
         category="special",
         icon="filter",
         query_config={
@@ -181,13 +168,14 @@ REWARD_TEMPLATES = {
     "first_blood_by_category": RewardTemplate(
         id="first_blood_by_category",
         name="First Blood by Category",
-        description="Award first blood achievers in a specific category",
+        description="Show only first blood achievers in a specific category",
         category="special",
         icon="flag-checkered",
         query_config={
             "entity": "solve",
             "metric": "FIRST_BLOOD",
             "order": {"field": "entity_id", "direction": "asc"},
+            "only_first_blood": True,
         },
         customizable_params=["category"],
         example_usage="First bloods in Forensics: category='Forensics'"
@@ -196,7 +184,7 @@ REWARD_TEMPLATES = {
     "specific_challenge_solvers": RewardTemplate(
         id="specific_challenge_solvers",
         name="Specific Challenge Solvers",
-        description="Award teams/users who solved specific difficult challenges",
+        description="Show teams/users who successfully solved specific challenges (correct submissions only)",
         category="special",
         icon="star",
         query_config={
@@ -211,15 +199,16 @@ REWARD_TEMPLATES = {
     "no_hints_solvers": RewardTemplate(
         id="no_hints_solvers",
         name="No Hints Solvers",
-        description="Award teams/users who solved challenges without using hints",
+        description="Award teams/users who solved the most challenges without using hints",
         category="achievement",
         icon="brain",
         query_config={
-            "entity": "solve",
-            "metric": "FIRST_BLOOD",
-            "order": {"field": "entity_id", "direction": "asc"},
+            "entity": "team",
+            "metric": "TEAM_SOLVED_COUNT",
+            "order": {"field": "metric_value", "direction": "desc"},
+            "no_hints": True,
         },
-        customizable_params=["category", "min_solves"],
+        customizable_params=["limit", "category", "min_solves", "group_by"],
         example_usage="No hints in Crypto: category='Crypto', min_solves=3"
     ),
     
@@ -235,7 +224,7 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_TOTAL_SCORE",
             "order": {"field": "last_solve_date", "direction": "asc"},
         },
-        customizable_params=["limit"],
+        customizable_params=["limit", "min_score"],
         example_usage="Fastest 5 teams: limit=5"
     ),
     
@@ -468,12 +457,12 @@ def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optio
     if "min_perfect_solves" in params:
         builder.add_perfect_solve_filter(params["min_perfect_solves"])
     
-    # Apply first blood filter
-    if params.get("only_first_blood"):
+    # Apply first blood filter from template config or params
+    if template.query_config.get("only_first_blood") or params.get("only_first_blood"):
         builder.add_first_blood_filter()
     
-    # Apply no hints filter
-    if params.get("no_hints"):
+    # Apply no hints filter from template config or params
+    if template.query_config.get("no_hints") or params.get("no_hints"):
         builder.add_no_hints_filter()
     
     # Apply time filter
@@ -504,6 +493,10 @@ def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optio
         if cat:
             q = q.filter_by(category=cat)
         total = q.count()
-        builder.add_solve_count_filter(min_solves=total)
+        if total > 0:
+            builder.add_solve_count_filter(min_solves=total)
+        else:
+            # No challenges exist; filter will match nothing
+            builder.add_solve_count_filter(min_solves=999999)
     
     return builder.build()
