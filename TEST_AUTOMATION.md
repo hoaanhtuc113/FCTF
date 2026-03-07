@@ -82,6 +82,7 @@ npx playwright show-report
 | `admin-config-general-test.spec.ts` | CONF-GEN-001 -> 013 | General settings (Event name, Captain only, etc.) |
 | `admin-config-logo-test.spec.ts` | CONF-LOGO-001 -> 011 | Logo and Icon upload, removal, and security |
 | `reset-contest.spec.ts` | Contest time reset script | Admin |
+| `Test/SystemTest-Nhat/` | 35 admin system-test specs, 113 test cases (UC23 -> UC82) | Admin |
 
 ---
 
@@ -475,6 +476,72 @@ Used to reset contest time after configuration changes:
 ```bash
 npx playwright test Test/reset-contest.spec.ts
 ```
+
+---
+
+### `Test/SystemTest-Nhat/`
+This folder contains the ordered admin system-test suite contributed by Nhat. It focuses on admin-side CRUD, filtering, search, submission-management, brackets, and custom-field flows.
+
+**Scope:** 35 spec files, 113 test cases, all under ordered execution.
+
+**Run commands:**
+
+```bash
+cd Test/SystemTest-Nhat
+npm test
+npm run test:headed
+npm run test:report
+```
+
+**Execution characteristics:**
+- Uses `run-ordered-tests.cjs` to enforce deterministic file order.
+- Runs with `workers: 1` and `fullyParallel: false` because many cases mutate shared admin data.
+- Generates a dedicated report inside `Test/SystemTest-Nhat/playwright-report/`.
+- Full testcase matrix is maintained in `Test/SystemTest-Nhat/all-test-cases.tsv`.
+
+**Files and test items:**
+
+| File | Test Cases | Chức năng |
+|------|------------|-----------|
+| `uc23-query-reward.spec.ts` | UC23-01 -> UC23-03 | Query reward templates and preview results |
+| `uc24-filter-history.spec.ts` | UC24-01 -> UC24-05 | Filter instance history |
+| `uc25-view-instance-history.spec.ts` | UC25-01 -> UC25-03 | View instance history page |
+| `uc26-view-audit-logs.spec.ts` | UC26-01 -> UC26-03 | View and filter audit logs |
+| `uc28-view-users.spec.ts` | UC28-01 -> UC28-15 | View, search, and filter users |
+| `uc30-edit-user.spec.ts` | UC30-01 -> UC30-11 | Edit user validation and happy paths |
+| `uc31-delete-user.spec.ts` | UC31-01 -> UC31-05 | Delete user flows |
+| `uc37-view-teams.spec.ts` | UC37-01 -> UC37-12 | View, search, and filter teams |
+| `uc39-edit-team.spec.ts` | UC39-01 -> UC39-14 | Edit team validation and happy paths |
+| `uc40-delete-team.spec.ts` | UC40-01 -> UC40-04 | Delete team flows |
+| `uc42-search-team.spec.ts` | UC42-01 -> UC42-04 | Search team by name, id, affiliation |
+| `uc43-view-submissions.spec.ts` | UC43-01 -> UC43-03 | View submissions page |
+| `uc44-delete-submission.spec.ts` | UC44-01 -> UC44-03 | Delete submission flows |
+| `uc45-search-submission.spec.ts` | UC45-01 -> UC45-05 | Search and filter submissions |
+| `uc46-change-submission-status.spec.ts` | UC46-01 -> UC46-03 | Change submission status |
+| `uc63-comment.spec.ts` | UC63-01 | Add team comment |
+| `uc64-assign-captain.spec.ts` | UC64-01 | Assign team captain |
+| `uc65-view-user-solves.spec.ts` | UC65-01 | View user solves |
+| `uc66-view-team-solves.spec.ts` | UC66-01 | View team solves |
+| `uc67-view-user-fails.spec.ts` | UC67-01 | View user fails |
+| `uc68-view-team-fails.spec.ts` | UC68-01 | View team fails |
+| `uc69-view-user-award.spec.ts` | UC69-01 | View user awards |
+| `uc70-view-team-award.spec.ts` | UC70-01 | View team awards |
+| `uc71-delete-solved-submission.spec.ts` | UC71-01 | Delete solved submission |
+| `uc72-delete-failed-submission.spec.ts` | UC72-01 | Delete failed submission |
+| `uc73-delete-award.spec.ts` | UC73-01 | Delete award |
+| `uc74-view-team-missings.spec.ts` | UC74-01 | View team missing challenges |
+| `uc75-view-brackets.spec.ts` | UC75-01 | View brackets config |
+| `uc76-create-bracket.spec.ts` | UC76-01 | Create bracket |
+| `uc77-update-bracket.spec.ts` | UC77-01 | Update bracket |
+| `uc78-delete-bracket.spec.ts` | UC78-01 | Delete bracket |
+| `uc79-view-custom-fields.spec.ts` | UC79-01 | View custom fields config |
+| `uc80-create-custom-field.spec.ts` | UC80-01 | Create custom field |
+| `uc81-update-custom-field.spec.ts` | UC81-01 | Update custom field |
+| `uc82-delete-custom-field.spec.ts` | UC82-01 | Delete custom field |
+
+**Synchronization notes:**
+- This suite follows the same Playwright project model as the root repository: Chromium project, HTML report, `trace: on-first-retry`, and CI-aware retry behavior.
+- It intentionally keeps `workers: 1` and ordered execution because these test items mutate shared admin data and global configuration.
 
 ---
 
