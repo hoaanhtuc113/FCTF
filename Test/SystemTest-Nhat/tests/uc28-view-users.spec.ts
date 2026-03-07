@@ -11,7 +11,7 @@
  * Actor : Admin (admin / 1)
  */
 
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { BASE_URL, loginAsAdmin, getUsers } from "./helpers";
 
 test.describe("View Users — System Tests", () => {

@@ -1,4 +1,4 @@
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { BASE_URL, loginAsAdmin } from "./helpers";
 
 test.describe("UC-79 View Custom Fields", () => {

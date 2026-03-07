@@ -1,4 +1,4 @@
-import { expect, Locator, Page } from "playwright/test";
+import { expect, Locator, Page } from "@playwright/test";
 
 export const BASE_URL = "https://admin.fctf.site";
 export const ADMIN_USER = "admin";

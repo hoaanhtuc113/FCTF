@@ -1,4 +1,4 @@
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { BASE_URL, deleteBracketByApi, getBrackets, loginAsAdmin } from "./helpers";
 
 test.describe("UC-76 Create Bracket", () => {
