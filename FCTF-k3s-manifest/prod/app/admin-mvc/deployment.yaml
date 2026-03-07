@@ -64,6 +64,8 @@ spec:
             capabilities:
               drop:
                 - NET_RAW
+            seLinuxOptions:
+              type: container_t
             seccompProfile:
               type: RuntimeDefault
           volumeMounts:

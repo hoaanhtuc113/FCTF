@@ -22,7 +22,7 @@ spec:
   ports:
     - protocol: TCP
       port: 5173
-      targetPort: 80
+      targetPort: 8080
   selector:
     app: contestant-portal
   type: ClusterIP

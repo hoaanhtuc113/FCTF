@@ -13,6 +13,8 @@ spec:
       labels:
         app: contestant-portal
     spec:
+      securityContext:
+        fsGroup: 1000
       priorityClassName: app-normal
       preemptionPolicy: Never
       containers:
@@ -20,7 +22,7 @@ spec:
           image: quachuoiscontainer/fctf:contestant-portal-prod-v4.0.0
           ports:
             - name: http-client
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
           envFrom:
             - configMapRef:
@@ -35,7 +37,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 2
@@ -43,7 +45,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8080
             initialDelaySeconds: 15
             periodSeconds: 20
             timeoutSeconds: 2
@@ -52,14 +54,23 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
+            runAsUser: 101
             runAsGroup: 1000
             allowPrivilegeEscalation: false
             privileged: false
             capabilities:
               drop:
                 - NET_RAW
+            seLinuxOptions:
+              type: container_t
             seccompProfile:
               type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
       imagePullSecrets:
         - name: regcred
+      volumes:
+        - name: tmp
+          emptyDir: {}
   revisionHistoryLimit: 3
