@@ -1,4 +1,4 @@
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { BASE_URL, loginAsAdmin } from "./helpers";
 
 async function getHistorySeed(page: Parameters<typeof test>[0]["page"]) {

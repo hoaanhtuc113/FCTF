@@ -15,7 +15,7 @@
  *   - email: required, format email, 1–128 ký tự, không trùng
  */
 
-import { test, expect, Page } from "playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import {
     BASE_URL,
     SUBMIT_WAIT_MS,

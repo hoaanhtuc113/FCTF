@@ -1,4 +1,4 @@
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { BASE_URL, getRewardTemplates, loginAsAdmin } from "./helpers";
 
 test.describe("UC-23 Query Reward", () => {
