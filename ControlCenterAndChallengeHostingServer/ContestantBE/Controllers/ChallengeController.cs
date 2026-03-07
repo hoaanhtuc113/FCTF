@@ -85,7 +85,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("{id}")]
-    [DuringCtfTimeOnly]
+    [ViewOrDuringCtfTimeOnly]
     public async Task<IActionResult> GetById(int id)
     {
         try
@@ -147,6 +147,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("by-topic")]
+    [ViewOrDuringCtfTimeOnly]
     public async Task<IActionResult> GetByTopic()
     {
         var userId = UserContext.UserId;
