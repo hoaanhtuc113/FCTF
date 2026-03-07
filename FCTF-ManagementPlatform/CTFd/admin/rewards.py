@@ -1,6 +1,8 @@
 from flask import jsonify, request, render_template
 
 from CTFd.admin import admin
+from CTFd.models import Challenges, Teams, db
+from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils.rewards.query_engine import QuerySpecError, execute_query, validate_query_spec
 from CTFd.utils.rewards.reward_templates import (
@@ -170,3 +172,146 @@ def preview_multi_criteria():
 @admin_or_jury
 def rewards_page():
     return render_template("admin/rewards.html")
+
+
+@admin.route("/admin/rewards/details", methods=["POST"])
+@admin_or_jury
+def rewards_details():
+    """Return solved challenges for a specific team/user, used by expandable rows."""
+    from sqlalchemy import text as sa_text
+
+    payload = request.get_json() or {}
+    template_id = payload.get("template_id", "")
+    entity_type = payload.get("entity_type", "team")
+    entity_id = payload.get("entity_id")
+
+    if not entity_id:
+        return jsonify({"success": False, "error": "entity_id is required"}), 400
+
+    entity_id = int(entity_id)
+
+    # Determine the relevant filter column
+    if entity_type == "user":
+        filter_col = "s.user_id"
+    else:
+        filter_col = "s.team_id"
+
+    # Build extra conditions based on the template type
+    extra_join = ""
+    extra_where = ""
+
+    if template_id == "first_blood_hunters":
+        # Only show challenges where this entity got first blood
+        extra_join = """
+            JOIN (
+                SELECT challenge_id, MIN(date) AS fb_date
+                FROM submissions
+                WHERE type = 'correct'
+                GROUP BY challenge_id
+            ) fb ON fb.challenge_id = s.challenge_id AND fb.fb_date = s.date
+        """
+    elif template_id == "perfect_solvers":
+        # Only show challenges solved without any wrong submissions
+        extra_where = """
+            AND NOT EXISTS (
+                SELECT 1 FROM submissions w
+                WHERE w.challenge_id = s.challenge_id
+                AND w.type = 'incorrect'
+                AND w.date < s.date
+                AND w.{col} = :entity_id
+            )
+        """.format(col=filter_col.split('.')[1])
+    elif template_id == "no_hints_solvers":
+        # Only show challenges solved without using hints
+        extra_where = """
+            AND NOT EXISTS (
+                SELECT 1 FROM unlocks u
+                JOIN hints h ON h.id = u.target
+                WHERE u.type = 'hints'
+                AND h.challenge_id = s.challenge_id
+                AND u.{col} = :entity_id
+            )
+        """.format(col=filter_col.split('.')[1])
+
+    sql = f"""
+        SELECT
+            c.id AS challenge_id,
+            c.name AS challenge_name,
+            c.category,
+            c.value AS score,
+            s.date AS solve_date
+        FROM submissions s
+        JOIN solves sol ON sol.id = s.id
+        JOIN challenges c ON c.id = s.challenge_id
+        {extra_join}
+        WHERE s.type = 'correct'
+        AND {filter_col} = :entity_id
+        {extra_where}
+        ORDER BY c.category, c.name
+    """
+
+    rows = db.session.execute(sa_text(sql), {"entity_id": entity_id}).fetchall()
+
+    details = []
+    for row in rows:
+        details.append({
+            "challenge_id": row.challenge_id,
+            "challenge_name": row.challenge_name,
+            "category": row.category,
+            "score": row.score,
+            "solve_date": str(row.solve_date) if row.solve_date else None,
+        })
+
+    return jsonify({"success": True, "details": details})
+
+
+@admin.route("/admin/rewards/categories", methods=["GET"])
+@bypass_csrf_protection
+@admin_or_jury
+def rewards_categories():
+    """Get all challenge categories from the database."""
+    categories = (
+        db.session.query(Challenges.category)
+        .distinct()
+        .order_by(Challenges.category)
+        .all()
+    )
+    return jsonify({
+        "success": True,
+        "categories": [c[0] for c in categories if c[0]],
+    })
+
+
+@admin.route("/admin/rewards/challenges", methods=["GET"])
+@bypass_csrf_protection
+@admin_or_jury
+def rewards_challenges():
+    """Get all challenges, optionally filtered by search term."""
+    search = request.args.get("search", "").strip()
+    q = Challenges.query
+    if search:
+        q = q.filter(Challenges.name.ilike(f"%{search}%"))
+    challenges = q.order_by(Challenges.name).all()
+    return jsonify({
+        "success": True,
+        "challenges": [
+            {"id": c.id, "name": c.name, "category": c.category}
+            for c in challenges
+        ],
+    })
+
+
+@admin.route("/admin/rewards/teams", methods=["GET"])
+@bypass_csrf_protection
+@admin_or_jury
+def rewards_teams():
+    """Get all teams, optionally filtered by search term."""
+    search = request.args.get("search", "").strip()
+    q = Teams.query
+    if search:
+        q = q.filter(Teams.name.ilike(f"%{search}%"))
+    teams = q.order_by(Teams.name).all()
+    return jsonify({
+        "success": True,
+        "teams": [{"id": t.id, "name": t.name} for t in teams],
+    })

@@ -155,11 +155,20 @@ class ChallengeAnalytics(Resource):
             .scalar()
         ) or 0
 
-        avg_expr = (
-            func.avg(func.timestampdiff(text("SECOND"), start_dt, Solves.date))
-            if start_dt
-            else literal(None)
-        )
+        if start_dt:
+            dialect = db.engine.dialect.name
+            if dialect == "sqlite":
+                avg_expr = func.avg(
+                    (func.julianday(Solves.date) - func.julianday(start_dt)) * 86400.0
+                )
+            elif dialect in {"postgresql", "postgres"}:
+                avg_expr = func.avg(func.extract("epoch", Solves.date - start_dt))
+            else:
+                avg_expr = func.avg(
+                    func.timestampdiff(text("SECOND"), start_dt, Solves.date)
+                )
+        else:
+            avg_expr = literal(None)
 
         solves_sub = (
             db.session.query(
@@ -194,10 +203,29 @@ class ChallengeAnalytics(Resource):
             account_join = HintUnlocks.user_id == Users.id
             account_filters = [Users.banned == False, Users.hidden == False]
 
+        # Total hint unlocks per challenge
         hint_usage_sub = (
             db.session.query(
                 Hints.challenge_id,
                 func.count(HintUnlocks.id).label("hint_usage"),
+            )
+            .join(Hints, HintUnlocks.target == Hints.id)
+            .join(account_model, account_join)
+            .filter(*account_filters, *time_filters(HintUnlocks.date))
+            .group_by(Hints.challenge_id)
+            .subquery()
+        )
+
+        # Distinct teams/users that used at least 1 hint per challenge
+        if user_mode == "teams":
+            hint_account_col = HintUnlocks.team_id
+        else:
+            hint_account_col = HintUnlocks.user_id
+
+        teams_used_hints_sub = (
+            db.session.query(
+                Hints.challenge_id,
+                func.count(func.distinct(hint_account_col)).label("teams_used_hints"),
             )
             .join(Hints, HintUnlocks.target == Hints.id)
             .join(account_model, account_join)
@@ -225,11 +253,13 @@ class ChallengeAnalytics(Resource):
                 fails_sub.c.wrong_attempts,
                 hint_usage_sub.c.hint_usage,
                 hint_count_sub.c.hint_count,
+                teams_used_hints_sub.c.teams_used_hints,
             )
             .outerjoin(solves_sub, Challenges.id == solves_sub.c.challenge_id)
             .outerjoin(fails_sub, Challenges.id == fails_sub.c.challenge_id)
             .outerjoin(hint_usage_sub, Challenges.id == hint_usage_sub.c.challenge_id)
             .outerjoin(hint_count_sub, Challenges.id == hint_count_sub.c.challenge_id)
+            .outerjoin(teams_used_hints_sub, Challenges.id == teams_used_hints_sub.c.challenge_id)
             .filter(and_(Challenges.state != "hidden", Challenges.state != "locked"))
             .order_by(Challenges.category, Challenges.name)
             .all()
@@ -241,9 +271,21 @@ class ChallengeAnalytics(Resource):
             solve_rate = (float(solve_count) / float(total_accounts)) if total_accounts else 0.0
             hint_usage = int(chal.hint_usage or 0)
             hint_count = int(chal.hint_count or 0)
-            hint_usage_per_hint = (
-                float(hint_usage) / float(hint_count) if hint_count else None
+            teams_used_hints = int(chal.teams_used_hints or 0)
+
+            # % of solving teams that used at least 1 hint
+            pct_teams_used_hints = (
+                round(float(teams_used_hints) / float(solve_count) * 100, 1)
+                if solve_count > 0
+                else 0.0
             )
+            # Average hints unlocked per solving team
+            avg_hints_per_solve = (
+                round(float(hint_usage) / float(solve_count), 2)
+                if solve_count > 0
+                else 0.0
+            )
+
             response.append(
                 {
                     "id": chal.id,
@@ -257,9 +299,9 @@ class ChallengeAnalytics(Resource):
                         else None
                     ),
                     "wrong_attempts": int(chal.wrong_attempts or 0),
-                    "hint_usage": hint_usage,
                     "hint_count": hint_count,
-                    "hint_usage_per_hint": hint_usage_per_hint,
+                    "pct_teams_used_hints": pct_teams_used_hints,
+                    "avg_hints_per_solve": avg_hints_per_solve,
                 }
             )
 

@@ -30,7 +30,7 @@ public class HintController : BaseController
     }
 
     [HttpGet("{id}")]
-    [DuringCtfTimeOnly]
+    [ViewOrDuringCtfTimeOnly]
     public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
     {
         var userId = UserContext.UserId;
@@ -47,7 +47,7 @@ public class HintController : BaseController
     }
 
     [HttpGet("{id}/all")]
-    [DuringCtfTimeOnly]
+    [ViewOrDuringCtfTimeOnly]
     public async Task<IActionResult> GetHintByChallengeId(int id)
     {
         var userId = UserContext.UserId;

@@ -1,29 +1,25 @@
 import { fetchWithAuth } from './api';
 import { API_ENDPOINTS } from '../config/endpoints';
 
-interface ContestConfig {
-  message: string;
-  start_date?: number;
-  end_date?: number;
-  isActive?: boolean;
+export type ContestAccessReason = 'active' | 'ended_view_allowed' | 'ended' | 'not_started' | 'not_accessible';
+
+export interface ContestAccess {
+  canAccess: boolean;
+  reason: ContestAccessReason;
 }
 
 class ChallengeService {
-  async getContestStatus(): Promise<ContestConfig | null> {
+  async getContestAccess(): Promise<ContestAccess> {
     try {
-      const response = await fetchWithAuth(API_ENDPOINTS.CONFIG.DATE_CONFIG);
+      const response = await fetchWithAuth(API_ENDPOINTS.CONFIG.CONTEST_ACCESS);
+      if (!response.ok) return { canAccess: false, reason: 'not_accessible' };
       const data = await response.json();
-      
-      if (data) {
-        const isActive = data.message === 'CTFd has been started' && 
-                        data.end_date && 
-                        new Date() < new Date(data.end_date * 1000);
-        return { ...data, isActive };
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching contest status:', error);
-      return null;
+      return {
+        canAccess: data.canAccess === true,
+        reason: (data.reason as ContestAccessReason) ?? 'not_accessible',
+      };
+    } catch {
+      return { canAccess: false, reason: 'not_accessible' };
     }
   }
 

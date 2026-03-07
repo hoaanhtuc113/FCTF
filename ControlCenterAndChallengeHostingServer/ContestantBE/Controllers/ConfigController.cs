@@ -80,4 +80,27 @@ public class ConfigController : BaseController
             ctf_name = name,
         });
     }
+
+    /// <summary>
+    /// Returns whether challenge content is currently accessible.
+    /// True when CTF is running, or when CTF has ended and view_after_ctf is enabled.
+    /// </summary>
+    [HttpGet("contest_access")]
+    public IActionResult GetContestAccess()
+    {
+        var canAccess = _ctfTimeHelper.CtfTime() ||
+                        (_ctfTimeHelper.CtfEnded() && _ctfTimeHelper.ViewAfterCtf());
+
+        string reason;
+        if (_ctfTimeHelper.CtfTime())
+            reason = "active";
+        else if (_ctfTimeHelper.CtfEnded() && _ctfTimeHelper.ViewAfterCtf())
+            reason = "ended_view_allowed";
+        else if (_ctfTimeHelper.CtfEnded())
+            reason = "ended";
+        else
+            reason = "not_started";
+
+        return Ok(new { isSuccess = true, canAccess, reason });
+    }
 }

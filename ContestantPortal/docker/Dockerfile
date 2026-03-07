@@ -9,7 +9,8 @@ COPY . .
 RUN npm run build
 
 # ---------- Runtime stage ----------
-FROM nginx:1.27-alpine
+# nginx-unprivileged: runs as non-root (UID 101), uses /tmp for pid + temp paths
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
@@ -21,9 +22,11 @@ COPY public/env.template.js /usr/share/nginx/html/env.template.js
 
 # Copy entrypoint script
 COPY docker/docker-entrypoint.sh /docker-entrypoint.sh
+USER root
 RUN chmod +x /docker-entrypoint.sh \
 	&& sed -i 's/\r$//' /docker-entrypoint.sh
+USER nginx
 
-EXPOSE 80
+EXPOSE 8080
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

@@ -2,8 +2,6 @@
 
 {% block stylesheets %}
 <style>
-  /* Rewards Page Styles — header inherits from base.html */
-
   .rewards-page .page-subtitle {
     margin-top: 0.5rem;
     color: #6c757d;
@@ -24,7 +22,7 @@
     font-weight: 600;
     font-size: 1rem;
     padding-bottom: 0.75rem;
-    border-bottom: 2px solid #e8e8e8;
+    border-bottom: 2px solid #e8910d;
     margin-bottom: 1rem;
   }
 
@@ -37,6 +35,90 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
     transition: all 0.2s;
+  }
+
+  .template-card.selected {
+    border-color: #e8910d;
+    box-shadow: 0 0 0 2px rgba(232, 145, 13, 0.25);
+  }
+
+  .stat-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    text-align: center;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-card h4 {
+    margin-bottom: 0;
+    color: #e8910d;
+  }
+
+  .search-select-wrapper {
+    position: relative;
+  }
+
+  .search-select-wrapper .dropdown-list {
+    position: absolute;
+    z-index: 100;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-top: 0;
+    border-radius: 0 0 4px 4px;
+    display: none;
+  }
+
+  .search-select-wrapper .dropdown-list.show {
+    display: block;
+  }
+
+  .search-select-wrapper .dropdown-item {
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+
+  .search-select-wrapper .dropdown-item:hover {
+    background-color: #f0f0f0;
+  }
+
+  .search-select-wrapper .dropdown-item.active {
+    background-color: #e8910d;
+    color: #fff;
+  }
+
+  .detail-row td {
+    background: #fff8f0;
+    padding: 0.5rem 1rem !important;
+  }
+
+  .detail-row .detail-list {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+  }
+
+  .detail-row .detail-list table {
+    margin-bottom: 0;
+  }
+
+  tr.expandable-row {
+    cursor: pointer;
+  }
+
+  tr.expandable-row:hover {
+    background-color: #fff3e6 !important;
+  }
+
+  .cell-truncate {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>
 {% endblock %}
@@ -53,7 +135,6 @@
     <!-- Template Selector -->
     <div class="section-card">
       <div class="section-title"><i class="fas fa-th-large"></i> Choose Template</div>
-
       <div class="row" id="template-cards">
         <div class="col-12 text-center py-3">
           <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
@@ -64,13 +145,13 @@
     <!-- Parameters -->
     <div class="section-card" id="params-card" style="display: none;">
       <div class="section-title"><i class="fas fa-sliders-h"></i> Parameters</div>
-      <div class="alert alert-info py-2 mb-3">
+      <div class="alert alert-secondary py-2 mb-3">
         <strong id="selected-template-name" class="d-block"></strong>
         <small class="text-muted" id="selected-template-desc"></small>
       </div>
       <div id="params-container"></div>
       <div class="mt-2">
-        <button id="preview-btn" class="btn btn-primary">
+        <button id="preview-btn" class="btn btn-warning text-white">
           <i class="fas fa-eye"></i> Preview Results
         </button>
         <button id="reset-btn" class="btn btn-outline-secondary ml-2">
@@ -83,42 +164,34 @@
     <div class="section-card" id="results-card" style="display: none;">
       <div class="section-title d-flex justify-content-between align-items-center">
         <div><i class="fas fa-list"></i> Results</div>
-        <span class="badge badge-light" id="result-count">0</span>
+        <span class="badge badge-warning text-white" id="result-count">0</span>
       </div>
 
       <div class="card-body p-0">
         <!-- Stats Row -->
         <div class="row mb-2" id="stats-row">
           <div class="col-md-3">
-            <div class="card border-primary mb-2">
-              <div class="card-body text-center py-2">
-                <h4 class="mb-0 text-primary" id="stat-count">0</h4>
-                <small class="text-muted">Recipients</small>
-              </div>
+            <div class="stat-card">
+              <h4 id="stat-count">0</h4>
+              <small class="text-muted">Recipients</small>
             </div>
           </div>
           <div class="col-md-3">
-            <div class="card border-info mb-2">
-              <div class="card-body text-center py-2">
-                <h4 class="mb-0 text-info" id="stat-avg">-</h4>
-                <small class="text-muted">Avg Value</small>
-              </div>
+            <div class="stat-card">
+              <h4 id="stat-avg">-</h4>
+              <small class="text-muted">Avg Value</small>
             </div>
           </div>
           <div class="col-md-3">
-            <div class="card border-success mb-2">
-              <div class="card-body text-center py-2">
-                <h4 class="mb-0 text-success" id="stat-max">-</h4>
-                <small class="text-muted">Max Value</small>
-              </div>
+            <div class="stat-card">
+              <h4 id="stat-max">-</h4>
+              <small class="text-muted">Max Value</small>
             </div>
           </div>
           <div class="col-md-3">
-            <div class="card border-warning mb-2">
-              <div class="card-body text-center py-2">
-                <h4 class="mb-0 text-warning" id="stat-min">-</h4>
-                <small class="text-muted">Min Value</small>
-              </div>
+            <div class="stat-card">
+              <h4 id="stat-min">-</h4>
+              <small class="text-muted">Min Value</small>
             </div>
           </div>
         </div>
@@ -127,15 +200,7 @@
         <div class="table-responsive">
           <table class="table table-sm table-striped table-hover mb-2">
             <thead class="thead-dark">
-              <tr>
-                <th style="width: 8%;">Rank</th>
-                <th style="width: 12%;">Entity ID</th>
-                <th style="width: 25%;">Name</th>
-                <th style="width: 15%;" id="col-team">Team</th>
-                <th style="width: 15%;" id="col-category">Category</th>
-                <th style="width: 12%;">Value</th>
-                <th style="width: 13%;" id="col-challenge">Challenge</th>
-              </tr>
+              <tr id="results-header"></tr>
             </thead>
             <tbody id="results-body"></tbody>
           </table>
@@ -167,54 +232,148 @@
 </div>
 
 <script>
+  // ===== State =====
   let allTemplates = [];
   let selectedTemplate = null;
   let currentResults = null;
+  let categoriesCache = [];
+  let challengesCache = [];
+  let teamsCache = [];
+
+  // ===== Fetch helper — works whether CTFd is loaded or not =====
+  function apiFetch(url, options) {
+    if (window.CTFd && window.CTFd.fetch) {
+      return window.CTFd.fetch(url, options);
+    }
+    // Fallback: plain fetch with CSRF nonce + urlRoot prefix
+    const root = (typeof init !== 'undefined' && init.urlRoot) ? init.urlRoot : '';
+    const nonce = (typeof init !== 'undefined' && init.csrfNonce) ? init.csrfNonce : '';
+    options = options || { method: "GET" };
+    options.credentials = "same-origin";
+    if (!options.headers) options.headers = {};
+    options.headers["Accept"] = "application/json";
+    options.headers["Content-Type"] = "application/json";
+    options.headers["CSRF-Token"] = nonce;
+    return fetch(root + url, options);
+  }
+
+  // ===== Param label mapping =====
+  const PARAM_LABELS = {
+    limit: 'Limit',
+    min_score: 'Min Score',
+    max_score: 'Max Score',
+    min_rank: 'Min Rank',
+    max_rank: 'Max Rank',
+    min_count: 'Min First Bloods',
+    min_categories_solved: 'Min Categories Solved',
+    min_perfect_solves: 'Min Perfect Solves',
+    min_solves: 'Min Solves',
+    min_attempts: 'Min Wrong Attempts',
+    category: 'Category',
+    challenge_id: 'Challenge',
+    team_id: 'Team',
+    group_by: 'Group By',
+  };
+
+  // ===== Value column label by template =====
+  const VALUE_LABELS = {
+    top_teams_by_score: 'Score',
+    top_users_by_score: 'Score',
+    teams_by_rank_range: 'Score',
+    first_blood_hunters: 'First Bloods',
+    category_masters: 'Categories Cleared',
+    perfect_solvers: 'Perfect Solves',
+    most_attempts: 'Wrong Attempts',
+    solve_count_champions: 'Challenges Solved',
+    category_specific_top: 'Score',
+    first_blood_by_category: 'First Blood',
+    specific_challenge_solvers: 'Solved',
+    no_hints_solvers: 'No-Hint Solves',
+    teams_clear_all_challenges: 'Score',
+  };
+
+  // ===== Init =====
+  async function initPage() {
+    await Promise.all([loadTemplates(), loadCategories(), loadChallenges(), loadTeams()]);
+  }
 
   async function loadTemplates() {
     try {
-      const res = await CTFd.fetch("/admin/rewards/templates");
+      const res = await apiFetch("/admin/rewards/templates");
       const data = await res.json();
       if (data.success) {
         allTemplates = data.templates;
         renderTemplateCards();
-      } else {
-        showError("Failed to load templates");
       }
     } catch (err) {
-      showError("Network error");
+      showError("Failed to load templates");
     }
   }
 
-  function renderTemplateCards(filterCategory = "") {
-    const container = document.getElementById("template-cards");
-    const filtered = filterCategory ? allTemplates.filter(t => t.category === filterCategory) : allTemplates;
+  async function loadCategories() {
+    try {
+      const res = await apiFetch("/admin/rewards/categories");
+      const data = await res.json();
+      if (data.success) categoriesCache = data.categories;
+    } catch (err) { /* ignore */ }
+  }
 
-    if (filtered.length === 0) {
+  async function loadChallenges() {
+    try {
+      const res = await apiFetch("/admin/rewards/challenges");
+      const data = await res.json();
+      if (data.success) challengesCache = data.challenges;
+    } catch (err) { /* ignore */ }
+  }
+
+  async function loadTeams() {
+    try {
+      const res = await apiFetch("/admin/rewards/teams");
+      const data = await res.json();
+      if (data.success) teamsCache = data.teams;
+    } catch (err) { /* ignore */ }
+  }
+
+  // ===== Template Cards =====
+  function renderTemplateCards() {
+    const container = document.getElementById("template-cards");
+    if (allTemplates.length === 0) {
       container.innerHTML = '<div class="col-12 text-center py-3"><p class="text-muted mb-0">No templates found</p></div>';
       return;
     }
 
-    container.innerHTML = filtered.map(t => `
+    const CATEGORY_BADGE = {
+      ranking: 'badge-primary',
+      achievement: 'badge-primary',
+      special: 'badge-primary',
+    };
+    container.innerHTML = allTemplates.map(t => {
+      const badgeClass = CATEGORY_BADGE[t.category] || 'badge-secondary';
+      return `
       <div class="col-md-4 col-lg-3 mb-2">
         <div class="card template-card h-100" style="cursor: pointer;" data-template-id="${t.id}">
           <div class="card-body p-2">
             <h6 class="mb-1"><i class="fas fa-${t.icon}"></i> ${t.name}</h6>
             <p class="small text-muted mb-1">${t.description}</p>
-            <span class="badge badge-${t.category === 'ranking' ? 'primary' : t.category === 'achievement' ? 'success' : 'warning'} badge-sm">${t.category}</span>
+            <span class="badge ${badgeClass} badge-sm">${t.category}</span>
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     document.querySelectorAll(".template-card").forEach(card => {
-      card.addEventListener("click", () => selectTemplate(card.dataset.templateId));
+      card.addEventListener("click", () => {
+        document.querySelectorAll(".template-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        selectTemplate(card.dataset.templateId);
+      });
     });
   }
 
   async function selectTemplate(templateId) {
     try {
-      const res = await CTFd.fetch(`/admin/rewards/templates/${templateId}`);
+      const res = await apiFetch(`/admin/rewards/templates/${templateId}`);
       const data = await res.json();
       if (data.success) {
         selectedTemplate = data.template;
@@ -225,6 +384,108 @@
     }
   }
 
+  // ===== Parameters =====
+  function buildField(p) {
+    const label = PARAM_LABELS[p] || p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    let input = '';
+
+    if (p === 'category') {
+      const options = categoriesCache.map(c => `<option value="${c}">${c}</option>`).join('');
+      input = `<select class="form-control form-control-sm" id="param-${p}">
+        <option value="">All</option>
+        ${options}
+      </select>`;
+    } else if (p === 'group_by') {
+      input = `<select class="form-control form-control-sm" id="param-${p}">
+        <option value="team">Team</option>
+        <option value="user">User</option>
+      </select>`;
+    } else if (p === 'challenge_id') {
+      input = buildSearchSelect(p, challengesCache.map(c => ({ value: c.id, label: `${c.name} (${c.category})` })));
+    } else if (p === 'team_id') {
+      input = buildSearchSelect(p, teamsCache.map(t => ({ value: t.id, label: t.name })));
+    } else {
+      input = `<input type="number" class="form-control form-control-sm" id="param-${p}" placeholder="${p === 'limit' ? '10' : ''}">`;
+    }
+
+    return `
+      <div class="form-group col-md-6 mb-2">
+        <label class="mb-1 small font-weight-bold">${label}</label>
+        ${input}
+      </div>
+    `;
+  }
+
+  function buildSearchSelect(paramName, items) {
+    const id = `param-${paramName}`;
+    return `
+      <div class="search-select-wrapper" id="wrapper-${id}">
+        <input type="text" class="form-control form-control-sm" id="${id}-search"
+          placeholder="Type to search..." autocomplete="off">
+        <input type="hidden" id="${id}">
+        <div class="dropdown-list" id="${id}-list">
+          <div class="dropdown-item text-muted">Type to search...</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function initSearchSelects() {
+    document.querySelectorAll('.search-select-wrapper').forEach(wrapper => {
+      const searchInput = wrapper.querySelector('input[type="text"]');
+      const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+      const list = wrapper.querySelector('.dropdown-list');
+      const paramName = hiddenInput.id.replace('param-', '');
+      const items = paramName === 'challenge_id'
+        ? challengesCache.map(c => ({ value: c.id, label: `${c.name} (${c.category})` }))
+        : teamsCache.map(t => ({ value: t.id, label: t.name }));
+
+      searchInput.addEventListener('focus', () => {
+        renderDropdown(list, items, '', hiddenInput, searchInput);
+        list.classList.add('show');
+      });
+
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase();
+        const filtered = items.filter(i => i.label.toLowerCase().includes(q));
+        renderDropdown(list, filtered, q, hiddenInput, searchInput);
+        list.classList.add('show');
+        hiddenInput.value = '';
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) {
+          list.classList.remove('show');
+        }
+      });
+    });
+  }
+
+  function renderDropdown(listEl, items, query, hiddenInput, searchInput) {
+    if (items.length === 0) {
+      listEl.innerHTML = '<div class="dropdown-item text-muted">No results</div>';
+      return;
+    }
+    listEl.innerHTML = items.slice(0, 50).map(i => `
+      <div class="dropdown-item" data-value="${i.value}">${highlightMatch(i.label, query)}</div>
+    `).join('');
+
+    listEl.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        hiddenInput.value = item.dataset.value;
+        searchInput.value = item.textContent;
+        listEl.classList.remove('show');
+      });
+    });
+  }
+
+  function highlightMatch(text, query) {
+    if (!query) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return text.substring(0, idx) + '<strong>' + text.substring(idx, idx + query.length) + '</strong>' + text.substring(idx + query.length);
+  }
+
   function showParams() {
     document.getElementById("selected-template-name").textContent = selectedTemplate.name;
     document.getElementById("selected-template-desc").textContent = selectedTemplate.description;
@@ -233,71 +494,18 @@
     const params = selectedTemplate.customizable_params || [];
 
     if (params.length === 0) {
-      container.innerHTML = '<p class="text-muted small mb-0">No customizable parameters</p>';
+      container.innerHTML = '<p class="text-muted small mb-0">No customizable parameters — click Preview to run with defaults</p>';
     } else {
-      const buildField = (p) => {
-        const label = p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        let input = '';
-
-        if (p === 'category') {
-          input = `<select class="form-control form-control-sm" id="param-${p}">
-            <option value="">All</option>
-            <option value="Web">Web</option>
-            <option value="Crypto">Crypto</option>
-            <option value="Pwn">Pwn</option>
-            <option value="Reverse">Reverse</option>
-            <option value="Forensics">Forensics</option>
-            <option value="Misc">Misc</option>
-          </select>`;
-        } else if (p.includes('limit') || p.includes('rank') || p.includes('score')) {
-          input = `<input type="number" class="form-control form-control-sm" id="param-${p}" placeholder="${p === 'limit' ? '10' : ''}">`;
-        } else {
-          input = `<input type="text" class="form-control form-control-sm" id="param-${p}">`;
-        }
-
-        return `
-          <div class="form-group col-md-6 mb-2">
-            <label class="mb-1 small font-weight-bold">${label}</label>
-            ${input}
-          </div>
-        `;
-      };
-
-      const isTeamParam = (p) => /team|teams|team_id|team_name/i.test(p);
-      const isUserParam = (p) => /user|users|user_id|user_name|account|email|username/i.test(p);
-
-      const teamParams = params.filter(p => isTeamParam(p));
-      const userParams = params.filter(p => !isTeamParam(p) && isUserParam(p));
-      const otherParams = params.filter(p => !isTeamParam(p) && !isUserParam(p));
-
-      const renderSection = (title, desc, sectionParams) => {
-        if (sectionParams.length === 0) return '';
-        return `
-          <div class="card mb-3">
-            <div class="card-header bg-light py-2">
-              <strong>${title}</strong>
-              <div class="text-muted small">${desc}</div>
-            </div>
-            <div class="card-body p-3">
-              <div class="form-row">
-                ${sectionParams.map(buildField).join('')}
-              </div>
-            </div>
-          </div>
-        `;
-      };
-
-      container.innerHTML = [
-        renderSection('Criteria for Teams', 'Team-related fields and filters', teamParams),
-        renderSection('Criteria for Users', 'User-related fields and filters', userParams),
-        renderSection('Other Criteria', 'Shared filters and general parameters', otherParams)
-      ].join('');
+      container.innerHTML = `<div class="form-row">${params.map(buildField).join('')}</div>`;
+      initSearchSelects();
     }
 
     document.getElementById("params-card").style.display = "block";
+    document.getElementById("results-card").style.display = "none";
     document.getElementById("params-card").scrollIntoView({ behavior: "smooth" });
   }
 
+  // ===== Preview =====
   async function previewResults() {
     if (!selectedTemplate) return;
 
@@ -305,12 +513,23 @@
     (selectedTemplate.customizable_params || []).forEach(p => {
       const el = document.getElementById(`param-${p}`);
       if (el && el.value) {
-        params[p] = el.type === 'number' ? Number(el.value) : el.value;
+        if (p === 'group_by') {
+          params['entity_type'] = el.value;
+        } else if (el.type === 'number' || ['challenge_id', 'team_id', 'limit', 'min_score', 'max_score',
+          'min_rank', 'max_rank', 'min_count', 'min_categories_solved', 'min_perfect_solves',
+          'min_solves', 'min_attempts'].includes(p)) {
+          params[p] = Number(el.value);
+        } else {
+          params[p] = el.value;
+        }
       }
     });
 
     try {
-      const res = await CTFd.fetch("/admin/rewards/preview", {
+      document.getElementById("preview-btn").disabled = true;
+      document.getElementById("preview-btn").innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+      const res = await apiFetch("/admin/rewards/preview", {
         method: "POST",
         body: JSON.stringify({ template_id: selectedTemplate.id, params })
       });
@@ -325,69 +544,237 @@
       renderResults(data);
     } catch (err) {
       showError("Network error");
+    } finally {
+      document.getElementById("preview-btn").disabled = false;
+      document.getElementById("preview-btn").innerHTML = '<i class=\"fas fa-eye\"></i> Preview Results';
     }
   }
 
-  function truncText(s, n) { return s.length > n ? s.substring(0, n) + '…' : s; }
+  // ===== Results =====
+  function truncText(s, n) { return s && s.length > n ? s.substring(0, n) + '…' : (s || ''); }
+
+  function getResultColumns() {
+    const tid = selectedTemplate ? selectedTemplate.id : '';
+    const defaultEntity = selectedTemplate ? (selectedTemplate.query_config || {}).entity : 'team';
+    // If group_by was set, use the group_by value as entity
+    const groupByEl = document.getElementById('param-group_by');
+    const entity = groupByEl ? groupByEl.value : defaultEntity;
+    const valueLabel = VALUE_LABELS[tid] || 'Value';
+
+    // Override entity in currentResults for CSV export consistency
+    if (currentResults) currentResults._effectiveEntity = entity;
+
+    if (entity === 'solve') {
+      return [
+        { key: 'rank', label: '#', width: '5%' },
+        { key: 'entity_name', label: 'Challenge', width: '25%' },
+        { key: 'category', label: 'Category', width: '15%' },
+        { key: 'team_name', label: 'Team', width: '20%' },
+        { key: 'user_name', label: 'User', width: '20%' },
+        { key: 'metric_value', label: valueLabel, width: '15%' },
+      ];
+    }
+
+    if (entity === 'user') {
+      const userCols = [
+        { key: 'rank', label: '#', width: '5%' },
+        { key: 'entity_id', label: 'ID', width: '8%' },
+        { key: 'entity_name', label: 'User', width: '20%' },
+        { key: 'team_name', label: 'Team', width: '18%' },
+        { key: 'metric_value', label: valueLabel, width: '15%' },
+      ];
+      if (['category_specific_top', 'teams_clear_all_challenges'].includes(tid)) {
+        userCols.push({ key: 'solved_count', label: 'Solved', width: '10%' });
+      }
+      userCols.push({ key: 'last_solve_date', label: 'Last Solve', width: '18%' });
+      return userCols;
+    }
+
+    // team entity (default)
+    const cols = [
+      { key: 'rank', label: '#', width: '5%' },
+      { key: 'entity_id', label: 'ID', width: '8%' },
+      { key: 'entity_name', label: 'Team', width: '25%' },
+      { key: 'metric_value', label: valueLabel, width: '15%' },
+    ];
+    // Show solved_count as extra column for category_specific_top and teams_clear_all_challenges
+    if (['category_specific_top', 'teams_clear_all_challenges'].includes(tid)) {
+      cols.push({ key: 'solved_count', label: 'Solved', width: '10%' });
+    }
+    cols.push({ key: 'last_solve_date', label: 'Last Solve', width: '18%' });
+    return cols;
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return dateStr; }
+  }
+
+  // Templates that support detail expansion (click row to see solved challenges)
+  const EXPANDABLE_TEMPLATES = [
+    'first_blood_hunters', 'category_masters', 'perfect_solvers',
+    'solve_count_champions', 'no_hints_solvers'
+  ];
 
   function renderResults(data) {
     const results = data.result || [];
+    const tid = selectedTemplate ? selectedTemplate.id : '';
+    const isExpandable = EXPANDABLE_TEMPLATES.includes(tid);
 
-    // Update stats
+    // Stats
     document.getElementById("stat-count").textContent = results.length;
     if (results.length > 0) {
-      const values = results.map(r => r.metric_value || 0);
+      const values = results.map(r => Number(r.metric_value) || 0);
+
       const sum = values.reduce((a, b) => a + b, 0);
-      document.getElementById("stat-avg").textContent = (sum / values.length).toFixed(2);
+      const avg = sum / values.length;
+
+      const rounded = Math.round((avg + Number.EPSILON) * 100) / 100;
+
+      let display;
+
+      if (Math.abs(rounded) >= 1e12) {
+        display = rounded.toExponential(2);
+      } else {
+        display = rounded.toFixed(2);
+      }
+
+      document.getElementById("stat-avg").textContent = display;
       document.getElementById("stat-max").textContent = Math.max(...values);
       document.getElementById("stat-min").textContent = Math.min(...values);
     } else {
-      document.getElementById("stat-avg").textContent = "-";
-      document.getElementById("stat-max").textContent = "-";
-      document.getElementById("stat-min").textContent = "-";
+      ["stat-avg", "stat-max", "stat-min"].forEach(id => document.getElementById(id).textContent = "-");
     }
 
-    // Check which columns to show
-    const hasCategory = results.some(r => r.category);
-    const hasTeam = results.some(r => r.team_name);
-    const hasUser = results.some(r => r.user_name);
+    // Build dynamic columns
+    const columns = getResultColumns();
 
-    document.getElementById("col-category").style.display = hasCategory ? "" : "none";
-    document.getElementById("col-team").style.display = hasTeam ? "" : "none";
+    // Filter columns based on available data
+    const visibleColumns = columns.filter(col => {
+      if (col.key === 'rank') return true;
+      if (col.key === 'metric_value') return true;
+      if (col.key === 'entity_id') return true;
+      if (col.key === 'entity_name') return true;
+      if (col.key === 'category') return results.some(r => r.category);
+      if (col.key === 'team_name') return results.some(r => r.team_name);
+      if (col.key === 'user_name') return results.some(r => r.user_name);
+      if (col.key === 'last_solve_date') return results.some(r => r.last_solve_date);
+      if (col.key === 'solved_count') return results.some(r => r.solved_count != null);
+      return true;
+    });
 
-    // If entity is solve, show challenge name as the main entity
-    // Otherwise show team/user name
-    const isChallenge = results.length > 0 && results[0].category;
+    // Header
+    const thead = document.getElementById("results-header");
+    thead.innerHTML = visibleColumns.map(col =>
+      `<th style="width:${col.width}">${col.label}</th>`
+    ).join('');
 
-    // Render table
+    // Body
     const tbody = document.getElementById("results-body");
     tbody.innerHTML = results.map((r, i) => {
-      let teamOrUserCol = '';
-      if (hasTeam || hasUser) {
-        teamOrUserCol = `<td class="cell-truncate" title="${(r.team_name || r.user_name || '').replace(/"/g, '&quot;')}">${truncText(r.team_name || r.user_name || '', 28)}</td>`;
-      }
-
-      return `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${r.entity_id || ''}</td>
-          <td class="cell-truncate" title="${(r.entity_name || '').replace(/"/g, '&quot;')}">${truncText(r.entity_name || '', 28)}</td>
-          ${teamOrUserCol}
-          ${hasCategory ? `<td class="cell-truncate-sm" title="${(r.category || '').replace(/"/g, '&quot;')}">${truncText(r.category || '', 20)}</td>` : ''}
-          <td>${r.metric_value !== null && r.metric_value !== undefined ? r.metric_value : ''}</td>
-          <td style="display:none;"></td>
-        </tr>
-      `;
+      const rowClass = isExpandable ? 'expandable-row' : '';
+      const expandIcon = isExpandable ? '<i class="fas fa-chevron-right fa-xs mr-1 expand-icon"></i>' : '';
+      return '<tr class="' + rowClass + '" data-idx="' + i + '">' + visibleColumns.map(col => {
+        if (col.key === 'rank') return `<td>${expandIcon}${r.rank != null ? r.rank : i + 1}</td>`;
+        if (col.key === 'last_solve_date') return `<td>${formatDate(r.last_solve_date)}</td>`;
+        if (col.key === 'entity_name' || col.key === 'team_name' || col.key === 'user_name')
+          return `<td class="cell-truncate" title="${(r[col.key] || '').replace(/"/g, '&quot;')}">${truncText(r[col.key], 30)}</td>`;
+        const val = r[col.key];
+        return `<td>${val !== null && val !== undefined ? val : ''}</td>`;
+      }).join('') + '</tr>';
     }).join('');
 
-    // Hide challenge column since we're using category
-    document.getElementById("col-challenge").style.display = "none";
+    // Expandable row click handler
+    if (isExpandable) {
+      tbody.querySelectorAll('tr.expandable-row').forEach(row => {
+        row.addEventListener('click', function () {
+          const idx = parseInt(this.dataset.idx);
+          const existing = this.nextElementSibling;
+          if (existing && existing.classList.contains('detail-row')) {
+            existing.remove();
+            this.querySelector('.expand-icon').classList.replace('fa-chevron-down', 'fa-chevron-right');
+            return;
+          }
+          // Close other open details
+          tbody.querySelectorAll('.detail-row').forEach(d => d.remove());
+          tbody.querySelectorAll('.expand-icon').forEach(ic => ic.classList.replace('fa-chevron-down', 'fa-chevron-right'));
+
+          this.querySelector('.expand-icon').classList.replace('fa-chevron-right', 'fa-chevron-down');
+          const r = results[idx];
+          loadRowDetails(this, r, visibleColumns.length);
+        });
+      });
+    }
 
     document.getElementById("result-count").textContent = `${results.length} results`;
     document.getElementById("results-card").style.display = "block";
     document.getElementById("results-card").scrollIntoView({ behavior: "smooth" });
   }
 
+  // ===== Row Detail Loading =====
+  async function loadRowDetails(rowEl, rowData, colSpan) {
+    const tid = selectedTemplate ? selectedTemplate.id : '';
+    const groupByEl = document.getElementById('param-group_by');
+    const entity = groupByEl ? groupByEl.value : (selectedTemplate.query_config || {}).entity;
+    const entityId = rowData.entity_id;
+
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'detail-row';
+    detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i> Loading details...</div></td>`;
+    rowEl.after(detailRow);
+
+    try {
+      // Query the solved challenges/categories for this entity
+      const params = { entity_type: 'solve', limit: 500 };
+      if (entity === 'team') {
+        params.team_id = entityId;
+      } else {
+        // For user entity, we need a different approach - pass user info
+        params.team_id = null;
+      }
+
+      // Build detail query based on template type
+      let detailTemplateId = 'specific_challenge_solvers';
+      const queryParams = { limit: 500 };
+
+      if (entity === 'team') {
+        queryParams.team_id = entityId;
+      }
+
+      // Use generic solve query to get what this entity solved
+      const res = await apiFetch("/admin/rewards/details", {
+        method: "POST",
+        body: JSON.stringify({
+          template_id: tid,
+          entity_type: entity,
+          entity_id: entityId
+        })
+      });
+      const data = await res.json();
+
+      if (data.success && data.details && data.details.length > 0) {
+        const details = data.details;
+        let html = '<div class="detail-list"><table class="table table-sm table-bordered mb-0"><thead><tr>';
+        html += '<th>#</th><th>Challenge</th><th>Category</th><th>Score</th>';
+        html += '</tr></thead><tbody>';
+        details.forEach((d, i) => {
+          html += `<tr><td>${i + 1}</td><td>${d.challenge_name || ''}</td><td>${d.category || ''}</td><td>${d.score || ''}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        detailRow.innerHTML = `<td colspan="${colSpan}">${html}</td>`;
+      } else {
+        detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-muted text-center py-2">No details available</div></td>`;
+      }
+    } catch (e) {
+      detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-danger text-center py-2">Failed to load details</div></td>`;
+    }
+  }
+
+  // ===== Export =====
   function exportToCSV() {
     if (!currentResults || !currentResults.result || currentResults.result.length === 0) {
       showError("No results to export");
@@ -395,29 +782,28 @@
     }
 
     const results = currentResults.result;
-    const hasCategory = results.some(r => r.category);
-    const hasTeam = results.some(r => r.team_name);
-    const hasUser = results.some(r => r.user_name);
+    const columns = getResultColumns().filter(col => {
+      if (col.key === 'rank') return true;
+      if (col.key === 'metric_value') return true;
+      if (col.key === 'entity_id') return true;
+      if (col.key === 'entity_name') return true;
+      if (col.key === 'category') return results.some(r => r.category);
+      if (col.key === 'team_name') return results.some(r => r.team_name);
+      if (col.key === 'user_name') return results.some(r => r.user_name);
+      if (col.key === 'last_solve_date') return results.some(r => r.last_solve_date);
+      if (col.key === 'solved_count') return results.some(r => r.solved_count != null);
+      return true;
+    });
 
-    let headers = ['Rank', 'Entity ID', 'Name'];
-    if (hasTeam || hasUser) headers.push('Team/User');
-    if (hasCategory) headers.push('Category');
-    headers.push('Value');
-
-    let csv = headers.join(',') + '\n';
-
+    let csv = columns.map(c => c.label).join(',') + '\n';
     results.forEach((r, i) => {
-      let row = [
-        i + 1,
-        r.entity_id || '',
-        `"${(r.entity_name || '').replace(/"/g, '""')}"`
-      ];
-      if (hasTeam || hasUser) {
-        row.push(`"${((r.team_name || r.user_name) || '').replace(/"/g, '""')}"`);
-      }
-      if (hasCategory) row.push(r.category || '');
-      row.push(r.metric_value !== null && r.metric_value !== undefined ? r.metric_value : '');
-
+      const row = columns.map(col => {
+        if (col.key === 'rank') return r.rank != null ? r.rank : i + 1;
+        if (col.key === 'last_solve_date') return r.last_solve_date ? `"${r.last_solve_date}"` : '';
+        const val = r[col.key];
+        if (typeof val === 'string') return `"${val.replace(/"/g, '""')}"`;
+        return val !== null && val !== undefined ? val : '';
+      });
       csv += row.join(',') + '\n';
     });
 
@@ -428,47 +814,31 @@
     link.click();
   }
 
+  // ===== Helpers =====
   function resetForm() {
     selectedTemplate = null;
     currentResults = null;
+    document.querySelectorAll(".template-card").forEach(c => c.classList.remove("selected"));
     document.getElementById("params-card").style.display = "none";
     document.getElementById("results-card").style.display = "none";
   }
 
   function showError(msg) {
     document.getElementById("errorMessage").textContent = msg;
-    const errorModal = document.getElementById("errorModal");
-    if (errorModal) {
-      // Use Bootstrap's modal API with vanilla JS
-      const modal = new bootstrap.Modal(errorModal);
-      modal.show();
+    try {
+      $('#errorModal').modal('show');
+    } catch (e) {
+      alert(msg);
     }
   }
 
-  // Event listeners
+  // ===== Event Listeners =====
   document.getElementById("preview-btn").addEventListener("click", previewResults);
   document.getElementById("reset-btn").addEventListener("click", resetForm);
   document.getElementById("export-csv-btn").addEventListener("click", exportToCSV);
 
-  // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function () {
-    loadTemplates();
+    initPage();
   });
 </script>
-
-<style>
-  .template-card:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
-    transition: all 0.2s;
-  }
-
-  .card-header {
-    font-weight: 600;
-  }
-
-  #results-body tr:hover {
-    background-color: #f8f9fa;
-  }
-</style>
 {% endblock %}

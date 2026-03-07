@@ -23,7 +23,7 @@ public class FilesController : BaseController
     }
 
     [HttpGet("")]
-    [DuringCtfTimeOnly]
+    [ViewOrDuringCtfTimeOnly]
     public async Task<IActionResult> GetFile([FromQuery] string path, [FromQuery] string token)
     {
         var userId = UserContext.UserId;

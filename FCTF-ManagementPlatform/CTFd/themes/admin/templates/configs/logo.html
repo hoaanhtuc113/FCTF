@@ -47,6 +47,7 @@
 	<form id="small-icon-upload" class="form-upload" method="POST" enctype="multipart/form-data"
 		onsubmit="smallIconUpload(event)">
 		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
+		<input type="hidden" name="upload_type" value="small_icon">
 		<div class="form-group">
 			<label for="small_icon">
 				Tab Icon
