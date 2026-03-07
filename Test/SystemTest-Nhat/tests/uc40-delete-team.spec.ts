@@ -14,7 +14,7 @@
  * Actor : Admin (admin / 1)
  */
 
-import { test, expect, Page } from "playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { BASE_URL, loginAsAdmin, createTestTeam, deleteTeam } from "./helpers";
 
 // ─── Test Suite ───────────────────────────────────────────────────────────────

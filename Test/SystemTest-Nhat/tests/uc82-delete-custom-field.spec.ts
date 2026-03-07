@@ -1,4 +1,4 @@
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { commitLazyInput, deleteCustomFieldByApi, getCustomFields, loginAsAdmin, openAdminConfigTab } from "./helpers";
 
 test.describe("UC-82 Delete Custom Field", () => {

@@ -1,4 +1,4 @@
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { commitLazyInput, deleteBracketByApi, findConfigBlockByInputValue, getUsers, loginAsAdmin, openAdminConfigTab, openUserEditModal } from "./helpers";
 
 test.describe("UC-78 Delete Bracket", () => {

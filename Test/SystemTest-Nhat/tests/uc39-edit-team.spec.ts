@@ -17,7 +17,7 @@
  *              → dữ liệu mới hiển thị trong jumbotron / body
  */
 
-import { test, expect, Page } from "playwright/test";
+import { test, expect, Page } from "@playwright/test";
 
 // ─── Credentials & Config ────────────────────────────────────────────────────
 const BASE_URL = "https://admin.fctf.site";

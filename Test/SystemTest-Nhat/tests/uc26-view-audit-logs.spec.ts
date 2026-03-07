@@ -1,4 +1,4 @@
-import { test, expect } from "playwright/test";
+import { test, expect } from "@playwright/test";
 import { BASE_URL, createSubmission, deleteSubmissionByApi, getSubmissionSeed, loginAsAdmin } from "./helpers";
 
 async function createAuditSeed(page: Parameters<typeof test>[0]["page"]) {
