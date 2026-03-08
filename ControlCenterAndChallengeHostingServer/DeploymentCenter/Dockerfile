@@ -2,7 +2,7 @@
 
 # This stage is used when running from VS in fast mode (Default for Debug configuration)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
+USER 1654
 WORKDIR /app
 EXPOSE 5020
 
@@ -29,6 +29,7 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 USER root
-RUN mkdir -p /root/.kube && chmod 755 /root/.kube
+RUN mkdir -p /home/app/.kube && chown -R 1654:1654 /home/app/.kube
+USER 1654
 
 ENTRYPOINT ["dotnet", "DeploymentCenter.dll"]
