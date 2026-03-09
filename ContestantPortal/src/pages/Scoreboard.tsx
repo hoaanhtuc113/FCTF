@@ -5,6 +5,10 @@ import { useTheme } from '../context/ThemeContext';
 import { scoreboardService } from '../services/scoreboardService';
 import type { TeamScore, BracketInfo, FreezeStatus } from '../services/scoreboardService';
 import { ScoreboardVisibilityError } from '../services/publicScoreboardService';
+import { configService } from '../services/configService';
+import { authService } from '../services/authService';
+import { fetchWithAuth } from '../services/api';
+import { API_ENDPOINTS } from '../config/endpoints';
 import {
   Search,
   ChevronUp,
@@ -38,6 +42,7 @@ export function Scoreboard() {
   const [brackets, setBrackets] = useState<BracketInfo[]>([]);
   const [selectedBracket, setSelectedBracket] = useState<number | undefined>(undefined);
   const [freezeStatus, setFreezeStatus] = useState<FreezeStatus>({ is_frozen: false, freeze_time: null });
+  const [bracketLocked, setBracketLocked] = useState(false);
 
   // Optimize filtering and sorting with useMemo
   const filteredScores = useMemo(() => {
@@ -113,8 +118,32 @@ export function Scoreboard() {
   };
 
   useEffect(() => {
-    scoreboardService.getBrackets().then(setBrackets);
-    scoreboardService.getFreezeStatus().then(setFreezeStatus);
+    const init = async () => {
+      const [bracketsData, freezeData, publicConfig] = await Promise.all([
+        scoreboardService.getBrackets(),
+        scoreboardService.getFreezeStatus(),
+        configService.getPublicConfig(),
+      ]);
+      setBrackets(bracketsData);
+      setFreezeStatus(freezeData);
+
+      // If bracket_view_other is false, lock the selector to user's own bracket
+      const viewOther = publicConfig?.bracket_view_other ?? true;
+      if (!viewOther && authService.isAuthenticated()) {
+        try {
+          const res = await fetchWithAuth(API_ENDPOINTS.USER.PROFILE);
+          if (res.ok) {
+            const json = await res.json();
+            const bracketId: number | null = json?.data?.teamBracketId ?? null;
+            if (bracketId != null) {
+              setSelectedBracket(bracketId);
+              setBracketLocked(true);
+            }
+          }
+        } catch { /* ignore, fall back to showing all */ }
+      }
+    };
+    init();
   }, []);
 
   useEffect(() => {
@@ -319,22 +348,32 @@ export function Scoreboard() {
               {brackets.length > 0 && (
                 <div className="flex items-center gap-1.5">
                   <Filter size={14} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} />
-                  <select
-                    value={selectedBracket ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSelectedBracket(val ? Number(val) : undefined);
-                    }}
-                    className={`px-3 py-1 rounded border font-mono text-sm ${theme === 'dark'
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
-                      }`}
-                  >
-                    <option value="">All Brackets</option>
-                    {brackets.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+                  {bracketLocked ? (
+                    <span className={`px-3 py-1 rounded border font-mono text-sm ${
+                      theme === 'dark'
+                        ? 'bg-gray-800 text-blue-300 border-blue-700/60'
+                        : 'bg-blue-50 text-blue-700 border-blue-300'
+                    }`} title="Viewing other brackets is restricted">
+                      🔒 {brackets.find(b => b.id === selectedBracket)?.name ?? 'My Bracket'}
+                    </span>
+                  ) : (
+                    <select
+                      value={selectedBracket ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedBracket(val ? Number(val) : undefined);
+                      }}
+                      className={`px-3 py-1 rounded border font-mono text-sm ${theme === 'dark'
+                          ? 'bg-gray-800 text-white border-gray-700'
+                          : 'bg-white text-gray-900 border-gray-300'
+                        }`}
+                    >
+                      <option value="">All Brackets</option>
+                      {brackets.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )}
               <select
