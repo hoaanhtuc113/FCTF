@@ -668,7 +668,7 @@ export function Challenges() {
                   } rounded-md p-1.5`}
                 title="Hide Categories"
               >
-                BACK
+                HIDE
               </button>
             )}
           </div>
@@ -3923,7 +3923,7 @@ function ChallengeDetailPanel({
                     {cooldownRemaining > 0 && (
                       <div className="mt-2 space-y-1">
                         <div className={`text-xs font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
-                          [!] Cooldown: {cooldownRemaining}s
+                          Cooldown: {cooldownRemaining}s
                         </div>
                         <div className={`w-full h-1 rounded overflow-hidden ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-300'}`}>
                           <div
