@@ -5,85 +5,13 @@ metadata:
   namespace: argo
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: argo-challenge-runner
-rules:
-
-# namespace: tạo namespace cho challenge, update labels (pod-security), xóa khi cleanup
-- apiGroups: [""]
-  resources:
-    - namespaces
-  verbs: ["get","list","watch","create","update","patch","delete"]
-
-# services, secrets, configmaps
-- apiGroups: [""]
-  resources:
-    - services
-    - secrets
-    - configmaps
-  verbs: ["get","list","create","update","patch","delete"]
-
-# pods: argo tạo pod cho mỗi workflow step + đọc log
-- apiGroups: [""]
-  resources:
-    - pods
-  verbs: ["get","list","watch","create","update","patch","delete"]
-
-- apiGroups: [""]
-  resources:
-    - pods/log
-  verbs: ["get","list","watch"]
-
-# events: argo tạo event khi workflow chạy
-- apiGroups: [""]
-  resources:
-    - events
-  verbs: ["get","list","watch","create","patch"]
-
-- apiGroups: ["batch"]
-  resources:
-    - jobs
-  verbs: ["get","list","create","update","patch","delete"]
-
-# deployments + replicasets: cd-template chạy kubectl set image / rollout status
-- apiGroups: ["apps"]
-  resources:
-    - deployments
-    - replicasets
-  verbs: ["get","list","watch","update","patch"]
-
-- apiGroups: ["networking.k8s.io"]
-  resources:
-    - networkpolicies
-  verbs: ["get","list","create","update","patch","delete"]
-
-# quyền cho argo CRDs
-- apiGroups: ["argoproj.io"]
-  resources:
-    - workflows
-    - workflowtemplates
-    - clusterworkflowtemplates
-    - cronworkflows
-    - workflowtaskresults
-    - workflowtasksets
-  verbs:
-    - get
-    - list
-    - watch
-    - create
-    - update
-    - patch
-    - delete
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: argo-challenge-runner-binding
+  name: argo-sa-cluster-admin
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: argo-challenge-runner
+  name: cluster-admin
 subjects:
   - kind: ServiceAccount
     name: argo-sa
