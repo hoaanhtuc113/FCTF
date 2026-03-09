@@ -15,6 +15,21 @@
 			</small>
 		</div>
 
+		<div class="form-group" id="bracket-view-other-group" style="{% if score_visibility != 'private' %}display:none;{% endif %}">
+			<div class="form-check pl-0">
+				<label>
+					<input type="hidden" name="bracket_view_other" value="false">
+					<input id="bracket_view_other" name="bracket_view_other" type="checkbox" value="true" {% if bracket_view_other %}checked{% endif %}>
+					Allow contestants to view other brackets
+				</label>
+			</div>
+			<small class="form-text text-muted">
+				Only applies when Score Visibility is <strong>Private</strong>.
+				When enabled, logged-in contestants can switch between any bracket on the scoreboard.
+				When disabled, they can only see their own bracket&#39;s rankings.
+			</small>
+		</div>
+
 		<div class="form-group">
 			{{ form.challenge_difficulty_visibility.label }}
 			{{ form.challenge_difficulty_visibility(class="form-control custom-select") }}
@@ -27,3 +42,15 @@
 	</form>
 	{% endwith %}
 </div>
+
+<script>
+(function () {
+	var scoreSelect = document.querySelector('[name="score_visibility"]');
+	var bracketGroup = document.getElementById('bracket-view-other-group');
+	if (!scoreSelect || !bracketGroup) return;
+	function toggle() {
+		bracketGroup.style.display = scoreSelect.value === 'private' ? '' : 'none';
+	}
+	scoreSelect.addEventListener('change', toggle);
+})();
+</script>
