@@ -2,7 +2,7 @@
 
 # This stage is used when running from VS in fast mode (Default for Debug configuration)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
+USER 1654
 WORKDIR /app
 
 # This stage is used to build the service project
@@ -25,4 +25,5 @@ RUN dotnet publish "./DeploymentConsumer.csproj" -c $BUILD_CONFIGURATION -o /app
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+USER 1654
 ENTRYPOINT ["dotnet", "DeploymentConsumer.dll"]
