@@ -58,7 +58,7 @@ export default {
         id: Math.random(),
         name: "",
         description: "",
-        type: null,
+        type: "teams",
       });
     },
     removeBracket: function (index) {
