@@ -1,7 +1,7 @@
 from flask import jsonify, request, render_template
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Teams, db
+from CTFd.models import Brackets, Challenges, Teams, db
 from CTFd.plugins import bypass_csrf_protection
 from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils.rewards.query_engine import QuerySpecError, execute_query, validate_query_spec
@@ -314,4 +314,19 @@ def rewards_teams():
     return jsonify({
         "success": True,
         "teams": [{"id": t.id, "name": t.name} for t in teams],
+    })
+
+
+@admin.route("/admin/rewards/brackets", methods=["GET"])
+@bypass_csrf_protection
+@admin_or_jury
+def rewards_brackets():
+    """Get all brackets."""
+    brackets = Brackets.query.order_by(Brackets.name).all()
+    return jsonify({
+        "success": True,
+        "brackets": [
+            {"id": b.id, "name": b.name, "description": b.description, "type": b.type}
+            for b in brackets
+        ],
     })
