@@ -239,6 +239,7 @@
   let categoriesCache = [];
   let challengesCache = [];
   let teamsCache = [];
+  let bracketsCache = [];
 
   // ===== Fetch helper — works whether CTFd is loaded or not =====
   function apiFetch(url, options) {
@@ -289,12 +290,11 @@
     first_blood_by_category: 'First Blood',
     specific_challenge_solvers: 'Solved',
     no_hints_solvers: 'No-Hint Solves',
-    teams_clear_all_challenges: 'Score',
   };
 
   // ===== Init =====
   async function initPage() {
-    await Promise.all([loadTemplates(), loadCategories(), loadChallenges(), loadTeams()]);
+    await Promise.all([loadTemplates(), loadCategories(), loadChallenges(), loadTeams(), loadBrackets()]);
   }
 
   async function loadTemplates() {
@@ -331,6 +331,14 @@
       const res = await apiFetch("/admin/rewards/teams");
       const data = await res.json();
       if (data.success) teamsCache = data.teams;
+    } catch (err) { /* ignore */ }
+  }
+
+  async function loadBrackets() {
+    try {
+      const res = await apiFetch("/admin/rewards/brackets");
+      const data = await res.json();
+      if (data.success) bracketsCache = data.brackets;
     } catch (err) { /* ignore */ }
   }
 
@@ -493,10 +501,25 @@
     const container = document.getElementById("params-container");
     const params = selectedTemplate.customizable_params || [];
 
-    if (params.length === 0) {
+    // Build bracket dropdown HTML (shown for all templates if brackets exist)
+    let bracketHtml = '';
+    if (bracketsCache.length > 0) {
+      const bracketOptions = bracketsCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      bracketHtml = `
+        <div class="form-group col-md-6 mb-2">
+          <label class="mb-1 small font-weight-bold">Bracket</label>
+          <select class="form-control form-control-sm" id="param-bracket_id">
+            <option value="">All Brackets</option>
+            ${bracketOptions}
+          </select>
+        </div>
+      `;
+    }
+
+    if (params.length === 0 && !bracketHtml) {
       container.innerHTML = '<p class="text-muted small mb-0">No customizable parameters — click Preview to run with defaults</p>';
     } else {
-      container.innerHTML = `<div class="form-row">${params.map(buildField).join('')}</div>`;
+      container.innerHTML = `<div class="form-row">${params.map(buildField).join('')}${bracketHtml}</div>`;
       initSearchSelects();
     }
 
@@ -510,6 +533,11 @@
     if (!selectedTemplate) return;
 
     const params = {};
+    // Collect bracket filter
+    const bracketEl = document.getElementById('param-bracket_id');
+    if (bracketEl && bracketEl.value) {
+      params['bracket_id'] = Number(bracketEl.value);
+    }
     (selectedTemplate.customizable_params || []).forEach(p => {
       const el = document.getElementById(`param-${p}`);
       if (el && el.value) {
@@ -583,7 +611,7 @@
         { key: 'team_name', label: 'Team', width: '18%' },
         { key: 'metric_value', label: valueLabel, width: '15%' },
       ];
-      if (['category_specific_top', 'teams_clear_all_challenges'].includes(tid)) {
+      if (['category_specific_top'].includes(tid)) {
         userCols.push({ key: 'solved_count', label: 'Solved', width: '10%' });
       }
       userCols.push({ key: 'last_solve_date', label: 'Last Solve', width: '18%' });
@@ -597,8 +625,8 @@
       { key: 'entity_name', label: 'Team', width: '25%' },
       { key: 'metric_value', label: valueLabel, width: '15%' },
     ];
-    // Show solved_count as extra column for category_specific_top and teams_clear_all_challenges
-    if (['category_specific_top', 'teams_clear_all_challenges'].includes(tid)) {
+    // Show solved_count as extra column for category_specific_top
+    if (['category_specific_top'].includes(tid)) {
       cols.push({ key: 'solved_count', label: 'Solved', width: '10%' });
     }
     cols.push({ key: 'last_solve_date', label: 'Last Solve', width: '18%' });

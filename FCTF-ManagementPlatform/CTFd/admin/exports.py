@@ -5,7 +5,7 @@ from CTFd.admin import admin
 from CTFd.models import Challenges, Teams, Tracking, Submissions, Users
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
-from CTFd.utils.scores import get_standings, get_user_standings, getSubmitStandings, get_team_challenge_counts, get_teams_cleared_all_challenges_by_topic
+from CTFd.utils.scores import get_standings, get_user_standings, getSubmitStandings, get_team_challenge_counts
 from CTFd.utils.modes import get_model
 from datetime import datetime
 
@@ -27,26 +27,11 @@ def export_data():
         submit_standings = getSubmitStandings(admin=True)
         user_standings= get_user_standings(admin=True)
         top_challenge_count_teams= get_team_challenge_counts(is_admin= True)
-        get_team_cleared= get_teams_cleared_all_challenges_by_topic(user_is_admin= True)
-        print(get_team_cleared)
       
         standings_df = pd.DataFrame(standings)
         submit_standings_df = pd.DataFrame(submit_standings)
         user_standings_df= pd.DataFrame(user_standings)
         top_challenge_count_teams_df= pd.DataFrame(top_challenge_count_teams)
-        
-        # Convert dictionary to flat list for DataFrame
-        teams_cleared_list = []
-        for topic_name, teams in get_team_cleared.items():
-            for team in teams:
-                teams_cleared_list.append({
-                    'topic': topic_name,
-                    'team_id': team.get('team_id'),
-                    'team_name': team.get('team_name'),
-                    'status': team.get('status'),
-                    'last_submission_time': team.get('last_submission_time')
-                })
-        get_teams_clear_df = pd.DataFrame(teams_cleared_list)
         
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -54,7 +39,6 @@ def export_data():
             submit_standings_df.to_excel(writer, sheet_name='Submit Standings', index=False)
             user_standings_df.to_excel(writer, sheet_name='Users Standings', index=False)
             top_challenge_count_teams_df.to_excel(writer, sheet_name='Top Teams Solved Most Chal', index=False)
-            get_teams_clear_df.to_excel(writer, sheet_name='All Chal By Topic', index=False)
         
         output.seek(0)
         

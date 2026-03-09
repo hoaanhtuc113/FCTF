@@ -33,6 +33,7 @@ FILTER_FIELDS = {
     "category_clear_count",
     "team_id",
     "challenge_id",
+    "bracket_id",
 }
 
 FILTER_OPERATORS = {
@@ -171,6 +172,7 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
     base_conditions = []
     agg_conditions = []
     rank_conditions = []
+    bracket_filter = None
 
     for idx, f in enumerate(spec.filters):
         key = f"param_{idx}"
@@ -231,6 +233,9 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
             else:
                 params[key] = int(f.value)
                 base_conditions.append(f"sf.challenge_id {f.operator} :{key}")
+        elif f.field == "bracket_id":
+            params[key] = int(f.value)
+            bracket_filter = f":{key}"
 
     base_where = "" if not base_conditions else "WHERE " + " AND ".join(base_conditions)
     final_conditions = []
@@ -368,6 +373,7 @@ team_agg AS (
     LEFT JOIN wrong_team wt ON wt.team_id = t.id
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
     LEFT JOIN team_awards ta ON ta.team_id = t.id
+    {"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
     GROUP BY t.id, t.name, wt.wrong_count, ta.award_value
 ),
 ranked AS (
@@ -418,6 +424,7 @@ user_agg AS (
     LEFT JOIN wrong_user wu ON wu.user_id = u.id
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
     LEFT JOIN user_awards ua ON ua.user_id = u.id
+    {"WHERE u.bracket_id = " + bracket_filter if bracket_filter else ""}
     GROUP BY u.id, u.name, u.team_id, wu.wrong_count, ua.award_value
 ),
 ranked AS (
@@ -466,7 +473,8 @@ SELECT
 FROM solve_rows sr
 LEFT JOIN teams t ON t.id = sr.team_id
 LEFT JOIN users u ON u.id = sr.user_id
-{final_where}
+{"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
+{final_where.replace("WHERE", "AND") if bracket_filter and final_where else final_where}
 {order_clause}
 LIMIT :limit
 """

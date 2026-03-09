@@ -216,20 +216,7 @@ REWARD_TEMPLATES = {
     "fastest_solvers": None,  # Removed
     
     # ===== CLEAR ALL TEMPLATES =====
-    "teams_clear_all_challenges": RewardTemplate(
-        id="teams_clear_all_challenges",
-        name="Top Teams Clear All Challenges",
-        description="Teams that solved all challenges, ranked by score (like scoreboard)",
-        category="ranking",
-        icon="check-double",
-        query_config={
-            "entity": "team",
-            "metric": "TEAM_TOTAL_SCORE",
-            "order": {"field": "metric_value", "direction": "desc"},
-        },
-        customizable_params=["limit", "min_score", "category"],
-        example_usage="Teams that cleared all challenges"
-    ),
+    "teams_clear_all_challenges": None,  # Removed
 }
 
 
@@ -335,6 +322,11 @@ class RewardQueryBuilder:
             else:
                 self.filters.append({"field": "challenge_id", "operator": "=", "value": challenge_id})
         return self
+    
+    def add_bracket_filter(self, bracket_id: Optional[int] = None) -> 'RewardQueryBuilder':
+        """Filter by bracket ID."""
+        if bracket_id is not None:
+            self.filters.append({"field": "bracket_id", "operator": "=", "value": int(bracket_id)})
         return self
     
     def add_time_filter(self, max_time: Optional[int] = None) -> 'RewardQueryBuilder':
@@ -472,18 +464,8 @@ def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optio
     if "challenge_id" in params:
         builder.add_challenge_filter(params["challenge_id"])
     
-    # Special handling for teams_clear_all_challenges
-    if template_id == "teams_clear_all_challenges":
-        from CTFd.models import Challenges
-        cat = params.get("category")
-        q = Challenges.query.filter_by(state="visible")
-        if cat:
-            q = q.filter_by(category=cat)
-        total = q.count()
-        if total > 0:
-            builder.add_solve_count_filter(min_solves=total)
-        else:
-            # No visible challenges; filter will match nothing
-            builder.add_solve_count_filter(min_solves=999999)
+    # Apply bracket filter
+    if "bracket_id" in params:
+        builder.add_bracket_filter(params["bracket_id"])
     
     return builder.build()
