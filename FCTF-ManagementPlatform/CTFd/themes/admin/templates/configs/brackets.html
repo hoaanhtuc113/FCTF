@@ -1,24 +1,6 @@
 <div role="tabpanel" class="tab-pane config-section" id="brackets">
 	<h5>Scoreboard Brackets</h5>
 
-	<form method="POST" autocomplete="off" class="w-100 mb-4 pb-3 border-bottom">
-		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
-		<div class="form-group mb-2">
-			<div class="form-check pl-0">
-				<label>
-					<input type="hidden" name="bracket_view_other" value="false">
-					<input id="bracket_view_other" name="bracket_view_other" type="checkbox" value="true" {% if bracket_view_other %}checked{% endif %}>
-					Allow contestants to view other brackets
-				</label>
-			</div>
-			<small class="form-text text-muted">
-				When enabled, contestants can switch between any bracket on the scoreboard.
-				When disabled, contestants can only see their own bracket&#39;s rankings.
-			</small>
-		</div>
-		<button type="submit" class="btn btn-sm btn-primary float-right">Update</button>
-	</form>
-
 	<div id="brackets-list" class="py-3">
 	</div>
 </div>

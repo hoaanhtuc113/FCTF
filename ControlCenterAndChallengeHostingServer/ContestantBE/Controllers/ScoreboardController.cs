@@ -38,6 +38,12 @@ public class ScoreboardController : BaseController
                 // Require authenticated user
                 if (!(User.Identity?.IsAuthenticated ?? false))
                     return Unauthorized(new { success = false, message = "Scores are private. Please log in to view the scoreboard." });
+                // If bracket_view_other is disabled, restrict to user's own bracket
+                if (!_configHelper.GetConfig<bool>("bracket_view_other"))
+                {
+                    var team = await _context.Teams.FindAsync(UserContext.TeamId);
+                    bracket_id = team?.BracketId;
+                }
                 break;
             case "hidden":
             case "admins":
@@ -51,6 +57,12 @@ public class ScoreboardController : BaseController
     [HttpGet("brackets")]
     public async Task<IActionResult> GetBrackets()
     {
+        var scoreVisibility = _configHelper.GetConfig<string>("score_visibility", "public");
+        var bracketViewOther = _configHelper.GetConfig<bool>("bracket_view_other");
+
+        if (scoreVisibility == "private" && !bracketViewOther)
+            return Ok(new { success = true, data = Array.Empty<object>() });
+
         var brackets = await _context.Brackets
             .Select(b => new { b.Id, b.Name, b.Description, b.Type })
             .ToListAsync();
