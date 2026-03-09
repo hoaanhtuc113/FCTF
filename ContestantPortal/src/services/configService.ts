@@ -11,6 +11,7 @@ interface PublicConfig {
   ctf_logo?: string;
   ctf_small_icon?: string;
   ctf_name?: string;
+  bracket_view_other?: boolean;
 }
 
 const DATE_CONFIG_KEY = 'contest_date_config';
