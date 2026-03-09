@@ -102,4 +102,16 @@ function bulkToggleAccounts(_event) {
 $(() => {
   $(".scoreboard-toggle").click(toggleAccount);
   $("#scoreboard-edit-button").click(bulkToggleAccounts);
+
+  // Bracket filter
+  $("#bracket-filter").on("change", function () {
+    const bracketId = $(this).val();
+    const url = new URL(window.location.href);
+    if (bracketId) {
+      url.searchParams.set("bracket_id", bracketId);
+    } else {
+      url.searchParams.delete("bracket_id");
+    }
+    window.location.href = url.toString();
+  });
 });
