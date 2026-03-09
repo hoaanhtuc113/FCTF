@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { publicScoreboardService, type TeamScore, ScoreboardVisibilityError } from "../services/publicScoreboardService";
+import { publicScoreboardService, type TeamScore, type BracketInfo, ScoreboardVisibilityError } from "../services/publicScoreboardService";
 
 const PublicChartComponent = lazy(() => import("../components/PublicChartComponent"));
 
@@ -14,6 +14,8 @@ export function PublicScoreboard() {
   const [contestEnd, setContestEnd] = useState(new Date(Date.now() + 12 * 60 * 60 * 1000));
   const [contestName, setContestName] = useState(`FCTF ${new Date().getFullYear()}`);
   const [latestSolver, setLatestSolver] = useState<string | null>(null);
+  const [brackets, setBrackets] = useState<BracketInfo[]>([]);
+  const [selectedBracket, setSelectedBracket] = useState<number | undefined>(undefined);
 
   // Update current time every second
   useEffect(() => {
@@ -21,6 +23,11 @@ export function PublicScoreboard() {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch brackets on mount
+  useEffect(() => {
+    publicScoreboardService.getBrackets().then(setBrackets);
   }, []);
 
   // Fetch scoreboard data
@@ -31,7 +38,7 @@ export function PublicScoreboard() {
         setLoading(false);
       }
       try {
-        const data = await publicScoreboardService.getPublicScoreboard();
+        const data = await publicScoreboardService.getPublicScoreboard(selectedBracket);
         setScores(data);
         setVisibilityError(null);
       } catch (err: any) {
@@ -52,7 +59,7 @@ export function PublicScoreboard() {
     // Refresh every 30 seconds
     const interval = setInterval(fetchScores, 30000);
     return () => clearInterval(interval);
-  }, [initialLoad]);
+  }, [initialLoad, selectedBracket]);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -219,6 +226,25 @@ export function PublicScoreboard() {
             <span className="text-sm tracking-wider">CAPTURE THE FLAG</span>
             <span>━━━</span>
           </div>
+          {/* Bracket Filter */}
+          {brackets.length > 0 && (
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <span className="text-xs text-orange-600 font-mono">{'>'} BRACKET:</span>
+              <select
+                value={selectedBracket ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedBracket(val ? Number(val) : undefined);
+                }}
+                className="bg-black/60 text-orange-400 border border-orange-400/50 rounded px-3 py-1 font-mono text-sm focus:outline-none focus:border-orange-400"
+              >
+                <option value="">ALL</option>
+                {brackets.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Countdown Timer - Minimal */}

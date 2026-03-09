@@ -1,5 +1,7 @@
 ﻿using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ResourceShared.Models;
 using ResourceShared.Utils;
 
 namespace ContestantBE.Controllers;
@@ -8,14 +10,17 @@ public class ScoreboardController : BaseController
 {
     private readonly IScoreboardService _scoreboardService;
     private readonly ConfigHelper _configHelper;
+    private readonly AppDbContext _context;
 
     public ScoreboardController(
         IUserContext userContext,
         IScoreboardService scoreboardService,
-        ConfigHelper configHelper) : base(userContext)
+        ConfigHelper configHelper,
+        AppDbContext context) : base(userContext)
     {
         _scoreboardService = scoreboardService;
         _configHelper = configHelper;
+        _context = context;
     }
 
     [HttpGet("top/{count:int}")]
@@ -40,6 +45,16 @@ public class ScoreboardController : BaseController
 
         var result = await _scoreboardService.GetTopStandings(count, bracket_id);
         return Ok(new { success = true, data = result });
+    }
+
+    [HttpGet("brackets")]
+    public async Task<IActionResult> GetBrackets()
+    {
+        var brackets = await _context.Brackets
+            .Select(b => new { b.Id, b.Name, b.Description, b.Type })
+            .ToListAsync();
+
+        return Ok(new { success = true, data = brackets });
     }
 }
 

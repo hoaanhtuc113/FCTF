@@ -43,5 +43,6 @@ export const API_ENDPOINTS = {
   },
   SCOREBOARD: {
     TOP_STANDINGS: '/scoreboard/top/200',
+    BRACKETS: '/scoreboard/brackets',
   },
 } as const;
