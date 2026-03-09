@@ -25,6 +25,11 @@ export interface BracketInfo {
   type: string;
 }
 
+export interface FreezeStatus {
+  is_frozen: boolean;
+  freeze_time: number | null; // Unix timestamp seconds
+}
+
 class ScoreboardService {
   async getTopStandings(bracketId?: number): Promise<ScoreboardData> {
     const url = bracketId
@@ -70,6 +75,19 @@ class ScoreboardService {
 
     const result = await response.json();
     return result.data || [];
+  }
+
+  async getFreezeStatus(): Promise<FreezeStatus> {
+    try {
+      const response = await fetchWithAuth(API_ENDPOINTS.SCOREBOARD.FREEZE_STATUS, {
+        method: 'GET'
+      });
+      if (!response.ok) return { is_frozen: false, freeze_time: null };
+      const result = await response.json();
+      return { is_frozen: result.is_frozen ?? false, freeze_time: result.freeze_time ?? null };
+    } catch {
+      return { is_frozen: false, freeze_time: null };
+    }
   }
 }
 
