@@ -65,6 +65,7 @@ public class UsersController : BaseController
             Username = currentUser.Name,
             Email = currentUser.Email,
             Team = currentUser.Team.Name,
+            TeamBracketId = currentUser.Team.BracketId,
         };
 
         return Ok(new
