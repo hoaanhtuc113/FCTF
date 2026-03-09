@@ -216,7 +216,7 @@ def init_request_processors(app):
     @app.before_request
     def needs_setup():
         if import_in_progress():
-            if request.endpoint == "admin.import_ctf":
+            if request.endpoint in ("admin.import_ctf", "views.healthcheck"):
                 return
             else:
                 return "Import currently in progress", 403
@@ -239,7 +239,7 @@ def init_request_processors(app):
             return
 
         if import_in_progress():
-            if request.endpoint == "admin.import_ctf":
+            if request.endpoint in ("admin.import_ctf", "views.healthcheck"):
                 return
             else:
                 return "Import currently in progress", 403
