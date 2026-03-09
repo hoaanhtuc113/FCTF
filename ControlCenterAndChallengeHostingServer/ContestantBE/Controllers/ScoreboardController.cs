@@ -1,4 +1,5 @@
 ﻿using ContestantBE.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.Models;
@@ -55,6 +56,26 @@ public class ScoreboardController : BaseController
             .ToListAsync();
 
         return Ok(new { success = true, data = brackets });
+    }
+
+    [AllowAnonymous]
+    [HttpGet("freeze-status")]
+    public IActionResult GetFreezeStatus()
+    {
+        var freezeRaw = _configHelper.GetConfig("freeze");
+        long freeze = 0;
+        if (freezeRaw != null)
+            long.TryParse(freezeRaw.ToString(), out freeze);
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var isFrozen = freeze > 0 && now >= freeze;
+
+        return Ok(new
+        {
+            success = true,
+            is_frozen = isFrozen,
+            freeze_time = freeze > 0 ? (long?)freeze : null
+        });
     }
 }
 
