@@ -30,7 +30,6 @@
             class="form-control"
             v-model.lazy="bracket.description"
           />
-          <small class="form-text text-muted">Bracket Description</small>
         </div>
       </div>
 
