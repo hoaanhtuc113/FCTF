@@ -39,6 +39,36 @@ function toggleAccount() {
   });
 }
 
+function toggleUser() {
+  const $btn = $(this);
+  const id = $btn.data("user-id");
+  const state = $btn.data("state");
+  let hidden = undefined;
+  if (state === "visible") {
+    hidden = true;
+  } else if (state === "hidden") {
+    hidden = false;
+  }
+
+  const params = {
+    hidden: hidden,
+  };
+
+  api_func["users"](id, params).then((response) => {
+    if (response.success) {
+      if (hidden) {
+        $btn.data("state", "hidden");
+        $btn.addClass("btn-danger").removeClass("btn-success");
+        $btn.text("Hidden");
+      } else {
+        $btn.data("state", "visible");
+        $btn.addClass("btn-success").removeClass("btn-danger");
+        $btn.text("Visible");
+      }
+    }
+  });
+}
+
 function toggleSelectedAccounts(selectedAccounts, action) {
   const params = {
     hidden: action === "hidden" ? true : false,
@@ -101,6 +131,7 @@ function bulkToggleAccounts(_event) {
 
 $(() => {
   $(".scoreboard-toggle").click(toggleAccount);
+  $(".scoreboard-user-toggle").click(toggleUser);
   $("#scoreboard-edit-button").click(bulkToggleAccounts);
 
   // Bracket filter
