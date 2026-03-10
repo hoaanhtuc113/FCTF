@@ -165,7 +165,6 @@ public class TokenAuthenticationMiddleware
                         // ignore cache errors
                     }
             }
-
             await _next(context);
         }
         catch (Exception ex)
