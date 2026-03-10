@@ -89,6 +89,36 @@ async function fillAndSubmit(
     await page.waitForTimeout(SUBMIT_WAIT_MS);
 }
 
+async function ensureBracketSelected(page: Page) {
+    const bracketSelect = page.locator('#team-info-edit-form select[name="bracket_id"]');
+    if (!(await bracketSelect.count())) {
+        return;
+    }
+
+    if (await bracketSelect.inputValue()) {
+        return;
+    }
+
+    const bracketValue = await bracketSelect.locator('option').evaluateAll((options) => {
+        const candidate = options.find((option) => {
+            return option instanceof HTMLOptionElement && option.value.trim() !== "";
+        });
+        return candidate instanceof HTMLOptionElement ? candidate.value : null;
+    });
+
+    if (bracketValue) {
+        await bracketSelect.selectOption(bracketValue);
+    }
+}
+
+async function submitTeamEditExpectReload(page: Page, teamId: number) {
+    await ensureBracketSelected(page);
+    await Promise.all([
+        page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
+        page.click("#update-team"),
+    ]);
+}
+
 /**
  * Kiểm tra modal vẫn đang mở (CHƯA reload trang).
  * Đây là assertion chính cho các test case invalid.
@@ -236,10 +266,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         await page.fill('#team-info-edit-form [name="name"]', newName);
 
         // Chờ reload xảy ra (location.reload) sau khi click
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
 
         // Trang đã reload → tên mới phải xuất hiện trong heading
         await expect(
@@ -250,10 +277,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         // ── Restore về tên gốc ──
         await openEditModal(page, teamId);
         await page.fill('#team-info-edit-form [name="name"]', originalName);
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
         await expect(page.locator(".jumbotron h1, .jumbotron h2").first()).toContainText(originalName);
     });
 
@@ -263,10 +287,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         await page.fill('#team-info-edit-form [name="name"]', originalName);
         await page.fill('#team-info-edit-form [name="email"]', newEmail);
 
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
 
         // Trang reload thành công → modal không còn hiển thị
         await expect(
@@ -278,10 +299,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         await openEditModal(page, teamId);
         await page.fill('#team-info-edit-form [name="name"]', originalName);
         await page.fill('#team-info-edit-form [name="email"]', originalEmail);
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
     });
 
     test("TC12 - [Valid] Cập nhật website hợp lệ (https://) → trang reload thành công", async ({ page }) => {
@@ -290,10 +308,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         await page.fill('#team-info-edit-form [name="name"]', originalName);
         await page.fill('#team-info-edit-form [name="website"]', newWebsite);
 
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
 
         await expect(page.locator("#team-info-edit-form")).not.toBeVisible();
 
@@ -301,20 +316,14 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         await openEditModal(page, teamId);
         await page.fill('#team-info-edit-form [name="name"]', originalName);
         await page.fill('#team-info-edit-form [name="website"]', originalWebsite);
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
     });
 
     test("TC13 - [Valid] Website để trống → được chấp nhận, trang reload", async ({ page }) => {
         await page.fill('#team-info-edit-form [name="name"]', originalName);
         await page.fill('#team-info-edit-form [name="website"]', "");
 
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
 
         // Trang reload → form không còn
         await expect(page.locator("#team-info-edit-form")).not.toBeVisible();
@@ -324,10 +333,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
             await openEditModal(page, teamId);
             await page.fill('#team-info-edit-form [name="name"]', originalName);
             await page.fill('#team-info-edit-form [name="website"]', originalWebsite);
-            await Promise.all([
-                page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-                page.click("#update-team"),
-            ]);
+            await submitTeamEditExpectReload(page, teamId);
         }
     });
 
@@ -344,10 +350,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         await page.fill('#team-info-edit-form [name="affiliation"]', newAffiliation);
 
         // Submit — đợi trang reload
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
 
         // ── Verify trên UI: tên mới hiển thị ──
         await expect(
@@ -365,10 +368,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         await page.fill('#team-info-edit-form [name="email"]', originalEmail);
         await page.fill('#team-info-edit-form [name="website"]', originalWebsite);
         await page.fill('#team-info-edit-form [name="affiliation"]', originalAffiliation);
-        await Promise.all([
-            page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
-            page.click("#update-team"),
-        ]);
+        await submitTeamEditExpectReload(page, teamId);
         await expect(
             page.locator(".jumbotron h1, .jumbotron h2").first()
         ).toContainText(originalName);

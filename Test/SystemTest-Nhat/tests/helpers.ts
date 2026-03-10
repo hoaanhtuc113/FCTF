@@ -104,6 +104,9 @@ export async function loginAsAdmin(page: Page) {
             if (attempt === 1) {
                 throw err;
             }
+            if (page.isClosed()) {
+                throw err;
+            }
             await page.waitForTimeout(1500);
         }
     }
@@ -454,6 +457,14 @@ export async function openUserEditModal(page: Page, userId: number) {
     await page.waitForTimeout(400); // animation Bootstrap
 }
 
+export async function openTeamEditModal(page: Page, teamId: number) {
+    await page.goto(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.waitForSelector(".edit-team", { state: "visible" });
+    await page.click(".edit-team");
+    await page.waitForSelector("#team-info-edit-form", { state: "visible", timeout: 8000 });
+    await page.waitForTimeout(400); // animation Bootstrap
+}
+
 export async function getCSRFToken(page: Page): Promise<string> {
     // Attempt to extract from script tags first (window.init)
     const token = await page.evaluate(() => {
@@ -471,31 +482,38 @@ export async function getCSRFToken(page: Page): Promise<string> {
 
 export async function createTestTeam(page: Page): Promise<{ id: number; name: string }> {
     const teamName = `DeleteTest_${Date.now()}`;
-    await page.goto(`${BASE_URL}/admin/teams`);
+    const email = `del_${Date.now()}@test.com`;
 
-    const body = await page.evaluate(async ({ teamName, BASE_URL }) => {
-        const csrfToken = (window as any).init?.csrfNonce || "";
-        const res = await fetch(`${BASE_URL}/api/v1/teams`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'CSRF-Token': csrfToken
-            },
-            body: JSON.stringify({
-                name: teamName,
-                email: `del_${Date.now()}@test.com`,
-                password: "TestPass123!",
-                bracket_id: 1, // field hợp lệ
-            })
+    await page.goto(`${BASE_URL}/admin/teams/new`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.fill('#team-info-create-form [name="name"]', teamName);
+    await page.fill('#team-info-create-form [name="email"]', email);
+    await page.fill('#team-info-create-form [name="password"]', "TestPass123!");
+
+    const bracketSelect = page.locator('#team-info-create-form select[name="bracket_id"]');
+    if (await bracketSelect.count()) {
+        const bracketValue = await bracketSelect.locator('option').evaluateAll((options) => {
+            const candidate = options.find((option) => {
+                return option instanceof HTMLOptionElement && option.value.trim() !== "";
+            });
+            return candidate instanceof HTMLOptionElement ? candidate.value : null;
         });
-        return await res.json();
-    }, { teamName, BASE_URL });
 
-    if (!body.success || !body.data?.id) {
-        throw new Error(`Không thể tạo team test: ${JSON.stringify(body)}`);
+        if (bracketValue) {
+            await bracketSelect.selectOption(bracketValue);
+        }
     }
-    return { id: body.data.id, name: teamName };
+
+    await Promise.all([
+        page.waitForURL(/\/admin\/teams\/\d+$/, { waitUntil: "domcontentloaded", timeout: 30_000 }),
+        page.click('#team-info-create-form #update-team'),
+    ]);
+
+    const match = page.url().match(/\/admin\/teams\/(\d+)$/);
+    if (!match) {
+        throw new Error("Không thể xác định team id sau khi tạo team test");
+    }
+
+    return { id: Number(match[1]), name: teamName };
 }
 
 export async function createTestUser(page: Page): Promise<{ id: number; name: string }> {
