@@ -70,6 +70,16 @@ public class FileService : IFileService
                 };
             }
 
+            // Only allow paths that start with "file/" — block everything else
+            if (!path.StartsWith("file/", StringComparison.OrdinalIgnoreCase))
+            {
+                return new FileResult
+                {
+                    Success = false,
+                    Message = "Access denied"
+                };
+            }
+
             var fullPath = Path.GetFullPath(Path.Combine(_nfsMountPath, path));
 
             if (!fullPath.StartsWith(_nfsMountPath, StringComparison.OrdinalIgnoreCase))
