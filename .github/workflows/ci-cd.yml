@@ -51,6 +51,8 @@ jobs:
       has-changes: ${{ steps.set-matrix.outputs.has-changes }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: dorny/paths-filter@v3
         id: filter
@@ -166,7 +168,7 @@ jobs:
           chmod 600 $HOME/.kube/config
 
       - name: Verify cluster connection
-        run: kubectl cluster-info
+        run: kubectl -n $K8S_NAMESPACE get deployments --no-headers | head -1
 
       - name: Deploy updated services
         run: |
