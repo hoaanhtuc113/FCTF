@@ -232,7 +232,7 @@ public class ScoreHelper
 
     }
 
-    public async Task<int?> GetTeamPlace(Team team, bool admin = false)
+    public async Task<int?> GetTeamPlace(Team team, bool admin = false, int? bracketId = null)
     {
         DateTime? freeze = null;
         if (!admin)
@@ -244,9 +244,12 @@ public class ScoreHelper
                 freeze = DateTimeOffset.FromUnixTimeSeconds(freezeTs).UtcDateTime;
         }
 
-        // Get all teams with their member IDs in one query
-        var teamsWithMembers = await _context.Teams
-            .AsNoTracking()
+        // Get all teams with their member IDs in one query, optionally filtered by bracket
+        var teamsQuery = _context.Teams.AsNoTracking();
+        if (bracketId.HasValue)
+            teamsQuery = teamsQuery.Where(t => t.BracketId == bracketId.Value);
+
+        var teamsWithMembers = await teamsQuery
             .Select(t => new
             {
                 TeamId = t.Id,
