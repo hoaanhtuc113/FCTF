@@ -1,5 +1,11 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { BASE_URL, getTeams, loginAsAdmin } from "./support";
+
+async function searchTeams(page: Page, field: string, query: string) {
+    const params = new URLSearchParams({ field, q: query });
+    await page.goto(`${BASE_URL}/admin/teams?${params.toString()}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#teamsboard")).toBeVisible();
+}
 
 test.describe("UC-42 Search Team", () => {
     let sampleTeamName: string;
@@ -21,23 +27,26 @@ test.describe("UC-42 Search Team", () => {
     });
 
     test("TC42.01 - Search Team theo tên", async ({ page }) => {
-        await page.goto(`${BASE_URL}/admin/teams?field=name&q=${encodeURIComponent(sampleTeamName)}`, { waitUntil: "domcontentloaded" });
+        await searchTeams(page, "name", sampleTeamName);
         await expect(page.locator("#teamsboard tbody")).toContainText(sampleTeamName);
     });
 
     test("TC42.02 - Search Team theo ID", async ({ page }) => {
-        await page.goto(`${BASE_URL}/admin/teams?field=id&q=${sampleTeamId}`, { waitUntil: "domcontentloaded" });
-        await expect(page.locator("#teamsboard tbody")).toContainText(String(sampleTeamId));
+        await searchTeams(page, "id", String(sampleTeamId));
+        const matchedRow = page.locator(`#teamsboard tbody tr:has(td[value="${sampleTeamId}"])`).first();
+        await expect(matchedRow).toContainText(String(sampleTeamId));
+        await expect(matchedRow).toContainText(sampleTeamName);
     });
 
     test("TC42.03 - Search Team theo affiliation khi dữ liệu có sẵn", async ({ page }) => {
         test.skip(!sampleTeamAffiliation, "Không có affiliation để test search theo affiliation");
-        await page.goto(`${BASE_URL}/admin/teams?field=affiliation&q=${encodeURIComponent(sampleTeamAffiliation)}`, { waitUntil: "domcontentloaded" });
+        await searchTeams(page, "affiliation", sampleTeamAffiliation);
         await expect(page.locator("#teamsboard tbody")).toContainText(sampleTeamAffiliation);
     });
 
     test("TC42.04 - Search từ khóa không tồn tại trả về empty result hợp lệ", async ({ page }) => {
-        await page.goto(`${BASE_URL}/admin/teams?field=name&q=ZZZ_NO_TEAM_987654`, { waitUntil: "domcontentloaded" });
-        await expect(page.locator("body")).not.toContainText(sampleTeamName);
+        await searchTeams(page, "name", "ZZZ_NO_TEAM_987654");
+        await expect(page.locator("body")).toContainText("0 results");
+        await expect(page.locator("#teamsboard tbody")).not.toContainText(sampleTeamName);
     });
 });

@@ -231,4 +231,55 @@ test.describe('Admin Challenge Filters', () => {
         }
     });
 
+    test('FILT-CHAL-022: Search by field=category', async ({ page }) => {
+        await page.locator('select[name="field"]').selectOption('category');
+        await page.locator('input[name="q"]').fill('web');
+        await page.locator('button[type="submit"]').click();
+        await expect(page.locator('.alert-info')).toContainText('Searching for challenges with category matching web');
+    });
+
+    test('FILT-CHAL-023: Search by field=type', async ({ page }) => {
+        await page.locator('select[name="field"]').selectOption('type');
+        await page.locator('input[name="q"]').fill('standard');
+        await page.locator('button[type="submit"]').click();
+        await expect(page.locator('.alert-info')).toContainText('Searching for challenges with type matching standard');
+    });
+
+    test('FILT-CHAL-024: Filter by difficulty – Very Easy (1)', async ({ page }) => {
+        await page.locator('select[name="difficulty"]').selectOption('1');
+        await page.locator('button[type="submit"]').click();
+        await expect(page.locator('.alert-info')).toContainText('Difficulty: Very Easy');
+    });
+
+    test('FILT-CHAL-025: Filter by difficulty – Medium (3)', async ({ page }) => {
+        await page.locator('select[name="difficulty"]').selectOption('3');
+        await page.locator('button[type="submit"]').click();
+        await expect(page.locator('.alert-info')).toContainText('Difficulty: Medium');
+    });
+
+    test('FILT-CHAL-026: Filter by difficulty – Hard (4)', async ({ page }) => {
+        await page.locator('select[name="difficulty"]').selectOption('4');
+        await page.locator('button[type="submit"]').click();
+        await expect(page.locator('.alert-info')).toContainText('Difficulty: Hard');
+    });
+
+    test('FILT-CHAL-027: Filter by difficulty – Very Hard (5)', async ({ page }) => {
+        await page.locator('select[name="difficulty"]').selectOption('5');
+        await page.locator('button[type="submit"]').click();
+        await expect(page.locator('.alert-info')).toContainText('Difficulty: Very Hard');
+    });
+
+    test('FILT-CHAL-028: Combined filters – name search + difficulty + state', async ({ page }) => {
+        await page.locator('select[name="field"]').selectOption('name');
+        await page.locator('input[name="q"]').fill('web');
+        await page.locator('select[name="difficulty"]').selectOption('2');
+        await page.locator('select[name="state"]').selectOption('visible');
+        await page.locator('button[type="submit"]').click();
+
+        const alertInfo = page.locator('.alert-info');
+        await expect(alertInfo).toContainText('Searching for challenges with name matching web');
+        await expect(alertInfo).toContainText('Difficulty: Easy');
+        await expect(alertInfo).toContainText('State: visible');
+    });
+
 });
