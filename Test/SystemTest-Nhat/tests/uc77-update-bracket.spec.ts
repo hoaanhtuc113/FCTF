@@ -3,9 +3,9 @@ import {
     commitLazyInput,
     createBracket,
     deleteBracketByApi,
-    getUsers,
+    getTeams,
     loginAsAdmin,
-    openUserEditModal,
+    openTeamEditModal,
     updateBracket,
 } from "./helpers";
 
@@ -18,13 +18,13 @@ test.describe("UC-77 Update Bracket", () => {
         const originalName = `UC77_BRACKET_${Date.now()}`;
         const updatedName = `${originalName}_UPDATED`;
         let createdId: number | null = null;
-        const targetUser = (await getUsers(page, 5)).find((user) => user.name !== "admin") ?? (await getUsers(page, 1))[0];
+        const targetTeam = (await getTeams(page, 1))[0];
 
         try {
             const created = await createBracket(page, {
                 name: originalName,
                 description: "Original description",
-                type: "users",
+                type: "teams",
             });
             // store non-null copy for immediate use
             const bracketId = created.id;
@@ -33,12 +33,12 @@ test.describe("UC-77 Update Bracket", () => {
             const updateBody = await updateBracket(page, bracketId, {
                 name: updatedName,
                 description: "Original description",
-                type: "users",
+                type: "teams",
             });
             expect(updateBody.name).toBe(updatedName);
 
-            await openUserEditModal(page, targetUser.id);
-            const bracketSelect = page.locator('#user-info-edit-form select[name="bracket_id"]');
+            await openTeamEditModal(page, targetTeam.id);
+            const bracketSelect = page.locator('#team-info-edit-form select[name="bracket_id"]');
             await expect(bracketSelect).toContainText(updatedName);
         } finally {
             if (createdId !== null) {

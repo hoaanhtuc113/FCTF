@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { commitLazyInput, deleteBracketByApi, findConfigBlockByInputValue, getUsers, loginAsAdmin, openAdminConfigTab, openUserEditModal } from "./helpers";
+import { commitLazyInput, deleteBracketByApi, findConfigBlockByInputValue, getTeams, loginAsAdmin, openAdminConfigTab, openTeamEditModal } from "./helpers";
 
 test.describe("UC-78 Delete Bracket", () => {
     test.beforeEach(async ({ page }) => {
@@ -9,7 +9,7 @@ test.describe("UC-78 Delete Bracket", () => {
     test("TC78.01 - Admin xóa bracket từ trang config", async ({ page }) => {
         const name = `UC78_BRACKET_${Date.now()}`;
         let createdId: number | null = null;
-        const targetUser = (await getUsers(page, 5)).find((user) => user.name !== "admin") ?? (await getUsers(page, 1))[0];
+        const targetTeam = (await getTeams(page, 1))[0];
 
         try {
             await openAdminConfigTab(page, "#brackets");
@@ -20,7 +20,6 @@ test.describe("UC-78 Delete Bracket", () => {
 
             await commitLazyInput(block.locator("input.form-control").nth(0), name);
             await commitLazyInput(block.locator("input.form-control").nth(1), "Bracket to delete");
-            await block.locator("select.custom-select").selectOption("users");
 
             const createResponsePromise = page.waitForResponse((response) => {
                 return response.url().includes("/api/v1/brackets") && response.request().method() === "POST";
@@ -31,8 +30,8 @@ test.describe("UC-78 Delete Bracket", () => {
             const createBody = await createResponse.json();
             createdId = createBody.data.id;
 
-            await openUserEditModal(page, targetUser.id);
-            await expect(page.locator('#user-info-edit-form select[name="bracket_id"]')).toContainText(name);
+            await openTeamEditModal(page, targetTeam.id);
+            await expect(page.locator('#team-info-edit-form select[name="bracket_id"]')).toContainText(name);
 
             await openAdminConfigTab(page, "#brackets");
             const persistedBlock = await findConfigBlockByInputValue(page, "#brackets", name);
@@ -51,8 +50,8 @@ test.describe("UC-78 Delete Bracket", () => {
             const deleteResponse = await responsePromise;
             expect(deleteResponse.ok(), "DELETE /api/v1/brackets phải trả về HTTP thành công").toBe(true);
 
-            await openUserEditModal(page, targetUser.id);
-            await expect(page.locator('#user-info-edit-form select[name="bracket_id"]')).not.toContainText(name);
+            await openTeamEditModal(page, targetTeam.id);
+            await expect(page.locator('#team-info-edit-form select[name="bracket_id"]')).not.toContainText(name);
             createdId = null;
         } finally {
             if (createdId !== null) {

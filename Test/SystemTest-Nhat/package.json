@@ -3,8 +3,11 @@
     "version": "1.0.0",
     "description": "Playwright system test suite for FCTF admin flows",
     "scripts": {
-        "test": "node run-ordered-tests.cjs",
-        "test:headed": "node run-ordered-tests.cjs --headed",
+        "test": "node run-ordered-tests.js",
+        "test:headed": "node run-ordered-tests.js --headed",
         "test:report": "npx --yes playwright show-report playwright-report"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.58.2"
     }
 }
