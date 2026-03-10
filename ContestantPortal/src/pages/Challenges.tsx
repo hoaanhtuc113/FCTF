@@ -1596,10 +1596,12 @@ function ChallengeDetailPanel({
 
   const fetchChallengeStatus = async () => {
     try {
+      const requestStart = Date.now();
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
         method: 'GET'
       });
       const data = await response.json();
+      const rttMs = Date.now() - requestStart;
       if (data.data) {
         // Log pod_status for debugging
 
@@ -1639,13 +1641,15 @@ function ChallengeDetailPanel({
 
         // Only set time remaining if we have URL (challenge is deployed)
         if (data.challenge_url && data.time_remaining) {
-          setTimeRemaining(data.time_remaining);
+          // Subtract half RTT to compensate for network latency
+          const adjustedTimeRemaining = Math.max(0, data.time_remaining - rttMs / 2000);
+          setTimeRemaining(adjustedTimeRemaining);
 
           // Start global timer for cross-page auto-stop (if not already running)
           challengeTimerService.startTimer(
             challenge.id,
             challenge.name,
-            data.time_remaining,
+            adjustedTimeRemaining,
             challenge.require_deploy || false
           );
         } else {
@@ -2115,6 +2119,7 @@ function ChallengeDetailPanel({
       }
 
       try {
+        const requestStart = Date.now();
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.START_CHECKING, {
           method: 'POST',
           body: JSON.stringify({
@@ -2123,6 +2128,7 @@ function ChallengeDetailPanel({
           }),
         });
         const data = await response.json();
+        const rttMs = Date.now() - requestStart;
         setPodStatus(data.pod_status ?? null);
         if (data.success == true && data.challenge_url) {
           const safeChallengeUrl = escapeHtml(String(data.challenge_url).trim());
@@ -2131,15 +2137,18 @@ function ChallengeDetailPanel({
           setUrl(data.challenge_url);
 
           // Set time remaining when healthy (convert minutes to seconds)
+          // Subtract half RTT to compensate for network latency
           if (data.time_remaining || data.time_limit) {
-            const timeInSeconds = data.time_remaining || data.time_limit * 60;
-            setTimeRemaining(timeInSeconds);
+            const rawSeconds = data.time_remaining
+              ? Math.max(0, data.time_remaining - rttMs / 2000)
+              : data.time_limit * 60;
+            setTimeRemaining(rawSeconds);
 
             // Start global timer for cross-page auto-stop
             challengeTimerService.startTimer(
               challenge.id,
               challenge.name,
-              timeInSeconds,
+              rawSeconds,
               challenge.require_deploy || false
             );
           }
