@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import not_
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Teams, Tracking, Users, db
+from CTFd.models import Brackets, Challenges, Teams, Tracking, Users, db
 from CTFd.utils.decorators import admin_or_jury, admins_only
 
 
@@ -15,6 +15,7 @@ def teams_listing():
     field = request.args.get("field")
     hidden = request.args.get("hidden") in ("1", "true", "on", "yes")
     banned = request.args.get("banned") in ("1", "true", "on", "yes")
+    bracket_id = request.args.get("bracket_id", type=int)
     page = abs(request.args.get("page", 1, type=int))
     filters = []
 
@@ -27,6 +28,10 @@ def teams_listing():
         filters.append(Teams.hidden.is_(True))
     if banned:
         filters.append(Teams.banned.is_(True))
+    if bracket_id:
+        filters.append(Teams.bracket_id == bracket_id)
+
+    brackets = Brackets.query.order_by(Brackets.id.asc()).all()
 
     teams = (
         Teams.query.options(joinedload(Teams.captain))
@@ -56,6 +61,8 @@ def teams_listing():
         hidden=hidden,
         banned=banned,
         member_counts=member_counts,
+        brackets=brackets,
+        bracket_id=bracket_id,
     )
 
 
