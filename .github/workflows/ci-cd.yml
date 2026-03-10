@@ -9,12 +9,13 @@
 #   DOCKERHUB_USERNAME   – DockerHub username (e.g. quachuoiscontainer)
 #   DOCKERHUB_TOKEN      – DockerHub access token (NOT password)
 #                          Create at: https://hub.docker.com/settings/security
-#   KUBE_CONFIG          – base64-encoded kubeconfig for k3s cluster
-#                          Generate on server:
-#                            cat ~/.kube/config | base64 -w 0
-#                          NOTE: "server" field in kubeconfig MUST be a
-#                          public IP/domain reachable from GitHub runners,
-#                          NOT 127.0.0.1 or private 10.x.x.x
+#   KUBE_CONFIG          – base64-encoded kubeconfig cho CI/CD ServiceAccount
+#                          Chạy script trên server K3s để tạo tự động:
+#                            cd FCTF-k3s-manifest
+#                            chmod +x cicd-setup.sh && ./cicd-setup.sh
+#                          Script sẽ tạo ServiceAccount least-privilege và
+#                          xuất base64 kubeconfig để paste vào secret này.
+#                          (xem FCTF-k3s-manifest/cicd-setup.sh để biết chi tiết)
 #
 # ─── How to add secrets ────────────────────────────────────────────────────
 #
@@ -26,7 +27,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [v4/release/v4.0.0]
   workflow_dispatch: # allow manual trigger
 
 # Cancel previous runs for the same branch
