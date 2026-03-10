@@ -649,7 +649,7 @@ export function Challenges() {
           marginRight: selectedChallenge && !isSidebarVisible ? '-1rem' : '0px'
         }}
         transition={{ duration: 0.3 }}
-        className={`overflow-hidden ${!selectedChallenge ? 'flex-1' : ''} ${selectedChallenge ? 'relative' : ''}`}
+        className={`${!selectedChallenge ? 'flex-1' : ''} ${selectedChallenge ? 'relative' : ''}`}
       >
 
 
