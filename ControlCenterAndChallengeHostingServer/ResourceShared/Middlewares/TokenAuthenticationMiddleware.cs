@@ -39,107 +39,131 @@ public class TokenAuthenticationMiddleware
                     return;
                 }
 
-                // Try read from Redis cache first
-                var cacheKey = $"auth:user:{id}";
-                AuthInfoCacheDTO? authInfoCache = null;
-                try
-                {
-                    authInfoCache = await redis.GetFromCacheAsync<AuthInfoCacheDTO>(cacheKey);
-                }
-                catch
-                {
-                    // ignore cache errors and fallback to DB
-                }
+                    var teamIdStr = context.User.FindFirstValue("teamId");
+                    if (string.IsNullOrEmpty(teamIdStr) || !int.TryParse(teamIdStr, out var claimTeamId))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("Invalid user token.");
+                        return;
+                    }
 
-                if (authInfoCache != null)
-                {
-                    var tokenUuidFromClaim = context.User.FindFirstValue("tokenUuid");
-                    if (string.IsNullOrEmpty(authInfoCache.TokenValueFromDb)
-                        || !authInfoCache.TokenValueFromDb.Equals(tokenUuidFromClaim))
+                    // Try read from Redis cache first
+                    var cacheKey = $"auth:user:{id}";
+                    AuthInfoCacheDTO? authInfoCache = null;
+                    try
+                    {
+                        authInfoCache = await redis.GetFromCacheAsync<AuthInfoCacheDTO>(cacheKey);
+                    }
+                    catch
+                    {
+                        // ignore cache errors and fallback to DB
+                    }
+
+                    if (authInfoCache != null)
+                    {
+                        var tokenUuidFromClaim = context.User.FindFirstValue("tokenUuid");
+                        if (string.IsNullOrEmpty(authInfoCache.TokenValueFromDb)
+                            || !authInfoCache.TokenValueFromDb.Equals(tokenUuidFromClaim))
+                        {
+                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                            await context.Response.WriteAsync("Invalid user token");
+                            return;
+                        }
+
+                        if (authInfoCache.TeamId != claimTeamId)
+                        {
+                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                            await context.Response.WriteAsync("Invalid user token.");
+                            return;
+                        }
+
+                        if (authInfoCache.Banned == true)
+                        {
+                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                            await context.Response.WriteAsync("Account banned.");
+                            return;
+                        }
+
+                        if (authInfoCache.Hidden == true)
+                        {
+                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                            await context.Response.WriteAsync("Account hidden.");
+                            return;
+                        }
+
+                        await _next(context);
+                        return;
+                    }
+
+                    // Cache miss: read from DB and populate cache
+                    var authInfo = await db.Users
+                        .AsNoTracking()
+                        .Where(u => u.Id == id)
+                        .Select(u => new
+                        {
+                            u.Banned,
+                            u.Hidden,
+                            u.TeamId,
+                            TokenValueFromDb = db.Tokens
+                                .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
+                                .Select(t => t.Value)
+                                .FirstOrDefault()
+                        })
+                        .FirstOrDefaultAsync();
+
+                    if (authInfo == null)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("User not found.");
+                        return;
+                    }
+
+                    var tokenUuidFromClaim2 = context.User.FindFirstValue("tokenUuid");
+                    if (string.IsNullOrEmpty(authInfo.TokenValueFromDb) || !authInfo.TokenValueFromDb.Equals(tokenUuidFromClaim2))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Invalid user token");
                         return;
                     }
 
-                    if (authInfoCache.Banned == true)
+                    if (authInfo.TeamId != claimTeamId)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("Invalid user token.");
+                        return;
+                    }
+
+                    if (authInfo.Banned == true)
                     {
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         await context.Response.WriteAsync("Account banned.");
                         return;
                     }
 
-                    if (authInfoCache.Hidden == true)
+                    if (authInfo.Hidden == true)
                     {
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         await context.Response.WriteAsync("Account hidden.");
                         return;
                     }
 
-                    await _next(context);
-                    return;
-                }
-
-                // Cache miss: read from DB and populate cache
-                var authInfo = await db.Users
-                    .AsNoTracking()
-                    .Where(u => u.Id == id)
-                    .Select(u => new
+                    // Populate cache (short TTL)
+                    try
                     {
-                        u.Banned,
-                        u.Hidden,
-                        TokenValueFromDb = db.Tokens
-                            .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
-                            .Select(t => t.Value)
-                            .FirstOrDefault()
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (authInfo == null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("User not found.");
-                    return;
-                }
-
-                var tokenUuidFromClaim2 = context.User.FindFirstValue("tokenUuid");
-                if (string.IsNullOrEmpty(authInfo.TokenValueFromDb) || !authInfo.TokenValueFromDb.Equals(tokenUuidFromClaim2))
-                {
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("Invalid user token");
-                    return;
-                }
-
-                if (authInfo.Banned == true)
-                {
-                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    await context.Response.WriteAsync("Account banned.");
-                    return;
-                }
-
-                if (authInfo.Hidden == true)
-                {
-                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    await context.Response.WriteAsync("Account hidden.");
-                    return;
-                }
-
-                // Populate cache (short TTL)
-                try
-                {
-                    var dto = new AuthInfoCacheDTO
+                        var dto = new AuthInfoCacheDTO
+                        {
+                            TokenValueFromDb = authInfo.TokenValueFromDb,
+                            TeamId = authInfo.TeamId,
+                            Banned = authInfo.Banned,
+                            Hidden = authInfo.Hidden
+                        };
+                        var ttlSeconds = 60;
+                        _ = await redis.SetCacheAsync(cacheKey, dto, TimeSpan.FromSeconds(ttlSeconds));
+                    }
+                    catch
                     {
-                        TokenValueFromDb = authInfo.TokenValueFromDb,
-                        Banned = authInfo.Banned,
-                        Hidden = authInfo.Hidden
-                    };
-                    var ttlSeconds = 60;
-                    _ = await redis.SetCacheAsync(cacheKey, dto, TimeSpan.FromSeconds(ttlSeconds));
-                }
-                catch
-                {
-                    // ignore cache errors
-                }
+                        // ignore cache errors
+                    }
             }
 
             await _next(context);
@@ -162,6 +186,7 @@ public class TokenAuthenticationMiddleware
     private class AuthInfoCacheDTO
     {
         public string? TokenValueFromDb { get; set; }
+        public int? TeamId { get; set; }
         public bool? Banned { get; set; }
         public bool? Hidden { get; set; }
     }
