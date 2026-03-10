@@ -28,6 +28,12 @@ FILTER_FIELDS = {
     "solve_time",
     "first_blood",
     "hint_used",
+    "total_score",
+    "first_blood_count",
+    "category_clear_count",
+    "team_id",
+    "challenge_id",
+    "bracket_id",
 }
 
 FILTER_OPERATORS = {
@@ -39,7 +45,7 @@ FILTER_OPERATORS = {
     ">",
 }
 
-ORDER_FIELDS = {"entity_id", "entity_name", "metric_value"}
+ORDER_FIELDS = {"entity_id", "entity_name", "metric_value", "last_solve_date"}
 ORDER_DIRECTIONS = {"asc", "desc"}
 
 
@@ -166,6 +172,7 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
     base_conditions = []
     agg_conditions = []
     rank_conditions = []
+    bracket_filter = None
 
     for idx, f in enumerate(spec.filters):
         key = f"param_{idx}"
@@ -203,6 +210,32 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
                 raise QuerySpecError("rank filter only supported for team or user entities")
             params[key] = f.value
             rank_conditions.append(f"rank {f.operator} :{key}")
+        elif f.field == "total_score":
+            params[key] = f.value
+            agg_conditions.append(f"total_score {f.operator} :{key}")
+        elif f.field == "first_blood_count":
+            params[key] = f.value
+            agg_conditions.append(f"first_blood_count {f.operator} :{key}")
+        elif f.field == "category_clear_count":
+            params[key] = f.value
+            agg_conditions.append(f"category_clear_count {f.operator} :{key}")
+        elif f.field == "team_id":
+            params[key] = int(f.value)
+            base_conditions.append(f"sf.team_id = :{key}")
+        elif f.field == "challenge_id":
+            if f.operator == "IN":
+                placeholders = []
+                for j, v in enumerate(f.value):
+                    p = f"{key}_{j}"
+                    params[p] = int(v)
+                    placeholders.append(f":{p}")
+                base_conditions.append(f"sf.challenge_id IN ({', '.join(placeholders)})")
+            else:
+                params[key] = int(f.value)
+                base_conditions.append(f"sf.challenge_id {f.operator} :{key}")
+        elif f.field == "bracket_id":
+            params[key] = int(f.value)
+            bracket_filter = f":{key}"
 
     base_where = "" if not base_conditions else "WHERE " + " AND ".join(base_conditions)
     final_conditions = []
@@ -340,6 +373,7 @@ team_agg AS (
     LEFT JOIN wrong_team wt ON wt.team_id = t.id
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
     LEFT JOIN team_awards ta ON ta.team_id = t.id
+    {"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
     GROUP BY t.id, t.name, wt.wrong_count, ta.award_value
 ),
 ranked AS (
@@ -348,7 +382,7 @@ ranked AS (
         RANK() OVER (ORDER BY ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC) AS rank
     FROM team_agg ta
 )
-SELECT entity_id, entity_name, {metric_expr} AS metric_value
+SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date, solved_count, rank
 FROM ranked
 {final_where}
 {order_clause}
@@ -372,6 +406,7 @@ user_agg AS (
     SELECT
         u.id AS entity_id,
         u.name AS entity_name,
+        u.team_id,
         COUNT(sf.solve_id) AS solved_count,
         COALESCE(SUM(sf.challenge_value), 0) + COALESCE(ua.award_value, 0) AS total_score,
         MIN(sf.solve_time) AS fastest_solve,
@@ -389,7 +424,8 @@ user_agg AS (
     LEFT JOIN wrong_user wu ON wu.user_id = u.id
     LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
     LEFT JOIN user_awards ua ON ua.user_id = u.id
-    GROUP BY u.id, u.name, wu.wrong_count, ua.award_value
+    {"WHERE u.bracket_id = " + bracket_filter if bracket_filter else ""}
+    GROUP BY u.id, u.name, u.team_id, wu.wrong_count, ua.award_value
 ),
 ranked AS (
     SELECT
@@ -397,7 +433,8 @@ ranked AS (
         RANK() OVER (ORDER BY ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC) AS rank
     FROM user_agg ua
 )
-SELECT entity_id, entity_name, {metric_expr} AS metric_value
+SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date, solved_count, rank,
+       (SELECT t.name FROM teams t WHERE t.id = ranked.team_id) AS team_name
 FROM ranked
 {final_where}
 {order_clause}
@@ -436,7 +473,8 @@ SELECT
 FROM solve_rows sr
 LEFT JOIN teams t ON t.id = sr.team_id
 LEFT JOIN users u ON u.id = sr.user_id
-{final_where}
+{"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
+{final_where.replace("WHERE", "AND") if bracket_filter and final_where else final_where}
 {order_clause}
 LIMIT :limit
 """
@@ -460,6 +498,13 @@ def execute_query(spec: QuerySpec) -> Dict[str, Any]:
             payload["team_name"] = row._mapping.get("team_name")
         if "user_name" in row._mapping:
             payload["user_name"] = row._mapping.get("user_name")
+        if "last_solve_date" in row._mapping:
+            val = row._mapping.get("last_solve_date")
+            payload["last_solve_date"] = str(val) if val else None
+        if "solved_count" in row._mapping:
+            payload["solved_count"] = row._mapping.get("solved_count")
+        if "rank" in row._mapping:
+            payload["rank"] = row._mapping.get("rank")
         result_rows.append(payload)
 
     return {

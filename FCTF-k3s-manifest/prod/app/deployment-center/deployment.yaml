@@ -57,12 +57,15 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
+            runAsUser: 1654
             runAsGroup: 1000
             allowPrivilegeEscalation: false
             privileged: false
             capabilities:
               drop:
                 - NET_RAW
+            seLinuxOptions:
+              type: container_t
             seccompProfile:
               type: RuntimeDefault
       imagePullSecrets:

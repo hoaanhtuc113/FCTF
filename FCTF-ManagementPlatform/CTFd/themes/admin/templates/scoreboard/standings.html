@@ -36,9 +36,13 @@
 			<td>{{ standing.score }}</td>
 			<td>
 				{% if standing.hidden %}
-					<span class="badge badge-danger">hidden</span>
+					<button class="scoreboard-toggle btn btn-sm btn-danger"
+						data-account-id="{{ standing.account_id }}"
+						data-state="hidden">Hidden</button>
 				{% else %}
-					<span class="badge badge-success">visible</span>
+					<button class="scoreboard-toggle btn btn-sm btn-success"
+						data-account-id="{{ standing.account_id }}"
+						data-state="visible">Visible</button>
 				{% endif %}
 			</td>
 		</tr>

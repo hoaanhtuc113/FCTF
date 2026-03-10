@@ -11,5 +11,6 @@ namespace ResourceShared.DTOs.User
         public string? Username { get; set; }
         public string? Email { get; set; }
         public string? Team { get; set; }
+        public int? TeamBracketId { get; set; }
     }
 }
