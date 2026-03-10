@@ -105,12 +105,13 @@ jobs:
             )]')
           fi
 
-          echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
-
           if [ "$MATRIX" = "[]" ]; then
             echo "has-changes=false" >> $GITHUB_OUTPUT
+            # Dummy entry so fromJson never receives an empty array (avoids pipeline hang)
+            echo 'matrix={"include":[{"key":"none","name":"none","image":"none","context":".","dockerfile":"Dockerfile"}]}' >> $GITHUB_OUTPUT
           else
             echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
           fi
 
   # ---------------------------------------------------------------------------
@@ -197,17 +198,24 @@ jobs:
         run: |
           echo "### CI/CD Pipeline Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Build" >> $GITHUB_STEP_SUMMARY
-          echo "| | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Matrix Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Deploy" >> $GITHUB_STEP_SUMMARY
-          echo "| | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| K3s Deployment | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Services:** $(echo '${{ needs.changes.outputs.matrix }}' | jq -r '[.include[].name] | join(", ")')" >> $GITHUB_STEP_SUMMARY
+
+          HAS_CHANGES="${{ needs.changes.outputs.has-changes }}"
+
+          if [ "$HAS_CHANGES" != "true" ]; then
+            echo "> **No services changed — nothing to build or deploy.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "#### Build" >> $GITHUB_STEP_SUMMARY
+            echo "| | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Matrix Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### Deploy" >> $GITHUB_STEP_SUMMARY
+            echo "| | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| K3s Deployment | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Services:** $(echo '${{ needs.changes.outputs.matrix }}' | jq -r '[.include[].name] | join(", ")')" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Check for failures
         if: contains(needs.*.result, 'failure')
