@@ -81,6 +81,9 @@ npx playwright show-report
 | `admin-config-time-test.spec.ts` | Admin config Start/End/Freeze Time | Admin + Contestant |
 | `admin-config-general-test.spec.ts` | CONF-GEN-001 -> 013 | General settings (Event name, Captain only, etc.) |
 | `admin-config-logo-test.spec.ts` | CONF-LOGO-001 -> 011 | Logo and Icon upload, removal, and security |
+| `admin-config-visibility-test.spec.ts` | CONF-VIS-001 -> 007 | Score and difficulty visibility control |
+| `admin-ticket-respond-test.spec.ts` | TC-RES-000 -> 005 | Admin responding and closing tickets |
+| `scoreboard-search-test.spec.ts` | TC-SB-SEA-001 -> 009 | Tìm kiếm và lọc trên scoreboard | Contestant |
 | `reset-contest.spec.ts` | Contest time reset script | Admin |
 
 ---
@@ -382,17 +385,8 @@ npx playwright show-report
 - Admin portal accessible tại `https://admin.fctf.site`.
 - Contestant portal accessible tại `https://contestant.fctf.site`.
 - `user2` là tài khoản contestant hợp lệ, có team.
-- Chạy **serial** (các test thay đổi config toàn cục).
+- **Chạy serial** (các test thay đổi config toàn cục).
 - Sau khi chạy xong nên chạy `reset-contest.spec.ts` để restore lại thời gian contest.
-
-**Bảng Test Cases:**
-
-| Test Case ID | Test Case Description | Test Case Procedure | Expected Results | Pre-conditions |
-|---|---|---|---|---|
-| CONF-TIME-001 | Set Valid Start and End Time (Active State) | 1. Admin đăng nhập. 2. Vào Admin → Config → Start and End Time. 3. Đặt Start Time = hôm qua, End Time = 2 ngày tới. 4. Nhấn Update. 5. Reload trang, kiểm tra giá trị đã lưu. 6. Đăng nhập contestant → vào /challenges. | - Giá trị Start/End Time lưu đúng trong Admin. - Contestant thấy trang challenges bình thường, **không** có thông báo "CONTEST NOT ACTIVE". | Admin account tồn tại; contestant `user2` tồn tại và có team. |
-| CONF-TIME-002 | Verify Inactive State (Start Time in Future) | 1. Admin đăng nhập. 2. Vào Admin → Config → Start and End Time. 3. Đặt Start Time = 2 ngày tới, End Time = 5 ngày tới. 4. Nhấn Update. 5. Kiểm tra Admin đã lưu đúng. 6. Đăng nhập contestant `user2` → vào /challenges. | - Giá trị lưu đúng trong Admin. - Contestant thấy thông báo **"[!] CONTEST NOT ACTIVE"** trên trang /challenges. | Contest chưa bắt đầu (start time ở tương lai). |
-| CONF-TIME-003 | Verify Inactive State (End Time in Past) | 1. Admin đăng nhập. 2. Vào Admin → Config → Start and End Time. 3. Đặt Start Time = 5 ngày trước, End Time = 2 ngày trước. 4. Nhấn Update. 5. Kiểm tra Admin đã lưu đúng. 6. Đăng nhập contestant `user2` → vào /challenges. | - Giá trị lưu đúng trong Admin. - Contestant thấy thông báo **"[!] CONTEST NOT ACTIVE"** trên trang /challenges. | Contest đã kết thúc (end time ở quá khứ). |
-| CONF-TIME-004 | Freeze Time Configuration | 1. Admin đăng nhập. 2. Vào Admin → Config → Start and End Time → tab Freeze Time. 3. Đặt Freeze Time = ngày mai. 4. Nhấn Update. 5. Reload trang, kiểm tra Freeze Time đã lưu đúng. | - Freeze Year và Freeze Day khớp với giá trị đã đặt. | Admin account tồn tại. |
 
 **Technical Notes:**
 - Config tabs may be mismatched (e.g., "End Time" matches sidebar "Start and End Time"). Tests use **container scoping** (`#config-sidebar`, `#ctftime`) to avoid strict mode violations.
@@ -415,53 +409,90 @@ npx playwright show-report
 - Run in **serial** mode (tests modify global configurations).
 - Last test (CONF-GEN-013) automatically restores defaults: `captain_only_start=Disabled`, `captain_only_submit=Disabled`, `limit_challenges=3`, `ctf_name=FCTF`.
 
-**Test Case Table:**
-
-| Test Case ID | Test Case Description | Test Case Procedure | Expected Results | Pre-conditions |
-|---|---|---|---|---|
-| CONF-GEN-001 | UI – General tab renders all required fields | 1. Login as Admin. 2. Go to Admin -> Config -> General. 3. Check fields and options. | Fields `ctf_name`, `ctf_description`, `captain_only_start_challenge`, `captain_only_submit_challenge`, `limit_challenges` are displayed correctly. | Admin account exists. |
-| CONF-GEN-002 | Happy path – Update Event Name | 1. Login as Admin. 2. Go to General tab. 3. Enter new CTF Name. 4. Click Update. 5. Reload and verify. | New Event Name is saved and displayed correctly after reload. | Admin portal accessible. |
-| CONF-GEN-003 | Happy path – Update Event Description | 1. Login as Admin. 2. Go to General tab. 3. Enter new description. 4. Click Update. 5. Reload and verify. | Event Description is saved successfully. | Admin portal accessible. |
-| CONF-GEN-004 | Captain Only Start – Enable & Check member restriction | 1. Admin enables `captain_only_start_challenge`. 2. Login as member (non-captain). 3. Open challenge panel. | Admin saves successfully; Member sees "[!] Only captain can start" and cannot start challenge. | `user2` is a member (not captain). |
-| CONF-GEN-005 | Captain Only Start – Disable & Check normal access | 1. Admin disables `captain_only_start_challenge`. 2. Login as member. 3. Open challenge panel. | Restriction message disappears; Start challenge button is visible. | Contest is active. |
-| CONF-GEN-006 | Captain Only Submit – Enable & Check member restriction | 1. Admin enables `captain_only_submit_challenge`. 2. Login as member. 3. Open challenge panel. | Member sees "[!] Only captain can submit" or "[CAPTAIN ONLY]" button. | `user2` is a member. |
-| CONF-GEN-007 | Captain Only Submit – Captain Permissions | 1. Captain-only submit is enabled. 2. Login as team captain. 3. Open challenge panel. | Captain sees normal [SUBMIT] button, no restrictions. | `user9` is the team captain. |
-| CONF-GEN-008 | Captain Only Submit – Disable & Check access | 1. Admin disables `captain_only_submit_challenge`. 2. Login as member. 3. Open challenge panel. | Submit restriction is removed for all team members. | Contest is active. |
-| CONF-GEN-009 | Limit Challenges – Check persistence | 1. Admin sets `limit_challenges` to 3. 2. Click Update. 3. Reload and verify. | Value 3 is saved successfully. | Admin portal accessible. |
-| CONF-GEN-010 | Limit Challenges – Minimum value | 1. Admin sets `limit_challenges` to 1. 2. Click Update. 3. Verify. | Value 1 is accepted and saved correctly. | Admin portal accessible. |
-| CONF-GEN-011 | Batch Update | 1. Edit all fields in General tab simultaneously. 2. Click Update. 3. Verify all fields. | All values are saved correctly in a single submission. | Admin portal accessible. |
-| CONF-GEN-012 | Security – Unauthorized access | 1. Access `/admin/config` without logging in. | System automatically redirects to login page. | Admin session not established. |
-| CONF-GEN-013 | Restore Defaults | 1. Reset all fields to default values. 2. Click Update. | Default values are restored: Name=FCTF, Flags=Disabled, Limit=3. | Admin portal accessible. |
-
 **Technical Notes:**
 - General form does **not** use standard `<form>` POST. It uses **AJAX**: `configs.js` handles the submit event, serializes the form using `serializeJSON()`, and calls `PATCH /api/v1/configs`. Upon success, `window.location.reload()` is called. Test uses `Promise.all([waitForNavigation, click])` to capture this reload.
 - **Captain-only check on contestant portal**: Check happens on client-side (React) based on `is_captain` field from API. Test opens challenge cards using `.challenge-card` or `[data-require-deploy="true"]`. If no challenges are present, contestant-side check is gracefully skipped, but admin-side assertion still runs.
 - `limit_challenges` is a `type="number"` field with `min="1"`. Browser-side validation is not tested as form submits via AJAX.
 - Run tests in **serial** mode – do not use `--workers` > 1 to avoid race conditions with global config changes.
-- After running this suite, consider running `reset-contest.spec.ts` if contest time was affected by other tests.
+- Sau khi chạy suite này, hãy chạy `reset-contest.spec.ts` nếu các test khác ảnh hưởng đến thời gian contest.
 
 ---
 
 ### Admin Config Logo Tests (`admin-config-logo-test.spec.ts`)
+**Test cases:** CONF-LOGO-001 → CONF-LOGO-011
 
-| Test Case ID | Test Case Description | Test Case Procedure | Expected Results | Pre-conditions |
-| --- | --- | --- | --- | --- |
-| CONF-LOGO-001 | UI Rendering | Navigate to Logo tab. | Logo and Tab Icon sections are visible. | Admin login. |
-| CONF-LOGO-002 | Logo Upload (JPG) | Upload `logo.jpg` and submit. | Preview appears, src contains `/files/`. | `logo.jpg` exists. |
-| CONF-LOGO-003 | Logo Upload (PNG) | Upload `logo.png` and submit. | Preview updates to PNG, src contains `/files/`. | `logo.png` exists. |
-| CONF-LOGO-004 | Logo Removal | Click "Remove Logo" and confirm. | Preview and remove button disappear. | Logo exists. |
-| CONF-LOGO-005 | Tab Icon Upload (PNG)| Upload `logo.png` to Tab Icon and submit. | Preview appears in icon section. | `logo.png` exists. |
-| CONF-LOGO-006 | Tab Icon Removal | Click "Remove Icon" and confirm. | Icon preview disappears. | Icon exists. |
-| CONF-LOGO-007 | Contestant UI Sync | Upload logo, check contestant portal (login & dashboard). | Logo appears in header and login page. | `user2` login. |
-| CONF-LOGO-008 | Security: Unauthorized Access | Navigate to logo config without login. | Redirected to login page. | - |
-| CONF-LOGO-009 | Cleanup | Remove all uploaded assets. | Return to default state (no custom logo). | - |
-| CONF-LOGO-011 | Security: Malicious File Upload | Attempt to upload `security_test.php`. | File is uploaded but **not executed**. | `security_test.php` exists. |
+**Tài khoản:** `admin` / `1`, `user2` / `1`
+
+**Điều kiện:**
+- File `logo.jpg`, `logo.png`, `security_test.php` tồn tại trong thư mục gốc.
+- **Chạy serial**.
+- Test tự động dọn dẹp các asset đã upload.
 
 #### Technical Notes (Logo)
 - **Bootstrap Modals**: The "Remove" actions trigger a custom Bootstrap modal (`ezQuery`). Playwright must click the "Yes" button in the modal footer rather than handling a native browser dialog.
 - **Cache Clearing**: The Contestant Portal caches public configuration in `localStorage` for 5 minutes. Tests must clear `localStorage` and reload to verify logo changes immediately.
 - **Security Finding (File Upload)**: The system allows uploading non-image extensions (like `.php`) for the logo. However, since the server is Python/Flask-based and serves files statically via `send_file`, the PHP code is treated as a binary stream and **never executed**, preventing RCE (Remote Code Execution).
 - **Recommendation**: Implement backend validation to strictly allowed image mime-types (`image/png`, `image/jpeg`, etc.) to prevent potential XSS or storage cluttering.
+
+---
+
+### Admin Config Visibility Tests (`admin-config-visibility-test.spec.ts`)
+**Test cases:** CONF-VIS-001 → CONF-VIS-007
+
+**Tài khoản:** `admin` / `1`, `user2` / `1`
+
+**Điều kiện:**
+- **Chạy serial với `--workers=1`**.
+- Test sử dụng cơ chế xóa cache surgical (`contest_date_config`, `contest_public_config`).
+- Contestant `user2` phải có team để xem scoreboard.
+- Đảm bảo contest đang active.
+
+---
+
+### Admin Challenge Hint Tests (`admin-challenge-hint-test.spec.ts`)
+**Test cases:** CHAL-HINT-001 → CHAL-HINT-007
+
+**Tài khoản:** `admin` / `1`, `user2` / `1`
+
+**Điều kiện:**
+- **Chạy serial với `--workers=1`**.
+- File test sử dụng Challenge ID 186 (`EZ Web`) trong category `WEB`.
+- Cần có CodeMirror helper cho textarea nội dung hint.
+- Đoạn test xóa bao gồm luồng Contestant unlock hint và Custom HTML modal confirm tại Admin portal.
+
+---
+
+### `admin-ticket-respond-test.spec.ts`
+**Test cases:** TC-RES-000 → TC-RES-005
+
+**Tài khoản:** `user19` / `1` (Contestant), `admin` / `1`
+
+**Điều kiện:**
+- **Chạy serial với `--workers=1`**.
+- Test sử dụng `user19` để tạo data đầu vào. Nếu `user19` lỗi, sẽ fallback sang `user20`.
+- **Cơ chế đặc biệt**:
+    - **Randomization**: Nội dung ticket được randomize cực mạnh để bypass bộ lọc spam (similarity check).
+    - **Exact Matching**: Do IDs có thể chứa các chữ số trùng lặp trong timestamp (ví dụ: '10' trong `10:33`), test sử dụng Regex `^ID$` và lọc theo cột ID để đảm bảo tương tác đúng ticket.
+
+**Các trường hợp kiểm thử:**
+- TC-RES-000: Setup (Tạo 3 tickets khác nhau).
+- TC-RES-001: Validation bắt buộc nhập nội dung phản hồi (HTML5 tooltips).
+- TC-RES-002: Happy path (Phản hồi vé và kiểm tra trạng thái Closed).
+- TC-RES-003: XSS & Special Characters (Dữ liệu trả về được escape an toàn trong textarea).
+- TC-RES-004: Long Text (Text dài 5000+ ký tự).
+- TC-RES-005: View Responded Ticket (Kiểm tra giao diện Readonly sau khi đóng vé).
+
+---
+
+### Admin Scoreboard Tests (`admin-scoreboard-test.spec.ts`)
+**Test cases:** SCORE-001 → SCORE-002
+
+**Tài khoản:** `admin` / `1`
+
+**Điều kiện:**
+- **Chạy serial với `--workers=1`**.
+- Hệ thống đã có data (user, score, vv) để hiển thị Scoreboard.
+- Test này focus vào khả năng hiển thị UI và Trigger API Tải Export file thành công (.zip / .csv). Chức năng visibility không đưa vào do yêu cầu.
 
 ---
 
@@ -498,10 +529,14 @@ npx playwright test Test/reset-contest.spec.ts
 15. deployment-history-test.spec.ts
 16. admin-create-user-team-test.spec.ts
 17. admin-ticket-test.spec.ts
-18. admin-config-time-test.spec.ts
-19. admin-config-general-test.spec.ts
-20. admin-config-logo-test.spec.ts
-21. reset-contest.spec.ts  ← run after 18-20 to restore contest time
+18. admin-ticket-respond-test.spec.ts
+19. admin-config-time-test.spec.ts
+20. admin-config-general-test.spec.ts
+21. admin-config-logo-test.spec.ts
+22. admin-config-visibility-test.spec.ts
+23. admin-challenge-hint-test.spec.ts
+24. admin-scoreboard-test.spec.ts
+25. reset-contest.spec.ts  ← run after 19-22 to restore contest time
 ```
 
 > After suites that modify contest configuration (start/end time, freeze, etc.), it is recommended to run `reset-contest.spec.ts` to ensure a clean state for the next test suite.
@@ -517,3 +552,33 @@ npx playwright test Test/reset-contest.spec.ts
   - Is the Kubernetes cluster scaling up/down?
   - Is the contest reset to an active state?
 - Error screenshots are automatically saved to `test-results/`.
+### `scoreboard-search-test.spec.ts`
+**Test cases:** TC-SB-SEA-001 → TC-SB-SEA-009
+
+**Tài khoản cần có:**
+
+| Tài khoản | Trạng thái yêu cầu |
+|-----------|-------------------|
+| `user22` | Mật khẩu là `1` |
+
+**Lưu ý khi chạy:**
+1. **Lỗi Execution Policy**: Do hệ thống Windows bị chặn chạy script PowerShell, khi chạy test bằng `npx` có thể lỗi. Hãy dùng lệnh trực tiếp qua `node`:
+   ```bash
+   node node_modules\playwright\cli.js test Test/scoreboard-search-test.spec.ts
+   ```
+2. **Sequential execution**: Để đảm bảo tính ổn định của session và tránh bị logout giữa chừng, nên chạy tuần tự bằng `workers=1`:
+   ```bash
+   node node_modules\playwright\cli.js test Test/scoreboard-search-test.spec.ts --workers=1
+   ```
+3. **Màn hình Login**: Test đã được thiết kế debug rất kỹ để xử lý việc redirect chậm. Nếu vẫn bị timeout tại bước Login, hãy tăng `timeout` trong file test hoặc kiểm tra lại trạng thái server.
+
+**Kịch bản kiểm thử:**
+- **SB-SEA-001**: Tìm kiếm chính xác (Exact match) với `team2`.
+- **SB-SEA-002**: Tìm kiếm substring với `team2`.
+- **SB-SEA-003**: Tìm kiếm không phân biệt hoa thường (Case-insensitive) với `TEAM2`.
+- **SB-SEA-004**: Tìm kiếm một phần tên với `eam2`.
+- **SB-SEA-005**: Tìm kiếm ký tự đặc biệt/Unicode với `~~a`.
+- **SB-SEA-006**: Xử lý khi không có kết quả tìm kiếm.
+- **SB-SEA-007**: Kích hoạt tìm kiếm bằng phím Enter.
+- **SB-SEA-008**: Kiểm tra an toàn bảo mật (XSS) trong ô tìm kiếm.
+- **SB-SEA-009**: Kiểm tra đồng nhất dữ liệu (Hidden user không xuất hiện khi search).
