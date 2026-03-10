@@ -137,7 +137,7 @@ public class TeamService : ITeamService
                 .AsNoTracking()
                 .Include(t => t.Users)
                 .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == userId));
-
+            var bracketId = team?.BracketId;
             if (team == null) return null;
 
             var usersScore = await _scoreHelper.GetUsersScore(team.Users, true);
@@ -160,14 +160,17 @@ public class TeamService : ITeamService
                 .Select(c => new { c.Value })
                 .ToListAsync();
 
-            var totalTeams = await _context.Teams
+            var totalTeamsQuery = _context.Teams
                 .AsNoTracking()
-                .CountAsync(t => t.Banned == false && t.Hidden == false);
+                .Where(t => t.Banned == false && t.Hidden == false);
+            if (bracketId.HasValue)
+                totalTeamsQuery = totalTeamsQuery.Where(t => t.BracketId == bracketId.Value);
+            var totalTeams = await totalTeamsQuery.CountAsync();
 
             return new TeamScoreDTO
             {
                 Name = team.Name ?? string.Empty,
-                Place = await _scoreHelper.GetTeamPlace(team, true),
+                Place = await _scoreHelper.GetTeamPlace(team, true, bracketId),
                 Members = members,
                 Score = await _scoreHelper.GetTeamScore(team, true),
                 ChallengeTotalScore = challenges.Sum(c => c.Value ?? 0),

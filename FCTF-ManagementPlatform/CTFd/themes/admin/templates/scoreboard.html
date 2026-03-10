@@ -21,8 +21,23 @@
 	</div>
 </div>
 <div class="container">
-	<!-- Action Buttons -->
-	<div class="d-flex justify-content-end align-items-center action-buttons mt-2">
+	<!-- Bracket Filter & Action Buttons -->
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		{% if brackets and brackets | length > 0 %}
+		<div class="d-flex align-items-center">
+			<label class="mr-2 mb-0 font-weight-bold" for="bracket-filter">Bracket:</label>
+			<select id="bracket-filter" class="form-control form-control-sm" style="width: auto; min-width: 180px;">
+				<option value="">All Brackets</option>
+				{% for bracket in brackets %}
+				<option value="{{ bracket.id }}" {% if selected_bracket_id == bracket.id %}selected{% endif %}>
+					{{ bracket.name }}
+				</option>
+				{% endfor %}
+			</select>
+		</div>
+		{% else %}
+		<div></div>
+		{% endif %}
 		<div class="btn-group" role="group">
 			<button type="button" class="clean-btn" id="scoreboard-edit-button"
 				data-toggle="tooltip" title="Hide/Unhide Accounts">
@@ -65,9 +80,6 @@
 					</li>
 					<li class="nav-item">
 						<a class="nav-link" data-toggle="tab" href="#top-solves" role="tab">Top Solves Teams</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" data-toggle="tab" href="#top-solves-topic" role="tab">Top Teams Clears All Challenges</a>
 					</li>
 				</ul>
 				<div class="tab-content">
@@ -116,9 +128,6 @@
 					</div>
 					<div class="tab-pane fade" id="top-solves" role="tabpanel">
 						{% include "admin/scoreboard/TopTeamSolves.html" %}
-					</div>
-					<div class="tab-pane fade" id="top-solves-topic" role="tabpanel">
-						{% include "admin/scoreboard/TopClear.html" %}
 					</div>
 				</div>
 			</div>

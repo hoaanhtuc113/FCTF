@@ -58,7 +58,8 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
-            runAsGroup: 1000
+            runAsUser: 1001
+            runAsGroup: 1001
             allowPrivilegeEscalation: false
             privileged: false
             capabilities:
@@ -71,6 +72,10 @@ spec:
           volumeMounts:
             - name: nfs-shared-data
               mountPath: /mnt/nfs/data
+            - name: tmp
+              mountPath: /tmp
+            - name: log-ctfd
+              mountPath: /var/log/CTFd
       imagePullSecrets:
         - name: regcred
       volumes:
@@ -78,4 +83,8 @@ spec:
           nfs:
             server: 10.148.0.2
             path: /srv/nfs/share
+        - name: tmp
+          emptyDir: {}
+        - name: log-ctfd
+          emptyDir: {}
   revisionHistoryLimit: 3
