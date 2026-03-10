@@ -16,7 +16,7 @@ Docker Hub được sử dụng làm kho lưu trữ và phân phối các contai
 sudo apt update && sudo apt upgrade -y
 
 # Cài đặt các công cụ cần thiết
-sudo apt install -y curl wget git nano vim net-tools
+sudo apt install -y curl wget git nano vim net-tools nfs-common
 
 # Cấu hình timezone
 sudo timedatectl set-timezone Asia/Ho_Chi_Minh
@@ -41,27 +41,9 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
   --write-kubeconfig-mode 644 \
-  --tls-san=34.96.192.125 \
+  --tls-san=34.124.131.240 \
   --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
 
-```
-
-**Cho Development (Local, WSL...):**
-```bash
-# Cài K3s đơn giản hơn, không cần domain
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode 644" sh -
-```
-
-# cài k3s worker-node là ip private của server
-```bash
-# Lấy master node token
-sudo cat /var/lib/rancher/k3s/server/node-token
-
-# Cài k3s worker-node
-# Truy cập vào worker-node và chạy lệnh này để join vào master node
-curl -sfL https://get.k3s.io | K3S_URL=https://10.148.0.2:6443 \
-  K3S_TOKEN=K109f8ed7afed5666089849417efb9f78175bcb8dec748f6438057065f5140ba4b9::server:05a87db197bea859c1d1cba005a0b78c \
-  INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
 ```
 
 **Kiểm tra và cấu hình kubectl:**
@@ -85,6 +67,76 @@ kubectl get nodes
 ```bash
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
+```
+
+
+# cài k3s worker-node là ip private của server
+```bash
+# Lấy master node token
+sudo cat /var/lib/rancher/k3s/server/node-token
+
+sudo mkdir -p /etc/rancher/k3s
+sudo tee /etc/rancher/k3s/kubelet.config <<EOF
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+maxPods: 250
+EOF
+
+# Cài k3s worker-node
+# Truy cập vào worker-node và chạy lệnh này để join vào master node
+curl -sfL https://get.k3s.io | K3S_URL=https://10.148.0.32:6443 \
+  K3S_TOKEN=K104c2087b7054c4dce1ba83f62503501983f9678e1ec719ab0adbcaba14d2aedf6::server:0bad0ef30cd7d18735a199bde9f18d7e \
+  INSTALL_K3S_EXEC="agent --kubelet-arg=config=/etc/rancher/k3s/kubelet.config" sh -
+```
+
+## Cài gVisor (runsc)
+
+```bash
+ARCH=$(uname -m)
+URL="https://storage.googleapis.com/gvisor/releases/release/latest/${ARCH}"
+
+sudo curl -fsSL ${URL}/runsc -o /usr/local/bin/runsc
+sudo curl -fsSL ${URL}/runsc.sha512 -o /tmp/runsc.sha512
+(cd /tmp && sha512sum -c runsc.sha512)
+sudo chmod +x /usr/local/bin/runsc
+
+sudo curl -fsSL ${URL}/containerd-shim-runsc-v1 \
+  -o /usr/local/bin/containerd-shim-runsc-v1
+
+sudo chmod +x /usr/local/bin/containerd-shim-runsc-v1
+
+runsc --version
+containerd-shim-runsc-v1 -v || echo OK
+```
+
+## Cấu hình containerd cho k3s
+
+```bash
+sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd
+```
+
+```bash
+sudo tee /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl > /dev/null <<'EOF'
+version = 2
+
+[plugins."io.containerd.grpc.v1.cri".containerd]
+  default_runtime_name = "runc"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+  runtime_type = "io.containerd.runsc.v1"
+EOF
+```
+
+## Restart k3s
+
+```bash
+sudo systemctl restart k3s || sudo systemctl restart k3s-agent
+```
+
+Chờ k3s lên:
+
+```bash
+kubectl get nodes
 ```
 
 ### 3. Cài đặt NFS Server
@@ -117,7 +169,7 @@ sudo exportfs -v
 ```bash
 # thường sẽ là IP đầu tiên 
 hostname -I
-# Ví dụ tôi có 10.148.0.2 
+# Ví dụ tôi có 10.148.0.32 
 # Cần sửa trong prod\storage\nfs-pv-pvc.yaml phàn spec.nfs.server ở đây thay thế bằng IP của bạn 
 # Tương tự những chỗ mount nfs ở các file sau  
 #    prod\app\admin-mvc\deployment.yaml 
@@ -357,6 +409,7 @@ sudo rm -rf /srv/nfs
 - [Helm Documentation](https://helm.sh/docs/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [NFS Server Setup](https://ubuntu.com/server/docs/service-nfs)
+
 
 ## CI/CD Pipeline (GitHub Actions)
 
