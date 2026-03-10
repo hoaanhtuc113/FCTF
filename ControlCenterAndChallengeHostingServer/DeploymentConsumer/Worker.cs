@@ -22,8 +22,6 @@ internal class Worker : BackgroundService
     private readonly MultiServiceConnector _multiServiceConnector;
     private readonly ActivitySource _rabbitMQActivitySource;
 
-    private const int BatchSize = 20;
-    private const int MaxRunningWorkFlow = 30;
     public Worker(
         IServiceScopeFactory scopeFactory,
         ILogger<Worker> logger,
@@ -45,12 +43,12 @@ internal class Worker : BackgroundService
             try
             {
                 await ProcessAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS), stoppingToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in DeploymentConsumer Worker");
-                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(DeploymentConsumerConfigHelper.WORKER_POLL_INTERVAL_SECONDS), stoppingToken);
             }
         }
     }
@@ -65,13 +63,13 @@ internal class Worker : BackgroundService
         var runningWorkflow = await argoService.GetRunningWorkflowsCountAsync(stoppingToken);
 
         _logger.LogInformation($"[Worker] Current running workflows: {runningWorkflow}");
-        if (runningWorkflow >= MaxRunningWorkFlow)
+        if (runningWorkflow >= DeploymentConsumerConfigHelper.MAX_RUNNING_WORKFLOW)
         {
-            _logger.LogInformation($"[Worker] Skipping this batch as running workflows exceed limit ({MaxRunningWorkFlow})");
+            _logger.LogInformation($"[Worker] Skipping this batch as running workflows exceed limit ({DeploymentConsumerConfigHelper.MAX_RUNNING_WORKFLOW})");
             return;
         }
-        var availableSlots = MaxRunningWorkFlow - runningWorkflow;
-        List<DequeuedMessage> messages = await queueService.DequeueAvailableBatchAsync(Math.Min(availableSlots, BatchSize));
+        var availableSlots = DeploymentConsumerConfigHelper.MAX_RUNNING_WORKFLOW - runningWorkflow;
+        List<DequeuedMessage> messages = await queueService.DequeueAvailableBatchAsync(Math.Min(availableSlots, DeploymentConsumerConfigHelper.BATCH_SIZE));
 
         _logger.LogInformation($"[Worker] Dequeued {messages.Count} messages for processing");
 
