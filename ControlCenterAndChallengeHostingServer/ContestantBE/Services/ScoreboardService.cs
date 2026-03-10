@@ -40,23 +40,21 @@ public class ScoreboardService : IScoreboardService
 
     public async Task<List<ScoreboardEntryDTO>> GetTopStandings(int count, int? bracketId)
     {
-        try
-        {
-            var standings = await _scoreHelper.GetStandings(count, bracketId);
-            var accountIds = standings.Select(t => t.AccountId).ToList();
-            IQueryable<Solf> solvesQuery;
-            IQueryable<Award> awardsQuery;
+        var standings = await _scoreHelper.GetStandings(count, bracketId);
+        var accountIds = standings.Select(t => t.AccountId).ToList();
+        IQueryable<Solf> solvesQuery;
+        IQueryable<Award> awardsQuery;
 
-            if (_mode == "teams")
-            {
-                solvesQuery = _context.Solves.Where(s => s.TeamId.HasValue && accountIds.Contains(s.TeamId.Value));
-                awardsQuery = _context.Awards.Where(a => a.TeamId.HasValue && accountIds.Contains(a.TeamId.Value));
-            }
-            else
-            {
-                solvesQuery = _context.Solves.Where(s => s.UserId.HasValue && accountIds.Contains(s.UserId.Value));
-                awardsQuery = _context.Awards.Where(a => a.UserId.HasValue && accountIds.Contains(a.UserId.Value));
-            }
+        if (_mode == "teams")
+        {
+            solvesQuery = _context.Solves.Where(s => s.TeamId.HasValue && accountIds.Contains(s.TeamId.Value));
+            awardsQuery = _context.Awards.Where(a => a.TeamId.HasValue && accountIds.Contains(a.TeamId.Value));
+        }
+        else
+        {
+            solvesQuery = _context.Solves.Where(s => s.UserId.HasValue && accountIds.Contains(s.UserId.Value));
+            awardsQuery = _context.Awards.Where(a => a.UserId.HasValue && accountIds.Contains(a.UserId.Value));
+        }
 
             // Freeze logic
             var freeze = ToLong(_configHelper.GetConfig("freeze"));
@@ -173,11 +171,5 @@ public class ScoreboardService : IScoreboardService
             }
 
             return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, data: new { value = "GetTopStandings" });
-            return [];
-        }
     }
 }

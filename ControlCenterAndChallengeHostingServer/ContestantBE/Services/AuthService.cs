@@ -51,10 +51,15 @@ public class AuthService : IAuthService
                 .Include(t => t.Team)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Name == loginDto.username);
-
+            
             if (user == null || user.Type != "user")
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Invalid username or password");
+            }
+
+            if(user.Verified == false)
+            {
+                return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not verified yet");
             }
 
             if (!SHA256Helper.VerifyPassword(loginDto.password, user.Password) || user.Type != "user")

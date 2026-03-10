@@ -24,6 +24,13 @@ export interface ContestConfig {
   name?: string;
 }
 
+export interface BracketInfo {
+  id: number;
+  name: string;
+  description: string | null;
+  type: string;
+}
+
 export class ScoreboardVisibilityError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -41,8 +48,12 @@ class PublicScoreboardService {
     this.baseUrl = API_BASE_URL;
   }
 
-  async getPublicScoreboard(): Promise<ScoreboardData> {
-    const response = await fetch(`${this.baseUrl}/scoreboard/top/1000`, {
+  async getPublicScoreboard(bracketId?: number): Promise<ScoreboardData> {
+    const url = bracketId
+      ? `${this.baseUrl}/scoreboard/top/1000?bracket_id=${bracketId}`
+      : `${this.baseUrl}/scoreboard/top/1000`;
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -71,6 +82,26 @@ class PublicScoreboardService {
     }
 
     return result;
+  }
+
+  async getBrackets(): Promise<BracketInfo[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/scoreboard/brackets`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const result = await response.json();
+      return result.data || [];
+    } catch {
+      return [];
+    }
   }
 
   async getContestConfig(): Promise<ContestConfig> {

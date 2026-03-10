@@ -72,12 +72,14 @@ public class ConfigController : BaseController
         var logo = _configHelper.GetConfig("ctf_logo");
         var icon = _configHelper.GetConfig("ctf_small_icon");
         var name = _configHelper.GetConfig("ctf_name");
+        var bracketViewOther = _configHelper.GetConfig<bool>("bracket_view_other");
         return Ok(new
         {
             isSuccess = true,
             ctf_logo = logo,
             ctf_small_icon = icon,
             ctf_name = name,
+            bracket_view_other = bracketViewOther,
         });
     }
 
