@@ -1,0 +1,99 @@
+VTE-01	Verify that the Teams page loads and shows the Teams heading	"1. Login to admin.fctf.site as an admin.
+2. Open the Teams page.
+3. Observe the page heading.
+4. Confirm that the page loads correctly." 	"- The Teams page loads successfully.
+- The Teams heading is visible.
+- The route is correct.
+- No unexpected error state appears." 	"- Admin is logged in to admin.fctf.site.
+- The Teams page is accessible."
+VTE-02	Verify that the teams list is displayed in the table	"1. Open the Teams page.
+2. Inspect the teams table.
+3. Review the table body.
+4. Confirm that team rows are displayed." 	"- The teams table is visible.
+- At least 1 row is shown when data exists.
+- The table is rendered correctly.
+- The page remains interactive." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 team exists in the system."
+VTE-03	Verify that the Teams table shows all required columns	"1. Open the Teams page.
+2. Inspect the table header row.
+3. Locate the required columns.
+4. Confirm that the expected headers are present." 	"- Required columns such as ID, Team, Captain, Members, Country, Hidden, and Banned are visible.
+- The table header is rendered correctly.
+- The UI reflects the expected admin table layout.
+- The page supports team review from the grid." 	"- Admin is logged in to admin.fctf.site.
+- The Teams page is open."
+VTE-04	Verify that the first known team appears in the Teams table	"1. Open the Teams page.
+2. Identify the first known team from the source data.
+3. Search the visible rows.
+4. Confirm that the team appears." 	"- The expected team appears in the table.
+- The row matches the source data.
+- The list reflects current system data.
+- No mismatch occurs between UI and underlying records." 	"- Admin is logged in to admin.fctf.site.
+- Team source data is available."
+VTE-05	Verify that clicking a team name opens the correct team detail page	"1. Open the Teams page.
+2. Locate a visible team row.
+3. Click the team name link.
+4. Observe the destination page.
+5. Confirm the team detail matches the selected row." 	"- Navigation to the team detail page succeeds.
+- The destination route contains the selected team.
+- The detail page shows the selected team information.
+- The admin remains within the admin portal." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 team is visible in the teams table."
+VTE-06	Verify that searching by team name returns the correct result	"1. Open the Teams page.
+2. Enter an existing team name into the search field.
+3. Apply the search.
+4. Review the result list." 	"- The matching team appears in the result set.
+- Unrelated teams are filtered out.
+- The search state is applied correctly.
+- The page remains stable after search." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 searchable team exists."
+VTE-07	Verify that searching with a non-existent term returns an empty result set	"1. Open the Teams page.
+2. Enter a keyword that does not match any team.
+3. Apply the search.
+4. Review the table or empty state." 	"- No matching team row is displayed.
+- The page shows a valid empty state or no-result table.
+- No incorrect team is shown.
+- The page remains functional." 	"- Admin is logged in to admin.fctf.site.
+- The Teams page is open."
+VTE-08	Verify that filtering by Hidden shows hidden teams only	"1. Open the Teams page.
+2. Select the Hidden filter.
+3. Apply the filter.
+4. Review the returned rows or empty state." 	"- The hidden filter is applied successfully.
+- Only hidden teams are shown when matching data exists.
+- A valid empty state is shown if no hidden team exists.
+- The page remains stable after filtering." 	"- Admin is logged in to admin.fctf.site.
+- The Teams page is open."
+VTE-09	Verify that filtering by Banned shows banned teams only	"1. Open the Teams page.
+2. Select the Banned filter.
+3. Apply the filter.
+4. Review the returned rows or empty state." 	"- The banned filter is applied successfully.
+- Only banned teams are shown when matching data exists.
+- A valid empty state is shown if no banned team exists.
+- The UI reflects the selected filter." 	"- Admin is logged in to admin.fctf.site.
+- The Teams page is open."
+VTE-10	Verify that Reset clears filters and restores the full team list	"1. Open the Teams page.
+2. Apply one or more filters.
+3. Confirm that filtered results are shown.
+4. Click Reset.
+5. Observe the page state after reset." 	"- Filter controls are cleared.
+- The full team list is restored.
+- The route returns to the base Teams page.
+- No stale filter remains active." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 filter can be applied before reset."
+VTE-11	Verify that the Create Team action is visible on the Teams page	"1. Open the Teams page.
+2. Inspect the main page actions.
+3. Locate the Create Team button.
+4. Confirm that it is visible." 	"- The Create Team action is visible.
+- The button is attached to the page.
+- The admin can identify the team creation entry point.
+- The page renders without hiding the action unexpectedly." 	"- Admin is logged in to admin.fctf.site.
+- The Teams page is open with sufficient permissions."
+VTE-12	Verify that Edit and Delete actions are visible for listed teams	"1. Open the Teams page.
+2. Inspect a visible team row.
+3. Locate the Edit action.
+4. Locate the Delete action.
+5. Confirm both actions are shown." 	"- Edit action is visible.
+- Delete action is visible.
+- The row exposes the expected admin controls.
+- The actions are available without UI corruption." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 team row is visible in the table."

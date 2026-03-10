@@ -1,0 +1,25 @@
+CSS-01	Verify that an incorrect submission can be marked as correct	"1. Login to admin.fctf.site as an admin.
+2. Locate an incorrect submission.
+3. Trigger the action to mark it as correct.
+4. Confirm the action if prompted.
+5. Review the updated submission state." 	"- The status update succeeds.
+- The submission is marked as correct.
+- The updated state is reflected in the admin UI or API-backed list.
+- No unexpected error interrupts the flow." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 incorrect submission exists or is prepared for the test."
+CSS-02	Verify that a correct submission can be marked as incorrect	"1. Locate a correct submission.
+2. Trigger the action to mark it as incorrect.
+3. Confirm the action if prompted.
+4. Review the updated submission state." 	"- The status update succeeds.
+- The submission is marked as incorrect.
+- The updated state is reflected in the admin UI or API-backed list.
+- The page remains usable after the change." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 correct submission exists or is prepared for the test."
+CSS-03	Verify that the confirmation modal shows the correct submission-status action	"1. Locate a submission with a status-change action.
+2. Trigger the status-change control.
+3. Observe the confirmation modal.
+4. Review the modal title and content." 	"- A confirmation modal appears.
+- The modal title matches the intended status-change action.
+- The action context is clear to the admin.
+- No unintended status change occurs before confirmation." 	"- Admin is logged in to admin.fctf.site.
+- A submission with a status-change action is available."

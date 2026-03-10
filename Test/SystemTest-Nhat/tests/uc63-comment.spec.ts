@@ -5,7 +5,7 @@ import {
     deleteCommentsByContent,
     getTeams,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-63 Comment", () => {
     let teamId: number;

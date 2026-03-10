@@ -1,0 +1,10 @@
+VTF-01	Verify that the team detail page shows a newly created failed submission	"1. Login to admin.fctf.site as an admin.
+2. Prepare or create an incorrect submission for a team.
+3. Open that team's detail page.
+4. Open the Fails or Wrong tab.
+5. Locate the newly created failed submission entry." 	"- The failed submission appears in the team's fail list.
+- The entry matches the created incorrect submission.
+- The identifying token or value is visible.
+- The team detail page displays the fail data correctly." 	"- Admin is logged in to admin.fctf.site.
+- A team with challenge context exists.
+- An incorrect submission is available for the test flow."

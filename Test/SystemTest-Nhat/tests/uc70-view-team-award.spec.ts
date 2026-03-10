@@ -5,7 +5,7 @@ import {
     deleteAwardsByName,
     getSubmissionSeed,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-70 View Team Award", () => {
     test.beforeEach(async ({ page }) => {

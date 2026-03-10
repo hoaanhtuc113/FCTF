@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { commitLazyInput, deleteBracketByApi, findConfigBlockByInputValue, getTeams, loginAsAdmin, openAdminConfigTab, openTeamEditModal } from "./helpers";
+import { commitLazyInput, deleteBracketByApi, findConfigBlockByInputValue, getTeams, loginAsAdmin, openAdminConfigTab, openTeamEditModal } from "./support";
 
 test.describe("UC-78 Delete Bracket", () => {
     test.beforeEach(async ({ page }) => {

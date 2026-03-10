@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, loginAsAdmin } from "./helpers";
+import { BASE_URL, loginAsAdmin } from "./support";
 
 test.describe("UC-75 View Brackets", () => {
     test.beforeEach(async ({ page }) => {

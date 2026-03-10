@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, getSubmissionSeed, loginAsAdmin } from "./helpers";
+import { BASE_URL, getSubmissionSeed, loginAsAdmin } from "./support";
 
 test.describe("UC-74 View Team Missings", () => {
     test.beforeEach(async ({ page }) => {

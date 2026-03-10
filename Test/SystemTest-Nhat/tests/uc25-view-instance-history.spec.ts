@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, loginAsAdmin } from "./helpers";
+import { BASE_URL, loginAsAdmin } from "./support";
 
 test.describe("UC-25 View Instance History", () => {
     test.beforeEach(async ({ page }, testInfo) => {

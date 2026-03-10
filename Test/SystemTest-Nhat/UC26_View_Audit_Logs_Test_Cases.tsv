@@ -1,0 +1,29 @@
+VAL-01	Verify that the Audit Logs page displays filters and the audit table	"1. Login to admin.fctf.site as an admin.
+2. Open the Audit Logs page.
+3. Inspect the filter controls.
+4. Inspect the audit log table.
+5. Confirm that the page loads its expected UI." 	"- The Audit Logs page loads successfully.
+- Filter controls are visible.
+- The audit log table is visible.
+- The page is ready for filtering and review." 	"- Admin is logged in to admin.fctf.site.
+- The Audit Logs page is accessible."
+VAL-02	Verify that filtering audit logs by submission_delete and target ID opens the diff modal	"1. Open the Audit Logs page.
+2. Filter by the submission_delete action.
+3. Enter a valid target ID with matching audit data.
+4. Apply the filter.
+5. Open the diff action for the matching log entry." 	"- The filtered audit row is displayed.
+- The diff modal opens successfully.
+- The modal shows the audit change details.
+- The filter remains applied while reviewing the diff." 	"- Admin is logged in to admin.fctf.site.
+- A submission_delete audit record exists.
+- The target ID for that record is known or discoverable."
+VAL-03	Verify that the Clear action removes audit log filters	"1. Open the Audit Logs page.
+2. Apply one or more audit log filters.
+3. Confirm that filtered results are shown.
+4. Click Clear.
+5. Observe the page state after clearing." 	"- Filter inputs are cleared.
+- The URL returns to the base audit log route.
+- The unfiltered audit log list is restored.
+- No stale filter remains active." 	"- Admin is logged in to admin.fctf.site.
+- The Audit Logs page is open.
+- At least 1 filter can be applied before clearing."

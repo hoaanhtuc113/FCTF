@@ -303,20 +303,33 @@ async function patchUserViaApi(
 }
 
 async function restoreKnownExistingUser(page: Page, baseline: UserInfo, password?: string) {
-    await patchUserViaApi(page, baseline.id, {
-        name: baseline.name,
-        email: baseline.email,
-        password,
-        type: baseline.type as StaffRole | "user",
-        verified: baseline.verified,
-        hidden: baseline.hidden,
-        banned: baseline.banned,
-    });
+    await openUserEditModal(page, baseline.id);
+    await page.fill('#user-info-edit-form [name="name"]', baseline.name);
+    await page.fill('#user-info-edit-form [name="email"]', baseline.email);
+
+    if (password) {
+        await page.fill('#user-info-edit-form [name="password"]', password);
+    }
+
+    await setRole(page, baseline.type as StaffRole | "user");
+    await setCheckbox(page, "verified", baseline.verified);
+    await setCheckbox(page, "hidden", baseline.hidden);
+    await setCheckbox(page, "banned", baseline.banned);
+    await ensureRequiredUserFields(page);
+    await submitUserEditForm(page);
+    await page.waitForTimeout(SUBMIT_WAIT_MS);
+    await page.goto(`${BASE_URL}/admin/users/${baseline.id}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
     await expectUserDetails(page, {
         name: baseline.name,
         email: baseline.email,
     });
+
+    const restored = await getUserDetails(page, baseline.id);
+    expect(restored.type).toBe(baseline.type);
+    expect(restored.verified).toBe(baseline.verified);
+    expect(restored.hidden).toBe(baseline.hidden);
+    expect(restored.banned).toBe(baseline.banned);
 
     if (password) {
         knownPasswordsByUserId.set(baseline.id, password);
@@ -410,6 +423,8 @@ async function expectUserVisibleInFilteredList(page: Page, filter: "hidden" | "b
 }
 
 test.describe.serial("Edit User - System Tests", () => {
+    test.describe.configure({ timeout: 90_000 });
+
     let editableUser: UserInfo;
     let duplicateUserName: string | null;
     let contestantUser: UserInfo;

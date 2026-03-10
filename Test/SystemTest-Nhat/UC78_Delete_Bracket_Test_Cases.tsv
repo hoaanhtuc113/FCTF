@@ -1,0 +1,10 @@
+DBK-01	Verify that an admin can delete a bracket from the Config page	"1. Login to admin.fctf.site as an admin.
+2. Open the Config page and navigate to Scoreboard Brackets.
+3. Locate a deletable bracket.
+4. Delete the bracket and confirm the action if prompted.
+5. Open a team edit form and review the bracket dropdown." 	"- The bracket is deleted successfully.
+- The deleted bracket no longer appears in the Config page list.
+- The bracket no longer appears in the team edit dropdown.
+- No stale deleted bracket remains selectable." 	"- Admin is logged in to admin.fctf.site.
+- A deletable bracket exists or is created for the test flow.
+- The admin can access the Config page and a team edit form."
