@@ -5,7 +5,7 @@ import {
     deleteSubmissionsByProvided,
     getSubmissionSeed,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-67 View User Fails", () => {
     test.beforeEach(async ({ page }) => {

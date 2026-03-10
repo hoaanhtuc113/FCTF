@@ -1,0 +1,10 @@
+ACT-01	Verify that an admin can change the team captain from the Choose Captain modal	"1. Login to admin.fctf.site as an admin.
+2. Open the detail page of a team with multiple members.
+3. Open the Choose Captain modal.
+4. Select a different member as captain.
+5. Confirm the change and review the page." 	"- The captain change succeeds.
+- The selected member becomes the new captain.
+- The team detail page reflects the updated captain.
+- The captain label or captain-specific UI is shown for the new captain." 	"- Admin is logged in to admin.fctf.site.
+- A team with multiple members exists.
+- The Choose Captain action is available."

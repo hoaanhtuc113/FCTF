@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, getTeams, loginAsAdmin } from "./helpers";
+import { BASE_URL, getTeams, loginAsAdmin } from "./support";
 
 test.describe("UC-42 Search Team", () => {
     let sampleTeamName: string;

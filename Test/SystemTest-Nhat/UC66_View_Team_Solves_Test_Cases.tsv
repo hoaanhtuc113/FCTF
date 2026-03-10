@@ -1,0 +1,10 @@
+VTS-01	Verify that the team detail page shows a newly created solve	"1. Login to admin.fctf.site as an admin.
+2. Prepare or create a valid solved submission for a team.
+3. Open that team's detail page.
+4. Review the Solves tab.
+5. Locate the newly created solve entry." 	"- The solve appears in the team's solve list.
+- The entry matches the created submission.
+- The solve token or identifying value is visible.
+- The team detail page displays the solve data correctly." 	"- Admin is logged in to admin.fctf.site.
+- A team with a solvable challenge context exists.
+- A correct submission is available for the test flow."

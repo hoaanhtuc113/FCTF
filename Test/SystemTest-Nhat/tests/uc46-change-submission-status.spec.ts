@@ -8,7 +8,7 @@ import {
     getSubmissions,
     getSubmissionSeed,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-46 Change Submission Status", () => {
     test.beforeEach(async ({ page }) => {

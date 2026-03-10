@@ -8,7 +8,7 @@ import {
     getSubmissionById,
     getSubmissionSeed,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-44 Delete Submission", () => {
     test.beforeEach(async ({ page }) => {

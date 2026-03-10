@@ -14,7 +14,7 @@
  */
 
 import { test, expect, Page } from "@playwright/test";
-import { BASE_URL, loginAsAdmin, getUsers, createTestUser, deleteUser } from "./helpers";
+import { BASE_URL, loginAsAdmin, getUsers, createTestUser, deleteUser } from "./support";
 
 // ─── Test Suite ───────────────────────────────────────────────────────────────
 

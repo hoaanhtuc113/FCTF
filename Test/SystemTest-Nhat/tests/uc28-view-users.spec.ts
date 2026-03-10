@@ -12,7 +12,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { BASE_URL, loginAsAdmin, getUsers } from "./helpers";
+import { BASE_URL, loginAsAdmin, getUsers } from "./support";
 
 test.describe("View Users — System Tests", () => {
     let firstUserId: number;

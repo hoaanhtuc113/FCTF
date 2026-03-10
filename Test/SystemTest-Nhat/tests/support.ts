@@ -83,12 +83,10 @@ export interface CustomFieldInfo {
 }
 
 export async function loginAsAdmin(page: Page) {
-    // Retry once to reduce flaky navigation/login failures from transient network slowness.
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
             await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
-            // If already authenticated and redirected to admin page, no need to submit login form.
             if (/\/admin\//.test(page.url())) {
                 return;
             }
@@ -132,32 +130,8 @@ export async function openAdminConfigTab(page: Page, hash: string) {
                 throw new Error(`Cannot find config tab link for ${targetHash}`);
             }
 
-            try {
-                const maybeBootstrap = (globalThis as any).bootstrap;
-                const TabCtor = maybeBootstrap?.Tab ?? maybeBootstrap?.tab;
-                if (TabCtor?.getOrCreateInstance) {
-                    TabCtor.getOrCreateInstance(anchor).show();
-                    return;
-                }
-                if (typeof TabCtor === "function") {
-                    new TabCtor(anchor).show();
-                    return;
-                }
-            } catch (_error) {
-                // Fall through to the jQuery/bootstrap 4 fallback below.
-            }
-
-            try {
-                const jquery = (globalThis as any).$;
-                if (typeof jquery === "function" && typeof jquery(anchor).tab === "function") {
-                    jquery(anchor).tab("show");
-                    return;
-                }
-            } catch (_error) {
-                // Fall through to plain click.
-            }
-
             anchor.click();
+            anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
         }, hash);
     }
 
@@ -454,7 +428,7 @@ export async function openUserEditModal(page: Page, userId: number) {
     await page.waitForSelector(".edit-user", { state: "visible" });
     await page.click(".edit-user");
     await page.waitForSelector("#user-info-edit-form", { state: "visible", timeout: 8000 });
-    await page.waitForTimeout(400); // animation Bootstrap
+    await page.waitForTimeout(400);
 }
 
 export async function openTeamEditModal(page: Page, teamId: number) {
@@ -462,11 +436,10 @@ export async function openTeamEditModal(page: Page, teamId: number) {
     await page.waitForSelector(".edit-team", { state: "visible" });
     await page.click(".edit-team");
     await page.waitForSelector("#team-info-edit-form", { state: "visible", timeout: 8000 });
-    await page.waitForTimeout(400); // animation Bootstrap
+    await page.waitForTimeout(400);
 }
 
 export async function getCSRFToken(page: Page): Promise<string> {
-    // Attempt to extract from script tags first (window.init)
     const token = await page.evaluate(() => {
         return (window as any).init?.csrfNonce ||
             document.querySelector('input[name="nonce"]')?.getAttribute("value") ||
@@ -474,7 +447,6 @@ export async function getCSRFToken(page: Page): Promise<string> {
     });
     if (token) return token;
 
-    // Fallback: search in raw HTML if evaluate fails or returned empty
     const html = await page.content();
     const match = html.match(/csrfNonce":\s*"([^"]+)"/) || html.match(/name="nonce" value="([^"]+)"/);
     return match ? match[1] : "";

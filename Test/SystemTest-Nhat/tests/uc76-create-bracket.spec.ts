@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, commitLazyInput, deleteBracketByApi, getTeams, loginAsAdmin, openTeamEditModal } from "./helpers";
+import { BASE_URL, commitLazyInput, deleteBracketByApi, getTeams, loginAsAdmin, openTeamEditModal } from "./support";
 
 test.describe("UC-76 Create Bracket", () => {
     test.beforeEach(async ({ page }) => {

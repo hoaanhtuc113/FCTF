@@ -1,0 +1,9 @@
+VCF-01	Verify that the Config page shows both user fields and team fields sections	"1. Login to admin.fctf.site as an admin.
+2. Open the Config page.
+3. Navigate to the Fields section.
+4. Inspect the user fields area.
+5. Inspect the team fields area or switch between the two views." 	"- The Fields section is visible.
+- User fields are visible.
+- Team fields are visible or reachable through the UI.
+- Tab or section switching works correctly." 	"- Admin is logged in to admin.fctf.site.
+- The Config page is accessible with sufficient permissions."

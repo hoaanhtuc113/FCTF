@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, loginAsAdmin } from "./helpers";
+import { BASE_URL, loginAsAdmin } from "./support";
 
 async function getHistorySeed(page: Parameters<typeof test>[0]["page"]) {
     await page.goto(`${BASE_URL}/admin/instances_history`, { waitUntil: "domcontentloaded" });

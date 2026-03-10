@@ -1,0 +1,11 @@
+UBK-01	Verify that an admin can update a bracket name from the Config page	"1. Login to admin.fctf.site as an admin.
+2. Open the Config page and navigate to Scoreboard Brackets.
+3. Select an existing bracket.
+4. Update the bracket name.
+5. Save the change.
+6. Open a team edit form and review the bracket dropdown." 	"- The bracket update succeeds.
+- The updated bracket name appears in the Config page.
+- The new name is reflected in the team edit dropdown.
+- The bracket remains usable after the update." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 editable bracket exists.
+- The admin can access the Config page and a team edit form."

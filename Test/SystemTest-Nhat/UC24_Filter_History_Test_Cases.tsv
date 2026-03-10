@@ -1,0 +1,50 @@
+FHT-01	Verify that instance history can be filtered by challenge name	"1. Login to admin.fctf.site as an admin.
+2. Open the Instances History page.
+3. Enter a challenge-based filter using existing history data.
+4. Apply the filter.
+5. Review the filtered table and URL." 	"- The page remains accessible after filtering.
+- The URL reflects the challenge filter.
+- The history table shows records matching the selected challenge.
+- Unrelated records are excluded from the visible result set." 	"- Admin is logged in to admin.fctf.site.
+- Instance history data exists.
+- At least 1 history record references a challenge."
+FHT-02	Verify that instance history can be filtered by team name	"1. Open the Instances History page.
+2. Enter a team-based filter using existing history data.
+3. Apply the filter.
+4. Review the filtered result list.
+5. Confirm the filter state in the URL or form." 	"- The filter is applied successfully.
+- The URL or form state reflects the selected team filter.
+- Only matching team history rows are shown.
+- The page does not reload into an unexpected route." 	"- Admin is logged in to admin.fctf.site.
+- Instance history data exists.
+- At least 1 history record references a team."
+FHT-03	Verify that instance history can be filtered by a start and end date range	"1. Open the Instances History page.
+2. Enter a valid start date.
+3. Enter a valid end date.
+4. Apply the filter.
+5. Review the returned history rows." 	"- The filter is applied successfully.
+- The URL contains the selected date range.
+- Visible records fall within the selected period.
+- The history page remains stable and usable." 	"- Admin is logged in to admin.fctf.site.
+- Instance history records exist across a date range.
+- The admin can access the filter controls."
+FHT-04	Verify that quick range and per-page settings are applied to instance history	"1. Open the Instances History page.
+2. Choose a quick date range option.
+3. Set a per-page value.
+4. Apply the filters.
+5. Inspect the URL and table results." 	"- The selected quick range is applied.
+- The per-page setting is applied.
+- The URL contains the quick range and pagination parameters.
+- The table refreshes using the selected conditions." 	"- Admin is logged in to admin.fctf.site.
+- The Instances History page is accessible.
+- History records exist for the selected range."
+FHT-05	Verify that Reset clears all instance history filter conditions	"1. Open the Instances History page.
+2. Apply one or more history filters.
+3. Confirm that filtered results are shown.
+4. Click Reset.
+5. Observe the page state after reset." 	"- All filter inputs are cleared.
+- The URL returns to the base history route.
+- The unfiltered history list is restored.
+- No stale filter condition remains active." 	"- Admin is logged in to admin.fctf.site.
+- The Instances History page is open.
+- At least 1 filter condition can be applied before reset."

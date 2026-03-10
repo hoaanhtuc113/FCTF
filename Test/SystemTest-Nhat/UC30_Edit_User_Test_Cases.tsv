@@ -1,4 +1,4 @@
-TC01	Verify that clearing User Name triggers validation and prevents submission	"1. Open Edit User modal for an existing user.
+EDU-01	Verify that clearing User Name triggers validation and prevents submission	"1. Open Edit User modal for an existing user.
 2. Clear the User Name field.
 3. Click Submit.
 4. Wait for the UI to respond."	"- Edit User modal remains open.
@@ -8,7 +8,7 @@ TC01	Verify that clearing User Name triggers validation and prevents submission	
 - At least 1 editable user exists in the system.
 - Admin is on the selected user's detail page.
 - Edit User modal is open."
-TC02	Verify that User Name longer than 128 characters is rejected	"1. Open Edit User modal.
+EDU-02	Verify that User Name longer than 128 characters is rejected	"1. Open Edit User modal.
 2. Enter a User Name with 129 characters.
 3. Click Submit.
 4. Wait for the UI to respond."	"- Edit User modal remains open.
@@ -17,7 +17,7 @@ TC02	Verify that User Name longer than 128 characters is rejected	"1. Open Edit 
 - No page reload occurs."	"- Admin is logged in to admin.fctf.site.
 - At least 1 editable user exists in the system.
 - Edit User modal is open."
-TC03	Verify that duplicate User Name is rejected	"1. Open Edit User modal for User A.
+EDU-03	Verify that duplicate User Name is rejected	"1. Open Edit User modal for User A.
 2. Enter the existing User Name of User B.
 3. Click Submit.
 4. Wait for the UI to respond."	"- Edit User modal remains open.
@@ -26,7 +26,7 @@ TC03	Verify that duplicate User Name is rejected	"1. Open Edit User modal for Us
 - No page reload occurs."	"- Admin is logged in to admin.fctf.site.
 - At least 2 users exist in the system.
 - Edit User modal is open for User A."
-TC04	Verify that clearing Email triggers validation and prevents submission	"1. Open Edit User modal.
+EDU-04	Verify that clearing Email triggers validation and prevents submission	"1. Open Edit User modal.
 2. Keep User Name valid.
 3. Clear the Email field.
 4. Click Submit."	"- Edit User modal remains open.
@@ -35,7 +35,7 @@ TC04	Verify that clearing Email triggers validation and prevents submission	"1. 
 - No page reload occurs."	"- Admin is logged in to admin.fctf.site.
 - At least 1 editable user exists in the system.
 - Edit User modal is open."
-TC05	Verify that email without @ is rejected	"1. Open Edit User modal.
+EDU-05	Verify that email without @ is rejected	"1. Open Edit User modal.
 2. Keep User Name valid.
 3. Enter invalidemail.com in Email.
 4. Click Submit."	"- Edit User modal remains open.
@@ -44,7 +44,7 @@ TC05	Verify that email without @ is rejected	"1. Open Edit User modal.
 - No page reload occurs."	"- Admin is logged in to admin.fctf.site.
 - At least 1 editable user exists in the system.
 - Edit User modal is open."
-TC06	Verify that email with double @ is rejected	"1. Open Edit User modal.
+EDU-06	Verify that email with double @ is rejected	"1. Open Edit User modal.
 2. Keep User Name valid.
 3. Enter bad@@format.com in Email.
 4. Click Submit."	"- Edit User modal remains open.
@@ -53,7 +53,7 @@ TC06	Verify that email with double @ is rejected	"1. Open Edit User modal.
 - No page reload occurs."	"- Admin is logged in to admin.fctf.site.
 - At least 1 editable user exists in the system.
 - Edit User modal is open."
-TC07	Verify that email without domain is rejected	"1. Open Edit User modal.
+EDU-07	Verify that email without domain is rejected	"1. Open Edit User modal.
 2. Keep User Name valid.
 3. Enter user@ in Email.
 4. Click Submit."	"- Edit User modal remains open.
@@ -62,7 +62,7 @@ TC07	Verify that email without domain is rejected	"1. Open Edit User modal.
 - No page reload occurs."	"- Admin is logged in to admin.fctf.site.
 - At least 1 editable user exists in the system.
 - Edit User modal is open."
-TC08	Verify that email longer than 128 characters is rejected	"1. Open Edit User modal.
+EDU-08	Verify that email longer than 128 characters is rejected	"1. Open Edit User modal.
 2. Keep User Name valid.
 3. Enter an Email longer than 128 characters.
 4. Click Submit."	"- Edit User modal remains open.
@@ -71,7 +71,7 @@ TC08	Verify that email longer than 128 characters is rejected	"1. Open Edit User
 - No page reload occurs."	"- Admin is logged in to admin.fctf.site.
 - At least 1 editable user exists in the system.
 - Edit User modal is open."
-TC09	Verify that User Name is updated successfully	"1. Open Edit User modal.
+EDU-09	Verify that User Name is updated successfully	"1. Open Edit User modal.
 2. Enter a new unique User Name.
 3. Click Submit.
 4. Wait for the page to refresh."	"- Edit User modal closes.
@@ -81,7 +81,7 @@ TC09	Verify that User Name is updated successfully	"1. Open Edit User modal.
 - At least 1 editable user exists in the system.
 - New User Name is unique.
 - Edit User modal is open."
-TC10	Verify that Email is updated successfully	"1. Open Edit User modal.
+EDU-10	Verify that Email is updated successfully	"1. Open Edit User modal.
 2. Keep User Name valid.
 3. Enter a new unique Email.
 4. Click Submit.
@@ -92,7 +92,7 @@ TC10	Verify that Email is updated successfully	"1. Open Edit User modal.
 - At least 1 editable user exists in the system.
 - New Email is unique.
 - Edit User modal is open."
-TC11	Verify that User Name and Email are updated successfully together	"1. Open Edit User modal.
+EDU-11	Verify that User Name and Email are updated successfully together	"1. Open Edit User modal.
 2. Enter a new unique User Name.
 3. Enter a new unique Email.
 4. Click Submit.
@@ -103,7 +103,7 @@ TC11	Verify that User Name and Email are updated successfully together	"1. Open 
 - At least 1 editable user exists in the system.
 - New User Name and Email are unique.
 - Edit User modal is open."
-TC12	Verify that updating password for a User account allows login to contestant portal	"1. Create or select a user account with role user and a valid team.
+EDU-12	Verify that updating password for a User account allows login to contestant portal	"1. Create or select a user account with role user and a valid team.
 2. Open Edit User modal.
 3. Enter a new password.
 4. Submit the form.
@@ -114,7 +114,7 @@ TC12	Verify that updating password for a User account allows login to contestant
 - A user account with role user exists.
 - The user belongs to a team.
 - Edit User modal is open for that user."
-TC13	Verify that changing role to Admin and updating password allows login to the admin portal	"1. Create or select a test user.
+EDU-13	Verify that changing role to Admin and updating password allows login to the admin portal	"1. Create or select a test user.
 2. Open Edit User modal.
 3. Change Type to Admin.
 4. Enter a new password.
@@ -125,7 +125,7 @@ TC13	Verify that changing role to Admin and updating password allows login to th
 - Create Challenge action is visible on the Challenges page."	"- Super admin is logged in to admin.fctf.site.
 - A non-admin test user exists.
 - Edit User modal is open for that user."
-TC14	Verify that changing role to Jury and updating password allows login to the admin portal with jury-specific UI	"1. Create or select a test user.
+EDU-14	Verify that changing role to Jury and updating password allows login to the admin portal with jury-specific UI	"1. Create or select a test user.
 2. Open Edit User modal.
 3. Change Type to Jury.
 4. Enter a new password.
@@ -137,7 +137,7 @@ TC14	Verify that changing role to Jury and updating password allows login to the
 - Config and Create Challenge actions are not visible to jury."	"- Super admin is logged in to admin.fctf.site.
 - A non-jury test user exists.
 - Edit User modal is open for that user."
-TC15	Verify that changing role to Challenge Writer and updating password allows login to the admin portal with writer-specific UI	"1. Create or select a test user.
+EDU-15	Verify that changing role to Challenge Writer and updating password allows login to the admin portal with writer-specific UI	"1. Create or select a test user.
 2. Open Edit User modal.
 3. Change Type to Challenge Writer.
 4. Enter a new password.
@@ -149,7 +149,7 @@ TC15	Verify that changing role to Challenge Writer and updating password allows 
 - Users and Config navigation are not visible."	"- Super admin is logged in to admin.fctf.site.
 - A non-writer test user exists.
 - Edit User modal is open for that user."
-TC16	Verify that enabling Hidden prevents contestant login and the user appears in Hidden filter results	"1. Create or select a user account with role user and a valid team.
+EDU-16	Verify that enabling Hidden prevents contestant login and the user appears in Hidden filter results	"1. Create or select a user account with role user and a valid team.
 2. Open Edit User modal.
 3. Enable the Hidden checkbox.
 4. Submit the form.
@@ -161,7 +161,7 @@ TC16	Verify that enabling Hidden prevents contestant login and the user appears 
 - A user account with role user exists.
 - The user belongs to a team.
 - Edit User modal is open for that user."
-TC17	Verify that enabling Banned prevents contestant login and the user appears in Banned filter results	"1. Create or select a user account with role user and a valid team.
+EDU-17	Verify that enabling Banned prevents contestant login and the user appears in Banned filter results	"1. Create or select a user account with role user and a valid team.
 2. Open Edit User modal.
 3. Enable the Banned checkbox.
 4. Submit the form.

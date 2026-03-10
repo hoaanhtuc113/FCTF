@@ -5,7 +5,7 @@ import {
     deleteAwardsByName,
     getSubmissionSeed,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-69 View User Award", () => {
     test.beforeEach(async ({ page }) => {

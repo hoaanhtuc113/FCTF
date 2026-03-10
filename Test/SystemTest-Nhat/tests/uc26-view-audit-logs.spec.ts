@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, createSubmission, deleteSubmissionByApi, getSubmissionSeed, loginAsAdmin } from "./helpers";
+import { BASE_URL, createSubmission, deleteSubmissionByApi, getSubmissionSeed, loginAsAdmin } from "./support";
 
 async function createAuditSeed(page: Parameters<typeof test>[0]["page"]) {
     const seed = await getSubmissionSeed(page);

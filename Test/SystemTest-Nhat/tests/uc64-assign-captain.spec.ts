@@ -6,7 +6,7 @@ import {
     deleteUser,
     loginAsAdmin,
     openTeamCaptainModal,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-64 Assign Captain", () => {
     test.beforeEach(async ({ page }) => {

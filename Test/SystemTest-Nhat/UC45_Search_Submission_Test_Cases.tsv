@@ -1,0 +1,44 @@
+SSB-01	Verify that searching submissions by ID returns the correct record	"1. Login to admin.fctf.site as an admin.
+2. Open the Submissions page.
+3. Enter an existing submission ID.
+4. Apply the search.
+5. Review the result list." 	"- The matching submission is displayed.
+- Unrelated submissions are filtered out.
+- The search state is applied correctly.
+- The page remains stable after search." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 searchable submission exists."
+SSB-02	Verify that searching submissions by challenge name returns matching records	"1. Open the Submissions page.
+2. Enter an existing challenge name in the search input.
+3. Apply the search.
+4. Review the returned submissions." 	"- Matching submissions are displayed.
+- Unrelated submissions are excluded.
+- The search result reflects the challenge criterion.
+- The page remains usable after search." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 submission exists for the selected challenge."
+SSB-03	Verify that filtering submissions by team_id and user_id narrows results correctly	"1. Open the Submissions page.
+2. Enter a valid team ID.
+3. Enter a valid user ID.
+4. Apply the filters.
+5. Review the filtered results." 	"- Results match the selected team and user combination.
+- The page reflects the active filter state.
+- Unrelated submissions are excluded.
+- The result list is consistent with the filter values." 	"- Admin is logged in to admin.fctf.site.
+- Submission data exists with known team and user identifiers."
+SSB-04	Verify that filtering submissions by challenge_id and date range works correctly	"1. Open the Submissions page.
+2. Enter a valid challenge ID.
+3. Enter a valid start and end date range.
+4. Apply the filters.
+5. Review the returned rows." 	"- Results match the selected challenge and date range.
+- The page reflects the chosen filter parameters.
+- Only matching submissions are shown.
+- The page remains stable after filtering." 	"- Admin is logged in to admin.fctf.site.
+- Submission records exist across dates for the selected challenge."
+SSB-05	Verify that Reset clears all submission search and filter conditions	"1. Open the Submissions page.
+2. Apply one or more search or filter conditions.
+3. Confirm that narrowed results are shown.
+4. Click Reset.
+5. Observe the page state after reset." 	"- All search and filter controls are cleared.
+- The route returns to the base submissions page.
+- The unfiltered submission list is restored.
+- No stale filter condition remains active." 	"- Admin is logged in to admin.fctf.site.
+- At least 1 submission filter can be applied before reset."

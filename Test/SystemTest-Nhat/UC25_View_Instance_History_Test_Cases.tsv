@@ -1,0 +1,27 @@
+VIH-01	Verify that the Instances History page shows its heading and required columns	"1. Login to admin.fctf.site as an admin.
+2. Open the Instances History page.
+3. Observe the page heading.
+4. Inspect the table header row.
+5. Confirm that required columns are displayed." 	"- The Instances History page loads successfully.
+- The heading is visible.
+- The required table columns are visible.
+- The table layout is rendered correctly." 	"- Admin is logged in to admin.fctf.site.
+- The Instances History page is accessible."
+VIH-02	Verify that the Instances History page shows filter inputs and export action	"1. Open the Instances History page.
+2. Inspect the filter area.
+3. Check the available inputs.
+4. Verify the export action is present.
+5. Confirm the controls are visible and usable." 	"- Filter inputs are visible.
+- The export button is visible.
+- The controls are attached to the page.
+- The page is ready for user interaction." 	"- Admin is logged in to admin.fctf.site.
+- The Instances History page is open."
+VIH-03	Verify that each instance history row shows an Actions menu or a valid empty state	"1. Open the Instances History page.
+2. Review the history table body.
+3. If rows exist, inspect the first row actions area.
+4. If no rows exist, inspect the empty-state message.
+5. Confirm the page behaves correctly in either case." 	"- A populated table shows a usable Actions area on rows.
+- An empty dataset shows a valid empty state.
+- The page does not display a broken or partially rendered table.
+- The result is consistent with the available data." 	"- Admin is logged in to admin.fctf.site.
+- The Instances History page is accessible."

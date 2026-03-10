@@ -6,7 +6,7 @@ import {
     loginAsAdmin,
     openUserEditModal,
     openAdminConfigTab,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-80 Create Custom Field", () => {
     test.beforeEach(async ({ page }) => {

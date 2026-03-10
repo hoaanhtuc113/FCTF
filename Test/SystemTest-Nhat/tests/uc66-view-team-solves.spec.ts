@@ -5,7 +5,7 @@ import {
     deleteSubmissionsByProvided,
     getSubmissionSeed,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-66 View Team Solves", () => {
     test.beforeEach(async ({ page }) => {

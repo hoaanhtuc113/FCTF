@@ -5,7 +5,7 @@ import {
     deleteSubmissionsByProvided,
     getSubmissionSeed,
     loginAsAdmin,
-} from "./helpers";
+} from "./support";
 
 test.describe("UC-68 View Team Fails", () => {
     test.beforeEach(async ({ page }) => {
