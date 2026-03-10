@@ -547,10 +547,6 @@ export function Scoreboard() {
               }`}>
               [SCORE_EVOLUTION]
             </h2>
-            <p className={`font-mono text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-              }`}>
-              {'>'} Real-time progress
-            </p>
           </div>
 
           {/* Chart Container */}
