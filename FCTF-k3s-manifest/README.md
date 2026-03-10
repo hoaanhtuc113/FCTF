@@ -357,3 +357,65 @@ sudo rm -rf /srv/nfs
 - [Helm Documentation](https://helm.sh/docs/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [NFS Server Setup](https://ubuntu.com/server/docs/service-nfs)
+
+## CI/CD Pipeline (GitHub Actions)
+
+Pipeline tự động build Docker image và deploy lên K3s khi push code lên branch `main`.
+
+### Flow hoạt động
+
+```
+Push to main → Detect Changes → Build & Push (parallel matrix) → Deploy to K3s → Summary
+```
+
+- **Smart change detection**: Chỉ build service nào có file thay đổi
+- **Parallel matrix build**: Tất cả services build song song, tiết kiệm thời gian
+- **Auto deploy**: Tự động `kubectl set image` + `rollout status` sau khi build thành công
+- **Workflow dispatch**: Có thể trigger thủ công để build & deploy toàn bộ
+
+### Setup CI/CD ServiceAccount cho K3s
+
+Script `cicd-setup.sh` tạo ServiceAccount riêng cho pipeline với quyền **least privilege** (chỉ update deployments trong namespace `app`).
+
+```bash
+# Chạy trên server K3s (cần cluster-admin access)
+chmod +x cicd-setup.sh && ./cicd-setup.sh
+```
+
+Script sẽ tự động:
+1. Tạo ServiceAccount `cicd-deployer` trong namespace `app`
+2. Tạo Role chỉ cho phép `get/list/patch/update` deployments
+3. Bind Role vào ServiceAccount
+4. Tạo long-lived token
+5. Build kubeconfig standalone
+6. Xuất **base64** để paste vào GitHub Secret
+
+> **Lưu ý:** Nếu server URL trong kubeconfig là private IP (10.x.x.x, 192.168.x.x), script sẽ hỏi bạn nhập public IP/domain. GitHub Actions runners cần public IP để kết nối tới cluster.
+
+### Cấu hình GitHub Secrets
+
+Vào **GitHub repo → Settings → Secrets and variables → Actions → New repository secret**, thêm 3 secrets:
+
+| Secret | Mô tả | Cách lấy |
+|--------|-------|----------|
+| `DOCKERHUB_USERNAME` | Username DockerHub | Username đăng nhập DockerHub (vd: `quachuoiscontainer`) |
+| `DOCKERHUB_TOKEN` | Access token DockerHub | Tạo tại https://hub.docker.com/settings/security → New Access Token |
+| `KUBE_CONFIG` | Kubeconfig base64 | Chạy `cicd-setup.sh` trên server, copy output base64 |
+
+> **Quan trọng:** Dùng **Access Token** thay vì password DockerHub để bảo mật hơn.
+
+### Các services được CI/CD
+
+| Service | Image Tag | Detect thay đổi tại |
+|---------|-----------|---------------------|
+| ChallengeGateway | `challenge-gateway-prod-*` | `ChallengeGateway/**` |
+| ContestantPortal | `contestant-portal-prod-*` | `ContestantPortal/**` |
+| ContestantBE | `contestant-be-prod-*` | `ContestantBE/** + ResourceShared/**` |
+| DeploymentCenter | `deployment-center-prod-*` | `DeploymentCenter/** + ResourceShared/**` |
+| DeploymentListener | `deployment-listener-prod-*` | `DeploymentListener/** + ResourceShared/**` |
+| DeploymentConsumer | `deployment-consumer-prod-*` | `DeploymentConsumer/** + ResourceShared/**` |
+| ManagementPlatform | `admin-mvc-prod-*` | `FCTF-ManagementPlatform/**` |
+
+Mỗi image được tag bằng:
+- `<service>-prod-<git-sha>` — truy vết chính xác commit
+- `<service>-prod-latest` — luôn trỏ tới bản build mới nhất
