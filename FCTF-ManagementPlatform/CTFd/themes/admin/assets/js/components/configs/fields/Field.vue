@@ -49,38 +49,7 @@
         </div>
       </div>
 
-      <div class="col-md-12">
-        <div class="form-check">
-          <label class="form-check-label">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              v-model.lazy="field.editable"
-            />
-            Editable by user in profile
-          </label>
-        </div>
-        <div class="form-check">
-          <label class="form-check-label">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              v-model.lazy="field.required"
-            />
-            Required on registration
-          </label>
-        </div>
-        <div class="form-check">
-          <label class="form-check-label">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              v-model.lazy="field.public"
-            />
-            Shown on public profile
-          </label>
-        </div>
-      </div>
+
     </div>
 
     <div class="row pb-3">

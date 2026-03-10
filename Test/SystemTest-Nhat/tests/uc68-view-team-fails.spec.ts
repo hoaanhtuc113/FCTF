@@ -1,0 +1,35 @@
+import { test, expect } from "@playwright/test";
+import {
+    BASE_URL,
+    createSubmission,
+    deleteSubmissionsByProvided,
+    getSubmissionSeed,
+    loginAsAdmin,
+} from "./helpers";
+
+test.describe("UC-68 View Team Fails", () => {
+    test.beforeEach(async ({ page }) => {
+        await loginAsAdmin(page);
+    });
+
+    test("TC68.01 - Trang chi tiết team hiển thị fail vừa được tạo", async ({ page }) => {
+        const seed = await getSubmissionSeed(page);
+        const token = `UC68_FAIL_${Date.now()}`;
+
+        try {
+            await createSubmission(page, {
+                userId: seed.userId,
+                teamId: seed.teamId,
+                challengeId: seed.challengeId,
+                provided: token,
+                type: "incorrect",
+            });
+
+            await page.goto(`${BASE_URL}/admin/teams/${seed.teamId}`, { waitUntil: "domcontentloaded" });
+            await page.click("#nav-wrong-tab");
+            await expect(page.locator("#nav-wrong")).toContainText(token);
+        } finally {
+            await deleteSubmissionsByProvided(page, token);
+        }
+    });
+});

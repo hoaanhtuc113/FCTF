@@ -103,7 +103,10 @@ export function Challenges() {
   const [loading, setLoading] = useState(true);
   const [loadingChallengeDetail, setLoadingChallengeDetail] = useState(false);
   const [error, setError] = useState('');
-  const [isContestActive, setIsContestActive] = useState(false);
+  const [isContestActive, setIsContestActive] = useState(true);
+  const [contestReason, setContestReason] = useState<import('../services/challengeService').ContestAccessReason>('active');
+  // true when CTF is active OR ended but view_after_ctf is enabled — controls card click & appearance
+  const canViewChallenges = isContestActive || contestReason === 'ended_view_allowed';
   const [prerequisiteInfo, setPrerequisiteInfo] = useState<Map<number, PrerequisiteChallenge[]>>(new Map());
 
   // State to track which categories are expanded
@@ -210,8 +213,9 @@ export function Challenges() {
       try {
         setLoading(true);
 
-        const config = await challengeService.getContestStatus();
-        setIsContestActive(config?.isActive || false);
+        const access = await challengeService.getContestAccess();
+        setIsContestActive(access.reason === 'active');
+        setContestReason(access.reason);
 
         const data = await challengeService.getCategories();
         setCategories(Array.isArray(data) ? data : []);
@@ -247,7 +251,7 @@ export function Challenges() {
     const challengeParam = searchParams.get('challenge');
     const categoryParam = searchParams.get('category');
 
-    if (challengeParam && categoryParam && isContestActive && !selectedChallenge && !loadingChallengeDetail) {
+    if (challengeParam && categoryParam && !selectedChallenge && !loadingChallengeDetail) {
       const challengeId = parseInt(challengeParam, 10);
       if (!isNaN(challengeId)) {
         if (processedChallengeRef.current === challengeId) {
@@ -280,7 +284,7 @@ export function Challenges() {
         loadAndOpen();
       }
     }
-  }, [challengesByCategory, isContestActive]);
+  }, [challengesByCategory, isContestActive, contestReason]);
 
   const fetchChallenges = async (categoryName: string): Promise<Challenge[]> => {
     try {
@@ -351,7 +355,7 @@ export function Challenges() {
 
   // Internal function to load challenge details without updating URL
   const handleChallengeClickInternal = async (challenge: Challenge) => {
-    if (!isContestActive) return;
+    if (!canViewChallenges) return;
 
     // Check prerequisites directly from API to ensure fresh data
     const { locked, unmetPrereqs } = await checkPrerequisites(challenge);
@@ -595,6 +599,46 @@ export function Challenges() {
   }
 
   return (
+    <>
+      {contestReason === 'ended_view_allowed' && (
+        <div className={`mb-4 rounded-lg overflow-hidden ${theme === 'dark'
+          ? 'bg-gradient-to-r from-blue-950/60 via-indigo-950/60 to-blue-950/60 border border-blue-500/20 shadow-[0_0_24px_0_rgba(99,102,241,0.08)]'
+          : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-200 shadow-sm'
+          }`}>
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-2.5">
+              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
+                ${theme === 'dark' ? 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-400/40' : 'bg-blue-100 text-blue-600 ring-1 ring-blue-300'}`}>
+                i
+              </span>
+              <span className={`font-mono font-semibold text-sm tracking-wide ${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'}`}>
+                CTF HAS ENDED
+              </span>
+              <span className={`hidden sm:block text-xs font-mono px-2 py-0.5 rounded-full
+                ${theme === 'dark' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-100 text-blue-600 border border-blue-200'}`}>
+                VIEW ONLY
+              </span>
+            </div>
+          </div>
+          <div className={`h-0.5 w-full ${theme === 'dark'
+            ? 'bg-gradient-to-r from-transparent via-blue-500/40 to-transparent'
+            : 'bg-gradient-to-r from-transparent via-blue-300/60 to-transparent'}`}
+          />
+        </div>
+      )}
+      {!isContestActive && contestReason !== 'ended_view_allowed' && (
+        <div className={`mb-4 p-3 rounded border ${theme === 'dark'
+          ? 'bg-orange-900/20 border-orange-500/30'
+          : 'bg-orange-50 border-orange-300'
+          }`}>
+          <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'}`}>
+            <Lock fontSize="small" />
+            {contestReason === 'ended' && ' CTF HAS ENDED'}
+            {contestReason === 'not_started' && ' CTF HAS NOT STARTED YET'}
+            {(contestReason === 'not_accessible' || !contestReason) && ' CONTEST NOT ACCESSIBLE'}
+          </Typography>
+        </div>
+      )}
     <div className="flex gap-4 min-h-[70vh] relative">
       {/* Column: Categories with Challenges Dropdown */}
       <motion.div
@@ -607,18 +651,7 @@ export function Challenges() {
         transition={{ duration: 0.3 }}
         className={`overflow-hidden ${!selectedChallenge ? 'flex-1' : ''} ${selectedChallenge ? 'relative' : ''}`}
       >
-        {!isContestActive && (
-          <div className={`mb-4 p-3 rounded border ${theme === 'dark'
-            ? 'bg-orange-900/20 border-orange-500/30'
-            : 'bg-orange-50 border-orange-300'
-            }`}>
-            <Typography className={`text-center font-bold font-mono text-sm flex items-center justify-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
-              }`}>
-              <Lock fontSize="small" />
-              [!] CONTEST NOT ACTIVE
-            </Typography>
-          </div>
-        )}
+
 
         <div className={`mb-4 pb-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
           <div className="flex items-center justify-between gap-2">
@@ -635,7 +668,7 @@ export function Challenges() {
                   } rounded-md p-1.5`}
                 title="Hide Categories"
               >
-                BACK
+                HIDE
               </button>
             )}
           </div>
@@ -714,7 +747,7 @@ export function Challenges() {
                               <ChallengeListItem
                                 key={challenge.id}
                                 challenge={challenge}
-                                isContestActive={isContestActive}
+                                isContestActive={canViewChallenges}
                                 onClick={() => handleChallengeClick(challenge)}
                                 isSelected={selectedChallenge?.id === challenge.id}
                                 isLocked={(prerequisiteInfo.get(challenge.id) || []).length > 0}
@@ -789,6 +822,7 @@ export function Challenges() {
         ) : null}
       </AnimatePresence>
     </div>
+    </>
   );
 }
 
@@ -3889,7 +3923,7 @@ function ChallengeDetailPanel({
                     {cooldownRemaining > 0 && (
                       <div className="mt-2 space-y-1">
                         <div className={`text-xs font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
-                          [!] Cooldown: {cooldownRemaining}s
+                          Cooldown: {cooldownRemaining}s
                         </div>
                         <div className={`w-full h-1 rounded overflow-hidden ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-300'}`}>
                           <div

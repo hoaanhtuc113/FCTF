@@ -7,6 +7,7 @@ export const API_ENDPOINTS = {
   CONFIG: {
     DATE_CONFIG: '/Config/get_date_config',
     PUBLIC: '/Config/get_public_config',
+    CONTEST_ACCESS: '/Config/contest_access',
   },
   CHALLENGES: {
     BY_TOPIC: '/challenge/by-topic',
@@ -42,5 +43,7 @@ export const API_ENDPOINTS = {
   },
   SCOREBOARD: {
     TOP_STANDINGS: '/scoreboard/top/200',
+    BRACKETS: '/scoreboard/brackets',
+    FREEZE_STATUS: '/scoreboard/freeze-status',
   },
 } as const;

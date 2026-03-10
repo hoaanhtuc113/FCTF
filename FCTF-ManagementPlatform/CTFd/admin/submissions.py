@@ -1,4 +1,5 @@
 from datetime import datetime
+from urllib.parse import urlencode
 
 from flask import render_template, request, url_for, jsonify
 
@@ -81,6 +82,13 @@ def submissions_listing(submission_type):
 
     args = dict(request.args)
     args.pop("page", 1)
+    args.pop("submission_type", None)
+
+    export_args = request.args.to_dict(flat=True)
+    export_args.pop("page", None)
+    if submission_type:
+        export_args["submission_type"] = submission_type
+    export_query = urlencode(export_args)
 
     return render_template(
         "admin/submissions.html",
@@ -98,6 +106,7 @@ def submissions_listing(submission_type):
             **args
         ),
         type=submission_type,
+        export_query=export_query,
         q=q,
         field=field,
         all_teams=all_teams,

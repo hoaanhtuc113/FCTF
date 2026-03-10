@@ -34,17 +34,26 @@
 					{{ form.q(class="clean-form-control w-100", placeholder="Search for matching teams") }}
 				</div>
 				<div class="col-md-2 px-1">
-					<label>Hidden</label>
-					<select name="hidden" class="clean-form-control ss-select w-100">
-						<option value="">All</option>
-						<option value="1" {% if hidden %}selected{% endif %}>Hidden Only</option>
-					</select>
-				</div>
-				<div class="col-md-2 px-1">
-					<label>Banned</label>
-					<select name="banned" class="clean-form-control ss-select w-100">
-						<option value="">All</option>
-						<option value="1" {% if banned %}selected{% endif %}>Banned Only</option>
+				<label>Bracket</label>
+				<select name="bracket_id" class="clean-form-control ss-select w-100">
+					<option value="">All Brackets</option>
+					{% for bracket in brackets %}
+					<option value="{{ bracket.id }}" {% if bracket_id == bracket.id %}selected{% endif %}>{{ bracket.name }}</option>
+					{% endfor %}
+				</select>
+			</div>
+			<div class="col-md-1 px-1">
+				<label>Hidden</label>
+				<select name="hidden" class="clean-form-control ss-select w-100">
+					<option value="">All</option>
+					<option value="1" {% if hidden %}selected{% endif %}>Hidden</option>
+				</select>
+			</div>
+			<div class="col-md-1 px-1">
+				<label>Banned</label>
+				<select name="banned" class="clean-form-control ss-select w-100">
+					<option value="">All</option>
+					<option value="1" {% if banned %}selected{% endif %}>Banned</option>
 					</select>
 				</div>
 				<div class="col-md-2 px-1 d-flex">
@@ -94,6 +103,7 @@
 					<th class="sort-col text-center"><b>Team</b></th>
 					<th class="sort-col text-center"><b>Captain</b></th>
 					<th class="sort-col text-center"><b>Members</b></th>
+					<th class="sort-col text-center"><b>Bracket</b></th>
 					<th class="sort-col text-center"><b>Country</b></th>
 					<th class="sort-col text-center"><b>Hidden</b></th>
 					<th class="sort-col text-center"><b>Banned</b></th>
@@ -141,6 +151,17 @@
 					<td class="text-center">
 						{{ member_counts.get(team.id, 0) }}
 					</td>
+					<td class="text-center">
+						{% if team.bracket_id %}
+							{% for bracket in brackets %}
+								{% if bracket.id == team.bracket_id %}
+									<span class="clean-badge clean-badge-info">{{ bracket.name }}</span>
+								{% endif %}
+							{% endfor %}
+						{% else %}
+							<span class="text-muted">—</span>
+						{% endif %}
+					</td>
 					<td class="text-center" value="{{ team.country if team.country is not none }}">
 						<span>
 							{% if team.country %}
@@ -181,7 +202,7 @@
 				{% set end_page = [teams.pages, teams.page + 2]|min %}
 				{% if start_page > 1 %}
 					<li class="page-item">
-						<a class="page-link" href="{% if q or hidden or banned %}{{ url_for('admin.teams_listing', page=1, field=field, q=q, hidden=hidden, banned=banned) }}{% else %}{{ url_for('admin.teams_listing', page=1) }}{% endif %}">1</a>
+							<a class="page-link" href="{% if q or hidden or banned or bracket_id %}{{ url_for('admin.teams_listing', page=1, field=field, q=q, hidden=hidden, banned=banned, bracket_id=bracket_id) }}{% else %}{{ url_for('admin.teams_listing', page=1) }}{% endif %}">1</a>
 					</li>
 					{% if start_page > 2 %}
 					<li class="page-item disabled"><span class="page-link">...</span></li>
@@ -189,7 +210,7 @@
 				{% endif %}
 				{% for page_num in range(start_page, end_page + 1) %}
 				<li class="page-item {% if page_num == teams.page %}active{% endif %}">
-					<a class="page-link" href="{% if q or hidden or banned %}{{ url_for('admin.teams_listing', page=page_num, field=field, q=q, hidden=hidden, banned=banned) }}{% else %}{{ url_for('admin.teams_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
+						<a class="page-link" href="{% if q or hidden or banned or bracket_id %}{{ url_for('admin.teams_listing', page=page_num, field=field, q=q, hidden=hidden, banned=banned, bracket_id=bracket_id) }}{% else %}{{ url_for('admin.teams_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
 				</li>
 				{% endfor %}
 				{% if end_page < teams.pages %}
@@ -197,7 +218,7 @@
 					<li class="page-item disabled"><span class="page-link">...</span></li>
 					{% endif %}
 					<li class="page-item">
-						<a class="page-link" href="{% if q or hidden or banned %}{{ url_for('admin.teams_listing', page=teams.pages, field=field, q=q, hidden=hidden, banned=banned) }}{% else %}{{ url_for('admin.teams_listing', page=teams.pages) }}{% endif %}">{{ teams.pages }}</a>
+							<a class="page-link" href="{% if q or hidden or banned or bracket_id %}{{ url_for('admin.teams_listing', page=teams.pages, field=field, q=q, hidden=hidden, banned=banned, bracket_id=bracket_id) }}{% else %}{{ url_for('admin.teams_listing', page=teams.pages) }}{% endif %}">{{ teams.pages }}</a>
 					</li>
 				{% endif %}
 				<li class="page-item {% if teams.page == teams.pages %}disabled{% endif %}">

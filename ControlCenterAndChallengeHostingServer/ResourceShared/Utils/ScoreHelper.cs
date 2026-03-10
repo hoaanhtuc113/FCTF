@@ -232,7 +232,7 @@ public class ScoreHelper
 
     }
 
-    public async Task<int?> GetTeamPlace(Team team, bool admin = false)
+    public async Task<int?> GetTeamPlace(Team team, bool admin = false, int? bracketId = null)
     {
         DateTime? freeze = null;
         if (!admin)
@@ -244,9 +244,12 @@ public class ScoreHelper
                 freeze = DateTimeOffset.FromUnixTimeSeconds(freezeTs).UtcDateTime;
         }
 
-        // Get all teams with their member IDs in one query
-        var teamsWithMembers = await _context.Teams
-            .AsNoTracking()
+        // Get all teams with their member IDs in one query, optionally filtered by bracket
+        var teamsQuery = _context.Teams.AsNoTracking();
+        if (bracketId.HasValue)
+            teamsQuery = teamsQuery.Where(t => t.BracketId == bracketId.Value);
+
+        var teamsWithMembers = await teamsQuery
             .Select(t => new
             {
                 TeamId = t.Id,
@@ -316,155 +319,212 @@ public class ScoreHelper
 
         var userMode = _configHelper.GetConfig<string>("user_mode") ?? "teams";
 
-        IQueryable<StandingDto> query;
+        return userMode == "teams"
+            ? await GetTeamStandings(count, bracketId, admin, freezeUtc)
+            : await GetUserStandings(count, bracketId, admin, freezeUtc);
+    }
 
-        if (userMode == "teams")
+    private async Task<List<StandingDto>> GetTeamStandings(
+        int? count, int? bracketId, bool admin, DateTime? freezeUtc)
+    {
+        // Materialize solve scores per team (explicit JOIN, no navigation inside GroupBy)
+        var solveQuery =
+            from solve in _context.Solves
+            join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
+            join submission in _context.Submissions on solve.Id equals submission.Id
+            where solve.TeamId != null && (challenge.Value ?? 0) != 0
+            select new { solve.TeamId, ChallengeValue = challenge.Value ?? 0, solve.Id, submission.Date };
+
+        if (!admin && freezeUtc.HasValue)
+            solveQuery = solveQuery.Where(x => x.Date < freezeUtc.Value);
+
+        var solvesByTeam = await solveQuery
+            .GroupBy(x => x.TeamId)
+            .Select(g => new
+            {
+                TeamId = g.Key!.Value,
+                Score = g.Sum(x => x.ChallengeValue),
+                LastId = g.Max(x => x.Id),
+                LastDate = (DateTime?)g.Max(x => x.Date)
+            })
+            .ToListAsync();
+
+        // Materialize award scores per team separately
+        var awardQuery = _context.Awards
+            .Where(a => a.TeamId != null && (a.Value ?? 0) != 0);
+
+        if (!admin && freezeUtc.HasValue)
+            awardQuery = awardQuery.Where(a => a.Date < freezeUtc.Value);
+
+        var awardsByTeam = await awardQuery
+            .GroupBy(a => a.TeamId)
+            .Select(g => new
+            {
+                TeamId = g.Key!.Value,
+                Score = g.Sum(x => x.Value ?? 0),
+                LastId = g.Max(x => x.Id),
+                LastDate = (DateTime?)g.Max(x => x.Date)
+            })
+            .ToListAsync();
+
+        // Combine in memory
+        var scoreMap = new Dictionary<int, (int Score, int LastId, DateTime? LastDate)>();
+        foreach (var s in solvesByTeam)
+            scoreMap[s.TeamId] = (s.Score, s.LastId, s.LastDate);
+        foreach (var a in awardsByTeam)
         {
-            // ===== Solves =====
-            var solveScores = _context.Solves
-                .Include(s => s.Challenge)
-                .Where(s => s.Challenge.Value != 0);
-
-            if (!admin && freezeUtc.HasValue)
-                solveScores = solveScores.Where(s => s.IdNavigation.Date < freezeUtc.Value);
-
-            var scoresGroup = solveScores
-                .GroupBy(s => s.TeamId)
-                .Select(g => new
-                {
-                    account_id = g.Key,
-                    Score = g.Sum(x => x.Challenge.Value),
-                    id = g.Max(x => x.Id),
-                    date = g.Max(x => x.IdNavigation.Date)
-                });
-
-            // ===== Awards =====
-            var awardScores = _context.Awards
-                .Where(a => a.Value != 0);
-
-            if (!admin && freezeUtc.HasValue)
-                awardScores = awardScores.Where(a => a.Date < freezeUtc.Value);
-
-            var awardsGroup = awardScores
-                .GroupBy(a => a.TeamId)
-                .Select(g => new
-                {
-                    account_id = g.Key,
-                    Score = g.Sum(x => x.Value),
-                    id = g.Max(x => x.Id),
-                    date = g.Max(x => x.Date)
-                });
-
-            // ===== Combine & Sum =====
-            var combined = scoresGroup.Concat(awardsGroup);
-
-            var sumScores = combined
-                .GroupBy(x => x.account_id)
-                .Select(g => new
-                {
-                    account_id = g.Key,
-                    Score = g.Sum(x => x.Score),
-                    LastId = g.Max(x => x.id),
-                    LastDate = g.Max(x => x.date)
-                });
-
-            query = from acc in _context.Teams
-                    join s in sumScores on acc.Id equals s.account_id
-                    join b in _context.Brackets on acc.BracketId equals b.Id into bj
-                    from bracket in bj.DefaultIfEmpty()
-                    select new StandingDto
-                    {
-                        AccountId = acc.Id,
-                        OauthId = acc.OauthId,
-                        Name = acc.Name,
-                        BracketId = acc.BracketId,
-                        BracketName = bracket != null ? bracket.Name : null,
-                        Score = s.Score,
-                        LastId = s.LastId,
-                        LastDate = s.LastDate,
-                        Hidden = acc.Hidden,
-                        Banned = acc.Banned
-                    };
-        }
-        else // ===== Users =====
-        {
-            var solveScores = _context.Solves
-                .Include(s => s.Challenge)
-                .Where(s => s.Challenge.Value != 0);
-
-            if (!admin && freezeUtc.HasValue)
-                solveScores = solveScores.Where(s => s.IdNavigation.Date < freezeUtc.Value);
-
-            var scoresGroup = solveScores
-                .GroupBy(s => s.UserId)
-                .Select(g => new
-                {
-                    account_id = g.Key,
-                    Score = g.Sum(x => x.Challenge.Value),
-                    id = g.Max(x => x.Id),
-                    date = g.Max(x => x.IdNavigation.Date)
-                });
-
-            var awardScores = _context.Awards
-                .Where(a => a.Value != 0);
-
-            if (!admin && freezeUtc.HasValue)
-                awardScores = awardScores.Where(a => a.Date < freezeUtc.Value);
-
-            var awardsGroup = awardScores
-                .GroupBy(a => a.UserId)
-                .Select(g => new
-                {
-                    account_id = g.Key,
-                    Score = g.Sum(x => x.Value),
-                    id = g.Max(x => x.Id),
-                    date = g.Max(x => x.Date)
-                });
-
-            var combined = scoresGroup.Concat(awardsGroup);
-
-            var sumScores = combined
-                .GroupBy(x => x.account_id)
-                .Select(g => new
-                {
-                    account_id = g.Key,
-                    Score = g.Sum(x => x.Score),
-                    LastId = g.Max(x => x.id),
-                    LastDate = g.Max(x => x.date)
-                });
-
-            query = from acc in _context.Users
-                    join s in sumScores on acc.Id equals s.account_id
-                    select new StandingDto
-                    {
-                        AccountId = acc.Id,
-                        OauthId = acc.OauthId,
-                        Name = acc.Name,
-                        BracketId = acc.BracketId,
-                        BracketName = null,
-                        Score = s.Score,
-                        LastId = s.LastId,
-                        LastDate = s.LastDate,
-                        Hidden = acc.Hidden,
-                        Banned = acc.Banned
-                    };
+            if (scoreMap.TryGetValue(a.TeamId, out var e))
+                scoreMap[a.TeamId] = (e.Score + a.Score, Math.Max(e.LastId, a.LastId),
+                    e.LastDate > a.LastDate ? e.LastDate : a.LastDate);
+            else
+                scoreMap[a.TeamId] = (a.Score, a.LastId, a.LastDate);
         }
 
-        // ===== Filters =====
+        var scoredTeamIds = scoreMap.Keys.ToList();
+
+        // Load teams that have scores
+        var teamsQuery = _context.Teams
+            .AsNoTracking()
+            .Where(t => scoredTeamIds.Contains(t.Id));
+
         if (!admin)
-            query = query.Where(x => !(x.Banned ?? false) && !(x.Hidden ?? false));
+            teamsQuery = teamsQuery.Where(t => !(t.Hidden ?? false) && !(t.Banned ?? false));
 
         if (bracketId.HasValue)
-            query = query.Where(x => x.BracketId == bracketId.Value);
+            teamsQuery = teamsQuery.Where(t => t.BracketId == bracketId.Value);
 
-        query = query
+        var teams = await teamsQuery
+            .Select(t => new { t.Id, t.OauthId, t.Name, t.BracketId, t.Hidden, t.Banned })
+            .ToListAsync();
+
+        // Load bracket names in bulk
+        var bracketIds = teams.Where(t => t.BracketId.HasValue)
+            .Select(t => t.BracketId!.Value).Distinct().ToList();
+        var bracketNames = bracketIds.Any()
+            ? await _context.Brackets
+                .Where(b => bracketIds.Contains(b.Id))
+                .ToDictionaryAsync(b => b.Id, b => b.Name)
+            : new Dictionary<int, string?>();
+
+        var result = teams
+            .Select(t =>
+            {
+                var s = scoreMap.TryGetValue(t.Id, out var sc) ? sc : (Score: 0, LastId: 0, LastDate: (DateTime?)null);
+                return new StandingDto
+                {
+                    AccountId = t.Id,
+                    OauthId = t.OauthId,
+                    Name = t.Name,
+                    BracketId = t.BracketId,
+                    BracketName = t.BracketId.HasValue && bracketNames.TryGetValue(t.BracketId.Value, out var bn) ? bn : null,
+                    Score = s.Score,
+                    LastId = s.LastId,
+                    LastDate = s.LastDate,
+                    Hidden = t.Hidden,
+                    Banned = t.Banned
+                };
+            })
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.LastDate)
-            .ThenBy(x => x.LastId);
+            .ThenBy(x => x.LastId)
+            .ToList();
 
-        return count.HasValue
-            ? await query.Take(count.Value).ToListAsync()
-            : await query.ToListAsync();
+        return count.HasValue ? result.Take(count.Value).ToList() : result;
+    }
+
+    private async Task<List<StandingDto>> GetUserStandings(
+        int? count, int? bracketId, bool admin, DateTime? freezeUtc)
+    {
+        var solveQuery =
+            from solve in _context.Solves
+            join challenge in _context.Challenges on solve.ChallengeId equals challenge.Id
+            join submission in _context.Submissions on solve.Id equals submission.Id
+            where solve.UserId != null && (challenge.Value ?? 0) != 0
+            select new { solve.UserId, ChallengeValue = challenge.Value ?? 0, solve.Id, submission.Date };
+
+        if (!admin && freezeUtc.HasValue)
+            solveQuery = solveQuery.Where(x => x.Date < freezeUtc.Value);
+
+        var solvesByUser = await solveQuery
+            .GroupBy(x => x.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key!.Value,
+                Score = g.Sum(x => x.ChallengeValue),
+                LastId = g.Max(x => x.Id),
+                LastDate = (DateTime?)g.Max(x => x.Date)
+            })
+            .ToListAsync();
+
+        var awardQuery = _context.Awards
+            .Where(a => a.UserId != null && (a.Value ?? 0) != 0);
+
+        if (!admin && freezeUtc.HasValue)
+            awardQuery = awardQuery.Where(a => a.Date < freezeUtc.Value);
+
+        var awardsByUser = await awardQuery
+            .GroupBy(a => a.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key!.Value,
+                Score = g.Sum(x => x.Value ?? 0),
+                LastId = g.Max(x => x.Id),
+                LastDate = (DateTime?)g.Max(x => x.Date)
+            })
+            .ToListAsync();
+
+        var scoreMap = new Dictionary<int, (int Score, int LastId, DateTime? LastDate)>();
+        foreach (var s in solvesByUser)
+            scoreMap[s.UserId] = (s.Score, s.LastId, s.LastDate);
+        foreach (var a in awardsByUser)
+        {
+            if (scoreMap.TryGetValue(a.UserId, out var e))
+                scoreMap[a.UserId] = (e.Score + a.Score, Math.Max(e.LastId, a.LastId),
+                    e.LastDate > a.LastDate ? e.LastDate : a.LastDate);
+            else
+                scoreMap[a.UserId] = (a.Score, a.LastId, a.LastDate);
+        }
+
+        var scoredUserIds = scoreMap.Keys.ToList();
+
+        var usersQuery = _context.Users
+            .AsNoTracking()
+            .Where(u => scoredUserIds.Contains(u.Id));
+
+        if (!admin)
+            usersQuery = usersQuery.Where(u => !(u.Hidden ?? false) && !(u.Banned ?? false));
+
+        if (bracketId.HasValue)
+            usersQuery = usersQuery.Where(u => u.BracketId == bracketId.Value);
+
+        var users = await usersQuery
+            .Select(u => new { u.Id, u.OauthId, u.Name, u.BracketId, u.Hidden, u.Banned })
+            .ToListAsync();
+
+        var result = users
+            .Select(u =>
+            {
+                var s = scoreMap.TryGetValue(u.Id, out var sc) ? sc : (Score: 0, LastId: 0, LastDate: (DateTime?)null);
+                return new StandingDto
+                {
+                    AccountId = u.Id,
+                    OauthId = u.OauthId,
+                    Name = u.Name,
+                    BracketId = u.BracketId,
+                    BracketName = null,
+                    Score = s.Score,
+                    LastId = s.LastId,
+                    LastDate = s.LastDate,
+                    Hidden = u.Hidden,
+                    Banned = u.Banned
+                };
+            })
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.LastDate)
+            .ThenBy(x => x.LastId)
+            .ToList();
+
+        return count.HasValue ? result.Take(count.Value).ToList() : result;
     }
 
 }

@@ -3,13 +3,14 @@ import { AnimatePresence } from "framer-motion";
 import { Box, Typography } from "@mui/material";
 import { useTheme } from '../context/ThemeContext';
 import { scoreboardService } from '../services/scoreboardService';
-import type { TeamScore } from '../services/scoreboardService';
+import type { TeamScore, BracketInfo, FreezeStatus } from '../services/scoreboardService';
 import { ScoreboardVisibilityError } from '../services/publicScoreboardService';
 import {
   Search,
   ChevronUp,
   ChevronDown,
-  RefreshCw
+  RefreshCw,
+  Filter
 } from "lucide-react";
 
 const ChartComponent = React.lazy(() => import("../components/ChartComponent"));
@@ -34,6 +35,9 @@ export function Scoreboard() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [brackets, setBrackets] = useState<BracketInfo[]>([]);
+  const [selectedBracket, setSelectedBracket] = useState<number | undefined>(undefined);
+  const [freezeStatus, setFreezeStatus] = useState<FreezeStatus>({ is_frozen: false, freeze_time: null });
 
   // Optimize filtering and sorting with useMemo
   const filteredScores = useMemo(() => {
@@ -86,7 +90,7 @@ export function Scoreboard() {
       } else {
         setLoading(true);
       }
-      const data = await scoreboardService.getTopStandings();
+      const data = await scoreboardService.getTopStandings(selectedBracket);
       setScores(data);
       setError("");
       setVisibilityError(null);
@@ -109,11 +113,14 @@ export function Scoreboard() {
   };
 
   useEffect(() => {
-    fetchScores();
-    // Refresh every 30 seconds (optional - uncomment if needed)
-    // const interval = setInterval(() => fetchScores(true), 30000);
-    // return () => clearInterval(interval);
+    scoreboardService.getBrackets().then(setBrackets);
+    scoreboardService.getFreezeStatus().then(setFreezeStatus);
   }, []);
+
+  useEffect(() => {
+    fetchScores();
+    setCurrentPage(1);
+  }, [selectedBracket]);
 
   if (loading) {
     return (
@@ -213,8 +220,37 @@ export function Scoreboard() {
     return pages;
   };
 
+  const freezeTimeLabel = freezeStatus.freeze_time
+    ? new Date(freezeStatus.freeze_time * 1000).toLocaleString(undefined, {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })
+    : null;
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col gap-4">
+      {/* Freeze Banner */}
+      {freezeStatus.is_frozen && (
+        <div className={`flex items-center gap-3 px-5 py-3 rounded-lg border font-mono text-sm ${
+          theme === 'dark'
+            ? 'bg-blue-950/60 border-blue-700/60 text-blue-300'
+            : 'bg-blue-50 border-blue-300 text-blue-700'
+        }`}>
+          <span className="text-lg">❄</span>
+          <div>
+            <span className="font-bold">SCOREBOARD FROZEN</span>
+            {freezeTimeLabel && (
+              <span className={`ml-2 text-xs ${
+                theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+              }`}>
+                — rankings locked as of {freezeTimeLabel}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row gap-6">
       {/* LEFT: Team Rankings List */}
       <div className="lg:w-2/5 xl:w-1/3">
         <div className={`rounded-lg border p-6 ${theme === 'dark'
@@ -280,6 +316,27 @@ export function Scoreboard() {
             </div>
 
             <div className="flex gap-2 items-center">
+              {brackets.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Filter size={14} className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} />
+                  <select
+                    value={selectedBracket ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedBracket(val ? Number(val) : undefined);
+                    }}
+                    className={`px-3 py-1 rounded border font-mono text-sm ${theme === 'dark'
+                        ? 'bg-gray-800 text-white border-gray-700'
+                        : 'bg-white text-gray-900 border-gray-300'
+                      }`}
+                  >
+                    <option value="">All Brackets</option>
+                    {brackets.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <select
                 value={itemsPerPage}
                 onChange={(e) => {
@@ -490,10 +547,6 @@ export function Scoreboard() {
               }`}>
               [SCORE_EVOLUTION]
             </h2>
-            <p className={`font-mono text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'
-              }`}>
-              {'>'} Real-time progress
-            </p>
           </div>
 
           {/* Chart Container */}
@@ -517,6 +570,7 @@ export function Scoreboard() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
