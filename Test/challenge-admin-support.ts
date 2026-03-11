@@ -382,3 +382,81 @@ export async function setScoreVisibility(page: Page, visibility: 'public' | 'pri
         page.locator('#visibility button[type="submit"]').click(),
     ]);
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Score type switching helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+export async function switchScoringTypeViaApi(
+    page: Page,
+    challengeId: number,
+    targetType: 'standard' | 'dynamic',
+    dynamicParams?: { initial?: string; minimum?: string; decay?: string; function?: string },
+): Promise<{ success: boolean; data?: any }> {
+    const body: Record<string, unknown> = {
+        'scoring-type-radio': targetType,
+    };
+
+    if (targetType === 'dynamic') {
+        body.initial = dynamicParams?.initial ?? '500';
+        body.minimum = dynamicParams?.minimum ?? '100';
+        body.decay = dynamicParams?.decay ?? '25';
+        body.function = dynamicParams?.function ?? 'linear';
+    }
+
+    return page.evaluate(
+        async ({ id, payload }) => {
+            const response = await fetch(`/api/v1/challenges/${id}`, {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            return response.json();
+        },
+        { id: challengeId, payload: body },
+    );
+}
+
+export async function getChallengeViaApi(page: Page, challengeId: number): Promise<any> {
+    return page.evaluate(async (id) => {
+        const response = await fetch(`/api/v1/challenges/${id}?view=admin`, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+        });
+        return response.json();
+    }, challengeId);
+}
+
+export async function setContestPaused(page: Page) {
+    await page.goto(`${ADMIN_URL}/admin/config`);
+    await page.locator('a[href="#accounts"]').click();
+    await expect(page.locator('#accounts')).toBeVisible({ timeout: 10_000 });
+
+    const pauseCheckbox = page.locator('input[name="paused"]');
+    if (await pauseCheckbox.isVisible().catch(() => false)) {
+        if (!(await pauseCheckbox.isChecked())) {
+            await pauseCheckbox.check();
+        }
+        await page.locator('#accounts button[type="submit"]').click();
+        await page.waitForTimeout(2_000);
+    }
+}
+
+export async function setContestUnpaused(page: Page) {
+    await page.goto(`${ADMIN_URL}/admin/config`);
+    await page.locator('a[href="#accounts"]').click();
+    await expect(page.locator('#accounts')).toBeVisible({ timeout: 10_000 });
+
+    const pauseCheckbox = page.locator('input[name="paused"]');
+    if (await pauseCheckbox.isVisible().catch(() => false)) {
+        if (await pauseCheckbox.isChecked()) {
+            await pauseCheckbox.uncheck();
+        }
+        await page.locator('#accounts button[type="submit"]').click();
+        await page.waitForTimeout(2_000);
+    }
+}

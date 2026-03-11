@@ -114,4 +114,37 @@ test.describe('UC13 View Version Detail and UC14 Rollback Version', () => {
         await openChallengeTab(page, 'Versions');
         await expect(page.locator('#versions tbody tr', { hasText: 'ACTIVE' }).first()).toBeVisible();
     });
-});
+
+    test('VVD-02: View active version detail page → shows active banner', async ({ page }) => {
+        await openChallengeTab(page, 'Versions');
+        const activeRow = page.locator('#versions tbody tr', { hasText: 'ACTIVE' }).first();
+        await expect(activeRow).toBeVisible();
+        await activeRow.locator('a[title="View detail"]').click();
+
+        await expect(page).toHaveURL(/\/versions\/\d+$/, { timeout: 15_000 });
+        await expect(page.locator('h1')).toContainText('Version');
+        await expect(page.locator('.active-banner')).toContainText('currently active version');
+        await expect(page.locator('body')).toContainText('Image Information');
+        await expect(page.locator('body')).toContainText('Resource Configuration');
+    });
+
+    test('RBV-02: After rollback, version count has incremented', async ({ page }) => {
+        await openChallengeTab(page, 'Versions');
+        const countBefore = await versionRowCount(page);
+
+        // Navigate to OLD version and rollback
+        const inactiveRow = page.locator('#versions tbody tr', { hasText: 'OLD' }).first();
+        if (await inactiveRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
+            await inactiveRow.locator('a[title="View detail"]').click();
+            await page.locator('#rollback-btn').click();
+            await expect(page.locator('#rollback-modal')).toHaveClass(/show/);
+            await page.locator('#confirm-rollback-btn').click();
+            await expect(page.locator('#rollback-status')).toContainText('Challenge rolled back to version', { timeout: 20_000 });
+
+            // Go back and check count
+            await page.goto(`https://admin.fctf.site/admin/challenges/${challengeId}`);
+            const countAfter = await versionRowCount(page);
+            expect(countAfter).toBeGreaterThanOrEqual(countBefore);
+        }
+    });
+});

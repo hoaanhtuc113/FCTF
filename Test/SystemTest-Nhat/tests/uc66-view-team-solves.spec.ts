@@ -31,4 +31,17 @@ test.describe("UC-66 View Team Solves", () => {
             await deleteSubmissionsByProvided(page, token);
         }
     });
+
+    test("TC66.02 - Bảng solve hiển thị các cột: Challenge, User, Submitted, Category, Value, Time", async ({ page }) => {
+        const seed = await getSubmissionSeed(page);
+        await page.goto(`${BASE_URL}/admin/teams/${seed.teamId}`, { waitUntil: "domcontentloaded" });
+
+        const headerText = await page.locator("#nav-solves thead").textContent();
+        expect(headerText).toContain("Challenge");
+        expect(headerText).toContain("User");
+        expect(headerText).toContain("Submitted");
+        expect(headerText).toContain("Category");
+        expect(headerText).toContain("Value");
+        expect(headerText).toContain("Time");
+    });
 });

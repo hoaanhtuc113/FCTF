@@ -373,4 +373,183 @@ test.describe("UC-39: Edit Team — System Tests", () => {
             page.locator(".jumbotron h1, .jumbotron h2").first()
         ).toContainText(originalName);
     });
+
+    // =========================================================================
+    // Bổ sung test cases cho các trường còn thiếu
+    // =========================================================================
+
+    test("TC15 - [Valid] Thay đổi country dropdown → trang reload, country mới hiển thị", async ({ page }) => {
+        const countrySelect = page.locator('#team-info-edit-form select[name="country"]');
+        const currentCountry = await countrySelect.inputValue();
+        const newCountry = currentCountry === "VN" ? "US" : "VN";
+
+        await countrySelect.selectOption(newCountry);
+        await submitTeamEditExpectReload(page, teamId);
+
+        // Verify country badge or text trên trang
+        await openEditModal(page, teamId);
+        const updatedCountry = await page.locator('#team-info-edit-form select[name="country"]').inputValue();
+        expect(updatedCountry).toBe(newCountry);
+
+        // Restore
+        await page.locator('#team-info-edit-form select[name="country"]').selectOption(currentCountry);
+        await submitTeamEditExpectReload(page, teamId);
+    });
+
+    test("TC16 - [Valid] Toggle hidden checkbox → trang reload, badge hidden hiển thị", async ({ page }) => {
+        const hiddenCheckbox = page.locator('#team-info-edit-form [name="hidden"]');
+        const wasHidden = await hiddenCheckbox.isChecked();
+
+        if (!wasHidden) {
+            await hiddenCheckbox.check();
+        } else {
+            await hiddenCheckbox.uncheck();
+        }
+
+        await submitTeamEditExpectReload(page, teamId);
+
+        if (!wasHidden) {
+            await expect(page.locator(".badge:has-text('hidden')")).toBeVisible();
+        } else {
+            await expect(page.locator(".badge:has-text('hidden')")).toHaveCount(0);
+        }
+
+        // Restore
+        await openEditModal(page, teamId);
+        if (wasHidden) {
+            await page.locator('#team-info-edit-form [name="hidden"]').check();
+        } else {
+            await page.locator('#team-info-edit-form [name="hidden"]').uncheck();
+        }
+        await submitTeamEditExpectReload(page, teamId);
+    });
+
+    test("TC17 - [Valid] Toggle banned checkbox → trang reload, badge banned hiển thị", async ({ page }) => {
+        const bannedCheckbox = page.locator('#team-info-edit-form [name="banned"]');
+        const wasBanned = await bannedCheckbox.isChecked();
+
+        if (!wasBanned) {
+            await bannedCheckbox.check();
+        } else {
+            await bannedCheckbox.uncheck();
+        }
+
+        await submitTeamEditExpectReload(page, teamId);
+
+        if (!wasBanned) {
+            await expect(page.locator(".badge:has-text('banned')")).toBeVisible();
+        } else {
+            await expect(page.locator(".badge:has-text('banned')")).toHaveCount(0);
+        }
+
+        // Restore
+        await openEditModal(page, teamId);
+        if (wasBanned) {
+            await page.locator('#team-info-edit-form [name="banned"]').check();
+        } else {
+            await page.locator('#team-info-edit-form [name="banned"]').uncheck();
+        }
+        await submitTeamEditExpectReload(page, teamId);
+    });
+
+    test("TC18 - Modal Edit Team hiển thị đủ fields: name, email, password, website, affiliation, country, hidden, banned", async ({ page }) => {
+        const form = page.locator("#team-info-edit-form");
+        await expect(form.locator('[name="name"]')).toBeVisible();
+        await expect(form.locator('[name="email"]')).toBeVisible();
+        await expect(form.locator('[name="password"]')).toBeVisible();
+        await expect(form.locator('[name="website"]')).toBeVisible();
+        await expect(form.locator('[name="affiliation"]')).toBeVisible();
+        await expect(form.locator('select[name="country"]')).toBeVisible();
+        await expect(form.locator('[name="hidden"]')).toBeAttached();
+        await expect(form.locator('[name="banned"]')).toBeAttached();
+    });
+
+    // =========================================================================
+    // BVA/ECP: Input boundary tests
+    // =========================================================================
+
+    test("TC19 - [BVA - Boundary] Tên team đúng 128 ký tự → form submit thành công", async ({ page }) => {
+        const boundaryName = "B".repeat(128);
+
+        await page.fill('#team-info-edit-form [name="name"]', boundaryName);
+        await submitTeamEditExpectReload(page, teamId);
+
+        await expect(
+            page.locator(".jumbotron h1, .jumbotron h2").first()
+        ).toContainText(boundaryName.slice(0, 20)); // Chỉ check phần đầu vì UI có thể cắt
+
+        // Restore
+        await openEditModal(page, teamId);
+        await page.fill('#team-info-edit-form [name="name"]', originalName);
+        await submitTeamEditExpectReload(page, teamId);
+    });
+
+    test("TC20 - [ECP - Edge] Tên team chứa ký tự đặc biệt: <script>, Unicode, emoji", async ({ page }) => {
+        const specialNames = [
+            `Team_<script>_${Date.now()}`,
+            `Team_日本語_${Date.now()}`,
+            `Team_🚀✓_${Date.now()}`,
+        ];
+
+        for (const specialName of specialNames) {
+            await page.fill('#team-info-edit-form [name="name"]', specialName);
+            await submitTeamEditExpectReload(page, teamId);
+
+            // Trang phải load thành công
+            await expect(page.locator(".jumbotron h1, .jumbotron h2").first()).toBeVisible();
+
+            // Restore
+            await openEditModal(page, teamId);
+            await page.fill('#team-info-edit-form [name="name"]', originalName);
+            await submitTeamEditExpectReload(page, teamId);
+            await openEditModal(page, teamId);
+        }
+    });
+
+    test("TC21 - [BVA - Boundary] Email edge cases: chỉ gồm spaces, @ không domain, double @", async ({ page }) => {
+        const invalidEmails = [
+            "   ",          // chỉ whitespace
+            "user@",        // thiếu domain
+            "user@@test.com", // double @
+        ];
+
+        for (const email of invalidEmails) {
+            await page.fill('#team-info-edit-form [name="email"]', email);
+            await page.click('#team-info-edit-form button[type="submit"]');
+            await page.waitForTimeout(SUBMIT_WAIT_MS);
+
+            // Form không submit hoặc server reject — modal vẫn mở HOẶC trang vẫn hợp lệ
+            const modalStillOpen = await page.locator("#team-info-edit-modal.show, #team-info-edit-modal.fade.show").isVisible().catch(() => false);
+            if (modalStillOpen) {
+                // Reset email
+                await page.fill('#team-info-edit-form [name="email"]', originalEmail);
+            } else {
+                // Server có thể chấp nhận — restore
+                await openEditModal(page, teamId);
+                await page.fill('#team-info-edit-form [name="email"]', originalEmail);
+                await submitTeamEditExpectReload(page, teamId);
+                await openEditModal(page, teamId);
+            }
+        }
+    });
+
+    test("TC22 - [BVA - Boundary] Affiliation rất dài (500+ ký tự) → form xử lý hợp lệ", async ({ page }) => {
+        const longAffiliation = "A".repeat(500);
+        await page.fill('#team-info-edit-form [name="affiliation"]', longAffiliation);
+        await submitTeamEditExpectReload(page, teamId);
+
+        // Restore
+        await openEditModal(page, teamId);
+        await page.fill('#team-info-edit-form [name="affiliation"]', originalAffiliation);
+        await submitTeamEditExpectReload(page, teamId);
+    });
+
+    test("TC23 - [ECP - Edge] Password field: nhập 1 ký tự → form submit thành công (password không bắt buộc)", async ({ page }) => {
+        // Password là optional khi edit team
+        await page.fill('#team-info-edit-form [name="password"]', "x");
+        await submitTeamEditExpectReload(page, teamId);
+
+        // Trang reload thành công
+        await expect(page.locator(".jumbotron h1, .jumbotron h2").first()).toContainText(originalName);
+    });
 });

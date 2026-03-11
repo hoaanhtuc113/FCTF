@@ -31,4 +31,16 @@ test.describe("UC-65 View User Solves", () => {
             await deleteSubmissionsByProvided(page, token);
         }
     });
+
+    test("TC65.02 - Bảng solve hiển thị các cột: Challenge, Submitted, Category, Value, Time", async ({ page }) => {
+        const seed = await getSubmissionSeed(page);
+        await page.goto(`${BASE_URL}/admin/users/${seed.userId}`, { waitUntil: "domcontentloaded" });
+
+        const headerText = await page.locator("#nav-solves thead").textContent();
+        expect(headerText).toContain("Challenge");
+        expect(headerText).toContain("Submitted");
+        expect(headerText).toContain("Category");
+        expect(headerText).toContain("Value");
+        expect(headerText).toContain("Time");
+    });
 });

@@ -153,4 +153,98 @@ test.describe("View Teams — System Tests", () => {
         await expect(page.locator("#teams-edit-button")).toBeVisible();
         await expect(page.locator("#teams-delete-button")).toBeVisible();
     });
+
+    // =========================================================================
+    // Bổ sung test cases
+    // =========================================================================
+
+    test("TC13 - Bảng hiển thị cột Bracket", async ({ page }) => {
+        const headerText = await page.locator("#teamsboard thead").textContent();
+        expect(headerText).toContain("Bracket");
+    });
+
+    test("TC14 - Dropdown Search Field có đủ options: Name, ID, Affiliation, Website, Country", async ({ page }) => {
+        const options = await page.locator('select[name="field"] option').allTextContents();
+        const normalized = options.map((o) => o.trim());
+        expect(normalized).toContain("Name");
+        expect(normalized).toContain("ID");
+        expect(normalized).toContain("Affiliation");
+        expect(normalized).toContain("Website");
+        expect(normalized).toContain("Country");
+    });
+
+    test("TC15 - Filter theo Bracket dropdown → URL chứa bracket_id", async ({ page }) => {
+        const bracketSelect = page.locator('select[name="bracket_id"]');
+        const optionCount = await bracketSelect.locator("option").count();
+
+        // Cần ít nhất 2 option (All Brackets + 1 bracket thực)
+        test.skip(optionCount < 2, "Không có bracket nào để test filter");
+
+        const firstBracketValue = await bracketSelect.locator("option").nth(1).getAttribute("value");
+        await bracketSelect.selectOption(firstBracketValue!);
+        await page.click('button[type="submit"]');
+        await page.waitForLoadState("domcontentloaded");
+
+        await expect(page).toHaveURL(/bracket_id=/);
+        await expect(page.locator("#teamsboard")).toBeVisible();
+    });
+
+    test("TC16 - Kết hợp filter Hidden + Banned → URL chứa cả hai param", async ({ page }) => {
+        await page.goto(`${BASE_URL}/admin/teams?hidden=1&banned=1`);
+        await page.waitForLoadState("domcontentloaded");
+
+        await expect(page).toHaveURL(/hidden=1/);
+        await expect(page).toHaveURL(/banned=1/);
+        await expect(page.locator("#teamsboard")).toBeVisible();
+    });
+
+    // =========================================================================
+    // BVA/ECP: Search edge cases
+    // =========================================================================
+
+    test("TC17 - [ECP - Edge] Search team với ký tự đặc biệt → trang không crash", async ({ page }) => {
+        const specialInputs = [
+            '<script>alert(1)</script>',
+            "'; DROP TABLE teams; --",
+            "✓ 日本語 🚀",
+        ];
+
+        for (const input of specialInputs) {
+            await page.fill('input[name="q"]', input);
+            await page.click('button[type="submit"]');
+            await page.waitForLoadState("domcontentloaded");
+            await expect(page.locator("#teamsboard")).toBeVisible();
+        }
+    });
+
+    test("TC18 - [BVA - Boundary] Search với chuỗi rất dài (200+ ký tự)", async ({ page }) => {
+        const longString = "X".repeat(200);
+        await page.fill('input[name="q"]', longString);
+        await page.click('button[type="submit"]');
+        await page.waitForLoadState("domcontentloaded");
+        await expect(page.locator("#teamsboard")).toBeVisible();
+    });
+
+    test("TC19 - [ECP - Edge] Search field=ID với giá trị non-numeric → trang xử lý hợp lệ", async ({ page }) => {
+        await page.goto(`${BASE_URL}/admin/teams?field=id&q=abc`, { waitUntil: "domcontentloaded" });
+        await expect(page.locator("#teamsboard")).toBeVisible();
+    });
+
+    test("TC20 - [ECP - Invalid] Search với chỉ whitespace → trang vẫn load", async ({ page }) => {
+        await page.fill('input[name="q"]', "   ");
+        await page.click('button[type="submit"]');
+        await page.waitForLoadState("domcontentloaded");
+        await expect(page.locator("#teamsboard")).toBeVisible();
+    });
+
+    test("TC21 - [ECP] Kết hợp search + filter bracket + hidden cùng lúc", async ({ page }) => {
+        const bracketSelect = page.locator('select[name="bracket_id"]');
+        const optionCount = await bracketSelect.locator("option").count();
+        test.skip(optionCount < 2, "Cần bracket để test combined filters");
+
+        await page.goto(`${BASE_URL}/admin/teams?field=name&q=${encodeURIComponent(firstTeamName)}&hidden=1`, { waitUntil: "domcontentloaded" });
+        await expect(page).toHaveURL(/field=name/);
+        await expect(page).toHaveURL(/hidden=1/);
+        await expect(page.locator("#teamsboard")).toBeVisible();
+    });
 });

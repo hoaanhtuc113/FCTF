@@ -13,4 +13,18 @@ test.describe("UC-75 View Brackets", () => {
         await expect(page.locator("#brackets-list")).toBeVisible();
         await expect(page.locator('#brackets button:has-text("Add New Bracket")')).toBeVisible();
     });
+
+    test("TC75.02 - Bracket list hiển thị brackets hiện có (nếu có) với name và description", async ({ page }) => {
+        const bracketBlocks = page.locator("#brackets .border-bottom");
+        const blockCount = await bracketBlocks.count();
+
+        if (blockCount > 0) {
+            const firstBlock = bracketBlocks.first();
+            // Mỗi block có ít nhất 2 input: name và description
+            await expect(firstBlock.locator("input.form-control").nth(0)).toBeVisible();
+            await expect(firstBlock.locator("input.form-control").nth(1)).toBeVisible();
+            // Block có nút Save
+            await expect(firstBlock.locator('button:has-text("Save")')).toBeVisible();
+        }
+    });
 });

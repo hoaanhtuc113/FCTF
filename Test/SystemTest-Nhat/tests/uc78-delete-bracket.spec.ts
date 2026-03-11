@@ -59,4 +59,55 @@ test.describe("UC-78 Delete Bracket", () => {
             }
         }
     });
+
+    test("TC78.02 - Cancel dialog xóa bracket → bracket vẫn tồn tại", async ({ page }) => {
+        const name = `UC78_CANCEL_${Date.now()}`;
+        let createdId: number | null = null;
+
+        try {
+            await openAdminConfigTab(page, "#brackets");
+            await page.click('#brackets button:has-text("Add New Bracket")');
+
+            const block = page.locator("#brackets .border-bottom").last();
+            await expect(block).toBeVisible();
+            await commitLazyInput(block.locator("input.form-control").nth(0), name);
+            await commitLazyInput(block.locator("input.form-control").nth(1), "Cancel delete test");
+
+            const createResponsePromise = page.waitForResponse((response) => {
+                return response.url().includes("/api/v1/brackets") && response.request().method() === "POST";
+            });
+
+            await block.locator('button:has-text("Save")').click();
+            const createResponse = await createResponsePromise;
+            const createBody = await createResponse.json();
+            createdId = createBody.data.id;
+
+            // Tìm block persisted
+            await openAdminConfigTab(page, "#brackets");
+            const persistedBlock = await findConfigBlockByInputValue(page, "#brackets", name);
+            await expect(persistedBlock).toBeVisible();
+
+            // Dismiss dialog (cancel)
+            page.once("dialog", (dialog) => dialog.dismiss());
+            const deleteButton = persistedBlock.locator("button.close");
+            await deleteButton.scrollIntoViewIfNeeded();
+            await deleteButton.click({ force: true });
+
+            // Verify bracket vẫn tồn tại qua API
+            const brackets = await page.evaluate(async ({ BASE_URL }) => {
+                const res = await fetch(`${BASE_URL}/api/v1/brackets`, {
+                    headers: { "Content-Type": "application/json" },
+                });
+                const json = await res.json();
+                return json.data;
+            }, { BASE_URL: "https://admin.fctf.site" });
+
+            const found = brackets.find((b: any) => b.id === createdId);
+            expect(found, "Bracket phải vẫn tồn tại sau khi cancel dialog").toBeTruthy();
+        } finally {
+            if (createdId !== null) {
+                await deleteBracketByApi(page, createdId);
+            }
+        }
+    });
 });
