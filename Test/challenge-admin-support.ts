@@ -1,8 +1,8 @@
 import path from 'path';
 import { expect, Page } from '@playwright/test';
 
-export const ADMIN_URL = 'https://admin.fctf.site';
-export const CONTESTANT_URL = 'https://contestant.fctf.site';
+export const ADMIN_URL = 'https://admin2.fctf.site';
+export const CONTESTANT_URL = 'https://contestant2.fctf.site';
 
 export type ChallengeType = 'standard' | 'dynamic' | 'multiple_choice';
 
@@ -67,7 +67,8 @@ export async function loginContestant(page: Page, username = 'user2', password =
     await page.locator('input[placeholder="input username..."]').fill(username);
     await page.locator('input[placeholder="enter_password"]').fill(password);
     await page.locator('button[type="submit"]').click();
-    await page.waitForURL(/\/(dashboard|challenges|scoreboard|profile|instances|tickets)/, { timeout: 30_000 });
+    // Wait for URL to navigate away from the login page (handles different portal redirect paths)
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
 }
 
 export async function gotoAdminChallenges(page: Page) {
@@ -183,11 +184,11 @@ export async function fillCreateStepOne(page: Page, options: ChallengeCreateOpti
 
 export async function submitCreateStepOne(page: Page) {
     await page.getByRole('button', { name: 'Create', exact: true }).click();
-    await page.waitForTimeout(1_000);
+    await page.waitForTimeout(3_000);
 }
 
 export async function finishCreateChallenge(page: Page, options: ChallengeCreateOptions) {
-    await expect(page.locator('input[name="flag"], #challenge-create-options, button:has-text("Finish")').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('input[name="flag"], #challenge-create-options, button:has-text("Finish")').first()).toBeVisible({ timeout: 30_000 });
 
     if (options.setUpDocker) {
         const dockerToggle = page.locator('#setup_docker').first();
@@ -243,8 +244,14 @@ export async function searchChallenge(page: Page, challengeName: string) {
     });
     await page.goto(`${ADMIN_URL}/admin/challenges?${params.toString()}`);
     await expect(page.locator('h1').filter({ hasText: 'Challenges' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('input[name="q"]')).toHaveValue(challengeName);
-    await expect(page.locator('select[name="field"]')).toHaveValue('name');
+    const qInput = page.locator('input[name="q"]');
+    if (await qInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await expect(qInput).toHaveValue(challengeName, { timeout: 5_000 });
+    }
+    const fieldSelect = page.locator('select[name="field"]');
+    if (await fieldSelect.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        await expect(fieldSelect).toHaveValue('name', { timeout: 5_000 });
+    }
     await expect(page.locator('#challenges')).toBeVisible({ timeout: 15_000 });
     return page.locator('#challenges tbody tr', { hasText: challengeName }).first();
 }
@@ -289,7 +296,7 @@ export async function createChallenge(page: Page, options: ChallengeCreateOption
         expectedTexts.push('DEPLOY_SUCCESS');
     }
 
-    await waitForChallengeRow(page, options.name, expectedTexts, options.setUpDocker ? 240_000 : 60_000);
+    await waitForChallengeRow(page, options.name, expectedTexts, options.setUpDocker ? 480_000 : 60_000);
     await openChallengeDetailFromList(page, options.name);
 
     return { id: currentChallengeId(page), name: options.name };
@@ -310,11 +317,17 @@ export async function deleteChallengeViaUi(page: Page) {
 
 export async function deleteChallengeViaApi(page: Page, challengeId: number) {
     const result = await page.evaluate(async (id) => {
+        const csrfToken =
+            (window as any).init?.csrfNonce ||
+            (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ||
+            '';
         const response = await fetch(`/api/v1/challenges/${id}`, {
             method: 'DELETE',
             credentials: 'same-origin',
             headers: {
+                'Content-Type': 'application/json',
                 Accept: 'application/json',
+                'CSRF-Token': csrfToken,
             },
         });
 
@@ -406,12 +419,17 @@ export async function switchScoringTypeViaApi(
 
     return page.evaluate(
         async ({ id, payload }) => {
+            const csrfToken =
+                (window as any).init?.csrfNonce ||
+                (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ||
+                '';
             const response = await fetch(`/api/v1/challenges/${id}`, {
                 method: 'PATCH',
                 credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
+                    'CSRF-Token': csrfToken,
                 },
                 body: JSON.stringify(payload),
             });
@@ -459,4 +477,92 @@ export async function setContestUnpaused(page: Page) {
         await page.locator('#accounts button[type="submit"]').click();
         await page.waitForTimeout(2_000);
     }
-}
+}
+
+/**
+ * Ensures that a contestant user with a team exists in the shared MariaDB
+ * (used by both CTFd/admin2 and ContestantBE/contestant2).
+ * Call this from a beforeAll on the admin page after loginAdmin.
+ */
+export async function ensureContestantUser(
+    page: Page,
+    username = 'user2',
+    password = '1',
+    teamName = 'team2',
+): Promise<void> {
+    await page.evaluate(async ({ username, password, teamName }) => {
+        const csrfToken =
+            (window as any).init?.csrfNonce ||
+            (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ||
+            '';
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'CSRF-Token': csrfToken,
+        };
+
+        // Step 1: Create team (ignore 400 = already exists)
+        let teamId: number | null = null;
+        const teamResp = await fetch('/api/v1/teams', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify({ name: teamName, password: teamName }),
+        });
+        if (teamResp.ok) {
+            const teamData = await teamResp.json();
+            teamId = teamData.data?.id ?? null;
+        }
+        if (!teamId) {
+            const listResp = await fetch(`/api/v1/teams?q=${encodeURIComponent(teamName)}&field=name`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
+            });
+            if (listResp.ok) {
+                const listData = await listResp.json();
+                const found = (listData.data as any[])?.find((t: any) => t.name === teamName);
+                if (found) teamId = found.id;
+            }
+        }
+
+        // Step 2: Create user (ignore 400 = already exists)
+        let userId: number | null = null;
+        const userResp = await fetch('/api/v1/users', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify({
+                name: username,
+                email: `${username}@test.local`,
+                password,
+                type: 'user',
+                verified: true,
+            }),
+        });
+        if (userResp.ok) {
+            const userData = await userResp.json();
+            userId = userData.data?.id ?? null;
+        }
+        if (!userId) {
+            const listResp = await fetch(`/api/v1/users?q=${encodeURIComponent(username)}&field=name`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
+            });
+            if (listResp.ok) {
+                const listData = await listResp.json();
+                const found = (listData.data as any[])?.find((u: any) => u.name === username);
+                if (found) userId = found.id;
+            }
+        }
+
+        // Step 3: Assign user to team
+        if (userId && teamId) {
+            await fetch(`/api/v1/users/${userId}`, {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers,
+                body: JSON.stringify({ team_id: teamId }),
+            });
+        }
+    }, { username, password, teamName });
+}

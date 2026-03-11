@@ -1,6 +1,6 @@
 import { expect, Locator, Page } from "@playwright/test";
 
-export const BASE_URL = "https://admin.fctf.site";
+export const BASE_URL = "https://admin2.fctf.site";
 export const ADMIN_USER = "admin";
 export const ADMIN_PASS = "1";
 export const SUBMIT_WAIT_MS = 3000;
@@ -1102,4 +1102,82 @@ export async function deleteCustomFieldByApi(page: Page, fieldId: number) {
     }
 
     return body.body;
+}
+
+/**
+ * Ensures a contestant user with a team exists in the shared DB.
+ * Call this from a beforeAll/beforeEach on the admin page.
+ */
+export async function ensureContestantUser(
+    page: Page,
+    username = 'user2',
+    password = '1',
+    teamName = 'team2',
+): Promise<void> {
+    await page.evaluate(async ({ username, password, teamName, BASE_URL }) => {
+        const csrfToken =
+            (window as any).init?.csrfNonce ||
+            (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ||
+            '';
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'CSRF-Token': csrfToken,
+        };
+
+        let teamId: number | null = null;
+        const teamResp = await fetch(`${BASE_URL}/api/v1/teams`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify({ name: teamName, password: teamName }),
+        });
+        if (teamResp.ok) {
+            const d = await teamResp.json();
+            teamId = d.data?.id ?? null;
+        }
+        if (!teamId) {
+            const lr = await fetch(`${BASE_URL}/api/v1/teams?q=${encodeURIComponent(teamName)}&field=name`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
+            });
+            if (lr.ok) {
+                const ld = await lr.json();
+                const found = (ld.data as any[])?.find((t: any) => t.name === teamName);
+                if (found) teamId = found.id;
+            }
+        }
+
+        let userId: number | null = null;
+        const userResp = await fetch(`${BASE_URL}/api/v1/users`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify({ name: username, email: `${username}@test.local`, password, type: 'user', verified: true }),
+        });
+        if (userResp.ok) {
+            const d = await userResp.json();
+            userId = d.data?.id ?? null;
+        }
+        if (!userId) {
+            const lr = await fetch(`${BASE_URL}/api/v1/users?q=${encodeURIComponent(username)}&field=name`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
+            });
+            if (lr.ok) {
+                const ld = await lr.json();
+                const found = (ld.data as any[])?.find((u: any) => u.name === username);
+                if (found) userId = found.id;
+            }
+        }
+
+        if (userId && teamId) {
+            await fetch(`${BASE_URL}/api/v1/users/${userId}`, {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers,
+                body: JSON.stringify({ team_id: teamId }),
+            });
+        }
+    }, { username, password, teamName, BASE_URL });
 }
