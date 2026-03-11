@@ -38,4 +38,25 @@ test.describe("UC-64 Assign Captain", () => {
             }
         }
     });
+
+    test("TC64.02 - Captain hiện tại hiển thị badge 'Captain' trong bảng members", async ({ page }) => {
+        const { team, users } = await createTeamWithMembers(page, 2);
+
+        try {
+            await page.goto(`${BASE_URL}/admin/teams/${team.id}`, { waitUntil: "domcontentloaded" });
+
+            // Captain mặc định là user đầu tiên (captain_id = users[0].id)
+            const captainBadge = page.locator(".badge:has-text('Captain')");
+            await expect(captainBadge).toBeVisible();
+
+            // Badge nằm trong row của captain
+            const captainRow = page.locator("tbody tr").filter({ has: captainBadge }).first();
+            await expect(captainRow).toContainText(users[0].name);
+        } finally {
+            await deleteTeam(page, team.id);
+            for (const user of users) {
+                await deleteUser(page, user.id);
+            }
+        }
+    });
 });

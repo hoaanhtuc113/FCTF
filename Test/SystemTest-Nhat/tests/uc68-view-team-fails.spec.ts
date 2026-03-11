@@ -32,4 +32,16 @@ test.describe("UC-68 View Team Fails", () => {
             await deleteSubmissionsByProvided(page, token);
         }
     });
+
+    test("TC68.02 - Bảng fail hiển thị các cột: Challenge, User, Submitted, Time", async ({ page }) => {
+        const seed = await getSubmissionSeed(page);
+        await page.goto(`${BASE_URL}/admin/teams/${seed.teamId}`, { waitUntil: "domcontentloaded" });
+        await page.click("#nav-wrong-tab");
+
+        const headerText = await page.locator("#nav-wrong thead").textContent();
+        expect(headerText).toContain("Challenge");
+        expect(headerText).toContain("User");
+        expect(headerText).toContain("Submitted");
+        expect(headerText).toContain("Time");
+    });
 });

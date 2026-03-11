@@ -74,4 +74,46 @@ test.describe("UC-81 Update Custom Field", () => {
             expect(restored?.description).toBe(originalField.description);
         }
     });
+
+    test("TC81.02 - Update custom field từ UI (click Save trên block) → API confirm tên mới", async ({ page }) => {
+        const targetField = (await getCustomFields(page, "user"))[0] ?? null;
+        test.skip(targetField === null, "Cần ít nhất 1 user custom field có sẵn để test");
+
+        const originalName = targetField!.name;
+        const uiUpdatedName = `${originalName}_UI_${Date.now()}`;
+
+        try {
+            await openAdminConfigTab(page, "#fields");
+            const block = await findConfigBlockByInputValue(page, "#user-fields", originalName);
+            await expect(block).toBeVisible();
+
+            await commitLazyInput(block.locator("input.form-control").nth(0), uiUpdatedName);
+
+            const responsePromise = page.waitForResponse((response) => {
+                return response.url().includes(`/api/v1/configs/fields/${targetField!.id}`)
+                    && response.request().method() === "PATCH";
+            });
+
+            const saveButton = block.locator('button:has-text("Save")');
+            await saveButton.scrollIntoViewIfNeeded();
+            await saveButton.click({ force: true });
+            const response = await responsePromise;
+            expect(response.ok()).toBe(true);
+
+            // Verify via API
+            const updatedFields = await getCustomFields(page, "user");
+            const updated = updatedFields.find((item) => item.id === targetField!.id);
+            expect(updated?.name).toBe(uiUpdatedName);
+        } finally {
+            // Restore
+            await updateCustomField(page, targetField!.id, {
+                name: originalName,
+                description: targetField!.description,
+                field_type: targetField!.fieldType,
+                editable: targetField!.editable,
+                required: targetField!.required,
+                public: targetField!.public,
+            });
+        }
+    });
 });

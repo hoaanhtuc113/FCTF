@@ -887,4 +887,29 @@ test.describe.serial("UC-23 Query Reward", () => {
             });
         }
     });
+
+    test("TC23.04 - Export CSV button hiển thị khi có results", async ({ page }) => {
+        const templateInfo = TEMPLATE_CASES[0];
+        const scenario = getScenario(templateInfo.id, dataset);
+
+        await selectTemplate(page, templateInfo.id, templateInfo.name);
+        await applyScenarioParams(page, scenario, dataset);
+        await triggerPreview(page);
+
+        await expect(page.locator("#results-card")).toBeVisible();
+        await expect(page.locator('#export-csv-btn, button:has-text("Export"), a:has-text("Export")')).toBeVisible();
+    });
+
+    test("TC23.05 - Chọn template → params card hiển thị, chưa chọn → params ẩn", async ({ page }) => {
+        await page.goto(`${BASE_URL}/admin/rewards`, { waitUntil: "domcontentloaded" });
+        await page.waitForSelector("#template-cards .template-card", { state: "visible", timeout: 15_000 });
+
+        // Trước khi chọn template, params phải ẩn
+        await expect(page.locator("#params-card")).toBeHidden();
+
+        // Chọn template đầu tiên → params hiển thị
+        const templateInfo = TEMPLATE_CASES[0];
+        await selectTemplate(page, templateInfo.id, templateInfo.name);
+        await expect(page.locator("#params-card")).toBeVisible();
+    });
 });

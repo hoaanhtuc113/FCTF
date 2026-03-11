@@ -590,4 +590,73 @@ test.describe('UC03 Create Challenge', () => {
             await deleteChallengeViaApi(page, nextChallenge.id);
         }
     });
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // BOUNDARY & EDGE CASES
+    // ──────────────────────────────────────────────────────────────────────────
+
+    test('CCH-23: Create challenge with name at maxlength boundary (40 chars)', async ({ page }: { page: Page }) => {
+        // Name field has maxlength=40 in the form
+        const baseName = 'B'.repeat(40 - String(Date.now()).length) + String(Date.now()).slice(-10);
+        const boundaryName = baseName.slice(0, 40); // Exactly 40 chars
+
+        const created = await createChallenge(page, {
+            name: boundaryName,
+            category: 'web',
+            description: 'Boundary test: name at max length',
+            value: '50',
+            flag: 'FCTF{boundary-name}',
+            state: 'hidden',
+        });
+
+        try {
+            // Verify the name was saved correctly
+            await expect(page.locator('input[name="name"]')).toHaveValue(boundaryName);
+            expect(boundaryName.length).toBe(40);
+        } finally {
+            await deleteChallengeViaApi(page, created.id);
+        }
+    });
+
+    test('CCH-24: Create challenge with duplicate name → server rejects or handles', async ({ page }: { page: Page }) => {
+        const duplicateName = uniqueChallengeName('uc03-duplicate');
+
+        const created = await createChallenge(page, {
+            name: duplicateName,
+            category: 'web',
+            description: 'First challenge with this name',
+            value: '100',
+            flag: 'FCTF{dup-first}',
+            state: 'hidden',
+        });
+
+        try {
+            // Try to create a second challenge with the same name
+            await openCreateChallenge(page);
+            await fillCreateStepOne(page, {
+                name: duplicateName,
+                category: 'web',
+                description: 'Second challenge with same name',
+                timeLimit: '20',
+                maxAttempts: '3',
+                cooldown: '0',
+                value: '100',
+            });
+            await submitCreateStepOne(page);
+
+            // Server should either reject (show error) or accept (show step 2)
+            // We check which behavior occurs
+            const hasError = await page.locator('body').textContent({ timeout: 10_000 });
+            if (hasError?.includes('already exists') || hasError?.includes('duplicate')) {
+                // Server correctly rejects duplicate names
+                expect(hasError).toMatch(/already exists|duplicate/i);
+            } else {
+                // Server may accept duplicate names - verify step 2 is shown
+                const finishVisible = await page.locator('button:has-text("Finish")').isVisible({ timeout: 5_000 }).catch(() => false);
+                expect(finishVisible).toBeTruthy();
+            }
+        } finally {
+            await deleteChallengeViaApi(page, created.id);
+        }
+    });
 });

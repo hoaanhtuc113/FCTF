@@ -16,4 +16,18 @@ test.describe("UC-79 View Custom Fields", () => {
         await page.click('a[href="#team-fields"]');
         await expect(page.locator("#team-field-list")).toBeVisible();
     });
+
+    test("TC79.02 - Tab Teams hiển thị team fields list riêng biệt", async ({ page }) => {
+        await page.click('a[href="#team-fields"]');
+        await expect(page.locator("#team-field-list")).toBeVisible();
+        // Verify đang ở team tab
+        await expect(page.locator('a[href="#team-fields"]')).toHaveClass(/active/);
+    });
+
+    test("TC79.03 - Nút 'Add New Field' visible trên cả user fields và team fields", async ({ page }) => {
+        await expect(page.locator('#user-fields button:has-text("Add New Field")')).toBeVisible();
+
+        await page.click('a[href="#team-fields"]');
+        await expect(page.locator('#team-fields button:has-text("Add New Field")')).toBeVisible();
+    });
 });
