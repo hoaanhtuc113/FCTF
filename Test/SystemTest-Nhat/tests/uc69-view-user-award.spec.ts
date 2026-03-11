@@ -34,4 +34,38 @@ test.describe("UC-69 View User Award", () => {
             await deleteAwardsByName(page, token);
         }
     });
+
+    test("TC69.02 - Bảng award hiển thị đúng cột và dữ liệu khớp award vừa tạo", async ({ page }) => {
+        const seed = await getSubmissionSeed(page);
+        const token = `UC69_VERIFY_${Date.now()}`;
+
+        try {
+            await createAward(page, {
+                userId: seed.userId,
+                teamId: seed.teamId,
+                name: token,
+                value: 15,
+                description: "Verify columns",
+                category: "testing",
+                icon: "shield",
+            });
+
+            await page.goto(`${BASE_URL}/admin/users/${seed.userId}`, { waitUntil: "domcontentloaded" });
+            await page.click("#nav-awards-tab");
+
+            const headerText = await page.locator("#nav-awards thead").textContent();
+            expect(headerText).toContain("Name");
+            expect(headerText).toContain("Description");
+            expect(headerText).toContain("Value");
+            expect(headerText).toContain("Category");
+            expect(headerText).toContain("Icon");
+
+            // Verify dữ liệu award
+            const awardRow = page.locator("#nav-awards tbody tr").filter({ hasText: token });
+            await expect(awardRow).toContainText("15");
+            await expect(awardRow).toContainText("testing");
+        } finally {
+            await deleteAwardsByName(page, token);
+        }
+    });
 });

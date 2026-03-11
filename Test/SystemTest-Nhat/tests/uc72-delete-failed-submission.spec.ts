@@ -43,4 +43,33 @@ test.describe("UC-72 Delete Failed Submission", () => {
             await deleteSubmissionsByProvided(page, token);
         }
     });
+
+    test("TC72.02 - Cancel modal xóa → failed submission vẫn tồn tại", async ({ page }) => {
+        const seed = await getSubmissionSeed(page);
+        const token = `UC72_CANCEL_${Date.now()}`;
+        const created = await createSubmission(page, {
+            userId: seed.userId,
+            teamId: seed.teamId,
+            challengeId: seed.challengeId,
+            provided: token,
+            type: "incorrect",
+        });
+
+        try {
+            await page.goto(`${BASE_URL}/admin/teams/${seed.teamId}`, { waitUntil: "domcontentloaded" });
+            await page.click("#nav-wrong-tab");
+            await page.locator(`input[data-submission-id="${created.id}"]`).check();
+            await page.click("#fails-delete-button");
+
+            const modal = page.locator(".modal.show, .modal.fade.show");
+            await expect(modal).toBeVisible();
+            const closeButton = modal.locator('button[data-dismiss="modal"], button.close').first();
+            await closeButton.click();
+
+            const sub = await getSubmissionById(page, created.id);
+            expect(sub).not.toBeNull();
+        } finally {
+            await deleteSubmissionsByProvided(page, token);
+        }
+    });
 });
