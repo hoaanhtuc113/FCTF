@@ -91,6 +91,13 @@ public class TokenAuthenticationMiddleware
                             return;
                         }
 
+                        if (authInfoCache.TeamBanned == true)
+                        {
+                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                            await context.Response.WriteAsync("Your team has been banned.");
+                            return;
+                        }
+
                         await _next(context);
                         return;
                     }
@@ -104,6 +111,7 @@ public class TokenAuthenticationMiddleware
                             u.Banned,
                             u.Hidden,
                             u.TeamId,
+                            TeamBanned = u.Team != null ? u.Team.Banned : (bool?)null,
                             TokenValueFromDb = db.Tokens
                                 .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
                                 .Select(t => t.Value)
@@ -147,6 +155,13 @@ public class TokenAuthenticationMiddleware
                         return;
                     }
 
+                    if (authInfo.TeamBanned == true)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        await context.Response.WriteAsync("Your team has been banned.");
+                        return;
+                    }
+
                     // Populate cache (short TTL)
                     try
                     {
@@ -155,7 +170,8 @@ public class TokenAuthenticationMiddleware
                             TokenValueFromDb = authInfo.TokenValueFromDb,
                             TeamId = authInfo.TeamId,
                             Banned = authInfo.Banned,
-                            Hidden = authInfo.Hidden
+                            Hidden = authInfo.Hidden,
+                            TeamBanned = authInfo.TeamBanned
                         };
                         var ttlSeconds = 60;
                         _ = await redis.SetCacheAsync(cacheKey, dto, TimeSpan.FromSeconds(ttlSeconds));
@@ -188,6 +204,7 @@ public class TokenAuthenticationMiddleware
         public int? TeamId { get; set; }
         public bool? Banned { get; set; }
         public bool? Hidden { get; set; }
+        public bool? TeamBanned { get; set; }
     }
 }
 
