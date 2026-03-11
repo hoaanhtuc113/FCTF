@@ -1,0 +1,222 @@
+# ============================================================================
+# FCTF – CI/CD Pipeline
+# Triggers on push to main. Only services whose files changed are rebuilt.
+# Each service is built as a Docker image, pushed to DockerHub, then
+# automatically redeployed to the k3s cluster.
+#
+# ─── Required GitHub Secrets ────────────────────────────────────────────────
+#
+#   DOCKERHUB_USERNAME   – DockerHub username (e.g. quachuoiscontainer)
+#   DOCKERHUB_TOKEN      – DockerHub access token (NOT password)
+#                          Create at: https://hub.docker.com/settings/security
+#   KUBE_CONFIG          – base64-encoded kubeconfig cho CI/CD ServiceAccount
+#                          Chạy script trên server K3s để tạo tự động:
+#                            cd FCTF-k3s-manifest
+#                            chmod +x cicd-setup.sh && ./cicd-setup.sh
+#                          Script sẽ tạo ServiceAccount least-privilege và
+#                          xuất base64 kubeconfig để paste vào secret này.
+#                          (xem FCTF-k3s-manifest/cicd-setup.sh để biết chi tiết)
+#
+# ─── How to add secrets ────────────────────────────────────────────────────
+#
+#   GitHub repo → Settings → Secrets and variables → Actions → New secret
+#
+# ============================================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [v4/release/v4.0.0]
+  workflow_dispatch: # allow manual trigger
+
+# Cancel previous runs for the same branch
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: docker.io
+  IMAGE_BASE: ${{ secrets.DOCKERHUB_USERNAME }}/fctf
+
+# ---------------------------------------------------------------------------
+# 1. Detect which services changed
+# ---------------------------------------------------------------------------
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-changes: ${{ steps.set-matrix.outputs.has-changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          filters: |
+            gateway:
+              - 'ChallengeGateway/**'
+            portal:
+              - 'ContestantPortal/**'
+            contestant-be:
+              - 'ControlCenterAndChallengeHostingServer/ContestantBE/**'
+              - 'ControlCenterAndChallengeHostingServer/ResourceShared/**'
+            deployment-center:
+              - 'ControlCenterAndChallengeHostingServer/DeploymentCenter/**'
+              - 'ControlCenterAndChallengeHostingServer/ResourceShared/**'
+            deployment-listener:
+              - 'ControlCenterAndChallengeHostingServer/DeploymentListener/**'
+              - 'ControlCenterAndChallengeHostingServer/ResourceShared/**'
+            deployment-consumer:
+              - 'ControlCenterAndChallengeHostingServer/DeploymentConsumer/**'
+              - 'ControlCenterAndChallengeHostingServer/ResourceShared/**'
+            management:
+              - 'FCTF-ManagementPlatform/**'
+
+      - name: Build matrix from changes
+        id: set-matrix
+        run: |
+          SERVICES='[
+            {"key":"gateway",            "name":"challenge-gateway",   "image":"challenge-gateway",   "context":"./ChallengeGateway",                          "dockerfile":"./ChallengeGateway/Dockerfile"},
+            {"key":"portal",             "name":"contestant-portal",   "image":"contestant-portal",   "context":"./ContestantPortal",                           "dockerfile":"./ContestantPortal/docker/Dockerfile"},
+            {"key":"contestant-be",      "name":"contestant-be",       "image":"contestant-be",       "context":"./ControlCenterAndChallengeHostingServer",     "dockerfile":"./ControlCenterAndChallengeHostingServer/ContestantBE/Dockerfile"},
+            {"key":"deployment-center",  "name":"deployment-center",   "image":"deployment-center",   "context":"./ControlCenterAndChallengeHostingServer",     "dockerfile":"./ControlCenterAndChallengeHostingServer/DeploymentCenter/Dockerfile"},
+            {"key":"deployment-listener","name":"deployment-listener", "image":"deployment-listener", "context":"./ControlCenterAndChallengeHostingServer",     "dockerfile":"./ControlCenterAndChallengeHostingServer/DeploymentListener/Dockerfile"},
+            {"key":"deployment-consumer","name":"deployment-consumer", "image":"deployment-consumer", "context":"./ControlCenterAndChallengeHostingServer",     "dockerfile":"./ControlCenterAndChallengeHostingServer/DeploymentConsumer/Dockerfile"},
+            {"key":"management",         "name":"admin-mvc",           "image":"admin-mvc",           "context":"./FCTF-ManagementPlatform",                    "dockerfile":"./FCTF-ManagementPlatform/Dockerfile"}
+          ]'
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MATRIX="$SERVICES"
+          else
+            MATRIX=$(echo "$SERVICES" | jq -c '[.[] | select(
+              (.key == "gateway"            and "${{ steps.filter.outputs.gateway }}"            == "true") or
+              (.key == "portal"             and "${{ steps.filter.outputs.portal }}"             == "true") or
+              (.key == "contestant-be"      and "${{ steps.filter.outputs.contestant-be }}"      == "true") or
+              (.key == "deployment-center"  and "${{ steps.filter.outputs.deployment-center }}"  == "true") or
+              (.key == "deployment-listener" and "${{ steps.filter.outputs.deployment-listener }}" == "true") or
+              (.key == "deployment-consumer" and "${{ steps.filter.outputs.deployment-consumer }}" == "true") or
+              (.key == "management"         and "${{ steps.filter.outputs.management }}"         == "true")
+            )]')
+          fi
+
+          if [ "$MATRIX" = "[]" ]; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            # Dummy entry so fromJson never receives an empty array (avoids pipeline hang)
+            echo 'matrix={"include":[{"key":"none","name":"none","image":"none","context":".","dockerfile":"Dockerfile"}]}' >> $GITHUB_OUTPUT
+          else
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 2. Build & Push – parallel matrix
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}:${{ matrix.image }}-prod-${{ github.sha }}
+            ${{ env.IMAGE_BASE }}:${{ matrix.image }}-prod-latest
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+
+  # ---------------------------------------------------------------------------
+  # 3. Deploy to K3s – update image & rollout restart
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to K3s
+    needs: [changes, build]
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      K8S_NAMESPACE: app
+    steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Verify cluster connection
+        run: kubectl -n $K8S_NAMESPACE get deployments --no-headers | head -1
+
+      - name: Deploy updated services
+        run: |
+          MATRIX='${{ needs.changes.outputs.matrix }}'
+          SERVICES=$(echo "$MATRIX" | jq -r '.include[] | .name')
+
+          for SVC in $SERVICES; do
+            IMAGE="${{ env.IMAGE_BASE }}:${SVC}-prod-${{ github.sha }}"
+            echo "🚀 Deploying $SVC → $IMAGE"
+            kubectl -n $K8S_NAMESPACE set image deployment/$SVC $SVC=$IMAGE
+            kubectl -n $K8S_NAMESPACE rollout status deployment/$SVC --timeout=300s
+            echo "✅ $SVC deployed"
+          done
+
+  # ---------------------------------------------------------------------------
+  # 4. Summary
+  # ---------------------------------------------------------------------------
+  summary:
+    name: Pipeline Summary
+    if: always()
+    needs: [changes, build, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Result
+        run: |
+          echo "### CI/CD Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          HAS_CHANGES="${{ needs.changes.outputs.has-changes }}"
+
+          if [ "$HAS_CHANGES" != "true" ]; then
+            echo "> **No services changed — nothing to build or deploy.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "#### Build" >> $GITHUB_STEP_SUMMARY
+            echo "| | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Matrix Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### Deploy" >> $GITHUB_STEP_SUMMARY
+            echo "| | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| K3s Deployment | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Services:** $(echo '${{ needs.changes.outputs.matrix }}' | jq -r '[.include[].name] | join(", ")')" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for failures
+        if: contains(needs.*.result, 'failure')
+        run: exit 1
