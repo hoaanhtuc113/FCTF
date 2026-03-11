@@ -31,8 +31,6 @@ import {
 } from '../components/Skeleton';
 import { authService } from '../services/authService';
 import { challengeTimerService } from '../services/challengeTimerService';
-import { actionLogService } from '../services/actionLogService';
-import { actionType } from '../constants/ActionLogConstant';
 
 // Setup PDF worker - mirror legacy behavior using jsDelivr CDN (handles MIME/CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -1943,13 +1941,6 @@ function ChallengeDetailPanel({
         // Start health check in background
         startHealthCheckLoop();
 
-        // Log start challenge action
-        actionLogService.logAction(
-          actionType.START_CHALLENGE,
-          `Khởi động thử thách ${challenge.name}`,
-          challenge.id
-        );
-
         // Show success message with URL - this is the ONLY popup users see
         Swal.fire({
           html: `
@@ -2001,13 +1992,6 @@ function ChallengeDetailPanel({
 
         // Start health check in background
         startHealthCheckLoop();
-
-        // Log start challenge action
-        actionLogService.logAction(
-          actionType.START_CHALLENGE,
-          `Khởi động thử thách ${challenge.name}`,
-          challenge.id
-        );
 
         // Show deploying message
         Swal.fire({
@@ -2540,13 +2524,6 @@ function ChallengeDetailPanel({
       const data = await response.json();
 
       if (data?.data?.status === 'correct') {
-        // Log correct flag action
-        actionLogService.logAction(
-          actionType.CORRECT_FLAG,
-          `Nộp cờ đúng cho thử thách ${challenge.name}`,
-          challenge.id
-        );
-
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2599,13 +2576,6 @@ function ChallengeDetailPanel({
           }
         }
       } else if (data?.data?.status === 'incorrect') {
-        // Log incorrect flag action
-        actionLogService.logAction(
-          actionType.INCORRECT_FLAG,
-          `Nộp cờ sai cho thử thách ${challenge.name}`,
-          challenge.id
-        );
-
         const attemptsLeft = challenge.max_attempts > 0
           ? challenge.max_attempts - (challenge.attemps || 0) - 1
           : '∞';
@@ -3019,13 +2989,6 @@ function ChallengeDetailPanel({
         const response = await HintUnlocks(hintId);
 
         if (response?.success) {
-          // Log unlock hint action
-          actionLogService.logAction(
-            actionType.UNLOCK_HINT,
-            `Mở khóa trợ giúp cho thử thách ${challenge.name}`,
-            challenge.id
-          );
-
           // Fetch hint details again after unlock
           const updatedHintDetails = await FetchHintDetails(hintId);
 
