@@ -1,0 +1,5508 @@
+
+
+
+CAPSTONE PROJECT REPORT
+Report 3 - Software Requirement Specification
+
+
+
+
+
+
+
+
+- Hanoi, January 2026 -
+Table of Contents
+I. Record of Changes	3
+II. Software Requirement Specification	4
+1. Product Overview	4
+2. User Requirements	5
+2.1 User stories	5
+2.2 Use Cases	8
+3. Functional Requirements	89
+3.1 System Functional Overview	89
+3.2 Manage Feature	107
+4. Non-Functional Requirements	126
+4.1 External Interfaces	126
+4.2 Quality Attributes	127
+5. Requirement Appendix	131
+5.1 Business Rules	131
+5.2 Common Requirements	132
+5.3 Application Messages List	132
+
+I. Record of Changes
+Date
+A*
+M, D
+In charge
+Change Description
+20/01 
+A 
+NhatKA
+1. Product Overview
+20/01 
+A 
+NhatKA
+2.1, 2.2, 3.1.1
+28/01
+A 
+QuyNX
+3.1.2, 3.1.3
+28/01
+A 
+NhatKA
+3.1.3 Screen Authorization
+28/01
+A 
+NhatKA
+2.2, 3.1.1, 3.1.2, 3.3.2 ,3.4.1
+28/01
+U 
+NhatKA
+2.2, 3.1.5
+31/01
+M
+KienHT
+4. Non-functional requirements
+31/01
+M
+TrungTM
+2.2.5, 3.1.5
+
+
+
+
+
+
+
+
+
+*A - Added M - Modified D - Deleted
+
+II. Software Requirement Specification
+1. Product Overview
+Upgrade the FPT Capture The Flag System là dự án tập trung nâng cấp và khắc phục các hạn chế tồn tại trong nền tảng FCTF – hệ thống phục vụ cuộc thi thường niên FPTU Seckathon dành cho sinh viên ngành an toàn thông tin tại FPT University. Phiên bản nâng cấp hướng tới cải thiện độ ổn định, tính bảo mật, hiệu năng và khả năng vận hành của hệ thống. Hệ thống cung cấp môi trường tập trung để thí sinh tham gia giải quyết các thử thách bảo mật, nộp flag, theo dõi kết quả và trải nghiệm các kịch bản tấn công–phòng thủ mang tính thực tiễn trong một môi trường kiểm soát và an toàn.
+
+Figure 1: Context Diagram
+Hệ thống bao gồm bốn role như được mô tả trong Figure 1: Admin, Contestant, Jury và Challenge Writer. Admin là vai trò có quyền cao nhất, chịu trách nhiệm quản trị toàn bộ hệ thống, bao gồm cấu hình hệ thống, tạo, cập nhật và quản lý tài khoản người dùng, quản lý các cuộc thi và thử thách, xử lý ticket, theo dõi thống kê và bảng xếp hạng. Contestant là đối tượng tham gia trực tiếp vào các cuộc thi, có thể xem danh sách thử thách, khởi tạo hoặc dừng môi trường thi đấu, nộp cờ, mở gợi ý, gửi ticket hỗ trợ và theo dõi kết quả thi đấu thông qua bảng xếp hạng. Jury đóng vai trò giám sát nhằm đảm bảo tính công bằng và minh bạch của cuộc thi, có quyền theo dõi thông tin đội thi, người dùng, bài nộp, bảng xếp hạng và thống kê tổng hợp của hệ thống. Challenge Writer chịu trách nhiệm xây dựng, cập nhật và triển khai các thử thách, đồng thời theo dõi kết quả triển khai để đảm bảo chất lượng và tính ổn định của thử thách trong hệ thống.
+Hệ thống đã được triển khai trong ba giai đoạn trước; do đó, trong Phase 4, nhóm tập trung mô tả các yêu cầu chức năng và phi chức năng mới hoặc có sự thay đổi so với các giai đoạn trước. Những yêu cầu đã được trình bày và không có thay đổi sẽ không được đưa lại trong báo cáo này. Để có cái nhìn đầy đủ về các yêu cầu hiện có của hệ thống, người đọc có thể tham khảo báo cáo của nhóm SEP490_G152 - Fall 2025.
+2. User Requirements
+2.1 User stories
+2.1.1 Admin
+Là người chịu trách nhiệm quản trị và giám sát nền tảng, bao gồm cấu hình hệ thống, quản lý người dùng, phân bổ tài nguyên và đảm bảo hệ thống vận hành ổn định trong cuộc thi, tôi, là Admin, mong muốn hệ thống cung cấp các chức năng sau:
+US-01: Là Admin, tôi muốn hệ thống cung cấp các chức năng hỗ trợ như tìm kiếm, phân trang, lọc và sắp xếp thông tin người dùng và đội nhóm, dashboard, logs, để quản lý dữ liệu cuộc thi một cách hiệu quả, với giao diện rõ ràng, có khả năng xử lý lượng lớn dữ liệu để tôi xác định các thông tin quan trọng khi cần thiết.
+US-02: Là Admin, tôi muốn có thể nhập và xuất dữ liệu contest, danh sách thông tin ứng viên, team sang một định dạng cụ thể và trích xuất mật khẩu gốc để nhanh chóng gửi thông tin đăng nhập cho các ứng viên, tiết kiệm thời gian cho việc hỗ trợ thủ công.
+US-03: Là Admin, tôi muốn cấu hình các tham số triển khai challenge như giới hạn CPU, memory, và timeout cho workflow để kiểm soát tài nguyên và đảm bảo hạ tầng không bị quá tải.
+US-04: Là Admin, tôi muốn hệ thống của mình giải quyết triệt để các vấn đề race condition khi thí sinh gửi yêu cầu tạo môi trường, hoặc gửi quá nhiều yêu cầu nộp flag vượt quá giới hạn cho phép của mỗi đội.
+US-05: Là Admin, tôi muốn xem Dashboard với các chỉ số phân tích chuyên sâu theo từng challenge, cùng với chức năng log ghi nhận toàn bộ thao tác quan trọng, để giám sát cuộc thi và đảm bảo tính minh bạch.
+US-06: Là Admin, tôi muốn xem lịch sử deploy (instance history) của từng challenge theo team/user kể cả sau khi instance đã bị xóa hoặc hết Time to live, để phân tích hành vi bất thường và đánh giá chất lượng hạ tầng sau cuộc thi.
+US-07: Là Admin, tôi muốn hệ thống vận hành ổn định khi xử lý số lượng lớn yêu cầu start challenge cùng lúc, tránh tình trạng deadlock tài nguyên và downtime trong suốt cuộc thi.
+US-08: Là Admin, tôi muốn truy vấn và tổng hợp dữ liệu trao giải theo nhiều tiêu chí và xuất ra Excel/CSV, nhằm công bố kết quả chính xác và minh bạch mà không cần thao tác thủ công.
+2.1.3 Challenge Writer
+Là người chịu trách nhiệm thiết kế, xây dựng và đảm bảo chất lượng các thử thách an toàn thông tin trong hệ thống, tôi, là Challenge Writer, mong muốn hệ thống cung cấp các chức năng sau:
+US-09: Là Challenge Writer, tôi muốn xem, tạo, chỉnh sửa và xóa các challenge trong hệ thống, quản lý các version của challenge để có thể rollback lại bất cứ lúc nào, nhằm duy trì thư viện challenge chất lượng cao cho cuộc thi.
+US-10: Là Challenge Writer, tôi muốn preview và kiểm thử challenge trong môi trường độc lập trước khi công bố chính thức, xác nhận rằng connection string chỉ được trả về khi dịch vụ trong container đã thực sự sẵn sàng tiếp nhận request, nhằm đảm bảo chất lượng trải nghiệm của thí sinh ngay từ lần truy cập đầu tiên.
+US-11: Là Challenge Writer, tôi muốn xem lịch sử triển khai và log theo thời gian thực của challenge instance, nhằm phân tích và khắc phục các sự cố cấu hình — đặc biệt là các vấn đề liên quan đến thời gian khởi động chậm hoặc lỗi kết nối khi thí sinh truy cập.
+2.1.4 Jury
+Là bộ phận chịu trách nhiệm giám sát quá trình tổ chức và thi đấu, đảm bảo tính công bằng, minh bạch và toàn vẹn của các cuộc thi, cũng như đánh giá kết quả và hành vi của thí sinh khi cần thiết, tôi, Là Jury, mong muốn hệ thống cung cấp các chức năng và đặc tính phi chức năng sau:
+US-12: Là Jury, tôi muốn xem Dashboard với các chỉ số phân tích chi tiết theo từng challenge và bảng xếp hạng theo thời gian thực, nhằm giám sát tiến trình cuộc thi và phát hiện sớm các dấu hiệu bất thường.
+US-13: Là Jury, tôi muốn xem thông tin chi tiết của người dùng, team và lịch sử submissions – có thể lọc theo team, user và khoảng thời gian – nhằm điều tra nhanh các hành vi vi phạm hoặc gian lận trong cuộc thi.
+2.1.5 Contestant
+Là những người tham gia trực tiếp vào việc giải các thử thách trong cuộc thi và là nhóm tương tác với hệ thống thường xuyên nhất, tôi, là thí sinh, mong muốn hệ thống cung cấp các chức năng sau:
+US-14: Là Contestant, tôi muốn khởi tạo môi trường challenge và chỉ nhận connection string khi dịch vụ bên trong container đã thực sự sẵn sàng tiếp nhận kết nối để không gặp lỗi Connection Refused.
+US-15: Là Contestant, tôi muốn nộp flag và nhận kết quả xác thực ngay lập tức, không gặp sai sót do race condition khi nhiều thành viên trong đội nộp cùng lúc hoặc gửi quá nhiều yêu cầu vượt giới hạn, nhằm ghi điểm chính xác cho đội trong cuộc thi.
+US-16: Là Contestant, tôi muốn xem bảng xếp hạng với chức năng refresh dữ liệu để cập nhật dữ liệu mới nhất một cách kịp thời.
+US-17: Là Contestant, tôi muốn hệ thống có giao diện trực quan và dễ sử dụng, danh sách bài kiểm tra, các nút và thông báo cần phải rõ ràng và dễ sử dụng, để tôi không mất quá nhiều thời gian làm quen với hệ thống và có thể dành thời gian đó để giải bài kiểm tra và đạt điểm cao hơn.
+#
+Actor
+Description
+1
+Admin
+Admin chịu trách nhiệm quản trị toàn bộ hệ thống và vận hành nền tảng F-CTF. Vai trò này thực hiện cấu hình hệ thống ở mức toàn cục, quản lý tài khoản người dùng, phân quyền truy cập và giám sát tài nguyên nhằm đảm bảo hệ thống hoạt động ổn định khi tổ chức nhiều cuộc thi đồng thời. Admin có quyền tạo, chỉnh sửa hoặc xóa người dùng, can thiệp vào mọi tài nguyên trong hệ thống, xử lý ticket hỗ trợ, theo dõi bảng xếp hạng, thống kê tổng hợp và các báo cáo sau cuộc thi.
+2
+Challenge Writer
+
+
+Challenge Writer chịu trách nhiệm thiết kế, xây dựng và quản lý nội dung thử thách trong hệ thống. Vai trò này có thể tạo, chỉnh sửa và triển khai các challenge trong hệ thống. Challenge Writer theo dõi lịch sử triển khai, kiểm tra log và kết quả deploy nhằm đảm bảo chất lượng, tính chính xác và tính ổn định của các thử thách trước khi được sử dụng trong các cuộc thi.
+3
+Jury
+Jury là bộ phận giám sát cuộc thi nhằm đảm bảo tính công bằng, minh bạch và toàn vẹn của quá trình thi đấu. Jury có quyền xem thông tin người dùng, đội thi, bài nộp, bảng xếp hạng và các thống kê tổng hợp của hệ thống. Ngoài ra, Jury có thể theo dõi log, xử lý các tình huống vi phạm, phản hồi ticket khi cần thiết và hỗ trợ việc đánh giá, tổng hợp kết quả cuối cùng của cuộc thi.
+4
+Contestant
+Contestant là những người trực tiếp tham gia các cuộc thi và giải các thử thách. Họ đăng nhập bằng tài khoản được cấp, cập nhật thông tin hồ sơ và tham gia cuộc thi. Trong quá trình thi đấu, Contestants có thể xem danh sách challenge, khởi tạo hoặc dừng môi trường challenge, nộp flag để ghi nhận điểm số, theo dõi tiến trình và bảng xếp hạng. Ngoài ra, Contestant có thể gửi ticket hỗ trợ đến ban tổ chức và thực hành cá nhân hoặc theo đội tùy cấu hình.
+
+Table 1 Actor Details
+2.2 Use Cases
+Figure 2 Overall Use Case in System cung cấp cái nhìn tổng quan về Use Case Diagram của hệ thống FCTF - Version 4, thể hiện các tác nhân chính và các chức năng mà họ có thể tương tác trong hệ thống. Các chức năng xác thực cơ bản như đăng nhập và đăng xuất không được trình bày trong sơ đồ này, do đây là các use case tối thiểu có mặt trong hầu hết các hệ thống. Hệ thống bao gồm bốn vai trò chính: Admin, Challenge Writer, Contestant và Jury. Challenge Writer chịu trách nhiệm tạo, chỉnh sửa và quản lý các challenge trong hệ thống. Họ có thể thêm mới, cập nhật nội dung, cấu hình và đảm bảo chất lượng của các challenge. Admin là vai trò có quyền cao nhất trong hệ thống, bao gồm toàn bộ chức năng của Challenge Writer và Jury, đồng thời có thêm các quyền mở rộng như quản lý người dùng, quản lý team và cấu hình hệ thống. Admin chịu trách nhiệm giám sát toàn bộ hoạt động của nền tảng và đảm bảo hệ thống vận hành ổn định. Contestant là người tham gia thi đấu. Họ có thể xem danh sách challenge, khởi tạo hoặc dừng môi trường thi đấu, nộp flag, gửi ticket hỗ trợ và theo dõi bảng xếp hạng. Jury đóng vai trò giám sát và đánh giá cuộc thi. Jury có quyền theo dõi bảng xếp hạng, tiến trình thi đấu, thông tin bài nộp và phản hồi các ticket hỗ trợ nhằm đảm bảo tính công bằng và minh bạch.
+Dưới đây là chi tiết các use case cho từng role, những thay đổi và bổ sung được tô màu đánh dấu: Hình oval màu xanh lá cho những use case mới,Hình oval màu vàng cho những use case được sửa đổi tại version 4 này.
+
+Figure 2 Overall Use Case in FCTF System
+2.2.1 Challenge Writer Use Cases
+2.2.1.1 Diagram(s)
+
+Figure 3 Use Case Diagram for Challenge Writer
+2.2.1.2 Descriptions
+ID
+Use Case
+Actors
+Use Case Description
+UC-01
+View Challenges
+Challenge Writer
+Challenge Writer truy cập giao diện Challenges để xem danh sách tất cả challenges đã tạo.
+UC-02
+View Challenge Detail
+Challenge Writer
+Challenge Writer chọn một challenge cụ thể để xem thông tin chi tiết.
+UC-03
+Create Challenge
+Challenge Writer
+Challenge Writer tạo challenge mới trong Challenges
+UC-04
+Edit Challenge
+Challenge Writer
+Challenge Writer có thể chỉnh sửa challenges mà mình là owner
+UC-05
+Delete Challenge
+Challenge Writer
+Challenge Writer có thể xóa challenges mà mình là owner
+UC-06
+Preview Challenge
+Challenge Writer
+Challenge Writer có thể preview challenge để kiểm tra hiển thị và nội dung
+UC-07
+View Hints
+Challenge Writer
+Challenge Writer xem danh sách hints đã được cấu hình cho challenge
+UC-08
+Create Hint
+Challenge Writer
+Challenge Writer tạo hint cho challenge
+UC-09
+Edit Hint
+Challenge Writer
+Challenge Writer chỉnh sửa hint cho challenge
+UC-10
+Delete Hint
+Challenge Writer
+Challenge Writer xóa hint cho challenge
+UC-11
+View Deployment History
+Challenge Writer
+Challenge Writer xem deployment history của challenge
+UC-12
+Search Challenge
+Challenge Writer
+Challenge Writer tìm kiếm challenge
+UC-13
+View Version Detail
+Challenge Writer
+Challenge Writer xem thuộc tính tất cả phiên bản của challenge
+UC-14
+Rollback Version
+Challenge Writer
+Challenge Writer có thể lấy lại phiên bản cữ 
+của challenge
+
+
+Table 2 Use Case Description for Challenge Writer
+2.2.2 Admin Use Cases
+2.2.2.1 Diagram(s)
+
+Figure 5 Use Case Diagram for Admin
+2.2.2.2 Descriptions
+ID
+Use Case
+Actors
+Use Case Description
+UC-15
+Configure Contest Time
+Admin
+Admin cấu hình thời gian bắt đầu, kết thúc và thời gian đóng băng hệ thống
+UC-16
+Change Scoreboard Visibility
+Admin
+Admin cấu hình thuộc tính của tài khoản của người dùng và đội thi
+UC-17
+Configure Visibility
+Admin
+Admin cấu hình các thuộc tính như scoreboard, challenge có thể nhìn được hay bị ẩn đi
+UC-18
+Configure General Setting
+Admin
+Admin cấu hình các thuộc tính chung như tên cuộc thi, captain only,..
+UC-19
+Export Contest Data
+Admin
+Admin xuất dữ liệu về cuộc thi như thông tin thí sinh, cuộc thi…
+UC-20
+Import Contest Data
+Admin
+Admin nhập file dữ liệu về cuộc thi như thông tin thí sinh, cuộc thi...
+UC-21
+Import Account Data
+Admin
+Admin nhập file dữ liệu về thông tin thí sinh, đội thi
+UC-22
+Download Template
+Admin
+Admin tải xuống file mẫu để nhập dữ liệu người dùng
+UC-23
+Query Reward
+Admin
+Admin cho phép truy vấn giải thưởng theo nhiều tiêu chí khác nhau
+UC-24
+Filter History
+Admin
+Admin lọc các instance của cuộc thi theo thời gian, team khởi chạy instance
+UC-25
+View Instance History 
+Admin 
+Admin xem các instance có trong hệ thống 
+UC-26
+View Audit Logs
+Admin
+Admin xem các thay đổi của hệ thống  bởi jury, challenge writer 
+UC-27
+View Action Logs
+Admin
+Admin xem các log action của thí sinh
+UC-28
+View Users
+Admin
+Admin xem danh sách tất cả users trong hệ thống
+UC-29
+Create User
+Admin
+Admin tạo user mới trong hệ thống
+UC-30
+Edit User
+Admin
+Admin chỉnh sửa thông tin user bất kỳ
+UC-31
+Delete User
+Admin
+Admin xóa user khỏi hệ thống (soft delete)
+UC-32
+Search User
+Admin
+Admin tìm kiếm người dùng trong hệ thống
+UC-33
+Export User Data
+Admin
+Admin xuất file dữ liệu về người dùng trong hệ thống
+UC-34
+View Scoreboard
+Admin
+Admin xem bảng xếp hạng của contest
+UC-35
+Export Scoreboard Data
+Admin
+Admin xuất dữ liệu bảng điểm của cuộc thi
+UC-36
+View Dashboard
+Admin
+Admin xem dashboard tổng quan của contest với các metrics
+UC-37
+View Teams
+Admin
+Admin xem danh sách các team tham gia cuộc thi của mình
+UC-38
+Create Team
+Admin
+Admin tạo team mới trong contest
+UC-39
+Edit Team
+Admin
+Admin chỉnh sửa thông tin team
+UC-40
+Delete Team
+Admin
+Admin xóa team trong contest
+UC-41
+Add Team Member
+Admin
+Admin gán user vào team
+UC-42
+Search Team
+Admin
+Admin tìm kiếm team trong hệ thống
+UC-43
+View Submissions
+Admin
+Admin xem tất cả submissions trong contest của mình
+UC-44
+Delete Submission
+Admin
+Admin xóa submission của team bất kỳ
+UC-45
+Search Submission
+Admin 
+Admin lọc submission theo nhiều tiêu chí như thời gian, đội nộp bài…
+UC-46
+Change Submission Status
+Admin 
+Admin thay đổi trạng thái bài nộp
+UC-47
+View Tickets
+Admin
+Admin xem tất cả tickets được gửi từ contestants trong contest của mình
+UC-48
+Response Ticket
+Admin
+Admin phản hồi ticket
+UC-49
+Search Ticket
+Admin
+Admin tìm kiếm ticket theo điều kiện và input
+UC-50
+Delete Ticket
+Admin
+Admin xóa ticket của thí sinh
+UC-51
+View Monitoring
+Admin
+Admin xem danh sách các instance
+UC-52
+Search Instance
+Admin
+Admin lọc các instance theo các tiêu chí
+UC-53
+View Log Detail
+Admin
+Admin xem log chi tiết của từng instance
+UC-54
+View Request Log
+Admin
+Admin xem request log thí sinh gửi đến challenge instance
+UC-55
+View User Detail
+Admin
+Admin xem chi tiết thông tin người dùng hệ thống
+UC-56
+View Team Detail
+Admin
+Admin xem chi tiết thông tin team trong hệ thống
+UC-57
+View User Statistics
+Admin
+Admin xem thống kê hoạt động giải bài của thí sinh
+UC-58
+View Team Statistics
+Admin
+Admin xem thống kê hoạt động giải bài của đội thi
+UC-59
+View User Address
+Admin
+Admin xem tất cả IP address mỗi lần đăng nhập của người dùng
+UC-60
+View Team Member Address
+Admin
+Admin xem IP address của tất cả thành viên trong team
+UC-61
+Award User
+Admin
+Admin trao thưởng điểm cho thí sinh
+UC-62
+Award Team Member
+Admin
+Admin trao thưởng điểm cho thành viên trong đội thi
+UC-63
+Comment User
+Admin
+Admin nhận xét về người dùng hoặc đội thi
+UC-64
+Assign Captain
+Admin
+Admin chỉ định đội trưởng cho một team
+UC-65
+View User Solves
+Admin
+Admin xem tất cả lời giải đúng của người dùng
+UC-66
+View Team Solves
+Admin
+Admin xem tất cả lời giải đúng của team
+UC-67
+View User Fails
+Admin
+Admin xem tất cả lời giải sai của người dùng
+UC-68
+View Team Fails
+Admin
+Admin xem tất cả lời giải sai của team
+UC-69
+View User Award
+Admin
+Admin xem giải thưởng đã nhận của người dùng
+UC-70
+View Team Award
+Admin
+Admin xem giải thưởng đã nhận của team
+UC-71
+Delete Solved Submission
+Admin
+Admin xóa các submission đúng khỏi hệ thống
+UC-72
+Delete Failed Submission
+Admin
+Admin xóa các submission sai khỏi hệ thống
+UC-73
+Delete Award
+Admin
+Admin xóa award đã gửi cho user
+UC-74
+View Team Missings
+Admin
+Admin xem những challenge team chưa giải đúng
+UC-75
+View Brackets
+Admin
+Admin xem tất cả nhánh đấu trong cuộc thi
+UC-76
+Create Bracket
+Admin
+Admin tạo nhánh đấu trong cuộc thi
+UC-77
+Update Bracket
+Admin
+Admin cập nhật nhánh đấu trong cuộc thi
+UC-78
+Delete Bracket
+Admin
+Admin xóa nhánh đấu trong cuộc thi
+
+
+UC-79
+View Custom Fields
+Admin
+Admin xem trường thông tin đã thêm cho người dùng hoặc team
+UC-80
+Create Custom Field
+Admin
+Admin thêm trường thông tin cho người dùng hoặc team
+UC-81
+Update Custom Field
+Admin
+Admin cập nhật trường thông tin cho người dùng hoặc team
+UC-82
+Delete Custom Field
+Admin
+Admin xóa trường thông tin đã hêm cho người dùng hoặc team
+UC-83
+Config Sanitize
+Admin
+Admin cài đặt chế độ lọc nội dung  html trong hệ thống
+UC-84
+Pause Contest
+Admin
+Admin dừng cuộc thi
+UC-85
+Reset Contest
+Admin
+Admin reset dữ liệu của cuộc thi
+
+Table 3 Use Case Description for Admin
+2.2.3 Contestant Use Cases
+2.2.3.1 Diagram(s)
+
+Figure 6 Use Case Diagram for Contestant
+2.2.3.2 Descriptions
+
+ID
+Use Case
+Actors
+Use Case Description
+UC-01
+View Challenges
+Contestant
+Contestant xem danh sách challenges trong contest hiện tại.
+UC-02
+View Challenge Detail
+Contestant
+Contestant xem chi tiết challenge
+UC-86
+Start Challenge
+Contestant
+Contestant yêu cầu khởi tạo môi trường challenge
+UC-87
+Stop Challenge
+Contestant
+Contestant dừng instance đang chạy
+UC-88
+Submit Flag
+Contestant
+Contestant nộp flag cho challenge
+UC-89
+Unlock Hint
+Contestant
+Contestant mở hint cho challenge
+UC-90
+View Profile
+Contestant
+Contestant xem thông tin profile cá nhân
+UC-91
+Change Password
+Contestant
+Contestant thay đổi mật khẩu tài khoản
+UC-34
+View Scoreboard
+Contestant
+Contestant xem bảng xếp hạng của contest hiện tại
+UC-92
+Search Scoreboard
+Contestant
+Contestant tìm kiếm team khác theo điều kiện và input
+UC-93
+Send Ticket
+Contestant
+Contestant gửi ticket yêu cầu hỗ trợ trong contest hiện tại
+UC-47
+View Tickets
+Contestant
+Contestant xem danh sách ticket đã gửi
+UC-94
+View Ticket Detail
+Contestant
+Contestant xem chi tiết thông tin của ticket
+UC-95
+View All Instances
+Contestant
+Contestant xem danh sách tất cả challenge instances đang chạy của mình/team trong contest hiện tại.
+UC-27
+View Action Logs
+Contestant
+Contestant xem log các action của mình hoặc team
+
+  Table 4 Use Case Description for Contestant
+
+2.2.4 Jury Use Cases
+2.2.4.1 Diagram(s)
+
+Figure 7 Use Case Diagram for Jury
+2.2.4.2 Descriptions
+
+ID
+Use Case
+Actors
+Use Case Description
+UC-23
+Query Reward
+Jury
+Jury có thể lọc danh sách giải thưởng theo nhiều tiêu chí
+UC-27
+View Action Logs
+
+
+Jury
+Admin xem các log action của thí sinh
+UC-28
+View Users
+Jury
+Jury xem thông tin chi tiết của người dùng hệ thống
+UC-32
+Search User
+Jury
+Jury tìm kiếm người dùng theo các thông tin cơ bản như tên, gmail
+UC-34
+View Scoreboard
+Jury
+Jury xem bảng xếp hạng của bất kỳ contest nào để giám sát tiến trình thi đấu.
+UC-36
+View Dashboard
+Jury
+Jury xem dashboard tổng quan của các contests để giám sát quá trình thi đấu
+UC-37
+View Teams
+Jury
+Jury xem thông tin team trong các contests
+UC-42
+Search Team
+Jury
+Jury lọc những team theo nhiều tiêu chí
+UC-43
+View Submissions
+Jury
+Jury xem tất cả submissions của contestants trong các contests
+UC-45
+Search Submission
+Jury
+Jury tìm kiếm những bài nộp của thí sinh theo tên, người nộp..
+UC-47
+View Tickets
+Jury 
+Jury xem danh sách các ticket hệ thống
+UC-48
+Response Ticket
+Jury
+Jury phản hồi ticket của thí sinh
+UC-49
+Search Ticket
+Jury
+Jury tìm kiếm ticket của thí sinh 
+
+Table 5 Use Case Description for Jury
+2.2.5 Use Case Description
+2.2.5.1. UC-01: View Challenges
+UC ID and Name:
+UC-01 View Challenges
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Challenge Writer, Admin, Contestant
+Secondary Actors:
+ N/A
+Trigger:
+Người dùng chọn tab challenge trên thanh điều hướng
+Description:
+Xem danh sách tất cả các challenges trong cuộc thi
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với vai trò Challenge Writer, Admin hoặc Contestant
+Postconditions:
+POST-01: Danh sách challenge được hiển thị cho người dùng
+Normal Flow:
+Người dùng chọn menu "Challenges" trên thanh điều hướng
+Hệ thống truy vấn dữ liệu challenges trong database
+Hệ thống hiển thị danh sách challenges với thông tin tùy chỉnh dựa trên quyền truy cập của người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Lỗi kết nối database, không tải được danh sách.
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+BR-019
+
+Table 6: View Challenges Use Case Description
+2.2.5.2. UC-02: View Challenge Detail
+UC ID and Name:
+ UC-02 View Challenge Detail
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Challenge Writer, Admin, Contestant
+Secondary Actors:
+ N/A
+Trigger:
+Người dùng chọn một challenge cụ thể từ danh sách.
+Description:
+Xem thông tin chi tiết của một challenge, dữ liệu được hiển thị dựa trên vai trò của người dùng
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với vai trò Challenge Writer, Admin hoặc Contestant
+PRE-02: Có ít nhất 1 challenge trong cuộc thi
+Postconditions:
+POST-01: Thông tin chi tiết của challenge được hiển thị.
+Normal Flow:
+Từ danh sách challenges, người dùng click vào một challenge bất kỳ
+Hệ thống xác thực quyền và challenge visibility của người dùng.
+Hệ thống truy vấn dữ liệu challenge details từ database
+Hệ thống hiển thị thông tin chi tiết về challenge dựa trên vai trò của người dùng
+Alternative Flows:
+N/A
+Exceptions:
+E1: Lỗi kết nối database, không tải được dữ liệu
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+BR-013, BR-014, BR-019, BR-030, BR-032
+
+Table 7: View Challenge Detail Use Case Description
+2.2.5.3. UC-03: Create Challenge
+UC ID and Name:
+UC-03 Create Challenge
+Created By:
+TrungTM
+Date Created:
+ 01/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+ N/A
+Trigger:
+Người dùng nhấn nút "Create Challenge" trong trang quản lý Challenges
+Description:
+Cho phép người dùng tạo mới một challenge.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản Admin hoặc Challenge Writer
+Postconditions:
+POST-01: Dữ liệu challenge được lưu vào database.
+POST-02: Dữ liệu challenge mới hiển thị đúng trên giao diện người dùng.
+Normal Flow:
+Người dùng chọn mục “Challenges” trên thanh bên.
+Người dùng nhấn nút “Create” tại màn hình quản lý challenge.
+Người dùng chọn loại challenge
+Người dùng nhập thông tin chi tiết của challenge.
+Người dùng nhấn nút “Create”.
+Hệ thống hiển thị cửa sổ “Challenge Options”.
+Người dùng nhập các thông tin bổ sung về tùy chọn option cho cuộc thi
+Người dùng chọn loại deployment:
+Có triển khai (Deployment) (9.1)
+Không triển khai (Non-deployment) (9.2)
+Người dùng cấu hình môi trường chạy (Nếu có Deployment) 
+Người dùng nhấn nút “Finish”.
+Hệ thống lưu challenge vào Challenges.
+Hệ thống thiết lập trạng thái challenge (Private / Public).
+Người dùng hoàn tất quá trình tạo challenge.
+
+
+Alternative Flows:
+9.1. Deployment
+9.1.1. Hệ thống kiểm tra cấu hình Docker.
+9.1.2. Người dùng nhập cổng expose.
+9.1.3. Người dùng chọn nút “Choose File” để import môi trường challenge.
+9.1.4. Hệ thống build và kiểm tra valid container.
+9.2. Non-deployment
+9.2.1. Người dùng chọn nút “Choose File” để upload file challenge.
+9.2.2. Hệ thống tải lên và gắn file vào challenge.
+Exceptions:
+E1: Dữ liệu input không hợp lệ.
+E2: Deployment fail.
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+
+
+Table 8: Create Challenge Use Case Description
+2.2.5.4. UC-04: Edit Challenge
+UC ID and Name:
+UC-04 Edit Challenge
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút "Edit" trong trang challenge detail.
+Description:
+Cho phép người dùng cập nhật thông tin của challenge trong cuộc thi.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công.
+PRE-02: Tồn tại ít nhất một challenge trong hệ thống.
+PRE-03: Người dùng là người tạo challenge hoặc có quyền Admin.
+Postconditions:
+POST-01: Thông tin challenge được cập nhật thành công trong database.
+POST-02: Hệ thống lưu lịch sử chỉnh sửa.
+POST-03: Thông tin của challenge ở giao diện quản trị và thí sinh (nếu có) được đồng bộ.
+Normal Flow:
+Người dùng chọn một challenge trong danh sách.
+Hệ thống hiển thị màn hình chi tiết challenge với những thông tin có sẵn
+Người dùng chỉnh sửa các thông tin của challenge.
+Người dùng nhấn nút “Update”.
+Hệ thống kiểm tra validation dữ liệu.
+Hệ thống lưu thay đổi vào database.
+Hệ thống hiển thị thông báo cập nhật thành công.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Người dùng không có quyền chỉnh sửa challenge
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+BR-002, BR-009
+
+Table 9: Edit Challenge Use Case Description
+2.2.5.5. UC-05: Delete Challenge
+UC ID and Name:
+UC-05 Delete Challenge
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút xóa challenge trong trang challenge detail
+Description:
+Người dùng xóa challenge khỏi cuộc thi
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công.
+PRE-02: Tồn tại ít nhất một challenge trong hệ thống.
+PRE-03: Người dùng là người tạo challenge hoặc có quyền Admin.
+Postconditions:
+POST-01: Thông tin challenge bị xóa khỏi database
+POST-02: Thông tin challenge trên giao diện admin, contestant bị xóa đi.
+Normal Flow:
+Người dùng chọn 1 challenge từ danh sách challenge và nhấn nút xóa
+Hệ thống hiện popup xác nhận
+Người dùng chọn đồng ý
+Hệ thống xác thực vài trò người dùng và xóa dữ liệu challenge trong database
+Hệ thống hiển thị danh sách challenge sau khi xóa cho người dùng
+Alternative Flows:
+A1. Nếu người dùng muốn xóa nhiều challenge cùng 1 lúc:
+1.1. Tại danh sách challenges, người dùng tick chọn 1 hoặc nhiều challenge
+1.2. Tiếp tục bước 2 của normal flow
+A2. Người dùng xóa challenge tại trang detail
+1.1. Tại danh sách challenges, người dùng chọn 1 challenge
+1.2. Hệ thống điều hướng người dùng đến trang challenge detail
+1.3. Người dùng nhấn nút xóa
+1.4. Tiếp tục bước 2 của normal flow
+Exceptions:
+E1: Người dùng không có quyền xóa challenge
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-002
+
+Table 10: Delete Challenge Use Case Description
+2.2.5.6. UC-06: Preview Challenge
+
+UC ID and Name:
+UC-06 Preview Challenge
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút "Preview” trong trang challenge
+Description:
+Xem trước challenge để kiểm tra nội dung và trạng thái triển khai trước khi public.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với vai trò admin hoặc challenge writer
+PRE-02: Có ít nhất 1 challenge trong hệ thống
+PRE-03: Challenge có cấu hình deployment hợp lệ.
+Postconditions:
+POST-01: Instance preview được khởi tạo.
+POST-02: Người dùng truy cập được vào challenge instance
+Normal Flow:
+Người dùng chọn 1 challenge từ danh sách và nhấn nút "Preview Challenge"
+Hệ thống deploy challenge instance trên cụm
+Hệ thống hiển thị trạng thái deploying cho người dùng
+Hệ thống trả về thông tin kết nối khi sẵn sàng.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Deploy challenge thất bại
+E2: Lỗi timeout do không đủ tài nguyên.
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+BR-002
+
+Table 11: Preview Challenge Use Case Description
+2.2.5.7. UC-07: View Hints
+UC ID and Name:
+UC-07 View Hints
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn tab "Hints" trong trang chi tiết challenge.
+Description:
+Xem danh sách các gợi ý đã cấu hình cho challenge.
+Preconditions:
+PRE-01: Có ít nhất 1 challenge trong hệ thống
+PRE-02: Người dùng đã đăng nhập thành công với tài khoản admin hoặc challenge writer 
+Postconditions:
+POST-01: Danh sách hints được hiển thị cho người dùng
+Normal Flow:
+1. Người dùng chọn tab "Hints" trong trang challenge detail
+2. Hệ thống truy vấn database để lấy hints tương ứng với challenges
+3. Hệ thống hiển thị danh sách hints của challenge
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Medium
+Business Rules:
+BR-002
+
+Table 12: View Hints Use Case Description
+2.2.5.8. UC-08: Create Hint
+UC ID and Name:
+UC-08 Create Hint
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn nút create hint của challenge
+Description:
+Người dùng tạo gợi ý cho challenge để contestant có thể dùng
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin hoặc challenge writer
+PRE-02: Có ít nhất 1 challenge đã được tạo trong hệ thống
+Postconditions:
+POST-01: Danh sách hints được hiển thị cho admin
+Normal Flow:
+Người dùng chọn tab “Hint" tại trang challenge detail
+Người dùng nhấn nút “Create Hint"
+Người dùng nhập nội dung hint
+Người dùng nhấn nút xác nhận create hint
+Hệ thống lưu dữ liệu hint vào database
+Hệ thống hiển thị danh sách hint của challenge đã cập nhật
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Medium
+Business Rules:
+BR-002
+
+Table 13: Create Hint Use Case Description
+2.2.5.9. UC-09: Edit Hint
+UC ID and Name:
+UC-09 Edit Hint
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút edit hint của challenge
+Description:
+Người dùng chỉnh sửa gợi ý của challenge đã có
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin hoặc challenge writer
+PRE-02: Có ít nhất 1 challenge trong hệ thống, challenge có ít nhất 1 hint tồn tại
+Postconditions:
+POST-01: Thông tin hint được cập nhật trong database
+POST-02: Danh sách hints cập nhật mới được hiển thị cho người dùng
+Normal Flow:
+Người dùng nhấn “Edit Hint" bên cạnh hint cần sửa
+Hệ thống truy vấn database và hiển thị thông tin hint đã có sẵn
+Người dùng nhập thông tin hint mới
+Người dùng nhấn nút xác nhận
+Hệ thống lưu dữ liệu hint vào database
+Hệ thống hiển thị danh sách hint của challenge đã cập nhật
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-002
+
+Table 14: Edit Hint Use Case Description
+2.2.5.10. UC-10: Delete Hint
+UC ID and Name:
+UC-10 Delete Hint
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn tab "Deployment History".
+Description:
+Xem lịch sử các lần build và deploy của challenge để debug.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin hoặc challenge writer
+PRE-02: Có ít nhất 1 hint tương ứng với challenge cần sửa
+Postconditions:
+POST-01: Hint được xóa trong database
+Normal Flow:
+Người dùng nhấn “Delete Hint" bên cạnh hint cần xóa
+Hệ thống hiển thị popup cảnh báo xác nhận xóa hint cho người dùng
+Người dùng nhấn nút xác nhận xóa hint
+Hệ thống xóa dữ liệu hint trong database
+Hệ thống hiển thị danh sách hint của challenge đã cập nhật
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-002
+
+Table 15: Delete Hint Use Case Description
+2.2.5.11. UC-11: View Deployment History
+UC ID and Name:
+UC-11 View Deployment History
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn tab "History" của challenge cần xem
+Description:
+Người dùng xem lịch sử các lần build và deploy của challenge
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin hoặc challenge writer
+PRE-02: Challenge thuộc loại deploy được
+Postconditions:
+POST-01: Dữ liệu lịch sử deploy của challenge được hiển thị cho người dùng
+Normal Flow:
+Người dùng chọn nút "History" bên cạnh challenge cần xem
+Hệ thống truy vấn lịch sử deploy của challenge trong database
+Hệ thống hiển thị danh sách lịch sử deployment của challenge
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 16: View Deployment History Use Case Description
+2.2.5.12. UC-12: Search Challenge
+UC ID and Name:
+UC-12 Search Challenge
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng ấn nút Search ở trang danh sách challenge
+Description:
+Tìm kiếm challenge trong hệ thống theo keyword và điều kiện
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản có quyền truy cập vào challenges
+Postconditions:
+POST-01: Kết quả tìm kiếm của challenge được hiển thị cho người dùng
+Normal Flow:
+Người dùng nhập từ khóa và chọn điều kiện cần thiết
+Người dùng nhấn nút Search.
+Hệ thống truy vấn database theo từ khóa và điều kiện
+Hệ thống hiển thị kết quả tìm kiếm cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+
+
+Table 17: Search Challenge Use Case Description
+2.2.5.13. UC-13: View Version Detail
+UC ID and Name:
+UC-13 View Version Detail
+Created By:
+NhatKA
+Date Created:
+01/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng ấn tab Version ở trang detail challenge và chọn 1 version cụ thể từ danh sách.
+Description:
+Người dùng xem chi tiết version cũ của 1 challenge
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin hoặc challenge writer
+PRE-02: Tồn tại ít nhất 1 challenge trong hệ thống
+Postconditions:
+POST-01: Thông tin chi tiết về version detail được hiển thị cho người dùng
+Normal Flow:
+Người dùng chọn 1 version từ danh sách version của challenge
+Người dùng nhấn nút View Detail
+Hệ thống truy vấn database thông tin về version trong database
+Hệ thống hiển thị thông tin chi tiết về version cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 18: View Version Detail Use Case Description
+2.2.5.14. UC-14: Rollback Version
+UC ID and Name:
+UC-14 Rollback Version
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Challenge Writer, Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút Rollback version ở trang detail version
+Description:
+Người dùng chuyển challenge về 1 phiên bản cũ bất kỳ
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản Admin hoặc challenge writer.
+PRE-02: Có ít nhất 1 challenge trong hệ thống và có ít nhất 1 version cũ của challenge.
+Postconditions:
+POST-01: Thông tin challenge được thay đổi trên giao diện của người dùng
+POST-02: Các thay đổi được lưu log
+Normal Flow:
+User chọn 1 version của challenge từ danh sách
+Hệ thống hiển thị các thông tin chi tiết của version
+Người dùng nhấn nút Rollback Version
+Hệ thống xử lý và lưu dữ liệu vào database
+Hệ thống hiển thị thông báo trạng thái thành công cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 19: Rollback Version Use Case Description
+2.2.5.15. UC-15: Configure Contest Time
+UC ID and Name:
+UC-15 Configure Contest Time
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn nút Config Start and End Time tại trang quản lý contestant
+Description:
+Admin cấu hình thời gian bắt đầu, kết thúc, freeze time cho cuộc thi
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản Admin
+Postconditions:
+POST-01: Thông tin thời gian được lưu trong database
+POST-02: Thí sinh thấy được thay đổi và có thể tham gia contest
+Normal Flow:
+Admin chọn tab Config Start and End time
+Admin chọn tab Start Time, End Time, Freeze Time và điền thông tin cần thiết và nhấn nút Update
+Admin điền thông tin cần thiết
+Admin nhấn nút Update
+Hệ thống cập nhật dữ liệu trong database
+Hệ thống hiển thị thông tin mới cập nhật cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+BR-008
+
+Table 20: Configure Contest Time Use Case Description
+2.2.5.16. UC-16: Change Scoreboard Visibility
+UC ID and Name:
+UC-16 Change Scoreboard Visibility
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn user hoặc team trong trang quản lý scoreboard
+Description:
+Admin cấu hình cài đặt visibility cho team hoặc user cụ thể trong cuộc thi, team hoặc user bị ẩn hoặc hiện trên scoreboard của thí sinh khác
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản Admin
+Postconditions:
+POST-01: Trạng thái mới được cập nhật trong danh sách
+POST-02: Thông tin team/user được ẩn hoặc hiển thị trong scoreboard của thí sinh
+Normal Flow:
+Người dùng chọn tab Scoreboard từ menu trong trang quản trị
+Người dùng chọn team hoặc user từ danh sách
+Người dùng nhấn nút change visibility
+Hệ thống hiển thị form chọn dữ liệu
+Người dùng chọn option visibility từ dropdown
+Người dùng nhấn nút submit
+Hệ thống xử lý và cập nhật dữ liệu trong database
+Hệ thống hiển thị thông tin mới cập nhật cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+BR-013, BR-014
+
+Table 21: Change Scoreboard Visibility Use Case Description
+2.2.5.17. UC-17: Configure Visibility
+UC ID and Name:
+UC-17 Configure Visibility
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn nút Config Visibility tại trang quản lý
+Description:
+Admin cấu hình cài đặt về visibility của challenge, score,... trong cuộc thi.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản Admin
+Postconditions:
+POST-01: Dữ liệu mới được cập nhật trong database
+POST-02: Hệ thống hiển thị thông tin mới người dùng
+Normal Flow:
+Admin chọn tab Config Visibility 
+Admin điền thông tin cần thiết
+Admin nhấn nút Update
+Hệ thống cập nhật dữ liệu trong database
+Hệ thống hiển thị thông tin mới cập nhật cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+BR-025, BR-026, BR-030
+
+Table 22: Configure Visibility Use Case Description
+2.2.5.18. UC-18: Configure General Setting
+UC ID and Name:
+UC-18 Configure General Setting
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn nút Config General Setting tại trang quản lý
+Description:
+Admin cấu hình cài đặt chung cho cuộc thi như tên, description, captain only
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản Admin
+Postconditions:
+POST-01: Dữ liệu mới được cập nhật trong database
+POST-02: Hệ thống hiển thị thông tin mới người dùng
+Normal Flow:
+Admin chọn tab Config General Setting
+Admin điền thông tin cần thiết
+Admin nhấn nút Update
+Hệ thống cập nhật dữ liệu trong database
+Hệ thống hiển thị thông tin mới cập nhật cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+BR-001
+
+Table 23: Configure General Setting Use Case Description
+2.2.5.19. UC-19: Export Contest Data
+UC ID and Name:
+UC-19 Export Contest Data
+Created By:
+NhatKA
+Date Created:
+
+
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin nhấn nút Export Data tại trang config
+Description:
+Xuất dữ liệu cuộc thi ra file để lưu trữ hoặc phân phối.
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Cửa sổ chọn nơi lưu trữ file hiển thị trên máy tính admin
+Normal Flow:
+Admin truy cập tab Import & Export tại trang config
+Admin chọn tab Export
+Admin nhấn nút Export
+Hệ thống truy vấn và tổng hợp dữ liệu
+Hệ thống tạo file và trả về cho Admin tải xuống
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 24: Export Contest Data Use Case Description
+2.2.5.20. UC-20: Import Contest Data
+UC ID and Name:
+UC-20 Import Contest Data
+Created By:
+NhatKA
+Date Created:
+
+
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin nhấn nút Import Data tại trang config
+Description:
+Nhập dữ liệu cuộc thi bằng cách tải file lên hệ thống
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Thông tin trong file được lưu trữ thành công trong database
+Normal Flow:
+Admin truy cập tab Import & Export tại trang config
+Admin chọn tab Import
+Admin chọn nút upload file và chọn file cần tải lên
+Admin nhấn nút Import
+Hệ thống xử lý dữ liệu và lưu dữ liệu vào database
+Hệ thống hiển thị thông báo thành công cho người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Thông tin trong file không đúng định dạng phù hợp
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 25: Import Contest Data Use Case Description
+2.2.5.21. UC-21: Import Account Data
+UC ID and Name:
+UC-21 Import Account Data
+Created By:
+NhatKA
+Date Created:
+
+
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin nhấn nút Import Data tại trang tab import csv trong trang config
+Description:
+Nhập dữ liệu tài khoản user và team bằng cách tải file lên hệ thống
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Thông tin trong file được lưu trữ thành công trong database
+Normal Flow:
+Admin truy cập tab Import & Export tại trang config
+Admin chọn tab Import CSV
+Admin chọn nút upload file và chọn file cần tải lên
+Admin nhấn nút Import
+Hệ thống xử lý dữ liệu và lưu dữ liệu vào database
+Hệ thống hiển thị thông báo thành công cho người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Thông tin trong file không đúng định dạng phù hợp
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 26: Download Template Use Case Description
+2.2.5.22. UC-22: Download Template
+UC ID and Name:
+UC-22 Download Template
+Created By:
+NhatKA
+Date Created:
+
+
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn template cần tải trong tab Export CSV trong trang config
+Description:
+Người dùng muốn tải xuống file csv mẫu để phục vụ mục đích nhập dữ liệu cho cuộc thi qua file 
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Cửa sổ chọn nơi lưu trữ file hiển thị trên máy tính admin
+Normal Flow:
+Admin truy cập tab Import & Export tại trang config
+Admin chọn tab Export CSV
+Admin chọn template
+Hệ thống truy vấn và tổng hợp dữ liệu
+Hệ thống tạo file và trả về cho Admin tải xuống
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 27: Download Template Use Case Description
+2.2.5.23. UC-23: Query Reward
+UC ID and Name:
+UC-23 Query Reward
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút Xem kết quả trong màn hình dynamic reward query 
+Description:
+Truy vấn và tổng hợp dữ liệu giải thưởng theo nhiều tiêu chí khác nhau
+Preconditions:
+PRE-01: User đã đăng nhập thành công bằng tài khoản Admin và Jury
+Postconditions:
+POST-01: Dữ liệu giải thưởng được hiển thị theo tiêu chí đã chọn
+Normal Flow:
+Admin/Jury truy cập trang quản lý cuộc thi
+Admin/Jury chọn mục dynamic reward query
+Admin/Jury chọn template và điền thông tin truy vấn
+Admin/Jury nhấn nút Xem kết quả
+Hệ thống truy vấn dữ liệu và hiển thị danh sách giải thưởng theo tiêu chí
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 28: Query Reward Use Case Description
+2.2.5.24. UC-24: Filter History
+UC ID and Name:
+UC-24 Filter History
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút Filter History trong trang View Instance History
+Description:
+Lọc history của instance theo điều kiện để tìm kiếm nhanh
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Dữ liệu truy vấn được hiển thị cho người dùng
+Normal Flow:
+Người dùng truy cập trang View Instance History
+Người dùng chọn option các filter
+Người dùng nhấn nút Filter
+Hệ thống xử lý request và truy vấn database
+Hệ thống hiển thị dữ liệu truy vấn cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 29: Filter History Use Case Description
+2.2.5.25. UC-25: View Instance History
+UC ID and Name:
+UC-25 View Instance History
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn tab View Instance History trong trang quản trị
+Description:
+Xem lịch sử tất cả các instance challenge đã khởi chạy trong cuộc thi, bao gồm cả những instance đã bị xóa hoặc hết thời gian tồn tại (TTL).
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Danh sách lịch sử instance được hiển thị cho Admin
+Normal Flow:
+Người dùng chọn tab View Instance History từ thanh menu  
+Hệ thống truy vấn dữ liệu từ database
+Hệ thống hiển thị danh sách instance cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 30: View Instance History Use Case Description
+2.2.5.26. UC-26: View Audit Logs
+UC ID and Name:
+UC-26 View Audit Logs
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin chọn menu Audit Logs từ trang quản lý hệ thống
+Description:
+Xem toàn bộ nhật ký thao tác của các người dùng có vai trò Jury và Challenge Writer và Admin trong hệ thống
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản Admin
+Postconditions:
+POST-01: Danh sách audit log được hiển thị cho Admin
+Normal Flow:
+Admin chọn menu Audit Logs từ trang quản lý hệ thống
+Hệ thống truy vấn dữ liệu Log thao tác cài đặt hệ thống
+Hệ thống hiển thị danh sách audit log cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+
+
+Table 31: View Audit Logs Use Case Description
+2.2.5.27. UC-27: View Action Logs
+UC ID and Name:
+UC-27 View Action Logs
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury, Contestant
+Secondary Actors:
+N/A
+Trigger:
+Thí sinh chọn menu "Action Logs" từ thanh điều hướng
+Description:
+Xem danh sách tất cả log hành động của thí sinh
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant, jury hoặc admin
+Postconditions:
+POST-01: Danh sách logs được hiển thị cho người dùng
+Normal Flow:
+Thí sinh bấm nút Action logs trên thanh điều hướng
+Hệ thống truy vấn dữ liệu về các log actions của thí sinh
+Hệ thống hiển thị dữ liệu cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+N/A
+
+Table 32: View Action Logs Use Case Description
+2.2.5.28. UC-28: View Users
+UC ID and Name:
+UC-28 View Users
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn tab Users từ thanh điều hướng
+Description:
+Xem danh sách toàn bộ người dùng trong hệ thống
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin, jury
+Postconditions:
+POST-01: Danh sách user được hiển thị cho người dùng
+Normal Flow:
+Admin chọn menu Users trên thanh điều hướng
+Hệ thống truy vấn dữ liệu user trong hệ thống
+Hệ thống hiển thị danh sách user cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 33: View Users Use Case Description
+2.2.5.29. UC-29: Create User
+UC ID and Name:
+UC-29 Create User
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin nhấn "Create User" tại trang danh sách user
+Description:
+Tạo tài khoản người dùng mới trong hệ thống
+Preconditions:
+PRE-01: Người dùng phải đăng nhập với vai trò Admin hoặc Admin
+Postconditions:
+POST-01: Người dùng được thêm thành công vào hệ thống và có thể đăng nhập bằng tài khoản vừa tạo
+POST-02: Thông tin được lưu trong cơ sở dữ liệu và hiển thị trong danh sách User của contest.
+Normal Flow:
+Admin nhấn nút Create User.
+Hệ thống hiển thị form nhập thông tin 
+Admin nhập thông tin của user
+Admin nhấn nút Save
+Hệ thống validate thông tin và lưu vào database
+Hệ thống hiển thị danh sách user mới đã cập nhật
+Alternative Flows:
+AF-01: Import Contestants from CSV Template
+1.1 Người dùng truy cập Admin Config / Backup page.
+2.1 Người dùng chọn tab "Import CSV".
+3.1 Người dùng tải xuống CSV template phù hợp:
+"Users + Teams Template" - để import users và tạo/gán teams đồng thời
+"Users Template" - để chỉ import users không có team
+4.1 Người dùng điền thông tin vào file CSV template
+5.1 Người dùng chọn "CSV Type" là "Users" hoặc "Users + Teams" tùy template sử dụng.
+6.1 Người dùng tải lên file CSV đã điền thông tin.
+7.1 Người dùng nhấn nút "Import CSV".
+8.1 Hệ thống xử lý file CSV và lưu dữ liệu vào database
+9.1 Hệ thống hiển thị kết quả import
+10.1 Hệ thống cập nhật danh sách contestants trong cuộc thi.
+Exceptions:
+E1: Email đã tồn tại
+E2: Username đã tồn tại
+E3: File CSV có định dạng không đúng template, hệ thống hiển thị thông báo lỗi
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+BR-027, BR-029
+
+Table 34: Create User Use Case Description
+2.2.5.30. UC-30: Edit User
+UC ID and Name:
+UC-30 Edit User
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin chọn user và nhấn nút edit.
+Description:
+Admin chỉnh sửa thông tin của user bất kỳ trong hệ thống
+Preconditions:
+PRE-01: Người dùng đăng nhập với tài khoản admin
+Postconditions:
+POST-01: Thông tin user mới được cập nhật trong database
+Normal Flow:
+Admin chọn 1 user bất kỳ từ danh sách user
+Admin nhấn nút edit
+Hệ thống truy vấn dữ liệu về user trong database
+Hệ thống hiển thị form nhập dữ liệu chứa dữ liệu về user đó sẵn
+Admin thay đổi thông tin user
+Admin nhấn nút Save
+Hệ thống validate và cập nhật dữ liệu trong database
+Hệ thống hiển thị dữ liệu mới cập nhật của user
+Alternative Flows:
+N/A
+Exceptions:
+E1: Email đã tồn tại, edit không thành công
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+BR-028, BR-029
+
+Table 35: Edit User Use Case Description
+2.2.5.31. UC-31: Delete User
+UC ID and Name:
+UC-31 Delete User
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin chọn user và nhấn nút delete
+Description:
+Xóa người dùng trong hệ thống
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+PRE-02: Có ít nhất 1 tài khoản user trong hệ thống
+Postconditions:
+POST-01: Thông tin user được xóa khỏi database
+Normal Flow:
+Admin chọn 1 hoặc nhiều user trong danh sách
+Admin nhấn nút Delete
+Hệ thống hiển thị yêu cầu xác nhận
+Admin nhấn xác nhận xóa
+Hệ thống xóa dữ liệu trong database
+Hệ thống hiển thị danh sách user mới cập nhật
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+BR-028
+
+Table 36: Delete User Use Case Description
+2.2.5.32. UC-32: Search User
+UC ID and Name:
+UC-32 Search User
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút search tại danh sách user
+Description:
+Người dùng tìm kiếm user trên toàn hệ thống.
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin hoặc jury
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách user tìm thấy
+Normal Flow:
+Người dùng nhập từ khóa và filter option cần tìm
+Người dùng nhấn nút search
+Hệ thống truy vấn dữ liệu theo điều kiện
+Hệ thống hiển thị danh sách user tìm thấy phù hợp điều kiện
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 37: Search User Use Case Description
+2.2.5.33. UC-33: Export User Data
+UC ID and Name:
+UC-33 Export User Data
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Nhấn Export tại trang Global Users.
+Description:
+Xuất dữ liệu người dùng toàn hệ thống.
+Preconditions:
+PRE-01: Người dùng đăng nhập với tài khoản admin
+Postconditions:
+POST-01: Hiển thị pop-up chọn folder để tải file CSV/Excel về máy
+Normal Flow:
+Admin nhấn nút Export tại trang danh sách user
+Hệ thống truy vấn dữ liệu user và tạo file excel kết quả
+Hệ thống trả về file cho người dùng
+Alternative Flows:
+1.1 Admin chọn tùy chọn reset password
+1.2 Tiếp tục bước 2 của normal flow
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+BR-007
+
+Table 38: Export User Data Use Case Description
+
+2.2.5.34. UC-34: View Scoreboard
+UC ID and Name:
+UC-34 View Scoreboard
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Contestant, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn nút "Scoreboard" trên thanh điều hướng
+Description:
+Xem bảng xếp hạng của contest.
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin hoặc jury hoặc contestant
+Postconditions:
+POST-01: Dữ liệu thống kê về contest được hiển thị 
+Normal Flow:
+Người dùng chọn option xem scoreboard từ thanh điều hướng
+Hệ thống kiểm tra quyền và truy vấn database thông tin scoreboard
+Hệ thống hiển thị scoreboard với dữ liệu phù hợp với quyền của người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+BR-008, BR-025, BR-026, BR-033
+
+Table 39: View Scoreboard Use Case Description
+2.2.5.35. UC-35: Export Scoreboard Data
+UC ID and Name:
+UC-35 Export Scoreboard Data
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn "Export Data" trong trang quản lý contest
+Description:
+Xuất dữ liệu scoreboard ra file Excel/CSV
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Máy tính admin hiện popup chọn folder để tải file xuống
+Normal Flow:
+Người dùng truy cập trang scoreboard trang quản lý contest 
+Người dùng nhấn nút export tại trang scoreboard
+Hệ thống truy vấn dữ liệu và tạo file
+Hệ thống trả về file cho phép người dùng tải xuống
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 40: Export Scoreboard Data Use Case Description
+2.2.5.36. UC-36: View Dashboard
+UC ID and Name:
+UC-36 View Dashboard
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng truy cập trang quản lý contest
+Description:
+Xem tổng quan trạng thái contest
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin hoặc jury
+Postconditions:
+POST-01: Dữ liệu thống kê về contest được hiển thị 
+Normal Flow:
+Người dùng chọn 1 contest để truy cập từ danh sách
+Hệ thống truy vấn dữ liệu từ database
+Hệ thống hiện biểu đồ thống kê của contest
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+N/A
+
+Table 41: View Dashboard Use Case Description
+2.2.5.37. UC-37: View Teams
+UC ID and Name:
+UC-37 View Teams
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn option "Teams" trên thanh điều hướng trang quản lý
+Description:
+Xem danh sách các team trong cuộc thi
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công vào trong hệ thống với tài khoản admin hoặc jury
+Postconditions:
+POST-01: Danh sách team được hiển thị cho người dùng
+Normal Flow:
+Người dùng nhấn tùy chọn Teams từ thanh điều hướng
+Hệ thống truy vấn database danh sách team trong cuộc thi
+Hệ thống hiển thị danh sách team cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 42: View Teams Use Case Description
+2.2.5.38. UC-38: Create Team
+UC ID and Name:
+UC-38 Create Team
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Nhấn "Create Team" hoặc nhấn nút Import qua file CSV
+Description:
+Tạo team mới trong contest
+Preconditions:
+PRE-01: Contest ở chế độ Team Mode.
+PRE-02: Người dùng đã đăng nhập thành công với tài khoản Admin
+PRE-03: (Nếu CSV import) File CSV đã được chuẩn bị đúng định dạng với Team column
+Postconditions:
+POST-01: Team mới được tạo trong contest và được lưu dữ liệu trong database
+POST-02: (Nếu tạo qua CSV) Users được gán vào team tự động
+Normal Flow:
+Người dùng truy cập vào menu "Teams" trong trang quản lý
+Người dùng nhấn nút "Create Team"
+Hệ thống hiển thị giao diện form điền thông tin cho team
+Người dùng nhập thông tin của team
+Người dùng nhấn nút xác nhận tạo team
+Hệ thống kiểm tra thông tin và lưu dữ liệu vào database
+Hệ thống điều hướng người dùng đến trang team detail của team mới được tạo
+Alternative Flows:
+AF-01: Create Team by importing file
+1.1 Người dùng tải file csv chứa thông tin cần thiết lên hệ thống
+2.1 Người dùng chọn loại template là Team
+3.1 Người dùng nhấn nút Import
+4.1 Hệ thống xác thực dữ liệu, nếu team chưa tồn tại sẽ tạo dữ liệu random tương ứng cho team, nếu team đã tồn tại thì bỏ qua, và lưu dữ liệu vào database
+5.1 Hệ thống hiển thị kết quả import (số lượng thành công, danh sách lỗi nếu có).
+6.1 Hệ thống cập nhật danh sách teams trong cuộc thi.
+
+
+Exceptions:
+E1: File có định dạng không phù hợp
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+BR-005, BR-027, BR-029
+
+Table 43: Create Team Use Case Description
+2.2.5.39. UC-39: Edit Team
+UC ID and Name:
+UC-39 Edit Team
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn 1 team và nhấn nút "Edit Team"
+Description:
+Chỉnh sửa thông tin team trong contest
+Preconditions:
+PRE-01: Contest ở chế độ team mode
+PRE-02: Có ít nhất 1 team trong contest
+Postconditions:
+POST-01: Thông tin team được được cập nhật trong contest và dữ liệu được lưu trong database
+Normal Flow:
+Người dùng truy cập chọn 1 team trong trang quản lý
+Người dùng nhấn nút "Edit"
+Hệ thống hiển thị giao diện form điền thông tin cũ của team 
+Người dùng chỉnh sửa thông tin của team
+Người dùng nhấn nút xác nhận
+Hệ thống kiểm tra thông tin và lưu dữ liệu vào database
+Hệ thống hiển thị thông tin của team mới được cập nhật
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-029
+
+Table 44: Edit Team Use Case Description
+2.2.5.40. UC-40: Delete Team
+UC ID and Name:
+UC-40 Delete Team
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn 1 team và nhấn nút "Delete Team"
+Description:
+Xóa team khỏi contest.
+Preconditions:
+PRE-01: Contest ở chế độ team mode
+PRE-02: Có ít nhất 1 team trong contest
+Postconditions:
+POST-01: Thông tin team được xóa trong database
+POST-02: Các thành viên team bị xóa không truy cập được vào team nữa
+Normal Flow:
+Người dùng truy cập chọn 1 team trong trang quản lý
+Người dùng nhấn nút "Delete"
+Hệ thống hiển thị giao diện cảnh báo xác nhận delete
+Người dùng nhấn nút xác nhận
+Hệ thống cập nhật dữ liệu vào database
+Hệ thống hiển thị danh sách team sau khi đã cập nhật cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 45: Delete Team Use Case Description
+2.2.5.41. UC-41: Add Team Member
+UC ID and Name:
+UC-41 Add Team Member
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn nút add team member tại trang detail team
+Description:
+Admin phân member vào các team trong contest
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công vào hệ thống với tài khoản Admin
+PRE-02: Có ít nhất 1 team và 1 user tồn tại trong contest
+Postconditions:
+POST-01: Thông tin team trong contest được cập nhật trong database
+POST-02: Người dùng có thể truy cập và thấy thông tin của team mình được add vào.
+Normal Flow:
+Người dùng chọn 1 team trong contest
+Người dùng nhấn nút add team member trong giao diện team detail
+Hệ thống hiển thị giao diện cho phép người dùng search user để thêm vào team
+Người dùng chọn 1 user từ danh sách user hiển thị
+Người dùng nhấn nút xác nhận add
+Hệ thống cập nhật dữ liệu vào database
+Hệ thống hiển thị thông tin team sau khi cập nhật
+Alternative Flows:
+A.1. User đã thuộc team khác
+5.1 Hệ thống hiển thị cảnh báo remove người dùng khỏi team cũ và add vào team mới
+5.2 Tiếp tục bước 6 của normal flow
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+BR-005
+
+Table 46: Add Team Member Use Case Description
+2.2.5.42. UC-42: Search Team
+UC ID and Name:
+UC-42 Search Team
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin nhấn nút search tại danh sách user
+Description:
+Admin tìm kiếm user trên toàn hệ thống.
+Preconditions:
+PRE-01: Người dùng đăng nhập với tài khoản admin
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách user tìm thấy
+Normal Flow:
+Admin nhập từ khóa user cần tìm (tên/email)
+Admin nhấn nút search
+Hệ thống truy vấn dữ liệu dựa theo keyword được nhập vào
+Hệ thống hiển thị danh sách user tìm thấy phù hợp điều kiện
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 47: Search Team Use Case Description
+2.2.5.43. UC-43: View Submissions
+UC ID and Name:
+UC-43 View Submissions
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút menu "Submissions" từ thanh điều hướng
+Description:
+Xem danh sách các lần nộp flag của thí sinh trong contest.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công bằng tài khoản admin hoặc jury
+Postconditions:
+POST-01: Danh sách submission của các thí sinh được hiển thị
+Normal Flow:
+Người dùng chọn nút Submission từ thanh điều hướng
+Hệ thống truy vấn database dữ liệu submission tương ứng với cuộc thi
+Hệ thống hiển thị danh sách submission của cuộc thi
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 48: View Submissions Use Case Description
+2.2.5.44. UC-44: Delete Submission
+UC ID and Name:
+UC-44 Delete Submission
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút xóa submission bên cạnh submission cần xóa
+Description:
+Xóa bài nộp của thí sinh trong trường hợp gian lận hoặc lỗi hệ thống.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập bằng tài khoản admin vào contest
+PRE-02: Có ít nhất 1 submission của thí sinh đã nộp
+Postconditions:
+POST-01: Dữ liệu trong database được cập nhật
+POST-02: Scoreboard được cập nhật mới
+POST-03: Điểm của thí sinh được tính toán lại
+Normal Flow:
+Người dùng chọn 1 hoặc nhiều submission cần xóa
+Người dùng nhấn nút xóa
+Hệ thống hiển thị cảnh báo xác nhận xóa lên giao diện
+Người dùng nhấn xác nhận xóa
+Hệ thống xóa submission khỏi database, tính toán lại điểm số
+Hệ thống hiển thị danh sách submission mới sau khi cập nhật
+
+
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 49: Delete Submission Use Case Description
+2.2.5.45. UC-45: Search Submission
+UC ID and Name:
+UC-45 Search Submission
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng ấn nút Search ở trang danh sách submission 
+Description:
+Tìm kiếm submission trong contest theo tên, id với keyword
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin hoặc jury
+Postconditions:
+POST-01: Kết quả tìm kiếm của submission được hiển thị cho người dùng
+Normal Flow:
+Người dùng chọn filter và category cần tìm từ khóa tương ứng với
+Người dùng nhập từ khóa vào ô tìm kiếm.
+Người dùng nhấn Search & Filter
+Hệ thống tìm kiếm trong database theo điều kiện
+Hệ thống hiển thị kết quả tìm kiếm cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+
+
+Table 50: Search Submission Use Case Description
+2.2.5.46. UC-46: Change Submission Status
+UC ID and Name:
+UC-46 Change Submission Status
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin chọn một submission và nhấn nút Mark as Correct/Incorrect
+Description:
+Thay đổi trạng thái của bài nộp (từ sai thành đúng hoặc ngược lại) trong trường hợp cần can thiệp thủ công do lỗi hệ thống hoặc kháng nghị hợp lệ.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập bằng tài khoản admin vào contest
+PRE-02: Có ít nhất 1 submission của thí sinh đã nộp
+Postconditions:
+POST-01: Trạng thái submission được thay đổi trong database
+POST-02: Scoreboard được tính toán và cập nhật lại
+Normal Flow:
+Admin chọn submission cần thay đổi trạng thái
+Admin nhấn nút chuyển trạng thái
+Người dùng xác nhận thay đổi
+Hệ thống cập nhật trạng thái submission trong database
+Hệ thống tính toán lại điểm số và cập nhật scoreboard
+Hệ thống hiển thị thông báo thay đổi thành công
+
+
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 51: Change Submission Status Use Case Description
+2.2.5.47. UC-47: View Tickets
+UC ID and Name:
+UC-47 View tickets
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Contestant, Jury
+
+
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút "Tickets" trên thanh điều hướng
+Description:
+Admin và Jury xem danh sách yêu cầu hỗ trợ trong contest, thí sinh xem danh sách ticket mình đã gửi
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công vào trong hệ thống
+Postconditions:
+POST-01: Danh sách ticket hiển thị cho người dùng
+Normal Flow:
+Người dùng nhấn nút Tickets từ thanh điều hướng
+Hệ thống truy vấn database
+Hệ thống hiển thị danh sách ticket phù hợp với vai trò của người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 52: View Tickets Use Case Description
+2.2.5.48. UC-48: Response Ticket
+UC ID and Name:
+UC-48 Response ticket
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury
+Secondary Actors:
+N/A
+Trigger:
+Người dùng nhấn nút response từ trang ticket detail
+Description:
+Trả lời thắc mắc hỗ trợ của thí sinh.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản Admin hoặc jury
+PRE-02: Có ít nhất 1 ticket ở trạng thái Open.
+Postconditions:
+POST-01: Người dùng nhận được phản hồi ticket
+POST-02: Dữ liệu được lưu vào database
+POST-03: Trạng thái ticket chuyển sang closed
+Normal Flow:
+Người dùng chọn mở chi tiết ticket
+Người dùng nhập nội dung trả lời vào ô input
+Người dùng nhấn nút "Submit Response"
+Hệ thống chuyển trạng thái ticket sang closed, lưu dữ liệu vào database
+Hệ thống hiển thị thông tin ticket sau khi response cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 53: Response Ticket Use Case Description
+2.2.5.49. UC-49: Search Ticket
+UC ID and Name:
+UC-49 Search Ticket
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury, Contestant
+Secondary Actors:
+N/A
+Trigger:
+Người dùng ấn nút Search ở trang danh sách ticket
+Description:
+Tìm kiếm ticket trong contest theo điều kiện
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công
+Postconditions:
+POST-01: Kết quả tìm kiếm được hiển thị cho người dùng
+Normal Flow:
+Người dùng nhập từ khóa vào ô tìm kiếm.
+Người dùng nhấn nút Search.
+Hệ thống tìm kiếm trong database theo từ khóa.
+Hệ thống hiển thị kết quả tìm kiếm cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+
+
+Table 54: Search Ticket Use Case Description
+2.2.5.50. UC-50: Delete Ticket
+UC ID and Name:
+UC-50 Delete Ticket
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin, Jury, Contestant
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn ticket và nhấn nút delete 
+Description:
+Xóa ticket trong contest
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin hoặc contestant, jury
+PRE-02: Có ít nhất 1 ticket đã được gửi
+Postconditions:
+POST-01: Ticket bị xóa đi trong danh sách ticket
+Normal Flow:
+Người dùng chọn ticket và nhấn nút delete 
+Hệ thống hiển thị cảnh báo xác nhận delete
+Người dùng nhấn nút xác nhận delete
+Hệ thống cập nhật dữ liệu trong database
+Hệ thống hiển thị danh sách ticket mới sau cập nhật
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 55: Delete Ticket Use Case Description
+2.2.5.51. UC-51: View Monitoring
+UC ID and Name:
+UC-51 View Monitoring
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+Deployment Center
+Trigger:
+Admin chọn tab Monitoring từ thanh điều hướng
+Description:
+Giám sát tài nguyên challenge instance trong hệ thống
+Preconditions:
+PRE-01: Người dùng đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Dữ liệu monitoring được hiển thị cho người dùng
+Normal Flow:
+Admin chọn tab Monitoring từ thanh điều hướng
+Hệ thống truy vấn dữ liệu từ cơ sở dữ liệu
+Hệ thống hiển thị thông tin monitoring cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+N/A
+
+Table 56: View Monitoring Use Case Description
+2.2.5.52. UC-52: Search Instance
+UC ID and Name:
+UC-52 Search Instance
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+N/A
+Trigger:
+Admin nhấn nút search tại trang monitoring instances
+Description:
+Lọc và tìm kiếm các challenge instance đang chạy theo nhiều tiêu chí như tên challenge, tên đội, trạng thái, hoặc thời gian.
+Preconditions:
+PRE-01: Người dùng đăng nhập với tài khoản admin
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách instance tìm thấy
+Normal Flow:
+Admin chọn filter option và nhập từ khóa cần tìm
+Admin nhấn nút search
+Hệ thống truy vấn dữ liệu theo tiêu chí input
+Hệ thống hiển thị danh sách instance tìm thấy phù hợp điều kiện
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 57: Search Instance Use Case Description
+2.2.5.53. UC-53: View Log Detail
+UC ID and Name:
+ UC-53 View Log Detail
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Người dùng chọn một instance và nhấn nút view log
+Description:
+Xem log chi tiết của một challenge instance
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Có ít nhất 1 challenge instance đang chạy trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị log của instance cho người dùng
+Normal Flow:
+Từ danh sách, người dùng click vào nút View Log của 1 instance
+Hệ thống truy vấn dữ liệu từ cụm k8s
+Hệ thống hiển thị log pod của challenge cho người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 58: View Log Detail Use Case Description
+2.2.5.54. UC-54: View Request Log
+UC ID and Name:
+ UC-54 View Request Log
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Người dùng chọn một instance và nhấn nút request log
+Description:
+Xem request log mà thí sinh gửi đến một challenge instance pod
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Có ít nhất 1 challenge instance đang chạy trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị request log của thí sinh cho người dùng
+Normal Flow:
+Từ danh sách, người dùng click vào nút Request Log của 1 instance
+Hệ thống truy vấn dữ liệu từ Loki
+Hệ thống hiển thị request log gửi qua Challenge Gateway đến challenge pod cho người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 59: View Request Log Use Case Description
+2.2.5.55. UC-55: View User Detail
+UC ID and Name:
+ UC-55 View User Detail
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn một người dùng từ danh sách users
+Description:
+Admin xem thông tin chi tiết của một người dùng cụ thể trong hệ thống
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một người dùng trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị đầy đủ thông tin chi tiết của người dùng được chọn.
+Normal Flow:
+Admin click vào tên hoặc ID của một người dùng cụ thể trong danh sách tại trang Users.
+Hệ thống truy vấn dữ liệu người dùng trong database
+Hệ thống hiển thị trang chi tiết người dùng với các thông tin cơ bản.
+Alternative Flows:
+A1. Truy cập qua trang Team Detail
+1.1 Admin truy cập trang danh sách Teams
+2.1 Admin click vào ID hoặc tên một team trong danh sách
+3.1 Hệ thống truy vấn dữ liệu từ database
+4.1 Hệ thống hiển thị trang Team Detail với danh sách user trong team
+5.1 Tiếp tục bước 1 của normal flow.
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 60: View User Detail Use Case Description
+2.2.5.56. UC-56: View Team Detail
+UC ID and Name:
+ UC-56 View Team Detail
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn một team từ danh sách teams
+Description:
+Admin xem thông tin chi tiết của một team cụ thể trong hệ thống
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một team trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị đầy đủ thông tin chi tiết của team được chọn.
+Normal Flow:
+Admin click vào tên hoặc ID của một team cụ thể trong danh sách tại trang Teams.
+Hệ thống truy vấn dữ liệu team và các thông tin người dùng tương ứng trong database
+Hệ thống hiển thị trang chi tiết team với các thông tin cơ bản
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 61: View Team Detail Use Case Description
+2.2.5.57. UC-57: View User Statistics
+UC ID and Name:
+ UC-57 View User Statistics
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin truy cập trang chi tiết người dùng và chọn nút xem thống kê
+Description:
+Admin xem thống kê hoạt động giải bài của một người dùng
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Người dùng được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị biểu đồ thống kê hoạt động của người dùng.
+Normal Flow:
+Admin truy cập trang chi tiết của một người dùng.
+Admin click vào biểu tượng "User Statistics" (icon biểu đồ) trong phần thông tin người dùng.
+Hệ thống truy vấn dữ liệu thống kê cần thiết của user trong database
+Hệ thống hiện cửa sổ popup "User Statistics" hiển thị biểu đồ thống kê của người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 62: View User Statistics Use Case Description
+2.2.5.58. UC-58: View Team Statistics
+UC ID and Name:
+ UC-58 View Team Statistics
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin truy cập trang chi tiết team và chọn nút xem thống kê
+Description:
+Admin xem thống kê hoạt động giải bài của một team
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Team được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị biểu đồ thống kê hoạt động của team.
+Normal Flow:
+Admin truy cập trang thông tin chi tiết của một team.
+Admin click vào biểu tượng "Team Statistics" (icon biểu đồ) trong phần thông tin chi tiết team.
+Hệ thống truy vấn dữ liệu thống kê cần thiết của trong database
+Hệ thống hiện cửa sổ popup "Team Statistics" hiển thị biểu đồ thống kê của team.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 63: View Team Statistics Use Case Description
+2.2.5.59. UC-59: View User Address
+UC ID and Name:
+ UC-59 View User Address
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin truy cập trang chi tiết người dùng và chọn nút xem IP Addresses
+Description:
+Admin xem toàn bộ danh sách IP address được ghi nhận của người dùng, phục vụ mục đích kiểm tra bảo mật và phát hiện gian lận.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Người dùng được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách các IP address kèm thời gian ghi nhận.
+Normal Flow:
+Admin truy cập trang thông tin chi tiết của một user.
+Người dùng click vào biểu tượng "IP Addresses" (icon mạng) trong phần thông tin người dùng.
+Hệ thống truy vấn dữ liệu thống kê cần thiết của user trong database
+Hệ thống hiện cửa sổ pop up "IP Addresses" hiển thị bảng danh sách IP Address cho người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 64: View User Address Use Case Description
+2.2.5.60. UC-60: View Team Member Address
+UC ID and Name:
+ UC-60 View Team Member Address
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin truy cập trang chi tiết team và chọn nút xem IP Addresses
+Description:
+Admin xem địa chỉ IP được ghi nhận của tất cả thành viên trong một team
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Team được chọn tồn tại trong hệ thống
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách IP address của từng thành viên trong team.
+Normal Flow:
+Admin truy cập trang thông tin chi tiết của một team.
+Người dùng click vào biểu tượng "IP Addresses" (icon mạng) trong phần thông tin team.
+Hệ thống truy vấn dữ liệu IP Address của các thành viên team trong database
+Hệ thống hiện cửa sổ pop up "IP Addresses" hiển thị bảng danh sách IP Address cho người dùng.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 65: View Team Member Address Use Case Description
+2.2.5.61. UC-61: Award User
+UC ID and Name:
+ UC-61 Award User
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin click vào biểu tượng "Award User" (icon cúp) trong trang chi tiết người dùng
+Description:
+Admin trao thưởng điểm cho một người dùng kèm lý do, điểm thưởng có thể là số dương (trao thưởng) hoặc số âm (phạt điểm).
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Có ít nhất 1 challenge instance đang chạy trong hệ thống.
+Postconditions:
+POST-01: Điểm thưởng được lưu vào database.
+POST-02: Điểm số của người dùng được cập nhật trên scoreboard.
+Normal Flow:
+Admin truy cập trang chi tiết của một người dùng.
+Admin click vào biểu tượng "Award User" (icon cúp) trong phần thông tin người dùng.
+Hệ thống mở cửa sổ popup "Award User" hiển thị form nhập liệu số điểm cho user
+Admin nhập đầy đủ thông tin và nhấn "Create".
+Hệ thống lưu award vào database và cập nhật điểm số người dùng.
+Hệ thống hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Giá trị điểm thưởng không hợp lệ (không phải số), hệ thống hiển thị thông báo lỗi.
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-023
+
+Table 66: Award User Use Case Description
+2.2.5.62. UC-62: Award Team Member
+UC ID and Name:
+ UC-62 Award Team Member
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin click vào biểu tượng "Award Team Member" (icon cúp) trong trang chi tiết team
+Description:
+Admin trao thưởng điểm cho một thành viên cụ thể trong một team, điểm thưởng được ghi nhận cho cả team và thành viên đó.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Team được chọn tồn tại và có ít nhất một thành viên.
+Postconditions:
+POST-01: Điểm thưởng được ghi nhận vào database cho team.
+POST-02: Điểm số tổng của team được cập nhật trên bảng xếp hạng.
+Normal Flow:
+Admin truy cập trang chi tiết của một team.
+Admin click vào biểu tượng "Award Team Member" (icon cúp) trong phần thông tin team.
+Hệ thống mở cửa sổ popup "Award Team Member" hiển thị form nhập liệu 
+Admin chọn thành viên từ dropdown, nhập đầy đủ thông tin và nhấn "Create".
+Hệ thống lưu award vào database và cập nhật điểm số team.
+Hệ thống hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Giá trị điểm thưởng quá lớn hoặc không phải numbers, hệ thống hiển thị thông báo lỗi.
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-023
+
+Table 67: Award Team Member Use Case Description
+2.2.5.63. UC-63: Comment User
+UC ID and Name:
+ UC-63 Comment User
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin nhập nội dung vào ô comment trong trang chi tiết người dùng hoặc team
+Description:
+Admin thêm ghi chú/nhận xét nội bộ về một người dùng. Comment chỉ hiển thị với Admin, không hiển thị với người dùng.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Người dùng hoặc team được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Nội dung comment được lưu vào database.
+POST-02: Comment hiển thị trong trang chi tiết người dùng/team ở phần quản trị.
+Normal Flow:
+Admin truy cập trang chi tiết người dùng/team.
+Admin nhập nội dung nhận xét vào ô "Comment".
+Admin nhấn nút lưu.
+Hệ thống lưu comment vào database 
+Hệ thống hiển thị comment tại trang chi tiết người dùng/team
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 68: Comment User Use Case Description
+2.2.5.64. UC-64: Assign Captain
+UC ID and Name:
+ UC-64 Assign Captain
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin click vào biểu tượng "Choose Captain" trong trang chi tiết team
+Description:
+Admin chỉ định một thành viên cụ thể làm đội trưởng của team, thay thế đội trưởng hiện tại (nếu có).
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Team được chọn tồn tại và có ít nhất một thành viên.
+Postconditions:
+POST-01: Thành viên được chọn trở thành đội trưởng của team trong database.
+POST-02: Đội trưởng cũ (nếu có) bị gỡ quyền captain.
+Normal Flow:
+Admin truy cập trang chi tiết của một team.
+Admin click vào biểu tượng "Choose Captain" trong phần thông tin team.
+Hệ thống mở cửa sổ popup "Choose Captain" với dropdown danh sách thành viên trong team.
+Admin chọn thành viên muốn chỉ định làm đội trưởng từ dropdown và nhấn "Submit".
+Hệ thống cập nhật captain của team trong database.
+Hệ thống hiển thị thông báo thành công và làm mới thông tin team.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-001
+
+Table 69: Assign Captain Use Case Description
+2.2.5.65. UC-65: View User Solves
+UC ID and Name:
+ UC-65 View User Solves
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Solves" trong trang chi tiết người dùng
+Description:
+Admin xem toàn bộ danh sách các flag submission đúng (solved) của một người dùng.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Người dùng được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách các lần giải đúng của người dùng.
+Normal Flow:
+Admin truy cập trang chi tiết của một người dùng.
+Admin chọn tab "Solves".
+Hệ thống truy vấn dữ liệu trong database
+Hệ thống hiển thị danh sách các submission đúng cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 70: View User Solves Use Case Description
+2.2.5.66. UC-66: View Team Solves
+UC ID and Name:
+ UC-66 View Team Solves
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Người dùng chọn tab "Solves" trong trang chi tiết team
+Description:
+Admin xem toàn bộ danh sách các submission đúng của một team
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Team được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách các lần giải đúng của team.
+Normal Flow:
+Admin truy cập trang chi tiết của một team.
+Admin chọn tab "Solves".
+Hệ thống truy vấn dữ liệu trong database
+Hệ thống hiển thị danh sách các submission đúng cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 71: View Team Solves Use Case Description
+2.2.5.67. UC-67: View User Fails
+UC ID and Name:
+ UC-67 View User Fails
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Fails" trong trang chi tiết người dùng
+Description:
+Admin xem toàn bộ danh sách các submission sai của một người dùng
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Người dùng được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách các submission sai của người dùng.
+Normal Flow:
+Admin truy cập trang chi tiết của một người dùng.
+Admin chọn tab "Fails".
+Hệ thống truy vấn dữ liệu trong database
+Hệ thống hiển thị danh sách các submission sai cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 72: View User Fails Use Case Description
+2.2.5.68. UC-68: View Team Fails
+UC ID and Name:
+ UC-68 View Team Fails
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Fails" trong trang chi tiết người dùng
+Description:
+Admin xem toàn bộ danh sách các flag submission sai của một team
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Người dùng được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách các submission sai của team.
+Normal Flow:
+Admin truy cập trang chi tiết của một team.
+Admin chọn tab "Fails".
+Hệ thống truy vấn dữ liệu trong database
+Hệ thống hiển thị danh sách các submission sai cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 73: View Team Fails Use Case Description
+2.2.5.69. UC-69: View User Award
+UC ID and Name:
+ UC-69 View User Award
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Awards" trong trang chi tiết người dùng
+Description:
+Admin xem danh sách tất cả các giải thưởng/phần thưởng điểm đã được trao cho một người dùng
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Người dùng được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách awards của người dùng.
+Normal Flow:
+Admin truy cập trang chi tiết của một người dùng.
+Admin chọn tab "Awards".
+Hệ thống truy vấn dữ liệu trong database
+Hệ thống hiển thị danh sách các awards cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 74: View User Award Use Case Description
+2.2.5.70. UC-70: View Team Award
+UC ID and Name:
+ UC-70 View Team Award
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Awards" trong trang chi tiết team
+Description:
+Admin xem danh sách tất cả các giải thưởng/phần thưởng điểm đã được trao cho một team
+Preconditions:
+PRE-01: Admin đã đăng nhập thành công với tài khoản có quyền Admin.
+PRE-02: Team được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách awards của team.
+Normal Flow:
+Admin truy cập trang chi tiết của một team.
+Admin chọn tab "Awards".
+Hệ thống truy vấn dữ liệu trong database
+Hệ thống hiển thị danh sách các awards cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 75: View Team Award Use Case Description
+2.2.5.71. UC-71: Delete Solved Submission
+UC ID and Name:
+ UC-71 Delete Solved Submission
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn submission và click nút xóa trong tab "Solves" của người dùng hoặc team
+Description:
+Admin xóa một hoặc nhiều submission đúng khỏi hệ thống, điểm số của người dùng/team sẽ được tính lại sau khi xóa.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một submission đúng trong hệ thống.
+Postconditions:
+POST-01: Submission đúng bị xóa khỏi database.
+POST-02: Điểm số của người dùng/team được cập nhật lại tương ứng.
+Normal Flow:
+Admin truy cập tab "Solves" trong trang chi tiết người dùng hoặc team.
+Admin click vào checkbox của một hoặc nhiều submission muốn xóa.
+Admin click vào nút xóa.
+Hệ thống hiển thị hộp thoại xác nhận xóa.
+Admin xác nhận xóa.
+Hệ thống xóa submission khỏi database và cập nhật điểm số.
+Hệ thống hiển thị danh sách solves mới cập nhật
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 76: Delete Solved Submission Use Case Description
+2.2.5.72. UC-72: Delete Failed Submission
+UC ID and Name:
+ UC-72 Delete Failed Submission
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn submission và click nút xóa trong tab "Fails" của người dùng hoặc team
+Description:
+Admin xóa một hoặc nhiều submission sai khỏi hệ thống
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một submission sai trong hệ thống.
+Postconditions:
+POST-01: Submission sai bị xóa khỏi database.
+Normal Flow:
+Admin truy cập tab "Fails" trong trang chi tiết người dùng hoặc team.
+Admin click vào checkbox của một hoặc nhiều submission sai muốn xóa.
+Admin click vào nút xóa của bảng "Fails".
+Hệ thống hiển thị hộp thoại xác nhận xóa.
+Admin xác nhận xóa.
+Hệ thống xóa submission khỏi database và làm mới danh sách.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 77: Delete Failed Submission Use Case Description
+2.2.5.73. UC-73: Delete Award
+UC ID and Name:
+ UC-73 Delete Award
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn award và click nút xóa trong tab "Awards" của người dùng hoặc team
+Description:
+Admin xóa một award đã trao cho người dùng hoặc team, điểm số sẽ được điều chỉnh lại sau khi xóa.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một award trong hệ thống.
+Postconditions:
+POST-01: Award bị xóa khỏi database.
+POST-02: Điểm số của người dùng/team được cập nhật lại.
+Normal Flow:
+Admin truy cập tab "Awards" trong trang chi tiết người dùng hoặc team.
+Admin click vào checkbox của một hoặc nhiều award muốn xóa.
+Admin click vào nút xóa.
+Hệ thống hiển thị hộp thoại xác nhận xóa.
+Admin xác nhận xóa.
+Hệ thống xóa award khỏi database, cập nhật điểm số và làm mới danh sách.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 78: Delete Award Use Case Description
+2.2.5.74. UC-74: View Team Missing
+UC ID and Name:
+ UC-74 View Team Missing
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Missing" trong trang chi tiết team
+Description:
+Admin xem danh sách các challenge mà team chưa giải đúng
+Preconditions:
+PRE-01: Admin đã đăng nhập thành công với tài khoản có quyền Admin.
+PRE-02: Team được chọn tồn tại trong hệ thống.
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách các challenge mà team chưa giải được.
+Normal Flow:
+Admin truy cập trang chi tiết của một team.
+Admin chọn tab "Missing".
+Hệ thống truy vấn dữ liệu từ database và xử lý dữ liệu
+Hệ thống hiển thị danh sách challenge chưa được giải của team
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 79: View Team Missing Use Case Description
+2.2.5.75. UC-75: View Brackets
+UC ID and Name:
+ UC-75 View Brackets
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Scoreboard Brackets" trong trang cấu hình hệ thống
+Description:
+Admin xem danh sách tất cả các nhánh đấu (bracket) đang tồn tại trong cuộc thi, mỗi bracket phân nhóm đội/người dùng theo tiêu chí nhất định.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách tất cả brackets hiện có.
+Normal Flow:
+Admin chọn mục "Config" trên thanh điều hướng quản trị.
+Hệ thống hiển thị trang cấu hình với các tabs.
+Admin chọn tab "Scoreboard Brackets" trong trang Config.
+Hệ thống truy vấn và hiển thị danh sách brackets
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 80: View Brackets Use Case Description
+2.2.5.76. UC-76: Create Bracket
+UC ID and Name:
+ UC-76 Create Bracket
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin nhấn nút "Create Bracket" trong trang quản lý Brackets
+Description:
+Admin tạo một nhánh đấu mới trong cuộc thi để phân loại người dùng hoặc đội theo nhóm riêng biệt
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Bracket mới được lưu vào database.
+POST-02: Bracket mới hiển thị trong danh sách brackets.
+Normal Flow:
+Admin truy cập trang quản lý Brackets.
+Admin nhấn nút "Create Bracket".
+Hệ thống hiển thị form tạo bracket
+Admin điền đầy đủ thông tin và nhấn "Submit".
+Hệ thống kiểm tra validation dữ liệu.
+Hệ thống lưu bracket mới vào database và hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 81: Create Bracket Use Case Description
+2.2.5.77. UC-77: Update Bracket
+UC ID and Name:
+ UC-77 Update Bracket
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin nhấn nút "Edit" trên một bracket trong danh sách Brackets
+Description:
+Admin cập nhật thông tin của một nhánh đấu đã tồn tại, bao gồm tên, mô tả và loại.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một bracket trong hệ thống.
+Postconditions:
+POST-01: Thông tin bracket được cập nhật trong database.
+Normal Flow:
+Admin truy cập trang quản lý Brackets.
+Admin click nút "Edit" trên bracket cần chỉnh sửa.
+Hệ thống hiển thị form chỉnh sửa với thông tin hiện tại của bracket.
+Admin chỉnh sửa thông tin cần thay đổi và nhấn "Submit".
+Hệ thống kiểm tra validation và lưu thay đổi vào database.
+Hệ thống hiển thị thông báo cập nhật thành công.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Tên bracket bị bỏ trống, hệ thống hiển thị thông báo lỗi.
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 82: Update Bracket Use Case Description
+2.2.5.78. UC-78: Delete Bracket
+UC ID and Name:
+ UC-78 Delete Bracket
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin nhấn nút "Delete" trên một bracket trong danh sách Brackets
+Description:
+Admin xóa một nhánh đấu khỏi hệ thống. Các người dùng/team thuộc bracket này sẽ không còn thuộc nhánh đấu nào sau khi xóa.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một bracket trong hệ thống.
+Postconditions:
+POST-01: Bracket bị xóa khỏi database.
+POST-02: Liên kết giữa người dùng/team với bracket bị xóa.
+Normal Flow:
+Admin truy cập trang quản lý Brackets.
+Admin click nút "Delete" trên bracket cần xóa.
+Hệ thống hiển thị hộp thoại xác nhận xóa.
+Admin xác nhận xóa.
+Hệ thống xóa bracket và cập nhật người dùng/team liên quan.
+Hệ thống hiển thị thông báo xóa thành công và làm mới danh sách.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 83: Delete Bracket Use Case Description
+2.2.5.79. UC-79: View Custom Fields
+UC ID and Name:
+ UC-79 View Custom Fields
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin chọn tab "Custom Fields" trong trang cấu hình hệ thống
+Description:
+Admin xem danh sách tất cả các trường thông tin mở rộng (custom fields) đã được thêm vào hệ thống cho người dùng hoặc team.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách tất cả custom fields hiện có.
+Normal Flow:
+Admin chọn mục "Config" trên thanh điều hướng quản trị.
+Hệ thống hiển thị trang cấu hình với các tabs.
+Admin chọn tab "Custom Fields" trong trang Config.
+Hệ thống hiển thị hai sub-tab: "Users" và "Teams". Admin chọn sub-tab tương ứng.
+Hệ thống truy vấn và hiển thị danh sách custom fields của đối tượng được chọn.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 84: View Custom Fields Use Case Description
+2.2.5.80. UC-80: Create Custom Field
+UC ID and Name:
+ UC-80 Create Custom Field
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin nhấn nút "Create Field" trong trang quản lý Custom Fields
+Description:
+Admin thêm một trường thông tin mở rộng mới cho người dùng hoặc team, trường này sẽ xuất hiện trong form đăng ký hoặc trang profile.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+Postconditions:
+POST-01: Custom field mới được lưu vào database.
+POST-02: Custom field xuất hiện trong form tương ứng (users/teams).
+Normal Flow:
+Admin truy cập trang quản lý Custom Fields.
+Admin nhấn nút "Create Field".
+Hệ thống hiển thị form tạo field
+Admin điền đầy đủ thông tin và nhấn "Submit".
+Hệ thống kiểm tra validation và lưu custom field mới.
+Hệ thống hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 85: Create Custom Field Use Case Description
+2.2.5.81. UC-81: Update Custom Field
+UC ID and Name:
+ UC-81 Update Custom Field
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin nhấn nút "Edit" trên một custom field trong danh sách
+Description:
+Admin cập nhật thông tin của một trường thông tin mở rộng đã tồn tại
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một custom field trong hệ thống.
+Postconditions:
+POST-01: Thông tin custom field được cập nhật trong database.
+Normal Flow:
+Admin truy cập trang quản lý Custom Fields.
+Admin click nút "Edit" trên field cần chỉnh sửa.
+Hệ thống hiển thị form chỉnh sửa với thông tin hiện tại của field.
+Admin chỉnh sửa thông tin cần thay đổi và nhấn "Submit".
+Hệ thống lưu thay đổi vào database và hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Tên field bị bỏ trống, hệ thống hiển thị thông báo lỗi.
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 86: Update Custom Field Use Case Description
+2.2.5.82. UC-82: Delete Custom Field
+UC ID and Name:
+ UC-82 Delete Custom Field
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin nhấn nút "Delete" trên một custom field trong danh sách
+Description:
+Admin xóa một trường thông tin mở rộng khỏi hệ thống. Tất cả dữ liệu người dùng/team đã nhập cho field này cũng sẽ bị xóa.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Tồn tại ít nhất một custom field trong hệ thống.
+Postconditions:
+POST-01: Custom field bị xóa khỏi database.
+POST-02: Tất cả dữ liệu liên quan của người dùng/team cho field này bị xóa.
+Normal Flow:
+Admin truy cập trang quản lý Custom Fields.
+Admin click nút "Delete" trên field cần xóa.
+Hệ thống hiển thị hộp thoại xác nhận kèm cảnh báo mất dữ liệu.
+Admin xác nhận xóa.
+Hệ thống xóa custom field và toàn bộ dữ liệu liên quan.
+Hệ thống hiển thị thông báo xóa thành công và làm mới danh sách.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 87: Delete Custom Field Use Case Description
+2.2.5.83. UC-83: Config Sanitize
+UC ID and Name:
+ UC-83 Config Sanitize
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin truy cập cài đặt Sanitization trong trang cấu hình hệ thống
+Description:
+Admin cấu hình chế độ lọc nội dung HTML được phép hiển thị trong hệ thống, bao gồm bật/tắt tính năng HTML sanitization để kiểm soát nội dung challenge description và các trường Rich Text.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Có ít nhất 1 challenge instance đang chạy trong hệ thống.
+Postconditions:
+POST-01: Cấu hình sanitization được lưu và áp dụng cho toàn hệ thống.
+Normal Flow:
+Admin chọn mục "Config" trên thanh điều hướng quản trị.
+Hệ thống hiển thị trang cấu hình với các tabs.
+Admin chọn tab "Sanitize" trong trang Config.
+Admin thay đổi giá trị dropdown "HTML Sanitization" (Enabled hoặc Disabled) theo nhu cầu.
+Admin nhấn "Update" để lưu cài đặt.
+Hệ thống lưu cấu hình và hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Low
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 88: Config Sanitize Use Case Description
+2.2.5.84. UC-84: Pause Contest
+UC ID and Name:
+ UC-84 Pause Contest
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin tích vào checkbox "Pause CTF" trong tab Pause của trang cấu hình
+Description:
+Admin tạm dừng cuộc thi bằng cách kích hoạt tính năng "Pause CTF", ngăn contestant nộp flag cho đến khi Admin bỏ tạm dừng.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Cuộc thi đang ở trạng thái active.
+Postconditions:
+POST-01: Cuộc thi chuyển sang trạng thái pause.
+POST-02: Contestant không thể nộp flag mới cho đến khi cuộc thi tiếp tục
+Normal Flow:
+Admin chọn mục "Config" trên thanh điều hướng quản trị.
+Hệ thống hiển thị trang cấu hình với các tabs.
+Admin chọn tab "Pause" trong trang Config.
+Admin tích vào checkbox "Pause CTF" để tạm dừng cuộc thi.
+Admin nhấn "Update" để áp dụng.
+Hệ thống cập nhật trạng thái cuộc thi và hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+E1: Cuộc thi chưa bắt đầu, không thể pause.
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+BR-017
+
+Table 89: Pause Contest Use Case Description
+2.2.5.85. UC-85: Reset Contest
+UC ID and Name:
+ UC-85 Reset Contest
+Created By:
+NhatKA
+Date Created:
+ 04/02/2026
+Primary Actor:
+Admin
+Secondary Actors:
+ N/A
+Trigger:
+Admin click vào liên kết "Reset" trong trang cấu hình và nhấn nút "Reset"
+Description:
+Admin reset toàn bộ dữ liệu thi đấu của cuộc thi bao gồm: submissions, awards, điểm số và unlock hints, đưa hệ thống về trạng thái ban đầu trước khi thi đấu.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản admin
+PRE-02: Có ít nhất 1 challenge instance đang chạy trong hệ thống.
+Postconditions:
+POST-01: Toàn bộ dữ liệu được chọn (submissions, awards, accounts hoặc logs) bị xóa khỏi database.
+POST-02: Điểm số của tất cả người dùng/team được reset về 0.
+POST-03: Bảng xếp hạng được làm mới về trạng thái ban đầu.
+Normal Flow:
+Admin chọn mục "Config" trên thanh điều hướng quản trị.
+Hệ thống hiển thị trang cấu hình. Admin click vào liên kết "Reset" trong menu điều hướng của trang Config.
+Hệ thống chuyển đến trang /admin/reset hiển thị cảnh báo về việc xóa dữ liệu vĩnh viễn và các checkbox tùy chọn: Accounts, Submissions, Challenges, Logs.
+Admin đọc cảnh báo và chọn các loại dữ liệu muốn xóa bằng checkbox.
+Admin nhấn nút "Reset".
+Hệ thống thực hiện xóa dữ liệu được chọn và hiển thị thông báo thành công.
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 90: Reset Contest Use Case Description
+2.2.5.86. UC-86: Start Challenge
+UC ID and Name:
+UC-86 Start Challenge
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Contestant nhấn nút start challenge
+Description:
+Contestant trong một team hoặc cá nhân khởi tạo môi trường challenge
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+PER-02: Contest có ít nhất 1 challenge có thể khởi động được
+Postconditions:
+POST-01: Instance challenge được tạo, hệ thống trả về thông tin truy cập cho thí sinh
+Normal Flow:
+Thí sinh chọn 1 challenge từ danh sách của contest
+Thí sinh nhấn "Start" challenge
+Hệ thống kiểm tra thông tin
+Hệ thống gửi yêu cầu tạo pod challenge tới K8s
+Hệ thống hiển thị trạng thái deploying cho thí sinh
+Hệ thống nhận thông báo challenge instance đã deploy thành công
+Hệ thống hiển thị URL truy cập cho thí sinh, hiện thông báo thành công
+Alternative Flows:
+N/A
+Exceptions:
+E1: Hệ thống tạm thời hết tài nguyên
+E2: Lỗi deploy từ server.
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+BR-001, BR-003, BR-004, BR-006, BR-016, BR-017, BR-018, BR-019, BR-020, BR-032
+
+Table 91: Start Challenge Use Case Description
+2.2.5.87. UC-87: Stop Challenge
+UC ID and Name:
+UC-87 Stop Challenge
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Thí sinh nhấn nút "Stop" challenge
+Description:
+Dừng và thu hồi tài nguyên của challenge đang chạy.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+PER-02: Có ít nhất 1 challenge instance đang chạy
+Postconditions:
+POST-01: Instance challenge bị xóa trong k8s
+POST-02:  Thí sinh không thể truy cập vào instance challenge đó được nữa
+Normal Flow:
+Thí sinh nhấn "Stop" challenge
+Hệ thống gửi thông báo yêu cầu xác nhận
+Thí sinh nhấn xác nhận
+Hệ thống xử lý và cập nhật dữ liệu database, số lần deploy của thí sinh trừ 1
+Hệ thống gửi lệnh xóa pod tới k8s
+Hệ thống cập nhật trạng thái challenge cho thí sinh
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+BR-006
+
+Table 92: Stop Challenge Use Case Description
+2.2.5.88. UC-88: Submit Flag
+UC ID and Name:
+UC-88 Submit Flag
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Thí sinh nhập flag và nhấn "Submit".
+Description:
+Gửi flag lên hệ thống để kiểm tra và tính điểm.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+PER-02: Có ít nhất 1 challenge trong contest
+PRE-03: Thí sinh vẫn còn lượt nộp flag cho challenge đó
+Postconditions:
+POST-01: Hệ thống hiển thị kết quả cho người dùng
+POST-02: Scoreboard được cập nhật dữ liệu mới trong database
+Normal Flow:
+Thí sinh nhập chuỗi Flag.
+Thí sinh nhấn Submit.
+Hệ thống xử lý flag, cập nhật database
+Hệ thống trả về thông báo, cập nhật thông tin challenge
+Alternative Flows:
+N/A
+Exceptions:
+E1: Không thể submit flag do không phải đội trưởng
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+BR-001, BR-016, BR-017, BR-021, BR-022, BR-032
+
+Table 93: Submit Flag Use Case Description
+2.2.5.89. UC-89: Unlock Hint
+UC ID and Name:
+UC-89 Unlock Hint
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Thí sinh nhấn vào Hint trong challenge
+Description:
+Thí sinh mở gợi ý bài thi
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+PRE-02: Có ít nhất 1 challenge trong contest
+Postconditions:
+POST-01: Hint hiển thị cho thí sinh
+POST-02: Điểm bị trừ, scoreboard được cập nhật
+Normal Flow:
+Thí sinh click vào 1 hint trong challenge
+Hệ thống cảnh báo trừ điểm.
+Thí sinh nhấn xác nhận.
+Hệ thống truy vấn database để lấy nội dung hint
+Hệ thống hiển thị nội dung hint cho thí sinh
+Alternative Flows:
+N/A
+Exceptions:
+E1: Không đủ điểm để mở hint
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+BR-016, BR-019
+
+Table 94: Unlock Hint Use Case Description
+2.2.5.90. UC-90: View Profile
+UC ID and Name:
+UC-90 View Profile
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Người dùng chọn menu Profile.
+Description:
+Xem thông tin cá nhân và thống kê thành tích.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+Postconditions:
+POST-01: Hệ thống hiển thị thông tin profile cho người dùng
+Normal Flow:
+Thí sinh nhấn vào nút profile trên thanh điều hướng
+Hệ thống truy vấn dữ liệu profile tương ứng với thí sinh đó
+Hệ thống hiển thị thông tin thí sinh và thông tin team (nếu có)
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+BR-005, BR-013
+
+Table 95: View Profile Use Case Description
+2.2.5.91. UC-91: Change Password
+UC ID and Name:
+UC-91 Change Password
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Chọn "Change Password" trong Profile.
+Description:
+Thí sinh đổi mật khẩu đăng nhập.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+Postconditions:
+POST-01: Thí sinh có thể đăng nhập thành công với password mới
+Normal Flow:
+Thí sinh nhấn nút change password
+Hệ thống hiển thị form nhập password
+Thí sinh nhập mật khẩu cũ, mật khẩu mới
+Thí sinh nhập mật khẩu mới lần 2
+Thí sinh nhấn nút submit
+Hệ thống validate dữ liệu, cập nhật database
+Alternative Flows:
+N/A
+Exceptions:
+E1: Sai mật khẩu cũ.
+E2: Mật khẩu mới không khớp.
+E3: Mật khẩu mới không phù hợp điều kiện tối thiểu
+Priority:
+High
+Frequency of Use:
+Low
+Business Rules:
+N/A
+
+Table 96: Change Password Use Case Description
+2.2.5.92. UC-92: Search Scoreboard
+UC ID and Name:
+UC-92 Search Scoreboard
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Contestant nhấn nút tìm kiếm trên trang Scoreboard
+Description:
+Tìm kiếm team trong bảng xếp hạng theo tên đội hoặc từ khóa.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+Postconditions:
+POST-01: Hệ thống hiển thị danh sách team và điểm số phù hợp điều kiện
+Normal Flow:
+Contestant nhập từ khóa vào ô tìm kiếm trên trang Scoreboard và chọn filter option
+Hệ thống truy vấn dữ liệu phù hợp theo điều kiện
+Hệ thống hiển thị danh sách teams phù hợp điều kiện cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+Medium
+Frequency of Use:
+Low
+Business Rules:
+BR-025, BR-026, BR-033
+
+Table 97: Search Scoreboard Use Case Description
+2.2.5.93. UC-93: Send Ticket
+UC ID and Name:
+UC-93 Send Ticket
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+Admin
+Trigger:
+Thí sinh nhấn nút create ticket trên giao diện
+Description:
+Thí sinh gửi yêu cầu hỗ trợ tới ban tổ chức
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+Postconditions:
+POST-01: Ticket được tạo ở trạng thái Open
+POST-02: Admin cuộc thi thấy được ticket tại trang quản trị
+Normal Flow:
+Người dùng nhấn nút "New Ticket"
+Người dùng chọn loại ticket, nhập nội dung
+Người dùng nhấn xác nhận tạo
+Hệ thống cập nhật trạng thái ticket, lưu dữ liệu vào database và gửi thông báo tới ban quản trị
+Hệ thống hiển thị danh sách ticket mới cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 98: Send Ticket Use Case Description
+2.2.5.94. UC-94: View Ticket Detail
+UC ID and Name:
+UC-94 View Ticket Detail
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+Admin
+Trigger:
+Contestant nhấn nút View Detail một ticket từ danh sách ticket đã gửi
+Description:
+Xem chi tiết nội dung của một ticket hỗ trợ đã gửi, bao gồm lịch sử trao đổi phản hồi từ Admin hoặc Jury.
+Preconditions:
+PRE-01: Người dùng đã đăng nhập với tài khoản contestant
+PRE-02: Contestant đã có ít nhất 1 ticket được gửi trước đó
+Postconditions:
+POST-01: Hệ thống hiển thị toàn bộ chi tiết ticket bao gồm nội dung và lịch sử phản hồi
+Normal Flow:
+Contestant truy cập trang quản lý ticket
+Contestant chọn ticket cần xem từ danh sách
+Hệ thống truy vấn thông tin chi tiết và lịch sử phản hồi của ticket
+Hệ thống hiển thị nội dung ticket cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+Medium
+Business Rules:
+N/A
+
+Table 99: View Ticket Detail Use Case Description
+2.2.5.95. UC-95: View All Instances
+UC ID and Name:
+UC-95 View All Instances
+Created By:
+NhatKA
+Date Created:
+04/02/2026
+Primary Actor:
+Contestant
+Secondary Actors:
+N/A
+Trigger:
+Thí sinh chọn menu "Instances" từ thanh điều hướng
+Description:
+Xem danh sách tất cả các challenge instance đang chạy của mình hoặc của Team mình
+Preconditions:
+PRE-01: Người dùng đã đăng nhập thành công với tài khoản contestant
+Postconditions:
+POST-01: Danh sách instance challenge được hiển thị cho người dùng
+Normal Flow:
+Thí sinh chọn nút Instance trên thanh điều hướng
+Hệ thống truy vấn dữ liệu về các challenge instance của thí sinh và team
+Hệ thống hiển thị danh sách cho người dùng
+Alternative Flows:
+N/A
+Exceptions:
+N/A
+Priority:
+High
+Frequency of Use:
+High
+Business Rules:
+BR-003
+
+Table 100: View All Instances Use Case Description
+3. Functional Requirements
+3.1 System Functional Overview
+3.1.1 Screens Flow
+Phần này trình bày chi tiết sơ đồ luồng màn hình của các tính năng chính của hệ thống. Các sơ đồ minh họa trực quan cách người dùng điều hướng giữa các màn hình và cách các thành phần hệ thống tương tác để thực hiện các chức năng cụ thể. 
+Figure 7 mô tả ý nghĩa của các ký hiệu tiêu chuẩn được sử dụng xuyên suốt phần này. Figure 7 cung cấp giải thích chi tiết về các ký hiệu được sử dụng trong sơ đồ để đảm bảo tính nhất quán và rõ ràng khi diễn giải luồng giao diện.
+Diagram Elements
+Description
+
+Đây là màn hình chính hoặc giao diện chính trong hệ thống. Đây là nơi người dùng thực hiện các thao tác hoặc xem thông tin, chẳng hạn như màn hình đăng nhập, bảng điều khiển hoặc màn hình quản lý thử thách.
+
+Hình chữ nhật bo góc biểu thị cửa sổ bật lên hoặc màn hình phụ xuất hiện khi người dùng thực hiện một hành động cụ thể, chẳng hạn như xem chi tiết, nhập thêm dữ liệu hoặc xác nhận thao tác. Hình chữ nhật bo góc giúp phân biệt các yếu tố hiển thị tạm thời này với màn hình chính.
+
+Các mũi tên chỉ ra luồng màn hình, cho thấy màn hình nào kết nối với màn hình nào và cửa sổ bật lên sẽ xuất hiện từ màn hình nào. Chi tiết về luồng màn hình được hiển thị bên dưới.
+
+Table 101: Description symbol
+
+
+Figure 8: Screen Flow of Contestant
+Hình 8 minh họa toàn bộ luồng điều hướng dành cho thí sinh (contestant) trong hệ thống FCTF. Sau khi xác minh thông tin tài khoản trên trang đăng nhập, người dùng sẽ được chuyển đến trang chủ, nơi đóng vai trò là trung tâm để truy cập tất cả các chức năng liên quan đến cuộc thi. Từ trang chủ này, thí sinh có thể truy cập danh sách các danh mục thử thách, khám phá các thử thách hiện có, xem chi tiết thử thách và nộp câu trả lời thông qua giao diện gửi bài tích hợp.
+Để hỗ trợ việc theo dõi quá trình triển khai (deploy) các thử thách cũng như quản lý thông tin truy cập của các challenge đã được triển khai cho toàn bộ thành viên trong nhóm, thí sinh có thể truy cập trang Instances. Tại đây, người dùng dễ dàng nắm bắt trạng thái hoạt động của từng challenge, đảm bảo quá trình tham gia diễn ra thuận lợi và hiệu quả.
+Bên cạnh đó, hệ thống cung cấp trang Actions Log nhằm ghi lại toàn bộ các hoạt động quan trọng của các thành viên trong đội, bao gồm quá trình triển khai challenge, truy cập hệ thống, gửi bài và các thao tác liên quan khác. Chức năng này giúp tăng cường tính minh bạch, hỗ trợ theo dõi tiến trình làm việc của nhóm, đồng thời phục vụ cho việc kiểm soát và đánh giá trong quá trình thi.
+Ngoài việc giải các thử thách, thí sinh có thể thường xuyên theo dõi kết quả của mình thông qua trang bảng xếp hạng, nơi hiển thị thứ hạng và điểm số trong suốt cuộc thi. Hệ thống cũng hỗ trợ đầy đủ quy trình quản lý ticket hỗ trợ, cho phép thí sinh tạo ticket mới, xem lại các ticket đã gửi và theo dõi phản hồi từ quản trị viên hoặc đội ngũ hỗ trợ thông qua trang danh sách ticket.
+Để tăng tính chủ động cho người dùng, trang chủ cung cấp quyền truy cập vào chức năng quản lý hồ sơ cá nhân, cho phép thí sinh cập nhật thông tin và thực hiện thay đổi mật khẩu một cách an toàn thông qua giao diện riêng biệt.
+Nhìn chung, luồng điều hướng trong hệ thống FCTF được tổ chức một cách rõ ràng, trực quan và khoa học, giúp người dùng dễ dàng thao tác, giảm thiểu sai sót, đồng thời đảm bảo trải nghiệm an toàn, hiệu quả và liền mạch khi thí sinh tham gia và tương tác trong suốt quá trình thi.
+
+Figure 9: Screen Flow of Management System
+
+Hình 9 miêu tả hệ thống quản trị của FCTF được thiết kế với giao diện trung tâm là Admin Dashboard, cho phép quản trị viên (admin), jury và challenge writer quản lý, giám sát và điều hành toàn bộ hoạt động của hệ thống một cách hiệu quả. Thông qua giao diện này, người quản trị có thể truy cập nhanh đến các chức năng quan trọng như Dashboard, Challenges, Users, Action Logs, Tickets, Teams, Scoreboard, Submissions, Dynamic Reward Query, Config, Monitoring, Instances History và Audit Log.
+Trang Dashboard cung cấp cái nhìn tổng quan về tình trạng hoạt động của hệ thống, bao gồm các thống kê liên quan đến số lượng người dùng, đội thi, thử thách, lượt nộp bài và các thông tin báo cáo cần thiết. Chức năng Challenges hỗ trợ quản lý toàn bộ vòng đời của các thử thách, từ việc tạo mới, chỉnh sửa nội dung, cấu hình độ khó, cho đến theo dõi trạng thái triển khai và lịch sử hoạt động. Thông qua mục Users và Teams, quản trị viên có thể quản lý thông tin tài khoản, phân quyền, theo dõi trạng thái hoạt động của người dùng cũng như tổ chức và điều phối các đội thi.
+Hệ thống Action Logs được sử dụng để ghi nhận toàn bộ hoạt động của thí sinh trong quá trình tham gia cuộc thi, bao gồm việc truy cập hệ thống, gửi bài, triển khai instance và các thông tin liên quan. Dữ liệu này hỗ trợ việc theo dõi tiến trình thi đấu và phát hiện các hành vi bất thường khi cần thiết. Bên cạnh đó, chức năng Submissions cho phép quản trị viên giám sát quá trình nộp flag, kiểm tra kết quả và phân tích dữ liệu gửi bài nhằm đảm bảo tính công bằng và minh bạch.
+Chức năng Tickets đóng vai trò là kênh hỗ trợ chính thức giữa thí sinh và ban tổ chức, giúp tiếp nhận, xử lý và phản hồi các yêu cầu một cách kịp thời. Trang Scoreboard hiển thị và quản lý bảng xếp hạng, phản ánh chính xác thứ hạng và điểm số của các đội trong suốt thời gian diễn ra cuộc thi. Ngoài ra, hệ thống còn tích hợp chức năng Dynamic Reward Query nhằm hỗ trợ phân tích và trích xuất thông tin nhằm mục đích trao giải theo những tiêu chí được đề ra.
+Mục Config cho phép quản trị viên thiết lập và điều chỉnh các tham số cấu hình hệ thống, bao gồm các chính sách bảo mật, quản lý tài nguyên và các tùy chọn vận hành. Chức năng Monitoring hỗ trợ theo dõi trạng thái của các challenge instances hiện đang được triển khai, giúp theo dõi các challenge instances phát hiện sớm các sự cố kỹ thuật. Bên cạnh đó, Instances History lưu trữ đầy đủ lịch sử triển khai, khởi tạo, dừng và hủy các instance của thử thách, hỗ trợ công tác kiểm tra và quản lý tài nguyên hiệu quả.
+Ngoài việc theo dõi hoạt động của thí sinh thông qua Action Logs, hệ thống còn cung cấp chức năng Audit Log dành riêng cho quản trị viên, nhằm ghi nhận toàn bộ các hành động tác động đến hệ thống ở cấp độ quản trị, bao gồm thay đổi cấu hình, chỉnh sửa dữ liệu, cập nhật thử thách và các thao tác quản lý quan trọng khác. Chức năng này góp phần nâng cao tính minh bạch, hỗ trợ kiểm tra, truy vết và đảm bảo an toàn trong quá trình vận hành hệ thống.
+Nhìn chung, hệ thống quản trị FCTF được tổ chức theo cấu trúc chức năng rõ ràng, khoa học và trực quan, giúp quản trị viên dễ dàng kiểm soát toàn bộ hoạt động của cuộc thi, đồng thời đảm bảo hệ thống vận hành ổn định, an toàn và hiệu quả.
+3.1.2 Screen Descriptions
+#
+Feature
+Screen
+Description
+1
+Authentication
+Admin Login
+Trang đăng nhập cho jury, admin, challenge writer
+2
+Dashboard
+Admin Dashboard
+Trang hiển thị thông tin thống kê chung của hệ thống
+3
+Manage Challenge
+Challenge List 
+Trang cho phép xem danh sách các challenge trong hệ thống, tìm kiếm và chỉnh sửa.
+4
+Manage Challenge
+Edit Challenge Status Popup
+Popup screen cho phép chỉnh sửa category, value và state của các challenge được chọn
+5
+Manage Challenge
+Create Challenge Page
+Trang tạo mới một challenge
+6
+Manage Challenge
+Options Configuration Popup
+Trang cài đặt flag, port và file (nếu cần) để khởi tạo challenge 
+7
+Manage Challenge
+Challenge Detail
+Nội dung chi tiết của thử thách
+8
+Manage Challenge
+Comment Challenge Popup
+Popup screen để tạo mới nhận xét cho challenge
+9
+Manage Challenge
+Deploy History Page
+Trang liệt kê lịch sử deploy của challenge
+10
+Manage Challenge
+Deploy Version Detail
+Trang xem chi tiết thông tin version của challenge
+11
+Manage User
+Users List Page
+Trang liệt kê người dùng trong hệ thống
+12
+Manage User
+Create User Page
+Trang tạo mới một user
+13
+Manage User
+User Status Edit Popup
+Popup screen để cập nhật trạng thái tài khoản cho người dùng được chọn
+14
+Manage User
+User Detail
+Danh sách thông tin cá nhân của người dùng, cho phép tìm kiếm xóa và chặn tài khoản.
+15
+Manage User
+Edit User Popup
+Popup screen cho phép chỉnh sửa thông tin tài khoản người dùng được chọn
+16
+Manage User
+Award User
+Popup screen cho phép trao giải cho một thí sinh
+17
+Manage Team
+Teams List
+Trang liệt kê team được tạo trong hệ thống
+18
+Manage Team
+Create Team Page
+Trang tạo mới team
+19
+Manage Team
+Edit Team Status Popup
+Popup screen cho phép chỉnh sửa trạng thái của team
+20
+Manage Team
+Team Detail
+Thông tin chi tiết về một đội thi, các thành viên trong team, xem các bài đã giải, phần thưởng của team và web của team.
+21
+Manage Team
+Edit Team Popup
+Popup screen cho phép chỉnh sửa thông tin của team
+22
+Manage Team
+Award Team Member Popup
+Popup screen cho phép trao giải thành viên được chọn trong team
+23
+View Audit Logs
+Audit Logs
+Trang hiển thị tất cả các hành động thay đổi đến hệ thống của jury, challenge writer và admin
+24
+View Actions Logs
+Action Logs 
+Trang hiển thị tất cả các hành động của thí sinh đến hệ thống.
+25
+Manage Ticket
+Tickets
+Danh sách các yêu cầu hỗ trợ mà thí sinh đã gửi
+26
+Manage Ticket
+Ticket Detail
+Xem nội dung trao đổi chi tiết của một yêu cầu hỗ trợ từ thí sinh.
+27
+Manage Scoreboard
+Scoreboard
+Trang hiển thị thông tin về điểm số của các team và thí sinh, liệt kê các award của thí sinh
+28
+Manage Submission
+All Submissions
+Danh sách tất cả các bài nộp từ mọi thí sinh, cho phép tìm kiếm, xóa và xuất file các bài nộp.
+29
+Manage Submission
+All Correct Submissions
+Danh sách tất cả các bài nộp có đáp án đúng từ mọi thí sinh, cho phép tìm kiếm, xóa và xuất file các bài nộp.
+30
+Manage Submission
+All Incorrect Submissions
+Danh sách tất cả các bài nộp có đáp án sai từ mọi thí sinh, cho phép tìm kiếm, xóa và xuất file các bài nộp.
+31
+Manage Rewards
+Reward Query & Export
+Trang hiển thị các tiêu chí trao giải và danh sách các team và thí sinh theo tiêu chí được chọn.
+32
+Manage Instances History
+Instances History
+Trang hiển thị lịch sử tất cả các instance được khởi tạo trong cuộc thi.
+33
+Manage Instances History
+Pod Logs Detail
+Trang hiển thị chi tiết thông tin log của pod instance trong trang Instances History.
+34
+Manage Config 
+Config Detail
+Trang hiển thị tất cả các thông tin cài đặt của hệ thống
+35
+Manage Config
+Reset Page
+Trang cho phép reset dữ liệu của hệ thống
+36
+Manage Deploying Instances
+Monitoring
+Trang liệt kê các challenge instances hiện đang được khởi tạo và sử dụng.
+37
+Manage Deploying Instances
+Pod Logs Detail
+Trang hiển thị chi tiết thông tin log của pod instance trong trang Monitoring
+38
+Manage Deploying Instances
+Pod Logs Request Detail
+Trang hiển thị chi tiết thông tin log của request từ người dùng đến pod instance trong trang Monitoring
+39
+Authentication
+Contestant Login
+Trang đăng nhập dành riêng cho thí sinh.
+40
+Challenge Access
+Challenge List
+Trang hiển thị tất cả các challenge cho thí sinh theo category.
+41
+Challenge Access
+Challenge Detail
+Trang hiển thị thông tin chi tiết của challenge cho thi sinh bao gồm điểm số, tên, file attachment, flag input và hints, connection guideline.
+42
+View Scoreboard
+Contestant Scoreboard
+Trang hiển thị bảng điểm thi đấu cho thí sinh.
+43
+View Team Instances
+View Team Instances
+Trang xem các instance đã được khởi tạo thuộc về tất cả thành viên trong team của thí sinh
+44
+View Contestant Tickets
+View Contestant Tickets
+Trang hiển thị danh sách ticket hỗ trợ của thí sinh
+45
+Create Ticket
+Create Ticket Form Popup
+Popup screen cho phép thí sinh tạo ticket hỗ trợ.
+46
+View Team Action Log 
+Actions Log List
+Trang hiển thị những hành động với hệ thống được ghi nhận thuộc về tất cả các thành viên trong team của thí sinh
+47
+View User Profile
+Profile
+Trang hiển thị thông tin chi tiết của thí sinh bao gồm thông tin cá nhân, điểm số, thứ hạng của team, thông tin điểm của các thành viên
+48
+Change Password
+Change Password Popup
+Popup screen cho phép thay đổi password của thí sinh
+
+Table 102: Screen Descriptions
+3.1.3 Screen Authorization
+#
+Screen Name
+Contestant
+Jury
+Challenge Writer
+Admin
+1
+Admin Login
+
+
+X
+X
+X
+2
+Admin Dashboard
+
+
+X
+X
+X
+3
+Challenge List 
+
+
+X
+X
+X
+4
+Edit Challenge Status Popup
+
+
+
+
+X
+X
+5
+Create Challenge Page
+
+
+
+
+X
+X
+6
+Options Configuration Popup
+
+
+
+
+X
+X
+7
+Challenge Detail
+
+
+
+
+X
+X
+8
+Comment Challenge Popup
+
+
+
+
+X
+X
+9
+Deploy History Page
+
+
+
+
+X
+X
+10
+Deploy Version Detail
+
+
+
+
+X
+X
+11
+Users List Page
+
+
+X
+
+
+X
+12
+Create User Page
+
+
+
+
+
+
+X
+13
+User Status Edit Popup
+
+
+
+
+
+
+X
+14
+User Detail
+
+
+X
+
+
+X
+15
+Edit User Popup
+
+
+
+
+
+
+X
+16
+Award User
+
+
+
+
+
+
+X
+17
+Teams List
+
+
+X
+
+
+X
+18
+Create Team Page
+
+
+
+
+
+
+X
+19
+Edit Team Status Popup
+
+
+
+
+
+
+X
+20
+Team Detail
+
+
+
+
+
+
+X
+21
+Edit Team Popup
+
+
+
+
+
+
+X
+22
+Award Team Member Popup
+
+
+
+
+
+
+X
+23
+Audit Logs
+
+
+
+
+
+
+X
+24
+Action Logs 
+
+
+X
+
+
+X
+25
+Tickets
+
+
+X
+
+
+X
+26
+Ticket Detail
+
+
+X
+
+
+X
+27
+Scoreboard
+
+
+X
+
+
+X
+28
+All Submissions
+
+
+X
+
+
+X
+29
+All Correct Submissions
+
+
+X
+
+
+X
+30
+All Incorrect Submissions
+
+
+X
+
+
+X
+31
+Reward Query & Export
+
+
+X
+
+
+X
+32
+Instances History
+
+
+
+
+
+
+X
+33
+Pod Logs Detail
+
+
+
+
+
+
+X
+34
+Config Detail
+
+
+
+
+
+
+X
+35
+Reset Page
+
+
+
+
+
+
+X
+36
+Monitoring
+
+
+
+
+
+
+X
+37
+Pod Logs Detail
+
+
+
+
+
+
+X
+38
+Pod Logs Request Detail
+
+
+
+
+
+
+X
+39
+Contestant Login
+X
+
+
+
+
+X
+40
+Challenge List
+X
+
+
+
+
+
+
+41
+Challenge Detail
+X
+
+
+
+
+
+
+42
+Contestant Scoreboard
+X
+
+
+
+
+
+
+43
+View Team Instances
+X
+
+
+
+
+
+
+44
+View Contestant Tickets
+X
+
+
+
+
+
+
+45
+Create Ticket Form Popup
+X
+
+
+
+
+
+
+46
+Actions Log List
+X
+
+
+
+
+
+
+47
+Profile
+X
+
+
+
+
+
+
+48
+Change Password Popup
+X
+
+
+
+
+
+
+
+Table 103: Screen Authorization
+3.1.4 Non-Screen Functions
+#
+Feature
+System Function
+Description
+1
+Resource Cleanup
+CronJob Cleanup
+CronJob chạy theo chu kỳ để kiểm tra và terminate các challenge instances đã hết Time to live.
+2
+Scoreboard Calculation
+Scoreboard Update Service
+Background service lắng nghe submission events và tự động calculate scoreboard.
+3
+Monitoring
+Health Check Service
+Health check cho challenge instances để phát hiện trạng thái pod challenge
+
+Table 104: Non-Screen Functions Description
+3.1.5 Entity Relationship Diagram
+Figure 10 Entity Relationship Diagram
+
+Entities Description
+#
+Entity
+Description
+1
+User
+Đại diện cho người dùng hệ thống F-CTF, bao gồm contestant, admin, jury, challenge writer.
+2
+Team
+Đại diện cho một team trong contest. Mỗi team gồm một hoặc nhiều user và tham gia thi đấu trong contest.
+3
+Challenge
+Đại diện cho một bài tập CTF (pwn, web, crypto, forensics, …) mà thí sinh cần phải tìm flag từ đó.
+4
+Submission
+Ghi nhận mỗi lần người dùng hoặc đội nộp flag cho một challenge .
+5
+Flag
+Lưu trữ thông tin flag tương ứng với challenge thí sinh cần nộp để lấy điểm.
+6
+Hint
+Đại diện cho gợi ý của challenge thí sinh có thể mở khóa để hỗ trợ tìm flag.
+7
+File
+Lưu trữ các tệp đính kèm cho challenge
+8
+Tag
+Dùng để gắn nhãn cho challenge nhằm phân loại theo kỹ năng hoặc chủ đề.
+9
+Topic
+Đại diện cho các loại challenge trong CTF (Web, Pwn, Crypto, …).
+10
+Start Tracking
+Lưu trữ lịch sử start, stop của các challenge instance 
+11
+Award
+Đại diện cho các phần thưởng hoặc danh hiệu trong contest, có thể gán cho user hoặc team.
+12
+Achievement
+Ghi nhận thành tích đạt được của user hoặc team trong contest
+13
+Ticket
+Hệ thống hỗ trợ người dùng gửi yêu cầu trợ giúp hoặc báo lỗi tới ban tổ chức hoặc giảng viên.
+14
+Action Log
+Lưu lịch sử các hành động quan trọng của contestant trong hệ thống (submit flag, start challenge,...).
+15
+Audit Log
+Lưu lịch sử các action quản lý của admin, challenge writer trong hệ thống (create challenge, delete user,…).
+16
+Deploy History
+Lưu lịch sử triển khai của challenge
+17
+Dynamic Challenge
+Cài đặt riêng cho challenge có điểm số động, thay đổi theo số lượng người giải.
+18
+Multiple Choice Challenge
+Đại diện cho challenge dạng trắc nghiệm, phù hợp cho mục đích giảng dạy trong lớp học.
+19
+Challenge Version
+Lưu trữ các phiên bản cài đặt của challenge bao gồm file deploy, cpu limit,…
+
+Table 105: Entities Description
+3.1.6 Main Business Flow of The System.
+3.1.6.1. Create Challenge
+
+Figure 12: Activity Diagram for Create Challenge
+
+Activity diagram Create Challenge mô tả quy trình tạo mới một challenge trong hệ thống F-CTF. Quy trình bắt đầu khi Challenge Writer cung cấp thông tin challenge và tải lên tệp tin liên quan. Người dùng tiến hành điền các thông tin cần thiết như cấu hình Dockerfile, port và giá trị flag, sau đó gửi form đến hệ thống. Khi form được submit, hệ thống tạo bản ghi challenge trong cơ sở dữ liệu để lưu trữ thông tin ban đầu. Tiếp theo, hệ thống thực hiện quá trình đóng gói challenge bằng cách build image từ Docker file trong file tải lên. Quá trình build image được thực hiện thông qua hệ thống tự động hóa Argo nhằm tạo container image phục vụ triển khai. 
+Sau khi build hoàn tất, hệ thống tiến hành kiểm tra trạng thái build:
+Trường hợp build thành công, image sẽ được đẩy lên container registry (Docker Hub) để phục vụ triển khai. Sau đó hệ thống cập nhật trạng thái challenge trong cơ sở dữ liệu và hoàn tất quy trình tạo mới challenge.
+Trường hợp build thất bại, hệ thống hiển thị thông báo lỗi cho người dùng. Người dùng cần kiểm tra và chỉnh sửa lại tệp hoặc cấu hình, sau đó thực hiện tải lên lại để tiếp tục quá trình build.
+Quy trình kết thúc khi challenge được tạo thành công và sẵn sàng để thí sinh sử dụng.
+3.1.6.2. Start Challenge
+
+
+Figure 13: Activity Diagram for Start Challenge
+Start Challenge Activity Diagram mô tả quy trình thí sinh khởi động một thử thách trong cuộc thi. Quy trình bắt đầu khi thí sinh chọn bắt đầu thử thách. Hệ thống trước tiên thực hiện bước validation để kiểm tra các điều kiện cần thiết, bao gồm xác thực người dùng và team, trạng thái của challenge, số lần thử còn lại, trạng thái đã solve, quyền captain (nếu được cấu hình), và giới hạn số challenge chạy đồng thời. Nếu bất kỳ điều kiện nào không thỏa mãn, hệ thống trả về thông báo lỗi và kết thúc quy trình. Ngược lại, nếu tất cả điều kiện hợp lệ, hệ thống tiến hành deploy challenge. Sau khi triển khai, hệ thống kiểm tra kết quả triển khai. Nếu quá trình triển khai thất bại, hệ thống sẽ thông báo cho người dùng và kết thúc quy trình. Nếu triển khai thành công, hệ thống tạo URL và token truy cập cho thử thách, sau đó gửi thông báo cho người dùng với thông tin truy cập và thời gian còn lại. Quy trình kết thúc khi người dùng nhận được thông báo từ hệ thống và truy cập thông qua token được nhận.
+
+Figure 14: Challenge Deployment Lifecycle State Machine
+Figure 17 thể hiện trạng thái deploy của challenge khi thí sinh yêu cầu deploy challenge theo thời gian. Bắt đầu với trạng thái Initial, thí sinh truy cập giao diện làm bài và nhấn nút “Start Challenge” để gửi yêu cầu deploy đến hệ thống, hệ thống sẽ kiểm tra giới hạn số challenge chạy đồng thời của thí sinh, nếu giới hạn chưa vượt quá, request sẽ được đẩy vào message queue và gửi đến argo workflow để tạo namespace và pod, trạng thái challenge được chuyển sang Pending. Nếu trong giai đoạn này xảy ra lỗi như không pull được image từ registry, không thể tạo container, hoặc quá thời gian timeout do các node không đủ resource, trạng thái deployment được chuyển về Failed. Khi tất cả containers trong Pod đã ready và health check trả về true, trạng thái challenge được cập nhật sang Running. Khi challenge đã deploy thành công và ở trạng thái Running, các hành động của thí sinh như nhấn nút “Stop Challenge”, submit flag đúng, submit flag hết lượt attempt tối đa, hoặc chờ đến khi thời gian giới hạn cho challenge đã hết sẽ khiến trạng thái challenge được chuyển về Stopped, kết thúc một deployment lifecycle của challenge.
+3.1.6.3. Submit Flag
+
+Figure 15: Activity Diagram for Submit Flag
+Activity Diagram for Submit Flag mô tả quy trình xử lý khi thí sinh gửi flag cho một challenge trong hệ thống. Quy trình bắt đầu khi thí sinh thực hiện hành động Submit Flag. Sau đó, hệ thống tiến hành xác thực tính hợp lệ của flag bằng cách kiểm tra flag do thí sinh gửi có đúng với giá trị trong database hay không. Nếu flag đúng, hệ thống ghi nhận thông tin submission, cập nhật điểm số và bảng xếp hạng vào cơ sở dữ liệu sau đó dừng challenge và gửi thông báo cho thí sinh về kết quả submit thành công. Quy trình kết thúc sau khi thí sinh nhận được thông báo. Ngược lại, nếu flag không đúng, hệ thống tăng số lần thử của thí sinh và cập nhật vào redis, đồng thời ghi nhận submission vào cơ sở dữ liệu. Sau đó, hệ thống gửi thông báo cho thí sinh về việc flag sai và kết thúc quy trình.
+3.2 Manage Feature
+FR-01: Challenge Gateway for Start Challenge
+
+Figure 16: Challenge Gateway for Start Challenge Screen
+Trong hệ thống hiện tại, các challenge pod từng được expose trực tiếp ra ngoài môi trường bằng NodePort. Do các NodePort nằm trong một dải port cố định và không thay đổi, thí sinh có thể suy đoán hoặc dò quét port để truy cập trái phép vào challenge instance của đội khác, làm phát sinh rủi ro can thiệp và phá hoại môi trường thi. Do đó, hệ thống triển khai Challenge Gateway như một lớp trung gian duy nhất tiếp nhận toàn bộ request từ thí sinh, chỉ expose một port cố định và điều hướng request tới đúng pod tương ứng theo thông tin định danh.
+Chức năng Challenge Gateway được kích hoạt khi thí sinh thực hiện thao tác Start Challenge. Thay vì trả về địa chỉ NodePort trực tiếp, hệ thống cấp một URL truy cập thông qua Gateway và kèm theo token xác thực. Token này chứa các thông tin cần thiết để định danh (user/team, challenge, port nội bộ/route) nhằm giúp Gateway xác thực quyền truy cập và điều phối request tới đúng instance. Cách tiếp cận này giúp tăng cường kiểm soát truy cập, giảm bề mặt tấn công, đồng thời giữ trải nghiệm của thí sinh thống nhất (chỉ truy cập qua một endpoint duy nhất).
+FR-02: View Challenges
+
+Figure 66: View Challenges Screen
+Trong hệ thống hiện tại, dữ liệu challenge trong danh sách còn thiếu nhiều thông tin cần thiết phục vụ cho admin thuận tiện trong việc quản lý, do đó, hệ thống bổ sung các thông tin cần thiết cho challenge như độ khó challenge, creator, tag. Chức năng View Challenges cho phép Challenge Writer và Admin truy cập danh sách tất cả challenge trong cuộc thi bằng cách nhấn vào menu Challenges trên Sidebar. Bên dưới là bảng dữ liệu hiển thị theo trang, trong đó mỗi dòng thể hiện các thông tin quan trọng như ID, Name, Category, Creator, Difficulty, Creator, Value, Type, Tags, Deploy Status, State và các thao tác quản trị như Preview Challenge và View Deployment History.
+FR-03: Configure deployment for Challenge
+
+
+Figure 30: Configure deployment for Challenge Screen
+Khi người chọn checkbox “Docker Deploy”, hệ thống hiển thị form nhập dữ liệu để cấu hình triển khai. Trong hệ thống trước, các dữ liệu cài đặt chỉ bao gồm Expose port và file deploy, thiếu đi các cài về request tài nguyên memory, CPU của pod. Để giải quyết vấn đề này và tạo trải nghiệm kiểm soát tốt hơn cho admin và challenge writer, hệ thống bổ sung các input cho phép người dùng tùy chỉnh cài đặt: cấu hình CPU/Memory Request và Limit, bật/tắt gVisor (Run the pod with gVisor sandbox for extra isolation), Max Deploy Count (Maximum number of times a contestant can start/deploy this challenge).
+FR-04: Edit dynamic challenge
+
+
+Figure 30: Edit dynamic challenge Screen
+Hệ thống hiện tại chưa hỗ trợ loại challenge dynamic, điểm số thí sinh nhận được sẽ giảm theo số lượng submission correct trong hệ thống. Giao diện tùy chỉnh dynamic challenge cần thiết bao gồm: current value, initial value, Decay Function (Linear/Logarithmic), decay value, minimum value. Chức năng này cho phép tùy chỉnh điểm số mà thí sinh nhận được, loại hàm tính toán giảm điểm và số điểm nhỏ nhất có thể giảm về của challenge.
+FR-05: Challenge versions
+
+
+Figure 30: Challenge versions Screen
+Trong hệ thống hiện tại, khi Challenge Writer chỉnh sửa challenge (Dockerfile, flag, tài nguyên, nội dung mô tả), thay đổi có thể được áp dụng ngay lập tức mà không lưu lại lịch sử. Nếu một bản cập nhật gây lỗi hoặc làm hỏng quá trình triển khai, người ra đề thiếu công cụ để truy vết và quay về trạng thái ổn định, dẫn đến rủi ro gián đoạn contest. Do đó, hệ thống bổ sung cơ chế quản lý phiên bản (version control) cho challenge nhằm ghi nhận toàn bộ thay đổi theo thời gian.
+Chức năng Challenge versions cho phép Challenge Writer và Admin truy cập Version History của một challenge để xem danh sách phiên bản theo trình tự thời gian. Giao diện trình bày dưới dạng bảng với các thông tin: số phiên bản, thời điểm tạo, image tag, trạng thái active. Khi mở rộng một phiên bản, người dùng có thể xem lại các thuộc tính tại thời điểm tương ứng như cấu hình Docker, flag, Resource Request/Limit, nội dung mô tả và các thiết lập liên quan. Thông tin phiên bản giúp người dùng đối chiếu, đánh giá tác động của từng thay đổi và phục vụ rollback khi cần.
+FR-06: Rollback challenge version
+
+Figure 30: Rollback challenge version Screen
+Rollback challenge version là chức năng bổ trợ trực tiếp cho FR-05, cho phép khôi phục nhanh về phiên bản ổn định khi bản hiện tại gặp lỗi build/deploy hoặc gây sự cố trong contest. Trong hệ thống cũ, việc khôi phục thường phải thực hiện thủ công (chỉnh lại file, cấu hình, deploy lại), tốn thời gian và dễ sai sót. Do đó, hệ thống cung cấp thao tác Rollback nhất quán trên Version History.
+Người dùng (Challenge Writer/Admin) chọn một phiên bản trong danh sách phiên bản và xác nhận rollback qua popup để hạn chế thao tác nhầm. Sau khi xác nhận, hệ thống khôi phục toàn bộ cấu hình challenge theo phiên bản được chọn (Deploy file, resource limits/requests, nội dung mô tả và các thiết lập liên quan), sau đó tự động kích hoạt quy trình rebuild và redeploy thông qua Argo Workflow.
+FR-07: Preview Challenge
+
+Figure 71: Preview Challenge Dialog
+Chức năng Preview Challenge cho phép Challenge Writer và Admin triển khai thử một challenge để kiểm tra nội dung, giao diện hiển thị và luồng submit flag trước khi public challenge cho contestant. Chức năng được kích hoạt khi người dùng nhấn nút Preview của 1 challenge từ danh sách challenges. Hệ thống hiển thị một modal dialog chứa thông tin cơ bản như tên challenge, trạng thái deploy và challenge token, kèm nút OK và [x] để đóng. Khi deploy preview thành công, hệ thống cung cấp challenge token và url và cho phép người dùng truy cập challenge instance như contestant.
+FR-08: Search Challenge
+
+Figure 72: Search Challenge Screen
+Trong hệ thống hiện tại, người quản trị gặp nhiều khó khăn trong việc quản lý challenge. Khi quy mô contest lớn, việc phải thao tác thủ công để tổng hợp hoặc trích xuất danh sách challenge theo điều kiện gây tốn thời gian và dễ sai sót. Do đó, hệ thống cải tiến màn hình danh sách Challenges theo hướng hỗ trợ đầy đủ duyệt dữ liệu, lọc/tìm kiếm kết hợp. Chức năng Search Challenge được tích hợp trực tiếp trên đầu trang Challenges và được sử dụng bởi Challenge Writer/Admin để tìm kiếm và lọc nhanh theo nhiều tiêu chí. Người dùng có thể kết hợp All Category dropdown, All Types dropdown (standard/dynamic/multiple_choice), Name dropdown (chọn trường tìm kiếm như Name/Category/Type), Search keywords input, và bộ lọc tags (hiển thị label các tags đã chọn và hỗ trợ tìm tag theo name), difficulty, state(visible/hidden), Has Prerequisite. Sau khi thiết lập điều kiện, người dùng nhấn nút Search để áp dụng hoặc nút Reset để đưa các trường về trạng thái mặc định. Kết quả lọc/tìm kiếm được hiển thị trong danh sách dạng bảng và phản ánh đúng dữ liệu challenge trong hệ thống.
+FR-09: Action Log Screen for Admin
+
+Figure 17:Action Log Screen for Admin
+Trong hệ thống hiện tại, việc giám sát hành vi thí sinh trong quá trình thi đấu của admin và jury còn hạn chế do các hành động quan trọng của thí sinh (submit flag, start/stop challenge) không được hiển thị tại trang quản trị. Điều này làm giảm khả năng phát hiện hành vi bất thường và khiến việc tra cứu theo user/team tốn thời gian, đặc biệt khi contest có số lượng thí sinh lớn. Do đó, hệ thống xây dựng chức năng View Action Log để ghi nhận đầy đủ hoạt động của thí sinh theo thời gian và hỗ trợ lọc/xuất dữ liệu phục vụ điều tra và tổng kết.
+Action Log Screen được Admin/Jury truy cập thông qua menu Action Logs trong trang quản lý contest. Giao diện gồm form filter theo user (ID hoặc username), team (ID hoặc team name), Type (dropdown loại hành động), số lượng log mỗi trang và nút filter để áp dụng điều kiện. Dữ liệu được trình bày dưới dạng bảng với các cột Date, Username, Team, Type, Topic (category của challenge) và Detail action để mô tả chi tiết hành động. Nút Export XLSX cho phép xuất log theo điều kiện đang áp dụng ra file Excel.
+FR-10: Configure Settings
+
+Figure 21: Configure Settings Screen
+Trong hệ thống cũ, các thiết lập quan trọng của contest (quy tắc tính điểm, giới hạn số challenge chạy đồng thời, phân quyền captain-only, …) thường phải can thiệp trực tiếp vào cấu hình hoặc dữ liệu, thiếu tính trực quan và dễ phát sinh sai sót, đồng thời các chức năng import và export data của contest và user, team hoạt động không đúng mong đợi. Do đó, hệ thống cải thiện chức năng Configure Settings như một trung tâm cấu hình, giúp Admin chỉnh sửa nhanh và áp dụng cấu hình thống nhất. Admin truy cập tab Config từ thanh điều hướng để cấu hình contest. Trang cấu hình được chia thành các tab: General (tên, mô tả, captain only submit flag/start challenge, giới hạn số challenge được start đồng thời), Visibility, Start and End Time (thời gian bắt đầu, kết thúc cuộc thi, frozen scoreboard time), Import & Export (Contest data, user data, team data). Các thay đổi được lưu khi nhấn Save và có hiệu lực ngay trên giao diện contestant.
+FR-11: Dynamic Reward Query
+
+Figure 23: Dynamic Reward Query Screen
+Trong hệ thống cũ, Admin thường chỉ có thể export scoreboard tổng thể và xử lý thủ công trên Excel để lập danh sách trao thưởng (top team, first blood, …). Cách làm này tốn thời gian, khó tái sử dụng và dễ sai sót khi số lượng thí sinh lớn hoặc khi tiêu chí trao thưởng thay đổi. Do đó, hệ thống xây dựng Dynamic Reward Query như một công cụ truy vấn theo template, cho phép nhập tham số và export kết quả trực tiếp.
+Admin truy cập tính năng qua menu [Reward Query & Export] trong trang quản lý contest. Giao diện được chia thành hai phần: (1) phần “Chọn Template” chứa danh sách các template query được định nghĩa sẵn như Top Teams by Score, Bottom Teams, Category Masters, Perfect Solvers, First Blood Hunters, Solve Count Champions, No Hints Solvers, Fastest Solvers, Category Specific Top Teams, First Blood by Category, Specific Challenge Solvers, Most Persistent, Teams in Rank Range, Top Users by Score; (2) phần “Tùy chỉnh Parameters” hiển thị tên/mô tả template đang chọn và các trường input phụ thuộc template (Limit, Min Score, Category, …), kèm nút [Xem kết quả] để thực thi và [Reset] để đưa các input về trạng thái mặc định. Khi thực thi thành công, hệ thống hiển thị danh sách kết quả và cho phép export Excel/CSV.
+FR-12: Audit Logs Screen for Admin
+
+Figure 24: Audit Logs Screen for Admin
+Hiện tại hệ thống chưa có cơ chế Audit Log để ghi nhận và lưu trữ lịch sử các thao tác quan trọng do Admin/Jury/Challenge Writer thực hiện. Các thay đổi liên quan đến user, team, challenge, cấu hình hệ thống hoặc thao tác xử lý submission (đánh dấu correct/incorrect, xóa challenge, export, …) nếu không được ghi nhận tập trung sẽ làm giảm khả năng truy vết khi xảy ra sự cố hoặc tranh chấp, đồng thời ảnh hưởng tính minh bạch vận hành. Do đó, hệ thống xây dựng chức năng Audit Log để ghi nhận đầy đủ thao tác quản trị, hỗ trợ tìm kiếm/lọc và xuất dữ liệu phục vụ kiểm tra nội bộ.
+Audit Logs Screen cho phép Admin theo dõi toàn bộ thao tác quan trọng của các tài khoản jury, challenge writer, admin. Giao diện gồm bộ lọc theo role, tìm kiếm user theo id hoặc name, dropdown loại thao tác (tạo/sửa/xóa challenge, thay đổi cấu hình, xử lý submission, quản lý user/team, …), dropdown target type (đối tượng được chỉnh sửa) và lọc theo khoảng thời gian. Dữ liệu hiển thị dưới dạng bảng với các cột thời gian, người thực hiện, vai trò, loại thao tác, đối tượng bị tác động, địa chỉ IP actor và nút [View] để xem chi tiết thay đổi; nút [Export XLSX] cho phép xuất log ra file Excel.
+
+FR-13: Instances History Screen for Admin
+
+Figure 24: Instances History Screen for Admin
+Hiện tại hệ thống chưa có cơ chế Challenge Instance History để ghi nhận và lưu trữ lịch sử start của các challenge pod trong cụm k8s. Các thay đổi liên quan đến user, team, challenge, cấu hình hệ thống hoặc thao tác xử lý submission (đánh dấu correct/incorrect, xóa challenge, export, …) nếu không được ghi nhận tập trung sẽ làm giảm khả năng truy vết khi xảy ra sự cố hoặc tranh chấp, đồng thời ảnh hưởng tính minh bạch vận hành. Do đó, hệ thống xây dựng chức năng Audit Log để ghi nhận đầy đủ thao tác quản trị, hỗ trợ tìm kiếm/lọc và xuất dữ liệu phục vụ kiểm tra nội bộ.
+Instances History Screen cho phép Admin theo dõi toàn bộ thao tác quan trọng của các tài khoản jury, challenge writer, admin. Giao diện gồm bộ lọc theo role, tìm kiếm user theo id hoặc name, dropdown loại thao tác (tạo/sửa/xóa challenge, thay đổi cấu hình, xử lý submission, quản lý user/team, …), dropdown target type (đối tượng được chỉnh sửa) và lọc theo khoảng thời gian. Dữ liệu hiển thị dưới dạng bảng với các cột thời gian, người thực hiện, vai trò, loại thao tác, đối tượng bị tác động, địa chỉ IP actor và nút [View] để xem chi tiết thay đổi; nút [Export XLSX] cho phép xuất log ra file Excel.
+FR-14: View and Search Users
+
+Figure 40: View Users Screen
+Chức năng quản lý User trong hệ thống hiện tại còn nhiều hạn chế, đặc biệt khi số lượng người dùng lớn: bảng quản trị thiếu thông tin liên kết team và thiếu bộ lọc theo trạng thái, gây khó khăn khi kiểm soát dữ liệu. Do đó, hệ thống mở rộng màn hình View Users để cung cấp đầy đủ thông tin và thao tác quản trị.
+Admin/Jury truy cập thông qua menu Users. Trang hiển thị bảng danh sách user có phân trang, kèm bộ lọc/tìm kiếm theo Role, Trạng thái (verified/hidden/banned), Search Field (dropdown chọn trường), ô nhập từ khóa, nút Search & Filter, nút Clear và các nút hành động Create, Edit, Delete User, Export CSV. Bảng dữ liệu thể hiện các cột: ID, Username, Email, Team, Role, Verified, Hidden, Banned.
+Chức năng Export User Data cho phép Admin xuất dữ liệu người dùng ra file Excel/CSV để phục vụ thống kê và phân phối. Chức năng được kích hoạt khi Admin nhấn nút [Export CSV] trên trang danh sách Users. Trong quá trình export, hệ thống cung cấp tùy chọn reset password của user khi export, tuy nhiên để đảm bảo an toàn trong thời gian contest diễn ra, hệ thống áp dụng ràng buộc: nếu contest đang diễn ra thì không cho phép export password. Khi export thành công, file được tải xuống với đầy đủ dữ liệu, nếu không có dữ liệu để export, hệ thống vẫn trả về file trống kèm header.
+FR-15: View and Search Teams
+
+Figure 40: View Teams Screen
+Hệ thống trước đây chưa hiển thị đầy đủ các thông tin quan trọng của teamnhư Members và Captain, đồng thời chưa hỗ trợ bộ lọc theo nhiều tiêu chí, khiến quá trình quản trị trở nên mất thời gian và phụ thuộc nhiều vào thao tác thủ công. Do đó, hệ thống được nâng cấp bằng cách bổ sung dữ liệu hiển thị trong bảng và cải tiến chức năng Search Team nhằm hỗ trợ tìm kiếm và lọc dữ liệu hiệu quả hơn. 
+Chức năng View Teams cho phép Admin/Jury xem danh sách toàn bộ team trong contest thông qua menu [Teams] tại trang quản lý contest. Giao diện hiển thị bảng dữ liệu có phân trang, kèm theo form tìm kiếm gồm dropdown lựa chọn trường lọc và ô nhập từ khóa. Hệ thống hỗ trợ các thao tác quản trị như Create Team, Edit Team và Delete Team. Bảng danh sách bao gồm các cột: ID, Team Name, Members (số lượng thành viên), Captain, Country, Hidden, Banned và checkbox để chọn bản ghi. Người quản trị có thể tìm kiếm theo Team Name, Captain hoặc Country thông qua dropdown lựa chọn tiêu chí kết hợp với ô nhập từ khóa và nút Search, giúp việc định vị và quản lý teamdiễn ra nhanh chóng và chính xác hơn.
+FR-16: Scoreboard for Contestant
+
+Figure 48: Scoreboard for Contestant
+Chức năng Scoreboard for Contestant cung cấp bảng xếp hạng theo thời gian thực của contest và được truy cập thông qua menu [Scoreboard]. Tùy theo vai trò người dùng, hệ thống hiển thị giao diện phù hợp nhằm đáp ứng yêu cầu quản trị và trải nghiệm thi đấu. Giao diện tập trung vào khả năng theo dõi thứ hạng, bao gồm ô tìm kiếm, chức năng sắp xếp theo rank hoặc score, phân trang dữ liệu, biểu đồ điểm số theo thời gian (Chart Component) và bảng thông tin với các cột Rank, Team Name, Score. Thí sinh có thể nhấn vào tên team để xem thông tin chi tiết và sử dụng nút [Refresh] để cập nhật dữ liệu mới nhất.
+Hệ thống hỗ trợ cơ chế Freeze Time nhằm đảm bảo tính công bằng trong giai đoạn cuối của cuộc thi. Sau thời điểm freeze, giao diện scoreboard dành cho contestant sẽ được “đóng băng” và không tiếp tục cập nhật dữ liệu, trong khi Admin và Jury vẫn có thể theo dõi bảng xếp hạng động để phục vụ công tác giám sát.
+FR-17: Challenge Analytics for Dashboard
+
+Figure 49: Challenge Analytics for Dashboard Screen
+Trang Dashboard của hệ thống trước đây chỉ hiển thị các thông tin tổng quan cơ bản, chưa cung cấp đủ dữ liệu để Admin/Jury đánh giá sâu về tiến độ cuộc thi cũng như chất lượng của bộ challenge (ví dụ: challenge quá dễ, quá khó, ít người giải, thời gian giải trung bình cao bất thường,…). Do đó, hệ thống đã được mở rộng Dashboard theo hướng bổ sung các thống kê chi tiết và biểu đồ trực quan phục vụ phân tích đa chiều.
+Admin/Jury truy cập tab Dashboard trong trang quản lý contest để theo dõi tổng quan trạng thái và thống kê hoạt động. Ngoài các thẻ thống kê nhanh như số lượng users, số teams tham gia, số địa chỉ IP, tổng điểm tối đa có thể đạt, tổng số challenge, challenge được giải nhiều nhất/ít nhất, hệ thống cần bổ sung thêm module Challenge Analytics.
+Module mới này cung cấp bảng phân tích chi tiết theo từng challenge, bao gồm các chỉ số: Tỷ lệ giải (% Solve), thời gian giải trung bình (Avg Time), số lần submit sai (Wrong Attempts), số lượt sử dụng hint (Hint Usage), tổng số hint và tỷ lệ sử dụng hint. Bên cạnh bảng số liệu, hệ thống hiển thị biểu đồ Category Solves thể hiện số lượng challenge được giải theo từng thể loại (PWN, WEB, Dynamic,…).
+Việc bổ sung các thống kê này giúp Admin/Jury có cơ sở định lượng rõ ràng để đánh giá mức độ khó của challenge, hành vi người chơi, hiệu quả sử dụng hint và mức độ cân bằng giữa các category trong contest.
+FR-18: View Submissions
+
+Figure 52: View Submissions Screen
+Màn hình quản lý Submission của hệ thống trước đây chưa hỗ trợ đầy đủ các công cụ vận hành quan trọng như lọc theo team, user hoặc thời gian; export dữ liệu theo điều kiện đúng/sai; cũng như hiệu chỉnh điểm cho dynamic challenge khi cần thiết. Những hạn chế này làm giảm hiệu quả xử lý sự cố và tiềm ẩn rủi ro sai sót trong quá trình quản trị. Do đó, hệ thống được nâng cấp toàn diện chức năng View Submissions, bao gồm bộ lọc mở rộng, thao tác quản trị submission và cơ chế đồng bộ lại điểm cho dynamic challenge.
+Admin/Jury truy cập chức năng thông qua menu [Submissions] trong trang quản lý contest. Giao diện cung cấp form tìm kiếm với dropdown lựa chọn trường lọc và ô nhập từ khóa, cùng các thao tác như gắn Flag, reset dynamic challenge value, [Delete] và [Export]. Danh sách submission được hiển thị dưới dạng bảng với các cột: ID, User, Team, Challenge, Type, Provided (flag đã nộp), Date, và checkbox để chọn nhiều bản ghi. Trong quá trình vận hành, người quản trị có thể xem lịch sử nộp bài, cập nhật trạng thái đúng/sai theo quy trình hệ thống, xóa submission khi cần và xuất dữ liệu phục vụ thống kê. Trường hợp chưa có dữ liệu, hệ thống hiển thị thông báo “No submissions yet”.
+Ngoài ra, hệ thống bổ sung chức năng Resync Dynamic Challenge Value nhằm đảm bảo tính nhất quán điểm số. Khi Admin chọn thao tác resync, hệ thống hiển thị hộp thoại xác nhận với nội dung “Are you sure to recalculate all dynamic challenge values?” và hai lựa chọn [No] / [Yes]. Khi xác nhận, hệ thống sẽ khôi phục điểm các dynamic challenge về giá trị ban đầu, thực hiện tính toán lại điểm theo thuật toán đã cấu hình và cập nhật lại scoreboard cho toàn bộ team/user.
+FR-19: Search Instance for Monitoring
+
+Figure 27: Search Instance for Monitoring Screen
+Trang Monitoring của hệ thống trước đây chưa hỗ trợ đầy đủ các bộ lọc theo các tiêu chí quan trọng, gây khó khăn trong việc nhanh chóng định vị một challenge instance khi số lượng instance đang chạy lớn. Điều này ảnh hưởng đến khả năng xử lý sự cố và giám sát hệ thống trong thời gian diễn ra cuộc thi. Vì vậy, hệ thống được cải tiến chức năng tìm kiếm và lọc dữ liệu trên trang Monitoring nhằm hỗ trợ Admin thao tác hiệu quả hơn trên danh sách instance.
+Admin truy cập menu [Monitoring] trong trang quản lý contest để giám sát toàn bộ challenge instances. Giao diện cung cấp các bộ lọc gồm: Team, User, Category, Status, ô tìm kiếm theo Challenge Name, cùng nút [Clear Filters] để xóa điều kiện lọc. Ngoài ra, hệ thống hỗ trợ các thao tác điều khiển như [Refresh Data] để làm mới danh sách và [Stop All] để dừng toàn bộ instance trong các tình huống khẩn cấp hoặc khi kết thúc cuộc thi. 
+Danh sách instance được hiển thị dưới dạng bảng với các cột: ID, Challenge Name, Team Name, User Name, Category, Status, Challenge Token, Time Finished (thời điểm pod dự kiến tự động bị xóa) và Action. Trong quá trình vận hành, Admin có thể dừng từng instance riêng lẻ hoặc dừng toàn bộ hệ thống, xem Logs để phục vụ debug pod, hoặc truy cập Request Log để theo dõi các request do thí sinh gửi đến challenge instance.
+FR-20: Refresh Log for Log Detail
+
+Figure 30: Refresh Log for Log Detail Screen
+Trang xem log của challenge pod trong hệ thống trước đây chưa hỗ trợ cập nhật theo thời gian thực; người dùng phải tải lại toàn bộ trang để xem nội dung mới, gây gián đoạn quá trình giám sát và làm giảm khả năng phản ứng nhanh khi xảy ra sự cố trong quá trình triển khai hoặc trong thời gian diễn ra cuộc thi. Vì vậy, hệ thống được bổ sung cơ chế refresh nhằm cập nhật nội dung log mà không cần reload toàn bộ trang.
+Admin có thể truy cập trang Log Detail bằng cách chọn nút [Logs] tương ứng với một instance trong trang Monitoring. Trang này hiển thị phần thông tin tổng quan (challenge id) và vùng nội dung log dạng văn bản. Người dùng có thể nhấn [Refresh] để tải nội dung mới nhất mà không cần tải lại trang, hoặc dùng chức năng auto refresh để tự động cập nhật sau 1 khoảng thời gian, hệ thống đồng thời hiển  thị thời điểm cập nhật gần nhất để đảm bảo khả năng theo dõi.
+FR-21: Contestant Request Log
+
+Figure 30: Contestant Request Log Screen
+Hệ thống hiện tại chưa cung cấp chức năng theo dõi log các request mà thí sinh gửi đến challenge instance, gây hạn chế trong việc giám sát và đánh giá hành vi người tham gia. Việc thiếu cơ chế này có thể ảnh hưởng đến tính minh bạch của cuộc thi cũng như khả năng phát hiện các hành vi bất thường hoặc gian lận. Vì vậy, hệ thống được bổ sung chức năng Request Log dành cho Admin, cho phép xem toàn bộ các request được gửi đến từng challenge instance trong cụm triển khai, từ đó hỗ trợ ban tổ chức kiểm soát và giám sát hoạt động của thí sinh một cách hiệu quả hơn.
+Admin có thể truy cập trang Request Log Detail bằng cách chọn nút [Logs] tương ứng với một instance trong trang Monitoring. Trang này hiển thị phần thông tin chung (challenge id) và vùng nội dung log dạng văn bản. Người dùng có thể nhấn [Refresh] để cập nhật log mới nhất mà không cần tải lại toàn bộ trang, hoặc dùng chức năng auto refresh để tự động cập nhật sau 1 khoảng thời gian, hệ thống đồng thời hiển thị thời điểm refresh gần nhất để đảm bảo tính minh bạch và theo dõi.
+4. Non-Functional Requirements
+4.1 External Interfaces
+Hệ thống F-CTF version 4 yêu cầu khả năng giao tiếp chặt chẽ và ổn định với các hệ thống cũng như phần cứng/phần mềm bên ngoài nhằm đảm bảo khả năng triển khai tự động, giám sát, điều phối tài nguyên. Hệ thống tương tác trực tiếp với Kubernetes API Server để quản lý vòng đời của các Pod challenge, yêu cầu giao diện này phải hỗ trợ gán nhãn tài nguyên để phân tách theo từng cuộc thi, thiết lập Network Policies nhằm cô lập mạng giữa các challenge và các cuộc thi khác nhau.
+Về giao diện giám sát và ghi log, hệ thống cung cấp dữ liệu cho các nền tảng giám sát và ghi log như Prometheus, Grafana, Loki. Giao diện này phải hỗ trợ việc truy vấn logs tập trung theo thời gian thực để phục vụ dashboard giám sát của Admin và Jury.
+Hệ thống triển khai một Challenge Gateway đóng vai trò là cổng trung gian kiểm soát toàn bộ lưu lượng truy cập từ người dùng đến các pod challenge. Giao diện này giúp tăng cường bảo mật, khả năng kiểm soát truy cập của hệ thống.
+4.2 Quality Attributes
+4.2.1 Reliability
+NFR-01: Trạng thái challenge hiển thị chính xác
+Hệ thống phải đảm bảo rằng trạng thái của challenge instance chỉ được hiển thị là Ready và URL kết nối chỉ được trả về cho thí sinh khi ứng dụng bên trong container đã thực sự sẵn sàng tiếp nhận traffic. Việc xác định trạng thái sẵn sàng phải dựa trên cơ chế readiness check của container, đảm bảo ứng dụng đã khởi động hoàn chỉnh và cổng dịch vụ có thể chấp nhận kết nối.
+Hệ thống phải ngăn chặn hoàn toàn tình trạng trả về trạng thái Ready trong khi dịch vụ bên trong container chưa sẵn sàng. Trong mọi trường hợp, URL truy cập chỉ được cung cấp sau khi readiness check thành công. Tỷ lệ lỗi kết nối (Connection Refused hoặc tương đương) sau khi hệ thống trả về trạng thái Ready phải bằng 0% trong các kịch bản kiểm thử tích hợp và kiểm thử tải.
+NFR-02: Khả năng ổn định và phục hồi hệ thống dưới tải cao
+Hệ thống phải bảo đảm duy trì khả năng vận hành ổn định khi xử lý số lượng lớn yêu cầu khởi tạo challenge, đồng thời hạn chế tối đa tình trạng tồn đọng workflow, cạn kiệt tài nguyên và suy giảm hiệu năng control plane.
+Mọi request khởi tạo môi trường challenge phải được giám sát về trạng thái thực thi và thời gian xử lý. Các workflow hoặc tiến trình triển khai bị treo, không thể tiếp tục do thiếu tài nguyên hoặc lỗi lập lịch, phải được tự động phát hiện và chấm dứt khi vượt quá thời gian cho phép. Thời gian thực thi tối đa của một request khởi tạo challenge không được vượt quá 6 phút, bao gồm cả giai đoạn chờ lập lịch và triển khai pod. Hệ thống phải triển khai đầy đủ cơ chế timeout, garbage collection và thu hồi tài nguyên nhằm ngăn chặn việc duy trì lâu dài các workflow ở trạng thái Running hoặc Pending. Các workflow không còn khả năng hoàn thành phải được kết thúc theo chính sách đã định nghĩa, tránh gây tích tụ tài nguyên và làm nghẽn hệ thống.
+Trong các tình huống quá tải cực đoan, khi cluster rơi vào trạng thái thiếu hụt CPU, bộ nhớ hoặc không gian lưu trữ, hệ thống phải đảm bảo khả năng phục hồi thông qua việc tự động giải phóng tài nguyên bị chiếm giữ không hợp lệ. Thời gian cần thiết để hệ thống quay trở lại trạng thái ổn định và có thể tiếp nhận yêu cầu mới không được vượt quá 30 phút. Các tác vụ dọn dẹp tài nguyên, bao gồm cleanup workflow, xóa challenge pod cũ và thu hồi volume tạm thời, phải được cấu hình với mức độ ưu tiên cao nhất trong hệ thống lập lịch. Các tác vụ này phải có khả năng được thực thi ngay cả khi cluster đã đạt ngưỡng sử dụng tối đa, thông qua cơ chế ưu tiên và preemption, nhằm tránh tình trạng deadlock trong đó tài nguyên không thể được thu hồi. Hệ thống phải đảm bảo rằng các workload phục vụ vận hành và bảo trì, đặc biệt là các cleanup jobs, không bị chặn bởi các workload nghiệp vụ thông thường. Việc phân bổ tài nguyên và ưu tiên thực thi phải được thiết kế để ngăn chặn tình trạng các tác vụ dọn dẹp bị treo do thiếu tài nguyên.
+Khả năng ổn định và phục hồi của hệ thống phải được kiểm chứng thông qua các bài kiểm thử chịu tải và stress test với số lượng lớn request đồng thời. Trong các kịch bản này, hệ thống phải chứng minh được rằng việc tăng đột biến workload không dẫn đến treo kéo dài, rò rỉ tài nguyên hoặc yêu cầu can thiệp thủ công để khôi phục.
+4.2.2 Security
+NFR-03: Tuân thủ Pod Security Standards (Restricted Level)
+Hệ thống phải triển khai toàn bộ các challenge pod theo mức bảo mật Restricted của Pod Security Standards do Kubernetes định nghĩa. Các pod phải được cấu hình chạy với non-root user, vô hiệu hóa privilege escalation, sử dụng root filesystem ở chế độ chỉ đọc, loại bỏ toàn bộ Linux capabilities và áp dụng cơ chế kiểm soát syscall an toàn.
+Yêu cầu này nhằm đảm bảo các challenge pod không chỉ bị hạn chế về đặc quyền ở cấp container, mà còn bị giới hạn khả năng tương tác với kernel của node host, qua đó giảm thiểu nguy cơ khai thác lỗ hổng kernel, container escape và leo thang đặc quyền.
+Kết quả mong đợi là các challenge pod được vận hành trong môi trường có mức độ cô lập cao ở cả cấp tiến trình và kernel, không thể lợi dụng quyền hệ điều hành hoặc syscall nguy hiểm để tấn công sang host và các workload khác, từ đó nâng cao mức độ an toàn và ổn định của toàn bộ hệ thống.
+NFR-04: Cô lập mạng (Network Isolation)
+Hệ thống phải áp dụng Network Policies theo mô hình Zero-trust: Mặc định chặn tất cả traffic (Default Deny-All). Chỉ cho phép traffic Ingress từ Challenge Gateway và Egress tới DNS (port 53). Ngăn chặn tuyệt đối việc truy cập ngang hàng giữa các pod challenge hoặc truy cập vào Database/NFS. Hệ thống phải ngăn chặn tuyệt đối các hình thức truy cập trái phép, bao gồm:
+Giao tiếp ngang hàng (lateral movement) giữa các pod challenge.
+Truy cập trực tiếp từ pod challenge tới Database, NFS hoặc các dịch vụ hạ tầng nội bộ.
+Kết nối trái phép giữa các namespace hoặc môi trường khác nhau.
+Các luồng mạng không được định nghĩa trong chính sách bảo mật.
+NFR-05: Kiểm soát truy cập cổng mạng (No NodePort Exposure)
+Hệ thống phải cấm tuyệt đối việc sử dụng NodePort để expose trực tiếp các challenge ra Internet. Toàn bộ lưu lượng truy cập từ bên ngoài phải được định tuyến thông qua Challenge Gateway như một điểm kiểm soát tập trung, thay vì kết nối trực tiếp tới các pod hoặc service nội bộ trong cluster.
+Các challenge backend chỉ được tồn tại trong mạng nội bộ của cluster Kubernetes, không được công khai cổng dịch vụ ra bên ngoài. Việc truy cập từ người chơi phải đi qua gateway trung gian, nơi thực hiện xác thực bằng token, ghi nhận log truy cập, giới hạn tài nguyên và định tuyến động tới đúng instance challenge.
+Gateway đóng vai trò là lớp bảo vệ đầu vào, đảm bảo:
+Mọi kết nối đều được xác thực danh tính thông qua token hợp lệ.
+Ngăn chặn truy cập trái phép, truy cập chéo giữa các challenge và truy cập ngoài phạm vi được cấp quyền.
+Hạn chế việc lộ trực tiếp địa chỉ IP, port và cấu trúc mạng nội bộ của hệ thống.
+Cho phép áp dụng các cơ chế giới hạn truy cập, tập trung quản lý truy cập, tăng khả năng giám sát và kiểm soát hành vi người dùng.
+NFR-06: Tuân thủ Khung bảo mật NSA/CISA (Security Compliance)
+Hệ thống phải đạt mức tuân thủ 100% đối với các tiêu chí kiểm soát ở mức Critical/High theo khung Kubernetes Hardening do National Security Agency và Cybersecurity and Infrastructure Security Agency ban hành. Việc tuân thủ được đánh giá và xác minh định kỳ thông qua các công cụ tự động như Kubescape và Trivy, được tích hợp trong quy trình CI/CD và vận hành hệ thống.
+Yêu cầu này nhằm đảm bảo hệ thống được cấu hình an toàn theo chuẩn quốc tế, giảm thiểu tối đa rủi ro liên quan đến lỗ hổng bảo mật, cấu hình sai, phân quyền không phù hợp và các nguy cơ tấn công từ bên ngoài. Toàn bộ các phát hiện ở mức Critical/High phải được khắc phục triệt để hoặc có biện pháp giảm thiểu được phê duyệt trước khi triển khai vào môi trường production.
+Thông qua việc tuân thủ khung bảo mật NSA/CISA, hệ thống hướng tới mục tiêu phòng ngừa các hình thức tấn công phổ biến như privilege escalation, container escape, unauthorized access và tấn công vào control plane; đồng thời bảo vệ dữ liệu nhạy cảm, secrets, chứng chỉ và thông tin người dùng khỏi nguy cơ rò rỉ hoặc truy cập trái phép.
+NFR-07: Rate Limit
+Hệ thống phải triển khai cơ chế rate limiting tại tầng reverse proxy (Nginx) và Challenge Gateway và Contestant Service để giới hạn số lượng kết nối và yêu cầu từ mỗi thực thể định danh (user/team/token/IP) trong một khoảng thời gian xác định. Cụ thể, mỗi thực thể chỉ được phép duy trì tối đa 20 kết nối socket đồng thời và gửi không quá 30 request mỗi giây.
+NFR-08: Kiểm soát truy cập file theo nguyên tắc phân quyền tối thiểu (Least Privilege File Access)
+Hệ thống phải đảm bảo rằng chức năng tải xuống file challenge tuân thủ nguyên tắc phân quyền tối thiểu (least privilege). Mọi yêu cầu tải file phải được xác thực thông qua token hợp lệ và phải đồng thời kiểm tra tính khớp giữa định danh file và đường dẫn file trong cơ sở dữ liệu trước khi cấp quyền truy cập.
+Hệ thống chỉ được phép phục vụ các file nằm trong thư mục được chỉ định cho dữ liệu challenge. Mọi yêu cầu truy cập tới đường dẫn không thuộc phạm vi này hoặc không tồn tại trong cơ sở dữ liệu phải bị từ chối. Ngoài ra, trước khi cho phép tải file, hệ thống phải kiểm tra trạng thái của challenge và các điều kiện prerequisite liên quan để đảm bảo người dùng chỉ có thể truy cập các tài nguyên đã được phép.
+Trong trường hợp xảy ra lỗi cấu hình hoặc dữ liệu không hợp lệ, hệ thống phải áp dụng nguyên tắc deny-by-default và từ chối yêu cầu truy cập. Ở cấp hạ tầng, dịch vụ xử lý tải file phải được cấu hình chỉ có quyền đọc đối với thư mục chứa file challenge, nhằm giảm thiểu rủi ro truy cập trái phép vào các tài nguyên khác của hệ thống.
+4.2.3 Performance
+Hệ thống FCTF được triển khai trên máy chủ với cấu hình 12 bộ xử lý vCPUs và 48GB RAM. Với cấu hình này, hệ thống cần đáp ứng các yêu cầu hiệu năng sau để duy trì tính khả dụng, khả năng mở rộng và trải nghiệm người dùng mượt mà.
+NFR-09: Khả năng xử lý đồng thời (Concurrency Capacity)
+Hệ thống quản lý triển khai (Deployment Center) phải có khả năng tiếp nhận và xếp hàng (queue) ít nhất 1000 yêu cầu khởi tạo đồng thời (burst requests) mà không làm sập Control Plane. Số lượng workflow triển khai chạy song song phải được giới hạn ở mức ổn định để bảo vệ tài nguyên Cluster, các yêu cầu còn lại phải được xếp hàng chờ xử lý tuần tự và sẽ được timeout nếu quá thời gian xử lý là >= 6m.
+NFR-10: TCP Socket Management Gateway
+Gateway phải có khả năng xử lý đồng thời tối thiểu 1.000 sockets đang hoạt động mà không gây treo hệ thống. Hệ thống phải duy trì sự ổn định ngay cả khi lưu lượng TCP tăng đột biến lên mức 3.5 - 4.0 MiB/s.
+NFR-11: HTTP Response Latency (Độ trễ phản hồi)
+Hệ thống phải đảm bảo độ trễ trung bình khi truyền tải gói tin qua Gateway không vượt quá 100 ms trong điều kiện tải tiêu chuẩn.  Độ trễ phải được duy trì dưới mức 120ms ngay cả khi hệ thống chịu tải cao (500 requests đồng thời).
+4.2.4 Verifiability
+NFR-12: Kiểm thử tự động hóa bắt buộc
+Tester phải thiết lập hệ thống kiểm thử tự động cho các quy trình cốt lõi của hệ thống, bao gồm:
+Hệ thống phải triển khai cơ chế kiểm thử tự động cho các quy trình cốt lõi nhằm đảm bảo các chức năng quan trọng luôn được xác minh trong quá trình phát triển và vận hành.
+Các kịch bản End-to-End (E2E) phải bao phủ toàn bộ luồng chính của hệ thống, bao gồm đăng nhập, tạo challenge, khởi tạo challenge instance, kết nối tới challenge và submit flag. Tất cả các kịch bản E2E phải được thực thi tự động trong pipeline CI/CD và phải đạt tỷ lệ thành công tối thiểu 95% trước khi cho phép triển khai lên môi trường production. Kết quả kiểm thử phải được lưu trữ và báo cáo tự động, cho phép phát hiện sớm các suy giảm về hiệu năng hoặc lỗi chức năng trước khi hệ thống được triển khai.
+4.2.5 Scalability
+NFR-13: Khả năng tự động mở rộng theo chiều ngang (Horizontal Auto Scaling)
+Hệ thống phải hỗ trợ cơ chế horizontal auto scaling cho các service chính nhằm đảm bảo khả năng xử lý khi tải tăng cao. Các service bao gồm challenge-gateway, contestant-be, contestant-portal, deployment-center, deployment-consumer và deployment-listener phải được cấu hình để tự động tăng hoặc giảm số lượng replicas dựa trên mức sử dụng tài nguyên.
+Khi mức sử dụng CPU hoặc Memory vượt quá 90%, hệ thống sẽ tự động tăng số lượng replicas của service để phân tán tải và duy trì hiệu năng xử lý. Ngược lại, khi mức sử dụng tài nguyên giảm xuống dưới ngưỡng quy định và duy trì ổn định trong một khoảng thời gian, hệ thống sẽ tự động giảm số lượng replicas nhằm tối ưu tài nguyên.
+Quá trình mở rộng và thu hẹp replicas phải diễn ra tự động, không làm gián đoạn dịch vụ. Cơ chế mở rộng theo chiều ngang giúp hệ thống tăng khả năng mở rộng (scalability), đảm bảo hiệu năng khi tải tăng đột biến và duy trì tính sẵn sàng cao (high availability).
+4.2.6 Modifiability
+NFR-14: Tự động hóa quy trình build và deploy (CI/CD Pipeline)
+Hệ thống phải cung cấp một pipeline CI/CD nhằm tự động hóa quá trình build và triển khai ứng dụng lên môi trường production. Pipeline phải có khả năng xác định các service bị ảnh hưởng bởi thay đổi mã nguồn để chỉ build và deploy những thành phần cần thiết.
+Quá trình build phải hỗ trợ thực thi song song và sử dụng cơ chế cache để tối ưu thời gian xử lý. Các image được tạo ra phải được gắn tag theo commit SHA để đảm bảo khả năng truy vết phiên bản đã triển khai. Trong giai đoạn triển khai, pipeline phải tự động kiểm tra trạng thái rollout của các deployment và báo lỗi nếu quá trình cập nhật không hoàn tất trong thời gian cho phép. Ngoài ra, pipeline phải hỗ trợ cơ chế concurrency control để tránh nhiều lần deploy đồng thời trên cùng một nhánh. Hệ thống phải đảm bảo rằng môi trường sản xuất luôn phản ánh trạng thái mới nhất của mã nguồn trên nhánh chính mà không yêu cầu thao tác triển khai thủ công từ đội vận hành.
+5. Requirement Appendix
+5.1 Business Rules
+
+ID
+Rule Definition
+BR-001
+Ở chế độ team mode, khi tùy chọn "Only Captain" được bật, chỉ đội trưởng của team mới có thể bắt đầu thử thách và submit flag. Nếu bật cấu hình “captain only start challenge” thì chỉ captain mới được phép khởi chạy challenge.
+BR-002
+Challenge chỉ có thể được xem, chỉnh sửa hoặc xóa bởi chủ sở hữu hoặc Admin
+BR-003
+Mỗi team chỉ có thể khởi động 1 instance cho 1 challenge tại một thời điểm.
+BR-004
+Số lượng instance challenge chạy đồng thời cho mỗi team phải được giới hạn.
+BR-005
+User chỉ có thể thuộc về một team tại một thời điểm trong contest.
+BR-006
+Instance challenge phải được tự động xóa sau Time to live được cài đặt.
+BR-007
+Admin không được xuất dữ liệu người dùng có chứa mật khẩu hoặc reset mật khẩu trong khi contest đang diễn ra.
+BR-008
+Khi contest bị frozen, scoreboard của thí sinh sẽ không cập nhật dữ liệu mới, các submission của thí sinh trong thời điểm này đến trước khi cuộc thi kết thúc vẫn được ghi nhận.
+BR-009
+Cách tính điểm của challenge (static, dynamic) chỉ có thể được chỉnh sửa khi contest chưa bắt đầu hoặc đã kết thúc, contest pause cũng không thể.
+BR-010
+Chỉ tài khoản loại admin, jury và challenge writer mới được đăng nhập vào admin portal, tài khoản loại contestant không được phép đăng nhập vào admin portal.
+BR-011
+Chỉ tài khoản loại contestant mới được đăng nhập vào contestant portal.
+BR-012
+Người dùng chưa xác minh tài khoản không được đăng nhập vào contestant portal.
+BR-013
+Người dùng bị hidden hoặc banned không được đăng nhập vào contestant portal, không thể xem profile, truy cập challenge detail, start challenge, submit challenge.
+BR-014
+Team bị banned thì thành viên không thể truy cập challenge detail, start challenge, submit challenge, team sẽ bị ẩn khỏi scoreboard.
+BR-015
+Người dùng không thuộc bất kỳ team nào không được truy cập contestant portal.
+BR-016
+Thí sinh chỉ được thực hiện hành động submit flag, start challenge trong thời gian contest đang active
+BR-017
+Khi contest bị pause, việc submit flag của thí sinh sẽ bị chặn, nhưng vẫn có thể start challenge để xem đề.
+BR-018
+Challenge đã được solve sẽ không thể được start lại.
+BR-019
+Challenge bị hidden sẽ không được hiển thị hoặc triển khai cho contestant.
+BR-020
+Số lần tối đa mà một thí sinh có thể bắt đầu/thực hiện thử thách phải nằm trong khoảng được cài đặt.
+BR-021
+Khi challenge dạng deploy được solve, hệ thống sẽ tự động dừng instance đang chạy.
+BR-022 (operational behaviour rather than a business constraint)
+Khi team hết số lần attempt cho challenge, hệ thống sẽ tự động dừng instance đang chạy.
+BR-023
+Điểm thưởng từ awards được cộng trực tiếp vào tổng điểm của team trên scoreboard.
+BR-024
+Achievements và badges được xử lý theo cơ chế riêng và không ảnh hưởng trực tiếp đến điểm số.
+BR-025
+Scoreboard ở chế độ private yêu cầu người dùng phải đăng nhập mới có thể xem.
+BR-026
+Scoreboard ở chế độ hidden chỉ cho phép admin và jury được truy cập, thí sinh đã đăng nhập không thể xem.
+BR-027
+Chỉ admin mới được tạo tài khoản và add thí sinh vào team, thí sinh không thể tự tạo tài khoản và team.
+BR-028
+Admin không thể tự cấm hoặc xóa tài khoản của chính mình
+BR-029
+Tên user, team phải là duy nhất
+BR-030
+Contestant không thể nhìn thấy thông tin độ khó của challenge trừ khi được admin cho phép
+(removed) Thí sinh chỉ có thể thấy challenge được cài đặt hiển thị công khai; rule migrated to functional requirements if needed.
+BR-032
+Challenge chỉ có thể được xem, bắt đầu hoặc thực hiện attempt khi người chơi đã giải xong toàn bộ các challenge tiên quyết được cấu hình trước đó.
+BR-033
+Thí sinh chỉ có thể xem thông tin scoreboard của bracket mà mình thuộc về và không thể xem điểm và bracket của các đội khác nếu cấu hình admin không cho phép.
+
+Table 106: Business Rules Description
+5.2 Common Requirements
+ID
+Rule Definition
+CR-01
+String input phải có max length validation.
+CR-02
+Numeric inputs phải kiểm tra min/max values và data type.
+CR-03
+File uploads phải validate file type, size
+CR-04
+Date/time inputs phải validate format và logical constraints (e.g., end_time > start_time).
+CR-05
+Error messages phải rõ ràng và thân thiện với người dùng
+CR-06
+Sensitive data (passwords, tokens, PII) không được log.
+
+Table 107: Common Requirements Description
+5.3 Application Messages List
+
+#
+Message code
+Message Type
+Context
+Content
+1
+MSG01
+Toast message
+Login failed
+Invalid credentials or unauthorized user type	
+2
+MSG02
+Toast message
+
+
+Login missing data
+Missing username or password	
+3
+MSG03
+Error inline	
+Login error
+Your username or password is incorrect	
+4
+MSG04
+Toast message
+Auth success
+auth_success	
+5
+MSG05
+Toast message
+Auth failed
+auth_failed	
+6
+MSG06
+Toast message
+Correct flag
+[+] FLAG CORRECT<br>Challenge solved<br>+{points} points	
+7
+MSG07
+Toast message
+Incorrect flag
+Delete asset(s) successfully. 
+8
+MSG08
+Error	
+Submission empty
+Exceed max length of {max_length}. 
+9
+MSG09
+Error
+Submission too long
+Incorrect user name or password. Please check again.
+10
+MSG10
+Error	
+Already solved
+You or your teammate already solved this	
+11
+MSG11
+Error	
+No attempts left
+You have 0 tries remaining
+12
+MSG12
+Error	
+Cooldown active
+Please wait {seconds} seconds before submitting again	
+13
+MSG13
+Status
+Challenge deploying
+Deploying challenge...	
+14
+MSG14
+Status
+Health check progress
+Health check in progress…
+15
+MSG15
+Toast message
+Deploy success with URL	
+[✓] Challenge Started<br>Pod is healthy<br>>{url}	
+16
+MSG16
+Toast message
+Deploy pending	
+[~] Deploying challenge<br>Please wait...<br>Health check will start shortly	
+17
+MSG17
+Toast message
+Deploy ready notification	
+[✓] Challenge Ready!<br>>{challenge_name}<br>>{url}	
+18
+MSG18
+Error
+Deploy failed
+[!] Deploy failed<br>>{error_message}<br>Status: {status}	
+19
+MSG19
+Error
+Connection error
+[!] Connection error<br>Failed to reach server<br>Please try again	
+20
+MSG20
+Toast
+Challenge stopped
+[✓] Stopped<br>Challenge stopped successfully	
+21
+MSG21
+Warning	
+Health check timeout
+[!] Health check timeout<br>Pod may not be ready<br>Max attempts reached	
+22
+MSG22
+Error popup
+Captain only submit
+[!] Only team captain can submit flags	
+23
+MSG23
+Confirmation	
+Unlock hint
+[?] Unlock hint<br>Cost: {points} points<br>Confirm unlock?	
+24
+MSG24
+Success
+Hint unlocked
+Hint unlocked!<br>Detail: {content}	
+25
+MSG25
+Info
+Hint already unlocked
+[i] Already unlocked<br>Content: {content}	
+26
+MSG26
+Error
+Hint fetch failed
+[!] Error<br>Failed to fetch hint	
+27
+MSG27
+Error
+Not enough points
+Hint unlocks failed<br>Not enough points to unlock the hint	
+28
+MSG28
+Success
+Ticket created
+Ticket created successfully	
+29
+MSG29
+Error
+Ticket creation failed
+Failed to create ticket	
+30
+MSG30
+Error
+Failed to load
+Failed to load tickets	
+31
+MSG31
+Confirmation
+Delete ticket
+[?] Delete Ticket<br>Are you sure?<br>This action cannot be undone	
+32
+MSG32
+Info
+Ticket not found
+[!] Ticket not found	
+
+Table 108: Application Message List Description

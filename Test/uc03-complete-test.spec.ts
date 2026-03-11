@@ -41,7 +41,7 @@ test.describe('UC03 Create Challenge', () => {
         try {
             await expect(page.locator('input[name="name"]')).toHaveValue(created.name);
             await expect(page.locator('input[name="category"]')).toHaveValue('web');
-            await expect(page.locator('input[name="value"]')).toHaveValue('100');
+            await expect(page.locator('input[name="value"]:not([disabled])')).toHaveValue('100');
             await openChallengeTab(page, 'Files');
             await expect(page.locator('#files')).toContainText('Challenge Files');
         } finally {

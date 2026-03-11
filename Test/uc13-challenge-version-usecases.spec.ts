@@ -17,6 +17,7 @@ test.describe('UC13 View Version Detail and UC14 Rollback Version', () => {
     let challengeName = '';
 
     test.beforeAll(async ({ browser }) => {
+        test.setTimeout(900_000);
         const page = await browser.newPage();
         try {
             await loginAdmin(page);
@@ -77,7 +78,7 @@ test.describe('UC13 View Version Detail and UC14 Rollback Version', () => {
     test.beforeEach(async ({ page }) => {
         test.setTimeout(360_000);
         await loginAdmin(page);
-        await page.goto(`https://admin.fctf.site/admin/challenges/${challengeId}`);
+        await page.goto(`https://admin2.fctf.site/admin/challenges/${challengeId}`);
         await expect(page).toHaveURL(new RegExp(`/admin/challenges/${challengeId}$`), { timeout: 20_000 });
     });
 
@@ -110,7 +111,7 @@ test.describe('UC13 View Version Detail and UC14 Rollback Version', () => {
         await page.waitForLoadState('load');
         await expect(page.locator('.active-banner')).toContainText('currently active version', { timeout: 20_000 });
 
-        await page.goto(`https://admin.fctf.site/admin/challenges/${challengeId}`);
+        await page.goto(`https://admin2.fctf.site/admin/challenges/${challengeId}`);
         await openChallengeTab(page, 'Versions');
         await expect(page.locator('#versions tbody tr', { hasText: 'ACTIVE' }).first()).toBeVisible();
     });
@@ -142,9 +143,9 @@ test.describe('UC13 View Version Detail and UC14 Rollback Version', () => {
             await expect(page.locator('#rollback-status')).toContainText('Challenge rolled back to version', { timeout: 20_000 });
 
             // Go back and check count
-            await page.goto(`https://admin.fctf.site/admin/challenges/${challengeId}`);
+            await page.goto(`https://admin2.fctf.site/admin/challenges/${challengeId}`);
             const countAfter = await versionRowCount(page);
             expect(countAfter).toBeGreaterThanOrEqual(countBefore);
         }
     });
-});
+});

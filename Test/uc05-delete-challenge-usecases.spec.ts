@@ -50,12 +50,11 @@ test.describe('UC05 Delete Challenge', () => {
             // Click delete but cancel the confirmation
             await page.locator('.delete-challenge').click();
             const cancelBtn = page.locator('.swal2-cancel, button:has-text("Cancel"), button:has-text("No")').first();
-            if (await cancelBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            if (await cancelBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
                 await cancelBtn.click();
             } else {
                 // If there's a native dialog, dismiss it
                 page.once('dialog', (d) => d.dismiss());
-                await page.locator('.delete-challenge').click();
             }
 
             await page.waitForTimeout(1_000);
@@ -103,4 +102,4 @@ test.describe('UC05 Delete Challenge', () => {
         const row = await searchChallenge(page, created.name);
         await expect(row).toHaveCount(0);
     });
-});
+});

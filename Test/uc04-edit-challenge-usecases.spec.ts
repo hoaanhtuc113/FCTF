@@ -23,7 +23,7 @@ test.describe('UC04 Edit Challenge', () => {
     test.describe.configure({ mode: 'serial' });
 
     test.beforeEach(async ({ page }) => {
-        test.setTimeout(240_000);
+        test.setTimeout(360_000);
         await loginAdmin(page);
     });
 
@@ -51,7 +51,7 @@ test.describe('UC04 Edit Challenge', () => {
             await page.locator('input[name="time_limit"]').fill('30');
             await page.locator('input[name="max_attempts"]').fill('6');
             await page.locator('#submission_cooldown').fill('8');
-            await page.locator('input[name="value"]').fill('250');
+            await page.locator('input[name="value"]:not([disabled])').fill('250');
             await page.locator('select[name="state"]').selectOption('visible');
             await page.locator('.star-rating-picker[data-target="difficulty-input-update"] .star-pick[data-value="4"]').click();
             await page.getByRole('button', { name: 'Update' }).click();
@@ -65,7 +65,7 @@ test.describe('UC04 Edit Challenge', () => {
             await expect(page.locator('input[name="time_limit"]')).toHaveValue('30');
             await expect(page.locator('input[name="max_attempts"]')).toHaveValue('6');
             await expect(page.locator('#submission_cooldown')).toHaveValue('8');
-            await expect(page.locator('input[name="value"]')).toHaveValue('250');
+            await expect(page.locator('input[name="value"]:not([disabled])')).toHaveValue('250');
             await expect(page.locator('select[name="state"]')).toHaveValue('visible');
 
             const row = await searchChallenge(page, updatedName);
@@ -366,7 +366,7 @@ test.describe('UC04 Edit Challenge', () => {
             await page.locator('input[name="time_limit"]').fill('45');
             await page.locator('input[name="max_attempts"]').fill('10');
             await page.locator('#submission_cooldown').fill('15');
-            await page.locator('input[name="value"]').fill('999');
+            await page.locator('input[name="value"]:not([disabled])').fill('999');
             await page.locator('select[name="state"]').selectOption('visible');
             await page.locator('.star-rating-picker[data-target="difficulty-input-update"] .star-pick[data-value="5"]').click();
             await page.getByRole('button', { name: 'Update' }).click();
@@ -381,7 +381,7 @@ test.describe('UC04 Edit Challenge', () => {
             await expect(page.locator('input[name="time_limit"]')).toHaveValue('45');
             await expect(page.locator('input[name="max_attempts"]')).toHaveValue('10');
             await expect(page.locator('#submission_cooldown')).toHaveValue('15');
-            await expect(page.locator('input[name="value"]')).toHaveValue('999');
+            await expect(page.locator('input[name="value"]:not([disabled])')).toHaveValue('999');
             await expect(page.locator('select[name="state"]')).toHaveValue('visible');
             await expect(page.locator('input#difficulty-input-update')).toHaveValue('5');
 
@@ -457,4 +457,4 @@ test.describe('UC04 Edit Challenge', () => {
             await deleteChallengeViaApi(page, created.id);
         }
     });
-});
+});

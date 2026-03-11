@@ -674,7 +674,12 @@ async function applyScenarioParams(page: Page, scenario: TemplateScenario, curre
 
     for (const [paramName, paramValue] of Object.entries(scenario.params)) {
         if (paramName === "group_by" || paramName === "category" || paramName === "bracket_id") {
-            await page.selectOption(`#param-${paramName}`, String(paramValue));
+            // skip empty values (category may be "" if dataset has no solves)
+            if (paramValue === "" || paramValue === undefined || paramValue === null) {
+                continue;
+            }
+            const selector = `#param-${paramName}`;
+            await page.selectOption(selector, String(paramValue));
             continue;
         }
 
@@ -850,45 +855,45 @@ test.describe.serial("UC-23 Query Reward", () => {
         await expect(page.locator("#template-cards .template-card.selected")).toHaveCount(0);
     });
 
-    test("TC23.03 - Preview của toàn bộ template khớp dữ liệu thật", async ({ page }) => {
-        test.setTimeout(240_000);
+    // TC23.03 – TC23.13: one test per template
+    for (let i = 0; i < TEMPLATE_CASES.length; i++) {
+        const templateInfo = TEMPLATE_CASES[i];
+        const tcNumber = String(i + 3).padStart(2, "0");
 
-        for (const templateInfo of TEMPLATE_CASES) {
-            await test.step(`${templateInfo.id} preview đúng dữ liệu`, async () => {
-                const scenario = getScenario(templateInfo.id, dataset);
-                const expectedRows = computeExpectedResults(templateInfo.id, scenario.params, dataset);
+        test(`TC23.${tcNumber} - Preview template "${templateInfo.name}" khớp dữ liệu thật`, async ({ page }) => {
+            const scenario = getScenario(templateInfo.id, dataset);
+            const expectedRows = computeExpectedResults(templateInfo.id, scenario.params, dataset);
 
-                await selectTemplate(page, templateInfo.id, templateInfo.name);
-                await applyScenarioParams(page, scenario, dataset);
+            await selectTemplate(page, templateInfo.id, templateInfo.name);
+            await applyScenarioParams(page, scenario, dataset);
 
-                const previewJson = await triggerPreview(page);
-                expect(previewJson.success).toBeTruthy();
+            const previewJson = await triggerPreview(page);
+            expect(previewJson.success).toBeTruthy();
 
-                const actualRows = (previewJson.result ?? []).map((row) => ({
-                    ...row,
-                    metric_value: Number(row.metric_value),
-                    solved_count: row.solved_count !== undefined && row.solved_count !== null ? Number(row.solved_count) : row.solved_count,
-                    rank: row.rank !== undefined && row.rank !== null ? Number(row.rank) : row.rank,
-                })) as PreviewResultRow[];
+            const actualRows = (previewJson.result ?? []).map((row) => ({
+                ...row,
+                metric_value: Number(row.metric_value),
+                solved_count: row.solved_count !== undefined && row.solved_count !== null ? Number(row.solved_count) : row.solved_count,
+                rank: row.rank !== undefined && row.rank !== null ? Number(row.rank) : row.rank,
+            })) as PreviewResultRow[];
 
-                expect(normalizePreviewRows(actualRows)).toEqual(normalizePreviewRows(expectedRows));
+            expect(normalizePreviewRows(actualRows)).toEqual(normalizePreviewRows(expectedRows));
 
-                await expect(page.locator("#results-card")).toBeVisible();
-                await expect(page.locator("#result-count")).toContainText(`${expectedRows.length} results`);
-                await expect(page.locator("#stat-count")).toHaveText(String(expectedRows.length));
+            await expect(page.locator("#results-card")).toBeVisible();
+            await expect(page.locator("#result-count")).toContainText(`${expectedRows.length} results`);
+            await expect(page.locator("#stat-count")).toHaveText(String(expectedRows.length));
 
-                const uiRows = await readUiRows(page);
-                expect(uiRows.length).toBe(expectedRows.length);
-                assertUiMatchesExpected(uiRows, expectedRows, templateInfo.id, scenario.entityType);
+            const uiRows = await readUiRows(page);
+            expect(uiRows.length).toBe(expectedRows.length);
+            assertUiMatchesExpected(uiRows, expectedRows, templateInfo.id, scenario.entityType);
 
-                if (templateInfo.expandable && actualRows.length > 0) {
-                    await assertDetailExpansion(page, templateInfo.id, scenario.entityType, actualRows[0]);
-                }
-            });
-        }
-    });
+            if (templateInfo.expandable && actualRows.length > 0) {
+                await assertDetailExpansion(page, templateInfo.id, scenario.entityType, actualRows[0]);
+            }
+        });
+    }
 
-    test("TC23.04 - Export CSV button hiển thị khi có results", async ({ page }) => {
+    test("TC23.14 - Export Excel: bấm button Export phải hiển thị pop-up chọn folder và tải file", async ({ page }) => {
         const templateInfo = TEMPLATE_CASES[0];
         const scenario = getScenario(templateInfo.id, dataset);
 
@@ -897,10 +902,18 @@ test.describe.serial("UC-23 Query Reward", () => {
         await triggerPreview(page);
 
         await expect(page.locator("#results-card")).toBeVisible();
-        await expect(page.locator('#export-csv-btn, button:has-text("Export"), a:has-text("Export")')).toBeVisible();
+        const exportBtn = page.locator('#export-csv-btn, button:has-text("Export"), a:has-text("Export")');
+        await expect(exportBtn.first()).toBeVisible();
+
+        const downloadPromise = page.waitForEvent("download");
+        await exportBtn.first().click();
+        const download = await downloadPromise;
+
+        const filename = download.suggestedFilename();
+        expect(filename).toMatch(/\.(csv|xlsx?)$/i);
     });
 
-    test("TC23.05 - Chọn template → params card hiển thị, chưa chọn → params ẩn", async ({ page }) => {
+    test("TC23.15 - Chọn template → params card hiển thị, chưa chọn → params ẩn", async ({ page }) => {
         await page.goto(`${BASE_URL}/admin/rewards`, { waitUntil: "domcontentloaded" });
         await page.waitForSelector("#template-cards .template-card", { state: "visible", timeout: 15_000 });
 
