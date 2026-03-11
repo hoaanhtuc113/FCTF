@@ -103,9 +103,6 @@ public class ChallengeController : BaseController
             if (user == null)
                 return NotFound(new { error = "User not found" });
 
-            if (user.Team == null || user.Team.Banned == true || user.Banned == true)
-                return NotFound(new { error = "Your team has been banned" });
-
             _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, user.TeamId, new { challengeId = id });
 
             var result = await _challengeServices.GetById(id, user);

@@ -46,7 +46,6 @@ public class ScoreboardController : BaseController
                 }
                 break;
             case "hidden":
-            case "admins":
                 return StatusCode(403, new { success = false, message = "Scores are currently hidden." });
         }
 
