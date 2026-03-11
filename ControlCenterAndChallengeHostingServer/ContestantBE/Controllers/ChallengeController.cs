@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared;
+using ResourceShared.DTOs.ActionLogs;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Logger;
 using ResourceShared.Models;
@@ -25,6 +26,7 @@ public class ChallengeController : BaseController
     private readonly RedisHelper _redisHelper;
     private readonly RedisLockHelper _redisLockHelper;
     private readonly AppLogger _userBehaviorLogger;
+    private readonly IActionLogsServices _actionLogsServices;
 
     public ChallengeController(
         IUserContext userContext,
@@ -34,7 +36,8 @@ public class ChallengeController : BaseController
         IChallengeService challengeService,
         RedisHelper redisHelper,
         RedisLockHelper redisLockHelper,
-        AppLogger userBehaviorLogger) : base(userContext)
+        AppLogger userBehaviorLogger,
+        IActionLogsServices actionLogsServices) : base(userContext)
     {
         _context = context;
         _configHelper = configHelper;
@@ -43,6 +46,7 @@ public class ChallengeController : BaseController
         _redisHelper = redisHelper;
         _redisLockHelper = redisLockHelper;
         _userBehaviorLogger = userBehaviorLogger;
+        _actionLogsServices = actionLogsServices;
     }
 
     private static bool IsDuplicateKey(DbUpdateException ex)
@@ -510,6 +514,20 @@ public class ChallengeController : BaseController
                 }
             }
 
+            try
+            {
+                await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                {
+                    ActionType = 3, // CORRECT_FLAG
+                    ActionDetail = $"Nộp cờ đúng cho thử thách {challenge.Name}",
+                    ChallengeId = challenge.Id,
+                }, user.Id);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[ActionLog] Failed to save CORRECT_FLAG log for challenge {challenge.Id}: {ex.Message}");
+            }
+
             return Ok(new
             {
                 success = true,
@@ -597,6 +615,20 @@ public class ChallengeController : BaseController
         };
         _context.Submissions.Add(summit_fail);
         await _context.SaveChangesAsync();
+
+        try
+        {
+            await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+            {
+                ActionType = 4, // INCORRECT_FLAG
+                ActionDetail = $"Nộp cờ sai cho thử thách {challenge.Name}",
+                ChallengeId = challenge.Id,
+            }, user.Id);
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"[ActionLog] Failed to save INCORRECT_FLAG log for challenge {challenge.Id}: {ex.Message}");
+        }
 
         var max_tries_check = challenge.MaxAttempts;
         if (!max_tries_check.HasValue || max_tries_check.Value <= 0)
@@ -853,6 +885,22 @@ public class ChallengeController : BaseController
                 // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
                 await Console.Error.WriteLineAsync($"[Rollback] Team {user.TeamId} start challenge failed: {response.message}.");
                 await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
+            }
+            else
+            {
+                try
+                {
+                    await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                    {
+                        ActionType = 2, // START_CHALLENGE
+                        ActionDetail = $"Khởi động thử thách {challenge.Name}",
+                        ChallengeId = challenge.Id,
+                    }, user.Id);
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[ActionLog] Failed to save START_CHALLENGE log for challenge {challenge.Id}: {ex.Message}");
+                }
             }
             return response.status switch
             {

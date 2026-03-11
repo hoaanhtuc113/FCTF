@@ -1,9 +1,11 @@
 ﻿using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
+using ContestantBE.Services;
 using ContestantBE.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared.DTOs.ActionLogs;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Logger;
 using ResourceShared.Models;
@@ -17,16 +19,19 @@ public class HintController : BaseController
     private readonly IHintService _hintService;
     private readonly AppDbContext _context;
     private readonly AppLogger _userBehaviorLogger;
+    private readonly IActionLogsServices _actionLogsServices;
 
     public HintController(
         IUserContext userContext,
         IHintService hintService,
         AppDbContext context,
-        AppLogger userBehaviorLogger) : base(userContext)
+        AppLogger userBehaviorLogger,
+        IActionLogsServices actionLogsServices) : base(userContext)
     {
         _hintService = hintService;
         _context = context;
         _userBehaviorLogger = userBehaviorLogger;
+        _actionLogsServices = actionLogsServices;
     }
 
     [HttpGet("{id}")]
@@ -98,6 +103,20 @@ public class HintController : BaseController
             if (result == null)
             {
                 return BadRequest(new { success = false, error = "Unable to unlock hint" });
+            }
+
+            try
+            {
+                await _actionLogsServices.SaveActionLogs(new ActionLogsReq
+                {
+                    ActionType = 5, // UNLOCK_HINT
+                    ActionDetail = $"Mở khóa trợ giúp cho thử thách {target.Challenge.Name}",
+                    ChallengeId = target.Challenge.Id,
+                }, userId);
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"[ActionLog] Failed to save UNLOCK_HINT log for hint {req.Target}: {ex.Message}");
             }
 
             return Ok(new { success = true, data = result });
