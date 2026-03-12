@@ -49,6 +49,78 @@ public class ChallengeService : IChallengeService
         _logger = logger;
         _multiServiceConnector = multiServiceConnector;
     }
+
+    private ChallengeRequirementsDTO? TryParseRequirements(string? requirementsJson, int challengeId, int? teamId)
+    {
+        if (string.IsNullOrWhiteSpace(requirementsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonConvert.DeserializeObject<ChallengeRequirementsDTO>(requirementsJson);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, null, teamId, new { challengeId, requirements = requirementsJson });
+            return null;
+        }
+    }
+
+    private static bool IsUnlockedByPrerequisites(
+        ChallengeRequirementsDTO? requirements,
+        HashSet<int> solvedChallengeIds,
+        HashSet<int> allChallengeIds)
+    {
+        var prerequisites = requirements?.prerequisites;
+        if (prerequisites == null || prerequisites.Count == 0)
+        {
+            return true;
+        }
+
+        foreach (var prereqId in prerequisites)
+        {
+            // Ignore invalid prerequisite IDs, same behavior as CTFd upstream.
+            if (!allChallengeIds.Contains(prereqId))
+            {
+                continue;
+            }
+
+            if (!solvedChallengeIds.Contains(prereqId))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static ChallengeDataDto BuildAnonymizedChallengeDetail(int challengeId)
+    {
+        return new ChallengeDataDto
+        {
+            id = challengeId,
+            name = "???",
+            description = string.Empty,
+            max_attempts = 0,
+            attemps = 0,
+            max_deploy_count = 0,
+            deployed_count = 0,
+            category = "???",
+            time_limit = 0,
+            require_deploy = false,
+            type = "hidden",
+            next_id = null,
+            next_name = null,
+            solve_by_myteam = false,
+            files = [],
+            is_captain = false,
+            captain_only_start = false,
+            captain_only_submit = false,
+            difficulty = null,
+        };
+    }
     public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
     {
         var challenge = await _dbContext.Challenges
@@ -70,6 +142,48 @@ public class ChallengeService : IChallengeService
             {
                 HttpStatusCode = HttpStatusCode.NotFound,
                 Message = "Challenge now is not available"
+            };
+        }
+
+        var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, user.TeamId);
+
+        var solvedChallengeIds = await _dbContext.Solves
+            .AsNoTracking()
+            .Where(s => s.TeamId == user.TeamId && s.ChallengeId.HasValue)
+            .Select(s => s.ChallengeId!.Value)
+            .ToListAsync();
+
+        var allChallengeIds = await _dbContext.Challenges
+            .AsNoTracking()
+            .Select(c => c.Id)
+            .ToListAsync();
+
+        var isUnlocked = IsUnlockedByPrerequisites(
+            requirementsObj,
+            solvedChallengeIds.ToHashSet(),
+            allChallengeIds.ToHashSet());
+
+        if (!isUnlocked)
+        {
+            if (requirementsObj?.anonymize == true)
+            {
+                return new BaseResponseDTO<ChallengeByIdDTO>
+                {
+                    HttpStatusCode = HttpStatusCode.OK,
+                    Data = new ChallengeByIdDTO
+                    {
+                        success = true,
+                        challenge = BuildAnonymizedChallengeDetail(challenge.Id),
+                        is_started = false,
+                        pod_status = null,
+                    }
+                };
+            }
+
+            return new BaseResponseDTO<ChallengeByIdDTO>
+            {
+                HttpStatusCode = HttpStatusCode.Forbidden,
+                Message = "You don't have the permission to access this challenge. Complete the required challenges first."
             };
         }
 
@@ -221,11 +335,17 @@ public class ChallengeService : IChallengeService
         var solvedChallengeIds = team_id.HasValue
                 ? (await _dbContext.Solves
                     .AsNoTracking()
-                    .Where(s => s.TeamId == team_id.Value)
-                    .Select(s => s.ChallengeId)
+                    .Where(s => s.TeamId == team_id.Value && s.ChallengeId.HasValue)
+                    .Select(s => s.ChallengeId!.Value)
                     .ToListAsync())
                     .ToHashSet()
                 : [];
+
+        var allChallengeIds = (await _dbContext.Challenges
+            .AsNoTracking()
+            .Select(c => c.Id)
+            .ToListAsync())
+            .ToHashSet();
 
         var deployChallenges = challenges
             .Where(c => c.RequireDeploy && team_id.HasValue)
@@ -238,19 +358,33 @@ public class ChallengeService : IChallengeService
 
         foreach (var challenge in challenges)
         {
-            // Parse requirements JSON string
-            ChallengeRequirementsDTO? requirementsObj = null;
-            if (!string.IsNullOrEmpty(challenge.Requirements))
+            var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, team_id);
+
+            var isUnlocked = IsUnlockedByPrerequisites(requirementsObj, solvedChallengeIds, allChallengeIds);
+            if (!isUnlocked)
             {
-                try
+                if (requirementsObj?.anonymize == true)
                 {
-                    requirementsObj = JsonConvert.DeserializeObject<ChallengeRequirementsDTO>(challenge.Requirements);
+                    topics_data.Add(new ChallengeByCategoryDTO
+                    {
+                        id = challenge.Id,
+                        name = "???",
+                        next_id = null,
+                        next_name = null,
+                        max_attempts = 0,
+                        value = 0,
+                        category = "???",
+                        time_limit = 0,
+                        type = "hidden",
+                        requirements = new ChallengeRequirementsDTO { anonymize = true },
+                        solve_by_myteam = false,
+                        pod_status = null,
+                        difficulty = null,
+                    });
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, null, team_id, new { challengeId = challenge.Id, requirements = challenge.Requirements });
-                    await Console.Error.WriteLineAsync($"Error parsing requirements for challenge {challenge.Id}: {ex.Message}");
-                }
+
+                // hidden behavior when not unlocked: do not show challenge in listing.
+                continue;
             }
 
             // Check pod status if challenge requires deployment
