@@ -113,8 +113,23 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_CATEGORY_CLEAR_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_categories_solved", "group_by"],
-        example_usage="Teams clearing 3+ categories: min_categories_solved=3"
+        customizable_params=["limit", "min_categories_solved", "group_by", "category", "rank_by"],
+        example_usage="Earliest full clear in Web: group_by='team', category='Web', rank_by='earliest_full_clear'"
+    ),
+
+    "first_clear_each_category": RewardTemplate(
+        id="first_clear_each_category",
+        name="First Full-Clear By Category",
+        description="List teams/users who first fully cleared each category",
+        category="achievement",
+        icon="stopwatch",
+        query_config={
+            "entity": "team",
+            "metric": "TEAM_SOLVED_COUNT",
+            "order": {"field": "last_solve_date", "direction": "asc"},
+        },
+        customizable_params=["group_by"],
+        example_usage="Show first team per category: group_by='team'"
     ),
     
     "perfect_solvers": RewardTemplate(
@@ -161,8 +176,8 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_TOTAL_SCORE",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "category"],
-        example_usage="Top 3 in Web: limit=3, category='Web'"
+        customizable_params=["limit", "category", "rank_by"],
+        example_usage="Top 3 in Web by solved count: limit=3, category='Web', rank_by='solved_count'"
     ),
     
     "first_blood_by_category": RewardTemplate(
@@ -400,6 +415,38 @@ def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optio
     
     if "entity_type" in params:
         builder.set_entity_type(params["entity_type"])
+
+    if template_id == "category_masters":
+        rank_by = params.get("rank_by", "categories_cleared")
+        if rank_by == "earliest_full_clear" and params.get("category"):
+            builder.config["metric"] = "TEAM_SOLVED_COUNT"
+            builder.config["order"] = {"field": "last_solve_date", "direction": "asc"}
+            builder.filters.append(
+                {
+                    "field": "full_clear_category",
+                    "operator": "=",
+                    "value": params.get("category"),
+                }
+            )
+
+    if template_id == "first_clear_each_category":
+        builder.config["metric"] = "TEAM_SOLVED_COUNT"
+        builder.config["order"] = {"field": "last_solve_date", "direction": "asc"}
+        builder.filters.append(
+            {
+                "field": "first_clear_each_category",
+                "operator": "=",
+                "value": True,
+            }
+        )
+
+    # Apply rank mode for templates that support switching metric
+    if template_id == "category_specific_top":
+        rank_by = params.get("rank_by", "score")
+        if rank_by == "solved_count":
+            builder.config["metric"] = "TEAM_SOLVED_COUNT"
+        else:
+            builder.config["metric"] = "TEAM_TOTAL_SCORE"
     
     # Apply rank filters
     if "min_rank" in params or "max_rank" in params:

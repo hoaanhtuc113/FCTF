@@ -72,7 +72,7 @@
                           :value="hint.id"
                           v-model="selectedHints"
                         />
-                        {{ hint.cost }} - {{ hint.id }}
+                        {{ formatHintLabel(hint) }}
                       </label>
                     </div>
                   </div>
@@ -112,6 +112,13 @@ export default {
     };
   },
   methods: {
+    formatHintLabel: function (hint) {
+      const normalized = String(hint.content || "")
+        .replaceAll(/\s+/g, " ")
+        .trim();
+      const preview = normalized.length > 80 ? `${normalized.slice(0, 80)}...` : normalized;
+      return `Hint #${hint.id} | ${preview || "(empty)"} | ${hint.cost} pts`;
+    },
     getCost: function () {
       const cost = Number(this.cost);
       return Number.isFinite(cost) ? cost : 0;

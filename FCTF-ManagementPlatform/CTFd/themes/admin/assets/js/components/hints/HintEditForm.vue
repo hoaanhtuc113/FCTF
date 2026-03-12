@@ -74,7 +74,7 @@
                           :value="hint.id"
                           v-model="selectedHints"
                         />
-                        {{ hint.content }} - {{ hint.cost }}
+                        {{ formatHintLabel(hint) }}
                       </label>
                     </div>
                   </div>
@@ -134,6 +134,13 @@ export default {
     },
   },
   methods: {
+    formatHintLabel: function (hint) {
+      const normalized = String(hint.content || "")
+        .replaceAll(/\s+/g, " ")
+        .trim();
+      const preview = normalized.length > 80 ? `${normalized.slice(0, 80)}...` : normalized;
+      return `Hint #${hint.id} | ${preview || "(empty)"} | ${hint.cost} pts`;
+    },
     loadHint: function () {
       CTFd.fetch(`/api/v1/hints/${this.$props.hint_id}?preview=true`, {
         method: "GET",
