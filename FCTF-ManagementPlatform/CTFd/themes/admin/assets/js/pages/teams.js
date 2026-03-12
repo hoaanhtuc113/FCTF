@@ -29,10 +29,22 @@ function deleteSelectedTeams(_event) {
   });
 }
 
-function bulkEditTeams(_event) {
+async function bulkEditTeams(_event) {
   let teamIDs = $("input[data-team-id]:checked").map(function () {
     return $(this).data("team-id");
   });
+
+  // Fetch brackets for teams
+  let bracketOptions = `<option value="">-- No change --</option><option value="__null__">Clear bracket</option>`;
+  try {
+    const bracketsResp = await CTFd.fetch("/api/v1/brackets?type=teams", { method: "GET" });
+    const bracketsData = await bracketsResp.json();
+    (bracketsData.data || []).forEach(function (b) {
+      bracketOptions += `<option value="${b.id}">${b.name}</option>`;
+    });
+  } catch (e) {
+    console.error("Failed to load brackets", e);
+  }
 
   ezAlert({
     title: "Edit Teams",
@@ -46,7 +58,7 @@ function bulkEditTeams(_event) {
           <option value="false">False</option>
         </select>
       </div>
-      <div id = "Hidden" class="form-group">
+      <div id="Hidden" class="form-group">
         <label>Hidden</label>
         <select name="hidden" data-initial="">
           <option value="">--</option>
@@ -54,12 +66,27 @@ function bulkEditTeams(_event) {
           <option value="false">False</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Bracket</label>
+        <select name="bracket_id" data-initial="">
+          ${bracketOptions}
+        </select>
+      </div>
     </form>
-    
     `),
     button: "Submit",
     success: function () {
       let data = $("#teams-bulk-edit").serializeJSON(true);
+
+      // bracket_id: empty = no change, __null__ = clear, otherwise set as integer
+      if (!data.bracket_id || data.bracket_id === "") {
+        delete data.bracket_id;
+      } else if (data.bracket_id === "__null__") {
+        data.bracket_id = null;
+      } else {
+        data.bracket_id = parseInt(data.bracket_id, 10);
+      }
+
       const reqs = [];
       for (var teamID of teamIDs) {
         reqs.push(
@@ -78,7 +105,7 @@ function bulkEditTeams(_event) {
 
   if (isJury) {
     document.querySelector("#Hidden").style.display = "none";
-  }  
+  }
 }
 
 $(() => {
