@@ -92,10 +92,6 @@ interface Hint {
   isUnlocked?: boolean;
 }
 
-const isAnonymizedChallenge = (challenge: Challenge): boolean => {
-  return challenge.name === '???' || challenge.type === 'hidden';
-};
-
 export function Challenges() {
   const { theme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -130,11 +126,6 @@ export function Challenges() {
 
   // Check if challenge prerequisites are met
   const checkPrerequisites = async (challenge: Challenge): Promise<{ locked: boolean; unmetPrereqs: PrerequisiteChallenge[] }> => {
-
-    // An anonymized challenge is already intentionally obfuscated by backend behavior.
-    if (isAnonymizedChallenge(challenge)) {
-      return { locked: false, unmetPrereqs: [] };
-    }
 
     if (!challenge.requirements?.prerequisites || challenge.requirements.prerequisites.length === 0) {
       return { locked: false, unmetPrereqs: [] };
