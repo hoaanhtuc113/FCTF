@@ -1,5 +1,5 @@
 from marshmallow import ValidationError, post_dump, pre_load, validate
-from marshmallow.fields import Nested
+from marshmallow.fields import Integer, Nested
 from marshmallow_sqlalchemy import field_for
 from sqlalchemy.orm import load_only
 
@@ -48,7 +48,7 @@ class TeamSchema(ma.ModelSchema):
         ],
     )
     country = field_for(Teams, "country", validate=[validate_country_code])
-    bracket_id = field_for(Teams, "bracket_id")
+    bracket_id = Integer(allow_none=True, missing=None)
     fields = Nested(
         TeamFieldEntriesSchema, partial=True, many=True, attribute="field_entries"
     )
