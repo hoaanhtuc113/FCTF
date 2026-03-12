@@ -34,6 +34,8 @@ FILTER_FIELDS = {
     "team_id",
     "challenge_id",
     "bracket_id",
+    "full_clear_category",
+    "first_clear_each_category",
 }
 
 FILTER_OPERATORS = {
@@ -173,6 +175,8 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
     agg_conditions = []
     rank_conditions = []
     bracket_filter = None
+    full_clear_category = None
+    first_clear_each_category = False
 
     for idx, f in enumerate(spec.filters):
         key = f"param_{idx}"
@@ -236,11 +240,33 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
         elif f.field == "bracket_id":
             params[key] = int(f.value)
             bracket_filter = f":{key}"
+        elif f.field == "full_clear_category":
+            params[key] = f.value
+            full_clear_category = f.value
+            agg_conditions.append("full_clear_pass = 1")
+        elif f.field == "first_clear_each_category":
+            first_clear_each_category = bool(f.value)
 
     base_where = "" if not base_conditions else "WHERE " + " AND ".join(base_conditions)
     final_conditions = []
     final_conditions.extend(rank_conditions)
     final_conditions.extend(agg_conditions)
+
+    # Hide entities that do not satisfy the selected metric at all.
+    # This prevents zero-value rows (e.g., no no-hint solves) from appearing.
+    if entity in {"team", "user"}:
+        metric_non_zero_conditions = {
+            "TEAM_TOTAL_SCORE": "total_score > 0",
+            "TEAM_SOLVED_COUNT": "solved_count > 0",
+            "TEAM_FIRST_BLOOD_COUNT": "first_blood_count > 0",
+            "WRONG_SUBMISSION_COUNT": "wrong_count > 0",
+            "TEAM_CATEGORY_CLEAR_COUNT": "category_clear_count > 0",
+            "TEAM_PERFECT_SOLVE_COUNT": "perfect_solve_count > 0",
+        }
+        metric_condition = metric_non_zero_conditions.get(metric)
+        if metric_condition:
+            final_conditions.append(metric_condition)
+
     final_where = "" if not final_conditions else "WHERE " + " AND ".join(final_conditions)
 
     order_clause = "ORDER BY entity_id ASC"
@@ -248,7 +274,11 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
         direction = spec.order.get("direction", "asc")
         order_clause = f"ORDER BY {spec.order['field']} {direction.upper()}, entity_id ASC"
 
+    # Team/user queries compute rank in SQL; always sort by rank for consistent display.
+    ranked_order_clause = "ORDER BY rank ASC, entity_id ASC"
+
     params["limit"] = spec.limit
+    params["full_clear_category"] = full_clear_category
 
     dialect = db.engine.dialect.name if db.engine else "postgresql"
     if dialect in {"mysql", "mariadb"}:
@@ -301,6 +331,11 @@ solves_filtered AS (
     FROM solves_enriched sf
     {base_where}
 ),
+category_totals AS (
+    SELECT c.category, COUNT(DISTINCT c.id) AS total_challenges
+    FROM challenges c
+    GROUP BY c.category
+),
 team_awards AS (
     SELECT team_id, COALESCE(SUM(value), 0) AS award_value
     FROM awards
@@ -350,6 +385,57 @@ wrong_before AS (
             "TEAM_PERFECT_SOLVE_COUNT": "perfect_solve_count",
         }[metric]
 
+        if (
+            full_clear_category
+            and spec.order.get("field") == "last_solve_date"
+            and spec.order.get("direction", "asc") == "asc"
+        ):
+            rank_order_expr = "ta.category_full_clear_date ASC, ta.entity_id ASC"
+        elif metric == "TEAM_TOTAL_SCORE":
+            rank_order_expr = "ta.total_score DESC, ta.solved_count DESC, ta.last_solve_date ASC, ta.entity_id ASC"
+        elif metric == "TEAM_SOLVED_COUNT":
+            rank_order_expr = "ta.solved_count DESC, ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC"
+        elif metric == "TEAM_FIRST_BLOOD_COUNT":
+            rank_order_expr = "ta.first_blood_count DESC, ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC"
+        elif metric == "WRONG_SUBMISSION_COUNT":
+            rank_order_expr = "ta.wrong_count DESC, ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC"
+        elif metric == "TEAM_CATEGORY_CLEAR_COUNT":
+            rank_order_expr = "ta.category_clear_count DESC, ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC"
+        else:
+            rank_order_expr = "ta.perfect_solve_count DESC, ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC"
+
+        if first_clear_each_category:
+            sql = f"""
+{base_ctes},
+team_category_completion AS (
+    SELECT
+        t.id AS entity_id,
+        t.name AS entity_name,
+        sf.category AS category,
+        COUNT(DISTINCT sf.challenge_id) AS solved_count,
+        MAX(sf.solve_date) AS full_clear_date,
+        ct.total_challenges
+    FROM teams t
+    JOIN solves_filtered sf ON sf.team_id = t.id
+    JOIN category_totals ct ON ct.category = sf.category
+    {"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
+    GROUP BY t.id, t.name, sf.category, ct.total_challenges
+    HAVING COUNT(DISTINCT sf.challenge_id) >= ct.total_challenges
+),
+ranked AS (
+    SELECT
+        tcc.*,
+        RANK() OVER (PARTITION BY tcc.category ORDER BY tcc.full_clear_date ASC, tcc.entity_id ASC) AS rank
+    FROM team_category_completion tcc
+)
+SELECT entity_id, entity_name, category, solved_count AS metric_value, full_clear_date AS last_solve_date, rank
+FROM ranked
+WHERE rank = 1
+ORDER BY category ASC, entity_id ASC
+LIMIT :limit
+"""
+            return sql, params
+
         sql = f"""
 {base_ctes},
 team_agg AS (
@@ -357,6 +443,9 @@ team_agg AS (
         t.id AS entity_id,
         t.name AS entity_name,
         COUNT(sf.solve_id) AS solved_count,
+        COUNT(DISTINCT CASE WHEN :full_clear_category IS NOT NULL AND sf.category = :full_clear_category THEN sf.challenge_id END) AS category_solved_count,
+        COALESCE((SELECT ct.total_challenges FROM category_totals ct WHERE ct.category = :full_clear_category), 0) AS category_total_count,
+        MAX(CASE WHEN :full_clear_category IS NOT NULL AND sf.category = :full_clear_category THEN sf.solve_date END) AS category_full_clear_date,
         COALESCE(SUM(sf.challenge_value), 0) + COALESCE(ta.award_value, 0) AS total_score,
         MIN(sf.solve_time) AS fastest_solve,
         AVG(sf.solve_time) AS avg_solve_time,
@@ -379,13 +468,18 @@ team_agg AS (
 ranked AS (
     SELECT
         ta.*,
-        RANK() OVER (ORDER BY ta.total_score DESC, ta.last_solve_date ASC, ta.entity_id ASC) AS rank
+        CASE
+            WHEN :full_clear_category IS NULL THEN 1
+            WHEN ta.category_total_count > 0 AND ta.category_solved_count >= ta.category_total_count THEN 1
+            ELSE 0
+        END AS full_clear_pass,
+        RANK() OVER (ORDER BY {rank_order_expr}) AS rank
     FROM team_agg ta
 )
-SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date, solved_count, rank
+SELECT entity_id, entity_name, {metric_expr} AS metric_value, COALESCE(category_full_clear_date, last_solve_date) AS last_solve_date, solved_count, rank
 FROM ranked
 {final_where}
-{order_clause}
+{ranked_order_clause}
 LIMIT :limit
 """
         return sql, params
@@ -400,6 +494,59 @@ LIMIT :limit
             "TEAM_PERFECT_SOLVE_COUNT": "perfect_solve_count",
         }[metric]
 
+        if (
+            full_clear_category
+            and spec.order.get("field") == "last_solve_date"
+            and spec.order.get("direction", "asc") == "asc"
+        ):
+            rank_order_expr = "ua.category_full_clear_date ASC, ua.entity_id ASC"
+        elif metric == "TEAM_TOTAL_SCORE":
+            rank_order_expr = "ua.total_score DESC, ua.solved_count DESC, ua.last_solve_date ASC, ua.entity_id ASC"
+        elif metric == "TEAM_SOLVED_COUNT":
+            rank_order_expr = "ua.solved_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
+        elif metric == "TEAM_FIRST_BLOOD_COUNT":
+            rank_order_expr = "ua.first_blood_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
+        elif metric == "WRONG_SUBMISSION_COUNT":
+            rank_order_expr = "ua.wrong_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
+        elif metric == "TEAM_CATEGORY_CLEAR_COUNT":
+            rank_order_expr = "ua.category_clear_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
+        else:
+            rank_order_expr = "ua.perfect_solve_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
+
+        if first_clear_each_category:
+            sql = f"""
+{base_ctes},
+user_category_completion AS (
+    SELECT
+        u.id AS entity_id,
+        u.name AS entity_name,
+        u.team_id,
+        sf.category AS category,
+        COUNT(DISTINCT sf.challenge_id) AS solved_count,
+        MAX(sf.solve_date) AS full_clear_date,
+        ct.total_challenges
+    FROM users u
+    JOIN solves_filtered sf ON sf.user_id = u.id
+    JOIN category_totals ct ON ct.category = sf.category
+    {"WHERE u.bracket_id = " + bracket_filter if bracket_filter else ""}
+    GROUP BY u.id, u.name, u.team_id, sf.category, ct.total_challenges
+    HAVING COUNT(DISTINCT sf.challenge_id) >= ct.total_challenges
+),
+ranked AS (
+    SELECT
+        ucc.*,
+        RANK() OVER (PARTITION BY ucc.category ORDER BY ucc.full_clear_date ASC, ucc.entity_id ASC) AS rank
+    FROM user_category_completion ucc
+)
+SELECT entity_id, entity_name, category, solved_count AS metric_value, full_clear_date AS last_solve_date, rank,
+       (SELECT t.name FROM teams t WHERE t.id = ranked.team_id) AS team_name
+FROM ranked
+WHERE rank = 1
+ORDER BY category ASC, entity_id ASC
+LIMIT :limit
+"""
+            return sql, params
+
         sql = f"""
 {base_ctes},
 user_agg AS (
@@ -408,6 +555,9 @@ user_agg AS (
         u.name AS entity_name,
         u.team_id,
         COUNT(sf.solve_id) AS solved_count,
+        COUNT(DISTINCT CASE WHEN :full_clear_category IS NOT NULL AND sf.category = :full_clear_category THEN sf.challenge_id END) AS category_solved_count,
+        COALESCE((SELECT ct.total_challenges FROM category_totals ct WHERE ct.category = :full_clear_category), 0) AS category_total_count,
+        MAX(CASE WHEN :full_clear_category IS NOT NULL AND sf.category = :full_clear_category THEN sf.solve_date END) AS category_full_clear_date,
         COALESCE(SUM(sf.challenge_value), 0) + COALESCE(ua.award_value, 0) AS total_score,
         MIN(sf.solve_time) AS fastest_solve,
         AVG(sf.solve_time) AS avg_solve_time,
@@ -430,14 +580,19 @@ user_agg AS (
 ranked AS (
     SELECT
         ua.*,
-        RANK() OVER (ORDER BY ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC) AS rank
+        CASE
+            WHEN :full_clear_category IS NULL THEN 1
+            WHEN ua.category_total_count > 0 AND ua.category_solved_count >= ua.category_total_count THEN 1
+            ELSE 0
+        END AS full_clear_pass,
+        RANK() OVER (ORDER BY {rank_order_expr}) AS rank
     FROM user_agg ua
 )
-SELECT entity_id, entity_name, {metric_expr} AS metric_value, last_solve_date, solved_count, rank,
+SELECT entity_id, entity_name, {metric_expr} AS metric_value, COALESCE(category_full_clear_date, last_solve_date) AS last_solve_date, solved_count, rank,
        (SELECT t.name FROM teams t WHERE t.id = ranked.team_id) AS team_name
 FROM ranked
 {final_where}
-{order_clause}
+{ranked_order_clause}
 LIMIT :limit
 """
         return sql, params
