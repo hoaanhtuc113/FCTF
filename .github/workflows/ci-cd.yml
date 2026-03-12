@@ -30,11 +30,6 @@ on:
     branches: [v4/release/v4.0.0]
   workflow_dispatch: # allow manual trigger
 
-# Cancel previous runs for the same branch
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   REGISTRY: docker.io
   IMAGE_BASE: ${{ secrets.DOCKERHUB_USERNAME }}/fctf
@@ -125,6 +120,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.changes.outputs.matrix) }}
+    # Only cancel a previous build of the SAME service, not unrelated services
+    concurrency:
+      group: build-${{ matrix.name }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -153,10 +152,17 @@ jobs:
   # 3. Deploy to K3s – update image & rollout restart
   # ---------------------------------------------------------------------------
   deploy:
-    name: Deploy to K3s
+    name: Deploy ${{ matrix.name }} to K3s
     needs: [changes, build]
     if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.changes.outputs.matrix) }}
+    # Only cancel a previous deploy of the SAME service, not unrelated services
+    concurrency:
+      group: deploy-${{ matrix.name }}-${{ github.ref }}
+      cancel-in-progress: true
     env:
       K8S_NAMESPACE: app
     steps:
@@ -172,18 +178,13 @@ jobs:
       - name: Verify cluster connection
         run: kubectl -n $K8S_NAMESPACE get deployments --no-headers | head -1
 
-      - name: Deploy updated services
+      - name: Deploy ${{ matrix.name }}
         run: |
-          MATRIX='${{ needs.changes.outputs.matrix }}'
-          SERVICES=$(echo "$MATRIX" | jq -r '.include[] | .name')
-
-          for SVC in $SERVICES; do
-            IMAGE="${{ env.IMAGE_BASE }}:${SVC}-prod-${{ github.sha }}"
-            echo "🚀 Deploying $SVC → $IMAGE"
-            kubectl -n $K8S_NAMESPACE set image deployment/$SVC $SVC=$IMAGE
-            kubectl -n $K8S_NAMESPACE rollout status deployment/$SVC --timeout=300s
-            echo "✅ $SVC deployed"
-          done
+          IMAGE="${{ env.IMAGE_BASE }}:${{ matrix.image }}-prod-${{ github.sha }}"
+          echo "🚀 Deploying ${{ matrix.name }} → $IMAGE"
+          kubectl -n $K8S_NAMESPACE set image deployment/${{ matrix.name }} ${{ matrix.name }}=$IMAGE
+          kubectl -n $K8S_NAMESPACE rollout status deployment/${{ matrix.name }} --timeout=300s
+          echo "✅ ${{ matrix.name }} deployed"
 
   # ---------------------------------------------------------------------------
   # 4. Summary
