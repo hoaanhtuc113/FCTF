@@ -31,7 +31,7 @@ def attach_team_bracket_field(form_cls):
             "Bracket",
             description="Competition bracket for your team",
             choices=choices,
-            validators=[InputRequired()],
+            validators=[],
         )
         setattr(form_cls, "bracket_id", select_field)  # noqa B010
 

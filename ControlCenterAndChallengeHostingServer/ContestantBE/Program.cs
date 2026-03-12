@@ -125,16 +125,21 @@ builder.Services.AddOutputCache();
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+
+if(app.Environment.IsDevelopment())
 {
-    c.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.RoutePrefix = "swagger";
+    });
+}
 
 app.UseRouting();
 app.UseCors("AllowAll");
 app.UseIpRateLimiting();
 app.UseOutputCache();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TokenAuthenticationMiddleware>();
