@@ -253,6 +253,15 @@ class TeamPublic(Resource):
         }
         
         data = request.get_json()
+
+        # marshmallow-sqlalchemy regenerates Integer fields from the model without
+        # allow_none, so null cannot pass through schema.load. Strip bracket_id=null
+        # from data before loading (partial=True means it won't be touched), then
+        # apply it directly to the instance after loading.
+        clear_bracket = "bracket_id" in data and data["bracket_id"] is None
+        if clear_bracket:
+            del data["bracket_id"]
+
         data["id"] = team_id
 
         schema = TeamSchema(view="admin", instance=team, partial=True)
@@ -260,6 +269,9 @@ class TeamPublic(Resource):
         response = schema.load(data)
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
+
+        if clear_bracket:
+            response.data.bracket_id = None
 
         response = schema.dump(response.data)
         db.session.commit()
