@@ -9,7 +9,7 @@ from sqlalchemy import inspect, text
 from CTFd.models import db
 
 
-ALLOWED_ENTITIES = {"team", "user", "solve"}
+ALLOWED_ENTITIES = {"team", "solve"}
 ALLOWED_METRICS = {
     "TEAM_TOTAL_SCORE",
     "TEAM_SOLVED_COUNT",
@@ -100,8 +100,6 @@ def _assert_schema(entity: str) -> None:
 
     if entity == "team":
         _require_columns("teams", ["id", "name"])
-    if entity == "user":
-        _require_columns("users", ["id", "name"])
 
 
 def _parse_filters(filters: Iterable[Dict[str, Any]]) -> List[FilterSpec]:
@@ -210,8 +208,8 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
             else:
                 agg_conditions.append(f"wrong_count {f.operator} :{key}")
         elif f.field == "rank":
-            if entity not in {"team", "user"}:
-                raise QuerySpecError("rank filter only supported for team or user entities")
+            if entity not in {"team"}:
+                raise QuerySpecError("rank filter only supported for team entities")
             params[key] = f.value
             rank_conditions.append(f"rank {f.operator} :{key}")
         elif f.field == "total_score":
@@ -309,11 +307,11 @@ first_bloods AS (
     GROUP BY challenge_id
 ),
 hint_usage AS (
-    SELECT u.team_id, u.user_id, h.challenge_id
+    SELECT u.team_id, h.challenge_id
     FROM unlocks u
     JOIN hints h ON h.id = u.target
     WHERE u.type = 'hints'
-    GROUP BY u.team_id, u.user_id, h.challenge_id
+    GROUP BY u.team_id, h.challenge_id
 ),
 solves_enriched AS (
     SELECT
@@ -324,7 +322,7 @@ solves_enriched AS (
     LEFT JOIN first_bloods fb ON fb.challenge_id = b.challenge_id
     LEFT JOIN hint_usage hu
         ON hu.challenge_id = b.challenge_id
-        AND (hu.team_id = b.team_id OR hu.user_id = b.user_id)
+        AND hu.team_id = b.team_id
 ),
 solves_filtered AS (
     SELECT *
@@ -342,23 +340,11 @@ team_awards AS (
     WHERE team_id IS NOT NULL AND value != 0
     GROUP BY team_id
 ),
-user_awards AS (
-    SELECT user_id, COALESCE(SUM(value), 0) AS award_value
-    FROM awards
-    WHERE user_id IS NOT NULL AND value != 0
-    GROUP BY user_id
-),
 wrong_team AS (
     SELECT team_id, COUNT(*) AS wrong_count
     FROM submissions
     WHERE type = 'incorrect'
     GROUP BY team_id
-),
-wrong_user AS (
-    SELECT user_id, COUNT(*) AS wrong_count
-    FROM submissions
-    WHERE type = 'incorrect'
-    GROUP BY user_id
 ),
 wrong_before AS (
     SELECT
@@ -370,7 +356,7 @@ wrong_before AS (
         ON w.challenge_id = s.challenge_id
         AND w.type = 'incorrect'
         AND w.date < s.date
-        AND (w.team_id = s.team_id OR w.user_id = s.user_id)
+        AND w.team_id = s.team_id
     GROUP BY s.id
 )
 """
@@ -452,7 +438,7 @@ team_agg AS (
         COALESCE(SUM(CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END), 0) AS first_blood_count,
         COUNT(DISTINCT sf.category) AS category_clear_count,
         COALESCE(
-            SUM(CASE WHEN COALESCE(wb.wrong_before, 0) = 0 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN sf.solve_id IS NOT NULL AND COALESCE(wb.wrong_before, 0) = 0 THEN 1 ELSE 0 END),
             0
         ) AS perfect_solve_count,
         COALESCE(wt.wrong_count, 0) AS wrong_count,
@@ -477,119 +463,6 @@ ranked AS (
     FROM team_agg ta
 )
 SELECT entity_id, entity_name, {metric_expr} AS metric_value, COALESCE(category_full_clear_date, last_solve_date) AS last_solve_date, solved_count, rank
-FROM ranked
-{final_where}
-{ranked_order_clause}
-LIMIT :limit
-"""
-        return sql, params
-
-    if entity == "user":
-        metric_expr = {
-            "TEAM_TOTAL_SCORE": "total_score",
-            "TEAM_SOLVED_COUNT": "solved_count",
-            "TEAM_FIRST_BLOOD_COUNT": "first_blood_count",
-            "WRONG_SUBMISSION_COUNT": "wrong_count",
-            "TEAM_CATEGORY_CLEAR_COUNT": "category_clear_count",
-            "TEAM_PERFECT_SOLVE_COUNT": "perfect_solve_count",
-        }[metric]
-
-        if (
-            full_clear_category
-            and spec.order.get("field") == "last_solve_date"
-            and spec.order.get("direction", "asc") == "asc"
-        ):
-            rank_order_expr = "ua.category_full_clear_date ASC, ua.entity_id ASC"
-        elif metric == "TEAM_TOTAL_SCORE":
-            rank_order_expr = "ua.total_score DESC, ua.solved_count DESC, ua.last_solve_date ASC, ua.entity_id ASC"
-        elif metric == "TEAM_SOLVED_COUNT":
-            rank_order_expr = "ua.solved_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
-        elif metric == "TEAM_FIRST_BLOOD_COUNT":
-            rank_order_expr = "ua.first_blood_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
-        elif metric == "WRONG_SUBMISSION_COUNT":
-            rank_order_expr = "ua.wrong_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
-        elif metric == "TEAM_CATEGORY_CLEAR_COUNT":
-            rank_order_expr = "ua.category_clear_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
-        else:
-            rank_order_expr = "ua.perfect_solve_count DESC, ua.total_score DESC, ua.last_solve_date ASC, ua.entity_id ASC"
-
-        if first_clear_each_category:
-            sql = f"""
-{base_ctes},
-user_category_completion AS (
-    SELECT
-        u.id AS entity_id,
-        u.name AS entity_name,
-        u.team_id,
-        sf.category AS category,
-        COUNT(DISTINCT sf.challenge_id) AS solved_count,
-        MAX(sf.solve_date) AS full_clear_date,
-        ct.total_challenges
-    FROM users u
-    JOIN solves_filtered sf ON sf.user_id = u.id
-    JOIN category_totals ct ON ct.category = sf.category
-    {"WHERE u.bracket_id = " + bracket_filter if bracket_filter else ""}
-    GROUP BY u.id, u.name, u.team_id, sf.category, ct.total_challenges
-    HAVING COUNT(DISTINCT sf.challenge_id) >= ct.total_challenges
-),
-ranked AS (
-    SELECT
-        ucc.*,
-        RANK() OVER (PARTITION BY ucc.category ORDER BY ucc.full_clear_date ASC, ucc.entity_id ASC) AS rank
-    FROM user_category_completion ucc
-)
-SELECT entity_id, entity_name, category, solved_count AS metric_value, full_clear_date AS last_solve_date, rank,
-       (SELECT t.name FROM teams t WHERE t.id = ranked.team_id) AS team_name
-FROM ranked
-WHERE rank = 1
-ORDER BY category ASC, entity_id ASC
-LIMIT :limit
-"""
-            return sql, params
-
-        sql = f"""
-{base_ctes},
-user_agg AS (
-    SELECT
-        u.id AS entity_id,
-        u.name AS entity_name,
-        u.team_id,
-        COUNT(sf.solve_id) AS solved_count,
-        COUNT(DISTINCT CASE WHEN :full_clear_category IS NOT NULL AND sf.category = :full_clear_category THEN sf.challenge_id END) AS category_solved_count,
-        COALESCE((SELECT ct.total_challenges FROM category_totals ct WHERE ct.category = :full_clear_category), 0) AS category_total_count,
-        MAX(CASE WHEN :full_clear_category IS NOT NULL AND sf.category = :full_clear_category THEN sf.solve_date END) AS category_full_clear_date,
-        COALESCE(SUM(sf.challenge_value), 0) + COALESCE(ua.award_value, 0) AS total_score,
-        MIN(sf.solve_time) AS fastest_solve,
-        AVG(sf.solve_time) AS avg_solve_time,
-        COALESCE(SUM(CASE WHEN sf.is_first_blood THEN 1 ELSE 0 END), 0) AS first_blood_count,
-        COUNT(DISTINCT sf.category) AS category_clear_count,
-        COALESCE(
-            SUM(CASE WHEN COALESCE(wb.wrong_before, 0) = 0 THEN 1 ELSE 0 END),
-            0
-        ) AS perfect_solve_count,
-        COALESCE(wu.wrong_count, 0) AS wrong_count,
-        MAX(sf.solve_date) AS last_solve_date
-    FROM users u
-    LEFT JOIN solves_filtered sf ON sf.user_id = u.id
-    LEFT JOIN wrong_user wu ON wu.user_id = u.id
-    LEFT JOIN wrong_before wb ON wb.solve_id = sf.solve_id
-    LEFT JOIN user_awards ua ON ua.user_id = u.id
-    {"WHERE u.bracket_id = " + bracket_filter if bracket_filter else ""}
-    GROUP BY u.id, u.name, u.team_id, wu.wrong_count, ua.award_value
-),
-ranked AS (
-    SELECT
-        ua.*,
-        CASE
-            WHEN :full_clear_category IS NULL THEN 1
-            WHEN ua.category_total_count > 0 AND ua.category_solved_count >= ua.category_total_count THEN 1
-            ELSE 0
-        END AS full_clear_pass,
-        RANK() OVER (ORDER BY {rank_order_expr}) AS rank
-    FROM user_agg ua
-)
-SELECT entity_id, entity_name, {metric_expr} AS metric_value, COALESCE(category_full_clear_date, last_solve_date) AS last_solve_date, solved_count, rank,
-       (SELECT t.name FROM teams t WHERE t.id = ranked.team_id) AS team_name
 FROM ranked
 {final_where}
 {ranked_order_clause}
@@ -623,11 +496,9 @@ SELECT
     sr.entity_name, 
     sr.category, 
     {metric_expr} AS metric_value,
-    t.name AS team_name,
-    u.name AS user_name
+    t.name AS team_name
 FROM solve_rows sr
 LEFT JOIN teams t ON t.id = sr.team_id
-LEFT JOIN users u ON u.id = sr.user_id
 {"WHERE t.bracket_id = " + bracket_filter if bracket_filter else ""}
 {final_where.replace("WHERE", "AND") if bracket_filter and final_where else final_where}
 {order_clause}
@@ -651,8 +522,6 @@ def execute_query(spec: QuerySpec) -> Dict[str, Any]:
             payload["category"] = row._mapping.get("category")
         if "team_name" in row._mapping:
             payload["team_name"] = row._mapping.get("team_name")
-        if "user_name" in row._mapping:
-            payload["user_name"] = row._mapping.get("user_name")
         if "last_solve_date" in row._mapping:
             val = row._mapping.get("last_solve_date")
             payload["last_solve_date"] = str(val) if val else None
