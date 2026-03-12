@@ -96,31 +96,6 @@ public class ChallengeService : IChallengeService
         return true;
     }
 
-    private static ChallengeDataDto BuildAnonymizedChallengeDetail(int challengeId)
-    {
-        return new ChallengeDataDto
-        {
-            id = challengeId,
-            name = "???",
-            description = string.Empty,
-            max_attempts = 0,
-            attemps = 0,
-            max_deploy_count = 0,
-            deployed_count = 0,
-            category = "???",
-            time_limit = 0,
-            require_deploy = false,
-            type = "hidden",
-            next_id = null,
-            next_name = null,
-            solve_by_myteam = false,
-            files = [],
-            is_captain = false,
-            captain_only_start = false,
-            captain_only_submit = false,
-            difficulty = null,
-        };
-    }
     public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
     {
         var challenge = await _dbContext.Challenges
@@ -163,23 +138,8 @@ public class ChallengeService : IChallengeService
             solvedChallengeIds.ToHashSet(),
             allChallengeIds.ToHashSet());
 
-        if (!isUnlocked)
+        if (!isUnlocked && requirementsObj?.anonymize != true)
         {
-            if (requirementsObj?.anonymize == true)
-            {
-                return new BaseResponseDTO<ChallengeByIdDTO>
-                {
-                    HttpStatusCode = HttpStatusCode.OK,
-                    Data = new ChallengeByIdDTO
-                    {
-                        success = true,
-                        challenge = BuildAnonymizedChallengeDetail(challenge.Id),
-                        is_started = false,
-                        pod_status = null,
-                    }
-                };
-            }
-
             return new BaseResponseDTO<ChallengeByIdDTO>
             {
                 HttpStatusCode = HttpStatusCode.Forbidden,
@@ -361,28 +321,8 @@ public class ChallengeService : IChallengeService
             var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, team_id);
 
             var isUnlocked = IsUnlockedByPrerequisites(requirementsObj, solvedChallengeIds, allChallengeIds);
-            if (!isUnlocked)
+            if (!isUnlocked && requirementsObj?.anonymize != true)
             {
-                if (requirementsObj?.anonymize == true)
-                {
-                    topics_data.Add(new ChallengeByCategoryDTO
-                    {
-                        id = challenge.Id,
-                        name = "???",
-                        next_id = null,
-                        next_name = null,
-                        max_attempts = 0,
-                        value = 0,
-                        category = "???",
-                        time_limit = 0,
-                        type = "hidden",
-                        requirements = new ChallengeRequirementsDTO { anonymize = true },
-                        solve_by_myteam = false,
-                        pod_status = null,
-                        difficulty = null,
-                    });
-                }
-
                 // hidden behavior when not unlocked: do not show challenge in listing.
                 continue;
             }
