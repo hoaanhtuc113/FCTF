@@ -57,6 +57,27 @@ function escapeRegExp(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const cloudflareTimeoutPattern = /(error\s*code\s*522|connection\s+timed\s+out|cloudflare\s+ray\s+id|host\s+error)/i;
+
+async function isCloudflareTimeoutPage(page: Page) {
+    if (page.isClosed()) {
+        return false;
+    }
+
+    const body = page.locator('body').first();
+    if (!(await body.isVisible().catch(() => false))) {
+        return false;
+    }
+
+    const text = (await body.innerText().catch(() => '')) ?? '';
+    return cloudflareTimeoutPattern.test(text);
+}
+
+async function waitBackoff(page: Page, attempt: number) {
+    const delay = Math.min(15_000, 1_500 * (attempt + 1));
+    await page.waitForTimeout(delay).catch(() => undefined);
+}
+
 export function workspaceFile(fileName: string) {
     if (path.isAbsolute(fileName)) {
         return fileName;
@@ -85,7 +106,7 @@ export function uniqueChallengeName(prefix: string) {
 async function gotoAdminWithFallback(page: Page, route: string, timeout = 60_000) {
     let lastError: unknown;
     for (const baseUrl of adminUrlCandidates) {
-        for (let navAttempt = 0; navAttempt < 2; navAttempt++) {
+        for (let navAttempt = 0; navAttempt < 8; navAttempt++) {
             try {
                 const target = `${baseUrl}${route}`;
                 const response = await page.goto(target, { waitUntil: 'commit', timeout });
@@ -93,6 +114,12 @@ async function gotoAdminWithFallback(page: Page, route: string, timeout = 60_000
                 if (status >= 400 || status === 0) {
                     throw new Error(`Navigation to ${target} returned HTTP ${status}`);
                 }
+
+                await page.waitForLoadState('domcontentloaded', { timeout: 20_000 }).catch(() => undefined);
+                if (await isCloudflareTimeoutPage(page)) {
+                    throw new Error(`Navigation to ${target} loaded Cloudflare timeout page`);
+                }
+
                 resolvedAdminUrl = baseUrl;
                 ADMIN_URL = baseUrl;
                 return;
@@ -101,7 +128,8 @@ async function gotoAdminWithFallback(page: Page, route: string, timeout = 60_000
                 if (page.isClosed()) {
                     throw error;
                 }
-                // Avoid waitForTimeout races when browser/page is closing due to navigation teardown.
+                await page.reload({ waitUntil: 'domcontentloaded', timeout: 20_000 }).catch(() => undefined);
+                await waitBackoff(page, navAttempt);
                 continue;
             }
         }
@@ -115,7 +143,14 @@ async function gotoAdminWithFallback(page: Page, route: string, timeout = 60_000
 }
 
 export async function loginAdmin(page: Page) {
-    await gotoAdminWithFallback(page, '/login');
+    for (let attempt = 0; attempt < 6; attempt++) {
+        await gotoAdminWithFallback(page, '/login');
+        if (!(await isCloudflareTimeoutPage(page))) {
+            break;
+        }
+
+        await waitBackoff(page, attempt);
+    }
 
     // If the session is already authenticated, /login can redirect to /admin directly.
     if (/\/admin(\/|$)/.test(page.url())) {
@@ -148,7 +183,14 @@ export async function loginContestant(page: Page, username = 'user2', password =
 }
 
 export async function gotoAdminChallenges(page: Page) {
-    await gotoAdminWithFallback(page, '/admin/challenges');
+    for (let attempt = 0; attempt < 6; attempt++) {
+        await gotoAdminWithFallback(page, '/admin/challenges');
+        if (!(await isCloudflareTimeoutPage(page))) {
+            break;
+        }
+        await waitBackoff(page, attempt);
+    }
+
     await expect(page.locator('h1').filter({ hasText: 'Challenges' })).toBeVisible({ timeout: 25_000 });
 }
 
