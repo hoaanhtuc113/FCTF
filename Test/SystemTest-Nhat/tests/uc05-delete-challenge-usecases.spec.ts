@@ -1,6 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import {
-    ADMIN_URL,
     createChallenge,
     loginAdmin,
     searchChallenge,
@@ -11,6 +10,25 @@ import {
 
 test.describe('UC05 Delete Challenge', () => {
     test.describe.configure({ mode: 'serial' });
+
+    async function cancelDeleteConfirmation(page: Page) {
+        const dialogPromise = page.waitForEvent('dialog', { timeout: 2_000 }).catch(() => null);
+        await page.locator('.delete-challenge').click();
+
+        const cancelBtn = page
+            .locator('.swal2-cancel, button:has-text("Cancel"), button:has-text("No")')
+            .first();
+
+        if (await cancelBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
+            await cancelBtn.click();
+            return;
+        }
+
+        const dialog = await dialogPromise;
+        if (dialog) {
+            await dialog.dismiss();
+        }
+    }
 
     test.beforeEach(async ({ page }) => {
         test.setTimeout(180_000);
@@ -30,10 +48,18 @@ test.describe('UC05 Delete Challenge', () => {
             state: 'hidden',
         });
 
-        await deleteChallengeViaUi(page);
+        let deleted = false;
+        try {
+            await deleteChallengeViaUi(page);
+            deleted = true;
 
-        const row = await searchChallenge(page, created.name);
-        await expect(row).toHaveCount(0);
+            const row = await searchChallenge(page, created.name);
+            await expect(row).toHaveCount(0);
+        } finally {
+            if (!deleted) {
+                await deleteChallengeViaApi(page, created.id);
+            }
+        }
     });
 
     test('DCH-02: Cancel delete confirmation → challenge still exists', async ({ page }) => {
@@ -47,19 +73,10 @@ test.describe('UC05 Delete Challenge', () => {
         });
 
         try {
-            // Click delete but cancel the confirmation
-            await page.locator('.delete-challenge').click();
-            const cancelBtn = page.locator('.swal2-cancel, button:has-text("Cancel"), button:has-text("No")').first();
-            if (await cancelBtn.isVisible({ timeout: 10_000 }).catch(() => false)) {
-                await cancelBtn.click();
-            } else {
-                // If there's a native dialog, dismiss it
-                page.once('dialog', (d) => d.dismiss());
-            }
+            await cancelDeleteConfirmation(page);
 
             await page.waitForTimeout(1_000);
 
-            // Challenge should still exist
             const row = await searchChallenge(page, created.name);
             await expect(row).toBeVisible();
         } finally {
@@ -77,10 +94,18 @@ test.describe('UC05 Delete Challenge', () => {
             state: 'visible',
         });
 
-        await deleteChallengeViaUi(page);
+        let deleted = false;
+        try {
+            await deleteChallengeViaUi(page);
+            deleted = true;
 
-        const row = await searchChallenge(page, created.name);
-        await expect(row).toHaveCount(0);
+            const row = await searchChallenge(page, created.name);
+            await expect(row).toHaveCount(0);
+        } finally {
+            if (!deleted) {
+                await deleteChallengeViaApi(page, created.id);
+            }
+        }
     });
 
     test('DCH-04: Delete a dynamic scoring challenge → removed from list', async ({ page }) => {
@@ -97,9 +122,17 @@ test.describe('UC05 Delete Challenge', () => {
             state: 'hidden',
         });
 
-        await deleteChallengeViaUi(page);
+        let deleted = false;
+        try {
+            await deleteChallengeViaUi(page);
+            deleted = true;
 
-        const row = await searchChallenge(page, created.name);
-        await expect(row).toHaveCount(0);
+            const row = await searchChallenge(page, created.name);
+            await expect(row).toHaveCount(0);
+        } finally {
+            if (!deleted) {
+                await deleteChallengeViaApi(page, created.id);
+            }
+        }
     });
 });
