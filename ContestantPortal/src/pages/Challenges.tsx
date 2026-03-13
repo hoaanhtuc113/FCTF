@@ -1267,6 +1267,7 @@ function ChallengeDetailPanel({
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [copiedTcp, setCopiedTcp] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
+  const [isAccessTokenCollapsed, setIsAccessTokenCollapsed] = useState(false);
 
   // derive gateway/ports from environment helper so we can display them in the UI
   const baseGateway = getBaseGateway();
@@ -3677,27 +3678,40 @@ function ChallengeDetailPanel({
             {(url || isHealthChecking || isDeploymentInProgress) && (
               <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    [YOUR ACCESS TOKEN]
-                  </span>
-                  {isHealthChecking ? (
-                    <div className="flex items-center gap-2">
-                      <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
-                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                        {podStatus ? `Checking... (${podStatus})` : 'Checking...'}
-                      </span>
-                    </div>
-                  ) : isPodHealthy ? (
-                    <div className="flex items-center gap-2">
-                      <Check className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
-                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                        Running
-                      </span>
-                    </div>
-                  ) : null}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      [YOUR ACCESS TOKEN]
+                    </span>
+                    {isHealthChecking ? (
+                      <div className="flex items-center gap-2">
+                        <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
+                        <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                          {podStatus ? `Checking... (${podStatus})` : 'Checking...'}
+                        </span>
+                      </div>
+                    ) : isPodHealthy ? (
+                      <div className="flex items-center gap-2">
+                        <Check className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                        <span className={`text-xs font-mono ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
+                          Running
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    onClick={() => setIsAccessTokenCollapsed(prev => !prev)}
+                    className={`px-1.5 py-1 rounded transition-all flex items-center ${theme === 'dark'
+                      ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                      }`}
+                    title={isAccessTokenCollapsed ? 'Expand' : 'Collapse'}
+                    aria-label={isAccessTokenCollapsed ? 'Expand access token section' : 'Collapse access token section'}
+                  >
+                    {isAccessTokenCollapsed ? <ExpandMore sx={{ fontSize: 16 }} /> : <ExpandLess sx={{ fontSize: 16 }} />}
+                  </button>
                 </div>
 
-                {(() => {
+                {!isAccessTokenCollapsed && (() => {
                   const token = url ? url.trim() : "Deploying... Please wait";
                   const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}/{token}` : `${getBaseGateway()}:${getHttpPort()}/${token}`;
                   const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
