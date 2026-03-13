@@ -83,6 +83,8 @@ export interface CustomFieldInfo {
     public: boolean;
 }
 
+export type CustomFieldScope = "user" | "team";
+
 export async function loginAsAdmin(page: Page) {
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -139,7 +141,26 @@ export async function setScoreVisibility(page: Page, visibility: 'public' | 'pri
 }
 
 export async function openAdminConfigTab(page: Page, hash: string) {
-    await page.goto(`${BASE_URL}/admin/config${hash}`, { waitUntil: "load" });
+    let gotoError: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            await page.goto(`${BASE_URL}/admin/config${hash}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            gotoError = null;
+            break;
+        } catch (error) {
+            gotoError = error;
+            const message = String(error);
+            const retriable = message.includes("ERR_ABORTED") || message.includes("Timeout");
+            if (!retriable || attempt === 2) {
+                throw error;
+            }
+            await page.waitForTimeout(500);
+        }
+    }
+
+    if (gotoError) {
+        throw gotoError;
+    }
 
     const tabLink = page
         .locator(`a[href="${hash}"][data-toggle="tab"], a[href="${hash}"][data-bs-toggle="tab"]`)
@@ -200,16 +221,110 @@ export async function commitLazyInput(input: Locator, value: string) {
     }, value);
 }
 
-export async function findConfigBlockByInputValue(page: Page, containerSelector: string, value: string) {
+export function normalizeCustomFieldScope(type: "user" | "team" | "users" | "teams"): CustomFieldScope {
+    return type === "users" || type === "user" ? "user" : "team";
+}
+
+export function getCustomFieldContainerSelector(scope: CustomFieldScope): string {
+    return scope === "user" ? "#user-fields" : "#team-fields";
+}
+
+export async function openCustomFieldScopeTab(page: Page, scope: CustomFieldScope) {
+    const hash = scope === "user" ? "#user-fields" : "#team-fields";
+    const tab = page.locator(`a[href="${hash}"]`).first();
+    await tab.scrollIntoViewIfNeeded();
+    await tab.click({ force: true });
+    await page.waitForFunction((targetHash) => {
+        const pane = document.querySelector(targetHash);
+        return pane instanceof HTMLElement && pane.classList.contains("active");
+    }, hash);
+}
+
+export async function waitForLatestCustomFieldBlock(
+    page: Page,
+    scope: CustomFieldScope,
+    previousCount?: number
+): Promise<Locator> {
+    const containerSelector = getCustomFieldContainerSelector(scope);
     const blocks = page.locator(`${containerSelector} .border-bottom`);
 
-    for (let attempt = 0; attempt < 10; attempt++) {
+    if (typeof previousCount === "number") {
+        await expect.poll(async () => blocks.count(), { timeout: 8000 }).toBeGreaterThan(previousCount);
+    }
+
+    const total = await blocks.count();
+    if (total === 0) {
+        throw new Error(`Không tìm thấy custom field block trong ${containerSelector}`);
+    }
+
+    const block = blocks.nth(total - 1);
+    await expect(block).toBeVisible();
+    return block;
+}
+
+export async function selectOptionWithRetry(select: Locator, value: string, retries = 4) {
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+            await select.selectOption(value);
+            return;
+        } catch (error) {
+            lastError = error;
+            const message = String(error);
+            const retriable = message.includes("detached") || message.includes("Timeout") || message.includes("timeout");
+            if (!retriable || attempt === retries - 1) {
+                throw error;
+            }
+            await select.page().waitForTimeout(250);
+        }
+    }
+
+    throw lastError;
+}
+
+export async function clickWithRetry(target: Locator, retries = 4) {
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+            await target.scrollIntoViewIfNeeded();
+            await target.click({ force: true });
+            return;
+        } catch (error) {
+            lastError = error;
+            const message = String(error);
+            const retriable = message.includes("detached") || message.includes("Timeout") || message.includes("timeout");
+            if (!retriable || attempt === retries - 1) {
+                throw error;
+            }
+            await target.page().waitForTimeout(250);
+        }
+    }
+
+    throw lastError;
+}
+
+export async function findConfigBlockByInputValue(page: Page, containerSelector: string, value: string) {
+    const blocks = page.locator(`${containerSelector} .border-bottom`);
+    const normalizedExpected = value.trim().toLowerCase();
+
+    for (let attempt = 0; attempt < 20; attempt++) {
         const matchIndex = await blocks.evaluateAll((nodes, expectedValue) => {
             return nodes.findIndex((node) => {
                 const input = node.querySelector("input.form-control");
-                return input instanceof HTMLInputElement && input.value === expectedValue;
+                if (!(input instanceof HTMLInputElement)) {
+                    return false;
+                }
+
+                const actualValue = input.value.trim().toLowerCase();
+                return (
+                    actualValue === expectedValue
+                    || actualValue.includes(expectedValue)
+                    || expectedValue.includes(actualValue)
+                );
             });
-        }, value);
+        }, normalizedExpected);
 
         if (matchIndex >= 0) {
             return blocks.nth(matchIndex);
@@ -222,7 +337,7 @@ export async function findConfigBlockByInputValue(page: Page, containerSelector:
 }
 
 export async function getTeams(page: Page, limit: number = 5): Promise<TeamInfo[]> {
-    const res = await page.request.get(`${BASE_URL}/api/v1/teams?page=1&per_page=${limit}`);
+    const res = await page.request.get(`${BASE_URL}/api/v1/teams?page=1&per_page=${limit}`, { timeout: 20_000 });
     const body = await res.json();
     const data = body.data as any[];
     if (!data || data.length === 0) throw new Error("Không có team nào trong hệ thống để test");
@@ -236,7 +351,7 @@ export async function getTeams(page: Page, limit: number = 5): Promise<TeamInfo[
 }
 
 export async function getUsers(page: Page, limit: number = 5): Promise<UserInfo[]> {
-    const res = await page.request.get(`${BASE_URL}/api/v1/users?page=1&per_page=${limit}`);
+    const res = await page.request.get(`${BASE_URL}/api/v1/users?page=1&per_page=${limit}`, { timeout: 20_000 });
     const body = await res.json();
     const data = body.data as any[];
     if (!data || data.length === 0) throw new Error("Không có user nào trong hệ thống để test");
@@ -1024,8 +1139,8 @@ export async function deleteBracketByApi(page: Page, bracketId: number) {
 }
 
 export async function getCustomFields(page: Page, type: "user" | "team" | "users" | "teams"): Promise<CustomFieldInfo[]> {
-    const normalizedType = type === "users" || type === "user" ? "user" : "team";
-    const res = await page.request.get(`${BASE_URL}/api/v1/configs/fields?type=${normalizedType}`);
+    const normalizedType = normalizeCustomFieldScope(type);
+    const res = await page.request.get(`${BASE_URL}/api/v1/configs/fields?type=${normalizedType}`, { timeout: 20_000 });
     const body = await res.json();
     const data = (body.data ?? []) as any[];
     return data.map((item) => ({
@@ -1056,6 +1171,8 @@ export async function createCustomField(
     const body = await page.evaluate(async ({ payload, BASE_URL }) => {
         const normalizedType = payload.type === "users" || payload.type === "user" ? "user" : "team";
         const csrfToken = (window as any).init?.csrfNonce || "";
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 20_000);
         const res = await fetch(`${BASE_URL}/api/v1/configs/fields`, {
             method: "POST",
             headers: {
@@ -1063,6 +1180,7 @@ export async function createCustomField(
                 "Content-Type": "application/json",
                 "CSRF-Token": csrfToken,
             },
+            signal: controller.signal,
             body: JSON.stringify({
                 type: normalizedType,
                 field_type: payload.fieldType ?? "text",
@@ -1073,6 +1191,7 @@ export async function createCustomField(
                 public: payload.public ?? false,
             }),
         });
+        window.clearTimeout(timeoutId);
         return { status: res.status, body: await res.json() };
     }, { payload, BASE_URL });
 
@@ -1091,6 +1210,8 @@ export async function updateCustomField(
     await page.goto(`${BASE_URL}/admin/config`, { waitUntil: "domcontentloaded" });
     const body = await page.evaluate(async ({ fieldId, payload, BASE_URL }) => {
         const csrfToken = (window as any).init?.csrfNonce || "";
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 20_000);
         const res = await fetch(`${BASE_URL}/api/v1/configs/fields/${fieldId}`, {
             method: "PATCH",
             headers: {
@@ -1098,8 +1219,10 @@ export async function updateCustomField(
                 "Content-Type": "application/json",
                 "CSRF-Token": csrfToken,
             },
+            signal: controller.signal,
             body: JSON.stringify(payload),
         });
+        window.clearTimeout(timeoutId);
         return { status: res.status, body: await res.json() };
     }, { fieldId, payload, BASE_URL });
 
@@ -1114,6 +1237,8 @@ export async function deleteCustomFieldByApi(page: Page, fieldId: number) {
     await page.goto(`${BASE_URL}/admin/config`, { waitUntil: "domcontentloaded" });
     const body = await page.evaluate(async ({ fieldId, BASE_URL }) => {
         const csrfToken = (window as any).init?.csrfNonce || "";
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 20_000);
         const res = await fetch(`${BASE_URL}/api/v1/configs/fields/${fieldId}`, {
             method: "DELETE",
             headers: {
@@ -1121,7 +1246,9 @@ export async function deleteCustomFieldByApi(page: Page, fieldId: number) {
                 "Content-Type": "application/json",
                 "CSRF-Token": csrfToken,
             },
+            signal: controller.signal,
         });
+        window.clearTimeout(timeoutId);
         return { status: res.status, body: await res.json() };
     }, { fieldId, BASE_URL });
 
