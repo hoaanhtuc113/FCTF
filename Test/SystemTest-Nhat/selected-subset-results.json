@@ -1,0 +1,3906 @@
+{
+  "config": {
+    "configFile": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\playwright.config.ts",
+    "rootDir": "D:/Semester 9/FCTF-Clone/FCTF/Test/SystemTest-Nhat/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "D:/Semester 9/FCTF-Clone/FCTF/Test/SystemTest-Nhat/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "D:/Semester 9/FCTF-Clone/FCTF/Test/SystemTest-Nhat/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "uc24-filter-history.spec.ts",
+      "file": "uc24-filter-history.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UC-24 Filter History",
+          "file": "uc24-filter-history.spec.ts",
+          "line": 25,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC24.01 - Filter theo challenge từ dữ liệu history hiện có",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4989,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:53:53.675Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-1e104ad611b94b448d28",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 30,
+              "column": 9
+            },
+            {
+              "title": "TC24.02 - Filter theo team từ dữ liệu history hiện có",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4688,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:53:59.028Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-4ee164fe8db127a0f301",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 43,
+              "column": 9
+            },
+            {
+              "title": "TC24.03 - Filter theo khoảng ngày bằng start và end",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4967,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:03.731Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-f8e73843dfbe24f4f121",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 56,
+              "column": 9
+            },
+            {
+              "title": "TC24.04 - Filter với quick range và per_page được áp dụng lên URL",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3836,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:08.711Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-773515bfcb88409dedc3",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 73,
+              "column": 9
+            },
+            {
+              "title": "TC24.05 - Nút Reset xóa toàn bộ điều kiện filter",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4511,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:12.561Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-1109450474ca7a36344c",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 81,
+              "column": 9
+            },
+            {
+              "title": "TC24.06 - Filter theo user từ dữ liệu history hiện có",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "Không có row nào có user hợp lệ để test filter",
+                      "location": {
+                        "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc24-filter-history.spec.ts",
+                        "line": 103,
+                        "column": 14
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 4037,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:17.083Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "Không có row nào có user hợp lệ để test filter",
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc24-filter-history.spec.ts",
+                            "line": 103,
+                            "column": 14
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-3651e612561b9b1484f8",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 87,
+              "column": 9
+            },
+            {
+              "title": "TC24.07 - Kết hợp filter challenge + team + date range",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4448,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:21.134Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-fbe3600b6564464513f1",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 114,
+              "column": 9
+            },
+            {
+              "title": "TC24.08 - Export CSV button hiển thị trên trang",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4550,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:25.597Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-f857fc9778cf2ab23915",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 137,
+              "column": 9
+            },
+            {
+              "title": "TC24.09 - Per_page dropdown có các option 25, 50, 100, 200",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6525,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:30.158Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-2df5617764ba72f902d6",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 142,
+              "column": 9
+            },
+            {
+              "title": "TC24.10 - [BVA - Invalid] start > end → trang load, bảng hiển thị kết quả trống hoặc hợp lệ",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4502,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:36.694Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-cce05c53d97fd7136f82",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 174,
+              "column": 9
+            },
+            {
+              "title": "TC24.11 - [BVA - Boundary] start = end (cùng datetime chính xác) → kết quả trong khoảnh khắc đó",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4710,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:41.207Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-eb7201e20159ce29dd9a",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 193,
+              "column": 9
+            },
+            {
+              "title": "TC24.12 - [ECP - Partial] Chỉ có start, không có end → filter áp dụng từ start trở đi",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4025,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:45.929Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-9ce4a4e7d881595d2a7a",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 208,
+              "column": 9
+            },
+            {
+              "title": "TC24.13 - [ECP - Partial] Chỉ có end, không có start → filter áp dụng đến end",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4707,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:49.964Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-54ea3a443258c825fde7",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 221,
+              "column": 9
+            },
+            {
+              "title": "TC24.14 - [ECP - Invalid] Date range trong tương lai xa → kết quả trống",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4762,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:54.680Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-b8669cb42b90dc125304",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 234,
+              "column": 9
+            },
+            {
+              "title": "TC24.15 - [BVA - Boundary] Date range rất cũ (epoch) → kết quả trống hoặc tất cả",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4685,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:54:59.452Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-31cecadc4cf2ea6ea27b",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 248,
+              "column": 9
+            },
+            {
+              "title": "TC24.16 - [BVA - Boundary] Date range bao phủ midnight: start 23:59 → end 00:01 ngày hôm sau",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4292,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:04.148Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-95065c6d9cbfc3929dc4",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 258,
+              "column": 9
+            },
+            {
+              "title": "TC24.17 - [ECP] Tất cả quick range values hoạt động: 15m, 30m, 1h, 6h, 12h, 24h",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5666,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:08.452Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-383c4b1a326b6f18f80d",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 278,
+              "column": 9
+            },
+            {
+              "title": "TC24.18 - [ECP - Edge] Filter với ký tự đặc biệt: <script>, SQL injection, Unicode",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4378,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:14.129Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-1f6f9cdbdda455de4ab7",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 292,
+              "column": 9
+            },
+            {
+              "title": "TC24.19 - [BVA - Boundary] Filter với chuỗi rất dài (500+ ký tự)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4904,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:18.517Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-9ecdbe2ec212592b0a73",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 309,
+              "column": 9
+            },
+            {
+              "title": "TC24.20 - [ECP] Per_page boundary: giá trị nhỏ nhất (25) và lớn nhất (200)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4242,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:23.434Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-62606ea5a5c35c2cbb89",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 318,
+              "column": 9
+            },
+            {
+              "title": "TC24.21 - [ECP - Invalid] Per_page giá trị không hợp lệ (0, -1, 999) → trang vẫn load",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6730,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:27.690Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-263c6d421067d9477ff2",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 333,
+              "column": 9
+            },
+            {
+              "title": "TC24.22 - [ECP] Filter với tất cả fields trống → hiển thị tất cả kết quả",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2833,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:34.431Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "621d34e6c4fa7f97bfd5-4f82d683e8de45a178df",
+              "file": "uc24-filter-history.spec.ts",
+              "line": 341,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc30-edit-user.spec.ts",
+      "file": "uc30-edit-user.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Edit User - System Tests",
+          "file": "uc30-edit-user.spec.ts",
+          "line": 425,
+          "column": 15,
+          "specs": [
+            {
+              "title": "TC01 - [Invalid] Empty user name keeps the modal open",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"name\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"name\"]')\u001b[22m\n\n    at loginAsAdmin (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc30-edit-user.spec.ts:45:24)\n    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc30-edit-user.spec.ts:436:9",
+                        "location": {
+                          "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc30-edit-user.spec.ts",
+                          "column": 24,
+                          "line": 45
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 43 |\u001b[39m             }\n \u001b[90m 44 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 45 |\u001b[39m             \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"name\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_USER\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 46 |\u001b[39m             \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_PASS\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 47 |\u001b[39m             \u001b[36mawait\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m.\u001b[39mall([\n \u001b[90m 48 |\u001b[39m                 page\u001b[33m.\u001b[39mwaitForURL(\u001b[35m/\\/admin\\//\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m\"domcontentloaded\"\u001b[39m\u001b[33m,\u001b[39m timeout\u001b[33m:\u001b[39m \u001b[35m30\u001b[39m_000 })\u001b[33m,\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc30-edit-user.spec.ts",
+                            "column": 24,
+                            "line": 45
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"name\"]')\u001b[22m\n\n\n\u001b[0m \u001b[90m 43 |\u001b[39m             }\n \u001b[90m 44 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 45 |\u001b[39m             \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"name\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_USER\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 46 |\u001b[39m             \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_PASS\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 47 |\u001b[39m             \u001b[36mawait\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m.\u001b[39mall([\n \u001b[90m 48 |\u001b[39m                 page\u001b[33m.\u001b[39mwaitForURL(\u001b[35m/\\/admin\\//\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m\"domcontentloaded\"\u001b[39m\u001b[33m,\u001b[39m timeout\u001b[33m:\u001b[39m \u001b[35m30\u001b[39m_000 })\u001b[33m,\u001b[39m\u001b[0m\n\u001b[2m    at loginAsAdmin (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc30-edit-user.spec.ts:45:24)\u001b[22m\n\u001b[2m    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc30-edit-user.spec.ts:436:9\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:55:37.284Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc30-edit-user-Edit-User---3125c-r-name-keeps-the-modal-open-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc30-edit-user-Edit-User---3125c-r-name-keeps-the-modal-open-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc30-edit-user.spec.ts",
+                        "column": 24,
+                        "line": 45
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-c8597941215a250dc760",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 462,
+              "column": 9
+            },
+            {
+              "title": "TC02 - [Invalid] User name longer than 128 characters is rejected",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:48.972Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-4feaa5643f7e1b061f83",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 484,
+              "column": 9
+            },
+            {
+              "title": "TC03 - [Invalid] Duplicate user name is rejected",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:48.977Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-ca2711a26b5e40c32731",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 490,
+              "column": 9
+            },
+            {
+              "title": "TC04 - [Invalid] Empty email keeps the modal open",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:48.981Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-63d635385ff4b8519820",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 497,
+              "column": 9
+            },
+            {
+              "title": "TC05 - [Invalid] Email without @ is rejected",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:48.984Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-30cc7e974afabc5ff3f1",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 504,
+              "column": 9
+            },
+            {
+              "title": "TC06 - [Invalid] Email with double @ is rejected",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:48.988Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-7383f8bb0f498775d982",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 511,
+              "column": 9
+            },
+            {
+              "title": "TC07 - [Invalid] Email without domain is rejected",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:48.992Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-0945723e7c996ddd54d8",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 518,
+              "column": 9
+            },
+            {
+              "title": "TC08 - [Invalid] Email longer than 128 characters is rejected",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:48.995Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-e9f05e9a5ba19e06a7dd",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 525,
+              "column": 9
+            },
+            {
+              "title": "TC09 - [Valid] Update user name successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.000Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-e661677d28781fe76aa2",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 532,
+              "column": 9
+            },
+            {
+              "title": "TC10 - [Valid] Update email successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.005Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-6c83a85c5a765cf2b036",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 543,
+              "column": 9
+            },
+            {
+              "title": "TC11 - [Valid] Update user name and email successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.009Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-d5706a61fdfdf8b32533",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 554,
+              "column": 9
+            },
+            {
+              "title": "TC12 - [Valid] Update password for an existing user and login to contestant portal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.013Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-b10238ae103978826f1d",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 566,
+              "column": 9
+            },
+            {
+              "title": "TC13 - [Valid] Change role to admin and login to admin portal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.017Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-9988bc5c81eb80d7f26f",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 584,
+              "column": 9
+            },
+            {
+              "title": "TC14 - [Valid] Change role to jury and login to admin portal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.023Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-646e68a3caa05f253ed7",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 602,
+              "column": 9
+            },
+            {
+              "title": "TC15 - [Valid] Change role to challenge writer and login to admin portal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.027Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-b1c84cce43ddf273f489",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 620,
+              "column": 9
+            },
+            {
+              "title": "TC16 - [Valid] Enable Hidden and block contestant login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.030Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-51a81757536f54735dfb",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 638,
+              "column": 9
+            },
+            {
+              "title": "TC17 - [Valid] Enable Banned and block contestant login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:49.032Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b8a44de56473d6219e2e-20a6cdcb97377bf70d65",
+              "file": "uc30-edit-user.spec.ts",
+              "line": 654,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc37-view-teams.spec.ts",
+      "file": "uc37-view-teams.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "View Teams — System Tests",
+          "file": "uc37-view-teams.spec.ts",
+          "line": 17,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC01 - Trang /admin/teams load thành công, có tiêu đề 'Teams'",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5758,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:56:50.504Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-daaebf440df9de9c346a",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 64,
+              "column": 9
+            },
+            {
+              "title": "TC02 - Danh sách team hiển thị trong bảng",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4247,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:00.385Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-1a1c4ac1073811ba6c9b",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 70,
+              "column": 9
+            },
+            {
+              "title": "TC03 - Bảng hiển thị các cột đúng: ID, Team, Captain, Members, Country, Hidden, Banned",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5060,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:04.647Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-b2c58fc3c7302c84cf88",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 78,
+              "column": 9
+            },
+            {
+              "title": "TC04 - Team đầu tiên hiển thị trong bảng",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6366,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:09.723Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-f4da2a0e766516544293",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 86,
+              "column": 9
+            },
+            {
+              "title": "TC05 - Click vào tên team dẫn đến trang chi tiết team đúng",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5414,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:16.110Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-e4e1dd16b8a380231bc5",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 93,
+              "column": 9
+            },
+            {
+              "title": "TC06 - Search theo tên team tìm đúng kết quả",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5843,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:21.541Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-112c7d67ad9294531a74",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 107,
+              "column": 9
+            },
+            {
+              "title": "TC07 - Search với từ khóa không tồn tại → bảng không có kết quả",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5239,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:27.399Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-cb2f03e39b122b13a4c6",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 117,
+              "column": 9
+            },
+            {
+              "title": "TC08 - Filter Hidden=Hidden Only → chỉ hiển thị team ẩn (hoặc không có kết quả)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5405,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:32.653Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-4a885fb7ce4bde01b4f4",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 132,
+              "column": 9
+            },
+            {
+              "title": "TC09 - Filter Banned=Banned Only → chỉ hiển thị team bị ban (hoặc không có kết quả)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4279,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:38.069Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-4cb7928c01f5eb13c0a6",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 142,
+              "column": 9
+            },
+            {
+              "title": "TC10 - Nút Reset xóa bộ lọc, hiển thị lại tất cả teams",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5345,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:42.371Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-9761e1b933768029e647",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 150,
+              "column": 9
+            },
+            {
+              "title": "TC11 - Trang có nút 'Create Team'",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4589,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:47.737Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-a0e86a4a062373b0661a",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 166,
+              "column": 9
+            },
+            {
+              "title": "TC12 - Trang có nút Edit và Delete",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3800,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:52.338Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-7d93c63d4186fd550030",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 172,
+              "column": 9
+            },
+            {
+              "title": "TC13 - Bảng hiển thị cột Bracket",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4608,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:57:56.148Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-cf1fb7cd5e252fbc66ed",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 181,
+              "column": 9
+            },
+            {
+              "title": "TC14 - Dropdown Search Field có đủ options: Name, ID, Affiliation, Website, Country",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5903,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:00.766Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-325be3a992ae79b40cd9",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 186,
+              "column": 9
+            },
+            {
+              "title": "TC15 - Filter theo Bracket dropdown → URL chứa bracket_id",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "Không có bracket nào để test filter",
+                      "location": {
+                        "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc37-view-teams.spec.ts",
+                        "line": 212,
+                        "column": 14
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 4531,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:06.678Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "Không có bracket nào để test filter",
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc37-view-teams.spec.ts",
+                            "line": 212,
+                            "column": 14
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-b444a10ea78e04d1f434",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 207,
+              "column": 9
+            },
+            {
+              "title": "TC16 - Kết hợp filter Hidden + Banned → URL chứa cả hai param",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4836,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:11.220Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-86d6d422e5c3306aa882",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 223,
+              "column": 9
+            },
+            {
+              "title": "TC17 - [ECP - Edge] Search team với ký tự đặc biệt → trang không crash",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5412,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:16.071Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-9d3f99f87c4867f75904",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 236,
+              "column": 9
+            },
+            {
+              "title": "TC18 - [BVA - Boundary] Search với chuỗi rất dài (200+ ký tự)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5601,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:21.494Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-a7eed67125ed4445d238",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 251,
+              "column": 9
+            },
+            {
+              "title": "TC19 - [ECP - Edge] Search field=ID với giá trị non-numeric → trang xử lý hợp lệ",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3561,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:27.108Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-ba0acc5aacc84adfc78a",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 259,
+              "column": 9
+            },
+            {
+              "title": "TC20 - [ECP - Invalid] Search với chỉ whitespace → trang vẫn load",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5092,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:30.682Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-57744828bbd463239e46",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 264,
+              "column": 9
+            },
+            {
+              "title": "TC21 - [ECP] Kết hợp search + filter bracket + hidden cùng lúc",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "Cần bracket để test combined filters",
+                      "location": {
+                        "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc37-view-teams.spec.ts",
+                        "line": 274,
+                        "column": 14
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 4601,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:35.784Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "Cần bracket để test combined filters",
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc37-view-teams.spec.ts",
+                            "line": 274,
+                            "column": 14
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a99daa0e0a478daf82e6-26882641a61864b95394",
+              "file": "uc37-view-teams.spec.ts",
+              "line": 271,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc39-edit-team.spec.ts",
+      "file": "uc39-edit-team.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UC-39: Edit Team — System Tests",
+          "file": "uc39-edit-team.spec.ts",
+          "line": 150,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC01 - [Invalid] Tên team bị xóa trắng → form không submit, modal vẫn mở",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"name\"]')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"name\"]')\u001b[22m\n\n    at loginAsAdmin (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc39-edit-team.spec.ts:38:16)\n    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc39-edit-team.spec.ts:162:9",
+                        "location": {
+                          "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc39-edit-team.spec.ts",
+                          "column": 16,
+                          "line": 38
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 36 |\u001b[39m         \u001b[36mreturn\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 37 |\u001b[39m     }\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 38 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"name\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_USER\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 39 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_PASS\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 40 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"], input[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 41 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[35m/\\/admin\\//\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc39-edit-team.spec.ts",
+                            "column": 16,
+                            "line": 38
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"name\"]')\u001b[22m\n\n\n\u001b[0m \u001b[90m 36 |\u001b[39m         \u001b[36mreturn\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 37 |\u001b[39m     }\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 38 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"name\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_USER\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 39 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mADMIN_PASS\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 40 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'button[type=\"submit\"], input[type=\"submit\"]'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 41 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[35m/\\/admin\\//\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at loginAsAdmin (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc39-edit-team.spec.ts:38:16)\u001b[22m\n\u001b[2m    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc39-edit-team.spec.ts:162:9\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:58:40.415Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc39-edit-team-UC-39-Edit--e69f8-m-không-submit-modal-vẫn-mở-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc39-edit-team-UC-39-Edit--e69f8-m-không-submit-modal-vẫn-mở-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc39-edit-team.spec.ts",
+                        "column": 16,
+                        "line": 38
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-790a011add18b543e7e7",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 183,
+              "column": 9
+            },
+            {
+              "title": "TC02 - [Invalid] Tên team > 128 ký tự → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.595Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-3b798241418103657d6a",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 208,
+              "column": 9
+            },
+            {
+              "title": "TC03 - [Invalid] Tên team trùng với team khác → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.597Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-3ba3c46660eaec74db46",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 216,
+              "column": 9
+            },
+            {
+              "title": "TC04 - [Invalid] Email sai định dạng → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.600Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-07c97bbf58dacc3148b7",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 226,
+              "column": 9
+            },
+            {
+              "title": "TC05 - [Invalid] Email thiếu domain → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.602Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-ad5634a27d3170c838c1",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 235,
+              "column": 9
+            },
+            {
+              "title": "TC06 - [Invalid] Website không phải URL hợp lệ → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.604Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-824ffa27b068c19f832c",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 243,
+              "column": 9
+            },
+            {
+              "title": "TC07 - [Invalid] Website dùng scheme ftp:// → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.606Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-43ea7fb9fb723d79954d",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 251,
+              "column": 9
+            },
+            {
+              "title": "TC08 - [Invalid] Website dùng scheme javascript: → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.608Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-1734e784e800c0038349",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 259,
+              "column": 9
+            },
+            {
+              "title": "TC09 - [Invalid] Affiliation > 128 ký tự → form không submit, modal vẫn mở",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.610Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-7dacee663b8bd0b60305",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 267,
+              "column": 9
+            },
+            {
+              "title": "TC10 - [Valid] Cập nhật tên team hợp lệ → trang reload, tên mới hiển thị",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.614Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-20498b259518335e931b",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 279,
+              "column": 9
+            },
+            {
+              "title": "TC11 - [Valid] Cập nhật email hợp lệ → trang reload thành công",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.616Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-5b90d182bbda6a6e0e40",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 300,
+              "column": 9
+            },
+            {
+              "title": "TC12 - [Valid] Cập nhật website hợp lệ (https://) → trang reload thành công",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.618Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-e662bf6b09b5421ba757",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 321,
+              "column": 9
+            },
+            {
+              "title": "TC13 - [Valid] Website để trống → được chấp nhận, trang reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.620Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-4ba2da132d4a0524f74e",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 338,
+              "column": 9
+            },
+            {
+              "title": "TC14 - [Valid] Cập nhật đầy đủ tất cả trường hợp lệ → trang reload, dữ liệu mới hiển thị",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.622Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-b72d0448ac7331a45dbb",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 356,
+              "column": 9
+            },
+            {
+              "title": "TC15 - [Valid] Thay đổi country dropdown → trang reload, country mới hiển thị",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.625Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-bc8f8a00edfbbd109bda",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 397,
+              "column": 9
+            },
+            {
+              "title": "TC16 - [Valid] Toggle hidden checkbox → trang reload, badge hidden hiển thị",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.627Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-b1b06c037d2c3db9b2d0",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 415,
+              "column": 9
+            },
+            {
+              "title": "TC17 - [Valid] Toggle banned checkbox → trang reload, badge banned hiển thị",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.630Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-f1e5f0d30b2c96b9cfdd",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 443,
+              "column": 9
+            },
+            {
+              "title": "TC18 - Modal Edit Team hiển thị đủ fields: name, email, password, website, affiliation, country, hidden, banned",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.632Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-43f4d7aac16d9b56643c",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 471,
+              "column": 9
+            },
+            {
+              "title": "TC19 - [BVA - Boundary] Tên team đúng 128 ký tự → form submit thành công",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.634Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-12147fc1d73aae25e10b",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 487,
+              "column": 9
+            },
+            {
+              "title": "TC20 - [ECP - Edge] Tên team chứa ký tự đặc biệt: <script>, Unicode, emoji",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.637Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-1b2d14eceaaa3efc9978",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 503,
+              "column": 9
+            },
+            {
+              "title": "TC21 - [BVA - Boundary] Email edge cases: chỉ gồm spaces, @ không domain, double @",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.639Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-e132343f744cb713c770",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 525,
+              "column": 9
+            },
+            {
+              "title": "TC22 - [BVA - Boundary] Affiliation rất dài (500+ ký tự) → form xử lý hợp lệ",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.641Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-ae534b7974ad75eaa0ed",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 552,
+              "column": 9
+            },
+            {
+              "title": "TC23 - [ECP - Edge] Password field: nhập 1 ký tự → form submit thành công (password không bắt buộc)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:15.648Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7e34d006d762d5e68a4f-c189401e9805a2c69071",
+              "file": "uc39-edit-team.spec.ts",
+              "line": 563,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc46-change-submission-status.spec.ts",
+      "file": "uc46-change-submission-status.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UC-46 Change Submission Status",
+          "file": "uc46-change-submission-status.spec.ts",
+          "line": 13,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC46.01 - Mark incorrect submission thành correct",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 8922,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts:41:35",
+                        "location": {
+                          "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts",
+                          "column": 35,
+                          "line": 41
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 39 |\u001b[39m             \u001b[36mawait\u001b[39m confirmEzQueryModal(page)\u001b[33m;\u001b[39m\n \u001b[90m 40 |\u001b[39m             \u001b[36mconst\u001b[39m response \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m responsePromise\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 41 |\u001b[39m             expect(response\u001b[33m.\u001b[39mok())\u001b[33m.\u001b[39mtoBeTruthy()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                   \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 42 |\u001b[39m\n \u001b[90m 43 |\u001b[39m             \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39mpoll(\u001b[36masync\u001b[39m () \u001b[33m=>\u001b[39m {\n \u001b[90m 44 |\u001b[39m                 \u001b[36mconst\u001b[39m updated \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m getSubmissionById(page\u001b[33m,\u001b[39m created\u001b[33m.\u001b[39mid)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts",
+                            "column": 35,
+                            "line": 41
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n\u001b[0m \u001b[90m 39 |\u001b[39m             \u001b[36mawait\u001b[39m confirmEzQueryModal(page)\u001b[33m;\u001b[39m\n \u001b[90m 40 |\u001b[39m             \u001b[36mconst\u001b[39m response \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m responsePromise\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 41 |\u001b[39m             expect(response\u001b[33m.\u001b[39mok())\u001b[33m.\u001b[39mtoBeTruthy()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                   \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 42 |\u001b[39m\n \u001b[90m 43 |\u001b[39m             \u001b[36mawait\u001b[39m expect\u001b[33m.\u001b[39mpoll(\u001b[36masync\u001b[39m () \u001b[33m=>\u001b[39m {\n \u001b[90m 44 |\u001b[39m                 \u001b[36mconst\u001b[39m updated \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m getSubmissionById(page\u001b[33m,\u001b[39m created\u001b[33m.\u001b[39mid)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts:41:35\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:16.703Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-097f4-ct-submission-thành-correct-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-097f4-ct-submission-thành-correct-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-097f4-ct-submission-thành-correct-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts",
+                        "column": 35,
+                        "line": 41
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "ff94c341753e8055c56d-8728bfd92e6ec347c66e",
+              "file": "uc46-change-submission-status.spec.ts",
+              "line": 18,
+              "column": 9
+            },
+            {
+              "title": "TC46.02 - Mark correct submission thành incorrect",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 6269,
+                      "error": {
+                        "message": "Error: Không thể tạo submission test: {\"message\":\"Internal Server Error\"}",
+                        "stack": "Error: Không thể tạo submission test: {\"message\":\"Internal Server Error\"}\n    at createSubmission (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts:353:15)\n    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts:60:25",
+                        "location": {
+                          "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts",
+                          "column": 15,
+                          "line": 353
+                        },
+                        "snippet": "\u001b[90m   at \u001b[39msupport.ts:353\n\n\u001b[0m \u001b[90m 351 |\u001b[39m\n \u001b[90m 352 |\u001b[39m     \u001b[36mif\u001b[39m (body\u001b[33m.\u001b[39mstatus \u001b[33m!==\u001b[39m \u001b[35m200\u001b[39m \u001b[33m||\u001b[39m \u001b[33m!\u001b[39mbody\u001b[33m.\u001b[39mbody\u001b[33m?\u001b[39m\u001b[33m.\u001b[39msuccess \u001b[33m||\u001b[39m \u001b[33m!\u001b[39mbody\u001b[33m.\u001b[39mbody\u001b[33m?\u001b[39m\u001b[33m.\u001b[39mdata\u001b[33m?\u001b[39m\u001b[33m.\u001b[39mid) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 353 |\u001b[39m         \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m`Không thể tạo submission test: ${JSON.stringify(body.body)}`\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 354 |\u001b[39m     }\n \u001b[90m 355 |\u001b[39m     \u001b[36mreturn\u001b[39m body\u001b[33m.\u001b[39mbody\u001b[33m.\u001b[39mdata\u001b[33m;\u001b[39m\n \u001b[90m 356 |\u001b[39m }\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts",
+                            "column": 15,
+                            "line": 353
+                          },
+                          "message": "Error: Không thể tạo submission test: {\"message\":\"Internal Server Error\"}\n\n\u001b[90m   at \u001b[39msupport.ts:353\n\n\u001b[0m \u001b[90m 351 |\u001b[39m\n \u001b[90m 352 |\u001b[39m     \u001b[36mif\u001b[39m (body\u001b[33m.\u001b[39mstatus \u001b[33m!==\u001b[39m \u001b[35m200\u001b[39m \u001b[33m||\u001b[39m \u001b[33m!\u001b[39mbody\u001b[33m.\u001b[39mbody\u001b[33m?\u001b[39m\u001b[33m.\u001b[39msuccess \u001b[33m||\u001b[39m \u001b[33m!\u001b[39mbody\u001b[33m.\u001b[39mbody\u001b[33m?\u001b[39m\u001b[33m.\u001b[39mdata\u001b[33m?\u001b[39m\u001b[33m.\u001b[39mid) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 353 |\u001b[39m         \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m`Không thể tạo submission test: ${JSON.stringify(body.body)}`\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 354 |\u001b[39m     }\n \u001b[90m 355 |\u001b[39m     \u001b[36mreturn\u001b[39m body\u001b[33m.\u001b[39mbody\u001b[33m.\u001b[39mdata\u001b[33m;\u001b[39m\n \u001b[90m 356 |\u001b[39m }\u001b[0m\n\u001b[2m    at createSubmission (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts:353:15)\u001b[22m\n\u001b[2m    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts:60:25\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:27.216Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-f91cd--submission-thành-incorrect-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-f91cd--submission-thành-incorrect-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-f91cd--submission-thành-incorrect-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts",
+                        "column": 15,
+                        "line": 353
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "ff94c341753e8055c56d-f4badf852b041f0cbe97",
+              "file": "uc46-change-submission-status.spec.ts",
+              "line": 57,
+              "column": 9
+            },
+            {
+              "title": "TC46.03 - Modal xác nhận hiển thị đúng khi đổi trạng thái submission",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8058,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:35.092Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ff94c341753e8055c56d-1c53431801e6bfd9c729",
+              "file": "uc46-change-submission-status.spec.ts",
+              "line": 99,
+              "column": 9
+            },
+            {
+              "title": "TC46.04 - Cancel modal xác nhận → submission không thay đổi trạng thái",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8936,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:43.437Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ff94c341753e8055c56d-d07215e09e8b42f26d06",
+              "file": "uc46-change-submission-status.spec.ts",
+              "line": 124,
+              "column": 9
+            },
+            {
+              "title": "TC46.05 - [ECP - Edge] Click đổi trạng thái khi không chọn submission nào → không mở modal hoặc hiển thị warning",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5321,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:52.384Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ff94c341753e8055c56d-290580363252a85ff517",
+              "file": "uc46-change-submission-status.spec.ts",
+              "line": 163,
+              "column": 9
+            },
+            {
+              "title": "TC46.06 - [ECP] Đổi trạng thái nhiều submissions cùng lúc → tất cả đều đổi",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "timedOut",
+                      "duration": 31492,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts",
+                            "column": 29,
+                            "line": 390
+                          },
+                          "message": "Error: page.evaluate: Test timeout of 30000ms exceeded.\n\n\u001b[90m   at \u001b[39msupport.ts:390\n\n\u001b[0m \u001b[90m 388 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m deleteSubmissionByApi(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m\u001b[33m,\u001b[39m submissionId\u001b[33m:\u001b[39m number) {\n \u001b[90m 389 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m`${BASE_URL}/admin/submissions`\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m\"domcontentloaded\"\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 390 |\u001b[39m     \u001b[36mconst\u001b[39m body \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mevaluate(\u001b[36masync\u001b[39m ({ submissionId\u001b[33m,\u001b[39m \u001b[33mBASE_URL\u001b[39m }) \u001b[33m=>\u001b[39m {\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 391 |\u001b[39m         \u001b[36mconst\u001b[39m csrfToken \u001b[33m=\u001b[39m (window \u001b[36mas\u001b[39m any)\u001b[33m.\u001b[39minit\u001b[33m?\u001b[39m\u001b[33m.\u001b[39mcsrfNonce \u001b[33m||\u001b[39m \u001b[32m\"\"\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 392 |\u001b[39m         \u001b[36mconst\u001b[39m res \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m fetch(\u001b[32m`${BASE_URL}/api/v1/submissions/${submissionId}`\u001b[39m\u001b[33m,\u001b[39m {\n \u001b[90m 393 |\u001b[39m             method\u001b[33m:\u001b[39m \u001b[32m\"DELETE\"\u001b[39m\u001b[33m,\u001b[39m\u001b[0m\n\u001b[2m    at deleteSubmissionByApi (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts:390:29)\u001b[22m\n\u001b[2m    at deleteSubmissionsByProvided (D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\support.ts:420:9)\u001b[22m\n\u001b[2m    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc46-change-submission-status.spec.ts:259:13\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T08:59:57.717Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-af170-s-cùng-lúc-→-tất-cả-đều-đổi-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-af170-s-cùng-lúc-→-tất-cả-đều-đổi-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc46-change-submission-sta-af170-s-cùng-lúc-→-tất-cả-đều-đổi-chromium\\error-context.md"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "ff94c341753e8055c56d-abb94534a9ac8207bfb1",
+              "file": "uc46-change-submission-status.spec.ts",
+              "line": 183,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc76-create-bracket.spec.ts",
+      "file": "uc76-create-bracket.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UC-76 Create Bracket",
+          "file": "uc76-create-bracket.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC76.01 - Admin tạo bracket mới từ trang config",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8274,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:00:30.553Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "09ce51f5882feebe3299-ec543163278551d4f664",
+              "file": "uc76-create-bracket.spec.ts",
+              "line": 9,
+              "column": 9
+            },
+            {
+              "title": "TC76.02 - Tạo bracket với name trống → API trả lỗi hoặc bracket không tạo",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5192,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:00:39.194Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "09ce51f5882feebe3299-a37d00763fc76bee2a7d",
+              "file": "uc76-create-bracket.spec.ts",
+              "line": 41,
+              "column": 9
+            },
+            {
+              "title": "TC76.03 - [ECP - Edge] Tạo bracket với tên chứa ký tự đặc biệt → tạo thành công",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5941,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:00:44.397Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "09ce51f5882feebe3299-6b7d27d2d0338ce38ef1",
+              "file": "uc76-create-bracket.spec.ts",
+              "line": 82,
+              "column": 9
+            },
+            {
+              "title": "TC76.04 - [BVA - Boundary] Tạo bracket với tên rất dài (200+ ký tự)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6062,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:00:50.350Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "09ce51f5882feebe3299-70cad8ef70335da41d82",
+              "file": "uc76-create-bracket.spec.ts",
+              "line": 128,
+              "column": 9
+            },
+            {
+              "title": "TC76.05 - [ECP - Invalid] Tạo bracket với tên chỉ gồm whitespace → API reject",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6048,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:00:56.423Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "09ce51f5882feebe3299-b19d62113211860a202f",
+              "file": "uc76-create-bracket.spec.ts",
+              "line": 159,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc77-update-bracket.spec.ts",
+      "file": "uc77-update-bracket.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UC-77 Update Bracket",
+          "file": "uc77-update-bracket.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC77.01 - Admin cập nhật bracket từ trang config",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7673,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:01:02.490Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "179d689e286d364d4b9a-f1e369661e3c0ca5752b",
+              "file": "uc77-update-bracket.spec.ts",
+              "line": 19,
+              "column": 9
+            },
+            {
+              "title": "TC77.02 - Update bracket từ UI (Save trên config page) → tên mới hiển thị sau reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6887,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:01:10.175Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "179d689e286d364d4b9a-5a6755534921a5167fa3",
+              "file": "uc77-update-bracket.spec.ts",
+              "line": 69,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc78-delete-bracket.spec.ts",
+      "file": "uc78-delete-bracket.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UC-78 Delete Bracket",
+          "file": "uc78-delete-bracket.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC78.01 - Admin xóa bracket từ trang config",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8790,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:01:17.075Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "853337ab40049b28ae32-4cdaf93e2c74d727a9e5",
+              "file": "uc78-delete-bracket.spec.ts",
+              "line": 9,
+              "column": 9
+            },
+            {
+              "title": "TC78.02 - Cancel dialog xóa bracket → bracket vẫn tồn tại",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 28589,
+                      "error": {
+                        "message": "Error: page.evaluate: TypeError: Failed to fetch\n    at eval (eval at evaluate (:290:30), <anonymous>:4:27)\n    at UtilityScript.evaluate (<anonymous>:292:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+                        "stack": "Error: page.evaluate: TypeError: Failed to fetch\n    at eval (eval at evaluate (:290:30), <anonymous>:4:27)\n    at UtilityScript.evaluate (<anonymous>:292:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at eval (eval at evaluate (:290:30), <anonymous>:4:27)\n    at UtilityScript.evaluate (<anonymous>:292:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc78-delete-bracket.spec.ts:120:41",
+                        "location": {
+                          "file": "eval at evaluate (:290:30), <anonymous>",
+                          "column": 27,
+                          "line": 4
+                        }
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "eval at evaluate (:290:30), <anonymous>",
+                            "column": 27,
+                            "line": 4
+                          },
+                          "message": "Error: page.evaluate: TypeError: Failed to fetch\n\u001b[2m    at eval (eval at evaluate (:290:30), <anonymous>:4:27)\u001b[22m\n\u001b[2m    at UtilityScript.evaluate (<anonymous>:292:16)\u001b[22m\n\u001b[2m    at UtilityScript.<anonymous> (<anonymous>:1:44)\u001b[22m\n\u001b[2m    at eval (eval at evaluate (:290:30), <anonymous>:4:27)\u001b[22m\n\u001b[2m    at UtilityScript.evaluate (<anonymous>:292:16)\u001b[22m\n\u001b[2m    at UtilityScript.<anonymous> (<anonymous>:1:44)\u001b[22m\n\u001b[2m    at D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\tests\\uc78-delete-bracket.spec.ts:120:41\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:01:25.876Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc78-delete-bracket-UC-78--ce303-acket-→-bracket-vẫn-tồn-tại-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc78-delete-bracket-UC-78--ce303-acket-→-bracket-vẫn-tồn-tại-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\Semester 9\\FCTF-Clone\\FCTF\\Test\\SystemTest-Nhat\\test-results\\uc78-delete-bracket-UC-78--ce303-acket-→-bracket-vẫn-tồn-tại-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "eval at evaluate (:290:30), <anonymous>",
+                        "column": 27,
+                        "line": 4
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "853337ab40049b28ae32-f15e56d9c49fffd3a47c",
+              "file": "uc78-delete-bracket.spec.ts",
+              "line": 63,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "uc81-update-custom-field.spec.ts",
+      "file": "uc81-update-custom-field.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UC-81 Update Custom Field",
+          "file": "uc81-update-custom-field.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "TC81.01 - Admin cập nhật custom field từ trang config",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "Error: worker process exited unexpectedly (code=1, signal=null)"
+                      },
+                      "errors": [
+                        {
+                          "message": "Error: worker process exited unexpectedly (code=1, signal=null)"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:01:54.803Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "1cb3928f66258f370b17-60636d46ad5e35f8c9aa",
+              "file": "uc81-update-custom-field.spec.ts",
+              "line": 20,
+              "column": 9
+            },
+            {
+              "title": "TC81.02 - Update custom field từ UI (click Save trên block) → API confirm tên mới",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-12T09:01:54.805Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1cb3928f66258f370b17-c5b6df5e0c8f9859881f",
+              "file": "uc81-update-custom-field.spec.ts",
+              "line": 106,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-03-12T08:53:48.262Z",
+    "duration": 486546.791,
+    "expected": 51,
+    "skipped": 42,
+    "unexpected": 7,
+    "flaky": 0
+  }
+}

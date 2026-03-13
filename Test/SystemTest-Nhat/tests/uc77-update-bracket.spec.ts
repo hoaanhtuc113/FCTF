@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 import {
     BASE_URL,
     commitLazyInput,
+    createBracket,
+    deleteBracketByApi,
     getBrackets,
     getTeams,
     loginAsAdmin,
@@ -16,9 +18,18 @@ test.describe("UC-77 Update Bracket", () => {
 
     test("TC77.01 - Admin cập nhật bracket từ trang config", async ({ page }) => {
         const targetTeam = (await getTeams(page, 1))[0];
-        const targetBracket = (await getBrackets(page)).find((bracket) => bracket.type === "teams") ?? null;
+        let targetBracket = (await getBrackets(page)).find((bracket) => bracket.type === "teams") ?? null;
+        let createdForTest: number | null = null;
 
-        test.skip(targetBracket === null, "Cần ít nhất 1 team bracket có sẵn để test update");
+        if (targetBracket === null) {
+            const created = await createBracket(page, {
+                name: `UC77_TEMP_${Date.now()}`,
+                description: "Temporary bracket for UC77 test",
+                type: "teams",
+            });
+            createdForTest = created.id;
+            targetBracket = { id: created.id, name: created.name, description: created.description, type: "teams" };
+        }
 
         const originalBracket: { id: number; name: string; description: string; type: "teams" | "users" } = {
             id: targetBracket!.id,
@@ -40,20 +51,34 @@ test.describe("UC-77 Update Bracket", () => {
             const bracketSelect = page.locator('#team-info-edit-form select[name="bracket_id"]');
             await expect(bracketSelect).toContainText(updatedName);
         } finally {
-            await updateBracket(page, originalBracket.id, {
-                name: originalBracket.name,
-                description: originalBracket.description,
-                type: originalBracket.type,
-            });
+            if (createdForTest !== null) {
+                await deleteBracketByApi(page, createdForTest);
+            } else {
+                await updateBracket(page, originalBracket.id, {
+                    name: originalBracket.name,
+                    description: originalBracket.description,
+                    type: originalBracket.type,
+                });
 
-            await openTeamEditModal(page, targetTeam.id);
-            await expect(page.locator('#team-info-edit-form select[name="bracket_id"]')).toContainText(originalBracket.name);
+                await openTeamEditModal(page, targetTeam.id);
+                await expect(page.locator('#team-info-edit-form select[name="bracket_id"]')).toContainText(originalBracket.name);
+            }
         }
     });
 
     test("TC77.02 - Update bracket từ UI (Save trên config page) → tên mới hiển thị sau reload", async ({ page }) => {
-        const targetBracket = (await getBrackets(page)).find((bracket) => bracket.type === "teams") ?? null;
-        test.skip(targetBracket === null, "Cần ít nhất 1 team bracket có sẵn để test update từ UI");
+        let targetBracket = (await getBrackets(page)).find((bracket) => bracket.type === "teams") ?? null;
+        let createdForTest: number | null = null;
+
+        if (targetBracket === null) {
+            const created = await createBracket(page, {
+                name: `UC77_UI_TEMP_${Date.now()}`,
+                description: "Temporary bracket for UC77 UI test",
+                type: "teams",
+            });
+            createdForTest = created.id;
+            targetBracket = { id: created.id, name: created.name, description: created.description, type: "teams" };
+        }
 
         const originalName = targetBracket!.name;
         const updatedName = `${originalName}_UI_${Date.now()}`;
@@ -91,11 +116,15 @@ test.describe("UC-77 Update Bracket", () => {
             expect(updated?.name).toBe(updatedName);
         } finally {
             // Restore
-            await updateBracket(page, targetBracket!.id, {
-                name: originalName,
-                description: targetBracket!.description,
-                type: targetBracket!.type === "users" ? "users" : "teams",
-            });
+            if (createdForTest !== null) {
+                await deleteBracketByApi(page, createdForTest);
+            } else {
+                await updateBracket(page, targetBracket!.id, {
+                    name: originalName,
+                    description: targetBracket!.description,
+                    type: targetBracket!.type === "users" ? "users" : "teams",
+                });
+            }
         }
     });
 });

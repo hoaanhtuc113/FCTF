@@ -5,7 +5,9 @@
     "scripts": {
         "test": "node run-ordered-tests.js",
         "test:headed": "node run-ordered-tests.js --headed",
-        "test:report": "npx --yes playwright show-report playwright-report"
+        "test:uc03": "playwright test --config playwright.uc03.config.ts",
+        "test:uc03:headed": "playwright test --config playwright.uc03.config.ts --headed",
+        "test:report": "playwright show-report playwright-report --port=0"
     },
     "devDependencies": {
         "@playwright/test": "^1.58.2"
