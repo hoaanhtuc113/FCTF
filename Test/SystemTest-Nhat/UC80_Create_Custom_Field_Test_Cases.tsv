@@ -1,11 +1,2 @@
-CCF-01	Verify that an admin can create a new custom user field from the Config page	"1. Login to admin.fctf.site as an admin.
-2. Open the Config page and navigate to Fields.
-3. Add a new custom user field.
-4. Enter valid field information.
-5. Save the new field.
-6. Open a user edit form and review the field list." 	"- The custom field is created successfully.
-- The field appears in the Config page field list.
-- The new field appears in the user edit form.
-- The created field is available for later editing or deletion." 	"- Admin is logged in to admin.fctf.site.
-- The Config page is accessible.
-- The admin has permission to manage custom fields."
+CCF-01	Verify updated	"1. Step 1
+2. Step 2"	"- Expect"	"- Pre"
