@@ -69,7 +69,9 @@ spec:
               type: RuntimeDefault
           volumeMounts:
             - name: nfs-shared-data
-              mountPath: /mnt/nfs/data
+              mountPath: /mnt/nfs/data/file 
+              subPath: file
+              readOnly: true
       imagePullSecrets:
         - name: regcred
       volumes:
