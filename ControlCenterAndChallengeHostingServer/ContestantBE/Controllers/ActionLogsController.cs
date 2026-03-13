@@ -18,26 +18,6 @@ public class ActionLogsController : BaseController
         _actionLogsServices = actionLogsServices;
     }
 
-    [HttpGet("get-logs")]
-    public async Task<IActionResult> GetActionLogs()
-    {
-        var logs_with_details = await _actionLogsServices.GetActionLogs();
-
-        if (logs_with_details == null || logs_with_details.Count == 0)
-        {
-            return Ok(new
-            {
-                success = false,
-                message = "No action logs found."
-            });
-        }
-        return Ok(new
-        {
-            success = true,
-            data = logs_with_details
-        });
-    }
-
     [HttpGet("get-logs-team")]
     public async Task<IActionResult> GetActionLogsTeam()
     {
