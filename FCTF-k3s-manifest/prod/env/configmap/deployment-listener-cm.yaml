@@ -5,5 +5,6 @@ metadata:
   namespace: app
 data:
   ASPNETCORE_URLS: "http://+:5030"  
-  WORKER_SERVICE_INTERVAL: "20"
-  CONTESTANT_BE_API: "http://contestant-be-svc.app.svc.cluster.local:5010"
+
+  CHALLENGE_WATCHER_WORKER_COUNT: "20"
+ 
