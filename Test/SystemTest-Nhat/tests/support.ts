@@ -85,6 +85,11 @@ export interface CustomFieldInfo {
 
 export type CustomFieldScope = "user" | "team";
 
+export interface ChallengeInfo {
+    id: number;
+    name: string;
+}
+
 export async function loginAsAdmin(page: Page) {
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -360,6 +365,17 @@ export async function getUsers(page: Page, limit: number = 5): Promise<UserInfo[
         name: d.name,
         email: d.email ?? "",
         type: d.type ?? "user",
+    }));
+}
+
+export async function getChallenges(page: Page, limit: number = 5): Promise<ChallengeInfo[]> {
+    const res = await page.request.get(`${BASE_URL}/api/v1/challenges?page=1&per_page=${limit}`);
+    const body = await res.json();
+    const data = body.data as any[];
+    if (!data || data.length === 0) throw new Error("Không có challenge nào trong hệ thống để test");
+    return data.map((d: any) => ({
+        id: d.id,
+        name: d.name,
     }));
 }
 
