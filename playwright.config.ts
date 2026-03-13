@@ -13,6 +13,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './Test',
+  testIgnore: ['SystemTest-Nhat/**'],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -30,6 +31,11 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+
+    /* Explicit timeouts so that --timeout CLI flag only affects the test-level timeout,
+       not page navigation or individual actions */
+    navigationTimeout: 90_000,
+    actionTimeout: 30_000,
   },
 
   /* Configure projects for major browsers */

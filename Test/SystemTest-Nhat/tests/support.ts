@@ -1,6 +1,7 @@
 import { expect, Locator, Page } from "@playwright/test";
 
 export const BASE_URL = "https://admin2.fctf.site";
+export const CONTESTANT_URL = "https://contestant2.fctf.site";
 export const ADMIN_USER = "admin";
 export const ADMIN_PASS = "1";
 export const SUBMIT_WAIT_MS = 3000;
@@ -108,6 +109,33 @@ export async function loginAsAdmin(page: Page) {
             await page.waitForTimeout(1500);
         }
     }
+}
+
+/** Alias for loginAsAdmin, compatible with challenge-admin-support naming */
+export async function loginAdmin(page: Page) {
+    return loginAsAdmin(page);
+}
+
+export async function loginContestant(page: Page, username = 'user2', password = '1') {
+    await page.goto(`${CONTESTANT_URL}/login`);
+    await page.locator('input[placeholder="input username..."]').fill(username);
+    await page.locator('input[placeholder="enter_password"]').fill(password);
+    await page.locator('button[type="submit"]').click();
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
+}
+
+export async function setScoreVisibility(page: Page, visibility: 'public' | 'private' | 'hidden' | 'admins') {
+    // Navigate to admin config to ensure a valid authenticated session
+    await page.goto(`${BASE_URL}/admin/config`);
+    // Read the CSRF nonce rendered in the page
+    const nonce = await page.locator('input[name="nonce"]').first().getAttribute('value').catch(() => '');
+    // Submit via Playwright's request API (shares session cookies, avoids UI dropdown limitations)
+    await page.request.post(`${BASE_URL}/admin/config`, {
+        form: {
+            nonce: nonce ?? '',
+            score_visibility: visibility,
+        },
+    });
 }
 
 export async function openAdminConfigTab(page: Page, hash: string) {
@@ -1114,8 +1142,11 @@ export async function ensureContestantUser(
     password = '1',
     teamName = 'team2',
 ): Promise<void> {
-    await page.evaluate(async ({ username, password, teamName, BASE_URL }) => {
-        const csrfToken =
+    const result = await page.evaluate(async ({ username, password, teamName, BASE_URL }) => {
+        const errors: string[] = [];
+        const userMode: string = (window as any).init?.userMode ?? 'unknown';
+        const adminTeamId: number | null = (window as any).init?.teamId ?? null;
+        const csrfToken: string =
             (window as any).init?.csrfNonce ||
             (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ||
             '';
@@ -1125,59 +1156,110 @@ export async function ensureContestantUser(
             'CSRF-Token': csrfToken,
         };
 
+        // Step 1: Create team (ignore 400 = already exists, 404 = users mode)
         let teamId: number | null = null;
-        const teamResp = await fetch(`${BASE_URL}/api/v1/teams`, {
+        const teamCreateResp = await fetch(`${BASE_URL}/api/v1/teams`, {
             method: 'POST',
             credentials: 'same-origin',
             headers,
             body: JSON.stringify({ name: teamName, password: teamName }),
         });
-        if (teamResp.ok) {
-            const d = await teamResp.json();
-            teamId = d.data?.id ?? null;
-        }
-        if (!teamId) {
-            const lr = await fetch(`${BASE_URL}/api/v1/teams?q=${encodeURIComponent(teamName)}&field=name`, {
+        if (teamCreateResp.ok) {
+            const teamData = await teamCreateResp.json();
+            teamId = teamData.data?.id ?? null;
+        } else {
+            errors.push(`Team POST ${teamCreateResp.status}`);
+            const listResp = await fetch(`${BASE_URL}/api/v1/teams?q=${encodeURIComponent(teamName)}&field=name`, {
                 credentials: 'same-origin',
                 headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
             });
-            if (lr.ok) {
-                const ld = await lr.json();
-                const found = (ld.data as any[])?.find((t: any) => t.name === teamName);
+            if (listResp.ok) {
+                const listData = await listResp.json();
+                const found = (listData.data as any[])?.find((t: any) => t.name === teamName);
                 if (found) teamId = found.id;
+                else errors.push(`Team not found in search`);
+            } else {
+                errors.push(`Team search ${listResp.status}`);
             }
         }
 
+        // Step 2: Create user (ignore 400 = already exists)
         let userId: number | null = null;
-        const userResp = await fetch(`${BASE_URL}/api/v1/users`, {
+        const userCreateResp = await fetch(`${BASE_URL}/api/v1/users`, {
             method: 'POST',
             credentials: 'same-origin',
             headers,
             body: JSON.stringify({ name: username, email: `${username}@test.local`, password, type: 'user', verified: true }),
         });
-        if (userResp.ok) {
-            const d = await userResp.json();
-            userId = d.data?.id ?? null;
-        }
-        if (!userId) {
-            const lr = await fetch(`${BASE_URL}/api/v1/users?q=${encodeURIComponent(username)}&field=name`, {
+        if (userCreateResp.ok) {
+            const userData = await userCreateResp.json();
+            userId = userData.data?.id ?? null;
+        } else {
+            errors.push(`User POST ${userCreateResp.status}`);
+            const listResp = await fetch(`${BASE_URL}/api/v1/users?q=${encodeURIComponent(username)}&field=name`, {
                 credentials: 'same-origin',
                 headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
             });
-            if (lr.ok) {
-                const ld = await lr.json();
-                const found = (ld.data as any[])?.find((u: any) => u.name === username);
+            if (listResp.ok) {
+                const listData = await listResp.json();
+                const found = (listData.data as any[])?.find((u: any) => u.name === username);
                 if (found) userId = found.id;
+                else errors.push(`User not found in search`);
+            } else {
+                errors.push(`User search ${listResp.status}`);
             }
         }
 
-        if (userId && teamId) {
-            await fetch(`${BASE_URL}/api/v1/users/${userId}`, {
+        // Step 3: Check if user already has a team assigned
+        let existingTeamId: number | null = null;
+        if (userId) {
+            const userInfoResp = await fetch(`${BASE_URL}/api/v1/users/${userId}`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
+            });
+            if (userInfoResp.ok) {
+                const userInfo = await userInfoResp.json();
+                existingTeamId = userInfo.data?.team_id ?? null;
+            }
+        }
+
+        // If user already has the correct team, nothing more to do
+        if (existingTeamId && (teamId === null || existingTeamId === teamId)) {
+            if (teamId === null) teamId = existingTeamId;
+            return { userMode, teamId, userId, errors, skippedAssignment: true };
+        }
+
+        // Step 4: Assign user to team via PATCH (works regardless of user_mode)
+        // Fall back to admin's own teamId if teams API was blocked (users mode)
+        const effectiveTeamId = teamId ?? adminTeamId;
+        if (userId && effectiveTeamId) {
+            const patchResp = await fetch(`${BASE_URL}/api/v1/users/${userId}`, {
                 method: 'PATCH',
                 credentials: 'same-origin',
                 headers,
-                body: JSON.stringify({ team_id: teamId }),
+                body: JSON.stringify({ team_id: effectiveTeamId }),
             });
+            if (!patchResp.ok) {
+                const patchBody = await patchResp.json().catch(() => null);
+                errors.push(`User PATCH ${patchResp.status}: ${JSON.stringify(patchBody)}`);
+            } else {
+                teamId = effectiveTeamId;
+            }
+        } else if (!effectiveTeamId) {
+            errors.push(`Cannot assign team: teamId is null and adminTeamId is null (userMode=${userMode})`);
         }
+
+        return { userMode, teamId, userId, errors, skippedAssignment: false };
     }, { username, password, teamName, BASE_URL });
+
+    if (result.errors.length > 0) {
+        console.warn(`[ensureContestantUser] userMode=${result.userMode} teamId=${result.teamId} userId=${result.userId} errors: ${result.errors.join(' | ')}`);
+    }
+
+    if (!result.userId) {
+        throw new Error(`[ensureContestantUser] Could not create/find user "${username}". Errors: ${result.errors.join(' | ')}`);
+    }
+    if (!result.teamId) {
+        throw new Error(`[ensureContestantUser] User "${username}" has no team (userMode=${result.userMode}). ContestantBE login will fail. Errors: ${result.errors.join(' | ')}`);
+    }
 }

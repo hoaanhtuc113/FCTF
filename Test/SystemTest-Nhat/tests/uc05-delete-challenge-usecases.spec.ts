@@ -7,7 +7,7 @@ import {
     uniqueChallengeName,
     deleteChallengeViaApi,
     deleteChallengeViaUi,
-} from './challenge-admin-support';
+} from '../challenge-admin-support';
 
 test.describe('UC05 Delete Challenge', () => {
     test.describe.configure({ mode: 'serial' });

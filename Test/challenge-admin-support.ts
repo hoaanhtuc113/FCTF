@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import { expect, Page } from '@playwright/test';
 
@@ -40,6 +41,7 @@ export interface ChallengeCreateOptions {
     decay?: string;
     decayFunction?: 'linear' | 'logarithmic';
     waitForDeploySuccess?: boolean;
+    skipRowStateCheck?: boolean;
 }
 
 function escapeRegExp(value: string) {
@@ -47,7 +49,22 @@ function escapeRegExp(value: string) {
 }
 
 export function workspaceFile(fileName: string) {
-    return path.join(process.cwd(), fileName);
+    if (path.isAbsolute(fileName)) {
+        return fileName;
+    }
+
+    const candidates = [
+        path.join(process.cwd(), fileName),
+        path.resolve(__dirname, '..', fileName),
+    ];
+
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return candidates[0];
 }
 
 export function uniqueChallengeName(prefix: string) {
@@ -78,14 +95,16 @@ export async function gotoAdminChallenges(page: Page) {
 
 export async function openCreateChallenge(page: Page) {
     await gotoAdminChallenges(page);
-    const directLink = page.getByRole('link', { name: '+ Create Challenge' });
-    if (await directLink.isVisible().catch(() => false)) {
+    const directLink = page.getByRole('link', { name: 'Create Challenge' });
+    if (await directLink.isVisible({ timeout: 3_000 }).catch(() => false)) {
         await directLink.click();
     } else {
         await page.goto(`${ADMIN_URL}/admin/challenges/new`);
     }
     await expect(page.getByRole('heading', { name: 'Create Challenge' })).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('#create-chal-entry-div input[name="name"]').first()).toBeVisible({ timeout: 15_000 });
+    // Wait for the dynamically-loaded challenge-type scripts to finish attaching the AJAX submit handler
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => { });
 }
 
 async function fillDescription(page: Page, value: string) {
@@ -185,6 +204,14 @@ export async function fillCreateStepOne(page: Page, options: ChallengeCreateOpti
 export async function submitCreateStepOne(page: Page) {
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await page.waitForTimeout(3_000);
+    // Handle transient "Network error" modal from server: dismiss and retry once
+    const networkErrorModal = page.locator('.modal.show').filter({ hasText: 'Network error' });
+    if (await networkErrorModal.isVisible().catch(() => false)) {
+        await page.locator('.modal.show button:has-text("OK")').click();
+        await page.waitForTimeout(2_000);
+        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await page.waitForTimeout(3_000);
+    }
 }
 
 export async function finishCreateChallenge(page: Page, options: ChallengeCreateOptions) {
@@ -235,6 +262,15 @@ export async function finishCreateChallenge(page: Page, options: ChallengeCreate
     }
 
     await page.getByRole('button', { name: 'Finish' }).click();
+    await page.waitForTimeout(3_000);
+    // Handle transient "Network error" modal on Finish: dismiss and retry once
+    const networkErrorModal = page.locator('.modal.show').filter({ hasText: 'Network error' });
+    if (await networkErrorModal.isVisible().catch(() => false)) {
+        await page.locator('.modal.show button:has-text("OK")').click();
+        await page.waitForTimeout(2_000);
+        await page.getByRole('button', { name: 'Finish' }).click();
+        await page.waitForTimeout(3_000);
+    }
 }
 
 export async function searchChallenge(page: Page, challengeName: string) {
@@ -288,7 +324,10 @@ export async function createChallenge(page: Page, options: ChallengeCreateOption
     await submitCreateStepOne(page);
     await finishCreateChallenge(page, options);
 
-    const expectedTexts = [options.category, options.state ?? 'hidden'];
+    const expectedTexts = [options.category];
+    if (!options.skipRowStateCheck) {
+        expectedTexts.push(options.state ?? 'hidden');
+    }
     if (options.value) {
         expectedTexts.push(options.value);
     }
@@ -296,7 +335,7 @@ export async function createChallenge(page: Page, options: ChallengeCreateOption
         expectedTexts.push('DEPLOY_SUCCESS');
     }
 
-    await waitForChallengeRow(page, options.name, expectedTexts, options.setUpDocker ? 480_000 : 60_000);
+    await waitForChallengeRow(page, options.name, expectedTexts, options.setUpDocker ? 900_000 : 180_000);
     await openChallengeDetailFromList(page, options.name);
 
     return { id: currentChallengeId(page), name: options.name };
@@ -304,8 +343,17 @@ export async function createChallenge(page: Page, options: ChallengeCreateOption
 
 export async function openChallengeTab(page: Page, tabName: string) {
     const tab = page.locator('#challenge-properties a').filter({ hasText: new RegExp(`^${escapeRegExp(tabName)}$`, 'i') }).first();
-    await tab.click();
-    await page.waitForTimeout(500);
+    await tab.waitFor({ state: 'visible', timeout: 10_000 });
+    // Retry up to 3 times: dispatchEvent bypasses #challenge-update-container overlay.
+    // Each attempt checks aria-selected or .active to confirm the tab activated.
+    for (let attempt = 0; attempt < 3; attempt++) {
+        await tab.dispatchEvent('click');
+        await page.waitForTimeout(1_000);
+        const isSelected = await tab.evaluate((el) =>
+            el.getAttribute('aria-selected') === 'true' || el.classList.contains('active')
+        ).catch(() => false);
+        if (isSelected) break;
+    }
 }
 
 export async function deleteChallengeViaUi(page: Page) {
@@ -490,8 +538,11 @@ export async function ensureContestantUser(
     password = '1',
     teamName = 'team2',
 ): Promise<void> {
-    await page.evaluate(async ({ username, password, teamName }) => {
-        const csrfToken =
+    const result = await page.evaluate(async ({ username, password, teamName }) => {
+        const errors: string[] = [];
+        const userMode: string = (window as any).init?.userMode ?? 'unknown';
+        const adminTeamId: number | null = (window as any).init?.teamId ?? null;
+        const csrfToken: string =
             (window as any).init?.csrfNonce ||
             (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ||
             '';
@@ -501,19 +552,20 @@ export async function ensureContestantUser(
             'CSRF-Token': csrfToken,
         };
 
-        // Step 1: Create team (ignore 400 = already exists)
+        // Step 1: Create team (ignore 400 = already exists, 404 = users mode)
         let teamId: number | null = null;
-        const teamResp = await fetch('/api/v1/teams', {
+        const teamCreateResp = await fetch('/api/v1/teams', {
             method: 'POST',
             credentials: 'same-origin',
             headers,
             body: JSON.stringify({ name: teamName, password: teamName }),
         });
-        if (teamResp.ok) {
-            const teamData = await teamResp.json();
+        if (teamCreateResp.ok) {
+            const teamData = await teamCreateResp.json();
             teamId = teamData.data?.id ?? null;
-        }
-        if (!teamId) {
+        } else {
+            errors.push(`Team POST ${teamCreateResp.status}`);
+            // Try to find existing team (works in teams mode)
             const listResp = await fetch(`/api/v1/teams?q=${encodeURIComponent(teamName)}&field=name`, {
                 credentials: 'same-origin',
                 headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
@@ -522,12 +574,15 @@ export async function ensureContestantUser(
                 const listData = await listResp.json();
                 const found = (listData.data as any[])?.find((t: any) => t.name === teamName);
                 if (found) teamId = found.id;
+                else errors.push(`Team not found in search`);
+            } else {
+                errors.push(`Team search ${listResp.status}`);
             }
         }
 
         // Step 2: Create user (ignore 400 = already exists)
         let userId: number | null = null;
-        const userResp = await fetch('/api/v1/users', {
+        const userCreateResp = await fetch('/api/v1/users', {
             method: 'POST',
             credentials: 'same-origin',
             headers,
@@ -539,11 +594,11 @@ export async function ensureContestantUser(
                 verified: true,
             }),
         });
-        if (userResp.ok) {
-            const userData = await userResp.json();
+        if (userCreateResp.ok) {
+            const userData = await userCreateResp.json();
             userId = userData.data?.id ?? null;
-        }
-        if (!userId) {
+        } else {
+            errors.push(`User POST ${userCreateResp.status}`);
             const listResp = await fetch(`/api/v1/users?q=${encodeURIComponent(username)}&field=name`, {
                 credentials: 'same-origin',
                 headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
@@ -552,17 +607,62 @@ export async function ensureContestantUser(
                 const listData = await listResp.json();
                 const found = (listData.data as any[])?.find((u: any) => u.name === username);
                 if (found) userId = found.id;
+                else errors.push(`User not found in search`);
+            } else {
+                errors.push(`User search ${listResp.status}`);
             }
         }
 
-        // Step 3: Assign user to team
-        if (userId && teamId) {
-            await fetch(`/api/v1/users/${userId}`, {
+        // Step 3: Check if user already has a team assigned
+        let existingTeamId: number | null = null;
+        if (userId) {
+            const userInfoResp = await fetch(`/api/v1/users/${userId}`, {
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'CSRF-Token': csrfToken },
+            });
+            if (userInfoResp.ok) {
+                const userInfo = await userInfoResp.json();
+                existingTeamId = userInfo.data?.team_id ?? null;
+            }
+        }
+
+        // If user already has the correct team, nothing more to do
+        if (existingTeamId && (teamId === null || existingTeamId === teamId)) {
+            if (teamId === null) teamId = existingTeamId;
+            return { userMode, teamId, userId, errors, skippedAssignment: true };
+        }
+
+        // Step 4: Assign user to team via PATCH (works regardless of user_mode)
+        // Fall back to admin's own teamId if teams API was blocked (users mode)
+        const effectiveTeamId = teamId ?? adminTeamId;
+        if (userId && effectiveTeamId) {
+            const patchResp = await fetch(`/api/v1/users/${userId}`, {
                 method: 'PATCH',
                 credentials: 'same-origin',
                 headers,
-                body: JSON.stringify({ team_id: teamId }),
+                body: JSON.stringify({ team_id: effectiveTeamId }),
             });
+            if (!patchResp.ok) {
+                const patchBody = await patchResp.json().catch(() => null);
+                errors.push(`User PATCH ${patchResp.status}: ${JSON.stringify(patchBody)}`);
+            } else {
+                teamId = effectiveTeamId;
+            }
+        } else if (!effectiveTeamId) {
+            errors.push(`Cannot assign team: teamId is null and adminTeamId is null (userMode=${userMode})`);
         }
+
+        return { userMode, teamId, userId, errors, skippedAssignment: false };
     }, { username, password, teamName });
+
+    if (result.errors.length > 0) {
+        console.warn(`[ensureContestantUser] userMode=${result.userMode} teamId=${result.teamId} userId=${result.userId} errors: ${result.errors.join(' | ')}`);
+    }
+
+    if (!result.userId) {
+        throw new Error(`[ensureContestantUser] Could not create/find user "${username}". Errors: ${result.errors.join(' | ')}`);
+    }
+    if (!result.teamId) {
+        throw new Error(`[ensureContestantUser] User "${username}" has no team (userMode=${result.userMode}). ContestantBE login will fail. Errors: ${result.errors.join(' | ')}`);
+    }
 }

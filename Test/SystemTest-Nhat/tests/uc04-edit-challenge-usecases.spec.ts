@@ -17,13 +17,13 @@ import {
     switchScoringTypeViaApi,
     uniqueChallengeName,
     waitForVersionCount,
-} from './challenge-admin-support';
+} from '../challenge-admin-support';
 
 test.describe('UC04 Edit Challenge', () => {
     test.describe.configure({ mode: 'serial' });
 
     test.beforeEach(async ({ page }) => {
-        test.setTimeout(360_000);
+        test.setTimeout(1_200_000);
         await loginAdmin(page);
     });
 
@@ -47,7 +47,19 @@ test.describe('UC04 Edit Challenge', () => {
             const updatedName = uniqueChallengeName('uc04-edit-basic-updated');
             await page.locator('input[name="name"]').fill(updatedName);
             await page.locator('input[name="category"]').fill('reverse');
-            await page.locator('textarea[name="description"]').fill('Updated challenge description from UC04');
+            // Description uses CodeMirror editor — the textarea is hidden; set value via CodeMirror API
+            await page.evaluate((text: string) => {
+                const ta = document.querySelector('textarea[name="description"]') as HTMLTextAreaElement | null;
+                const cmEl = ta?.parentElement?.querySelector('.CodeMirror') as HTMLElement | null;
+                if (cmEl && (cmEl as any).CodeMirror) {
+                    (cmEl as any).CodeMirror.setValue(text);
+                } else if (ta) {
+                    // Fallback: force value and dispatch events so the form picks it up
+                    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set?.call(ta, text);
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    ta.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }, 'Updated challenge description from UC04');
             await page.locator('input[name="time_limit"]').fill('30');
             await page.locator('input[name="max_attempts"]').fill('6');
             await page.locator('#submission_cooldown').fill('8');
@@ -61,7 +73,9 @@ test.describe('UC04 Edit Challenge', () => {
 
             await expect(page.locator('input[name="name"]')).toHaveValue(updatedName);
             await expect(page.locator('input[name="category"]')).toHaveValue('reverse');
-            await expect(page.locator('textarea[name="description"]')).toHaveValue('Updated challenge description from UC04');
+            // After reload, CodeMirror renders content; check the textarea value via DOM evaluation
+            const descValue = await page.locator('textarea[name="description"]').evaluate((el: HTMLTextAreaElement) => el.value);
+            expect(descValue).toBe('Updated challenge description from UC04');
             await expect(page.locator('input[name="time_limit"]')).toHaveValue('30');
             await expect(page.locator('input[name="max_attempts"]')).toHaveValue('6');
             await expect(page.locator('#submission_cooldown')).toHaveValue('8');

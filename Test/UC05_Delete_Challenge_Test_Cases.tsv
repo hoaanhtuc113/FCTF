@@ -1,9 +1,0 @@
-DCH-01	Verify that an admin can delete an existing challenge from the challenge detail page	"1. Login to admin.fctf.site as an admin.
-2. Create a challenge with valid data.
-3. Open the created challenge detail page.
-4. Click the Delete Challenge action.
-5. Confirm the deletion in the confirmation dialog.
-6. Search for the deleted challenge from the challenge list." 	"- The challenge is deleted successfully.
-- The admin is redirected back to the challenges page.
-- Searching by the deleted challenge name returns no rows." 	"- Admin is logged in to admin.fctf.site.
-- The admin has permission to delete challenges."

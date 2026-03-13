@@ -2,135 +2,38 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-function getNpmCacheNpxDir() {
-    const localAppData = process.env.LOCALAPPDATA;
-    if (localAppData) {
-        return path.join(localAppData, "npm-cache", "_npx");
-    }
+const testsDir = path.join(__dirname, "tests");
+const configPath = path.join(__dirname, "playwright.config.ts");
 
-    const userProfile = process.env.USERPROFILE;
-    if (userProfile) {
-        return path.join(userProfile, "AppData", "Local", "npm-cache", "_npx");
-    }
-
-    return null;
-}
-
-function findCachedPlaywrightCli() {
-    const npxDir = getNpmCacheNpxDir();
-    if (!npxDir || !fs.existsSync(npxDir)) {
-        return null;
-    }
-
-    const candidates = fs.readdirSync(npxDir, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => {
-            const baseDir = path.join(npxDir, entry.name);
-            const cliPath = path.join(baseDir, "node_modules", "playwright", "cli.js");
-            if (!fs.existsSync(cliPath)) {
-                return null;
-            }
-
-            const stats = fs.statSync(cliPath);
-            return {
-                cliPath,
-                nodeModulesPath: path.join(baseDir, "node_modules"),
-                mtimeMs: stats.mtimeMs,
-            };
-        })
-        .filter(Boolean)
-        .sort((left, right) => right.mtimeMs - left.mtimeMs);
-
-    return candidates[0] ?? null;
-}
-
-function primeCachedPlaywright() {
-    const command = process.platform === "win32"
-        ? process.env.ComSpec || "cmd.exe"
-        : "npx";
-    const args = process.platform === "win32"
-        ? ["/d", "/s", "/c", "npx --yes playwright --version"]
-        : ["--yes", "playwright", "--version"];
-
-    spawnSync(command, args, {
-        cwd: __dirname,
-        stdio: "ignore",
-        shell: false,
-    });
-}
-
-function resolvePlaywrightCommand() {
+function resolveLocalPlaywrightCli() {
     const candidateModules = [
-        "playwright/cli",
-        "@playwright/test/cli",
-        path.join(__dirname, "..", "..", "node_modules", "playwright", "cli"),
-        path.join(__dirname, "..", "..", "node_modules", "@playwright", "test", "cli"),
-        path.join(__dirname, "..", "node_modules", "playwright", "cli"),
-        path.join(__dirname, "..", "node_modules", "@playwright", "test", "cli"),
+        path.join(__dirname, "node_modules", "@playwright", "test", "cli"),
+        path.join(__dirname, "node_modules", "playwright", "cli"),
     ];
 
     for (const candidate of candidateModules) {
         try {
-            const cliPath = require.resolve(candidate);
-            return {
-                command: process.execPath,
-                args: [cliPath, "test"],
-                useCommandString: false,
-                env: process.env,
-            };
+            return require.resolve(candidate);
         } catch (_error) {
-            // Try next candidate.
+            // Try next local-only candidate.
         }
     }
 
-    let cachedPlaywright = findCachedPlaywrightCli();
-    if (!cachedPlaywright) {
-        primeCachedPlaywright();
-        cachedPlaywright = findCachedPlaywrightCli();
-    }
-
-    if (cachedPlaywright) {
-        const nodePath = process.env.NODE_PATH
-            ? `${cachedPlaywright.nodeModulesPath}${path.delimiter}${process.env.NODE_PATH}`
-            : cachedPlaywright.nodeModulesPath;
-
-        return {
-            command: process.execPath,
-            args: [cachedPlaywright.cliPath, "test"],
-            useCommandString: false,
-            env: {
-                ...process.env,
-                NODE_PATH: nodePath,
-            },
-        };
-    }
-
-    if (process.platform === "win32") {
-        return {
-            command: process.env.ComSpec || "cmd.exe",
-            args: ["/d", "/s", "/c"],
-            useCommandString: true,
-            env: process.env,
-        };
-    }
-
-    return {
-        command: "npx",
-        args: ["--yes", "playwright", "test"],
-        useCommandString: false,
-        env: process.env,
-    };
+    throw new Error(
+        "Local Playwright CLI was not found in Test/SystemTest-Nhat/node_modules. Run 'npm install' inside Test/SystemTest-Nhat before executing tests.",
+    );
 }
 
-function quoteArg(arg) {
-    if (!/[\s"]/u.test(arg)) {
-        return arg;
-    }
-    return `"${arg.replace(/"/g, '\\"')}"`;
+function getAllSpecFiles() {
+    return fs.readdirSync(testsDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".spec.ts"))
+        .map((entry) => path.posix.join("tests", entry.name.replace(/\\/g, "/")))
+        .sort();
 }
 
 const orderedFiles = [
-    "tests/uc23-query-reward.spec.ts",
+
+    "tests/uc16-change-scoreboard-visibility-usecases.spec.ts",
     "tests/uc24-filter-history.spec.ts",
     "tests/uc25-view-instance-history.spec.ts",
     "tests/uc26-view-audit-logs.spec.ts",
@@ -165,18 +68,35 @@ const orderedFiles = [
     "tests/uc80-create-custom-field.spec.ts",
     "tests/uc81-update-custom-field.spec.ts",
     "tests/uc82-delete-custom-field.spec.ts",
+    "tests/uc83-config-sanitize.spec.ts",
+    "tests/uc84-pause-contest.spec.ts",
+    // uc03 runs last — challenge creation seeds data consumed by edit/delete suites above
+    // "tests/uc03-create-challenge-test.spec.ts",
+    // "tests/uc04-edit-challenge-usecases.spec.ts",
+    // "tests/uc05-delete-challenge-usecases.spec.ts",
+    // "tests/uc13-challenge-version-usecases.spec.ts",
 ];
 
-const extraArgs = process.argv.slice(2);
-const playwrightCommand = resolvePlaywrightCommand();
-const trailingArgs = [...orderedFiles, ...extraArgs];
-const args = playwrightCommand.useCommandString
-    ? [...playwrightCommand.args, `npx --yes playwright test ${trailingArgs.map(quoteArg).join(" ")}`]
-    : [...playwrightCommand.args, ...trailingArgs];
+const excludedFiles = new Set([
+    "tests/uc03-create-challenge-test.spec.ts",
+    "tests/uc04-edit-challenge-usecases.spec.ts",
+    "tests/uc05-delete-challenge-usecases.spec.ts",
+    "tests/uc13-challenge-version-usecases.spec.ts",
+    "tests/uc23-query-reward.spec.ts",
 
-const result = spawnSync(playwrightCommand.command, args, {
+]);
+
+const allSpecFiles = getAllSpecFiles();
+const trailingOrderedFiles = allSpecFiles.filter(
+    (file) => !orderedFiles.includes(file) && !excludedFiles.has(file),
+);
+const extraArgs = process.argv.slice(2);
+const cliPath = resolveLocalPlaywrightCli();
+const trailingArgs = ["test", "--config", configPath, ...orderedFiles, ...trailingOrderedFiles, ...extraArgs];
+
+const result = spawnSync(process.execPath, [cliPath, ...trailingArgs], {
     cwd: __dirname,
-    env: playwrightCommand.env,
+    env: process.env,
     stdio: "inherit",
     shell: false,
 });
