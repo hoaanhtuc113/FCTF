@@ -1,0 +1,110 @@
+<testsuites id="" name="" tests="53" failures="0" skipped="0" errors="0" time="1832.92177">
+<testsuite name="uc03-create-challenge-test.spec.ts" timestamp="2026-03-13T04:00:56.209Z" hostname="chromium" tests="53" failures="0" skipped="0" time="1794.089" errors="0">
+<testcase name="UC03 Create Challenge › CCH-01: Create a standard challenge successfully" classname="uc03-create-challenge-test.spec.ts" time="28.197">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-03: Create a dynamic challenge successfully" classname="uc03-create-challenge-test.spec.ts" time="30.012">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-04: Create a multiple-choice challenge successfully" classname="uc03-create-challenge-test.spec.ts" time="28.564">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-05: Reject a challenge name that becomes empty after trimming" classname="uc03-create-challenge-test.spec.ts" time="21.311">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-06: Reject a category that becomes empty after trimming" classname="uc03-create-challenge-test.spec.ts" time="24.015">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-07: Reject a category longer than 20 characters" classname="uc03-create-challenge-test.spec.ts" time="24.415">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-08: Reject a negative time limit with native validation" classname="uc03-create-challenge-test.spec.ts" time="21.198">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-09: Reject a negative challenge value with native validation" classname="uc03-create-challenge-test.spec.ts" time="21.242">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-10: Reject a dynamic challenge when initial value is below minimum value" classname="uc03-create-challenge-test.spec.ts" time="27.37">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-11: Add a static flag via the Flags tab" classname="uc03-create-challenge-test.spec.ts" time="29.483">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-12: Add a case-insensitive static flag via the Flags tab" classname="uc03-create-challenge-test.spec.ts" time="30.553">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-13: Add a regex flag via the Flags tab" classname="uc03-create-challenge-test.spec.ts" time="28.599">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-14: Delete a flag via the Flags tab" classname="uc03-create-challenge-test.spec.ts" time="28.137">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-15: Upload and delete a file via the Files tab" classname="uc03-create-challenge-test.spec.ts" time="35.698">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-16: Add and remove a topic via the Topics tab" classname="uc03-create-challenge-test.spec.ts" time="29.026">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-17: Add and remove a tag via the Tags tab" classname="uc03-create-challenge-test.spec.ts" time="27.707">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-18: Create a hint with content and cost via the Hints tab" classname="uc03-create-challenge-test.spec.ts" time="29.137">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-19: Reject a negative hint cost via browser validation" classname="uc03-create-challenge-test.spec.ts" time="29.775">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-20: Delete a hint via the Hints tab" classname="uc03-create-challenge-test.spec.ts" time="33.512">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-21: Set a prerequisite challenge via the Requirements tab" classname="uc03-create-challenge-test.spec.ts" time="64.954">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-22: Set the next challenge via the Next tab" classname="uc03-create-challenge-test.spec.ts" time="59.008">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-23: Create challenge with name at maxlength boundary (40 chars)" classname="uc03-create-challenge-test.spec.ts" time="30.099">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-24: Create challenge with duplicate name → server rejects or handles" classname="uc03-create-challenge-test.spec.ts" time="47.37">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-25: Create challenge with time limit at maximum boundary (30 minutes)" classname="uc03-create-challenge-test.spec.ts" time="26.732">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-26: Reject time limit = 0 with browser native validation (min = 1)" classname="uc03-create-challenge-test.spec.ts" time="21.112">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-27: Reject time limit exceeding maximum (31) with browser native validation" classname="uc03-create-challenge-test.spec.ts" time="23.74">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-28: Create challenge with max_attempts = 0 (unlimited)" classname="uc03-create-challenge-test.spec.ts" time="28.806">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-29: Create challenge with value = 0 (zero-point challenge)" classname="uc03-create-challenge-test.spec.ts" time="32.876">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-30: Reject negative cooldown with browser native validation (min = 0)" classname="uc03-create-challenge-test.spec.ts" time="26.522">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-31: Reject negative max_attempts with browser native validation (min = 0)" classname="uc03-create-challenge-test.spec.ts" time="22.666">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-32: Create challenge with minimum time limit boundary (1 minute)" classname="uc03-create-challenge-test.spec.ts" time="26.986">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-33: Create challenge with large max_attempts value (999)" classname="uc03-create-challenge-test.spec.ts" time="29.199">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-34: Create challenge with high cooldown value (3600 seconds)" classname="uc03-create-challenge-test.spec.ts" time="34.975">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-35: Reject dynamic challenge when decay = 0 (below min=1 native validation)" classname="uc03-create-challenge-test.spec.ts" time="26.213">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-36: Create dynamic challenge with logarithmic decay function" classname="uc03-create-challenge-test.spec.ts" time="36.856">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-37: Reject dynamic challenge with negative decay value (min = 1)" classname="uc03-create-challenge-test.spec.ts" time="29.593">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-38: Create visible challenge (state = visible, published immediately)" classname="uc03-create-challenge-test.spec.ts" time="32.342">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-39: Create challenge with no difficulty set (difficulty unrated)" classname="uc03-create-challenge-test.spec.ts" time="30.948">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-40: Create challenge with maximum difficulty rating (5 stars)" classname="uc03-create-challenge-test.spec.ts" time="31.581">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-41: Create challenge with minimum difficulty rating (1 star)" classname="uc03-create-challenge-test.spec.ts" time="28.774">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-42: Create challenge with case-insensitive flag from creation wizard" classname="uc03-create-challenge-test.spec.ts" time="29.097">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-43: Add a regex case-insensitive flag via Flags tab" classname="uc03-create-challenge-test.spec.ts" time="32.215">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-44: Flag Create button is hidden until a flag type is selected" classname="uc03-create-challenge-test.spec.ts" time="31.983">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-45: Create a free hint (cost = 0) via Hints tab" classname="uc03-create-challenge-test.spec.ts" time="33.054">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-46: Create multiple hints and verify all appear in Hints table" classname="uc03-create-challenge-test.spec.ts" time="40.006">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-47: Edit an existing hint content and cost via Hints tab" classname="uc03-create-challenge-test.spec.ts" time="34.855">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-48: Remove prerequisite after setting it via Requirements tab" classname="uc03-create-challenge-test.spec.ts" time="69.936">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-49: Clear/reset the next challenge selection via the Next tab" classname="uc03-create-challenge-test.spec.ts" time="64.732">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-50: Upload a second file via Files tab and verify count increases" classname="uc03-create-challenge-test.spec.ts" time="30.498">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-51: Create multiple-choice challenge with four choices" classname="uc03-create-challenge-test.spec.ts" time="29.997">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-52: Add multiple topics and verify all persist via Topics tab" classname="uc03-create-challenge-test.spec.ts" time="29.241">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-53: Add multiple tags and verify all appear via Tags tab" classname="uc03-create-challenge-test.spec.ts" time="27.551">
+</testcase>
+<testcase name="UC03 Create Challenge › CCH-02: Create a docker-backed challenge with deployment settings" classname="uc03-create-challenge-test.spec.ts" time="121.621">
+</testcase>
+</testsuite>
+</testsuites>
