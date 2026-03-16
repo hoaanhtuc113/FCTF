@@ -17,17 +17,18 @@ test.describe("UC-73 Delete Award", () => {
     test("TC73.01 - Admin xóa award từ trang team detail", async ({ page }) => {
         const seed = await getSubmissionSeed(page);
         const token = `UC73_AWARD_DELETE_${Date.now()}`;
-        const created = await createAward(page, {
-            userId: seed.userId,
-            teamId: seed.teamId,
-            name: token,
-            value: 20,
-            description: "Award to delete",
-            category: "bonus",
-            icon: "shield",
-        });
 
         try {
+            const created = await createAward(page, {
+                userId: seed.userId,
+                teamId: seed.teamId,
+                name: token,
+                value: 20,
+                description: "Award to delete",
+                category: "bonus",
+                icon: "shield",
+            });
+
             await page.goto(`${BASE_URL}/admin/teams/${seed.teamId}`, { waitUntil: "domcontentloaded" });
             await page.click("#nav-awards-tab");
             await page.locator(`input[data-award-id="${created.id}"]`).check();
