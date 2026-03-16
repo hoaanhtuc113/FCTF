@@ -3453,12 +3453,12 @@ function ChallengeDetailPanel({
             )}
 
             {/* PDF Content */}
-            <div className={`flex-1 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+            <div className={`flex-1 min-h-0 flex flex-col ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
               {selectedPdfIndex !== null && (
                 <>
                   <div
                     ref={pdfContainerRef}
-                    className="flex-1 p-5 flex justify-center items-start"
+                    className="flex-1 overflow-auto p-5 flex justify-center items-start"
                     style={{ minHeight: '500px' }}
                   >
                     {loadingPdf ? (
@@ -3520,7 +3520,7 @@ function ChallengeDetailPanel({
 
                   {/* PDF Navigation Controls - Compact */}
                   {numPages && !loadingPdf && (
-                    <div className={`p-2 border-t flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
+                    <div className={`shrink-0 sticky bottom-0 z-10 p-2 border-t flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
                       {/* Zoom Controls */}
                       <div className="flex items-center gap-1.5">
                         <button
