@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 	"time"
 
 	"challenge-gateway/internal/config"
@@ -225,38 +224,18 @@ func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
 func extractTokenFromRequest(r *http.Request) (string, string) {
 	query := r.URL.Query()
 
-	// Named query parameters.
-	for _, key := range []string{"token", "t", "access_token"} {
+	// Only allow explicit query parameters.
+	for _, key := range []string{"token", "t"} {
 		if val := query.Get(key); val != "" {
 			return val, r.URL.Path
 		}
 	}
 
-	// Any query value that looks like a token.
-	for _, values := range query {
-		for _, v := range values {
-			if token.LooksLike(v) {
-				return v, r.URL.Path
-			}
-		}
-	}
-
-	// Token embedded in the URL path.
-	segments := strings.Split(r.URL.Path, "/")
-	clean := make([]string, 0, len(segments))
-	var tok string
-	for _, seg := range segments {
-		if tok == "" && token.LooksLike(seg) {
-			tok = seg
-			continue
-		}
-		clean = append(clean, seg)
-	}
-	cleanPath := strings.Join(clean, "/")
+	cleanPath := r.URL.Path
 	if cleanPath == "" {
 		cleanPath = "/"
 	}
-	return tok, cleanPath
+	return "", cleanPath
 }
 
 // ── middleware ────────────────────────────────────────────────────────────────
