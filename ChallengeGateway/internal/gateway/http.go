@@ -136,7 +136,8 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 				return
 			}
 		}
-		setTokenCookieAndRedirect(w, r, tok, payload.Exp, cleanedPath)
+		setTokenCookie(w, r, tok, payload.Exp)
+		http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath), http.StatusFound)
 		return
 	}
 
@@ -187,7 +188,7 @@ func cleanProxyCookies(req *http.Request) {
 	}
 }
 
-func setTokenCookieAndRedirect(w http.ResponseWriter, r *http.Request, tok string, exp int64, cleanedPath string) {
+func setTokenCookie(w http.ResponseWriter, r *http.Request, tok string, exp int64) {
 	maxAge := int(exp - time.Now().Unix())
 	if maxAge < 1 {
 		maxAge = 1
@@ -201,7 +202,6 @@ func setTokenCookieAndRedirect(w http.ResponseWriter, r *http.Request, tok strin
 		MaxAge:   maxAge,
 		Secure:   r.TLS != nil,
 	})
-	http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath), http.StatusFound)
 }
 
 func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
