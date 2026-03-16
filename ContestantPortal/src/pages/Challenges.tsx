@@ -3469,13 +3469,7 @@ function ChallengeDetailPanel({
                         </Typography>
                       </div>
                     ) : (pdfBlob && isMountedRef.current) ? (
-                      <div
-                        style={{
-                          transform: `scale(${pdfScale})`,
-                          transformOrigin: 'center top',
-                          display: 'inline-block'
-                        }}
-                      >
+                      <div style={{ display: 'inline-block' }}>
                         <Document
                           file={pdfBlob}
                           onLoadSuccess={onDocumentLoadSuccess}
@@ -3505,6 +3499,7 @@ function ChallengeDetailPanel({
                         >
                           <Page
                             pageNumber={pageNumber}
+                            scale={pdfScale}
                             renderTextLayer={false}
                             renderAnnotationLayer={false}
                             loading={
@@ -3621,11 +3616,13 @@ function ChallengeDetailPanel({
                   {challenge.value} pts
                 </span>
               </Tooltip>
-              <Tooltip title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
-                <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
-                  Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
-                </span>
-              </Tooltip>
+              {challenge.require_deploy && (
+                <Tooltip title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                  <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                    Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
+                  </span>
+                </Tooltip>
+              )}
               <Tooltip title={challenge.max_attempts === 0 ? 'Unlimited submission attempts' : `Maximum ${challenge.max_attempts} submission attempt${challenge.max_attempts === 1 ? '' : 's'}`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
                 <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
                   Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
