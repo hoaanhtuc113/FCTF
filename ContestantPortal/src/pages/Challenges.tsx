@@ -689,7 +689,7 @@ export function Challenges() {
         <motion.div
           initial={false}
           animate={{
-            width: selectedChallenge ? (isSidebarVisible ? '16rem' : '0px') : 'auto',
+            width: selectedChallenge ? (isSidebarVisible ? '15%' : '0px') : 'auto',
             opacity: selectedChallenge ? (isSidebarVisible ? 1 : 0) : 1,
             marginRight: selectedChallenge && !isSidebarVisible ? '-1rem' : '0px'
           }}
@@ -839,7 +839,8 @@ export function Challenges() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="flex-1"
+              className="min-w-0"
+              style={{ width: isSidebarVisible ? '85%' : '100%' }}
             >
               <ChallengeDetailSkeleton />
             </motion.div>
@@ -849,7 +850,8 @@ export function Challenges() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="flex-1"
+              className="min-w-0"
+              style={{ width: isSidebarVisible ? '85%' : '100%' }}
             >
               <ChallengeDetailPanel
                 challenge={selectedChallenge}
@@ -3405,7 +3407,7 @@ function ChallengeDetailPanel({
       <div className="flex gap-3 flex-1 min-h-0">
         {/* LEFT PANEL - PDF Viewer (6/11 ratio) */}
         {hasPdfFiles && (
-          <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: '70%' }}>
+          <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: '50%', overflow: 'auto' }}>
             {/* PDF Panel Header */}
             <div className={`p-2.5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
               <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -3601,7 +3603,7 @@ function ChallengeDetailPanel({
         )}
 
         {/* RIGHT PANEL - Challenge Info & Submit (5/11 ratio) */}
-        <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: hasPdfFiles ? '45.5%' : '100%' }}>
+        <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: hasPdfFiles ? '50%' : '100%' }}>
           {/* Right Panel Header */}
           <div className={`p-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
             <div className={`text-sm font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
