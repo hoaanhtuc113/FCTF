@@ -139,7 +139,7 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 		resetAllCookies(w, r)
 		setTokenCookie(w, r, tok, payload.Exp)
 		setNoStoreHeaders(w)
-		http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath, true), http.StatusFound)
+		http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath), http.StatusFound)
 		return
 	}
 
@@ -236,15 +236,12 @@ func setNoStoreHeaders(w http.ResponseWriter) {
 	w.Header().Set("Expires", "0")
 }
 
-func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string, cacheBust bool) string {
+func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
 	u := *originalURL
 	q := u.Query()
 	q.Del("token")
 	q.Del("t")
 	q.Del("access_token")
-	if cacheBust {
-		q.Set("_ts", fmt.Sprintf("%d", time.Now().UnixNano()))
-	}
 	u.RawQuery = q.Encode()
 	if cleanedPath != "" {
 		u.Path = cleanedPath
