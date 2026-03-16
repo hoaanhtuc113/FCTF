@@ -2,12 +2,19 @@ import { test, expect } from "@playwright/test";
 import {
     BASE_URL,
     confirmEzQueryModal,
-    createSubmission,
-    deleteSubmissionsByProvided,
     getSubmissionById,
-    getSubmissionSeed,
+    getSubmissions,
     loginAsAdmin,
 } from "./support";
+
+async function pickExistingSolvedSubmission(page: Parameters<typeof loginAsAdmin>[0]) {
+    const submissions = await getSubmissions(page);
+    const target = submissions.find((item) => item.type === "correct" && item.teamId && item.id);
+    if (!target) {
+        throw new Error("Không tìm thấy solved submission có sẵn để thực hiện UC71");
+    }
+    return target;
+}
 
 test.describe("UC-71 Delete Solved Submission", () => {
     test.beforeEach(async ({ page }) => {
@@ -15,61 +22,35 @@ test.describe("UC-71 Delete Solved Submission", () => {
     });
 
     test("TC71.01 - Admin xóa solved submission từ trang team detail", async ({ page }) => {
-        const seed = await getSubmissionSeed(page);
-        const token = `UC71_SOLVE_DELETE_${Date.now()}`;
-        const created = await createSubmission(page, {
-            userId: seed.userId,
-            teamId: seed.teamId,
-            challengeId: seed.challengeId,
-            provided: token,
-            type: "correct",
+        const target = await pickExistingSolvedSubmission(page);
+
+        await page.goto(`${BASE_URL}/admin/teams/${target.teamId}`, { waitUntil: "domcontentloaded" });
+        await page.locator(`input[data-submission-id="${target.id}"]`).check();
+
+        const responsePromise = page.waitForResponse((response) => {
+            return response.url().includes(`/api/v1/submissions/${target.id}`) && response.request().method() === "DELETE";
         });
 
-        try {
-            await page.goto(`${BASE_URL}/admin/teams/${seed.teamId}`, { waitUntil: "domcontentloaded" });
-            await page.locator(`input[data-submission-id="${created.id}"]`).check();
+        await page.click("#solves-delete-button");
+        await confirmEzQueryModal(page);
+        await responsePromise;
 
-            const responsePromise = page.waitForResponse((response) => {
-                return response.url().includes(`/api/v1/submissions/${created.id}`) && response.request().method() === "DELETE";
-            });
-
-            await page.click("#solves-delete-button");
-            await confirmEzQueryModal(page);
-            await responsePromise;
-
-            await expect.poll(async () => await getSubmissionById(page, created.id)).toBeNull();
-        } finally {
-            await deleteSubmissionsByProvided(page, token);
-        }
+        await expect.poll(async () => await getSubmissionById(page, target.id)).toBeNull();
     });
 
     test("TC71.02 - Cancel modal xóa → solved submission vẫn tồn tại", async ({ page }) => {
-        const seed = await getSubmissionSeed(page);
-        const token = `UC71_CANCEL_${Date.now()}`;
-        const created = await createSubmission(page, {
-            userId: seed.userId,
-            teamId: seed.teamId,
-            challengeId: seed.challengeId,
-            provided: token,
-            type: "correct",
-        });
+        const target = await pickExistingSolvedSubmission(page);
 
-        try {
-            await page.goto(`${BASE_URL}/admin/teams/${seed.teamId}`, { waitUntil: "domcontentloaded" });
-            await page.locator(`input[data-submission-id="${created.id}"]`).check();
-            await page.click("#solves-delete-button");
+        await page.goto(`${BASE_URL}/admin/teams/${target.teamId}`, { waitUntil: "domcontentloaded" });
+        await page.locator(`input[data-submission-id="${target.id}"]`).check();
+        await page.click("#solves-delete-button");
 
-            // Đóng modal thay vì confirm
-            const modal = page.locator(".modal.show, .modal.fade.show");
-            await expect(modal).toBeVisible();
-            const closeButton = modal.locator('button[data-dismiss="modal"], button.close').first();
-            await closeButton.click();
+        const modal = page.locator(".modal.show, .modal.fade.show");
+        await expect(modal).toBeVisible();
+        const closeButton = modal.locator('button[data-dismiss="modal"], button.close').first();
+        await closeButton.click();
 
-            // Verify submission vẫn tồn tại
-            const sub = await getSubmissionById(page, created.id);
-            expect(sub).not.toBeNull();
-        } finally {
-            await deleteSubmissionsByProvided(page, token);
-        }
+        const sub = await getSubmissionById(page, target.id);
+        expect(sub).not.toBeNull();
     });
 });

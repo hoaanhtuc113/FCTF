@@ -1,7 +1,8 @@
 import { expect, Locator, Page } from "@playwright/test";
 
-export const BASE_URL = "https://admin2.fctf.site";
-export const CONTESTANT_URL = "https://contestant2.fctf.site";
+export const BASE_URL = "https://admin.fctf.site";
+export const CONTESTANT_URL = "https://contestant.fctf.site";
+export const CONTESTANT_API_URL = "https://api2.fctf.site/api";
 export const ADMIN_USER = "admin";
 export const ADMIN_PASS = "1";
 export const SUBMIT_WAIT_MS = 3000;
@@ -19,6 +20,11 @@ export interface UserInfo {
     name: string;
     email: string;
     type: string;
+}
+
+export interface UserDetailInfo extends UserInfo {
+    teamId: number | null;
+    score: number;
 }
 
 export interface SubmissionInfo {
@@ -90,6 +96,33 @@ export interface ChallengeInfo {
     name: string;
 }
 
+export interface ContestantMemberScoreInfo {
+    name: string;
+    email: string;
+    score: number;
+}
+
+export interface ContestantTeamScoreInfo {
+    teamName: string;
+    score: number;
+    place: number | null;
+    members: ContestantMemberScoreInfo[];
+}
+
+export interface ContestantChallengeStateInfo {
+    id: number;
+    attemps: number;
+    maxAttempts: number | null;
+    solveByMyTeam: boolean;
+}
+
+export interface ContestantChallengeCandidate {
+    id: number;
+    name: string;
+    category: string;
+    solveByMyTeam: boolean;
+}
+
 export async function loginAsAdmin(page: Page) {
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -124,11 +157,67 @@ export async function loginAdmin(page: Page) {
 }
 
 export async function loginContestant(page: Page, username = 'user2', password = '1') {
-    await page.goto(`${CONTESTANT_URL}/login`);
-    await page.locator('input[placeholder="input username..."]').fill(username);
-    await page.locator('input[placeholder="enter_password"]').fill(password);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
+    await page.goto(`${CONTESTANT_URL}/login`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+
+    const loginResponse = await page.request.post(`${CONTESTANT_API_URL}/auth/login-contestant`, {
+        data: {
+            username,
+            password,
+        },
+        timeout: 20_000,
+    });
+
+    const body = await loginResponse.json().catch(() => null);
+    const generatedToken = body?.generatedToken;
+
+    if (!loginResponse.ok() || !generatedToken) {
+        throw new Error(`Contestant API login failed for ${username}: status=${loginResponse.status()} body=${JSON.stringify(body)}`);
+    }
+
+    await page.evaluate(({ token, user }) => {
+        localStorage.setItem("auth_token", token);
+        if (user) {
+            localStorage.setItem("user_info", JSON.stringify(user));
+        }
+    }, { token: generatedToken, user: body?.user ?? null });
+
+    await page.goto(`${CONTESTANT_URL}/challenges`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect.poll(async () => {
+        return await page.evaluate(() => localStorage.getItem("auth_token"));
+    }, { timeout: 10_000 }).not.toBeNull();
+}
+
+async function contestantApiGet(page: Page, path: string) {
+    return await page.evaluate(async ({ path, defaultApiBase }) => {
+        const token = localStorage.getItem("auth_token");
+        const runtimeApi = (window as any).__ENV__?.VITE_API_URL;
+        const apiBase = String(runtimeApi || defaultApiBase || "").replace(/\/+$/, "");
+
+        const response = await fetch(`${apiBase}${path}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        });
+
+        const rawText = await response.text();
+        let body: any = null;
+        try {
+            body = JSON.parse(rawText);
+        } catch (_err) {
+            body = null;
+        }
+
+        return {
+            ok: response.ok,
+            status: response.status,
+            body,
+            rawText: rawText.slice(0, 500),
+            apiBase,
+            path,
+        };
+    }, { path, defaultApiBase: CONTESTANT_API_URL });
 }
 
 export async function setScoreVisibility(page: Page, visibility: 'public' | 'private' | 'hidden' | 'admins') {
@@ -368,6 +457,49 @@ export async function getUsers(page: Page, limit: number = 5): Promise<UserInfo[
     }));
 }
 
+export async function getUserByExactName(page: Page, name: string): Promise<UserInfo> {
+    const res = await page.request.get(
+        `${BASE_URL}/api/v1/users?q=${encodeURIComponent(name)}&field=name`,
+        { timeout: 20_000 }
+    );
+    const body = await res.json();
+    const data = (body.data ?? []) as any[];
+    const target = data.find((item) => String(item.name ?? "").trim() === name);
+
+    if (!target) {
+        throw new Error(`Không tìm thấy user có name chính xác: ${name}`);
+    }
+
+    return {
+        id: target.id,
+        name: target.name ?? "",
+        email: target.email ?? "",
+        type: target.type ?? "user",
+    };
+}
+
+export async function getUserDetailById(page: Page, userId: number): Promise<UserDetailInfo> {
+    const res = await page.request.get(`${BASE_URL}/api/v1/users/${userId}`, { timeout: 20_000 });
+    if (!res.ok()) {
+        throw new Error(`Không tải được user detail cho user ${userId}, status=${res.status()}`);
+    }
+
+    const body = await res.json();
+    const data = body.data;
+    if (!data) {
+        throw new Error(`User detail rỗng cho user ${userId}`);
+    }
+
+    return {
+        id: data.id,
+        name: data.name ?? "",
+        email: data.email ?? "",
+        type: data.type ?? "user",
+        teamId: data.team_id ?? data.team?.id ?? null,
+        score: Number(data.score ?? 0),
+    };
+}
+
 export async function getChallenges(page: Page, limit: number = 5): Promise<ChallengeInfo[]> {
     const res = await page.request.get(`${BASE_URL}/api/v1/challenges?page=1&per_page=${limit}`);
     const body = await res.json();
@@ -377,6 +509,136 @@ export async function getChallenges(page: Page, limit: number = 5): Promise<Chal
         id: d.id,
         name: d.name,
     }));
+}
+
+export async function getContestantTeamScore(page: Page): Promise<ContestantTeamScoreInfo> {
+    const response = await contestantApiGet(page, "/team/contestant");
+    if (!response.ok || !response.body) {
+        throw new Error(
+            `Không tải được team score từ contestant portal, status=${response.status}, api=${response.apiBase}${response.path}, raw=${response.rawText}`
+        );
+    }
+
+    const body = response.body;
+    if (!body.success || !body.data) {
+        throw new Error(`Phản hồi team score không hợp lệ: ${JSON.stringify(body)}`);
+    }
+
+    const teamData = body.data;
+    const membersRaw = Array.isArray(teamData.Members) ? teamData.Members : [];
+
+    return {
+        teamName: String(teamData.Name ?? ""),
+        score: Number(teamData.Score ?? 0),
+        place: teamData.Place == null ? null : Number(teamData.Place),
+        members: membersRaw.map((member: any) => ({
+            name: String(member.Name ?? ""),
+            email: String(member.Email ?? ""),
+            score: Number(member.Score ?? 0),
+        })),
+    };
+}
+
+export function getContestantMemberScore(teamScore: ContestantTeamScoreInfo, memberName: string): number {
+    const normalizedTarget = memberName.trim().toLowerCase();
+    const member = teamScore.members.find((item) => item.name === memberName)
+        ?? teamScore.members.find((item) => item.name.trim().toLowerCase() === normalizedTarget)
+        ?? (teamScore.members.length === 1 ? teamScore.members[0] : null);
+
+    if (!member) {
+        const available = teamScore.members.map((item) => item.name).join(", ");
+        throw new Error(`Không tìm thấy member ${memberName} trong team contestant response. Members: ${available}`);
+    }
+    return member.score;
+}
+
+export async function getContestantChallengeState(
+    page: Page,
+    challengeId: number
+): Promise<ContestantChallengeStateInfo> {
+    const response = await contestantApiGet(page, `/challenge/${challengeId}`);
+    if (!response.ok || !response.body) {
+        throw new Error(
+            `Không tải được challenge state ${challengeId}, status=${response.status}, api=${response.apiBase}${response.path}, raw=${response.rawText}`
+        );
+    }
+
+    const body = response.body;
+    const data = body.data;
+    if (!data) {
+        throw new Error(`Challenge state rỗng cho challenge ${challengeId}: ${JSON.stringify(body)}`);
+    }
+
+    return {
+        id: Number(data.id ?? challengeId),
+        attemps: Number(data.attemps ?? data.attempts ?? 0),
+        maxAttempts: data.max_attempts == null ? null : Number(data.max_attempts),
+        solveByMyTeam: Boolean(data.solve_by_myteam),
+    };
+}
+
+export async function listContestantChallenges(page: Page): Promise<ContestantChallengeCandidate[]> {
+    const topicResponse = await contestantApiGet(page, "/challenge/by-topic");
+    if (!topicResponse.ok || !topicResponse.body) {
+        throw new Error(
+            `Không tải được topic challenge từ contestant portal, status=${topicResponse.status}, api=${topicResponse.apiBase}${topicResponse.path}, raw=${topicResponse.rawText}`
+        );
+    }
+
+    const topicBody = topicResponse.body;
+    const topics = (topicBody.data ?? []) as any[];
+    const result: ContestantChallengeCandidate[] = [];
+
+    for (const topic of topics) {
+        const topicName = String(topic.topic_name ?? "").trim();
+        if (!topicName) {
+            continue;
+        }
+
+        const listResponse = await contestantApiGet(
+            page,
+            `/challenge/list_challenge/${encodeURIComponent(topicName)}`
+        );
+
+        if (!listResponse.ok || !listResponse.body) {
+            continue;
+        }
+
+        const listBody = listResponse.body;
+        const challenges = (listBody.data ?? []) as any[];
+        for (const challenge of challenges) {
+            const id = Number(challenge.id ?? challenge.Id);
+            if (!Number.isFinite(id)) {
+                continue;
+            }
+
+            result.push({
+                id,
+                name: String(challenge.name ?? challenge.Name ?? ""),
+                category: String(challenge.category ?? challenge.Category ?? topicName),
+                solveByMyTeam: Boolean(challenge.solve_by_myteam),
+            });
+        }
+    }
+
+    return result;
+}
+
+export async function pickContestantChallenge(page: Page, options?: { requireUnsolved?: boolean }) {
+    const challenges = await listContestantChallenges(page);
+    if (challenges.length === 0) {
+        throw new Error("Không có challenge nào khả dụng từ contestant portal");
+    }
+
+    if (options?.requireUnsolved) {
+        const unsolved = challenges.find((item) => !item.solveByMyTeam);
+        if (!unsolved) {
+            throw new Error("Không tìm được challenge chưa solve để xác minh xóa solve");
+        }
+        return unsolved;
+    }
+
+    return challenges[0];
 }
 
 export async function getSubmissions(
@@ -458,32 +720,41 @@ export async function createSubmission(
         ip?: string;
     }
 ) {
-    await page.goto(`${BASE_URL}/admin/submissions`, { waitUntil: "domcontentloaded" });
-    const body = await page.evaluate(async ({ payload, BASE_URL }) => {
-        const csrfToken = (window as any).init?.csrfNonce || "";
-        const res = await fetch(`${BASE_URL}/api/v1/submissions`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                "CSRF-Token": csrfToken,
-            },
-            body: JSON.stringify({
-                user_id: payload.userId,
-                team_id: payload.teamId,
-                challenge_id: payload.challengeId,
-                provided: payload.provided,
-                type: payload.type,
-                ip: payload.ip ?? "127.0.0.1",
-            }),
-        });
-        return { status: res.status, body: await res.json() };
-    }, { payload, BASE_URL });
+    let lastError = "";
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        await page.goto(`${BASE_URL}/admin/submissions`, { waitUntil: "domcontentloaded" });
+        const body = await page.evaluate(async ({ payload, BASE_URL }) => {
+            const csrfToken = (window as any).init?.csrfNonce || "";
+            const res = await fetch(`${BASE_URL}/api/v1/submissions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "CSRF-Token": csrfToken,
+                },
+                body: JSON.stringify({
+                    user_id: payload.userId,
+                    team_id: payload.teamId,
+                    challenge_id: payload.challengeId,
+                    provided: payload.provided,
+                    type: payload.type,
+                    ip: payload.ip ?? "127.0.0.1",
+                }),
+            });
+            return { status: res.status, body: await res.json() };
+        }, { payload, BASE_URL });
 
-    if (body.status !== 200 || !body.body?.success || !body.body?.data?.id) {
-        throw new Error(`Không thể tạo submission test: ${JSON.stringify(body.body)}`);
+        if (body.status === 200 && body.body?.success && body.body?.data?.id) {
+            return body.body.data;
+        }
+
+        lastError = JSON.stringify(body.body);
+        if (attempt < 3) {
+            await page.waitForTimeout(1000 * attempt);
+        }
     }
-    return body.body.data;
+
+    throw new Error(`Không thể tạo submission test: ${lastError}`);
 }
 
 export async function patchSubmissionType(page: Page, submissionId: number, nextType: string) {
@@ -891,34 +1162,42 @@ export async function createAward(
         icon?: string;
     }
 ) {
-    await page.goto(`${BASE_URL}/admin/users/${payload.userId}`, { waitUntil: "domcontentloaded" });
-    const body = await page.evaluate(async ({ payload, BASE_URL }) => {
-        const csrfToken = (window as any).init?.csrfNonce || "";
-        const res = await fetch(`${BASE_URL}/api/v1/awards`, {
-            method: "POST",
-            headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-                "CSRF-Token": csrfToken,
-            },
-            body: JSON.stringify({
-                user_id: payload.userId,
-                team_id: payload.teamId,
-                name: payload.name,
-                value: payload.value,
-                description: payload.description ?? "",
-                category: payload.category ?? "general",
-                icon: payload.icon ?? "shield",
-            }),
-        });
-        return { status: res.status, body: await res.json() };
-    }, { payload, BASE_URL });
+    let lastError = "";
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        await page.goto(`${BASE_URL}/admin/users/${payload.userId}`, { waitUntil: "domcontentloaded" });
+        const body = await page.evaluate(async ({ payload, BASE_URL }) => {
+            const csrfToken = (window as any).init?.csrfNonce || "";
+            const res = await fetch(`${BASE_URL}/api/v1/awards`, {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                    "CSRF-Token": csrfToken,
+                },
+                body: JSON.stringify({
+                    user_id: payload.userId,
+                    team_id: payload.teamId,
+                    name: payload.name,
+                    value: payload.value,
+                    description: payload.description ?? "",
+                    category: payload.category ?? "general",
+                    icon: payload.icon ?? "shield",
+                }),
+            });
+            return { status: res.status, body: await res.json() };
+        }, { payload, BASE_URL });
 
-    if (body.status !== 200 || !body.body?.success || !body.body?.data?.id) {
-        throw new Error(`Không thể tạo award test: ${JSON.stringify(body.body)}`);
+        if (body.status === 200 && body.body?.success && body.body?.data?.id) {
+            return body.body.data;
+        }
+
+        lastError = JSON.stringify(body.body);
+        if (attempt < 3) {
+            await page.waitForTimeout(1000 * attempt);
+        }
     }
 
-    return body.body.data;
+    throw new Error(`Không thể tạo award test: ${lastError}`);
 }
 
 export async function deleteAwardByApi(page: Page, awardId: number) {
