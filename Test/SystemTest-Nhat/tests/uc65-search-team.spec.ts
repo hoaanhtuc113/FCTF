@@ -20,7 +20,7 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
         const teamEmail = `${uniquePrefix}@test.com`.toLowerCase();
         const teamAffiliation = `AFF${uniquePrefix}`;
         const teamWebsite = `https://test${uniquePrefix}.com`;
-        const teamCountry = "VN"; 
+        const teamCountry = "VN";
 
         await loginAsAdmin(page);
 
@@ -32,7 +32,7 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
 
         const team = await createTestTeam(page);
         console.log(`Team created with ID: ${team.id}. Applying patches...`);
-        
+
         await patchTeam(page, team.id, {
             name: teamName,
             email: teamEmail,
@@ -40,7 +40,8 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
             website: teamWebsite,
             country: teamCountry,
             bracket_id: bracketId,
-            hidden: true
+            hidden: true,
+            banned: true,
         });
 
         try {
@@ -48,13 +49,26 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
             console.log("Step 2: Searching by name via UI...");
             await page.goto(`${BASE_URL}/admin/teams`, { waitUntil: "domcontentloaded" });
             await page.waitForSelector("#teamsboard");
-            
+
+            // Verify đầy đủ input/filter của khu vực search
+            const fieldOptions = await page.locator('select[name="field"] option').allTextContents();
+            expect(fieldOptions.map((x) => x.trim())).toEqual([
+                "Name",
+                "ID",
+                "Affiliation",
+                "Website",
+                "Country",
+            ]);
+            await expect(page.locator('select[name="hidden"]')).toBeVisible();
+            await expect(page.locator('select[name="banned"]')).toBeVisible();
+            await expect(page.locator('select[name="bracket_id"]')).toBeVisible();
+
             await page.fill('input[name="q"]', teamName);
             await Promise.all([
                 page.waitForLoadState("domcontentloaded"),
                 page.click('button.clean-btn-primary:has-text("Search")'),
             ]);
-            
+
             await expect(page.locator("#teamsboard")).toContainText(teamName);
 
             // 3. TSR-002: Search by ID (URL)
@@ -92,9 +106,26 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
             const hiddenRow = page.locator("#teamsboard tr").filter({ hasText: teamName }).first();
             await expect(hiddenRow.locator('.clean-badge-danger').filter({ hasText: 'hidden' })).toBeVisible();
 
-            // 9. TSR-008: Filter by Bracket
+            // 9. TSR-008: Filter by Status (Banned)
+            console.log("Step 9: Filtering by banned status via URL...");
+            await page.goto(`${BASE_URL}/admin/teams?field=name&banned=1&q=${uniquePrefix}`, { waitUntil: "domcontentloaded" });
+            await expect(page.locator("#teamsboard")).toContainText(teamName);
+            const bannedRow = page.locator("#teamsboard tr").filter({ hasText: teamName }).first();
+            await expect(bannedRow.locator('.clean-badge-danger').filter({ hasText: 'banned' })).toBeVisible();
+
+            // 10. TSR-009: Kết hợp nhiều filter cùng lúc
+            console.log("Step 10: Filtering with hidden + banned + bracket... ");
             if (bracketId) {
-                console.log("Step 9: Filtering by bracket via URL...");
+                await page.goto(
+                    `${BASE_URL}/admin/teams?field=name&q=${uniquePrefix}&hidden=1&banned=1&bracket_id=${bracketId}`,
+                    { waitUntil: "domcontentloaded" }
+                );
+                await expect(page.locator("#teamsboard")).toContainText(teamName);
+            }
+
+            // 11. TSR-010: Filter by Bracket
+            if (bracketId) {
+                console.log("Step 11: Filtering by bracket via URL...");
                 // LƯU Ý: Phải có field=name để backend handle q
                 await page.goto(`${BASE_URL}/admin/teams?field=name&bracket_id=${bracketId}&q=${uniquePrefix}`, { waitUntil: "domcontentloaded" });
                 await expect(page.locator("#teamsboard")).toContainText(teamName);
@@ -103,25 +134,29 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
                 }
             }
 
-            // 10. TSR-009: Reset Search (UI)
-            console.log("Step 10: Testing reset button UI...");
-            await page.goto(`${BASE_URL}/admin/teams?field=id&q=${team.id}`, { waitUntil: "domcontentloaded" });
+            // 12. TSR-011: Reset Search (UI)
+            console.log("Step 12: Testing reset button UI...");
+            await page.goto(`${BASE_URL}/admin/teams?field=id&q=${team.id}&hidden=1&banned=1`, { waitUntil: "domcontentloaded" });
             await page.waitForSelector("#teamsboard");
             // Kiểm tra field q được sync từ URL
             await expect(page.locator('input[name="q"]')).toHaveValue(team.id.toString());
-            
+            await expect(page.locator('select[name="hidden"]')).toHaveValue("1");
+            await expect(page.locator('select[name="banned"]')).toHaveValue("1");
+
             await Promise.all([
                 page.waitForURL(`${BASE_URL}/admin/teams`, { waitUntil: "domcontentloaded" }),
                 page.click('a[title="Reset"]'),
             ]);
-            
+
             await expect(page.locator('input[name="q"]')).toHaveValue("");
+            await expect(page.locator('select[name="hidden"]')).toHaveValue("");
+            await expect(page.locator('select[name="banned"]')).toHaveValue("");
 
             console.log("All code-verified search tests finished successfully.");
 
         } finally {
             console.log("Cleanup: Deleting team...");
-            await deleteTeam(page, team.id).catch(() => {});
+            await deleteTeam(page, team.id).catch(() => { });
         }
     });
 });
