@@ -2,7 +2,7 @@ import { expect, Locator, Page } from "@playwright/test";
 
 export const BASE_URL = "https://admin.fctf.site";
 export const CONTESTANT_URL = "https://contestant.fctf.site";
-export const CONTESTANT_API_URL = "https://api2.fctf.site/api";
+export const CONTESTANT_API_URL = "https://api.fctf.site/api";
 export const ADMIN_USER = "admin";
 export const ADMIN_PASS = "1";
 export const SUBMIT_WAIT_MS = 3000;
@@ -159,35 +159,79 @@ export async function loginAdmin(page: Page) {
 export async function loginContestant(page: Page, username = 'user2', password = '1') {
     await page.goto(`${CONTESTANT_URL}/login`, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
-    const loginResponse = await page.request.post(`${CONTESTANT_API_URL}/auth/login-contestant`, {
-        data: {
-            username,
-            password,
-        },
-        timeout: 20_000,
-    });
+    const loginResult = await page.evaluate(async ({ username, password, defaultApiBase }) => {
+        const runtimeApi = (window as any).__ENV__?.VITE_API_URL;
+        const candidatesRaw = [runtimeApi, defaultApiBase]
+            .filter((item) => typeof item === "string" && item.trim().length > 0) as string[];
+        const candidates = Array.from(new Set(candidatesRaw.map((item) => item.replace(/\/+$/, ""))));
+        const errors: string[] = [];
 
-    const body = await loginResponse.json().catch(() => null);
-    const generatedToken = body?.generatedToken;
+        for (const apiBase of candidates) {
+            try {
+                const response = await fetch(`${apiBase}/auth/login-contestant`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
 
-    if (!loginResponse.ok() || !generatedToken) {
-        throw new Error(`Contestant API login failed for ${username}: status=${loginResponse.status()} body=${JSON.stringify(body)}`);
+                const rawText = await response.text();
+                let body: any = null;
+                try {
+                    body = JSON.parse(rawText);
+                } catch (_err) {
+                    body = null;
+                }
+
+                const generatedToken = body?.generatedToken ?? body?.data?.token ?? body?.token ?? null;
+                const user = body?.user ?? body?.data ?? null;
+
+                if (response.ok && generatedToken) {
+                    localStorage.setItem("auth_token", generatedToken);
+                    if (user) {
+                        localStorage.setItem("user_info", JSON.stringify(user));
+                    }
+
+                    return {
+                        ok: true,
+                        apiBase,
+                        status: response.status,
+                    };
+                }
+
+                errors.push(`base=${apiBase} status=${response.status} raw=${rawText.slice(0, 200)}`);
+            } catch (error) {
+                errors.push(`base=${apiBase} error=${String(error)}`);
+            }
+        }
+
+        return {
+            ok: false,
+            errors,
+        };
+    }, { username, password, defaultApiBase: CONTESTANT_API_URL });
+
+    if (!loginResult?.ok) {
+        const message = Array.isArray(loginResult?.errors) ? loginResult.errors.join(" | ") : "unknown error";
+        throw new Error(`Contestant API login failed for ${username}: ${message}`);
     }
 
-    await page.evaluate(({ token, user }) => {
-        localStorage.setItem("auth_token", token);
-        if (user) {
-            localStorage.setItem("user_info", JSON.stringify(user));
-        }
-    }, { token: generatedToken, user: body?.user ?? null });
-
-    await page.goto(`${CONTESTANT_URL}/challenges`, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await expect.poll(async () => {
         return await page.evaluate(() => localStorage.getItem("auth_token"));
-    }, { timeout: 10_000 }).not.toBeNull();
+    }, { timeout: 12_000 }).not.toBeNull();
+
+    if (!/\/challenges/.test(page.url())) {
+        await page.goto(`${CONTESTANT_URL}/challenges`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    }
 }
 
 async function contestantApiGet(page: Page, path: string) {
+    if (!page.url().startsWith(CONTESTANT_URL)) {
+        await page.goto(`${CONTESTANT_URL}/challenges`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    }
+
     return await page.evaluate(async ({ path, defaultApiBase }) => {
         const token = localStorage.getItem("auth_token");
         const runtimeApi = (window as any).__ENV__?.VITE_API_URL;
@@ -1645,21 +1689,18 @@ export async function ensureContestantUser(
             }
         }
 
-        // If user already has the correct team, nothing more to do
-        if (existingTeamId && (teamId === null || existingTeamId === teamId)) {
-            if (teamId === null) teamId = existingTeamId;
-            return { userMode, teamId, userId, errors, skippedAssignment: true };
-        }
-
-        // Step 4: Assign user to team via PATCH (works regardless of user_mode)
-        // Fall back to admin's own teamId if teams API was blocked (users mode)
-        const effectiveTeamId = teamId ?? adminTeamId;
+        // Step 4: Reconcile user with expected team and password via PATCH.
+        // Fall back to admin team / existing team when teams API is restricted by user mode.
+        const effectiveTeamId = teamId ?? existingTeamId ?? adminTeamId;
         if (userId && effectiveTeamId) {
             const patchResp = await fetch(`${BASE_URL}/api/v1/users/${userId}`, {
                 method: 'PATCH',
                 credentials: 'same-origin',
                 headers,
-                body: JSON.stringify({ team_id: effectiveTeamId }),
+                body: JSON.stringify({
+                    team_id: effectiveTeamId,
+                    password,
+                }),
             });
             if (!patchResp.ok) {
                 const patchBody = await patchResp.json().catch(() => null);
