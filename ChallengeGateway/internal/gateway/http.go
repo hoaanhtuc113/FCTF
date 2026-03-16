@@ -136,8 +136,10 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 				return
 			}
 		}
+		resetAllCookies(w, r)
 		setTokenCookie(w, r, tok, payload.Exp)
-		http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath), http.StatusFound)
+		setNoStoreHeaders(w)
+		http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath, true), http.StatusFound)
 		return
 	}
 
@@ -204,12 +206,45 @@ func setTokenCookie(w http.ResponseWriter, r *http.Request, tok string, exp int6
 	})
 }
 
-func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
+func resetAllCookies(w http.ResponseWriter, r *http.Request) {
+	secure := r.TLS != nil
+	seen := map[string]struct{}{}
+	for _, c := range r.Cookies() {
+		if c == nil || c.Name == "" {
+			continue
+		}
+		if _, ok := seen[c.Name]; ok {
+			continue
+		}
+		seen[c.Name] = struct{}{}
+		http.SetCookie(w, &http.Cookie{
+			Name:     c.Name,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   secure,
+			MaxAge:   -1,
+			Expires:  time.Unix(0, 0),
+		})
+	}
+}
+
+func setNoStoreHeaders(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+}
+
+func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string, cacheBust bool) string {
 	u := *originalURL
 	q := u.Query()
 	q.Del("token")
 	q.Del("t")
 	q.Del("access_token")
+	if cacheBust {
+		q.Set("_ts", fmt.Sprintf("%d", time.Now().UnixNano()))
+	}
 	u.RawQuery = q.Encode()
 	if cleanedPath != "" {
 		u.Path = cleanedPath
