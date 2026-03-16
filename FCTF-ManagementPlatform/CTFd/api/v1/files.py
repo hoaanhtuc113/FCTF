@@ -23,6 +23,7 @@ import re
 from CTFd.utils.uploads import delete_folder
 
 files_namespace = Namespace("files", description="Endpoint to retrieve Files")
+MAX_UPLOAD_FILENAME_LENGTH = 40
 
 FileModel = sqlalchemy_to_pydantic(Files)
 
@@ -116,6 +117,19 @@ class FilesList(Resource):
                 return {"success": False, "errors": "Could not read the image file."}, 400
 
         deploy_file = request.files.get("deploy_file")
+
+        files_to_validate = list(files)
+        if deploy_file:
+            files_to_validate.append(deploy_file)
+
+        for uploaded_file in files_to_validate:
+            filename = (uploaded_file.filename or "").strip()
+            if filename and len(filename) > MAX_UPLOAD_FILENAME_LENGTH:
+                return {
+                    "success": False,
+                    "errors": f"Filename must be at most {MAX_UPLOAD_FILENAME_LENGTH} characters.",
+                }, 400
+
         require_deploy = request.form.get("require_deploy") in ["on", "true", "True", "1"]
         expose_port = request.form.get("expose_port")
         challenge_id = request.form.to_dict().get("challenge_id")
