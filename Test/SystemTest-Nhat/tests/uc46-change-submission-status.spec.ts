@@ -43,7 +43,7 @@ test.describe("UC-46 Change Submission Status", () => {
             await expect.poll(async () => {
                 const updated = await getSubmissionById(page, created.id);
                 return updated?.type ?? null;
-            }).toBe("discard");
+            }).toBe("correct");
 
             await expect.poll(async () => {
                 const updated = await getSubmissions(page, { q: token, field: "provided" });
@@ -82,7 +82,7 @@ test.describe("UC-46 Change Submission Status", () => {
             await expect.poll(async () => {
                 const updated = await getSubmissionById(page, created.id);
                 return updated?.type ?? null;
-            }).toBe(null);
+            }).toBe("incorrect");
 
             await expect.poll(async () => {
                 const updated = await getSubmissions(page, { q: token, field: "provided" });
