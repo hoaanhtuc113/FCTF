@@ -3458,7 +3458,7 @@ function ChallengeDetailPanel({
                 <>
                   <div
                     ref={pdfContainerRef}
-                    className="flex-1 overflow-auto p-5 flex justify-center items-start"
+                    className="flex-1 p-5 flex justify-center items-start"
                     style={{ minHeight: '500px' }}
                   >
                     {loadingPdf ? (
