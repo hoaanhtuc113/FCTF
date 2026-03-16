@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	"challenge-gateway/internal/config"
@@ -78,6 +79,10 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			log.Printf("HTTP upstream error: %v", err)
 			http.Error(w, "upstream error", http.StatusBadGateway)
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			enforceNoStoreForHTML(resp)
+			return nil
 		},
 	}
 
@@ -234,6 +239,21 @@ func setNoStoreHeaders(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
+}
+
+func enforceNoStoreForHTML(resp *http.Response) {
+	if resp == nil {
+		return
+	}
+	ct := strings.ToLower(resp.Header.Get("Content-Type"))
+	if !strings.Contains(ct, "text/html") {
+		return
+	}
+	resp.Header.Set("Cache-Control", "no-store, no-cache, must-revalidate, private, max-age=0")
+	resp.Header.Set("Pragma", "no-cache")
+	resp.Header.Set("Expires", "0")
+	resp.Header.Del("ETag")
+	resp.Header.Del("Last-Modified")
 }
 
 func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
