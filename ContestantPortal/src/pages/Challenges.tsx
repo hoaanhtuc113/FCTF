@@ -3458,7 +3458,7 @@ function ChallengeDetailPanel({
                 <>
                   <div
                     ref={pdfContainerRef}
-                    className="flex-1 overflow-auto p-5 flex justify-center items-start"
+                    className="flex-1 overflow-auto p-5 flex justify-start items-start"
                     style={{ minHeight: '500px' }}
                   >
                     {loadingPdf ? (
@@ -3469,7 +3469,7 @@ function ChallengeDetailPanel({
                         </Typography>
                       </div>
                     ) : (pdfBlob && isMountedRef.current) ? (
-                      <div style={{ display: 'inline-block' }}>
+                      <div className="inline-block min-w-max">
                         <Document
                           file={pdfBlob}
                           onLoadSuccess={onDocumentLoadSuccess}
