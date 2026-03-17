@@ -3759,7 +3759,7 @@ function ChallengeDetailPanel({
 
                 {!isAccessTokenCollapsed && (() => {
                   const token = url ? url.trim() : "Deploying... Please wait";
-                  const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}?fctftoken=${token}` : `${getBaseGateway()}:${getHttpPort()}/${token}`;
+                  const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}?fctftoken={token}` : `${getBaseGateway()}:${getHttpPort()}?fctftoken=${token}`;
                   const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
                   return (
                     <div className="space-y-2.5">
