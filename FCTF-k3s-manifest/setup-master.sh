@@ -196,6 +196,17 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
     exit 1
   fi
 
+  echo "==> Creating required namespace for Helm components"
+  kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
+
+  if [[ ! -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml" ]]; then
+    echo "Error: PV/PVC manifest not found at ${PROD_DIR}/storage/nfs-pv-pvc.yaml"
+    exit 1
+  fi
+
+  echo "==> Applying PV/PVC"
+  kubectl apply -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml"
+
   echo "==> Installing Helm (if missing)"
   if ! command -v helm >/dev/null 2>&1; then
     curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -227,6 +238,16 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
   kubectl apply -f "${PROD_DIR}/env/configmap/"
   kubectl apply -f "${PROD_DIR}/env/secret/"
+
+  if [[ "${APPLY_HELM}" != "true" ]]; then
+    if [[ ! -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml" ]]; then
+      echo "Error: PV/PVC manifest not found at ${PROD_DIR}/storage/nfs-pv-pvc.yaml"
+      exit 1
+    fi
+
+    echo "==> Applying PV/PVC"
+    kubectl apply -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml"
+  fi
 
   echo "==> Deploying app services"
   kubectl apply -f "${PROD_DIR}/app/admin-mvc/"
