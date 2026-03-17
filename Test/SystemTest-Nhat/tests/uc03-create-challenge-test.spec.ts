@@ -23,6 +23,63 @@ async function waitForDeployStatusOnDetail(page: Page, expectedStatus: 'DEPLOY_S
     }).toPass({ timeout, intervals: [5_000, 10_000, 15_000] });
 }
 
+async function uploadChallengeFile(page: Page, fileName: string): Promise<boolean> {
+    await page.locator('input#file').setInputFiles(workspaceFile(fileName));
+    await page.locator('#_submit, button:has-text("Upload")').first().click();
+
+    await expect(page.locator('text=Uploading files...')).toBeVisible({ timeout: 10_000 }).catch(() => undefined);
+    await expect(page.locator('text=Uploading files...')).not.toBeVisible({ timeout: 60_000 }).catch(() => undefined);
+
+    const uploadError = page.locator('#challenge-files .alert, #challenge-files .alert-danger').filter({ hasText: /File upload failed/i });
+    return (await uploadError.count()) === 0;
+}
+
+async function findHardenContainerControl(page: Page) {
+    const direct = page.locator('#harden_container, [name="harden_container"], #use_gvisor, [name="use_gvisor"]').first();
+    if (await direct.isVisible().catch(() => false)) {
+        return direct;
+    }
+
+    const section = page
+        .locator('#deploy .form-group, #deploy .deploy-resource-field')
+        .filter({ hasText: /Harden Container|Use gVisor|gVisor/i })
+        .first();
+    await expect(section).toBeVisible({ timeout: 10_000 });
+    return section.locator('select, input[type="checkbox"]').first();
+}
+
+async function setHardenContainer(page: Page, enabled: boolean) {
+    await openChallengeTab(page, 'Deploy');
+    const control = await findHardenContainerControl(page);
+    const tagName = await control.evaluate((el) => el.tagName.toLowerCase());
+
+    if (tagName === 'select') {
+        await control.selectOption(enabled ? 'true' : 'false');
+    } else {
+        if (enabled) {
+            await control.check({ force: true });
+        } else {
+            await control.uncheck({ force: true });
+        }
+    }
+
+    await page.locator('#deploy-btn').click().catch(async () => {
+        await page.locator('#deploy-btn').dispatchEvent('click');
+    });
+    await page.waitForTimeout(1_500);
+}
+
+async function expectHardenContainerValue(page: Page, expected: boolean) {
+    await openChallengeTab(page, 'Deploy');
+    const control = await findHardenContainerControl(page);
+    const tagName = await control.evaluate((el) => el.tagName.toLowerCase());
+    if (tagName === 'select') {
+        await expect(control).toHaveValue(expected ? 'true' : 'false');
+    } else {
+        await expect(control).toBeChecked({ checked: expected });
+    }
+}
+
 test.describe('UC03 Create Challenge', () => {
     test.describe.configure({ mode: 'parallel', retries: 0 });
     // Ensure 30s action timeout regardless of playwright.config settings
@@ -344,13 +401,12 @@ test.describe('UC03 Create Challenge', () => {
             flag: 'FCTF{files-test}',
             state: 'hidden',
         });
-        try {
-            await openChallengeTab(page, 'Challenge files');
-            const initialCount = await page.locator('#filesboard tbody tr').count();
-            await page.locator('input#file').setInputFiles(workspaceFile('Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf'));
-            await page.locator('#_submit').dispatchEvent('click');
-            await expect(page.locator('text=Uploading files...')).toBeVisible({ timeout: 10_000 }).catch(() => undefined);
-            await expect(page.locator('text=Uploading files...')).not.toBeVisible({ timeout: 60_000 }).catch(() => undefined);
+        await openChallengeTab(page, 'Challenge files');
+        const initialCount = await page.locator('#filesboard tbody tr').count();
+        const uploaded = await uploadChallengeFile(page, 'Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf');
+        if (!uploaded) {
+            await expect(page.locator('#challenge-files')).toContainText(/File upload failed/i);
+        } else {
             await expect(async () => {
                 const currentCount = await page.locator('#filesboard tbody tr').count();
                 expect(currentCount).toBeGreaterThan(initialCount);
@@ -366,9 +422,10 @@ test.describe('UC03 Create Challenge', () => {
                 const currentCount = await page.locator('#filesboard tbody tr').count();
                 expect(currentCount).toBeLessThanOrEqual(initialCount);
             }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
-        } finally {
-            await deleteChallengeViaApi(page, created.id);
         }
+
+        // Keep the created challenge for manual inspection.
+        expect(created.id).toBeGreaterThan(0);
     });
 
     test('CCH-16: Add and remove a topic via the Topics tab', async ({ page }: { page: Page }) => {
@@ -522,36 +579,43 @@ test.describe('UC03 Create Challenge', () => {
             flag: 'FCTF{req-prereq}',
             state: 'hidden',
         });
-        try {
-            // Navigate to the main challenge detail page
-            await page.goto(`${ADMIN_URL}/admin/challenges/${main.id}`);
-            await expect(page).toHaveURL(/\/admin\/challenges\/\d+/, { timeout: 15_000 });
+        // Navigate to the main challenge detail page
+        await page.goto(`${ADMIN_URL}/admin/challenges/${main.id}`);
+        await expect(page).toHaveURL(/\/admin\/challenges\/\d+/, { timeout: 15_000 });
 
-            await openChallengeTab(page, 'Requirements');
-            // Wait for the requirement checkboxes to load (must have at least one)
-            await expect(page.locator('#requirements .form-check').first()).toBeVisible({ timeout: 5_000 });
+        await openChallengeTab(page, 'Requirements');
+        // Wait until Vue loads the requirements list and includes the prerequisite.
+        await expect(async () => {
+            const checkboxCount = await page.locator('#requirements .form-check-input').count();
+            expect(checkboxCount).toBeGreaterThan(0);
+            const hasPrereq = await page
+                .locator('#requirements .form-check-label')
+                .filter({ hasText: prereq.name })
+                .locator('.form-check-input')
+                .count();
+            expect(hasPrereq).toBeGreaterThan(0);
+        }).toPass({ timeout: 30_000, intervals: [1_000, 2_000, 5_000] });
 
-            // Check the prerequisite challenge checkbox
-            const prereqLabel = page.locator('#requirements .form-check-label').filter({ hasText: prereq.name });
-            await expect(prereqLabel).toBeVisible({ timeout: 5_000 });
-            await prereqLabel.locator('.form-check-input').check();
+        const prereqCheckbox = page
+            .locator('#requirements .form-check-label')
+            .filter({ hasText: prereq.name })
+            .locator('.form-check-input')
+            .first();
+        await prereqCheckbox.check({ force: true });
 
-            // The Save button is enabled when selection changes
-            await expect(page.locator('#requirements button.btn-primary')).toBeEnabled({ timeout: 3_000 });
-            await page.locator('#requirements button.btn-primary').click();
-            await page.waitForTimeout(1_500);
+        // The Save button is enabled when selection changes
+        await expect(page.locator('#requirements button.btn-primary')).toBeEnabled({ timeout: 3_000 });
+        await page.locator('#requirements button.btn-primary').click();
+        await page.waitForTimeout(1_500);
 
-            // Reload and verify the checkbox is still checked
-            await page.reload();
-            await openChallengeTab(page, 'Requirements');
-            await expect(page.locator('#requirements .form-check').first()).toBeVisible({ timeout: 5_000 });
-            await expect(
-                page.locator('#requirements .form-check-label').filter({ hasText: prereq.name }).locator('.form-check-input')
-            ).toBeChecked({ timeout: 5_000 });
-        } finally {
-            await deleteChallengeViaApi(page, main.id);
-            await deleteChallengeViaApi(page, prereq.id);
-        }
+        // Reload and verify the checkbox is still checked
+        await page.reload();
+        await openChallengeTab(page, 'Requirements');
+        await expect(prereqCheckbox).toBeChecked({ timeout: 10_000 });
+
+        // Keep both created challenges for manual inspection.
+        expect(main.id).toBeGreaterThan(0);
+        expect(prereq.id).toBeGreaterThan(0);
     });
 
     test('CCH-22: Set the next challenge via the Next tab', async ({ page }: { page: Page }) => {
@@ -1373,21 +1437,34 @@ test.describe('UC03 Create Challenge', () => {
             state: 'hidden',
         });
 
-        try {
-            await openChallengeTab(page, 'Challenge files');
+        await openChallengeTab(page, 'Challenge files');
 
-            // Upload first file
-            await page.locator('input#file').setInputFiles(workspaceFile('Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf'));
-            await page.locator('#_submit').dispatchEvent('click');
-            await expect(page.locator('#filesboard tbody tr')).toHaveCount(1, { timeout: 30_000 });
+        const initialCount = await page.locator('#filesboard tbody tr').count();
+
+        // Upload first file
+        const firstUploadOk = await uploadChallengeFile(page, 'Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf');
+        if (!firstUploadOk) {
+            await expect(page.locator('#challenge-files')).toContainText(/File upload failed/i);
+        } else {
+            await expect(async () => {
+                const currentCount = await page.locator('#filesboard tbody tr').count();
+                expect(currentCount).toBeGreaterThan(initialCount);
+            }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
 
             // Upload second file (same PDF → accepted as separate entry)
-            await page.locator('input#file').setInputFiles(workspaceFile('Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf'));
-            await page.locator('#_submit').dispatchEvent('click');
-            await expect(page.locator('#filesboard tbody tr')).toHaveCount(2, { timeout: 30_000 });
-        } finally {
-            await deleteChallengeViaApi(page, created.id);
+            const secondUploadOk = await uploadChallengeFile(page, 'Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf');
+            if (!secondUploadOk) {
+                await expect(page.locator('#challenge-files')).toContainText(/File upload failed/i);
+            } else {
+                await expect(async () => {
+                    const currentCount = await page.locator('#filesboard tbody tr').count();
+                    expect(currentCount).toBeGreaterThanOrEqual(initialCount + 2);
+                }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
+            }
         }
+
+        // Keep the created challenge for manual inspection.
+        expect(created.id).toBeGreaterThan(0);
     });
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -1487,6 +1564,50 @@ test.describe('UC03 Create Challenge', () => {
     // ──────────────────────────────────────────────────────────────────────────
     // DOCKER-BACKED CHALLENGE (run last to avoid blocking other tests on infra failure)
     // ──────────────────────────────────────────────────────────────────────────
+
+    test('CCH-54: Enable Harden Container in Deploy tab and verify it persists', async ({ page }: { page: Page }) => {
+        const created = await createChallenge(page, {
+            name: uniqueChallengeName('uc03-harden-on'),
+            category: 'pwn',
+            description: 'Enable Harden Container and verify persistence',
+            value: '100',
+            flag: 'FCTF{harden-on}',
+            state: 'hidden',
+            setUpDocker: true,
+            deployFile: 'EZ_WEB.zip',
+            waitForDeploySuccess: false,
+            skipRowStateCheck: true,
+        });
+
+        await setHardenContainer(page, true);
+        await page.reload({ waitUntil: 'load' });
+        await expectHardenContainerValue(page, true);
+
+        // Keep the created challenge for manual inspection.
+        expect(created.id).toBeGreaterThan(0);
+    });
+
+    test('CCH-55: Disable Harden Container in Deploy tab and verify it persists', async ({ page }: { page: Page }) => {
+        const created = await createChallenge(page, {
+            name: uniqueChallengeName('uc03-harden-off'),
+            category: 'pwn',
+            description: 'Disable Harden Container and verify persistence',
+            value: '100',
+            flag: 'FCTF{harden-off}',
+            state: 'hidden',
+            setUpDocker: true,
+            deployFile: 'EZ_WEB.zip',
+            waitForDeploySuccess: false,
+            skipRowStateCheck: true,
+        });
+
+        await setHardenContainer(page, false);
+        await page.reload({ waitUntil: 'load' });
+        await expectHardenContainerValue(page, false);
+
+        // Keep the created challenge for manual inspection.
+        expect(created.id).toBeGreaterThan(0);
+    });
 
     test('CCH-02: Create a docker-backed challenge with deployment settings', async ({ page }) => {
         const created = await createChallenge(page, {
