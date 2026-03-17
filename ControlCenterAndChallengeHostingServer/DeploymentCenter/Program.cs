@@ -3,7 +3,6 @@ using DeploymentCenter.Services;
 using DeploymentCenter.Utils;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
-using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
@@ -30,16 +29,6 @@ builder.Services.AddControllers();
 builder.Services.AddResourceShared();
 builder.Services.AddScoped<IDeployService, DeployService>();
 builder.Services.AddHealthChecks();
-
-builder.Services.AddSingleton<RabbitMqTelemetrySource>();
-builder.Services.AddOpenTelemetry()
-    .WithTracing(b =>
-    {
-        b.AddSource(Telemetry.DeploymentCenterRabbitMQ)
-         .AddAspNetCoreInstrumentation()
-         .AddHttpClientInstrumentation()
-         .AddOtlpExporter();
-    });
 // Register DeploymentConsumerService consumer
 builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
 {
@@ -48,14 +37,12 @@ builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
     var user = SharedConfig.RABBIT_USERNAME;
     var pass = SharedConfig.RABBIT_PASSWORD;
     var port = SharedConfig.RABBIT_PORT;
-    var rabbitMqTelemetrySource = sp.GetRequiredService<RabbitMqTelemetrySource>();
 
     return new DeploymentProducerService(
         host,
         user,
         pass,
-        port,
-        rabbitMqTelemetrySource.Source);
+        port);
 });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

@@ -7,12 +7,10 @@ using ContestantBE.Utils;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using System.Diagnostics;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -99,16 +97,6 @@ builder.Services.AddScoped<IActionLogsServices, ActionLogsServices>();
 builder.Services.AddScoped<IUserContext, UserContext>();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
-
-builder.Services.AddSingleton(_ => new ActivitySource(Telemetry.ContestantBEHttp));
-builder.Services.AddOpenTelemetry()
-    .WithTracing(b =>
-    {
-        b.AddSource(Telemetry.ContestantBEHttp)
-         .AddAspNetCoreInstrumentation()
-         .AddHttpClientInstrumentation()
-         .AddOtlpExporter();
-    });
 
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
