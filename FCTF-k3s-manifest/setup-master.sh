@@ -12,6 +12,9 @@ APPLY_PRODUCTION_INGRESS="true"
 APPLY_CRONJOB="true"
 APPLY_ARGO_TEMPLATES="true"
 SERVICE_MODE="clusterip"
+SETUP_NFS_SERVER="true"
+NFS_SHARE_PATH="/srv/nfs/share"
+NFS_ALLOWED_SUBNET="*"
 INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,11 +23,12 @@ PROD_DIR="${SCRIPT_DIR}/prod"
 usage() {
   cat <<EOF
 Usage:
-  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
+  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet <cidr|*>] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
 
 Examples:
   $0 --tls-san 34.124.131.240
   $0 --tls-san k8s.example.com --max-pods 250 --install-calico true
+  $0 --tls-san 34.124.131.240 --setup-nfs-server true --nfs-allowed-subnet 10.148.0.0/24
   $0 --tls-san 34.124.131.240 --install-gvisor true --apply-helm true --deploy-app-services true --apply-production-ingress true --apply-cronjob true --apply-argo-templates true
   $0 --interactive
 EOF
@@ -50,6 +54,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --install-gvisor)
       INSTALL_GVISOR="${2:-}"
+      shift 2
+      ;;
+    --setup-nfs-server)
+      SETUP_NFS_SERVER="${2:-}"
+      shift 2
+      ;;
+    --nfs-share-path)
+      NFS_SHARE_PATH="${2:-}"
+      shift 2
+      ;;
+    --nfs-allowed-subnet)
+      NFS_ALLOWED_SUBNET="${2:-}"
       shift 2
       ;;
     --apply-helm)
@@ -118,6 +134,17 @@ sudo apt install -y curl wget git nano vim net-tools nfs-common
 
 echo "==> Setting timezone: ${TIMEZONE}"
 sudo timedatectl set-timezone "${TIMEZONE}"
+
+if [[ "${SETUP_NFS_SERVER}" == "true" ]]; then
+  if [[ ! -f "${SCRIPT_DIR}/nfs-setup.sh" ]]; then
+    echo "Error: nfs setup script not found at ${SCRIPT_DIR}/nfs-setup.sh"
+    exit 1
+  fi
+
+  echo "==> Setting up NFS server on master"
+  chmod +x "${SCRIPT_DIR}/nfs-setup.sh"
+  bash "${SCRIPT_DIR}/nfs-setup.sh" "${NFS_SHARE_PATH}" "${NFS_ALLOWED_SUBNET}"
+fi
 
 echo "==> Writing kubelet config (maxPods=${MAX_PODS})"
 sudo mkdir -p /etc/rancher/k3s
