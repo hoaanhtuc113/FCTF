@@ -8,6 +8,9 @@ INSTALL_CALICO="true"
 INSTALL_GVISOR="true"
 APPLY_HELM="true"
 DEPLOY_APP_SERVICES="true"
+APPLY_PRODUCTION_INGRESS="true"
+APPLY_CRONJOB="true"
+APPLY_ARGO_TEMPLATES="true"
 SERVICE_MODE="clusterip"
 INTERACTIVE="true"
 ARG_COUNT=$#
@@ -17,12 +20,12 @@ PROD_DIR="${SCRIPT_DIR}/prod"
 usage() {
   cat <<EOF
 Usage:
-  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--apply-helm true|false] [--deploy-app-services true|false] [--service-mode clusterip|nodeport] [--interactive]
+  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
 
 Examples:
   $0 --tls-san 34.124.131.240
   $0 --tls-san k8s.example.com --max-pods 250 --install-calico true
-  $0 --tls-san 34.124.131.240 --install-gvisor true --apply-helm false --deploy-app-services false
+  $0 --tls-san 34.124.131.240 --install-gvisor true --apply-helm true --deploy-app-services true --apply-production-ingress true --apply-cronjob true --apply-argo-templates true
   $0 --interactive
 EOF
 }
@@ -55,6 +58,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --deploy-app-services)
       DEPLOY_APP_SERVICES="${2:-}"
+      shift 2
+      ;;
+    --apply-production-ingress)
+      APPLY_PRODUCTION_INGRESS="${2:-}"
+      shift 2
+      ;;
+    --apply-cronjob)
+      APPLY_CRONJOB="${2:-}"
+      shift 2
+      ;;
+    --apply-argo-templates)
+      APPLY_ARGO_TEMPLATES="${2:-}"
       shift 2
       ;;
     --service-mode)
@@ -229,6 +244,39 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
     echo "==> Applying NodePort service mode"
     kubectl apply -f "${PROD_DIR}/app/service-nodeport.yaml"
   fi
+fi
+
+if [[ "${APPLY_PRODUCTION_INGRESS}" == "true" ]]; then
+  if [[ ! -d "${PROD_DIR}/ingress" || ! -d "${PROD_DIR}/cert-manager" ]]; then
+    echo "Error: ingress/cert-manager manifests not found under ${PROD_DIR}"
+    exit 1
+  fi
+
+  echo "==> Applying production ingress manifests"
+  kubectl apply -f "${PROD_DIR}/cert-manager/cluster-issuer.yaml"
+  kubectl apply -f "${PROD_DIR}/ingress/certificate/"
+  kubectl apply -f "${PROD_DIR}/ingress/nginx/"
+fi
+
+if [[ "${APPLY_CRONJOB}" == "true" ]]; then
+  if [[ ! -f "${PROD_DIR}/cron-job/delete-chal-job.yaml" ]]; then
+    echo "Error: cronjob manifest not found at ${PROD_DIR}/cron-job/delete-chal-job.yaml"
+    exit 1
+  fi
+
+  echo "==> Applying cleanup cronjob"
+  kubectl apply -f "${PROD_DIR}/cron-job/delete-chal-job.yaml"
+fi
+
+if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
+  if [[ ! -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml" || ! -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml" ]]; then
+    echo "Error: Argo templates not found under ${PROD_DIR}/argo-workflows"
+    exit 1
+  fi
+
+  echo "==> Applying Argo workflow templates"
+  kubectl apply -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml"
+  kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml"
 fi
 
 echo
