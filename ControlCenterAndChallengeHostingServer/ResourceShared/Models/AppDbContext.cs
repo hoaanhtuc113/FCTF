@@ -406,6 +406,8 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("memory_request");
             entity.Property(e => e.UseGvisor)
                 .HasColumnName("use_gvisor");
+            entity.Property(e => e.HardenContainer)
+                .HasColumnName("harden_container");
             entity.Property(e => e.MaxDeployCount)
                 .HasColumnType("int(11)")
                 .HasColumnName("max_deploy_count");

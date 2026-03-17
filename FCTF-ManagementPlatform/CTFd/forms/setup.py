@@ -122,7 +122,6 @@ class SetupForm(BaseForm):
             (ScoreVisibilityTypes.PUBLIC, "Public"),
             (ScoreVisibilityTypes.PRIVATE, "Private"),
             (ScoreVisibilityTypes.HIDDEN, "Hidden"),
-            (ScoreVisibilityTypes.ADMINS, "Admins Only"),
         ],
         default=AccountVisibilityTypes.PUBLIC,
     )

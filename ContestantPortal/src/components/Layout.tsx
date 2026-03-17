@@ -451,7 +451,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Content */}
       <Box className="relative">
-        <div className="px-12 pt-6 pb-4 max-w-[1920px] mx-auto">
+        <div className="px-4 pt-6 pb-4 max-w-[1920px] mx-auto">
           {children}
         </div>
       </Box>

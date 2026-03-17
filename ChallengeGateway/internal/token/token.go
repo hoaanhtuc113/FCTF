@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -41,6 +42,7 @@ func Verify(token string) (Payload, error) {
 	_, _ = mac.Write([]byte(payloadB64))
 	expected := mac.Sum(nil)
 	if !hmac.Equal(sigBytes, expected) {
+		log.Printf("[token.Verify] signature mismatch: sigBytes=%q expected=%q", base64.RawURLEncoding.EncodeToString(sigBytes), base64.RawURLEncoding.EncodeToString(expected))
 		return Payload{}, fmt.Errorf("invalid token signature")
 	}
 
