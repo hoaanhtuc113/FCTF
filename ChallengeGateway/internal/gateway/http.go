@@ -259,9 +259,7 @@ func enforceNoStoreForHTML(resp *http.Response) {
 func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
 	u := *originalURL
 	q := u.Query()
-	q.Del("token")
-	q.Del("t")
-	q.Del("access_token")
+	q.Del("fctftoken")
 	u.RawQuery = q.Encode()
 	if cleanedPath != "" {
 		u.Path = cleanedPath
