@@ -5,8 +5,8 @@
     "scripts": {
         "test": "node run-ordered-tests.js",
         "test:headed": "node run-ordered-tests.js --headed",
-        "test:uc03": "playwright test --config playwright.uc03.config.ts",
-        "test:uc03:headed": "playwright test --config playwright.uc03.config.ts --headed",
+        "test:uc03": "playwright test tests/uc03-create-challenge-test.spec.ts --config playwright.config.ts",
+        "test:uc03:headed": "playwright test tests/uc03-create-challenge-test.spec.ts --config playwright.config.ts --headed",
         "test:report": "playwright show-report playwright-report --port=0"
     },
     "devDependencies": {
