@@ -73,11 +73,6 @@ helm upgrade --install prometheus-mysql-exporter \
   --create-namespace \
   -f ./helm/monitoring/mysql-exporter-values.yaml
 
-helm upgrade --install tempo grafana/tempo \
-  -n monitoring \
-  --create-namespace \
-  -f ./helm/monitoring/tempo-values.yaml
-
 
 
 # cài argo workflows

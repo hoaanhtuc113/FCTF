@@ -4,8 +4,6 @@ metadata:
   name: deployment-consumer-cm
   namespace: app
 data:
-  OTEL_SERVICE_NAME: "deployment-consumer"
-
   ARGO_DEPLOY_TTL_MINUTES: "6"
 
   BATCH_SIZE: "20"

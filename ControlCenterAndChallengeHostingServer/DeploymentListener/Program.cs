@@ -8,7 +8,7 @@ using ResourceShared.Models;
 using ResourceShared.Utils;
 
 Env.Load();
-new SharedConfig().InitConfig();
+new DeploymentListenerConfigHelper().InitConfig();
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {

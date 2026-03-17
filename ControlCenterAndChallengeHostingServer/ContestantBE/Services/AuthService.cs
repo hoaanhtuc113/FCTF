@@ -70,6 +70,10 @@ public class AuthService : IAuthService
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
             }
+            if (user.Team != null && (user.Team.Banned ?? false))
+            {
+                return BaseResponseDTO<AuthResponseDTO>.Fail("Your team has been banned");
+            }
             var dateTime = DateTime.Now.AddDays(1);
             var jwt = await _tokenHelper.GenerateUserToken(user, dateTime, "Login token");
 

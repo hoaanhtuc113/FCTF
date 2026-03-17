@@ -445,6 +445,7 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
                         memory_limit=challenge.memory_limit,
                         memory_request=challenge.memory_request,
                         use_gvisor=challenge.use_gvisor,
+                        harden_container=challenge.harden_container,
                         max_deploy_count=challenge.max_deploy_count,
                         is_active=True,
                         created_by=current_user_id,

@@ -56,41 +56,15 @@ REWARD_TEMPLATES = {
     
     "bottom_teams_by_score": None,  # Removed
     
-    "top_users_by_score": RewardTemplate(
-        id="top_users_by_score",
-        name="Top Users by Score",
-        description="Award the top N users with highest scores",
-        category="ranking",
-        icon="user-check",
-        query_config={
-            "entity": "user",
-            "metric": "TEAM_TOTAL_SCORE",
-            "order": {"field": "metric_value", "direction": "desc"},
-        },
-        customizable_params=["limit", "min_score", "team_id"],
-        example_usage="Award top 10 users: limit=10"
-    ),
+    "top_users_by_score": None,  # Removed
     
-    "teams_by_rank_range": RewardTemplate(
-        id="teams_by_rank_range",
-        name="Teams in Rank Range",
-        description="Award teams ranked between X and Y",
-        category="ranking",
-        icon="medal",
-        query_config={
-            "entity": "team",
-            "metric": "TEAM_TOTAL_SCORE",
-            "order": {"field": "metric_value", "direction": "desc"},
-        },
-        customizable_params=["min_rank", "max_rank"],
-        example_usage="Award ranks 4-10: min_rank=4, max_rank=10"
-    ),
+    "teams_by_rank_range": None,  # Removed
     
     # ===== ACHIEVEMENT TEMPLATES =====
     "first_blood_hunters": RewardTemplate(
         id="first_blood_hunters",
         name="First Blood Hunters",
-        description="Award teams/users with most first bloods",
+        description="Award teams with most first bloods",
         category="achievement",
         icon="tint",
         query_config={
@@ -98,14 +72,14 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_FIRST_BLOOD_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_count", "group_by"],
+        customizable_params=["limit", "min_count"],
         example_usage="Top 3 first blood hunters: limit=3, min_count=1"
     ),
     
     "category_masters": RewardTemplate(
         id="category_masters",
         name="Category Masters",
-        description="Award teams/users who solved all challenges in most categories",
+        description="Award teams who solved all challenges in most categories",
         category="achievement",
         icon="layer-group",
         query_config={
@@ -113,14 +87,29 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_CATEGORY_CLEAR_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_categories_solved", "group_by"],
-        example_usage="Teams clearing 3+ categories: min_categories_solved=3"
+        customizable_params=["limit", "min_categories_solved"],
+        example_usage="Teams clearing >=2 categories: min_categories_solved=2"
+    ),
+
+    "first_clear_each_category": RewardTemplate(
+        id="first_clear_each_category",
+        name="First Full-Clear By Category",
+        description="Show the first team that fully cleared each category",
+        category="achievement",
+        icon="stopwatch",
+        query_config={
+            "entity": "team",
+            "metric": "TEAM_SOLVED_COUNT",
+            "order": {"field": "last_solve_date", "direction": "asc"},
+        },
+        customizable_params=[],
+        example_usage="Show first team per category"
     ),
     
     "perfect_solvers": RewardTemplate(
         id="perfect_solvers",
         name="Perfect Solvers",
-        description="Award teams/users with most perfect solves (no wrong submissions)",
+        description="Award teams with most perfect solves (no wrong submissions)",
         category="achievement",
         icon="bullseye",
         query_config={
@@ -128,7 +117,7 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_PERFECT_SOLVE_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_perfect_solves", "group_by"],
+        customizable_params=["limit", "min_perfect_solves"],
         example_usage="Top 5 perfect solvers: limit=5, min_perfect_solves=3"
     ),
     
@@ -137,7 +126,7 @@ REWARD_TEMPLATES = {
     "solve_count_champions": RewardTemplate(
         id="solve_count_champions",
         name="Solve Count Champions",
-        description="Award teams/users who solved the most challenges (regardless of score)",
+        description="Award teams who solved the most challenges (regardless of score)",
         category="achievement",
         icon="tasks",
         query_config={
@@ -145,30 +134,17 @@ REWARD_TEMPLATES = {
             "metric": "TEAM_SOLVED_COUNT",
             "order": {"field": "metric_value", "direction": "desc"},
         },
-        customizable_params=["limit", "min_solves", "group_by"],
+        customizable_params=["limit", "min_solves"],
         example_usage="Most challenges solved: limit=5, min_solves=10"
     ),
     
     # ===== SPECIAL CATEGORY TEMPLATES =====
-    "category_specific_top": RewardTemplate(
-        id="category_specific_top",
-        name="Category-Specific Top Teams",
-        description="Top teams/users in a specific category ranked by score and solve count in that category",
-        category="special",
-        icon="filter",
-        query_config={
-            "entity": "team",
-            "metric": "TEAM_TOTAL_SCORE",
-            "order": {"field": "metric_value", "direction": "desc"},
-        },
-        customizable_params=["limit", "category"],
-        example_usage="Top 3 in Web: limit=3, category='Web'"
-    ),
+    "category_specific_top": None,  # Removed
     
     "first_blood_by_category": RewardTemplate(
         id="first_blood_by_category",
         name="First Blood by Category",
-        description="Show only first blood achievers in a specific category",
+        description="Show first blood teams for each challenge, grouped by category",
         category="special",
         icon="flag-checkered",
         query_config={
@@ -181,25 +157,12 @@ REWARD_TEMPLATES = {
         example_usage="First bloods in Forensics: category='Forensics'"
     ),
     
-    "specific_challenge_solvers": RewardTemplate(
-        id="specific_challenge_solvers",
-        name="Specific Challenge Solvers",
-        description="Show teams/users who successfully solved specific challenges (correct submissions only)",
-        category="special",
-        icon="star",
-        query_config={
-            "entity": "solve",
-            "metric": "FIRST_BLOOD",
-            "order": {"field": "entity_id", "direction": "asc"},
-        },
-        customizable_params=["challenge_id"],
-        example_usage="Solved 'Ultimate Crypto': select from challenge list"
-    ),
+    "specific_challenge_solvers": None,  # Removed
     
     "no_hints_solvers": RewardTemplate(
         id="no_hints_solvers",
         name="No Hints Solvers",
-        description="Award teams/users who solved the most challenges without using hints",
+        description="Award teams who solved the most challenges without using hints",
         category="achievement",
         icon="brain",
         query_config={
@@ -208,7 +171,7 @@ REWARD_TEMPLATES = {
             "order": {"field": "metric_value", "direction": "desc"},
             "no_hints": True,
         },
-        customizable_params=["limit", "category", "min_solves", "group_by"],
+        customizable_params=["limit", "category", "min_solves"],
         example_usage="No hints in Crypto: category='Crypto', min_solves=3"
     ),
     
@@ -399,8 +362,19 @@ def build_query_from_template(template_id: str, params: Dict[str, Any]) -> Optio
         builder.set_limit(params["limit"])
     
     if "entity_type" in params:
-        builder.set_entity_type(params["entity_type"])
-    
+        pass  # entity_type switching removed; all queries are team-based
+
+    if template_id == "first_clear_each_category":
+        builder.config["metric"] = "TEAM_SOLVED_COUNT"
+        builder.config["order"] = {"field": "last_solve_date", "direction": "asc"}
+        builder.filters.append(
+            {
+                "field": "first_clear_each_category",
+                "operator": "=",
+                "value": True,
+            }
+        )
+
     # Apply rank filters
     if "min_rank" in params or "max_rank" in params:
         builder.add_rank_filter(

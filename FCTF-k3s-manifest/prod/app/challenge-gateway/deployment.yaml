@@ -88,3 +88,47 @@ spec:
     app: challenge-gateway
   type: NodePort
 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: challenge-gateway-egress-restrict
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      app: challenge-gateway
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Allow only connections to challenge namespaces created from argo-workflows/challenge.yaml
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              ctf/kind: "challenge"
+
+    # Allow Redis only (db namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: db
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+              app.kubernetes.io/component: master
+      ports:
+        - protocol: TCP
+          port: 6379

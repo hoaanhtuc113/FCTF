@@ -219,7 +219,7 @@ export function Tickets() {
           }`}
         >
           <Add fontSize="small" />
-          {'[+]'} NEW TICKET
+          NEW TICKET
         </button>
       </div>
 

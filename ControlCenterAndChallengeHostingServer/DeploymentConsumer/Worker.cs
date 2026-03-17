@@ -8,7 +8,6 @@ using ResourceShared.DTOs.RabbitMQ;
 using ResourceShared.Models;
 using ResourceShared.Utils;
 using RestSharp;
-using System.Diagnostics;
 using System.Text.Json;
 using static ResourceShared.Enums;
 
@@ -20,20 +19,17 @@ internal class Worker : BackgroundService
     private readonly ILogger<Worker> _logger;
     private readonly RedisHelper _redisHelper;
     private readonly MultiServiceConnector _multiServiceConnector;
-    private readonly ActivitySource _rabbitMQActivitySource;
 
     public Worker(
         IServiceScopeFactory scopeFactory,
         ILogger<Worker> logger,
         RedisHelper redisHelper,
-        MultiServiceConnector multiServiceConnector,
-        RabbitMqTelemetrySource rabbitMqTelemetrySource)
+        MultiServiceConnector multiServiceConnector)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _redisHelper = redisHelper;
         _multiServiceConnector = multiServiceConnector;
-        _rabbitMQActivitySource = rabbitMqTelemetrySource.Source;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -77,20 +73,6 @@ internal class Worker : BackgroundService
 
         foreach (var mess in messages)
         {
-            var propagationContext = Telemetry.Extract(mess.Headers!);
-
-            using var activity = _rabbitMQActivitySource.StartActivity(
-                "rabbitmq.consume",
-                ActivityKind.Consumer,
-                propagationContext.ActivityContext);
-
-            activity?.SetTag("messaging.system", "rabbitmq");
-            activity?.SetTag("messaging.destination", "deployment_queue");
-            activity?.SetTag("messaging.destination_kind", "queue");
-            activity?.SetTag("messaging.operation", "receive");
-            activity?.SetTag("messaging.message_id", mess.DeliveryTag);
-
-
             _logger.LogInformation($"[Worker] Excuting message with tag {mess.DeliveryTag}");
 
             var startReq = JsonSerializer.Deserialize<ChallengeStartStopReqDTO>(mess.Payload.Data);
@@ -124,6 +106,7 @@ internal class Worker : BackgroundService
                 var memoryLimit = (challenge.MemoryLimit ?? 0) > 0 ? challenge.MemoryLimit!.Value : 256;
                 var memoryRequest = (challenge.MemoryRequest ?? 0) > 0 ? challenge.MemoryRequest!.Value : memoryLimit;
                 var useGvisor = challenge.UseGvisor ?? true;
+                var hardenContainer = challenge.HardenContainer ?? true;
 
                 var cpuLimitValue = $"{cpuLimit}m";
                 var cpuRequestValue = $"{cpuRequest}m";
@@ -139,6 +122,7 @@ internal class Worker : BackgroundService
                     memoryLimitValue,
                     memoryRequestValue,
                     useGvisor,
+                    hardenContainer,
                     DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES);
 
                 var response = await _multiServiceConnector.ExecuteRequest(
@@ -159,7 +143,6 @@ internal class Worker : BackgroundService
                         .GetProperty("name")
                         .GetString()!;
 
-                    activity?.SetTag("messaging.acknowledge", true);
                     await queueService.AckAsync(mess.DeliveryTag);
                     _logger.LogInformation("Request send to argo. ChallengeId={ChallengeId}, TeamId={TeamId}, WorkflowName={WorkflowName}", startReq.challengeId, startReq.teamId, workflowName);
                     if (string.IsNullOrWhiteSpace(workflowName))
@@ -180,9 +163,6 @@ internal class Worker : BackgroundService
             }
             catch (Exception ex)
             {
-                activity?.AddException(ex);
-                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-                activity?.SetTag("messaging.acknowledge", false);
                 await queueService.NackAsync(mess.DeliveryTag);
                 _logger.LogError(ex, "Deploy failed. ChallengeId={ChallengeId}, TeamId={TeamId}", startReq.challengeId, startReq.teamId);
             }

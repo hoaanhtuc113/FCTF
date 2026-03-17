@@ -181,6 +181,7 @@ namespace ResourceShared.Utils
             string memory_limit,
             string memory_request,
             bool use_gvisor,
+            bool harden_container,
             string pow_difficulty)
         {
             var isTemp = true;
@@ -210,6 +211,7 @@ namespace ResourceShared.Utils
                         $"MEMORY_LIMIT={memory_limit}",
                         $"MEMORY_REQUEST={memory_request}",
                         $"USE_GVISOR={use_gvisor.ToString().ToLower()}",
+                        $"HARDEN_CONTAINER={harden_container.ToString().ToLower()}",
                         $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
                         $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
                         $"POW_DIFFICULTY_SECONDS={pow_difficulty}"

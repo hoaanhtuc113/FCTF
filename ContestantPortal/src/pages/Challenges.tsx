@@ -31,8 +31,6 @@ import {
 } from '../components/Skeleton';
 import { authService } from '../services/authService';
 import { challengeTimerService } from '../services/challengeTimerService';
-import { actionLogService } from '../services/actionLogService';
-import { actionType } from '../constants/ActionLogConstant';
 
 // Setup PDF worker - mirror legacy behavior using jsDelivr CDN (handles MIME/CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -194,6 +192,14 @@ export function Challenges() {
         const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(selectedChallenge.id), {
           method: 'GET'
         });
+
+        if (!response.ok) {
+          if (response.status === 403 || response.status === 404) {
+            setSelectedChallenge(null);
+          }
+          return;
+        }
+
         const data = await response.json();
         setSelectedChallenge({
           ...data.data,
@@ -449,6 +455,25 @@ export function Challenges() {
                       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(prereqChallenge.id), {
                         method: 'GET'
                       });
+
+                      if (!response.ok) {
+                        if (response.status === 403 || response.status === 404) {
+                          await Swal.fire({
+                            html: '<div class="font-mono text-sm text-yellow-400">[!] Challenge is hidden or locked by requirement rules.</div>',
+                            icon: 'warning',
+                            iconColor: '#fbbf24',
+                            confirmButtonText: 'OK',
+                            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+                            color: theme === 'dark' ? '#fbbf24' : '#000000',
+                            customClass: {
+                              popup: 'rounded-lg border border-yellow-500/30',
+                              confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+                            },
+                          });
+                        }
+                        return;
+                      }
+
                       const data = await response.json();
                       setSelectedChallenge({
                         ...data.data,
@@ -478,6 +503,27 @@ export function Challenges() {
       const response = await fetchWithAuth(API_ENDPOINTS.CHALLENGES.DETAIL(challenge.id), {
         method: 'GET'
       });
+
+      if (!response.ok) {
+        if (response.status === 403 || response.status === 404) {
+          await Swal.fire({
+            html: '<div class="font-mono text-sm text-yellow-400">[!] Challenge is hidden or locked by requirement rules.</div>',
+            icon: 'warning',
+            iconColor: '#fbbf24',
+            confirmButtonText: 'OK',
+            background: theme === 'dark' ? '#0a0a0a' : '#ffffff',
+            color: theme === 'dark' ? '#fbbf24' : '#000000',
+            customClass: {
+              popup: 'rounded-lg border border-yellow-500/30',
+              confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-black font-mono px-4 py-2 rounded',
+            },
+          });
+        }
+
+        setSearchParams({ category: selectedCategory }, { replace: true });
+        return;
+      }
+
       const data = await response.json();
 
       setSelectedChallenge({
@@ -488,7 +534,6 @@ export function Challenges() {
       });
     } catch (error) {
       console.error('Error fetching challenge details:', error);
-      setSelectedChallenge(challenge);
     } finally {
       setLoadingChallengeDetail(false);
     }
@@ -639,189 +684,191 @@ export function Challenges() {
           </Typography>
         </div>
       )}
-    <div className="flex gap-4 min-h-[70vh] relative">
-      {/* Column: Categories with Challenges Dropdown */}
-      <motion.div
-        initial={false}
-        animate={{
-          width: selectedChallenge ? (isSidebarVisible ? '16rem' : '0px') : 'auto',
-          opacity: selectedChallenge ? (isSidebarVisible ? 1 : 0) : 1,
-          marginRight: selectedChallenge && !isSidebarVisible ? '-1rem' : '0px'
-        }}
-        transition={{ duration: 0.3 }}
-        className={`${!selectedChallenge ? 'flex-1' : ''} ${selectedChallenge ? 'relative' : ''}`}
-      >
+      <div className="flex gap-4 min-h-[70vh] relative">
+        {/* Column: Categories with Challenges Dropdown */}
+        <motion.div
+          initial={false}
+          animate={{
+            width: selectedChallenge ? (isSidebarVisible ? '15%' : '0px') : 'auto',
+            opacity: selectedChallenge ? (isSidebarVisible ? 1 : 0) : 1,
+            marginRight: selectedChallenge && !isSidebarVisible ? '-1rem' : '0px'
+          }}
+          transition={{ duration: 0.3 }}
+          className={`${!selectedChallenge ? 'flex-1' : ''} ${selectedChallenge ? 'relative' : ''}`}
+        >
 
 
-        <div className={`mb-4 pb-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
-          <div className="flex items-center justify-between gap-2">
-            <h1 className={`text-xl font-bold font-mono ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'}`}>
-              [CHALLENGES]
-            </h1>
-            {/* Close Sidebar Button - Only show when sidebar is visible and challenge selected */}
-            {selectedChallenge && (
-              <button
-                onClick={() => setIsSidebarVisible(false)}
-                className={`shrink-0 transition-all duration-300 p-1.5 rounded transition-colors border ${theme === 'dark'
-                  ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
-                  : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
-                  } rounded-md p-1.5`}
-                title="Hide Categories"
-              >
-                HIDE
-              </button>
-            )}
+          <div className={`mb-4 pb-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}>
+            <div className="flex items-center justify-between gap-2">
+              <h1 className={`text-xl font-bold font-mono ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'}`}>
+                [CHALLENGES]
+              </h1>
+              {/* Close Sidebar Button - Only show when sidebar is visible and challenge selected */}
+              {selectedChallenge && (
+                <button
+                  onClick={() => setIsSidebarVisible(false)}
+                  className={`shrink-0 transition-all duration-300 p-1.5 rounded transition-colors border ${theme === 'dark'
+                    ? 'text-orange-400 border-orange-500/50 hover:bg-orange-500/20 hover:border-orange-400'
+                    : 'text-orange-600 border-orange-300 hover:bg-orange-50 hover:border-orange-500'
+                    } rounded-md p-1.5`}
+                  title="Hide Categories"
+                >
+                  HIDE
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          {categories
-            .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
-            .map((category) => {
-              const isExpanded = expandedCategories.has(category.topic_name);
-              const isLoading = loadingCategories.has(category.topic_name);
-              const categoryChalls = challengesByCategory.get(category.topic_name) || [];
+          <div className="space-y-2">
+            {categories
+              .slice((categoryPage - 1) * categoriesPerPage, categoryPage * categoriesPerPage)
+              .map((category) => {
+                const isExpanded = expandedCategories.has(category.topic_name);
+                const isLoading = loadingCategories.has(category.topic_name);
+                const categoryChalls = challengesByCategory.get(category.topic_name) || [];
 
-              return (
-                <div key={category.topic_name} className={`rounded-lg border ${theme === 'dark'
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-300'
-                  }`}>
-                  {/* Category Header - Clickable */}
-                  <button
-                    onClick={() => handleCategoryClick(category.topic_name)}
-                    className={`w-full text-left px-4 py-3 rounded-t-lg transition-colors flex items-center justify-between ${isExpanded
-                      ? theme === 'dark'
-                        ? 'bg-orange-500/20 text-orange-400'
-                        : 'bg-orange-50 text-orange-700'
-                      : theme === 'dark'
-                        ? 'hover:bg-gray-700 text-gray-300'
-                        : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {getCategoryIcon(category.topic_name)}
-                      <div>
-                        <div className="font-bold text-sm font-mono">
-                          {category.topic_name.toUpperCase()}
-                        </div>
-                        <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                          }`}>
-                          {category.challenge_count} challenges
+                return (
+                  <div key={category.topic_name} className={`rounded-lg border ${theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-white border-gray-300'
+                    }`}>
+                    {/* Category Header - Clickable */}
+                    <button
+                      onClick={() => handleCategoryClick(category.topic_name)}
+                      className={`w-full text-left px-4 py-3 rounded-t-lg transition-colors flex items-center justify-between ${isExpanded
+                        ? theme === 'dark'
+                          ? 'bg-orange-500/20 text-orange-400'
+                          : 'bg-orange-50 text-orange-700'
+                        : theme === 'dark'
+                          ? 'hover:bg-gray-700 text-gray-300'
+                          : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {getCategoryIcon(category.topic_name)}
+                        <div>
+                          <div className="font-bold text-sm font-mono">
+                            {category.topic_name.toUpperCase()}
+                          </div>
+                          <div className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                            }`}>
+                            {category.challenge_count} challenges
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      {isLoading && (
-                        <CircularProgress size={16} sx={{ color: theme === 'dark' ? '#fb923c' : '#ea580c' }} />
+                      <div className="flex items-center gap-2">
+                        {isLoading && (
+                          <CircularProgress size={16} sx={{ color: theme === 'dark' ? '#fb923c' : '#ea580c' }} />
+                        )}
+                        {isExpanded ? (
+                          <ExpandLess className="text-orange-500" />
+                        ) : (
+                          <ExpandMore className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Challenges List - Collapsible */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className={`p-3 space-y-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
+                            }`}>
+                            {isLoading ? (
+                              <>
+                                <ChallengeListSkeleton />
+                                <ChallengeListSkeleton />
+                                <ChallengeListSkeleton />
+                              </>
+                            ) : categoryChalls.length > 0 ? (
+                              categoryChalls.map((challenge) => (
+                                <ChallengeListItem
+                                  key={challenge.id}
+                                  challenge={challenge}
+                                  isContestActive={canViewChallenges}
+                                  onClick={() => handleChallengeClick(challenge)}
+                                  isSelected={selectedChallenge?.id === challenge.id}
+                                  isLocked={(prerequisiteInfo.get(challenge.id) || []).length > 0}
+                                  prerequisites={prerequisiteInfo.get(challenge.id) || []}
+                                  isCompact={!!selectedChallenge}
+                                />
+                              ))
+                            ) : (
+                              <Box className="text-center py-8">
+                                <Lock className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} sx={{ fontSize: 32 }} />
+                                <Typography className={`font-mono mt-2 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>
+                                  No challenges found
+                                </Typography>
+                              </Box>
+                            )}
+                          </div>
+                        </motion.div>
                       )}
-                      {isExpanded ? (
-                        <ExpandLess className="text-orange-500" />
-                      ) : (
-                        <ExpandMore className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} />
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Challenges List - Collapsible */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="overflow-hidden"
-                      >
-                        <div className={`p-3 space-y-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'
-                          }`}>
-                          {isLoading ? (
-                            <>
-                              <ChallengeListSkeleton />
-                              <ChallengeListSkeleton />
-                              <ChallengeListSkeleton />
-                            </>
-                          ) : categoryChalls.length > 0 ? (
-                            categoryChalls.map((challenge) => (
-                              <ChallengeListItem
-                                key={challenge.id}
-                                challenge={challenge}
-                                isContestActive={canViewChallenges}
-                                onClick={() => handleChallengeClick(challenge)}
-                                isSelected={selectedChallenge?.id === challenge.id}
-                                isLocked={(prerequisiteInfo.get(challenge.id) || []).length > 0}
-                                prerequisites={prerequisiteInfo.get(challenge.id) || []}
-                                isCompact={!!selectedChallenge}
-                              />
-                            ))
-                          ) : (
-                            <Box className="text-center py-8">
-                              <Lock className={theme === 'dark' ? 'text-gray-500' : 'text-gray-400'} sx={{ fontSize: 32 }} />
-                              <Typography className={`font-mono mt-2 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                                }`}>
-                                No challenges found
-                              </Typography>
-                            </Box>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-        </div>
-
-        {/* Categories Pagination */}
-        {categories.length > categoriesPerPage && (
-          <div className="mt-4">
-            <TerminalPagination
-              currentPage={categoryPage}
-              totalPages={Math.ceil(categories.length / categoriesPerPage)}
-              onPageChange={setCategoryPage}
-              theme={theme}
-            />
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
           </div>
-        )}
-      </motion.div>
 
-      {/* Column: Challenge Detail */}
-      <AnimatePresence mode="wait">
-        {loadingChallengeDetail ? (
-          <motion.div
-            key="skeleton"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="flex-1"
-          >
-            <ChallengeDetailSkeleton />
-          </motion.div>
-        ) : selectedChallenge ? (
-          <motion.div
-            key={selectedChallenge.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="flex-1"
-          >
-            <ChallengeDetailPanel
-              challenge={selectedChallenge}
-              theme={theme}
-              onClose={() => {
-                setSelectedChallenge(null);
-                setSearchParams({ category: selectedCategory }, { replace: true });
-              }}
-              onFlagSuccess={refreshChallengeData}
-              isSidebarVisible={isSidebarVisible}
-              onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
-              onNavigate={handleNavigateToChallenge}
-            />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
+          {/* Categories Pagination */}
+          {categories.length > categoriesPerPage && (
+            <div className="mt-4">
+              <TerminalPagination
+                currentPage={categoryPage}
+                totalPages={Math.ceil(categories.length / categoriesPerPage)}
+                onPageChange={setCategoryPage}
+                theme={theme}
+              />
+            </div>
+          )}
+        </motion.div>
+
+        {/* Column: Challenge Detail */}
+        <AnimatePresence mode="wait">
+          {loadingChallengeDetail ? (
+            <motion.div
+              key="skeleton"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="min-w-0"
+              style={{ width: isSidebarVisible ? '85%' : '100%' }}
+            >
+              <ChallengeDetailSkeleton />
+            </motion.div>
+          ) : selectedChallenge ? (
+            <motion.div
+              key={selectedChallenge.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="min-w-0"
+              style={{ width: isSidebarVisible ? '85%' : '100%' }}
+            >
+              <ChallengeDetailPanel
+                challenge={selectedChallenge}
+                theme={theme}
+                onClose={() => {
+                  setSelectedChallenge(null);
+                  setSearchParams({ category: selectedCategory }, { replace: true });
+                }}
+                onFlagSuccess={refreshChallengeData}
+                isSidebarVisible={isSidebarVisible}
+                onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+                onNavigate={handleNavigateToChallenge}
+              />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
     </>
   );
 }
@@ -1269,6 +1316,7 @@ function ChallengeDetailPanel({
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [copiedTcp, setCopiedTcp] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
+  const [isAccessTokenCollapsed, setIsAccessTokenCollapsed] = useState(false);
 
   // derive gateway/ports from environment helper so we can display them in the UI
   const baseGateway = getBaseGateway();
@@ -1943,13 +1991,6 @@ function ChallengeDetailPanel({
         // Start health check in background
         startHealthCheckLoop();
 
-        // Log start challenge action
-        actionLogService.logAction(
-          actionType.START_CHALLENGE,
-          `Khởi động thử thách ${challenge.name}`,
-          challenge.id
-        );
-
         // Show success message with URL - this is the ONLY popup users see
         Swal.fire({
           html: `
@@ -2001,13 +2042,6 @@ function ChallengeDetailPanel({
 
         // Start health check in background
         startHealthCheckLoop();
-
-        // Log start challenge action
-        actionLogService.logAction(
-          actionType.START_CHALLENGE,
-          `Khởi động thử thách ${challenge.name}`,
-          challenge.id
-        );
 
         // Show deploying message
         Swal.fire({
@@ -2540,13 +2574,6 @@ function ChallengeDetailPanel({
       const data = await response.json();
 
       if (data?.data?.status === 'correct') {
-        // Log correct flag action
-        actionLogService.logAction(
-          actionType.CORRECT_FLAG,
-          `Nộp cờ đúng cho thử thách ${challenge.name}`,
-          challenge.id
-        );
-
         await Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
@@ -2599,13 +2626,6 @@ function ChallengeDetailPanel({
           }
         }
       } else if (data?.data?.status === 'incorrect') {
-        // Log incorrect flag action
-        actionLogService.logAction(
-          actionType.INCORRECT_FLAG,
-          `Nộp cờ sai cho thử thách ${challenge.name}`,
-          challenge.id
-        );
-
         const attemptsLeft = challenge.max_attempts > 0
           ? challenge.max_attempts - (challenge.attemps || 0) - 1
           : '∞';
@@ -3019,13 +3039,6 @@ function ChallengeDetailPanel({
         const response = await HintUnlocks(hintId);
 
         if (response?.success) {
-          // Log unlock hint action
-          actionLogService.logAction(
-            actionType.UNLOCK_HINT,
-            `Mở khóa trợ giúp cho thử thách ${challenge.name}`,
-            challenge.id
-          );
-
           // Fetch hint details again after unlock
           const updatedHintDetails = await FetchHintDetails(hintId);
 
@@ -3394,7 +3407,7 @@ function ChallengeDetailPanel({
       <div className="flex gap-3 flex-1 min-h-0">
         {/* LEFT PANEL - PDF Viewer (6/11 ratio) */}
         {hasPdfFiles && (
-          <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: '70%' }}>
+          <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: '50%', overflow: 'auto' }}>
             {/* PDF Panel Header */}
             <div className={`p-2.5 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
               <div className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -3440,12 +3453,12 @@ function ChallengeDetailPanel({
             )}
 
             {/* PDF Content */}
-            <div className={`flex-1 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+            <div className={`flex-1 min-h-0 flex flex-col ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
               {selectedPdfIndex !== null && (
                 <>
                   <div
                     ref={pdfContainerRef}
-                    className="flex-1 overflow-auto p-5 flex justify-center items-start"
+                    className="flex-1 overflow-auto p-5 flex justify-start items-start"
                     style={{ minHeight: '500px' }}
                   >
                     {loadingPdf ? (
@@ -3456,13 +3469,7 @@ function ChallengeDetailPanel({
                         </Typography>
                       </div>
                     ) : (pdfBlob && isMountedRef.current) ? (
-                      <div
-                        style={{
-                          transform: `scale(${pdfScale})`,
-                          transformOrigin: 'center top',
-                          display: 'inline-block'
-                        }}
-                      >
+                      <div className="inline-block min-w-max">
                         <Document
                           file={pdfBlob}
                           onLoadSuccess={onDocumentLoadSuccess}
@@ -3492,6 +3499,7 @@ function ChallengeDetailPanel({
                         >
                           <Page
                             pageNumber={pageNumber}
+                            scale={pdfScale}
                             renderTextLayer={false}
                             renderAnnotationLayer={false}
                             loading={
@@ -3507,7 +3515,7 @@ function ChallengeDetailPanel({
 
                   {/* PDF Navigation Controls - Compact */}
                   {numPages && !loadingPdf && (
-                    <div className={`p-2 border-t flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
+                    <div className={`shrink-0 sticky bottom-0 z-10 p-2 border-t flex items-center justify-between ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
                       {/* Zoom Controls */}
                       <div className="flex items-center gap-1.5">
                         <button
@@ -3590,7 +3598,7 @@ function ChallengeDetailPanel({
         )}
 
         {/* RIGHT PANEL - Challenge Info & Submit (5/11 ratio) */}
-        <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: hasPdfFiles ? '45.5%' : '100%' }}>
+        <div className={`rounded-lg border flex flex-col ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`} style={{ width: hasPdfFiles ? '50%' : '100%' }}>
           {/* Right Panel Header */}
           <div className={`p-3 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
             <div className={`text-sm font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -3608,11 +3616,13 @@ function ChallengeDetailPanel({
                   {challenge.value} pts
                 </span>
               </Tooltip>
-              <Tooltip title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
-                <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
-                  Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
-                </span>
-              </Tooltip>
+              {challenge.require_deploy && (
+                <Tooltip title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                  <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                    Time: {challenge.time_limit === -1 ? '∞' : formatTime(challenge.time_limit * 60)}
+                  </span>
+                </Tooltip>
+              )}
               <Tooltip title={challenge.max_attempts === 0 ? 'Unlimited submission attempts' : `Maximum ${challenge.max_attempts} submission attempt${challenge.max_attempts === 1 ? '' : 's'}`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
                 <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
                   Attempts: {challenge.max_attempts === 0 ? '∞' : challenge.max_attempts}
@@ -3637,9 +3647,9 @@ function ChallengeDetailPanel({
                   placement="top" arrow enterDelay={0} enterNextDelay={0}
                 >
                   <span className={`cursor-help px-2 py-1 rounded border ${challenge.max_deploy_count != null && challenge.max_deploy_count !== 0 &&
-                      (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
-                      ? theme === 'dark' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-red-50 text-red-700 border-red-300'
-                      : theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'
+                    (challenge.deployed_count ?? 0) >= challenge.max_deploy_count
+                    ? theme === 'dark' ? 'bg-red-900/30 text-red-400 border-red-700' : 'bg-red-50 text-red-700 border-red-300'
+                    : theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'
                     }`}>
                     Deploys: {(challenge.max_deploy_count == null || challenge.max_deploy_count === 0) ? '∞' : `${challenge.deployed_count ?? 0}/${challenge.max_deploy_count}`}
                   </span>
@@ -3658,8 +3668,8 @@ function ChallengeDetailPanel({
                     <span
                       key={i}
                       className={`text-base leading-none ${i < (challenge.difficulty ?? 0)
-                          ? theme === 'dark' ? 'text-yellow-400' : 'text-yellow-500'
-                          : theme === 'dark' ? 'text-gray-600' : 'text-gray-300'
+                        ? theme === 'dark' ? 'text-yellow-400' : 'text-yellow-500'
+                        : theme === 'dark' ? 'text-gray-600' : 'text-gray-300'
                         }`}
                     >
                       {i < (challenge.difficulty ?? 0) ? '★' : '☆'}
@@ -3714,29 +3724,42 @@ function ChallengeDetailPanel({
             {(url || isHealthChecking || isDeploymentInProgress) && (
               <div className={`p-3 rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    [YOUR ACCESS TOKEN]
-                  </span>
-                  {isHealthChecking ? (
-                    <div className="flex items-center gap-2">
-                      <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
-                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                        {podStatus ? `Checking... (${podStatus})` : 'Checking...'}
-                      </span>
-                    </div>
-                  ) : isPodHealthy ? (
-                    <div className="flex items-center gap-2">
-                      <Check className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
-                      <span className={`text-xs font-mono ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                        Running
-                      </span>
-                    </div>
-                  ) : null}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      [YOUR ACCESS TOKEN]
+                    </span>
+                    {isHealthChecking ? (
+                      <div className="flex items-center gap-2">
+                        <CircularProgress size={12} sx={{ color: theme === 'dark' ? '#fbbf24' : '#f59e0b' }} />
+                        <span className={`text-xs font-mono ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                          {podStatus ? `Checking... (${podStatus})` : 'Checking...'}
+                        </span>
+                      </div>
+                    ) : isPodHealthy ? (
+                      <div className="flex items-center gap-2">
+                        <Check className={`text-sm ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                        <span className={`text-xs font-mono ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
+                          Running
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    onClick={() => setIsAccessTokenCollapsed(prev => !prev)}
+                    className={`px-1.5 py-1 rounded transition-all flex items-center ${theme === 'dark'
+                      ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                      }`}
+                    title={isAccessTokenCollapsed ? 'Expand' : 'Collapse'}
+                    aria-label={isAccessTokenCollapsed ? 'Expand access token section' : 'Collapse access token section'}
+                  >
+                    {isAccessTokenCollapsed ? <ExpandMore sx={{ fontSize: 16 }} /> : <ExpandLess sx={{ fontSize: 16 }} />}
+                  </button>
                 </div>
 
-                {(() => {
+                {!isAccessTokenCollapsed && (() => {
                   const token = url ? url.trim() : "Deploying... Please wait";
-                  const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}/{token}` : `${getBaseGateway()}:${getHttpPort()}/${token}`;
+                  const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}?fctftoken={token}` : `${getBaseGateway()}:${getHttpPort()}?fctftoken=${token}`;
                   const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
                   return (
                     <div className="space-y-2.5">
@@ -4043,7 +4066,7 @@ function ChallengeDetailPanel({
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Get your Token from [YOUR ACCESS TOKEN]</p>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Access the challenge with token:</p>
                         <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          {`http://${baseGateway}:${httpPort}/YOUR_TOKEN`}
+                          {`http://${baseGateway}:${httpPort}?fctftoken={YOUR_TOKEN}`}
                         </code>
                         <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Gateway will remember you</p>
                         <p className={`text-[10px] italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>Note: Re-enter token to switch challenges</p>
