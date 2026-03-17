@@ -156,7 +156,7 @@ spec:
               | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
               | kubectl apply -f -
 
-            RENDERED_FILE="$(mktemp /tmp/challenge-rendered.XXXXXX.yaml)"
+            RENDERED_FILE="/tmp/challenge-rendered-${CHALLENGE_NAME}-$$.yaml"
             trap 'rm -f "${RENDERED_FILE}"' EXIT
 
             envsubst < "${NFS_DATA_PATH}" > "${RENDERED_FILE}"
