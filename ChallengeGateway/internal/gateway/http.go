@@ -226,7 +226,7 @@ func extractTokenFromRequest(r *http.Request) (string, string) {
 	query := r.URL.Query()
 
 	// Named query parameters.
-	for _, key := range []string{"token", "t", "access_token"} {
+	for _, key := range []string{"fctftoken"} {
 		if val := query.Get(key); val != "" {
 			return val, r.URL.Path
 		}
