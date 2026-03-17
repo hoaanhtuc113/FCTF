@@ -27,6 +27,8 @@ spec:
         value: "64Mi"
       - name: USE_GVISOR
         value: "true"
+      - name: HARDEN_CONTAINER
+        value: "true"
       - name: IS_TEMPORARY
         value: "true"
       - name: CHALLENGE_TIMEOUT
@@ -57,6 +59,8 @@ spec:
                   value: "{{workflow.parameters.MEMORY_REQUEST}}"
                 - name: USE_GVISOR
                   value: "{{workflow.parameters.USE_GVISOR}}"
+                - name: HARDEN_CONTAINER
+                  value: "{{workflow.parameters.HARDEN_CONTAINER}}"
                 - name: IS_TEMPORARY
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
@@ -75,6 +79,7 @@ spec:
           - name: MEMORY_LIMIT
           - name: MEMORY_REQUEST
           - name: USE_GVISOR
+          - name: HARDEN_CONTAINER
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
           - name: NFS_SERVER_IP
@@ -126,6 +131,42 @@ spec:
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
             else
               export RUNTIME_CLASS_NAME_LINE=""
+            fi
+
+            if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
+              export NS_POD_SECURITY_LABELS='pod-security.kubernetes.io/enforce: "restricted"
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/audit: "restricted"
+    pod-security.kubernetes.io/audit-version: "latest"
+    pod-security.kubernetes.io/warn: "restricted"
+    pod-security.kubernetes.io/warn-version: "latest"'
+              export CONTAINER_VOLUME_MOUNTS='volumeMounts:
+            - name: tmp
+              mountPath: /tmp'
+              export CONTAINER_SECURITY_CONTEXT='securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]'
+              export POD_SECURITY_CONTEXT='securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault'
+              export POD_VOLUMES='volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory'
+            else
+              export NS_POD_SECURITY_LABELS=""
+              export CONTAINER_VOLUME_MOUNTS=""
+              export CONTAINER_SECURITY_CONTEXT=""
+              export POD_SECURITY_CONTEXT=""
+              export POD_VOLUMES=""
             fi
 
 

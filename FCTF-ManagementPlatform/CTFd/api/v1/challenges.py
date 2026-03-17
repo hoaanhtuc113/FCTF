@@ -338,6 +338,7 @@ class ChallengeList(Resource):
                 "memory_limit": challenge.memory_limit,
                 "memory_request": challenge.memory_request,
                 "use_gvisor": challenge.use_gvisor,
+                "harden_container": challenge.harden_container,
                 "max_deploy_count": challenge.max_deploy_count,
             }
         )
@@ -606,6 +607,7 @@ class Challenge(Resource):
             "memory_limit": challenge.memory_limit,
             "memory_request": challenge.memory_request,
             "use_gvisor": challenge.use_gvisor,
+            "harden_container": challenge.harden_container,
             "max_deploy_count": challenge.max_deploy_count,
         }
 
@@ -694,6 +696,7 @@ class Challenge(Resource):
                 "memory_limit": challenge.memory_limit,
                 "memory_request": challenge.memory_request,
                 "use_gvisor": challenge.use_gvisor,
+                "harden_container": challenge.harden_container,
                 "max_deploy_count": challenge.max_deploy_count,
             },
             data={"challenge_id": challenge_id, "name": challenge.name}
@@ -745,9 +748,10 @@ class Challenge(Resource):
             "memory_limit": challenge.memory_limit,
             "memory_request": challenge.memory_request,
             "use_gvisor": challenge.use_gvisor,
+            "harden_container": challenge.harden_container,
             "max_deploy_count": challenge.max_deploy_count,
         }
-        
+
         if challenge.require_deploy:
             delete_folder(challenge.deploy_file)
             delete_cached_files(challenge.id)
@@ -1343,6 +1347,7 @@ class ChallengeVersionDetail(Resource):
             "memory_limit": version.memory_limit,
             "memory_request": version.memory_request,
             "use_gvisor": version.use_gvisor,
+            "harden_container": version.harden_container,
             "max_deploy_count": version.max_deploy_count,
             "is_active": version.is_active,
             "created_by": version.creator.name if version.creator else "Unknown",
@@ -1391,6 +1396,8 @@ class ChallengeVersionRollback(Resource):
                 challenge.memory_request = version.memory_request
             if version.use_gvisor is not None:
                 challenge.use_gvisor = version.use_gvisor
+            if version.harden_container is not None:
+                challenge.harden_container = version.harden_container
             if version.max_deploy_count is not None:
                 challenge.max_deploy_count = version.max_deploy_count
 

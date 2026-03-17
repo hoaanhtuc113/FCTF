@@ -124,6 +124,7 @@ internal class Worker : BackgroundService
                 var memoryLimit = (challenge.MemoryLimit ?? 0) > 0 ? challenge.MemoryLimit!.Value : 256;
                 var memoryRequest = (challenge.MemoryRequest ?? 0) > 0 ? challenge.MemoryRequest!.Value : memoryLimit;
                 var useGvisor = challenge.UseGvisor ?? true;
+                var hardenContainer = challenge.HardenContainer ?? true;
 
                 var cpuLimitValue = $"{cpuLimit}m";
                 var cpuRequestValue = $"{cpuRequest}m";
@@ -139,6 +140,7 @@ internal class Worker : BackgroundService
                     memoryLimitValue,
                     memoryRequestValue,
                     useGvisor,
+                    hardenContainer,
                     DeploymentConsumerConfigHelper.POD_START_TIMEOUT_MINUTES);
 
                 var response = await _multiServiceConnector.ExecuteRequest(

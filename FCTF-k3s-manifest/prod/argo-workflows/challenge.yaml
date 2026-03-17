@@ -6,12 +6,7 @@ metadata:
     ctf/temporary: "${IS_TEMPORARY}"
     ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
     ctf/kind: "challenge"
-    pod-security.kubernetes.io/enforce: "restricted"
-    pod-security.kubernetes.io/enforce-version: "latest"
-    pod-security.kubernetes.io/audit: "restricted"
-    pod-security.kubernetes.io/audit-version: "latest"
-    pod-security.kubernetes.io/warn: "restricted"
-    pod-security.kubernetes.io/warn-version: "latest"
+    ${NS_POD_SECURITY_LABELS}
 ---
 apiVersion: v1
 kind: Service
@@ -71,7 +66,6 @@ spec:
 
 # ======================================================
 # ALLOW KUBELET (READINESS / LIVENESS PROBE)
-# 👉 BẮT BUỘC, nếu không pod sẽ NEVER READY
 # ======================================================
 ---
 apiVersion: networking.k8s.io/v1
@@ -88,7 +82,7 @@ spec:
   ingress:
     - from:
         - ipBlock:
-            cidr: 192.168.0.0/16   # ❗ CIDR node (sửa nếu node CIDR khác)
+            cidr: 192.168.0.0/16
       ports:
         - protocol: TCP
           port: ${CONTAINER_PORT}
@@ -98,7 +92,7 @@ spec:
 # - DNS only
 # - Gateway only
 # - Internet only
-# - BLOCK toàn bộ cluster/service
+# - BLOCK cluster/service
 # ======================================================
 ---
 apiVersion: networking.k8s.io/v1
@@ -164,33 +158,19 @@ spec:
       priorityClassName: batch-low
       preemptionPolicy: Never
       ${RUNTIME_CLASS_NAME_LINE}
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
+      ${POD_SECURITY_CONTEXT}
       containers:
         - name: challenge
           image: "${CONTAINER_IMAGE}"
           ports:
             - containerPort: ${CONTAINER_PORT}
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
+          ${CONTAINER_VOLUME_MOUNTS}
           readinessProbe:
             tcpSocket:
               port: ${CONTAINER_PORT}
             periodSeconds: 3
             failureThreshold: 3
-          securityContext:
-            allowPrivilegeEscalation: false
-            privileged: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
+          ${CONTAINER_SECURITY_CONTEXT}
           resources:
             requests:
               memory: "${MEMORY_REQUEST}"
@@ -201,7 +181,4 @@ spec:
           imagePullPolicy: IfNotPresent
       imagePullSecrets:
         - name: global-regcred
-      volumes:
-        - name: tmp
-          emptyDir:
-            medium: Memory
+      ${POD_VOLUMES}
