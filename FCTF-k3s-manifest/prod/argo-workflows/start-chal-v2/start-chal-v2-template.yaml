@@ -135,32 +135,32 @@ spec:
 
             if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
               export NS_POD_SECURITY_LABELS='pod-security.kubernetes.io/enforce: "restricted"
-    pod-security.kubernetes.io/enforce-version: "latest"
-    pod-security.kubernetes.io/audit: "restricted"
-    pod-security.kubernetes.io/audit-version: "latest"
-    pod-security.kubernetes.io/warn: "restricted"
-    pod-security.kubernetes.io/warn-version: "latest"'
+                pod-security.kubernetes.io/enforce-version: "latest"
+                pod-security.kubernetes.io/audit: "restricted"
+                pod-security.kubernetes.io/audit-version: "latest"
+                pod-security.kubernetes.io/warn: "restricted"
+                pod-security.kubernetes.io/warn-version: "latest"'
               export CONTAINER_VOLUME_MOUNTS='volumeMounts:
-            - name: tmp
-              mountPath: /tmp'
+                - name: tmp
+                  mountPath: /tmp'
               export CONTAINER_SECURITY_CONTEXT='securityContext:
-            allowPrivilegeEscalation: false
-            privileged: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]'
+                allowPrivilegeEscalation: false
+                privileged: false
+                runAsNonRoot: true
+                runAsUser: 1000
+                seccompProfile:
+                  type: RuntimeDefault
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]'
               export POD_SECURITY_CONTEXT='securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault'
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault'
               export POD_VOLUMES='volumes:
-        - name: tmp
-          emptyDir:
-            medium: Memory'
+                - name: tmp
+                  emptyDir:
+                    medium: Memory'
             else
               export NS_POD_SECURITY_LABELS=""
               export CONTAINER_VOLUME_MOUNTS=""
