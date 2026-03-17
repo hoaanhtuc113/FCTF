@@ -115,8 +115,6 @@ spec:
             set -e
             echo "=== Deploying Challenge v2 with parameters ==="
 
-            # Set environment variables
-            export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge.yaml"
             export CHALLENGE_NAME="{{inputs.parameters.CHALLENGE_NAME}}"
             export CONTAINER_PORT="{{inputs.parameters.CONTAINER_PORT}}"
             export CONTAINER_IMAGE="{{inputs.parameters.CONTAINER_IMAGE}}"
@@ -134,51 +132,19 @@ spec:
             fi
 
             if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
-              export NS_POD_SECURITY_LABELS='pod-security.kubernetes.io/enforce: "restricted"
-                pod-security.kubernetes.io/enforce-version: "latest"
-                pod-security.kubernetes.io/audit: "restricted"
-                pod-security.kubernetes.io/audit-version: "latest"
-                pod-security.kubernetes.io/warn: "restricted"
-                pod-security.kubernetes.io/warn-version: "latest"'
-              export CONTAINER_VOLUME_MOUNTS='volumeMounts:
-                - name: tmp
-                  mountPath: /tmp'
-              export CONTAINER_SECURITY_CONTEXT='securityContext:
-                allowPrivilegeEscalation: false
-                privileged: false
-                runAsNonRoot: true
-                runAsUser: 1000
-                seccompProfile:
-                  type: RuntimeDefault
-                readOnlyRootFilesystem: true
-                capabilities:
-                  drop: ["ALL"]'
-              export POD_SECURITY_CONTEXT='securityContext:
-                runAsNonRoot: true
-                seccompProfile:
-                  type: RuntimeDefault'
-              export POD_VOLUMES='volumes:
-                - name: tmp
-                  emptyDir:
-                    medium: Memory'
+              export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge-hardened.yaml"
             else
-              export NS_POD_SECURITY_LABELS=""
-              export CONTAINER_VOLUME_MOUNTS=""
-              export CONTAINER_SECURITY_CONTEXT=""
-              export POD_SECURITY_CONTEXT=""
-              export POD_VOLUMES=""
+              export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge-plain.yaml"
             fi
 
-
-            # Check if challenge.yaml exists in NFS
             if [ ! -f "${NFS_DATA_PATH}" ]; then
-              echo "❌ challenge.yaml not found in NFS at ${NFS_DATA_PATH}"
+              echo "❌ Template not found at ${NFS_DATA_PATH}"
               echo "Please ensure the challenge template is available in NFS storage"
               exit 1
             fi
 
-            echo "📁 Found challenge.yaml in NFS, applying with parameters..."
-            # Ensure target namespace exists before copying secret
+            echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
+
             if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
               kubectl create ns "${CHALLENGE_NAME}"
             fi
@@ -190,7 +156,19 @@ spec:
               | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
               | kubectl apply -f -
 
-            envsubst < ${NFS_DATA_PATH} | kubectl apply -f -
+            RENDERED_FILE="$(mktemp /tmp/challenge-rendered.XXXXXX.yaml)"
+            trap 'rm -f "${RENDERED_FILE}"' EXIT
+
+            envsubst < "${NFS_DATA_PATH}" > "${RENDERED_FILE}"
+
+            if ! kubectl apply --dry-run=client -f "${RENDERED_FILE}" >/dev/null 2>&1; then
+              echo "❌ Rendered YAML is invalid. Dumping numbered output to help locate the bad placeholder:"
+              awk '{ printf "%5d  %s\n", NR, $0 }' "${RENDERED_FILE}"
+              kubectl apply --dry-run=client -f "${RENDERED_FILE}" || true
+              exit 1
+            fi
+
+            kubectl apply -f "${RENDERED_FILE}"
 
             echo "✅ Challenge v2 manifest submitted to cluster"
       volumes:
