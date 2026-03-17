@@ -302,6 +302,9 @@
           el.disabled = false;
           el.required = true;
         });
+        if (hardenContainerCheckbox) {
+          hardenContainerCheckbox.required = false;
+        }
         if (cpuLimitInput && !cpuLimitInput.value) cpuLimitInput.value = String(defaultCpuLimit);
         if (cpuRequestInput && !cpuRequestInput.value) cpuRequestInput.value = String(defaultCpuRequest);
         if (memoryLimitInput && !memoryLimitInput.value) memoryLimitInput.value = String(defaultMemoryLimit);

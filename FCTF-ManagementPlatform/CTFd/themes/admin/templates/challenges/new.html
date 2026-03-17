@@ -243,7 +243,7 @@
                 .prop('disabled', false)
                 .prop('required', true);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
-            $('#deploy_resource_container_harden_container input').prop('disabled', false);
+            $('#deploy_resource_container_harden_container input').prop('disabled', false).prop('required', false);
             $('#deploy_resource_container input[name="cpu_limit"]').val(defaultCpuLimit);
             $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(defaultCpuRequest);
             $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(defaultMemoryLimit);
@@ -281,6 +281,7 @@
               .prop('disabled', false)
               .prop('required', true);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
+                        $('#deploy_resource_container_harden_container input').prop('disabled', false).prop('required', false);
             $('#deploy_resource_container input[name="cpu_limit"]').val(defaultCpuLimit);
             $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(defaultCpuRequest);
             $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(defaultMemoryLimit);
