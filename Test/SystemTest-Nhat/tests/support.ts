@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from "@playwright/test";
 
-export const BASE_URL = "https://admin.fctf.site";
-export const CONTESTANT_URL = "https://contestant.fctf.site";
+export const BASE_URL = "https://admin2.fctf.site";
+export const CONTESTANT_URL = "https://contestant2.fctf.site";
 export const CONTESTANT_API_URL = "https://api.fctf.site/api";
 export const ADMIN_USER = "admin";
 export const ADMIN_PASS = "1";

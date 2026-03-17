@@ -75,7 +75,7 @@ npm run test:headed
 
 ---
 
-## Chạy riêng UC03 (không dùng config ngoài thư mục)
+(dùng chung 1 config duy nhất)
 
 ```powershell
 npm run test:uc03
@@ -155,9 +155,20 @@ SystemTest-Nhat/
 ├── playwright.config.ts      # Config Playwright (self-contained)
 ├── run-ordered-tests.js      # Runner điều phối thứ tự chạy
 ├── package.json              # Dependencies và npm scripts
+├── assets/                   # Test assets local (PDF/ZIP...) dùng cho upload
 ├── tests/
 │   ├── support.ts            # Hàm tiện ích dùng chung
 │   └── uc*.spec.ts           # Các file test
 ├── playwright-report/        # HTML report (được tạo sau khi chạy)
 └── test-results/             # Trace, screenshot, video khi test lỗi
+
+---
+
+## Tính di động của thư mục
+
+Để copy nguyên thư mục `SystemTest-Nhat` sang project khác và chạy được ngay:
+
+1. Chỉ dùng **một** config: `playwright.config.ts`
+2. Đặt toàn bộ file upload test vào `SystemTest-Nhat/assets` (hoặc root `SystemTest-Nhat`)
+3. Không đặt dependency test assets ở thư mục cha
 ```

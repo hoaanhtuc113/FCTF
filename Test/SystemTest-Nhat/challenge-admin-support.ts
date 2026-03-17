@@ -84,10 +84,10 @@ export function workspaceFile(fileName: string) {
     }
 
     const candidates = [
+        path.join(process.cwd(), 'assets', fileName),
         path.join(process.cwd(), fileName),
+        path.join(__dirname, 'assets', fileName),
         path.join(__dirname, fileName),
-        path.resolve(__dirname, '..', fileName),
-        path.resolve(__dirname, '..', '..', fileName),
     ];
 
     for (const candidate of candidates) {
@@ -96,7 +96,9 @@ export function workspaceFile(fileName: string) {
         }
     }
 
-    return candidates[0];
+    throw new Error(
+        `Missing required local test asset: ${fileName}. Place it in SystemTest-Nhat/assets or SystemTest-Nhat root.`,
+    );
 }
 
 export function uniqueChallengeName(prefix: string) {
