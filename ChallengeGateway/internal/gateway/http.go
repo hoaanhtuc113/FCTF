@@ -80,6 +80,10 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 			log.Printf("HTTP upstream error: %v", err)
 			http.Error(w, "upstream error", http.StatusBadGateway)
 		},
+		ModifyResponse: func(resp *http.Response) error {
+			enforceNoStoreForHTML(resp)
+			return nil
+		},
 	}
 
 	mux := http.NewServeMux()
@@ -137,7 +141,10 @@ func httpGatewayHandler(w http.ResponseWriter, r *http.Request, proxy *httputil.
 				return
 			}
 		}
-		setTokenCookieAndRedirect(w, r, tok, payload.Exp, cleanedPath)
+		resetAllCookies(w, r)
+		setTokenCookie(w, r, tok, payload.Exp)
+		setNoStoreHeaders(w)
+		http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath), http.StatusFound)
 		return
 	}
 
@@ -188,7 +195,7 @@ func cleanProxyCookies(req *http.Request) {
 	}
 }
 
-func setTokenCookieAndRedirect(w http.ResponseWriter, r *http.Request, tok string, exp int64, cleanedPath string) {
+func setTokenCookie(w http.ResponseWriter, r *http.Request, tok string, exp int64) {
 	maxAge := int(exp - time.Now().Unix())
 	if maxAge < 1 {
 		maxAge = 1
@@ -202,7 +209,51 @@ func setTokenCookieAndRedirect(w http.ResponseWriter, r *http.Request, tok strin
 		MaxAge:   maxAge,
 		Secure:   r.TLS != nil,
 	})
-	http.Redirect(w, r, buildCleanRedirectURL(r.URL, cleanedPath), http.StatusFound)
+}
+
+func resetAllCookies(w http.ResponseWriter, r *http.Request) {
+	secure := r.TLS != nil
+	seen := map[string]struct{}{}
+	for _, c := range r.Cookies() {
+		if c == nil || c.Name == "" {
+			continue
+		}
+		if _, ok := seen[c.Name]; ok {
+			continue
+		}
+		seen[c.Name] = struct{}{}
+		http.SetCookie(w, &http.Cookie{
+			Name:     c.Name,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   secure,
+			MaxAge:   -1,
+			Expires:  time.Unix(0, 0),
+		})
+	}
+}
+
+func setNoStoreHeaders(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+}
+
+func enforceNoStoreForHTML(resp *http.Response) {
+	if resp == nil {
+		return
+	}
+	ct := strings.ToLower(resp.Header.Get("Content-Type"))
+	if !strings.Contains(ct, "text/html") {
+		return
+	}
+	resp.Header.Set("Cache-Control", "no-store, no-cache, must-revalidate, private, max-age=0")
+	resp.Header.Set("Pragma", "no-cache")
+	resp.Header.Set("Expires", "0")
+	resp.Header.Del("ETag")
+	resp.Header.Del("Last-Modified")
 }
 
 func buildCleanRedirectURL(originalURL *url.URL, cleanedPath string) string {
@@ -232,31 +283,11 @@ func extractTokenFromRequest(r *http.Request) (string, string) {
 		}
 	}
 
-	// Any query value that looks like a token.
-	for _, values := range query {
-		for _, v := range values {
-			if token.LooksLike(v) {
-				return v, r.URL.Path
-			}
-		}
-	}
-
-	// Token embedded in the URL path.
-	segments := strings.Split(r.URL.Path, "/")
-	clean := make([]string, 0, len(segments))
-	var tok string
-	for _, seg := range segments {
-		if tok == "" && token.LooksLike(seg) {
-			tok = seg
-			continue
-		}
-		clean = append(clean, seg)
-	}
-	cleanPath := strings.Join(clean, "/")
+	cleanPath := r.URL.Path
 	if cleanPath == "" {
 		cleanPath = "/"
 	}
-	return tok, cleanPath
+	return "", cleanPath
 }
 
 // ── middleware ────────────────────────────────────────────────────────────────
