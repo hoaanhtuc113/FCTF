@@ -156,19 +156,7 @@ spec:
               | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
               | kubectl apply -f -
 
-            RENDERED_FILE="/tmp/challenge-rendered-${CHALLENGE_NAME}-$$.yaml"
-            trap 'rm -f "${RENDERED_FILE}"' EXIT
-
-            envsubst < "${NFS_DATA_PATH}" > "${RENDERED_FILE}"
-
-            if ! kubectl apply --dry-run=client -f "${RENDERED_FILE}" >/dev/null 2>&1; then
-              echo "❌ Rendered YAML is invalid. Dumping numbered output to help locate the bad placeholder:"
-              awk '{ printf "%5d  %s\n", NR, $0 }' "${RENDERED_FILE}"
-              kubectl apply --dry-run=client -f "${RENDERED_FILE}" || true
-              exit 1
-            fi
-
-            kubectl apply -f "${RENDERED_FILE}"
+            envsubst < "${NFS_DATA_PATH}" | kubectl apply -f -
 
             echo "✅ Challenge v2 manifest submitted to cluster"
       volumes:
