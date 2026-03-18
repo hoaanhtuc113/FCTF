@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
-using ResourceShared.Utils;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,17 +31,18 @@ builder.Services.AddHealthChecks();
 // Register DeploymentConsumerService consumer
 builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
 {
-    // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
-    var host = SharedConfig.RABBIT_HOST;
-    var user = SharedConfig.RABBIT_USERNAME;
-    var pass = SharedConfig.RABBIT_PASSWORD;
-    var port = SharedConfig.RABBIT_PORT;
+    var host = DeploymentCenterConfigHelper.RABBIT_PRODUCER_HOST;
+    var user = DeploymentCenterConfigHelper.RABBIT_PRODUCER_USERNAME;
+    var pass = DeploymentCenterConfigHelper.RABBIT_PRODUCER_PASSWORD;
+    var port = DeploymentCenterConfigHelper.RABBIT_PRODUCER_PORT;
+    var vhost = DeploymentCenterConfigHelper.RABBIT_PRODUCER_VHOST;
 
     return new DeploymentProducerService(
         host,
         user,
         pass,
-        port);
+        port,
+        vhost);
 });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

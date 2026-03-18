@@ -15,12 +15,6 @@ public class SharedConfig
 
     public static string REDIS_CONNECTION_STRING = "";
 
-    // RabbitMQ configuration (can be overridden by environment variables or .env)
-    public static string RABBIT_HOST = "";
-    public static string RABBIT_USERNAME = "";
-    public static string RABBIT_PASSWORD = "";
-    public static int RABBIT_PORT = 5672;
-
     public static IConfiguration configuration = BuildConfiguration();
 
     private static IConfiguration BuildConfiguration()
@@ -47,10 +41,5 @@ public class SharedConfig
         TCP_DOMAIN = configuration["TCP_DOMAIN"] ?? throw new Exception("Can't read TCP_DOMAIN");
         START_CHALLENGE_TEMPLATE = configuration["START_CHALLENGE_TEMPLATE"] ?? throw new Exception("Can't read START_CHALLENGE_TEMPLATE");
 
-        // Read RabbitMQ settings (use sensible defaults when env vars are missing)
-        RABBIT_HOST = configuration["RABBIT_HOST"] ?? throw new Exception("Can't read Rabbit_Host");
-        RABBIT_USERNAME = configuration["RABBIT_USERNAME"] ?? throw new Exception("Can't read Rabbit_username");
-        RABBIT_PASSWORD = configuration["RABBIT_PASSWORD"] ?? throw new Exception("Can't read Rabbit_password");
-        RABBIT_PORT = int.TryParse(configuration["RABBIT_PORT"], out var p) ? p : throw new Exception("Can't read Rabbit_Port");
     }
 }

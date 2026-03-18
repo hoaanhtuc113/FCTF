@@ -13,6 +13,12 @@ public class DeploymentConsumerConfigHelper : SharedConfig
     public static int MAX_RUNNING_WORKFLOW = 30;
     public static int WORKER_POLL_INTERVAL_SECONDS = 2;
 
+    public static string RABBIT_CONSUMER_HOST = "";
+    public static string RABBIT_CONSUMER_USERNAME = "";
+    public static string RABBIT_CONSUMER_PASSWORD = "";
+    public static string RABBIT_CONSUMER_VHOST = "/";
+    public static int RABBIT_CONSUMER_PORT = 5672;
+
     public override void InitConfig()
     {
         base.InitConfig();
@@ -44,5 +50,26 @@ public class DeploymentConsumerConfigHelper : SharedConfig
         {
             WORKER_POLL_INTERVAL_SECONDS = pollIntervalParsed;
         }
+
+        RABBIT_CONSUMER_HOST =
+            configuration["RABBIT_CONSUMER_HOST"]
+            ?? throw new Exception("Can't read RABBIT_CONSUMER_HOST");
+
+        RABBIT_CONSUMER_USERNAME =
+            configuration["RABBIT_CONSUMER_USERNAME"]
+            ?? throw new Exception("Can't read RABBIT_CONSUMER_USERNAME");
+
+        RABBIT_CONSUMER_PASSWORD =
+            configuration["RABBIT_CONSUMER_PASSWORD"]
+            ?? throw new Exception("Can't read RABBIT_CONSUMER_PASSWORD");
+
+        var rabbitPortRaw = configuration["RABBIT_CONSUMER_PORT"];
+        RABBIT_CONSUMER_PORT = int.TryParse(rabbitPortRaw, out var rabbitPort)
+            ? rabbitPort
+            : throw new Exception("Can't read RABBIT_CONSUMER_PORT");
+
+        RABBIT_CONSUMER_VHOST =
+            configuration["RABBIT_CONSUMER_VHOST"]
+            ?? "/";
     }
 }
