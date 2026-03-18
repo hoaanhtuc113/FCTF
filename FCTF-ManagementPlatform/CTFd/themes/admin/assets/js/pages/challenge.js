@@ -17,6 +17,24 @@ import TopicsList from "../components/topics/TopicsList.vue";
 import { bindMarkdownEditors } from "../styles";
 import "./main";
 
+function setCreateUploadStatus(message, variant = "info") {
+  const el = document.getElementById("create-upload-status");
+  if (!el) return;
+
+  el.classList.remove("d-none", "alert-success", "alert-danger", "alert-info", "alert-warning");
+  el.classList.add(`alert-${variant}`);
+  el.textContent = message;
+}
+
+function clearCreateUploadStatus() {
+  const el = document.getElementById("create-upload-status");
+  if (!el) return;
+
+  el.classList.add("d-none");
+  el.classList.remove("alert-success", "alert-danger", "alert-info", "alert-warning");
+  el.textContent = "";
+}
+
 // Validation: Challenge name character counter and limit
 function initNameValidation() {
   const nameInput = document.querySelector('.chal-name');
@@ -298,8 +316,17 @@ function loadChalTemplate(challenge) {
             try {
               const uploadResult = await helpers.files.upload(form, data);
               console.log("File upload successful", uploadResult);
+              ezToast({
+                title: "Upload",
+                body: "File uploaded successfully.",
+              });
             } catch (err) {
               console.error("Upload error details:", err);
+              ezAlert({
+                title: "Upload failed",
+                body: err?.message || "Could not upload file.",
+                button: "OK",
+              });
               
             }
           }
@@ -316,6 +343,7 @@ function loadChalTemplate(challenge) {
 
 function handleChallengeOptions(event) {
   event.preventDefault();
+  clearCreateUploadStatus();
   var params = $(event.target).serializeJSON(true);
   const requireDeploy = params.require_deploy === true || params.require_deploy === "true" || params.require_deploy === "on";
   let cpuLimit = 0;
@@ -424,21 +452,30 @@ function handleChallengeOptions(event) {
         let filepath = $(form.elements["file"]).val();
         let deploy_file_path = $(form.elements["deploy_file"]).val();
         if (filepath || deploy_file_path) {
+          setCreateUploadStatus("Uploading file(s)...", "info");
           helpers.files
             .upload(form, data)
             .then(() => {
+              if (requireDeploy && deploy_file_path) {
+                setCreateUploadStatus("Deploy request accepted. Executing workflow...", "info");
+              } else {
+                setCreateUploadStatus("File upload successful.", "success");
+              }
               btnFinish.prop('disabled', false);
               resolve();
             })
             .catch((error) => {
+              setCreateUploadStatus(error?.message || "File upload failed.", "danger");
               btnFinish.prop('disabled', false);
               resolve(); // Don't block redirect on upload error
             });
         } else {
+          setCreateUploadStatus("Challenge saved successfully.", "success");
           btnFinish.prop('disabled', false);
           resolve();
         }
       } catch (error) {
+        setCreateUploadStatus(error?.message || "Unexpected error during upload.", "danger");
         btnFinish.prop('disabled', false);
         resolve();
       }
@@ -448,7 +485,7 @@ function handleChallengeOptions(event) {
     setTimeout(function () {
       window.location =
         CTFd.config.urlRoot + "/admin/challenges/" + params.challenge_id;
-    }, 700);
+    }, 1200);
   });
 }
 
