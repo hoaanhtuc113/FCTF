@@ -149,11 +149,45 @@ sudo apt install -y nfs-kernel-server nfs-common
 
 # Tạo thư mục share
 sudo mkdir -p /srv/nfs/share
-sudo chown nobody:nogroup /srv/nfs/share
-sudo chmod 777 /srv/nfs/share
+sudo mkdir -p /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+
+# 5 group/UID
+# admin-mvc: 1101 -> /Challenges rwx, /file rwx
+# contestant-be: 1102 -> /file r-x
+# up-challenge-workflow: 1103 -> /file r-x
+# start-chal-v2-workflow: 1104 -> /start-challenge r-x
+# filebrowser: 1105 -> full rwx
+
+# baseline: chủ sở hữu root, không cho others
+sudo chmod 770 /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+
+# admin-mvc
+sudo setfacl -R -m u:1101:rwx /srv/nfs/share/Challenges /srv/nfs/share/file
+sudo setfacl -R -m d:u:1101:rwx /srv/nfs/share/Challenges /srv/nfs/share/file
+
+# contestant-be (read-only)
+sudo setfacl -R -m u:1102:rx /srv/nfs/share/file
+sudo setfacl -R -m d:u:1102:rx /srv/nfs/share/file
+
+# up-challenge-workflow (read-only)
+sudo setfacl -R -m u:1103:rx /srv/nfs/share/file
+sudo setfacl -R -m d:u:1103:rx /srv/nfs/share/file
+
+# start-chal-v2-workflow (read-only)
+sudo setfacl -R -m u:1104:rx /srv/nfs/share/start-challenge
+sudo setfacl -R -m d:u:1104:rx /srv/nfs/share/start-challenge
+
+# filebrowser full quyền toàn bộ
+sudo setfacl -R -m u:1105:rwx /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
 
 # Cấu hình exports
-echo "/srv/nfs/share *(rw,sync,no_subtree_check,no_root_squash,insecure)" | sudo tee -a /etc/exports
+sudo cp /etc/exports /etc/exports.bak
+sudo sed -i '/\/srv\/nfs\/share /d' /etc/exports
+
+# Chỉ cho phép đúng IP của 3 node
+# Đổi 3 IP bên dưới theo cluster thực tế
+echo "/srv/nfs/share 10.148.0.32(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.33(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.34(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
 
 # Apply cấu hình
 sudo exportfs -ra
@@ -170,18 +204,30 @@ sudo exportfs -v
 # thường sẽ là IP đầu tiên 
 hostname -I
 # Ví dụ tôi có 10.148.0.32 
-# Cần sửa trong prod\storage\nfs-pv-pvc.yaml phàn spec.nfs.server ở đây thay thế bằng IP của bạn 
-# Tương tự những chỗ mount nfs ở các file sau  
-#    prod\app\admin-mvc\deployment.yaml 
-#    prod\app\contestant-be\deployment.yaml
-#    prod\argo-workflows\start-chal-v2\start-chal-v2-template.yaml
-#    prod\argo-workflows\up-challenge\up-challenge-template.yaml
+# Cần sửa phần spec.nfs.server trong các file PV bên dưới
+#   prod\storage\pv\admin-mvc-pv.yaml
+#   prod\storage\pv\contestant-be-pv.yaml
+#   prod\storage\pv\up-challenge-workflow-pv.yaml
+#   prod\storage\pv\start-challenge-workflow-pv.yaml
+#   prod\storage\pv\filebrowser-pv.yaml
 
-# apply NFS PV/PVC
-kubectl apply -f ./prod/storage/nfs-pv-pvc.yaml
+# apply NFS PV/PVC theo từng service
+kubectl apply -f ./prod/storage/pv/admin-mvc-pv.yaml
+kubectl apply -f ./prod/storage/pv/contestant-be-pv.yaml
+kubectl apply -f ./prod/storage/pv/up-challenge-workflow-pv.yaml
+kubectl apply -f ./prod/storage/pv/start-challenge-workflow-pv.yaml
+kubectl apply -f ./prod/storage/pv/filebrowser-pv.yaml
+
+kubectl apply -f ./prod/storage/pvc/admin-mvc-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/contestant-be-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/up-challenge-workflow-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/start-challenge-workflow-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/filebrowser-pvc.yaml
 
 # Kiểm tra
 kubectl get pv
+kubectl get pvc -n app
+kubectl get pvc -n argo
 kubectl get pvc -n storage
 ```
 

@@ -15,6 +15,9 @@ spec:
     spec:
       priorityClassName: app-normal
       preemptionPolicy: Never
+      securityContext:
+        fsGroup: 1101
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: admin-mvc
           image: quachuoiscontainer/fctf:admin-mvc-prod-v4.0.0
@@ -56,8 +59,8 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
-            runAsUser: 1001
-            runAsGroup: 1001
+            runAsUser: 1101
+            runAsGroup: 1101
             allowPrivilegeEscalation: false
             privileged: false
             capabilities:
@@ -68,8 +71,10 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           volumeMounts:
-            - name: nfs-shared-data
-              mountPath: /mnt/nfs/data
+            - name: nfs-challenges
+              mountPath: /mnt/nfs/data/Challenges
+            - name: nfs-file
+              mountPath: /mnt/nfs/data/file
             - name: tmp
               mountPath: /tmp
             - name: log-ctfd
@@ -77,10 +82,12 @@ spec:
       imagePullSecrets:
         - name: regcred
       volumes:
-        - name: nfs-shared-data
-          nfs:
-            server: 10.184.0.2
-            path: /srv/nfs/share
+        - name: nfs-challenges
+          persistentVolumeClaim:
+            claimName: admin-mvc-challenges-pvc
+        - name: nfs-file
+          persistentVolumeClaim:
+            claimName: admin-mvc-file-pvc
         - name: tmp
           emptyDir: {}
         - name: log-ctfd
