@@ -28,7 +28,7 @@ spec:
             - secretRef:
                 name: admin-mvc-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.2
