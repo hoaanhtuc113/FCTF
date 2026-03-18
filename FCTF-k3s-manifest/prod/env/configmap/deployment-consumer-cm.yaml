@@ -6,6 +6,10 @@ metadata:
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
   DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+  RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
+  RABBIT_USERNAME: "deployment-consumer"
+  RABBIT_VHOST: "fctf_deploy"
+  RABBIT_PORT: "5672"
   ARGO_DEPLOY_TTL_MINUTES: "6"
 
   BATCH_SIZE: "20"

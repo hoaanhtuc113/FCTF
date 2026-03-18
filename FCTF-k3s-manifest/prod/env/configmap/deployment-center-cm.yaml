@@ -10,7 +10,8 @@ data:
   ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
   START_CHALLENGE_TEMPLATE: "start-chal-v2-template"
   RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
-  RABBIT_USERNAME: "user"
+  RABBIT_USERNAME: "deployment-producer"
+  RABBIT_VHOST: "fctf_deploy"
   RABBIT_PORT: "5672"
 
   DEPLOYMENT_QUEUE_TIMEOUT_MINUTES: "5"
