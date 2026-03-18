@@ -383,6 +383,7 @@ helm uninstall prometheus -n monitoring
 helm uninstall loki-stack -n monitoring
 helm uninstall redis -n db
 helm uninstall mariadb -n db
+helm uninstall rabbitmq -n db
 helm uninstall cert-manager -n cert-manager
 helm uninstall ingress-nginx -n ingress-nginx
 helm uninstall rancher -n cattle-system
