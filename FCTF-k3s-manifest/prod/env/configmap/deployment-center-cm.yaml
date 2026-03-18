@@ -5,6 +5,10 @@ metadata:
   namespace: app
 data:
   ASPNETCORE_URLS: "http://+:5020"
+  RABBIT_PRODUCER_HOST: "rabbitmq.db.svc.cluster.local"
+  RABBIT_PRODUCER_PORT: "5672"
+  RABBIT_PRODUCER_USERNAME: "deployment-producer"
+  RABBIT_PRODUCER_VHOST: "fctf_deploy"
 
   DEPLOYMENT_QUEUE_TIMEOUT_MINUTES: "5"
 

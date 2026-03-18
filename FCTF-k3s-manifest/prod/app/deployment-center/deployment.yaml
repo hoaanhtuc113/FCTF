@@ -30,6 +30,8 @@ spec:
                 name: deployment-center-cm
             - secretRef:
                 name: common-secret
+            - secretRef:
+                name: deployment-center-secret
           resources:
             requests:
               cpu: 0.1

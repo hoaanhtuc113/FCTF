@@ -12,6 +12,12 @@ public class DeploymentCenterConfigHelper : SharedConfig
 
     public static int DEPLOYMENT_QUEUE_TIMEOUT_MINUTES = 5;
 
+    public static string RABBIT_PRODUCER_HOST = "";
+    public static string RABBIT_PRODUCER_USERNAME = "";
+    public static string RABBIT_PRODUCER_PASSWORD = "";
+    public static string RABBIT_PRODUCER_VHOST = "/";
+    public static int RABBIT_PRODUCER_PORT = 5672;
+
     public override void InitConfig()
     {
         base.InitConfig();
@@ -37,5 +43,26 @@ public class DeploymentCenterConfigHelper : SharedConfig
         }
 
         DEPLOYMENT_QUEUE_TIMEOUT_MINUTES = deploymentQueueTimeoutMinutes;
+
+        RABBIT_PRODUCER_HOST =
+            configuration["RABBIT_PRODUCER_HOST"]
+            ?? throw new Exception("Can't read RABBIT_PRODUCER_HOST");
+
+        RABBIT_PRODUCER_USERNAME =
+            configuration["RABBIT_PRODUCER_USERNAME"]
+            ?? throw new Exception("Can't read RABBIT_PRODUCER_USERNAME");
+
+        RABBIT_PRODUCER_PASSWORD =
+            configuration["RABBIT_PRODUCER_PASSWORD"]
+            ?? throw new Exception("Can't read RABBIT_PRODUCER_PASSWORD");
+
+        var rabbitPortRaw = configuration["RABBIT_PRODUCER_PORT"];
+        RABBIT_PRODUCER_PORT = int.TryParse(rabbitPortRaw, out var rabbitPort)
+            ? rabbitPort
+            : throw new Exception("Can't read RABBIT_PRODUCER_PORT");
+
+        RABBIT_PRODUCER_VHOST =
+            configuration["RABBIT_PRODUCER_VHOST"]
+            ?? "/";
     }
 }

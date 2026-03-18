@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ResourceShared;
 using ResourceShared.Models;
-using ResourceShared.Utils;
 
 Env.Load();
 new DeploymentConsumerConfigHelper().InitConfig();
@@ -33,13 +32,13 @@ var host = Host.CreateDefaultBuilder(args)
         // Register DeploymentConsumerService consumer
         services.AddSingleton<IDeploymentConsumerService>(sp =>
         {
-            // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
-            var host = SharedConfig.RABBIT_HOST;
-            var user = SharedConfig.RABBIT_USERNAME;
-            var pass = SharedConfig.RABBIT_PASSWORD;
-            var port = SharedConfig.RABBIT_PORT;
+            var host = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_HOST;
+            var user = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_USERNAME;
+            var pass = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_PASSWORD;
+            var port = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_PORT;
+            var vhost = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_VHOST;
 
-            return new DeploymentConsumerService(host, user, pass, port);
+            return new DeploymentConsumerService(host, user, pass, port, vhost);
         });
 
         services.AddResourceShared();

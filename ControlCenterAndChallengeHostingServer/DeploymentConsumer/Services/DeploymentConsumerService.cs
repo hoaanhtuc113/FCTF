@@ -24,7 +24,7 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
 
     private const string QueueName = "deployment_queue";
 
-    public DeploymentConsumerService(string host, string username, string password, int port)
+    public DeploymentConsumerService(string host, string username, string password, int port, string vhost = "/")
     {
         _factory = new ConnectionFactory
         {
@@ -32,6 +32,7 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
             UserName = username,
             Password = password,
             Port = port,
+            VirtualHost = string.IsNullOrWhiteSpace(vhost) ? "/" : vhost,
             AutomaticRecoveryEnabled = true
         };
         _messageBuffer = Channel.CreateUnbounded<DequeuedMessage>();
@@ -48,12 +49,6 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
         if (_channel == null || !_channel.IsOpen)
         {
             _channel = await _connection.CreateChannelAsync();
-
-            // Declare exchange, queue and binding to ensure they exist
-            // This makes the consumer idempotent and independent of producer startup order
-            await _channel.ExchangeDeclareAsync("deployment_exchange", ExchangeType.Direct, durable: true);
-            await _channel.QueueDeclareAsync(QueueName, durable: true, exclusive: false, autoDelete: false);
-            await _channel.QueueBindAsync(QueueName, "deployment_exchange", routingKey: "deploy");
 
             await _channel.BasicQosAsync(0, 40, false);
 

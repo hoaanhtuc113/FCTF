@@ -22,11 +22,11 @@ spec:
             - configMapRef:
                 name: common-be-cm
             - configMapRef:
-                name: deployment-center-cm
-            - configMapRef:
                 name: deployment-consumer-cm
             - secretRef:
                 name: common-secret
+            - secretRef:
+                name: deployment-consumer-secret
           resources:
             requests:
               cpu: 0.1

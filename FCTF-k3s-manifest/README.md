@@ -279,6 +279,22 @@ kubectl apply -f ./prod/cert-manager/cluster-issuer.yaml
 kubectl apply -f ./prod/ingress/certificate/
 kubectl apply -f ./prod/ingress/nginx/
 ```
+
+### RabbitMQ setup cho Deployment Center/Consumer
+
+`deployment-center` và `deployment-consumer` **không tự khai báo topology trong code**. Topology + tài khoản + phân quyền được khai báo sẵn ở setup Helm:
+
+- Queue: `deployment_queue`
+- Exchange: `deployment_exchange` (direct)
+- Binding: `deployment_exchange` -> `deployment_queue` với routing key `deploy`
+- Vhost: `fctf_deploy`
+- Users:
+  - `deployment-producer` (chỉ publish vào `deployment_exchange`)
+  - `deployment-consumer` (chỉ consume từ `deployment_queue`)
+
+Cấu hình nằm trong file [prod/helm/db/rabbitmq/rabbitmq-values.yaml](prod/helm/db/rabbitmq/rabbitmq-values.yaml) (`extraDeploy` + `loadDefinition`).
+
+
 #### Thông tin đăng nhập
 
 **Filebrowser**

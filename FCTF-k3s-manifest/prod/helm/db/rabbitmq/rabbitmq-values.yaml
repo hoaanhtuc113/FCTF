@@ -87,7 +87,79 @@ kubeVersion: ""
 clusterDomain: cluster.local
 ## @param extraDeploy Array of extra objects to deploy with the release
 ##
-extraDeploy: []
+extraDeploy:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: rabbitmq-load-definition
+    type: Opaque
+    stringData:
+      load_definition.json: |
+        {
+          "vhosts": [
+            {
+              "name": "fctf_deploy"
+            }
+          ],
+          "users": [
+            {
+              "name": "deployment-producer",
+              "password": "Fctf2025@producer",
+              "tags": ""
+            },
+            {
+              "name": "deployment-consumer",
+              "password": "Fctf2025@consumer",
+              "tags": ""
+            }
+          ],
+          "permissions": [
+            {
+              "user": "deployment-producer",
+              "vhost": "fctf_deploy",
+              "configure": "^$",
+              "write": "^(deployment_exchange)$",
+              "read": "^$"
+            },
+            {
+              "user": "deployment-consumer",
+              "vhost": "fctf_deploy",
+              "configure": "^$",
+              "write": "^$",
+              "read": "^(deployment_queue)$"
+            }
+          ],
+          "exchanges": [
+            {
+              "name": "deployment_exchange",
+              "vhost": "fctf_deploy",
+              "type": "direct",
+              "durable": true,
+              "auto_delete": false,
+              "internal": false,
+              "arguments": {}
+            }
+          ],
+          "queues": [
+            {
+              "name": "deployment_queue",
+              "vhost": "fctf_deploy",
+              "durable": true,
+              "auto_delete": false,
+              "arguments": {}
+            }
+          ],
+          "bindings": [
+            {
+              "source": "deployment_exchange",
+              "vhost": "fctf_deploy",
+              "destination": "deployment_queue",
+              "destination_type": "queue",
+              "routing_key": "deploy",
+              "arguments": {}
+            }
+          ]
+        }
 ## @param commonAnnotations Annotations to add to all deployed objects
 ##
 commonAnnotations: {}
@@ -152,15 +224,15 @@ auth:
   ## @param auth.username RabbitMQ application username
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
-  username: user
+  username: rabbit-admin
   ## @param auth.password RabbitMQ application password
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
-  password: "Fctf2025@"
+  password: "Fctf2025@admin"
   ## @param auth.securePassword Whether to set the RabbitMQ password securely. This is incompatible with loading external RabbitMQ definitions and 'true' when not setting the auth.password parameter.
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
-  securePassword: true
+  securePassword: false
   ## @param auth.updatePassword Update RabbitMQ password on secret change
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
@@ -308,7 +380,7 @@ clustering:
 loadDefinition:
   ## @param loadDefinition.enabled Enable loading a RabbitMQ definitions file to configure RabbitMQ
   ##
-  enabled: false
+  enabled: true
   ## @param loadDefinition.file Name of the definitions file
   ##
   file: "/app/load_definition.json"
@@ -316,7 +388,7 @@ loadDefinition:
   ## Can be templated if needed, e.g:
   ## existingSecret: "{{ .Release.Name }}-load-definition"
   ##
-  existingSecret: ""
+  existingSecret: "rabbitmq-load-definition"
 ## @param command Override default container command (useful when using custom images)
 ##
 command: []
