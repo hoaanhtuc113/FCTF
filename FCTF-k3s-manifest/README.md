@@ -177,21 +177,21 @@ sudo apt install -y nfs-kernel-server nfs-common
 sudo apt install acl -y
 # Tạo thư mục share
 sudo mkdir -p /srv/nfs/share
-sudo mkdir -p /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+sudo mkdir -p /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
 
 # 5 group/UID
-# admin-mvc: 1101 -> /Challenges rwx, /file rwx
+# admin-mvc: 1101 -> /challenges rwx, /file rwx
 # contestant-be: 1102 -> /file r-x
 # up-challenge-workflow: 1103 -> /file r-x
 # start-chal-v2-workflow: 1104 -> /start-challenge r-x
 # filebrowser: 1105 -> full rwx
 
 # baseline: chủ sở hữu root, không cho others
-sudo chmod 770 /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+sudo chmod 770 /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
 
 # admin-mvc
-sudo setfacl -R -m u:1101:rwx /srv/nfs/share/Challenges /srv/nfs/share/file
-sudo setfacl -R -m d:u:1101:rwx /srv/nfs/share/Challenges /srv/nfs/share/file
+sudo setfacl -R -m u:1101:rwx /srv/nfs/share/challenges /srv/nfs/share/file
+sudo setfacl -R -m d:u:1101:rwx /srv/nfs/share/challenges /srv/nfs/share/file
 
 # contestant-be (read-only)
 sudo setfacl -R -m u:1102:rx /srv/nfs/share/file
@@ -206,8 +206,8 @@ sudo setfacl -R -m u:1104:rx /srv/nfs/share/start-challenge
 sudo setfacl -R -m d:u:1104:rx /srv/nfs/share/start-challenge
 
 # filebrowser full quyền toàn bộ
-sudo setfacl -R -m u:1105:rwx /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
-sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+sudo setfacl -R -m u:1105:rwx /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
 
 # Chỉ cho phép đúng IP của 3 node
 # Đổi 3 IP bên dưới theo cluster thực tế

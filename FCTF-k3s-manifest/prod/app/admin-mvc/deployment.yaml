@@ -72,7 +72,7 @@ spec:
               type: RuntimeDefault
           volumeMounts:
             - name: nfs-challenges
-              mountPath: /mnt/nfs/data/Challenges
+              mountPath: /mnt/nfs/data/challenges
             - name: nfs-file
               mountPath: /mnt/nfs/data/file
             - name: tmp
