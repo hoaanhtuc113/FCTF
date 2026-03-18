@@ -147,6 +147,8 @@ kubectl create namespace storage
 sudo apt update
 sudo apt install -y nfs-kernel-server nfs-common
 
+# Cài Access Control Lists
+sudo apt install acl -y
 # Tạo thư mục share
 sudo mkdir -p /srv/nfs/share
 sudo mkdir -p /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
@@ -181,13 +183,9 @@ sudo setfacl -R -m d:u:1104:rx /srv/nfs/share/start-challenge
 sudo setfacl -R -m u:1105:rwx /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
 sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/Challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
 
-# Cấu hình exports
-sudo cp /etc/exports /etc/exports.bak
-sudo sed -i '/\/srv\/nfs\/share /d' /etc/exports
-
 # Chỉ cho phép đúng IP của 3 node
 # Đổi 3 IP bên dưới theo cluster thực tế
-echo "/srv/nfs/share 10.148.0.32(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.33(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.34(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
+echo "/srv/nfs/share 10.148.0.2(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.3(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.4(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
 
 # Apply cấu hình
 sudo exportfs -ra
