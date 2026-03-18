@@ -71,6 +71,8 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           volumeMounts:
+            - name: nfs-base
+              mountPath: /mnt/nfs/data
             - name: nfs-challenges
               mountPath: /mnt/nfs/data/challenges
             - name: nfs-file
@@ -82,6 +84,8 @@ spec:
       imagePullSecrets:
         - name: regcred
       volumes:
+        - name: nfs-base
+          emptyDir: {}
         - name: nfs-challenges
           persistentVolumeClaim:
             claimName: admin-mvc-challenges-pvc

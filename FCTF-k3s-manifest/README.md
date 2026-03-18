@@ -182,7 +182,7 @@ sudo mkdir -p /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/
 # 5 group/UID
 # admin-mvc: 1101 -> /challenges rwx, /file rwx
 # contestant-be: 1102 -> /file r-x
-# up-challenge-workflow: 1103 -> /file r-x
+# up-challenge-workflow: 1103 -> /challenges r-x
 # start-chal-v2-workflow: 1104 -> /start-challenge r-x
 # filebrowser: 1105 -> full rwx
 
@@ -198,8 +198,8 @@ sudo setfacl -R -m u:1102:rx /srv/nfs/share/file
 sudo setfacl -R -m d:u:1102:rx /srv/nfs/share/file
 
 # up-challenge-workflow (read-only)
-sudo setfacl -R -m u:1103:rx /srv/nfs/share/file
-sudo setfacl -R -m d:u:1103:rx /srv/nfs/share/file
+sudo setfacl -R -m u:1103:rx /srv/nfs/share/challenges
+sudo setfacl -R -m d:u:1103:rx /srv/nfs/share/challenges
 
 # start-chal-v2-workflow (read-only)
 sudo setfacl -R -m u:1104:rx /srv/nfs/share/start-challenge
