@@ -1,9 +1,6 @@
-﻿using OpenTelemetry;
-using OpenTelemetry.Context.Propagation;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.RabbitMQ;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
@@ -19,7 +16,6 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
     private IConnection? _connection;
     private IChannel? _channel;
     private readonly ConnectionFactory _factory;
-    private readonly ActivitySource _activitySource;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     private const string QueueName = "deployment_queue";
@@ -30,8 +26,7 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
         string host,
         string username,
         string password,
-        int port,
-        ActivitySource activitySource)
+        int port)
     {
         _factory = new ConnectionFactory
         {
@@ -41,18 +36,6 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             Port = port,
             AutomaticRecoveryEnabled = true
         };
-        _activitySource = activitySource;
-    }
-    private static void InjectTraceContext(Activity? activity, IBasicProperties props)
-    {
-        if (activity == null) return;
-
-        props.Headers ??= new Dictionary<string, object?>();
-
-        Propagators.DefaultTextMapPropagator.Inject(
-            new PropagationContext(activity.Context, Baggage.Current),
-            props.Headers,
-            (headers, key, value) => headers[key] = Encoding.UTF8.GetBytes(value));
     }
 
 
@@ -79,10 +62,6 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
     {
         await EnsureChannelAsync();
 
-        using var activity = _activitySource.StartActivity(
-            "rabbitmq.publish",
-            ActivityKind.Producer);
-
         var payload = new DeploymentQueuePayload
         {
             Data = JsonSerializer.Serialize(request),
@@ -98,14 +77,6 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             ContentType = "application/json",
             MessageId = Guid.NewGuid().ToString()
         };
-
-        InjectTraceContext(activity, properties);
-
-        activity?.SetTag("messaging.system", "rabbitmq");
-        activity?.SetTag("messaging.destination", QueueName);
-        activity?.SetTag("messaging.destination_kind", "queue");
-        activity?.SetTag("messaging.operation", "send");
-        activity?.SetTag("messaging.message_id", properties.MessageId);
 
         await _channel!.BasicPublishAsync(
             ExchangeName,
