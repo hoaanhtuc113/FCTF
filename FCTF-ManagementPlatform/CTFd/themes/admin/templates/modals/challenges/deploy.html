@@ -336,6 +336,20 @@
       return `${h}h:${m}m:${s}s`;
     }
 
+    function showStatusMessage(message, type) {
+      if (!statusMessage) return;
+      statusMessage.className = `mt-3 alert alert-${type}`;
+      statusMessage.textContent = message;
+      statusMessage.style.display = "block";
+    }
+
+    function hideStatusMessage() {
+      if (!statusMessage) return;
+      statusMessage.style.display = "none";
+      statusMessage.textContent = "";
+      statusMessage.className = "mt-3 alert";
+    }
+
     function UpdateStatusMessage(estimatedDuration, remainingTime) {
       if (statusDetail) {
         statusDetail.textContent = `Estimated: ${formatTime(estimatedDuration)} | Remaining: ${formatTime(Math.round(remainingTime))}`;
@@ -351,6 +365,15 @@
 
     function handleDeploy(event) {
       event.preventDefault();
+      hideStatusMessage();
+
+      const hasSelectedDeployFile = Boolean(fileInput && fileInput.files && fileInput.files.length > 0);
+      if (hasSelectedDeployFile) {
+        showStatusMessage(`Uploading ${fileInput.files[0].name}...`, "info");
+      } else {
+        showStatusMessage("Saving challenge deploy settings...", "info");
+      }
+
       if (progressContainer && setupDockerCheckbox.checked) {
         progressContainer.style.display = 'block';
         statusTitle.textContent = 'Deploying...';
@@ -439,10 +462,16 @@
 
             await helpers.files.upload(form, data);
 
+            if (hasSelectedDeployFile) {
+              showStatusMessage("Deploy request accepted. Executing workflow...", "info");
+            } else {
+              showStatusMessage("Deploy settings saved successfully.", "success");
+            }
+
             setTimeout(function() {
               window.location =
                 CTFd.config.urlRoot + "/admin/challenges/" + CHALLENGE_ID;
-            }, 500);
+            }, 900);
 
             resolve();
           } catch (error) {
@@ -450,6 +479,7 @@
           }
         }),
       ]).catch(function(error) {
+        showStatusMessage(error?.message || "Upload failed. Please try again.", "danger");
         if (setupDockerCheckbox.checked && progressBar) {
           progressBar.classList.remove('progress-bar-animated');
           progressBar.style.backgroundColor = '#dc3545';
@@ -622,7 +652,14 @@
 
     // }
 
-    fileInput.addEventListener("change", updateButtonState);
+    fileInput.addEventListener("change", function () {
+      updateButtonState();
+      if (fileInput.files && fileInput.files.length > 0) {
+        showStatusMessage(`Selected file: ${fileInput.files[0].name}`, "info");
+      } else {
+        hideStatusMessage();
+      }
+    });
     setupDockerCheckbox.addEventListener("change", updateButtonState);
     form.addEventListener("submit", handleDeploy);
     reDeployBtn?.addEventListener("click", handleReDeploy); // Event listener for Re-deploy button
