@@ -35,6 +35,7 @@ builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
     var user = DeploymentCenterConfigHelper.RABBIT_USERNAME;
     var pass = DeploymentCenterConfigHelper.RABBIT_PASSWORD;
     var port = DeploymentCenterConfigHelper.RABBIT_PORT;
+    var vhost = DeploymentCenterConfigHelper.RABBIT_VHOST;
 
     return new DeploymentProducerService(
         host,

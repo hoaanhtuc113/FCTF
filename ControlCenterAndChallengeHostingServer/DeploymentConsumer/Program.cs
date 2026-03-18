@@ -36,6 +36,7 @@ var host = Host.CreateDefaultBuilder(args)
             var user = DeploymentConsumerConfigHelper.RABBIT_USERNAME;
             var pass = DeploymentConsumerConfigHelper.RABBIT_PASSWORD;
             var port = DeploymentConsumerConfigHelper.RABBIT_PORT;
+            var vhost = DeploymentConsumerConfigHelper.RABBIT_VHOST;
 
             return new DeploymentConsumerService(host, user, pass, port, vhost);
         });

@@ -18,7 +18,6 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
     private readonly ConnectionFactory _factory;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    private const string QueueName = "deployment_queue";
     private const string ExchangeName = "deployment_exchange";
     private const string RoutingKey = "deploy";
 
