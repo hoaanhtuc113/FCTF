@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using ResourceShared;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
-using ResourceShared.Utils;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,12 +35,14 @@ builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
     var user = DeploymentCenterConfigHelper.RABBIT_USERNAME;
     var pass = DeploymentCenterConfigHelper.RABBIT_PASSWORD;
     var port = DeploymentCenterConfigHelper.RABBIT_PORT;
+    var vhost = DeploymentCenterConfigHelper.RABBIT_VHOST;
 
     return new DeploymentProducerService(
         host,
         user,
         pass,
-        port);
+        port,
+        vhost);
 });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

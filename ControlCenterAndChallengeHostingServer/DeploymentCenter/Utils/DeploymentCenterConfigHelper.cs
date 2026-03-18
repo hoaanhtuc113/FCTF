@@ -7,6 +7,7 @@ public class DeploymentCenterConfigHelper
     public static string RABBIT_HOST = "";
     public static string RABBIT_USERNAME = "";
     public static string RABBIT_PASSWORD = "";
+    public static string RABBIT_VHOST = "/";
     public static int RABBIT_PORT = 5672;
 
     public static string ARGO_WORKFLOWS_URL = "";
@@ -24,6 +25,7 @@ public class DeploymentCenterConfigHelper
         RABBIT_HOST = GetRequiredEnv("RABBIT_HOST");
         RABBIT_USERNAME = GetRequiredEnv("RABBIT_USERNAME");
         RABBIT_PASSWORD = GetRequiredEnv("RABBIT_PASSWORD");
+        RABBIT_VHOST = Environment.GetEnvironmentVariable("RABBIT_VHOST") ?? "/";
         RABBIT_PORT = int.TryParse(GetRequiredEnv("RABBIT_PORT"), out var rabbitPort) ? rabbitPort : throw new Exception("Invalid RABBIT_PORT");
 
         ARGO_WORKFLOWS_URL = GetRequiredEnv("ARGO_WORKFLOWS_URL");

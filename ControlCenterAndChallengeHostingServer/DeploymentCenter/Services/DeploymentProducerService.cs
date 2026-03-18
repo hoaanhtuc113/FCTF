@@ -18,7 +18,6 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
     private readonly ConnectionFactory _factory;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    private const string QueueName = "deployment_queue";
     private const string ExchangeName = "deployment_exchange";
     private const string RoutingKey = "deploy";
 
@@ -26,7 +25,8 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
         string host,
         string username,
         string password,
-        int port)
+        int port,
+        string vhost = "/")
     {
         _factory = new ConnectionFactory
         {
@@ -34,6 +34,7 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             UserName = username,
             Password = password,
             Port = port,
+            VirtualHost = string.IsNullOrWhiteSpace(vhost) ? "/" : vhost,
             AutomaticRecoveryEnabled = true
         };
     }
@@ -50,9 +51,6 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             if (_channel == null || !_channel.IsOpen)
             {
                 _channel = await _connection.CreateChannelAsync();
-                await _channel.ExchangeDeclareAsync(ExchangeName, ExchangeType.Direct, durable: true);
-                await _channel.QueueDeclareAsync(QueueName, durable: true, exclusive: false, autoDelete: false);
-                await _channel.QueueBindAsync(QueueName, ExchangeName, routingKey: RoutingKey);
             }
         }
         finally { _lock.Release(); }
