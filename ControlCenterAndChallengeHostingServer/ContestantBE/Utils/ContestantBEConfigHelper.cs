@@ -1,16 +1,23 @@
-﻿using ResourceShared.Utils;
+﻿namespace ContestantBE.Utils;
 
-namespace ContestantBE.Utils;
-
-public class ContestantBEConfigHelper : SharedConfig
+public class ContestantBEConfigHelper
 {
     public static string DeploymentCenterAPI = "";
     public static string NFS_MOUNT_PATH = "";
+    public static string REDIS_CONNECTION_STRING = "";
+    public static string PRIVATE_KEY = "";
 
-    public override void InitConfig()
+    public void InitConfig()
     {
-        base.InitConfig();
-        DeploymentCenterAPI = configuration["DEPLOYMENT_SERVICE_API"] ?? throw new Exception("Can't read ServiceConfigs:DEPLOYMENT_SERVICE_API");
-        NFS_MOUNT_PATH = configuration["NFS_MOUNT_PATH"] ?? throw new Exception("Can't read ServiceConfigs:NFS_MOUNT_PATH");
+        REDIS_CONNECTION_STRING = GetRequiredEnv("REDIS_CONNECTION");
+        PRIVATE_KEY = GetRequiredEnv("PRIVATE_KEY");
+        DeploymentCenterAPI = GetRequiredEnv("DEPLOYMENT_SERVICE_API");
+        NFS_MOUNT_PATH = GetRequiredEnv("NFS_MOUNT_PATH");
+    }
+
+    private static string GetRequiredEnv(string key)
+    {
+        return Environment.GetEnvironmentVariable(key)
+            ?? throw new Exception($"Can't read env: {key}");
     }
 }
