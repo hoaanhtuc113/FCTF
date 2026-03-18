@@ -1,11 +1,21 @@
--- Least privilege MariaDB accounts for .NET services
+-- Least privilege MariaDB accounts for .NET services + admin account
 -- Scope: database ctfd
--- Update all REPLACE_ME_* passwords before running.
+-- Update all REPLACE_* passwords before running.
+
+-- Baseline hardening equivalent to mysql_secure_installation tasks.
+DROP USER IF EXISTS 'root'@'%';
+DROP USER IF EXISTS 'root'@'0.0.0.0';
+DROP USER IF EXISTS 'root'@'::';
+DROP USER IF EXISTS ''@'localhost';
+DROP USER IF EXISTS ''@'%';
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db LIKE 'test\\_%';
 
 CREATE USER IF NOT EXISTS 'contestant_be'@'%' IDENTIFIED BY 'REPLACE_ME_CONTESTANT_BE_PASSWORD';
 CREATE USER IF NOT EXISTS 'deployment_center'@'%' IDENTIFIED BY 'REPLACE_ME_DEPLOYMENT_CENTER_PASSWORD';
 CREATE USER IF NOT EXISTS 'deployment_listener'@'%' IDENTIFIED BY 'REPLACE_ME_DEPLOYMENT_LISTENER_PASSWORD';
 CREATE USER IF NOT EXISTS 'deployment_consumer'@'%' IDENTIFIED BY 'REPLACE_ME_DEPLOYMENT_CONSUMER_PASSWORD';
+CREATE USER IF NOT EXISTS 'ctfd_admin'@'%' IDENTIFIED BY 'REPLACE_WITH_STRONG_UNIQUE_CTFD_ADMIN_PASSWORD_2026!';
 
 -- ContestantBE
 GRANT SELECT ON ctfd.users TO 'contestant_be'@'%';
@@ -56,5 +66,8 @@ GRANT SELECT ON ctfd.challenges TO 'deployment_listener'@'%';
 
 -- DeploymentConsumer
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
+
+-- Admin portal (full privileges on CTFd schema)
+GRANT ALL PRIVILEGES ON ctfd.* TO 'ctfd_admin'@'%';
 
 FLUSH PRIVILEGES;
