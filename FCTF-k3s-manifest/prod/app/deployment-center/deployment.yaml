@@ -27,9 +27,9 @@ spec:
             - configMapRef:
                 name: deployment-center-cm
             - secretRef:
-              name: deployment-center-secret
+                name: deployment-center-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.1
