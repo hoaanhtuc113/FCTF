@@ -19,6 +19,7 @@ INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROD_DIR="${SCRIPT_DIR}/prod"
+MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 
 usage() {
   cat <<EOF
@@ -225,6 +226,16 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
 
   echo "==> Creating required namespace for Helm components"
   kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
+
+  if [[ ! -f "${MARIADB_AUTH_SECRET_FILE}" ]]; then
+    echo "Error: MariaDB auth secret manifest not found at ${MARIADB_AUTH_SECRET_FILE}"
+    echo "Please create/update this file before running Helm so MariaDB existingSecret can be resolved."
+    exit 1
+  fi
+
+  echo "==> Applying MariaDB auth secret before Helm"
+  kubectl apply -f "${MARIADB_AUTH_SECRET_FILE}"
 
   if [[ ! -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml" ]]; then
     echo "Error: PV/PVC manifest not found at ${PROD_DIR}/storage/nfs-pv-pvc.yaml"
@@ -259,6 +270,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   echo "==> Creating required namespaces"
   kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace challenge --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 
   echo "==> Applying base classes, ConfigMaps and Secrets"
   kubectl apply -f "${PROD_DIR}/priority-classes.yaml"

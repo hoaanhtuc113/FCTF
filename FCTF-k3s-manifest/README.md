@@ -9,6 +9,32 @@ Docker Hub được sử dụng làm kho lưu trữ và phân phối các contai
 
 ## Các bước cài đặt
 
+### 0. Chuẩn bị secret MariaDB (bat buoc truoc khi cai Helm)
+
+MariaDB da duoc cau hinh dung existingSecret trong Helm values, vi vay ban phai cap nhat secret truoc khi chay helm:
+
+```bash
+# 1) Sua mat khau manh trong file secret
+nano ./prod/env/secret/mariadb-auth-secret.yaml
+
+# 2) Tao namespace db neu chua co va apply secret
+kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f ./prod/env/secret/mariadb-auth-secret.yaml
+```
+
+Neu ban dung tai khoan admin DB cho ManagementPlatform, cap nhat them:
+
+```bash
+nano ./prod/env/secret/admin-mvc-secret.yaml
+```
+
+Neu DB da du lieu san (PVC cu), file initdbScripts se khong chay lai. Khi do hay chay SQL cap quyen thu cong:
+
+```bash
+# Sua mat khau trong script truoc khi chay
+nano ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
+```
+
 ### 1. Chuẩn bị server
 
 ```bash
@@ -249,6 +275,7 @@ kubectl get svc --all-namespaces -o custom-columns="NAMESPACE:.metadata.namespac
 # Chạy script cài đặt tự động 
 # Hoặc cài đặt từng bước: có thể vào ./helm.sh để cài từng bước bắt đầu từ # Apply helm repos
 # Đối với môi trường dev có thể bỏ qua nginx ingress và cert-manager (comment phần đó lại)
+# Luu y: setup-master.sh se tu apply prod/env/secret/mariadb-auth-secret.yaml truoc khi chay helm.sh
 bash helm.sh
 # nếu không chạy được bash helm.sh bạn cần chuyển từ CLRF sang FL và đặt file executable sau đó chạy lại
 chmod +x helm.sh
@@ -287,6 +314,7 @@ kubectl create secret docker-registry regcred
 # Tạo Namespace
 kubectl create namespace app
 kubectl create namespace challenge
+kubectl create namespace db
 
 
 kubectl apply -f ./prod/priority-classes.yaml
