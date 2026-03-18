@@ -34,17 +34,16 @@ serviceAccount:
 podAnnotations: {}
 
 # -- The security context for the pods
-podSecurityContext: {}
-  # fsGroup: 2000
+podSecurityContext:
+  fsGroup: 1105
+  fsGroupChangePolicy: OnRootMismatch
 
 # -- The security context for the application container
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1105
+  runAsGroup: 1105
+  allowPrivilegeEscalation: false
 
 service:
   # -- Kubernetes Service type ClusterIP/NodePort
@@ -110,7 +109,7 @@ rootDir:
     path: /mnt/nfs/share/filebrowser
   pvc:
     # -- Existing claim for the root directory
-    existingClaim: "nfs-storage-pvc"
+    existingClaim: "filebrowser-shared-pvc"
     # -- Storage class name for the root directory PVC
     storageClassName: ""
     # -- Access modes for the root directory PVC

@@ -15,6 +15,9 @@ spec:
     spec:
       priorityClassName: app-normal
       preemptionPolicy: Never
+      securityContext:
+        fsGroup: 1102
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: contestant-be
           image: quachuoiscontainer/fctf:contestant-be-prod-v4.0.0
@@ -56,8 +59,8 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
-            runAsUser: 1654
-            runAsGroup: 1000
+            runAsUser: 1102
+            runAsGroup: 1102
             allowPrivilegeEscalation: false
             privileged: false
             capabilities:
@@ -69,14 +72,12 @@ spec:
               type: RuntimeDefault
           volumeMounts:
             - name: nfs-shared-data
-              mountPath: /mnt/nfs/data/file 
-              subPath: file
+              mountPath: /mnt/nfs/data/file
               readOnly: true
       imagePullSecrets:
         - name: regcred
       volumes:
         - name: nfs-shared-data
-          nfs:
-            server: 10.184.0.2
-            path: /srv/nfs/share
+          persistentVolumeClaim:
+            claimName: contestant-be-file-pvc
   revisionHistoryLimit: 3

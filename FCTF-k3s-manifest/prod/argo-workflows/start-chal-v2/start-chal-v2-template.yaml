@@ -33,8 +33,6 @@ spec:
         value: "true"
       - name: CHALLENGE_TIMEOUT
         value: "15m"
-      - name: NFS_SERVER_IP
-        value: "10.184.0.2"
 
   templates:
     - name: main
@@ -65,8 +63,6 @@ spec:
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
                   value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
-                - name: NFS_SERVER_IP
-                  value: "{{workflow.parameters.NFS_SERVER_IP}}"
 
     - name: deploy-challenge-v2
       inputs:
@@ -82,17 +78,20 @@ spec:
           - name: HARDEN_CONTAINER
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
-          - name: NFS_SERVER_IP
       priorityClassName: lowest
       preemptionPolicy: Never
       activeDeadlineSeconds: 120
       timeout: "120s"
+      podSpecPatch: |
+        securityContext:
+          fsGroup: 1104
+          fsGroupChangePolicy: OnRootMismatch
       container:
         image: quachuoiscontainer/kubectl-cli:v0.0.3
         imagePullPolicy: IfNotPresent
         securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
+          runAsUser: 1104
+          runAsGroup: 1104
           runAsNonRoot: true
           allowPrivilegeEscalation: false
           privileged: false
@@ -109,6 +108,8 @@ spec:
         volumeMounts:
           - name: nfs-shared-data
             mountPath: /mnt/nfs/data
+            subPath: start-challenge
+            readOnly: true
         command: [sh, -c]
         args:
           - |
@@ -132,9 +133,9 @@ spec:
             fi
 
             if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
-              export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge-hardened.yaml"
+              export NFS_DATA_PATH="/mnt/nfs/data/challenge-hardened.yaml"
             else
-              export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge-plain.yaml"
+              export NFS_DATA_PATH="/mnt/nfs/data/challenge-plain.yaml"
             fi
 
             if [ ! -f "${NFS_DATA_PATH}" ]; then
@@ -161,6 +162,5 @@ spec:
             echo "✅ Challenge v2 manifest submitted to cluster"
       volumes:
         - name: nfs-shared-data
-          nfs:
-            server: "{{inputs.parameters.NFS_SERVER_IP}}"
-            path: /srv/nfs/share
+          persistentVolumeClaim:
+            claimName: start-challenge-template-pvc
