@@ -32,11 +32,10 @@ var host = Host.CreateDefaultBuilder(args)
         // Register DeploymentConsumerService consumer
         services.AddSingleton<IDeploymentConsumerService>(sp =>
         {
-            var host = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_HOST;
-            var user = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_USERNAME;
-            var pass = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_PASSWORD;
-            var port = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_PORT;
-            var vhost = DeploymentConsumerConfigHelper.RABBIT_CONSUMER_VHOST;
+            var host = DeploymentConsumerConfigHelper.RABBIT_HOST;
+            var user = DeploymentConsumerConfigHelper.RABBIT_USERNAME;
+            var pass = DeploymentConsumerConfigHelper.RABBIT_PASSWORD;
+            var port = DeploymentConsumerConfigHelper.RABBIT_PORT;
 
             return new DeploymentConsumerService(host, user, pass, port, vhost);
         });

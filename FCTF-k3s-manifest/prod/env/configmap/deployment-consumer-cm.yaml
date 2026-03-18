@@ -4,11 +4,8 @@ metadata:
   name: deployment-consumer-cm
   namespace: app
 data:
-  RABBIT_CONSUMER_HOST: "rabbitmq.db.svc.cluster.local"
-  RABBIT_CONSUMER_PORT: "5672"
-  RABBIT_CONSUMER_USERNAME: "deployment-consumer"
-  RABBIT_CONSUMER_VHOST: "fctf_deploy"
-
+  ASPNETCORE_ENVIRONMENT: "Production"
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
   ARGO_DEPLOY_TTL_MINUTES: "6"
 
   BATCH_SIZE: "20"

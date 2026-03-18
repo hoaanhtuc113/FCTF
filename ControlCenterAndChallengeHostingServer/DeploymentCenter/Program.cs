@@ -31,11 +31,10 @@ builder.Services.AddHealthChecks();
 // Register DeploymentConsumerService consumer
 builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
 {
-    var host = DeploymentCenterConfigHelper.RABBIT_PRODUCER_HOST;
-    var user = DeploymentCenterConfigHelper.RABBIT_PRODUCER_USERNAME;
-    var pass = DeploymentCenterConfigHelper.RABBIT_PRODUCER_PASSWORD;
-    var port = DeploymentCenterConfigHelper.RABBIT_PRODUCER_PORT;
-    var vhost = DeploymentCenterConfigHelper.RABBIT_PRODUCER_VHOST;
+    var host = DeploymentCenterConfigHelper.RABBIT_HOST;
+    var user = DeploymentCenterConfigHelper.RABBIT_USERNAME;
+    var pass = DeploymentCenterConfigHelper.RABBIT_PASSWORD;
+    var port = DeploymentCenterConfigHelper.RABBIT_PORT;
 
     return new DeploymentProducerService(
         host,

@@ -20,11 +20,11 @@ spec:
           image: quachuoiscontainer/fctf:challenge-gateway-prod-v4.0.0
           envFrom:
             - configMapRef:
-                name: common-be-cm
-            - configMapRef:
                 name: challenge-gateway-cm
             - secretRef:
-                name: common-secret
+                name: challenge-gateway-secret
+            - secretRef:
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.1
