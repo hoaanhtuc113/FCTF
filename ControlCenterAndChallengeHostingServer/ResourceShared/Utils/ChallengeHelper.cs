@@ -15,7 +15,7 @@ namespace ResourceShared.Utils
 
         private static byte[] GetSecretBytes()
         {
-            var secret = SharedConfig.PRIVATE_KEY;
+            var secret = Environment.GetEnvironmentVariable("PRIVATE_KEY");
             if (string.IsNullOrWhiteSpace(secret))
             {
                 throw new InvalidOperationException("Missing PRIVATE_KEY");
@@ -194,10 +194,12 @@ namespace ResourceShared.Utils
             }
 
             var deploymentAppName = GetDeploymentAppName(teamId, challenge.Id, challenge.Name);
+            var startChallengeTemplate = Environment.GetEnvironmentVariable("START_CHALLENGE_TEMPLATE")
+                ?? throw new InvalidOperationException("Missing START_CHALLENGE_TEMPLATE");
             return (new
             {
                 resourceKind = "WorkflowTemplate",
-                resourceName = SharedConfig.START_CHALLENGE_TEMPLATE,
+                resourceName = startChallengeTemplate,
                 submitOptions = new
                 {
                     entryPoint = "main",

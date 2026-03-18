@@ -25,11 +25,11 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: common-be-cm
-            - configMapRef:
                 name: deployment-center-cm
             - secretRef:
-                name: common-secret
+              name: deployment-center-secret
+            - secretRef:
+              name: common-private-key-secret
           resources:
             requests:
               cpu: 0.1

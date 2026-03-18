@@ -24,13 +24,11 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: common-be-cm
-            - configMapRef:
                 name: admin-mvc-cm
             - secretRef:
                 name: admin-mvc-secret
             - secretRef:
-                name: common-secret
+              name: common-private-key-secret
           resources:
             requests:
               cpu: 0.2

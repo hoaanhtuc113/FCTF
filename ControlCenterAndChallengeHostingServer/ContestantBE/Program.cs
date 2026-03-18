@@ -72,12 +72,12 @@ builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions();
 
-// Init config from SharedConfig (includes REDIS_CONNECTION_STRING)
+// Init env config for ContestantBE
 new ContestantBEConfigHelper().InitConfig();
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = SharedConfig.REDIS_CONNECTION_STRING;
+    options.Configuration = ContestantBEConfigHelper.REDIS_CONNECTION_STRING;
 });
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));

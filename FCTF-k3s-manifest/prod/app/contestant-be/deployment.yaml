@@ -24,11 +24,11 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: common-be-cm
-            - configMapRef:
                 name: contestant-be-cm
             - secretRef:
-                name: common-secret
+              name: contestant-be-secret
+            - secretRef:
+              name: common-private-key-secret
           resources:
             requests:
               cpu: 0.2
