@@ -6,8 +6,13 @@ namespace ResourceShared.Utils
 {
     public class ItsDangerousCompatHelper
     {
-        private static readonly string secret = SharedConfig.PRIVATE_KEY;
         static int UnixNow() => (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        private static string GetPrivateKey()
+        {
+            return Environment.GetEnvironmentVariable("PRIVATE_KEY")
+                ?? throw new InvalidOperationException("Missing PRIVATE_KEY");
+        }
 
         // serialize
         public static string Dumps(object data, string salt = "itsdangerous")
@@ -16,13 +21,13 @@ namespace ResourceShared.Utils
             // JSON compact (no spaces) tương đương compact_json. 
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = false });
             var payload = B64Url(Encoding.UTF8.GetBytes(json));
-            return TimestampSign(payload, secret, salt);
+            return TimestampSign(payload, GetPrivateKey(), salt);
         }
 
         // unserialize
         public static T? Loads<T>(string token, int? maxAgeSeconds = 432000, string salt = "itsdangerous")
         {
-            var payloadB64 = TimestampUnsign(token, secret, maxAgeSeconds, salt);
+            var payloadB64 = TimestampUnsign(token, GetPrivateKey(), maxAgeSeconds, salt);
             var json = Encoding.UTF8.GetString(B64UrlDecode(payloadB64));
             return JsonSerializer.Deserialize<T>(json);
         }
