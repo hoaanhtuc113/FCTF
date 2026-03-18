@@ -4,9 +4,6 @@ using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry;
-using OpenTelemetry.Context.Propagation;
-using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Models;
 using ResourceShared.Utils;
@@ -47,25 +44,8 @@ var host = Host.CreateDefaultBuilder(args)
 
         services.AddResourceShared();
 
-        services.AddSingleton<RabbitMqTelemetrySource>();
-        services.AddOpenTelemetry()
-            .WithTracing(b =>
-            {
-                b.AddSource(Telemetry.DeploymentConsumerRabbitMQ)
-                 .AddHttpClientInstrumentation()
-                 .AddOtlpExporter();
-            });
-
         services.AddHostedService<Worker>();
     })
     .Build();
-
-Sdk.SetDefaultTextMapPropagator(
-    new CompositeTextMapPropagator(
-    [
-        new TraceContextPropagator(),
-        new BaggagePropagator()
-    ]));
-
 
 await host.RunAsync();

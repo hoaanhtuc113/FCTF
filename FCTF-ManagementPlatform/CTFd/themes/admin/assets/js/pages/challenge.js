@@ -351,6 +351,7 @@ function handleChallengeOptions(event) {
   let memoryLimit = 0;
   let memoryRequest = 0;
   let useGvisor = true;
+  let hardenContainer = true;
   let maxDeployCount = parseInt(params.max_deploy_count || "0", 10);
 
   if (requireDeploy) {
@@ -359,6 +360,7 @@ function handleChallengeOptions(event) {
     memoryLimit = parseInt(params.memory_limit || "0", 10);
     memoryRequest = parseInt(params.memory_request || "0", 10);
     useGvisor = (params.use_gvisor || "true") === "true";
+    hardenContainer = params.harden_container === true || params.harden_container === "true" || params.harden_container === "on";
 
     if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
       ezAlert({
@@ -396,12 +398,14 @@ function handleChallengeOptions(event) {
     patchBody.memory_limit = memoryLimit;
     patchBody.memory_request = memoryRequest;
     patchBody.use_gvisor = useGvisor;
+    patchBody.harden_container = hardenContainer;
   } else {
     patchBody.cpu_limit = null;
     patchBody.cpu_request = null;
     patchBody.memory_limit = null;
     patchBody.memory_request = null;
     patchBody.use_gvisor = null;
+    patchBody.harden_container = null;
   }
 
   // Step 1: Save flag + PATCH challenge in parallel.

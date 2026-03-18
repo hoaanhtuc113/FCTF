@@ -55,6 +55,8 @@ public partial class Challenge
 
     public bool? UseGvisor { get; set; }
 
+    public bool? HardenContainer { get; set; }
+
     public int? MaxDeployCount { get; set; }
 
     public int? Difficulty { get; set; }

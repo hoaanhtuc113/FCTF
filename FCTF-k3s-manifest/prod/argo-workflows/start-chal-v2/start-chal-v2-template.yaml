@@ -27,6 +27,8 @@ spec:
         value: "64Mi"
       - name: USE_GVISOR
         value: "true"
+      - name: HARDEN_CONTAINER
+        value: "true"
       - name: IS_TEMPORARY
         value: "true"
       - name: CHALLENGE_TIMEOUT
@@ -57,6 +59,8 @@ spec:
                   value: "{{workflow.parameters.MEMORY_REQUEST}}"
                 - name: USE_GVISOR
                   value: "{{workflow.parameters.USE_GVISOR}}"
+                - name: HARDEN_CONTAINER
+                  value: "{{workflow.parameters.HARDEN_CONTAINER}}"
                 - name: IS_TEMPORARY
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
@@ -75,6 +79,7 @@ spec:
           - name: MEMORY_LIMIT
           - name: MEMORY_REQUEST
           - name: USE_GVISOR
+          - name: HARDEN_CONTAINER
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
           - name: NFS_SERVER_IP
@@ -110,8 +115,6 @@ spec:
             set -e
             echo "=== Deploying Challenge v2 with parameters ==="
 
-            # Set environment variables
-            export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge.yaml"
             export CHALLENGE_NAME="{{inputs.parameters.CHALLENGE_NAME}}"
             export CONTAINER_PORT="{{inputs.parameters.CONTAINER_PORT}}"
             export CONTAINER_IMAGE="{{inputs.parameters.CONTAINER_IMAGE}}"
@@ -128,16 +131,20 @@ spec:
               export RUNTIME_CLASS_NAME_LINE=""
             fi
 
+            if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
+              export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge-hardened.yaml"
+            else
+              export NFS_DATA_PATH="/mnt/nfs/data/start-challenge/challenge-plain.yaml"
+            fi
 
-            # Check if challenge.yaml exists in NFS
             if [ ! -f "${NFS_DATA_PATH}" ]; then
-              echo "❌ challenge.yaml not found in NFS at ${NFS_DATA_PATH}"
+              echo "❌ Template not found at ${NFS_DATA_PATH}"
               echo "Please ensure the challenge template is available in NFS storage"
               exit 1
             fi
 
-            echo "📁 Found challenge.yaml in NFS, applying with parameters..."
-            # Ensure target namespace exists before copying secret
+            echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
+
             if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
               kubectl create ns "${CHALLENGE_NAME}"
             fi
@@ -149,7 +156,7 @@ spec:
               | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
               | kubectl apply -f -
 
-            envsubst < ${NFS_DATA_PATH} | kubectl apply -f -
+            envsubst < "${NFS_DATA_PATH}" | kubectl apply -f -
 
             echo "✅ Challenge v2 manifest submitted to cluster"
       volumes:

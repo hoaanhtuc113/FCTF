@@ -5,7 +5,6 @@ metadata:
   namespace: app
 data:
   ASPNETCORE_URLS: "http://+:5020"
-  OTEL_SERVICE_NAME: "deployment-center"  
 
   DEPLOYMENT_QUEUE_TIMEOUT_MINUTES: "5"
 
