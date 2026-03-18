@@ -9,6 +9,7 @@ data:
   ASPNETCORE_URLS: "http://+:5020"
   ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
   START_CHALLENGE_TEMPLATE: "start-chal-v2-template"
+  UP_CHALLENGE_TEMPLATE: "up-challenge-template"
   RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
   RABBIT_USERNAME: "deployment-producer"
   RABBIT_VHOST: "fctf_deploy"
