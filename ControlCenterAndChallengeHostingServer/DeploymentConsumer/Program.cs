@@ -33,11 +33,10 @@ var host = Host.CreateDefaultBuilder(args)
         // Register DeploymentConsumerService consumer
         services.AddSingleton<IDeploymentConsumerService>(sp =>
         {
-            // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
-            var host = SharedConfig.RABBIT_HOST;
-            var user = SharedConfig.RABBIT_USERNAME;
-            var pass = SharedConfig.RABBIT_PASSWORD;
-            var port = SharedConfig.RABBIT_PORT;
+            var host = DeploymentConsumerConfigHelper.RABBIT_HOST;
+            var user = DeploymentConsumerConfigHelper.RABBIT_USERNAME;
+            var pass = DeploymentConsumerConfigHelper.RABBIT_PASSWORD;
+            var port = DeploymentConsumerConfigHelper.RABBIT_PORT;
 
             return new DeploymentConsumerService(host, user, pass, port);
         });

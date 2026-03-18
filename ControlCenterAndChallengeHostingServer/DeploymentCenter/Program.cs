@@ -32,11 +32,10 @@ builder.Services.AddHealthChecks();
 // Register DeploymentConsumerService consumer
 builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
 {
-    // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
-    var host = SharedConfig.RABBIT_HOST;
-    var user = SharedConfig.RABBIT_USERNAME;
-    var pass = SharedConfig.RABBIT_PASSWORD;
-    var port = SharedConfig.RABBIT_PORT;
+    var host = DeploymentCenterConfigHelper.RABBIT_HOST;
+    var user = DeploymentCenterConfigHelper.RABBIT_USERNAME;
+    var pass = DeploymentCenterConfigHelper.RABBIT_PASSWORD;
+    var port = DeploymentCenterConfigHelper.RABBIT_PORT;
 
     return new DeploymentProducerService(
         host,

@@ -9,7 +9,8 @@ namespace ResourceShared.Utils
 {
     public class TokenHelper
     {
-        private readonly string SecretKey = SharedConfig.PRIVATE_KEY;
+        private readonly string SecretKey = Environment.GetEnvironmentVariable("PRIVATE_KEY")
+            ?? throw new InvalidOperationException("Missing PRIVATE_KEY");
         private readonly AppDbContext _context;
 
         public TokenHelper(AppDbContext context)
