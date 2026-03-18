@@ -20,13 +20,11 @@ spec:
           image: quachuoiscontainer/fctf:deployment-consumer-prod-v4.0.0
           envFrom:
             - configMapRef:
-                name: deployment-center-cm
-            - configMapRef:
                 name: deployment-consumer-cm
             - secretRef:
-              name: deployment-consumer-secret
+                name: deployment-consumer-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.1
