@@ -1,0 +1,15 @@
+# PV cho workflow start-challenge
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-start-challenge-template-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.148.0.2
+    path: /srv/nfs/share/start-challenge

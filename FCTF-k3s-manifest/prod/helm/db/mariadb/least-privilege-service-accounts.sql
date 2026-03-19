@@ -1,0 +1,73 @@
+-- Least privilege MariaDB accounts for .NET services + admin account
+-- Scope: database ctfd
+-- Update all REPLACE_* passwords before running.
+
+-- Baseline hardening equivalent to mysql_secure_installation tasks.
+DROP USER IF EXISTS 'root'@'%';
+DROP USER IF EXISTS 'root'@'0.0.0.0';
+DROP USER IF EXISTS 'root'@'::';
+DROP USER IF EXISTS ''@'localhost';
+DROP USER IF EXISTS ''@'%';
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db LIKE 'test\\_%';
+
+CREATE USER IF NOT EXISTS 'contestant_be'@'%' IDENTIFIED BY 'REPLACE_ME_CONTESTANT_BE_PASSWORD';
+CREATE USER IF NOT EXISTS 'deployment_center'@'%' IDENTIFIED BY 'REPLACE_ME_DEPLOYMENT_CENTER_PASSWORD';
+CREATE USER IF NOT EXISTS 'deployment_listener'@'%' IDENTIFIED BY 'REPLACE_ME_DEPLOYMENT_LISTENER_PASSWORD';
+CREATE USER IF NOT EXISTS 'deployment_consumer'@'%' IDENTIFIED BY 'REPLACE_ME_DEPLOYMENT_CONSUMER_PASSWORD';
+CREATE USER IF NOT EXISTS 'ctfd_admin'@'%' IDENTIFIED BY 'REPLACE_WITH_STRONG_UNIQUE_CTFD_ADMIN_PASSWORD_2026!';
+
+-- ContestantBE
+GRANT SELECT ON ctfd.users TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.users TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.teams TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.teams TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.brackets TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.config TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.challenges TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.challenges TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.dynamic_challenge TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.files TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.hints TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.flags TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.submissions TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.submissions TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.solves TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.solves TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.awards TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.awards TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.unlocks TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.unlocks TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.action_logs TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.action_logs TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.tickets TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.tickets TO 'contestant_be'@'%';
+GRANT DELETE ON ctfd.tickets TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.tokens TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.tokens TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.tokens TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+
+-- DeploymentCenter
+GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
+GRANT SELECT ON ctfd.challenges TO 'deployment_center'@'%';
+GRANT UPDATE ON ctfd.challenges TO 'deployment_center'@'%';
+GRANT INSERT ON ctfd.deploy_histories TO 'deployment_center'@'%';
+GRANT INSERT ON ctfd.challenge_start_tracking TO 'deployment_center'@'%';
+
+-- DeploymentListener
+GRANT SELECT ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
+GRANT INSERT ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
+GRANT UPDATE ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
+GRANT SELECT ON ctfd.challenges TO 'deployment_listener'@'%';
+
+-- DeploymentConsumer
+GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
+
+-- Admin portal (full privileges on CTFd schema)
+GRANT ALL PRIVILEGES ON ctfd.* TO 'ctfd_admin'@'%';
+
+FLUSH PRIVILEGES;

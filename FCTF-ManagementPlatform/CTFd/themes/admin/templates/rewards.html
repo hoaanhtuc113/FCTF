@@ -273,22 +273,18 @@
     category: 'Category',
     challenge_id: 'Challenge',
     team_id: 'Team',
-    group_by: 'Group By',
   };
 
   // ===== Value column label by template =====
   const VALUE_LABELS = {
     top_teams_by_score: 'Score',
-    top_users_by_score: 'Score',
-    teams_by_rank_range: 'Score',
     first_blood_hunters: 'First Bloods',
     category_masters: 'Categories Cleared',
     perfect_solvers: 'Perfect Solves',
     most_attempts: 'Wrong Attempts',
     solve_count_champions: 'Challenges Solved',
-    category_specific_top: 'Score',
-    first_blood_by_category: 'First Blood',
-    specific_challenge_solvers: 'Solved',
+    first_clear_each_category: 'Full Clear Date',
+    first_blood_by_category: 'Category',
     no_hints_solvers: 'No-Hint Solves',
   };
 
@@ -402,11 +398,6 @@
       input = `<select class="form-control form-control-sm" id="param-${p}">
         <option value="">All</option>
         ${options}
-      </select>`;
-    } else if (p === 'group_by') {
-      input = `<select class="form-control form-control-sm" id="param-${p}">
-        <option value="team">Team</option>
-        <option value="user">User</option>
       </select>`;
     } else if (p === 'challenge_id') {
       input = buildSearchSelect(p, challengesCache.map(c => ({ value: c.id, label: `${c.name} (${c.category})` })));
@@ -541,9 +532,7 @@
     (selectedTemplate.customizable_params || []).forEach(p => {
       const el = document.getElementById(`param-${p}`);
       if (el && el.value) {
-        if (p === 'group_by') {
-          params['entity_type'] = el.value;
-        } else if (el.type === 'number' || ['challenge_id', 'team_id', 'limit', 'min_score', 'max_score',
+        if (el.type === 'number' || ['challenge_id', 'team_id', 'limit', 'min_score', 'max_score',
           'min_rank', 'max_rank', 'min_count', 'min_categories_solved', 'min_perfect_solves',
           'min_solves', 'min_attempts'].includes(p)) {
           params[p] = Number(el.value);
@@ -584,38 +573,24 @@
   function getResultColumns() {
     const tid = selectedTemplate ? selectedTemplate.id : '';
     const defaultEntity = selectedTemplate ? (selectedTemplate.query_config || {}).entity : 'team';
-    // If group_by was set, use the group_by value as entity
-    const groupByEl = document.getElementById('param-group_by');
-    const entity = groupByEl ? groupByEl.value : defaultEntity;
-    const valueLabel = VALUE_LABELS[tid] || 'Value';
+    const entity = defaultEntity;
+    let valueLabel = VALUE_LABELS[tid] || 'Value';
 
     // Override entity in currentResults for CSV export consistency
     if (currentResults) currentResults._effectiveEntity = entity;
 
     if (entity === 'solve') {
-      return [
+      const solveCols = [
         { key: 'rank', label: '#', width: '5%' },
-        { key: 'entity_name', label: 'Challenge', width: '25%' },
-        { key: 'category', label: 'Category', width: '15%' },
-        { key: 'team_name', label: 'Team', width: '20%' },
-        { key: 'user_name', label: 'User', width: '20%' },
-        { key: 'metric_value', label: valueLabel, width: '15%' },
+        { key: 'entity_name', label: 'Challenge', width: '30%' },
+        { key: 'category', label: 'Category', width: '20%' },
+        { key: 'team_name', label: 'Team', width: '25%' },
       ];
-    }
-
-    if (entity === 'user') {
-      const userCols = [
-        { key: 'rank', label: '#', width: '5%' },
-        { key: 'entity_id', label: 'ID', width: '8%' },
-        { key: 'entity_name', label: 'User', width: '20%' },
-        { key: 'team_name', label: 'Team', width: '18%' },
-        { key: 'metric_value', label: valueLabel, width: '15%' },
-      ];
-      if (['category_specific_top'].includes(tid)) {
-        userCols.push({ key: 'solved_count', label: 'Solved', width: '10%' });
+      // Hide metric_value for first_blood_by_category (redundant 1/0)
+      if (tid !== 'first_blood_by_category') {
+        solveCols.push({ key: 'metric_value', label: valueLabel, width: '20%' });
       }
-      userCols.push({ key: 'last_solve_date', label: 'Last Solve', width: '18%' });
-      return userCols;
+      return solveCols;
     }
 
     // team entity (default)
@@ -625,9 +600,8 @@
       { key: 'entity_name', label: 'Team', width: '25%' },
       { key: 'metric_value', label: valueLabel, width: '15%' },
     ];
-    // Show solved_count as extra column for category_specific_top
-    if (['category_specific_top'].includes(tid)) {
-      cols.push({ key: 'solved_count', label: 'Solved', width: '10%' });
+    if (tid === 'first_clear_each_category') {
+      cols.push({ key: 'category', label: 'Category', width: '14%' });
     }
     cols.push({ key: 'last_solve_date', label: 'Last Solve', width: '18%' });
     return cols;
@@ -689,7 +663,6 @@
       if (col.key === 'entity_name') return true;
       if (col.key === 'category') return results.some(r => r.category);
       if (col.key === 'team_name') return results.some(r => r.team_name);
-      if (col.key === 'user_name') return results.some(r => r.user_name);
       if (col.key === 'last_solve_date') return results.some(r => r.last_solve_date);
       if (col.key === 'solved_count') return results.some(r => r.solved_count != null);
       return true;
@@ -709,7 +682,7 @@
       return '<tr class="' + rowClass + '" data-idx="' + i + '">' + visibleColumns.map(col => {
         if (col.key === 'rank') return `<td>${expandIcon}${r.rank != null ? r.rank : i + 1}</td>`;
         if (col.key === 'last_solve_date') return `<td>${formatDate(r.last_solve_date)}</td>`;
-        if (col.key === 'entity_name' || col.key === 'team_name' || col.key === 'user_name')
+        if (col.key === 'entity_name' || col.key === 'team_name')
           return `<td class="cell-truncate" title="${(r[col.key] || '').replace(/"/g, '&quot;')}">${truncText(r[col.key], 30)}</td>`;
         const val = r[col.key];
         return `<td>${val !== null && val !== undefined ? val : ''}</td>`;
@@ -746,8 +719,6 @@
   // ===== Row Detail Loading =====
   async function loadRowDetails(rowEl, rowData, colSpan) {
     const tid = selectedTemplate ? selectedTemplate.id : '';
-    const groupByEl = document.getElementById('param-group_by');
-    const entity = groupByEl ? groupByEl.value : (selectedTemplate.query_config || {}).entity;
     const entityId = rowData.entity_id;
 
     const detailRow = document.createElement('tr');
@@ -756,29 +727,11 @@
     rowEl.after(detailRow);
 
     try {
-      // Query the solved challenges/categories for this entity
-      const params = { entity_type: 'solve', limit: 500 };
-      if (entity === 'team') {
-        params.team_id = entityId;
-      } else {
-        // For user entity, we need a different approach - pass user info
-        params.team_id = null;
-      }
-
-      // Build detail query based on template type
-      let detailTemplateId = 'specific_challenge_solvers';
-      const queryParams = { limit: 500 };
-
-      if (entity === 'team') {
-        queryParams.team_id = entityId;
-      }
-
-      // Use generic solve query to get what this entity solved
       const res = await apiFetch("/admin/rewards/details", {
         method: "POST",
         body: JSON.stringify({
           template_id: tid,
-          entity_type: entity,
+          entity_type: 'team',
           entity_id: entityId
         })
       });
@@ -787,11 +740,19 @@
       if (data.success && data.details && data.details.length > 0) {
         const details = data.details;
         let html = '<div class="detail-list"><table class="table table-sm table-bordered mb-0"><thead><tr>';
-        html += '<th>#</th><th>Challenge</th><th>Category</th><th>Score</th>';
-        html += '</tr></thead><tbody>';
-        details.forEach((d, i) => {
-          html += `<tr><td>${i + 1}</td><td>${d.challenge_name || ''}</td><td>${d.category || ''}</td><td>${d.score || ''}</td></tr>`;
-        });
+        if (data.detail_type === 'category_clear') {
+          html += '<th>#</th><th>Category</th><th>Solved</th><th>Total</th><th>Clear Date</th>';
+          html += '</tr></thead><tbody>';
+          details.forEach((d, i) => {
+            html += `<tr><td>${i + 1}</td><td>${d.category || ''}</td><td>${d.solved_count || ''}</td><td>${d.total_challenges || ''}</td><td>${formatDate(d.full_clear_date)}</td></tr>`;
+          });
+        } else {
+          html += '<th>#</th><th>Challenge</th><th>Category</th><th>Score</th>';
+          html += '</tr></thead><tbody>';
+          details.forEach((d, i) => {
+            html += `<tr><td>${i + 1}</td><td>${d.challenge_name || ''}</td><td>${d.category || ''}</td><td>${d.score || ''}</td></tr>`;
+          });
+        }
         html += '</tbody></table></div>';
         detailRow.innerHTML = `<td colspan="${colSpan}">${html}</td>`;
       } else {
@@ -817,7 +778,6 @@
       if (col.key === 'entity_name') return true;
       if (col.key === 'category') return results.some(r => r.category);
       if (col.key === 'team_name') return results.some(r => r.team_name);
-      if (col.key === 'user_name') return results.some(r => r.user_name);
       if (col.key === 'last_solve_date') return results.some(r => r.last_solve_date);
       if (col.key === 'solved_count') return results.some(r => r.solved_count != null);
       return true;

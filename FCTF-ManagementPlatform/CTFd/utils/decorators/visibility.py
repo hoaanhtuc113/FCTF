@@ -43,12 +43,6 @@ def check_score_visibility(f):
                         403,
                     )
 
-        elif v == ScoreVisibilityTypes.ADMINS:
-            if is_admin():
-                return f(*args, **kwargs)
-            else:
-                abort(404)
-
     return _check_score_visibility
 
 

@@ -22,8 +22,6 @@ spec:
       - name: IMAGE_TAG
       - name: DEPLOYMENT_CENTER_API_ENDPOINT
         value: http://deployment-center-svc.app.svc.cluster.local:5020/api/statuscheck/message
-      - name: NFS_SERVER
-        value: "10.148.0.2"
 
   templates:
     - name: main
@@ -38,8 +36,6 @@ spec:
                   value: "{{workflow.parameters.IMAGE_REPO}}"
                 - name: IMAGE_TAG
                   value: "{{workflow.parameters.IMAGE_TAG}}"
-                - name: NFS_SERVER
-                  value: "{{workflow.parameters.NFS_SERVER}}"
 
     # ======================================================
     # BUILD & PUSH IMAGE (KANIKO)
@@ -50,12 +46,14 @@ spec:
           - name: CHALLENGE_PATH
           - name: IMAGE_REPO
           - name: IMAGE_TAG
-          - name: NFS_SERVER
       priorityClassName: lowest
       preemptionPolicy: Never
       podSpecPatch: |
         hostNetwork: true
         dnsPolicy: ClusterFirstWithHostNet
+        securityContext:
+          fsGroup: 1103
+          fsGroupChangePolicy: OnRootMismatch
 
       container:
         image: gcr.io/kaniko-project/executor:debug
@@ -97,7 +95,9 @@ spec:
 
             echo "=== Building and pushing image with Kaniko ==="
 
-            CHALLENGE_DIR="/nfs/share/data/{{inputs.parameters.CHALLENGE_PATH}}"
+            CHALLENGE_PATH_RAW="{{inputs.parameters.CHALLENGE_PATH}}"
+            CHALLENGE_PATH_NORMALIZED="${CHALLENGE_PATH_RAW#challenges/}"
+            CHALLENGE_DIR="/nfs/share/data/${CHALLENGE_PATH_NORMALIZED}"
 
             if [ ! -d "$CHALLENGE_DIR" ]; then
               echo "❌ Challenge directory not found: $CHALLENGE_DIR"
@@ -124,9 +124,8 @@ spec:
 
       volumes:
         - name: nfs-shared-data
-          nfs:
-            server: "{{inputs.parameters.NFS_SERVER}}"
-            path: /srv/nfs/share
+          persistentVolumeClaim:
+            claimName: up-challenge-file-pvc
 
         - name: docker-config
           secret:
@@ -148,8 +147,8 @@ spec:
 
         # HARDENED (safe – no write needed)
         securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
+          runAsUser: 1103
+          runAsGroup: 1103
           runAsNonRoot: true
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

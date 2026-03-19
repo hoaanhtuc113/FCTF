@@ -1,0 +1,15 @@
+# PV cho workflow up-challenge
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-up-challenge-file-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.148.0.2
+    path: /srv/nfs/share/challenges

@@ -9,6 +9,32 @@ Docker Hub được sử dụng làm kho lưu trữ và phân phối các contai
 
 ## Các bước cài đặt
 
+### 0. Chuẩn bị secret MariaDB (bat buoc truoc khi cai Helm)
+
+MariaDB da duoc cau hinh dung existingSecret trong Helm values, vi vay ban phai cap nhat secret truoc khi chay helm:
+
+```bash
+# 1) Sua mat khau manh trong file secret
+nano ./prod/env/secret/mariadb-auth-secret.yaml
+
+# 2) Tao namespace db neu chua co va apply secret
+kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f ./prod/env/secret/mariadb-auth-secret.yaml
+```
+
+Neu ban dung tai khoan admin DB cho ManagementPlatform, cap nhat them:
+
+```bash
+nano ./prod/env/secret/admin-mvc-secret.yaml
+```
+
+Neu DB da du lieu san (PVC cu), file initdbScripts se khong chay lai. Khi do hay chay SQL cap quyen thu cong:
+
+```bash
+# Sua mat khau trong script truoc khi chay
+nano ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
+```
+
 ### 1. Chuẩn bị server
 
 ```bash
@@ -147,13 +173,45 @@ kubectl create namespace storage
 sudo apt update
 sudo apt install -y nfs-kernel-server nfs-common
 
+# Cài Access Control Lists
+sudo apt install acl -y
 # Tạo thư mục share
 sudo mkdir -p /srv/nfs/share
-sudo chown nobody:nogroup /srv/nfs/share
-sudo chmod 777 /srv/nfs/share
+sudo mkdir -p /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
 
-# Cấu hình exports
-echo "/srv/nfs/share *(rw,sync,no_subtree_check,no_root_squash,insecure)" | sudo tee -a /etc/exports
+# 5 group/UID
+# admin-mvc: 1101 -> /challenges rwx, /file rwx
+# contestant-be: 1102 -> /file r-x
+# up-challenge-workflow: 1103 -> /challenges r-x
+# start-chal-v2-workflow: 1104 -> /start-challenge r-x
+# filebrowser: 1105 -> full rwx
+
+# baseline: chủ sở hữu root, không cho others
+sudo chmod 770 /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+
+# admin-mvc
+sudo setfacl -R -m u:1101:rwx /srv/nfs/share/challenges /srv/nfs/share/file
+sudo setfacl -R -m d:u:1101:rwx /srv/nfs/share/challenges /srv/nfs/share/file
+
+# contestant-be (read-only)
+sudo setfacl -R -m u:1102:rx /srv/nfs/share/file
+sudo setfacl -R -m d:u:1102:rx /srv/nfs/share/file
+
+# up-challenge-workflow (read-only)
+sudo setfacl -R -m u:1103:rx /srv/nfs/share/challenges
+sudo setfacl -R -m d:u:1103:rx /srv/nfs/share/challenges
+
+# start-chal-v2-workflow (read-only)
+sudo setfacl -R -m u:1104:rx /srv/nfs/share/start-challenge
+sudo setfacl -R -m d:u:1104:rx /srv/nfs/share/start-challenge
+
+# filebrowser full quyền toàn bộ
+sudo setfacl -R -m u:1105:rwx /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/challenges /srv/nfs/share/start-challenge /srv/nfs/share/file
+
+# Chỉ cho phép đúng IP của 3 node
+# Đổi 3 IP bên dưới theo cluster thực tế
+echo "/srv/nfs/share 10.148.0.2(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.3(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.4(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
 
 # Apply cấu hình
 sudo exportfs -ra
@@ -170,18 +228,30 @@ sudo exportfs -v
 # thường sẽ là IP đầu tiên 
 hostname -I
 # Ví dụ tôi có 10.148.0.32 
-# Cần sửa trong prod\storage\nfs-pv-pvc.yaml phàn spec.nfs.server ở đây thay thế bằng IP của bạn 
-# Tương tự những chỗ mount nfs ở các file sau  
-#    prod\app\admin-mvc\deployment.yaml 
-#    prod\app\contestant-be\deployment.yaml
-#    prod\argo-workflows\start-chal-v2\start-chal-v2-template.yaml
-#    prod\argo-workflows\up-challenge\up-challenge-template.yaml
+# Cần sửa phần spec.nfs.server trong các file PV bên dưới
+#   prod\storage\pv\admin-mvc-pv.yaml
+#   prod\storage\pv\contestant-be-pv.yaml
+#   prod\storage\pv\up-challenge-workflow-pv.yaml
+#   prod\storage\pv\start-challenge-workflow-pv.yaml
+#   prod\storage\pv\filebrowser-pv.yaml
 
-# apply NFS PV/PVC
-kubectl apply -f ./prod/storage/nfs-pv-pvc.yaml
+# apply NFS PV/PVC theo từng service
+kubectl apply -f ./prod/storage/pv/admin-mvc-pv.yaml
+kubectl apply -f ./prod/storage/pv/contestant-be-pv.yaml
+kubectl apply -f ./prod/storage/pv/up-challenge-workflow-pv.yaml
+kubectl apply -f ./prod/storage/pv/start-challenge-workflow-pv.yaml
+kubectl apply -f ./prod/storage/pv/filebrowser-pv.yaml
+
+kubectl apply -f ./prod/storage/pvc/admin-mvc-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/contestant-be-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/up-challenge-workflow-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/start-challenge-workflow-pvc.yaml
+kubectl apply -f ./prod/storage/pvc/filebrowser-pvc.yaml
 
 # Kiểm tra
 kubectl get pv
+kubectl get pvc -n app
+kubectl get pvc -n argo
 kubectl get pvc -n storage
 ```
 
@@ -203,6 +273,7 @@ kubectl get svc --all-namespaces -o custom-columns="NAMESPACE:.metadata.namespac
 # Chạy script cài đặt tự động 
 # Hoặc cài đặt từng bước: có thể vào ./helm.sh để cài từng bước bắt đầu từ # Apply helm repos
 # Đối với môi trường dev có thể bỏ qua nginx ingress và cert-manager (comment phần đó lại)
+# Luu y: setup-master.sh se tu apply prod/env/secret/mariadb-auth-secret.yaml truoc khi chay helm.sh
 bash helm.sh
 # nếu không chạy được bash helm.sh bạn cần chuyển từ CLRF sang FL và đặt file executable sau đó chạy lại
 chmod +x helm.sh
@@ -241,6 +312,7 @@ kubectl create secret docker-registry regcred
 # Tạo Namespace
 kubectl create namespace app
 kubectl create namespace challenge
+kubectl create namespace db
 
 
 kubectl apply -f ./prod/priority-classes.yaml
@@ -279,6 +351,22 @@ kubectl apply -f ./prod/cert-manager/cluster-issuer.yaml
 kubectl apply -f ./prod/ingress/certificate/
 kubectl apply -f ./prod/ingress/nginx/
 ```
+
+### RabbitMQ setup cho Deployment Center/Consumer
+
+`deployment-center` và `deployment-consumer` **không tự khai báo topology trong code**. Topology + tài khoản + phân quyền được khai báo sẵn ở setup Helm:
+
+- Queue: `deployment_queue`
+- Exchange: `deployment_exchange` (direct)
+- Binding: `deployment_exchange` -> `deployment_queue` với routing key `deploy`
+- Vhost: `fctf_deploy`
+- Users:
+  - `deployment-producer` (chỉ publish vào `deployment_exchange`)
+  - `deployment-consumer` (chỉ consume từ `deployment_queue`)
+
+Cấu hình nằm trong file [prod/helm/db/rabbitmq/rabbitmq-values.yaml](prod/helm/db/rabbitmq/rabbitmq-values.yaml) (`extraDeploy` + `loadDefinition`).
+
+
 #### Thông tin đăng nhập
 
 **Filebrowser**
@@ -383,6 +471,7 @@ helm uninstall prometheus -n monitoring
 helm uninstall loki-stack -n monitoring
 helm uninstall redis -n db
 helm uninstall mariadb -n db
+helm uninstall rabbitmq -n db
 helm uninstall cert-manager -n cert-manager
 helm uninstall ingress-nginx -n ingress-nginx
 helm uninstall rancher -n cattle-system

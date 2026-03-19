@@ -129,7 +129,7 @@ auth:
   ## @param auth.rootPassword Password for the `root` user. Ignored if existing secret is provided.
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/mariadb#setting-the-root-password-on-first-run
   ##
-  rootPassword: "cm9vdC1jdGZkLXBhc3N3b3JkQA"
+  rootPassword: ""
   ## @param auth.database Name for a custom database to create
   ## ref: https://github.com/bitnami/containers/blob/main/bitnami/mariadb/README.md#creating-a-database-on-first-run
   ##
@@ -140,7 +140,7 @@ auth:
   username: "ctfd-username"
   ## @param auth.password Password for the new user. Ignored if existing secret is provided
   ##
-  password: "Y3RmZC1wYXNzd29yZEA"
+  password: ""
   ## @param auth.replicationUser MariaDB replication user
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/mariadb#setting-up-a-replication-cluster
   ##
@@ -151,10 +151,10 @@ auth:
   replicationPassword: ""
   ## @param auth.existingSecret Use existing secret for password details (`auth.rootPassword`, `auth.password`, `auth.replicationPassword` will be ignored and picked up from this secret). The secret has to contain the keys `mariadb-root-password`, `mariadb-replication-password` and `mariadb-password`
   ##
-  existingSecret: ""
+  existingSecret: "mariadb-auth-secret"
   ## @param auth.forcePassword Force users to specify required passwords
   ##
-  forcePassword: false
+  forcePassword: true
   ## @param auth.usePasswordFiles Mount credentials as files instead of using environment variables
   ##
   usePasswordFiles: true
@@ -174,7 +174,82 @@ auth:
 ##      #!/bin/bash
 ##      echo "Do something."
 ##
-initdbScripts: {}
+initdbScripts:
+  01-least-privilege-accounts.sql: |
+    -- NOTE:
+    -- 1) This script runs only when MariaDB data directory is initialized the first time.
+    -- 2) Keep passwords in sync with app secrets under prod/env/secret/*.yaml.
+
+    -- Disallow remote root logins and remove insecure default accounts/objects.
+    DROP USER IF EXISTS 'root'@'%';
+    DROP USER IF EXISTS 'root'@'0.0.0.0';
+    DROP USER IF EXISTS 'root'@'::';
+    DROP USER IF EXISTS ''@'localhost';
+    DROP USER IF EXISTS ''@'%';
+    DROP DATABASE IF EXISTS test;
+    DELETE FROM mysql.db WHERE Db='test' OR Db LIKE 'test\\_%';
+
+    -- Replace these placeholder passwords with strong, unique values before deployment.
+    CREATE USER IF NOT EXISTS 'contestant_be'@'%' IDENTIFIED BY 'REPLACE_WITH_STRONG_UNIQUE_CONTESTANT_BE_PASSWORD_2026!';
+    CREATE USER IF NOT EXISTS 'deployment_center'@'%' IDENTIFIED BY 'REPLACE_WITH_STRONG_UNIQUE_DEPLOYMENT_CENTER_PASSWORD_2026!';
+    CREATE USER IF NOT EXISTS 'deployment_listener'@'%' IDENTIFIED BY 'REPLACE_WITH_STRONG_UNIQUE_DEPLOYMENT_LISTENER_PASSWORD_2026!';
+    CREATE USER IF NOT EXISTS 'deployment_consumer'@'%' IDENTIFIED BY 'REPLACE_WITH_STRONG_UNIQUE_DEPLOYMENT_CONSUMER_PASSWORD_2026!';
+    CREATE USER IF NOT EXISTS 'ctfd_admin'@'%' IDENTIFIED BY 'REPLACE_WITH_STRONG_UNIQUE_CTFD_ADMIN_PASSWORD_2026!';
+
+    -- ContestantBE
+    GRANT SELECT ON ctfd.users TO 'contestant_be'@'%';
+    GRANT UPDATE ON ctfd.users TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.teams TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.teams TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.brackets TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.config TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.challenges TO 'contestant_be'@'%';
+    GRANT UPDATE ON ctfd.challenges TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.dynamic_challenge TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.files TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.hints TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.flags TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.submissions TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.submissions TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.solves TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.solves TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.awards TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.awards TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.unlocks TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.unlocks TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.action_logs TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.action_logs TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.tickets TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.tickets TO 'contestant_be'@'%';
+    GRANT DELETE ON ctfd.tickets TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.tokens TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.tokens TO 'contestant_be'@'%';
+    GRANT UPDATE ON ctfd.tokens TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
+    GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
+    GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
+    GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+
+    -- DeploymentCenter
+    GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
+    GRANT SELECT ON ctfd.challenges TO 'deployment_center'@'%';
+    GRANT UPDATE ON ctfd.challenges TO 'deployment_center'@'%';
+    GRANT INSERT ON ctfd.deploy_histories TO 'deployment_center'@'%';
+    GRANT INSERT ON ctfd.challenge_start_tracking TO 'deployment_center'@'%';
+
+    -- DeploymentListener
+    GRANT SELECT ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
+    GRANT INSERT ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
+    GRANT UPDATE ON ctfd.challenge_start_tracking TO 'deployment_listener'@'%';
+    GRANT SELECT ON ctfd.challenges TO 'deployment_listener'@'%';
+
+    -- DeploymentConsumer
+    GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
+
+    -- Admin portal (full privileges on CTFd schema)
+    GRANT ALL PRIVILEGES ON ctfd.* TO 'ctfd_admin'@'%';
+
+    FLUSH PRIVILEGES;
 ## @param initdbScriptsConfigMap ConfigMap with the initdb scripts (Note: Overrides `initdbScripts`)
 ##
 initdbScriptsConfigMap: ""
@@ -191,8 +266,8 @@ initdbScriptsConfigMap: ""
 ## @param tls.key TLS key. Ignored if `tls.master.existingSecret` is set
 ##
 tls:
-  enabled: false
-  existingSecret: "mariadb-tls-secret"
+  enabled: true
+  existingSecret: ""
   certFilename: tls.crt
   certKeyFilename: tls.key
   certCAFilename: ""
@@ -203,7 +278,7 @@ tls:
   ## @param tls.autoGenerated.engine Mechanism to generate the certificates (allowed values: helm, cert-manager)
   autoGenerated:
     enabled: true
-    engine: cert-manager
+    engine: helm
     ## @param tls.autoGenerated.certManager.existingIssuer The name of an existing Issuer to use for generating the certificates (only for `cert-manager` engine)
     ## @param tls.autoGenerated.certManager.existingIssuerKind Existing Issuer kind, defaults to Issuer (only for `cert-manager` engine)
     ## @param tls.autoGenerated.certManager.keyAlgorithm Key algorithm for the certificates (only for `cert-manager` engine)
@@ -313,9 +388,12 @@ primary:
     socket=/opt/bitnami/mariadb/tmp/mysql.sock
     tmpdir=/opt/bitnami/mariadb/tmp
     max_allowed_packet=16M
+    local-infile=0
     bind-address=0.0.0.0
     pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
     log-error=/opt/bitnami/mariadb/logs/mysqld.log
+    general_log=1
+    general_log_file=/opt/bitnami/mariadb/logs/general.log
     character-set-server=utf8mb4
     collation-server=utf8mb4_bin
     slow_query_log=0
@@ -778,9 +856,12 @@ secondary:
     socket=/opt/bitnami/mariadb/tmp/mysql.sock
     tmpdir=/opt/bitnami/mariadb/tmp
     max_allowed_packet=16M
+    local-infile=0
     bind-address=0.0.0.0
     pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
     log-error=/opt/bitnami/mariadb/logs/mysqld.log
+    general_log=1
+    general_log_file=/opt/bitnami/mariadb/logs/general.log
     character-set-server=utf8mb4
     collation-server=utf8mb4_bin
     slow_query_log=0
@@ -1619,7 +1700,7 @@ networkPolicy:
   ## When set to false, only pods with the correct client label will have network access to the ports MariaDB is
   ## listening on. When true, MariaDB will accept connections from any source (with the correct destination port).
   ##
-  allowExternal: true
+  allowExternal: false
   ## @param networkPolicy.allowExternalEgress Allow the pod to access any range of port and all destinations.
   ##
   allowExternalEgress: true
@@ -1660,5 +1741,6 @@ networkPolicy:
   ## @param networkPolicy.ingressNSMatchLabels [object] Labels to match to allow traffic from other namespaces
   ## @param networkPolicy.ingressNSPodMatchLabels [object] Pod labels to match to allow traffic from other namespaces
   ##
-  ingressNSMatchLabels: {}
+  ingressNSMatchLabels:
+    kubernetes.io/metadata.name: app
   ingressNSPodMatchLabels: {}

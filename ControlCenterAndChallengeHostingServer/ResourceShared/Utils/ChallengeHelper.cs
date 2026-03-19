@@ -15,7 +15,7 @@ namespace ResourceShared.Utils
 
         private static byte[] GetSecretBytes()
         {
-            var secret = SharedConfig.PRIVATE_KEY;
+            var secret = Environment.GetEnvironmentVariable("PRIVATE_KEY");
             if (string.IsNullOrWhiteSpace(secret))
             {
                 throw new InvalidOperationException("Missing PRIVATE_KEY");
@@ -181,6 +181,7 @@ namespace ResourceShared.Utils
             string memory_limit,
             string memory_request,
             bool use_gvisor,
+            bool harden_container,
             string pow_difficulty)
         {
             var isTemp = true;
@@ -193,10 +194,12 @@ namespace ResourceShared.Utils
             }
 
             var deploymentAppName = GetDeploymentAppName(teamId, challenge.Id, challenge.Name);
+            var startChallengeTemplate = Environment.GetEnvironmentVariable("START_CHALLENGE_TEMPLATE")
+                ?? throw new InvalidOperationException("Missing START_CHALLENGE_TEMPLATE");
             return (new
             {
                 resourceKind = "WorkflowTemplate",
-                resourceName = SharedConfig.START_CHALLENGE_TEMPLATE,
+                resourceName = startChallengeTemplate,
                 submitOptions = new
                 {
                     entryPoint = "main",
@@ -210,6 +213,7 @@ namespace ResourceShared.Utils
                         $"MEMORY_LIMIT={memory_limit}",
                         $"MEMORY_REQUEST={memory_request}",
                         $"USE_GVISOR={use_gvisor.ToString().ToLower()}",
+                        $"HARDEN_CONTAINER={harden_container.ToString().ToLower()}",
                         $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
                         $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
                         $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
