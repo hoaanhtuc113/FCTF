@@ -29,9 +29,9 @@ spec:
             - configMapRef:
                 name: contestant-be-cm
             - secretRef:
-              name: contestant-be-secret
+                name: contestant-be-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.2

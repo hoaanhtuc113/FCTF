@@ -23,9 +23,9 @@ spec:
             - configMapRef:
                 name: deployment-listener-cm
             - secretRef:
-              name: deployment-listener-secret
+                name: deployment-listener-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.1
