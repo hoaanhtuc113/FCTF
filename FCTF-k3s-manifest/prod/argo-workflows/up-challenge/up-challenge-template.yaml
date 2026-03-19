@@ -83,7 +83,6 @@ spec:
         volumeMounts:
           - name: nfs-shared-data
             mountPath: /nfs/share/data
-            subPath: file
             readOnly: true
           - name: docker-config
             mountPath: /kaniko/.docker
@@ -97,7 +96,7 @@ spec:
             echo "=== Building and pushing image with Kaniko ==="
 
             CHALLENGE_PATH_RAW="{{inputs.parameters.CHALLENGE_PATH}}"
-            CHALLENGE_PATH_NORMALIZED="${CHALLENGE_PATH_RAW#file/}"
+            CHALLENGE_PATH_NORMALIZED="${CHALLENGE_PATH_RAW#challenges/}"
             CHALLENGE_DIR="/nfs/share/data/${CHALLENGE_PATH_NORMALIZED}"
 
             if [ ! -d "$CHALLENGE_DIR" ]; then

@@ -108,7 +108,6 @@ spec:
         volumeMounts:
           - name: nfs-shared-data
             mountPath: /mnt/nfs/data
-            subPath: start-challenge
             readOnly: true
         command: [sh, -c]
         args:

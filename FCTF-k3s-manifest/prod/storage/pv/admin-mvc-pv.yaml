@@ -12,8 +12,8 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: 10.184.0.2
-    path: /srv/nfs/share/Challenges
+    server: 10.148.0.2
+    path: /srv/nfs/share/challenges
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -26,5 +26,5 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: 10.184.0.2
+    server: 10.148.0.2
     path: /srv/nfs/share/file
