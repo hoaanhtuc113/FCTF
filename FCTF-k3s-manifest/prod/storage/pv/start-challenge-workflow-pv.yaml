@@ -10,6 +10,8 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
+  mountOptions:
+    - noexec
   nfs:
     server: 10.184.0.2
     path: /srv/nfs/share/start-challenge
