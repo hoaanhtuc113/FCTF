@@ -100,8 +100,8 @@ spec:
             CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#challenges/}"
             CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#/}"
 
-            CANDIDATE_1="/nfs/share/data/${CHALLENGE_PATH_RAW}"
-            CANDIDATE_2="/nfs/share/data/${CHALLENGE_PATH_NORM}"
+            CANDIDATE_1="/mnt/nfs/data/${CHALLENGE_PATH_RAW}"
+            CANDIDATE_2="/mnt/nfs/data/${CHALLENGE_PATH_NORM}"
 
             if [ "${CHALLENGE_PATH_RAW#/}" != "$CHALLENGE_PATH_RAW" ]; then
               CANDIDATE_3="$CHALLENGE_PATH_RAW"
@@ -135,10 +135,10 @@ spec:
               if [ -n "$CANDIDATE_3" ]; then
                 echo "   - Tried: $CANDIDATE_3"
               fi
-              echo "📂 /nfs/share/data (top-level):"
-              ls -la /nfs/share/data || true
-              echo "📂 /nfs/share/data (maxdepth=3):"
-              find /nfs/share/data -maxdepth 3 -type d | sort || true
+              echo "📂 /mnt/nfs/data (top-level):"
+              ls -la /mnt/nfs/data || true
+              echo "📂 /mnt/nfs/data (maxdepth=3):"
+              find /mnt/nfs/data -maxdepth 3 -type d | sort || true
               exit 1
             fi
 

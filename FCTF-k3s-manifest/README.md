@@ -200,6 +200,12 @@ sudo setfacl -R -m d:u:1102:rx /srv/nfs/share/file
 # up-challenge-workflow (read-only)
 sudo setfacl -R -m u:1103:rx /srv/nfs/share/challenges
 sudo setfacl -R -m d:u:1103:rx /srv/nfs/share/challenges
+# Kaniko chạy root nhưng NFS đang root_squash -> root bị map thành anon (thường 65534)
+# Cần cấp quyền cho anon user/group để đọc được challenges
+sudo setfacl -R -m u:65534:rx,g:65534:rx /srv/nfs/share/challenges
+sudo setfacl -R -m d:u:65534:rx,d:g:65534:rx /srv/nfs/share/challenges
+
+
 
 # start-chal-v2-workflow (read-only)
 sudo setfacl -R -m u:1104:rx /srv/nfs/share/start-challenge
