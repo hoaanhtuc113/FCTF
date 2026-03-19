@@ -33,6 +33,8 @@ spec:
         value: "true"
       - name: CHALLENGE_TIMEOUT
         value: "15m"
+      - name: RANCHER_PROJECT_ID
+        value: ""
 
   templates:
     - name: main
@@ -63,6 +65,8 @@ spec:
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
                   value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
+                - name: RANCHER_PROJECT_ID
+                  value: "{{workflow.parameters.RANCHER_PROJECT_ID}}"
 
     - name: deploy-challenge-v2
       inputs:
@@ -78,6 +82,7 @@ spec:
           - name: HARDEN_CONTAINER
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
+          - name: RANCHER_PROJECT_ID
       priorityClassName: lowest
       preemptionPolicy: Never
       activeDeadlineSeconds: 120
@@ -124,6 +129,7 @@ spec:
             export MEMORY_REQUEST="{{inputs.parameters.MEMORY_REQUEST}}"
             export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
             export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
+            export RANCHER_PROJECT_ID="{{inputs.parameters.RANCHER_PROJECT_ID}}"
 
             if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
@@ -146,12 +152,20 @@ spec:
             echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
 
             if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
+              if [ -n "${RANCHER_PROJECT_ID}" ]; then
+                RANCHER_PROJECT_ANNOTATION_LINE="    field.cattle.io/projectId: \"${RANCHER_PROJECT_ID}\""
+              else
+                RANCHER_PROJECT_ANNOTATION_LINE=""
+              fi
+
               if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
                 printf '%s\n' \
                   'apiVersion: v1' \
                   'kind: Namespace' \
                   'metadata:' \
                   "  name: ${CHALLENGE_NAME}" \
+                  '  annotations:' \
+                  "${RANCHER_PROJECT_ANNOTATION_LINE}" \
                   '  labels:' \
                   "    ctf/temporary: \"${IS_TEMPORARY}\"" \
                   "    ctf/expireAfter: \"${CHALLENGE_TIMEOUT}\"" \
@@ -169,6 +183,8 @@ spec:
                   'kind: Namespace' \
                   'metadata:' \
                   "  name: ${CHALLENGE_NAME}" \
+                  '  annotations:' \
+                  "${RANCHER_PROJECT_ANNOTATION_LINE}" \
                   '  labels:' \
                   "    ctf/temporary: \"${IS_TEMPORARY}\"" \
                   "    ctf/expireAfter: \"${CHALLENGE_TIMEOUT}\"" \
