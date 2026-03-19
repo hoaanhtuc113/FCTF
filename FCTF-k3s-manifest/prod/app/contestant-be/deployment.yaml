@@ -20,7 +20,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: contestant-be
-          image: quachuoiscontainer/fctf:contestant-be-prod-v4.0.0
+          image: quachuoiscontainer/fctf:contestant-be-prod-latest
           ports:
             - name: http-client
               containerPort: 5010

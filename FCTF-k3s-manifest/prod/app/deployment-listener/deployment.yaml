@@ -18,7 +18,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-listener
-          image: quachuoiscontainer/fctf:deployment-listener-prod-v4.0.0
+          image: quachuoiscontainer/fctf:deployment-listener-prod-latest
           envFrom:
             - configMapRef:
                 name: deployment-listener-cm

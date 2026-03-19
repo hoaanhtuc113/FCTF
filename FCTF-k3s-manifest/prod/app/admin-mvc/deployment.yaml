@@ -20,7 +20,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: admin-mvc
-          image: quachuoiscontainer/fctf:admin-mvc-prod-v4.0.0
+          image: quachuoiscontainer/fctf:admin-mvc-prod-latest
           ports:
             - name: http-client
               containerPort: 8000
