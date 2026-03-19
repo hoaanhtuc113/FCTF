@@ -96,12 +96,53 @@ spec:
             echo "=== Building and pushing image with Kaniko ==="
 
             CHALLENGE_PATH_RAW="{{inputs.parameters.CHALLENGE_PATH}}"
-            CHALLENGE_DIR="/nfs/share/data/${CHALLENGE_PATH_RAW}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_RAW#./}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#challenges/}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#/}"
 
-            if [ ! -d "$CHALLENGE_DIR" ]; then
-              echo "❌ Challenge directory not found: $CHALLENGE_DIR"
+            CANDIDATE_1="/nfs/share/data/${CHALLENGE_PATH_RAW}"
+            CANDIDATE_2="/nfs/share/data/${CHALLENGE_PATH_NORM}"
+
+            if [ "${CHALLENGE_PATH_RAW#/}" != "$CHALLENGE_PATH_RAW" ]; then
+              CANDIDATE_3="$CHALLENGE_PATH_RAW"
+            else
+              CANDIDATE_3=""
+            fi
+
+            echo "🔎 CANDIDATE_1: $CANDIDATE_1"
+            echo "🔎 CANDIDATE_2: $CANDIDATE_2"
+            if [ -n "$CANDIDATE_3" ]; then
+              echo "🔎 CANDIDATE_3: $CANDIDATE_3"
+            fi
+
+            CHALLENGE_DIR=""
+            CHALLENGE_DIR_SOURCE=""
+            if [ -d "$CANDIDATE_1" ]; then
+              CHALLENGE_DIR="$CANDIDATE_1"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_1"
+            elif [ -d "$CANDIDATE_2" ]; then
+              CHALLENGE_DIR="$CANDIDATE_2"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_2"
+            elif [ -n "$CANDIDATE_3" ] && [ -d "$CANDIDATE_3" ]; then
+              CHALLENGE_DIR="$CANDIDATE_3"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_3"
+            fi
+
+            if [ -z "$CHALLENGE_DIR" ]; then
+              echo "❌ Challenge directory not found"
+              echo "   - Tried: $CANDIDATE_1"
+              echo "   - Tried: $CANDIDATE_2"
+              if [ -n "$CANDIDATE_3" ]; then
+                echo "   - Tried: $CANDIDATE_3"
+              fi
+              echo "📂 /nfs/share/data (top-level):"
+              ls -la /nfs/share/data || true
+              echo "📂 /nfs/share/data (maxdepth=3):"
+              find /nfs/share/data -maxdepth 3 -type d | sort || true
               exit 1
             fi
+
+            echo "✅ Selected ${CHALLENGE_DIR_SOURCE}: $CHALLENGE_DIR"
 
             if [ ! -f "$CHALLENGE_DIR/Dockerfile" ]; then
               echo "❌ Dockerfile not found in $CHALLENGE_DIR"
