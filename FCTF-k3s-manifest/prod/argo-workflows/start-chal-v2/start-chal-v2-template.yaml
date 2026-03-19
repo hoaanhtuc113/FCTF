@@ -152,7 +152,9 @@ spec:
             echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
 
             if [ -n "${RANCHER_PROJECT_ID}" ]; then
-              export RANCHER_PROJECT_BLOCK="  annotations:\n    field.cattle.io/projectId: \"${RANCHER_PROJECT_ID}\""
+              export RANCHER_PROJECT_BLOCK="$(printf '%s\n' \
+                '  annotations:' \
+                "    field.cattle.io/projectId: \"${RANCHER_PROJECT_ID}\"")"
             else
               export RANCHER_PROJECT_BLOCK=""
             fi
