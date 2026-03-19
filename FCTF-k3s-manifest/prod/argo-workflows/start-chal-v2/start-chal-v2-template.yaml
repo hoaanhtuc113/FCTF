@@ -146,7 +146,7 @@ spec:
             echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
 
             APPLY_OUTPUT="$(envsubst < "${NFS_DATA_PATH}" | kubectl apply -f - 2>&1)" || {
-              if echo "${APPLY_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces'; then
+              if echo "${APPLY_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces\|create-non-kubesystem\|Unauthorized'; then
                 echo "⚠️ Rancher webhook denied namespace operation during apply, continue as requested."
                 exit 0
               else
@@ -155,15 +155,29 @@ spec:
               fi
             }
 
+            # If namespace still does not exist, stop gracefully to avoid cascading errors.
+            if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
+              echo "⚠️ Namespace ${CHALLENGE_NAME} was not created. Skip remaining steps without failing workflow."
+              exit 0
+            fi
+
             echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
-            kubectl get secret global-regcred -n argo -o yaml \
+            SECRET_COPY_OUTPUT="$(kubectl get secret global-regcred -n argo -o yaml \
               | sed "s/namespace: .*/namespace: ${CHALLENGE_NAME}/" \
               | sed '/resourceVersion:/d;/uid:/d;/creationTimestamp:/d' \
               | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
-              | kubectl apply -f -
+              | kubectl apply -f - 2>&1)" || {
+                if echo "${SECRET_COPY_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces\|create-non-kubesystem\|Unauthorized\|namespaces .* not found'; then
+                  echo "⚠️ Failed to copy global-regcred due namespace policy, continue as requested."
+                  exit 0
+                else
+                  echo "${SECRET_COPY_OUTPUT}"
+                  exit 1
+                fi
+              }
 
             APPLY_OUTPUT="$(envsubst < "${NFS_DATA_PATH}" | kubectl apply -f - 2>&1)" || {
-              if echo "${APPLY_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces'; then
+              if echo "${APPLY_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces\|create-non-kubesystem\|Unauthorized\|namespaces .* not found'; then
                 echo "⚠️ Rancher webhook denied namespace operation during apply, continue as requested."
                 exit 0
               else
