@@ -1,19 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${CHALLENGE_NAME}
-  labels:
-    ctf/temporary: "${IS_TEMPORARY}"
-    ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
-    ctf/kind: "challenge"
-    pod-security.kubernetes.io/enforce: "restricted"
-    pod-security.kubernetes.io/enforce-version: "latest"
-    pod-security.kubernetes.io/audit: "restricted"
-    pod-security.kubernetes.io/audit-version: "latest"
-    pod-security.kubernetes.io/warn: "restricted"
-    pod-security.kubernetes.io/warn-version: "latest"
----
-apiVersion: v1
 kind: Service
 metadata:
   name: ${CHALLENGE_NAME}-svc

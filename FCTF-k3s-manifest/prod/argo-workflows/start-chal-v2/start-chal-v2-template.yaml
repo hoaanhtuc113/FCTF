@@ -146,7 +146,35 @@ spec:
             echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
 
             if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
-              kubectl create ns "${CHALLENGE_NAME}"
+              if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
+                printf '%s\n' \
+                  'apiVersion: v1' \
+                  'kind: Namespace' \
+                  'metadata:' \
+                  "  name: ${CHALLENGE_NAME}" \
+                  '  labels:' \
+                  "    ctf/temporary: \"${IS_TEMPORARY}\"" \
+                  "    ctf/expireAfter: \"${CHALLENGE_TIMEOUT}\"" \
+                  '    ctf/kind: "challenge"' \
+                  '    pod-security.kubernetes.io/enforce: "restricted"' \
+                  '    pod-security.kubernetes.io/enforce-version: "latest"' \
+                  '    pod-security.kubernetes.io/audit: "restricted"' \
+                  '    pod-security.kubernetes.io/audit-version: "latest"' \
+                  '    pod-security.kubernetes.io/warn: "restricted"' \
+                  '    pod-security.kubernetes.io/warn-version: "latest"' \
+                  | kubectl create -f -
+              else
+                printf '%s\n' \
+                  'apiVersion: v1' \
+                  'kind: Namespace' \
+                  'metadata:' \
+                  "  name: ${CHALLENGE_NAME}" \
+                  '  labels:' \
+                  "    ctf/temporary: \"${IS_TEMPORARY}\"" \
+                  "    ctf/expireAfter: \"${CHALLENGE_TIMEOUT}\"" \
+                  '    ctf/kind: "challenge"' \
+                  | kubectl create -f -
+              fi
             fi
 
             echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
