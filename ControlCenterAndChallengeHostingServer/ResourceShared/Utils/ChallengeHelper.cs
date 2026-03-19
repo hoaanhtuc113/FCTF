@@ -196,7 +196,6 @@ namespace ResourceShared.Utils
             var deploymentAppName = GetDeploymentAppName(teamId, challenge.Id, challenge.Name);
             var startChallengeTemplate = Environment.GetEnvironmentVariable("START_CHALLENGE_TEMPLATE")
                 ?? throw new InvalidOperationException("Missing START_CHALLENGE_TEMPLATE");
-            var rancherProjectId = Environment.GetEnvironmentVariable("RANCHER_PROJECT_ID") ?? string.Empty;
             return (new
             {
                 resourceKind = "WorkflowTemplate",
@@ -217,8 +216,7 @@ namespace ResourceShared.Utils
                         $"HARDEN_CONTAINER={harden_container.ToString().ToLower()}",
                         $"IS_TEMPORARY={isTemp.ToString().ToLower()}",
                         $"CHALLENGE_TIMEOUT={challenge.TimeLimit++}m",
-                        $"POW_DIFFICULTY_SECONDS={pow_difficulty}",
-                        $"RANCHER_PROJECT_ID={rancherProjectId}"
+                        $"POW_DIFFICULTY_SECONDS={pow_difficulty}"
                     }
                 }
             },
