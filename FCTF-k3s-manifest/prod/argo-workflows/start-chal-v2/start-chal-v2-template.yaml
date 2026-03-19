@@ -152,8 +152,10 @@ spec:
               echo "$1" | grep -qi 'rancher.cattle.io.namespaces\|create-non-kubesystem\|Unauthorized\|admission webhook'
             }
 
+            set +e
             APPLY_OUTPUT="$(envsubst < "${NFS_DATA_PATH}" | kubectl apply -f - 2>&1)"
             APPLY_RC=$?
+            set -e
             if [ "${APPLY_RC}" -ne 0 ]; then
               if is_rancher_error "${APPLY_OUTPUT}"; then
                 echo "⚠️ Rancher webhook denied namespace operation during apply, keep running."
@@ -167,12 +169,14 @@ spec:
 
             if kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
               echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
+              set +e
               SECRET_COPY_OUTPUT="$(kubectl get secret global-regcred -n argo -o yaml \
                 | sed "s/namespace: .*/namespace: ${CHALLENGE_NAME}/" \
                 | sed '/resourceVersion:/d;/uid:/d;/creationTimestamp:/d' \
                 | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
                 | kubectl apply -f - 2>&1)"
               SECRET_COPY_RC=$?
+              set -e
               if [ "${SECRET_COPY_RC}" -ne 0 ]; then
                 if is_rancher_error "${SECRET_COPY_OUTPUT}" || echo "${SECRET_COPY_OUTPUT}" | grep -qi 'namespaces .* not found'; then
                   echo "⚠️ Failed to copy global-regcred due namespace policy, keep running."
@@ -184,8 +188,10 @@ spec:
               fi
 
               if [ "${ns_apply_denied}" = "true" ]; then
+                set +e
                 APPLY_OUTPUT="$(envsubst < "${NFS_DATA_PATH}" | sed '1,/^---[[:space:]]*$/d' | kubectl apply -f - 2>&1)"
                 APPLY_RC=$?
+                set -e
                 if [ "${APPLY_RC}" -ne 0 ]; then
                   if is_rancher_error "${APPLY_OUTPUT}" || echo "${APPLY_OUTPUT}" | grep -qi 'namespaces .* not found'; then
                     echo "⚠️ Rancher webhook denied namespace operation during apply (without Namespace doc), keep running."
@@ -196,8 +202,10 @@ spec:
                   fi
                 fi
               else
+                set +e
                 APPLY_OUTPUT="$(envsubst < "${NFS_DATA_PATH}" | kubectl apply -f - 2>&1)"
                 APPLY_RC=$?
+                set -e
                 if [ "${APPLY_RC}" -ne 0 ]; then
                   if is_rancher_error "${APPLY_OUTPUT}" || echo "${APPLY_OUTPUT}" | grep -qi 'namespaces .* not found'; then
                     echo "⚠️ Rancher webhook denied namespace operation during final apply, keep running."
