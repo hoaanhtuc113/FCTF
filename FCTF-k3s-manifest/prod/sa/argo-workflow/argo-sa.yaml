@@ -1,27 +1,85 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: argo-sa
+  name: start-chal-v2-workflow-sa
   namespace: argo
+automountServiceAccountToken: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: up-challenge-workflow-sa
+  namespace: argo
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argo-workflow-executor-role
+  namespace: argo
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflowtaskresults"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: start-chal-v2-workflow-executor-binding
+  namespace: argo
+subjects:
+  - kind: ServiceAccount
+    name: start-chal-v2-workflow-sa
+    namespace: argo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argo-workflow-executor-role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: up-challenge-workflow-executor-binding
+  namespace: argo
+subjects:
+  - kind: ServiceAccount
+    name: up-challenge-workflow-sa
+    namespace: argo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argo-workflow-executor-role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: start-chal-v2-workflow-role
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: argo-sa-cluster-admin
+  name: start-chal-v2-workflow-binding
+subjects:
+  - kind: ServiceAccount
+    name: start-chal-v2-workflow-sa
+    namespace: argo
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
-subjects:
-  - kind: ServiceAccount
-    name: argo-sa
-    namespace: argo
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argo-sa.service-account-token
-  namespace: argo
-  annotations:
-    kubernetes.io/service-account.name: argo-sa
-type: kubernetes.io/service-account-token
+  name: start-chal-v2-workflow-role

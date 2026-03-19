@@ -298,11 +298,13 @@ kubectl -n kubernetes-dashboard edit svc kubernetes-dashboard-dashboard
 # ports
 #   nodePort: 30800 //số bất kì hoặc để trống đều được
 
-# Apply Service Accounts để lấy được token cho argo và k8s dashboard
+# Apply Service Accounts + RBAC theo least-privilege
 kubectl apply -f prod/sa/argo-workflow/argo-sa.yaml
-kubectl -n argo get secret argo-sa.service-account-token -o jsonpath="{.data.token}" | base64 --decode
-# Token này dùng để authen argo và k8s 
-# Và sửa trong đây để các service có thể sự dụng argo prod\env\secret\common-secret.yaml
+
+# Không dùng static token secret nữa.
+# DeploymentCenter / DeploymentConsumer sẽ dùng token tự động được mount theo service account trong pod.
+# Nếu cần test thủ công Argo API, dùng short-lived token:
+kubectl create token deployment-center-sa -n app --duration=1h
 
 ```
 

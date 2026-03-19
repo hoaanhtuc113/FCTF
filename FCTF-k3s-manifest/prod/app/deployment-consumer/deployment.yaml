@@ -13,6 +13,7 @@ spec:
       labels:
         app: deployment-consumer
     spec:
+      serviceAccountName: deployment-consumer-sa
       priorityClassName: app-normal
       preemptionPolicy: Never
       containers:

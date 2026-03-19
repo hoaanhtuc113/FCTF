@@ -6,7 +6,7 @@ metadata:
   annotations:
     workflows.argoproj.io/description: "Build and push challenge image from NFS using Kaniko"
 spec:
-  serviceAccountName: argo-sa
+  serviceAccountName: up-challenge-workflow-sa
   entrypoint: main
   ttlStrategy:
     secondsAfterSuccess: 604800     # 7 days
