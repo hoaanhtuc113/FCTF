@@ -33,8 +33,6 @@ spec:
         value: "true"
       - name: CHALLENGE_TIMEOUT
         value: "15m"
-      - name: RANCHER_PROJECT_ID
-        value: ""
 
   templates:
     - name: main
@@ -65,8 +63,6 @@ spec:
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
                   value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
-                - name: RANCHER_PROJECT_ID
-                  value: "{{workflow.parameters.RANCHER_PROJECT_ID}}"
 
     - name: deploy-challenge-v2
       inputs:
@@ -82,7 +78,6 @@ spec:
           - name: HARDEN_CONTAINER
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
-          - name: RANCHER_PROJECT_ID
       priorityClassName: lowest
       preemptionPolicy: Never
       activeDeadlineSeconds: 120
@@ -129,7 +124,6 @@ spec:
             export MEMORY_REQUEST="{{inputs.parameters.MEMORY_REQUEST}}"
             export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
             export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
-            export RANCHER_PROJECT_ID="{{inputs.parameters.RANCHER_PROJECT_ID}}"
 
             if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
@@ -151,27 +145,12 @@ spec:
 
             echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
 
-            if [ -n "${RANCHER_PROJECT_ID}" ]; then
-              export RANCHER_PROJECT_BLOCK="$(printf '%s\n' \
-                '  annotations:' \
-                "    field.cattle.io/projectId: \"${RANCHER_PROJECT_ID}\"")"
-            else
-              export RANCHER_PROJECT_BLOCK=""
-            fi
-
             # Apply Namespace first to avoid cascading "namespace not found" errors.
             NS_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed -n '1,/^---[[:space:]]*$/p')"
             REST_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed '1,/^---[[:space:]]*$/d')"
 
             NS_APPLY_OUTPUT="$(printf '%s\n' "${NS_DOC}" | kubectl apply -f - 2>&1)" || {
               echo "${NS_APPLY_OUTPUT}"
-              if echo "${NS_APPLY_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces.create-non-kubesystem.*Unauthorized'; then
-                if [ -z "${RANCHER_PROJECT_ID}" ]; then
-                  echo "❌ Rancher chặn tạo namespace vì thiếu project mapping. Hãy set RANCHER_PROJECT_ID trong deployment-consumer-cm (vd: c-m-xxxxx:p-xxxxx)."
-                else
-                  echo "❌ Rancher chặn tạo namespace dù đã có RANCHER_PROJECT_ID=${RANCHER_PROJECT_ID}. Kiểm tra quyền project của SA start-chal-v2-workflow-sa."
-                fi
-              fi
               exit 1
             }
 

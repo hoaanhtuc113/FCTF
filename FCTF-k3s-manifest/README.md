@@ -301,6 +301,8 @@ kubectl -n kubernetes-dashboard edit svc kubernetes-dashboard-dashboard
 # Apply Service Accounts + RBAC theo least-privilege
 kubectl apply -f prod/sa/argo-workflow/argo-sa.yaml
 
+# start-chal-v2-workflow-sa đang dùng cluster-admin mặc định để đảm bảo deploy challenge ổn định trên Rancher.
+
 # Không dùng static token secret nữa.
 # DeploymentCenter / DeploymentConsumer sẽ dùng token tự động được mount theo service account trong pod.
 # Nếu cần test thủ công Argo API, dùng short-lived token:
@@ -397,14 +399,6 @@ kubectl apply -f ./prod/cron-job/delete-chal-job.yaml
 ```
 ### 8. Setup Argo and NFS server to deploy challenge
 ```bash
-
-# Optional cho Rancher: tự lấy projectId từ namespace app (fallback sang default) và set vào DeploymentConsumer.
-# Nếu không dùng Rancher hoặc không lấy được projectId, giữ biến rỗng thì flow vẫn chạy bình thường.
-RANCHER_PROJECT_ID=$(kubectl get ns app -o jsonpath='{.metadata.annotations.field\.cattle\.io/projectId}' 2>/dev/null)
-[ -z "${RANCHER_PROJECT_ID}" ] && RANCHER_PROJECT_ID=$(kubectl get ns default -o jsonpath='{.metadata.annotations.field\.cattle\.io/projectId}' 2>/dev/null)
-kubectl -n app patch configmap deployment-consumer-cm --type merge -p "{\"data\":{\"RANCHER_PROJECT_ID\":\"${RANCHER_PROJECT_ID}\"}}"
-kubectl -n app rollout restart deploy/deployment-consumer
-
 # Chúng ra cần 2 chạy lệnh, để có thể sử dụng các template start, up challenge trên argo
 kubectl apply -f prod/argo-workflows/start-chal-v2/start-chal-v2-template.yaml
 kubectl apply -f prod/argo-workflows/up-challenge/up-challenge-template.yaml
