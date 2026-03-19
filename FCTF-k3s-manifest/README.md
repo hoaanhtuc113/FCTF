@@ -211,7 +211,7 @@ sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/challenges /srv/nfs/share/start-c
 
 # Chỉ cho phép đúng IP của 3 node
 # Đổi 3 IP bên dưới theo cluster thực tế
-echo "/srv/nfs/share 10.184.0.2(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.6(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.7(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
+echo "/srv/nfs/share 10.184.0.2(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.6(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.7(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
 
 # Apply cấu hình
 sudo exportfs -ra
@@ -219,10 +219,10 @@ sudo systemctl enable nfs-kernel-server
 sudo systemctl restart nfs-kernel-server
 
 # Kiểm tra
-ls -ld /srv/nfs/share/file
-ls -ld /srv/nfs/share/challenges
-ls -ld /srv/nfs/share/start-challenge
-
+getfacl /srv/nfs/share
+getfacl /srv/nfs/share/file
+getfacl /srv/nfs/share/challenges
+getfacl /srv/nfs/share/start-challenge
 showmount -e localhost
 sudo exportfs -v
 ```
