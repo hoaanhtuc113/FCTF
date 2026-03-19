@@ -22,7 +22,7 @@ public class ArgoWorkflowService : IArgoWorkflowService
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_URL);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", DeploymentConsumerConfigHelper.GetArgoWorkflowsBearerToken());
 
             var response = await _httpClient.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)

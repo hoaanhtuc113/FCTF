@@ -69,7 +69,7 @@ internal class Worker : BackgroundService
 
         _logger.LogInformation($"[Worker] Dequeued {messages.Count} messages for processing");
 
-        var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.ARGO_WORKFLOWS_TOKEN}" };
+        var headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {DeploymentConsumerConfigHelper.GetArgoWorkflowsBearerToken()}" };
 
         foreach (var mess in messages)
         {
