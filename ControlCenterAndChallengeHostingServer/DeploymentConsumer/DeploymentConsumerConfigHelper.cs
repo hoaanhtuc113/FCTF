@@ -12,7 +12,7 @@ public class DeploymentConsumerConfigHelper
     public static int RABBIT_PORT = 5672;
 
     public static string ARGO_WORKFLOWS_URL = "";
-    public static string ARGO_WORKFLOWS_TOKEN = "";
+    public static string ARGO_WORKFLOWS_TOKEN_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/token";
     public static string POD_START_TIMEOUT_MINUTES = "";
 
     public static int ARGO_DEPLOY_TTL_MINUTES = 6;
@@ -32,7 +32,8 @@ public class DeploymentConsumerConfigHelper
         RABBIT_PORT = int.TryParse(GetRequiredEnv("RABBIT_PORT"), out var rabbitPort) ? rabbitPort : throw new Exception("Invalid RABBIT_PORT");
 
         ARGO_WORKFLOWS_URL = GetRequiredEnv("ARGO_WORKFLOWS_URL");
-        ARGO_WORKFLOWS_TOKEN = GetRequiredEnv("ARGO_WORKFLOWS_TOKEN");
+        ARGO_WORKFLOWS_TOKEN_FILE = Environment.GetEnvironmentVariable("ARGO_WORKFLOWS_TOKEN_FILE")
+            ?? "/var/run/secrets/kubernetes.io/serviceaccount/token";
 
         POD_START_TIMEOUT_MINUTES = Environment.GetEnvironmentVariable("POD_START_TIMEOUT_MINUTES") ?? "5";
 
@@ -65,5 +66,27 @@ public class DeploymentConsumerConfigHelper
     {
         return Environment.GetEnvironmentVariable(key)
             ?? throw new Exception($"Can't read env: {key}");
+    }
+
+    public static string GetArgoWorkflowsBearerToken()
+    {
+        if (!string.IsNullOrWhiteSpace(ARGO_WORKFLOWS_TOKEN_FILE)
+            && System.IO.File.Exists(ARGO_WORKFLOWS_TOKEN_FILE))
+        {
+            var tokenFromFile = System.IO.File.ReadAllText(ARGO_WORKFLOWS_TOKEN_FILE).Trim();
+            if (!string.IsNullOrWhiteSpace(tokenFromFile))
+            {
+                return tokenFromFile;
+            }
+        }
+
+        // Backward-compatible fallback for local/dev environments.
+        var tokenFromEnv = Environment.GetEnvironmentVariable("ARGO_WORKFLOWS_TOKEN");
+        if (!string.IsNullOrWhiteSpace(tokenFromEnv))
+        {
+            return tokenFromEnv.Trim();
+        }
+
+        throw new Exception("Unable to resolve Argo bearer token from service account token file or ARGO_WORKFLOWS_TOKEN env.");
     }
 }
