@@ -4,12 +4,8 @@ using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry;
-using OpenTelemetry.Context.Propagation;
-using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Models;
-using ResourceShared.Utils;
 
 Env.Load();
 new DeploymentConsumerConfigHelper().InitConfig();
@@ -36,36 +32,19 @@ var host = Host.CreateDefaultBuilder(args)
         // Register DeploymentConsumerService consumer
         services.AddSingleton<IDeploymentConsumerService>(sp =>
         {
-            // Read RabbitMQ settings from SharedConfig (can be set through .env or environment variables)
-            var host = SharedConfig.RABBIT_HOST;
-            var user = SharedConfig.RABBIT_USERNAME;
-            var pass = SharedConfig.RABBIT_PASSWORD;
-            var port = SharedConfig.RABBIT_PORT;
+            var host = DeploymentConsumerConfigHelper.RABBIT_HOST;
+            var user = DeploymentConsumerConfigHelper.RABBIT_USERNAME;
+            var pass = DeploymentConsumerConfigHelper.RABBIT_PASSWORD;
+            var port = DeploymentConsumerConfigHelper.RABBIT_PORT;
+            var vhost = DeploymentConsumerConfigHelper.RABBIT_VHOST;
 
-            return new DeploymentConsumerService(host, user, pass, port);
+            return new DeploymentConsumerService(host, user, pass, port, vhost);
         });
 
         services.AddResourceShared();
 
-        services.AddSingleton<RabbitMqTelemetrySource>();
-        services.AddOpenTelemetry()
-            .WithTracing(b =>
-            {
-                b.AddSource(Telemetry.DeploymentConsumerRabbitMQ)
-                 .AddHttpClientInstrumentation()
-                 .AddOtlpExporter();
-            });
-
         services.AddHostedService<Worker>();
     })
     .Build();
-
-Sdk.SetDefaultTextMapPropagator(
-    new CompositeTextMapPropagator(
-    [
-        new TraceContextPropagator(),
-        new BaggagePropagator()
-    ]));
-
 
 await host.RunAsync();

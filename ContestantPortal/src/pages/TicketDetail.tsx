@@ -134,7 +134,7 @@ export function TicketDetail() {
         }`}
       >
         <ArrowBack fontSize="small" />
-        {'[<]'} BACK TO LIST
+        BACK TO LIST
       </button>
 
       {/* Main Card */}

@@ -15,11 +15,13 @@ public class SecretKeyHelper
     {
         // Sort parameters by key (a-z)
         var sortedParams = data.OrderBy(x => x.Key);
+        var privateKey = Environment.GetEnvironmentVariable("PRIVATE_KEY")
+            ?? throw new InvalidOperationException("Missing PRIVATE_KEY");
 
         // Concatenate UnixTime, PrivateKey, and sorted parameter values
         var stringBuilder = new StringBuilder();
         stringBuilder.Append(unixTime);
-        stringBuilder.Append(SharedConfig.PRIVATE_KEY);
+        stringBuilder.Append(privateKey);
         foreach (var param in sortedParams)
         {
             stringBuilder.Append(param.Value ?? "1");

@@ -7,12 +7,10 @@ using ContestantBE.Utils;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using OpenTelemetry.Trace;
 using ResourceShared;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
 using ResourceShared.Utils;
-using System.Diagnostics;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -74,12 +72,12 @@ builder.Services.AddScoped<IConfigService, ConfigService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions();
 
-// Init config from SharedConfig (includes REDIS_CONNECTION_STRING)
+// Init env config for ContestantBE
 new ContestantBEConfigHelper().InitConfig();
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = SharedConfig.REDIS_CONNECTION_STRING;
+    options.Configuration = ContestantBEConfigHelper.REDIS_CONNECTION_STRING;
 });
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
@@ -100,16 +98,6 @@ builder.Services.AddScoped<IUserContext, UserContext>();
 // DI services from ResourceShared
 builder.Services.AddResourceShared();
 
-builder.Services.AddSingleton(_ => new ActivitySource(Telemetry.ContestantBEHttp));
-builder.Services.AddOpenTelemetry()
-    .WithTracing(b =>
-    {
-        b.AddSource(Telemetry.ContestantBEHttp)
-         .AddAspNetCoreInstrumentation()
-         .AddHttpClientInstrumentation()
-         .AddOtlpExporter();
-    });
-
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 
@@ -125,16 +113,21 @@ builder.Services.AddOutputCache();
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+
+if(app.Environment.IsDevelopment())
 {
-    c.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.RoutePrefix = "swagger";
+    });
+}
 
 app.UseRouting();
 app.UseCors("AllowAll");
 app.UseIpRateLimiting();
 app.UseOutputCache();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TokenAuthenticationMiddleware>();

@@ -9,6 +9,19 @@ const api_func = {
   teams: (x, y) => CTFd.api.patch_team_public({ teamId: x }, y),
 };
 
+function setVisibilityButtonState($btn, hidden) {
+  if (hidden) {
+    $btn.data("state", "hidden");
+    $btn.removeClass("is-visible").addClass("is-hidden");
+    $btn.text("Hidden");
+    return;
+  }
+
+  $btn.data("state", "visible");
+  $btn.removeClass("is-hidden").addClass("is-visible");
+  $btn.text("Visible");
+}
+
 function toggleAccount() {
   const $btn = $(this);
   const id = $btn.data("account-id");
@@ -26,15 +39,7 @@ function toggleAccount() {
 
   api_func[CTFd.config.userMode](id, params).then((response) => {
     if (response.success) {
-      if (hidden) {
-        $btn.data("state", "hidden");
-        $btn.addClass("btn-danger").removeClass("btn-success");
-        $btn.text("Hidden");
-      } else {
-        $btn.data("state", "visible");
-        $btn.addClass("btn-success").removeClass("btn-danger");
-        $btn.text("Visible");
-      }
+      setVisibilityButtonState($btn, hidden);
     }
   });
 }
@@ -56,15 +61,7 @@ function toggleUser() {
 
   api_func["users"](id, params).then((response) => {
     if (response.success) {
-      if (hidden) {
-        $btn.data("state", "hidden");
-        $btn.addClass("btn-danger").removeClass("btn-success");
-        $btn.text("Hidden");
-      } else {
-        $btn.data("state", "visible");
-        $btn.addClass("btn-success").removeClass("btn-danger");
-        $btn.text("Visible");
-      }
+      setVisibilityButtonState($btn, hidden);
     }
   });
 }

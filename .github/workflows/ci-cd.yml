@@ -30,11 +30,6 @@ on:
     branches: [v4/release/v4.0.0]
   workflow_dispatch: # allow manual trigger
 
-# Cancel previous runs for the same branch
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   REGISTRY: docker.io
   IMAGE_BASE: ${{ secrets.DOCKERHUB_USERNAME }}/fctf
@@ -52,11 +47,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.before }}
           filters: |
             gateway:
               - 'ChallengeGateway/**'
@@ -104,12 +100,13 @@ jobs:
             )]')
           fi
 
-          echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
-
           if [ "$MATRIX" = "[]" ]; then
             echo "has-changes=false" >> $GITHUB_OUTPUT
+            # Dummy entry so fromJson never receives an empty array (avoids pipeline hang)
+            echo 'matrix={"include":[{"key":"none","name":"none","image":"none","context":".","dockerfile":"Dockerfile"}]}' >> $GITHUB_OUTPUT
           else
             echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
           fi
 
   # ---------------------------------------------------------------------------
@@ -123,6 +120,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.changes.outputs.matrix) }}
+    # Only cancel a previous build of the SAME service, not unrelated services
+    concurrency:
+      group: build-${{ matrix.name }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -151,10 +152,17 @@ jobs:
   # 3. Deploy to K3s – update image & rollout restart
   # ---------------------------------------------------------------------------
   deploy:
-    name: Deploy to K3s
+    name: Deploy ${{ matrix.name }} to K3s
     needs: [changes, build]
     if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.changes.outputs.matrix) }}
+    # Only cancel a previous deploy of the SAME service, not unrelated services
+    concurrency:
+      group: deploy-${{ matrix.name }}-${{ github.ref }}
+      cancel-in-progress: true
     env:
       K8S_NAMESPACE: app
     steps:
@@ -170,18 +178,13 @@ jobs:
       - name: Verify cluster connection
         run: kubectl -n $K8S_NAMESPACE get deployments --no-headers | head -1
 
-      - name: Deploy updated services
+      - name: Deploy ${{ matrix.name }}
         run: |
-          MATRIX='${{ needs.changes.outputs.matrix }}'
-          SERVICES=$(echo "$MATRIX" | jq -r '.include[] | .name')
-
-          for SVC in $SERVICES; do
-            IMAGE="${{ env.IMAGE_BASE }}:${SVC}-prod-${{ github.sha }}"
-            echo "🚀 Deploying $SVC → $IMAGE"
-            kubectl -n $K8S_NAMESPACE set image deployment/$SVC $SVC=$IMAGE
-            kubectl -n $K8S_NAMESPACE rollout status deployment/$SVC --timeout=300s
-            echo "✅ $SVC deployed"
-          done
+          IMAGE="${{ env.IMAGE_BASE }}:${{ matrix.image }}-prod-${{ github.sha }}"
+          echo "🚀 Deploying ${{ matrix.name }} → $IMAGE"
+          kubectl -n $K8S_NAMESPACE set image deployment/${{ matrix.name }} ${{ matrix.name }}=$IMAGE
+          kubectl -n $K8S_NAMESPACE rollout status deployment/${{ matrix.name }} --timeout=300s
+          echo "✅ ${{ matrix.name }} deployed"
 
   # ---------------------------------------------------------------------------
   # 4. Summary
@@ -196,17 +199,24 @@ jobs:
         run: |
           echo "### CI/CD Pipeline Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Build" >> $GITHUB_STEP_SUMMARY
-          echo "| | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Matrix Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Deploy" >> $GITHUB_STEP_SUMMARY
-          echo "| | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| K3s Deployment | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Services:** $(echo '${{ needs.changes.outputs.matrix }}' | jq -r '[.include[].name] | join(", ")')" >> $GITHUB_STEP_SUMMARY
+
+          HAS_CHANGES="${{ needs.changes.outputs.has-changes }}"
+
+          if [ "$HAS_CHANGES" != "true" ]; then
+            echo "> **No services changed — nothing to build or deploy.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "#### Build" >> $GITHUB_STEP_SUMMARY
+            echo "| | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Matrix Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### Deploy" >> $GITHUB_STEP_SUMMARY
+            echo "| | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| K3s Deployment | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Services:** $(echo '${{ needs.changes.outputs.matrix }}' | jq -r '[.include[].name] | join(", ")')" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Check for failures
         if: contains(needs.*.result, 'failure')

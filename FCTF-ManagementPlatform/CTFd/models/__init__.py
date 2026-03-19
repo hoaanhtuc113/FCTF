@@ -80,6 +80,7 @@ class Challenges(db.Model):
     memory_limit = db.Column(db.Integer, nullable=True)
     memory_request = db.Column(db.Integer, nullable=True)
     use_gvisor = db.Column(db.Boolean, nullable=True)
+    harden_container = db.Column(db.Boolean, nullable=True, default=True)
     max_deploy_count = db.Column(db.Integer, default=0, nullable=True)
     difficulty = db.Column(db.Integer, nullable=True, default=None)
 
@@ -207,6 +208,7 @@ class ChallengeVersion(db.Model):
     memory_limit = db.Column(db.Integer, nullable=True)
     memory_request = db.Column(db.Integer, nullable=True)
     use_gvisor = db.Column(db.Boolean, nullable=True)
+    harden_container = db.Column(db.Boolean, nullable=True, default=True)
     max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
     is_active = db.Column(db.Boolean, nullable=False, default=False)
     created_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

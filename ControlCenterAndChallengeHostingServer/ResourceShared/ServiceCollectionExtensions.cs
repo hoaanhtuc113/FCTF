@@ -17,7 +17,9 @@ namespace ResourceShared
             services.AddSingleton<IConnectionMultiplexer>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger<IConnectionMultiplexer>>();
-                var options = ConfigurationOptions.Parse(SharedConfig.REDIS_CONNECTION_STRING);
+                var redisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION")
+                    ?? throw new Exception("Missing REDIS_CONNECTION");
+                var options = ConfigurationOptions.Parse(redisConnection);
 
                 options.AbortOnConnectFail = false;
                 options.ConnectRetry = 3;
@@ -72,7 +74,9 @@ namespace ResourceShared
             services.AddSingleton<IK8sService, K8sService>();
 
             services.AddScoped<TokenHelper>();
-            var keyBytes = Encoding.UTF8.GetBytes(SharedConfig.PRIVATE_KEY);
+            var privateKey = Environment.GetEnvironmentVariable("PRIVATE_KEY")
+                ?? throw new Exception("Missing PRIVATE_KEY");
+            var keyBytes = Encoding.UTF8.GetBytes(privateKey);
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(opt =>
             {

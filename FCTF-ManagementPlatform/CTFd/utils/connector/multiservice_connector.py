@@ -22,9 +22,6 @@ from CTFd.constants.envvars import (
     REDIS_PORT,
     REDIS_PASS,
     REDIS_DB,
-    ARGO_WORKFLOWS_URL,
-    ARGO_WORKFLOWS_TOKEN,
-    UP_CHALLENGE_TEMPLATE,
     NFS_MOUNT_PATH,
     IMAGE_REPO,
     DOCKER_USERNAME,
@@ -115,23 +112,24 @@ def prepare_start_challenge_payload(challenge, user_id, team_id):
     return payload, headers, api_start
 
 def prepare_up_challenge_payload(challenge_id,path, image_tag):
-    headers = { 
-        "Authorization": f"Bearer {ARGO_WORKFLOWS_TOKEN}",
+    unix_time = str(int(time.time()))
+    signing_data = {
+        "challengeId": challenge_id,
+        "challengePath": path,
+        "imageTag": image_tag,
+    }
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
+    headers = {
+        "SecretKey": secret_key,
         "Content-Type": "application/json"
     }
     payload = {
-        "resourceKind": "WorkflowTemplate",
-        "resourceName": UP_CHALLENGE_TEMPLATE,
-        "submitOptions": {
-            "entryPoint": "main",
-            "parameters": [
-                f"CHALLENGE_ID={challenge_id}",
-                f"CHALLENGE_PATH={path}",
-                f"IMAGE_TAG={image_tag}",
-            ]
-        }
+        "challengeId": challenge_id,
+        "challengePath": path,
+        "imageTag": image_tag,
+        "unixTime": unix_time,
     }
-    api_url = f"{ARGO_WORKFLOWS_URL}/submit"
+    api_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/upload"
     return payload, headers, api_url
 
 def challenge_start(payload, headers, api_start):
@@ -445,6 +443,7 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
                         memory_limit=challenge.memory_limit,
                         memory_request=challenge.memory_request,
                         use_gvisor=challenge.use_gvisor,
+                        harden_container=challenge.harden_container,
                         max_deploy_count=challenge.max_deploy_count,
                         is_active=True,
                         created_by=current_user_id,
@@ -489,24 +488,31 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
     
 def get_workflow_status(workflow_name):
     """
-    Get workflow status from Argo Workflows
+    Get workflow status from DeploymentCenter
     Returns: (workflow_phase, started_at, estimated_duration)
     """
-    url = f"{ARGO_WORKFLOWS_URL}/{workflow_name}"
-    headers = {
-        "Authorization": f"Bearer {ARGO_WORKFLOWS_TOKEN}",
-        "Content-Type": "application/json"
+    unix_time = str(int(time.time()))
+    signing_data = {"workflowName": workflow_name}
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
+    payload = {
+        "workflowName": workflow_name,
+        "unixTime": unix_time,
     }
+    headers = {
+        "SecretKey": secret_key,
+        "Content-Type": "application/json",
+    }
+    url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/workflow-status"
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.post(url, headers=headers, json=payload)
         if response.status_code != 200:
             print(f"Error getting workflow status: {response.status_code} - {response.text}")
             return None, None, None
         
         data = response.json()
-        status = data.get("status", {})
+        status = data.get("data", {})
         
-        workflow_phase = status.get("phase","Running")
+        workflow_phase = status.get("phase", "Running")
         started_at_str = status.get("startedAt")
         estimated_duration = status.get("estimatedDuration", 90)
         print(f"Workflow raw data {workflow_name}: phase={workflow_phase}, started={started_at_str}, duration={estimated_duration}s")

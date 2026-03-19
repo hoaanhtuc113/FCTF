@@ -11,6 +11,34 @@
 		font-weight: 600;
 		margin-bottom: 1rem;
 	}
+	.scoreboard-actions .clean-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+	.scoreboard-actions .btn-fa {
+		font-size: 0.82rem;
+		line-height: 1;
+	}
+	.scoreboard-status-btn {
+		min-width: 84px;
+		padding: 0.22rem 0.55rem;
+		font-size: 0.78rem;
+		font-weight: 600;
+		line-height: 1.2;
+		border-radius: 999px;
+		border: 1px solid transparent;
+	}
+	.scoreboard-status-btn.is-visible {
+		background: #e9f8ef;
+		border-color: #b7ebc9;
+		color: #1f8f4c;
+	}
+	.scoreboard-status-btn.is-hidden {
+		background: #fdebec;
+		border-color: #f4c8cd;
+		color: #c03744;
+	}
 </style>
 {% endblock %}
 
@@ -38,7 +66,7 @@
 		{% else %}
 		<div></div>
 		{% endif %}
-		<div class="btn-group" role="group">
+		<div class="btn-group scoreboard-actions" role="group">
 			<button type="button" class="clean-btn" id="scoreboard-edit-button"
 				data-toggle="tooltip" title="Hide/Unhide Accounts">
 				<i class="btn-fa fas fa-eye"></i> Visibility
@@ -80,6 +108,9 @@
 					</li>
 					<li class="nav-item">
 						<a class="nav-link" data-toggle="tab" href="#top-solves" role="tab">Top Solves Teams</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" data-toggle="tab" href="#top-solves-topic" role="tab">Top Teams Clears All Challenges</a>
 					</li>
 				</ul>
 				<div class="tab-content">
@@ -128,6 +159,9 @@
 					</div>
 					<div class="tab-pane fade" id="top-solves" role="tabpanel">
 						{% include "admin/scoreboard/TopTeamSolves.html" %}
+					</div>
+					<div class="tab-pane fade" id="top-solves-topic" role="tabpanel">
+						{% include "admin/scoreboard/TopClear.html" %}
 					</div>
 				</div>
 			</div>

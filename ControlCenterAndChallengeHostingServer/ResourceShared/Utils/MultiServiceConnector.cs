@@ -1,9 +1,5 @@
 ﻿using Newtonsoft.Json;
-using OpenTelemetry;
-using OpenTelemetry.Context.Propagation;
-using OpenTelemetry.Trace;
 using RestSharp;
-using System.Diagnostics;
 
 namespace ResourceShared.Utils
 {

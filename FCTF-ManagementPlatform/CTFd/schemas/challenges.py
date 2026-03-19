@@ -162,6 +162,12 @@ class ChallengeSchema(ma.ModelSchema):
         allow_none=True,
     )
 
+    harden_container = field_for(
+        Challenges,
+        "harden_container",
+        allow_none=True,
+    )
+
     max_deploy_count = field_for(
         Challenges,
         "max_deploy_count",

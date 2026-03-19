@@ -43,6 +43,9 @@ class BaseChallenge(object):
         if "use_gvisor" in data:
             if isinstance(data["use_gvisor"], str):
                 data["use_gvisor"] = data["use_gvisor"].lower() in ("true", "1", "yes", "on")
+        if "harden_container" in data:
+            if isinstance(data["harden_container"], str):
+                data["harden_container"] = data["harden_container"].lower() in ("true", "1", "yes", "on")
         # Handle difficulty: convert empty string to None, valid string to int
         if "difficulty" in data:
             diff_val = data["difficulty"]
@@ -114,6 +117,9 @@ class BaseChallenge(object):
         if "use_gvisor" in data:
             if isinstance(data["use_gvisor"], str):
                 data["use_gvisor"] = data["use_gvisor"].lower() in ("true", "1", "yes", "on")
+        if "harden_container" in data:
+            if isinstance(data["harden_container"], str):
+                data["harden_container"] = data["harden_container"].lower() in ("true", "1", "yes", "on")
         # Handle difficulty: convert empty string to None, valid string to int
         if "difficulty" in data:
             diff_val = data["difficulty"]
@@ -124,7 +130,7 @@ class BaseChallenge(object):
                     data["difficulty"] = int(diff_val)
                 except (TypeError, ValueError):
                     data["difficulty"] = None
-        
+
         # Handle expose_port - store in image_link JSON
         if "expose_port" in data and data["expose_port"] is not None:
             try:

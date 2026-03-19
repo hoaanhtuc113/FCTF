@@ -38,7 +38,6 @@ class ScoreVisibilityTypes(str, RawEnum):
     PUBLIC = "public"
     PRIVATE = "private"
     HIDDEN = "hidden"
-    ADMINS = "admins"
 
 
 @JinjaEnum

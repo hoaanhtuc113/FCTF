@@ -25,7 +25,7 @@ public class ChallengesInformerService
     private readonly IK8sService _k8sService;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    private const int WorkerCount = 20;
+    private readonly int _workerCount;
     private readonly Channel<(WatchEventType, V1Pod)>[] _shards;
     public ChallengesInformerService(
         IKubernetes kubernetes,
@@ -39,10 +39,12 @@ public class ChallengesInformerService
         _redisHelper = redisHelper;
         _k8sService = k8sService;
         _scopeFactory = scopeFactory;
+        _workerCount = DeploymentListenerConfigHelper.CHALLENGE_WATCHER_WORKER_COUNT;
 
+        _logger.LogDebug($"ChallengesInformerService initialized with {_workerCount} workers and label selector: {LabelSelector}");
         //initialize channelshards allows one worker each
-        _shards = new Channel<(WatchEventType, V1Pod)>[WorkerCount];
-        for (int i = 0; i < WorkerCount; i++)
+        _shards = new Channel<(WatchEventType, V1Pod)>[_workerCount];
+        for (int i = 0; i < _workerCount; i++)
         {
             _shards[i] = Channel.CreateUnbounded<(WatchEventType, V1Pod)>(new UnboundedChannelOptions
             {
@@ -385,7 +387,7 @@ public class ChallengesInformerService
 
         // split pods into shards based on hash of UID
         uint hash = (uint)pod.Metadata.Uid.GetHashCode();
-        int shardIndex = (int)(hash % WorkerCount);
+        int shardIndex = (int)(hash % _workerCount);
 
         await _shards[shardIndex].Writer.WriteAsync((eventType, pod));
     }

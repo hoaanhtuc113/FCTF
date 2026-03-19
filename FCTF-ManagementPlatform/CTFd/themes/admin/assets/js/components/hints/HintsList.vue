@@ -23,6 +23,7 @@
       <thead>
         <tr>
           <td class="text-center"><b>ID</b></td>
+          <td class="text-center"><b>Type</b></td>
           <td class="text-center"><b>Hint</b></td>
           <td class="text-center"><b>Cost</b></td>
           <td class="text-center"><b>Settings</b></td>
@@ -30,6 +31,7 @@
       </thead>
       <tbody>
         <tr v-for="hint in hints" :key="hint.id">
+          <td class="text-center">{{ hint.id }}</td>
           <td class="text-center">{{ hint.type }}</td>
           <td class="text-break">
             <pre>{{ hint.content }}</pre>

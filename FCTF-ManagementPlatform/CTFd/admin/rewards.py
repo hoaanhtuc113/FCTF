@@ -177,12 +177,11 @@ def rewards_page():
 @admin.route("/admin/rewards/details", methods=["POST"])
 @admin_or_jury
 def rewards_details():
-    """Return solved challenges for a specific team/user, used by expandable rows."""
+    """Return solved challenges for a specific team, used by expandable rows."""
     from sqlalchemy import text as sa_text
 
     payload = request.get_json() or {}
     template_id = payload.get("template_id", "")
-    entity_type = payload.get("entity_type", "team")
     entity_id = payload.get("entity_id")
 
     if not entity_id:
@@ -190,15 +189,48 @@ def rewards_details():
 
     entity_id = int(entity_id)
 
-    # Determine the relevant filter column
-    if entity_type == "user":
-        filter_col = "s.user_id"
-    else:
-        filter_col = "s.team_id"
+    # Always filter by team
+    filter_col = "s.team_id"
 
     # Build extra conditions based on the template type
     extra_join = ""
     extra_where = ""
+
+    if template_id == "category_masters":
+        # Show all categories that this team has fully cleared
+        sql = """
+            SELECT
+                sf.category,
+                COUNT(DISTINCT sf.challenge_id) AS solved_count,
+                ct.total_challenges,
+                MAX(sf.solve_date) AS full_clear_date
+            FROM (
+                SELECT s.id AS solve_id, c.id AS challenge_id, c.name AS challenge_name,
+                       c.category, c.value AS challenge_value, s.date AS solve_date
+                FROM submissions s
+                JOIN solves sol ON sol.id = s.id
+                JOIN challenges c ON c.id = s.challenge_id
+                WHERE s.type = 'correct' AND s.team_id = :entity_id
+            ) sf
+            JOIN (
+                SELECT category, COUNT(*) AS total_challenges
+                FROM challenges WHERE state = 'visible'
+                GROUP BY category
+            ) ct ON ct.category = sf.category
+            GROUP BY sf.category, ct.total_challenges
+            HAVING COUNT(DISTINCT sf.challenge_id) >= ct.total_challenges
+            ORDER BY full_clear_date ASC
+        """
+        rows = db.session.execute(sa_text(sql), {"entity_id": entity_id}).fetchall()
+        details = []
+        for row in rows:
+            details.append({
+                "category": row.category,
+                "solved_count": row.solved_count,
+                "total_challenges": row.total_challenges,
+                "full_clear_date": str(row.full_clear_date) if row.full_clear_date else None,
+            })
+        return jsonify({"success": True, "details": details, "detail_type": "category_clear"})
 
     if template_id == "first_blood_hunters":
         # Only show challenges where this entity got first blood
@@ -218,9 +250,9 @@ def rewards_details():
                 WHERE w.challenge_id = s.challenge_id
                 AND w.type = 'incorrect'
                 AND w.date < s.date
-                AND w.{col} = :entity_id
+                AND w.team_id = :entity_id
             )
-        """.format(col=filter_col.split('.')[1])
+        """
     elif template_id == "no_hints_solvers":
         # Only show challenges solved without using hints
         extra_where = """
@@ -229,9 +261,9 @@ def rewards_details():
                 JOIN hints h ON h.id = u.target
                 WHERE u.type = 'hints'
                 AND h.challenge_id = s.challenge_id
-                AND u.{col} = :entity_id
+                AND u.team_id = :entity_id
             )
-        """.format(col=filter_col.split('.')[1])
+        """
 
     sql = f"""
         SELECT

@@ -36,11 +36,11 @@
 			<td>{{ standing.score }}</td>
 			<td>
 				{% if standing.hidden %}
-					<button class="scoreboard-toggle btn btn-sm btn-danger"
+					<button class="scoreboard-toggle clean-btn scoreboard-status-btn is-hidden"
 						data-account-id="{{ standing.account_id }}"
 						data-state="hidden">Hidden</button>
 				{% else %}
-					<button class="scoreboard-toggle btn btn-sm btn-success"
+					<button class="scoreboard-toggle clean-btn scoreboard-status-btn is-visible"
 						data-account-id="{{ standing.account_id }}"
 						data-state="visible">Visible</button>
 				{% endif %}

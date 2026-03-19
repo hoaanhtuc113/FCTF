@@ -1,10 +1,14 @@
 ﻿using DeploymentCenter.Middlewares;
 using DeploymentCenter.Services;
+using DeploymentCenter.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
+using ResourceShared.Utils;
 using System.Net;
+using System.Text.Json;
+using RestSharp;
 
 namespace DeploymentCenter.Controllers;
 
@@ -15,12 +19,15 @@ public class ChallengeController : ControllerBase
 
     private readonly IDeployService _deployService;
     private readonly AppDbContext _dbContext;
+    private readonly MultiServiceConnector _multiServiceConnector;
     public ChallengeController(
         IDeployService deployService,
-        AppDbContext dbContext)
+        AppDbContext dbContext,
+        MultiServiceConnector multiServiceConnector)
     {
         _deployService = deployService;
         _dbContext = dbContext;
+        _multiServiceConnector = multiServiceConnector;
     }
 
     [HttpPost("start")]
@@ -146,4 +153,168 @@ public class ChallengeController : ControllerBase
             _ => StatusCode((int)response.HttpStatusCode, response)
         };
     }
+
+    [HttpPost("upload")]
+    [RequireSecretKey]
+    public async Task<IActionResult> SubmitUploadWorkflow([FromBody] ChallengeUploadWorkflowReqDTO req)
+    {
+        if (req == null
+            || req.challengeId <= 0
+            || string.IsNullOrWhiteSpace(req.challengePath)
+            || string.IsNullOrWhiteSpace(req.imageTag))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Invalid upload workflow request data."
+            });
+        }
+
+        var upChallengeTemplate = Environment.GetEnvironmentVariable("UP_CHALLENGE_TEMPLATE");
+        if (string.IsNullOrWhiteSpace(upChallengeTemplate))
+        {
+            return StatusCode((int)HttpStatusCode.InternalServerError, new
+            {
+                success = false,
+                message = "Missing UP_CHALLENGE_TEMPLATE environment variable."
+            });
+        }
+
+        var payload = new
+        {
+            resourceKind = "WorkflowTemplate",
+            resourceName = upChallengeTemplate,
+            submitOptions = new
+            {
+                entryPoint = "main",
+                parameters = new[]
+                {
+                    $"CHALLENGE_ID={req.challengeId}",
+                    $"CHALLENGE_PATH={req.challengePath}",
+                    $"IMAGE_TAG={req.imageTag}",
+                }
+            }
+        };
+
+        var headers = new Dictionary<string, string>
+        {
+            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}"
+        };
+
+        try
+        {
+            var argoResponse = await _multiServiceConnector.ExecuteRequest(
+                DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL,
+                "/submit",
+                Method.Post,
+                payload,
+                headers);
+
+            if (string.IsNullOrWhiteSpace(argoResponse))
+            {
+                return StatusCode((int)HttpStatusCode.BadGateway, new
+                {
+                    success = false,
+                    message = "Empty response from Argo Workflows API."
+                });
+            }
+
+            using var _ = JsonDocument.Parse(argoResponse);
+            return Content(argoResponse, "application/json");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode((int)HttpStatusCode.BadGateway, new
+            {
+                success = false,
+                message = $"Failed to submit upload workflow to Argo: {ex.Message}"
+            });
+        }
+    }
+
+    [HttpPost("workflow-status")]
+    [RequireSecretKey]
+    public async Task<IActionResult> GetWorkflowStatus([FromBody] ChallengeWorkflowStatusReqDTO req)
+    {
+        if (req == null || string.IsNullOrWhiteSpace(req.workflowName))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "workflowName is required."
+            });
+        }
+
+        var headers = new Dictionary<string, string>
+        {
+            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}"
+        };
+
+        try
+        {
+            var argoResponse = await _multiServiceConnector.ExecuteRequest(
+                DeploymentCenterConfigHelper.ARGO_WORKFLOWS_URL,
+                $"/{req.workflowName}",
+                Method.Get,
+                new { },
+                headers);
+
+            if (string.IsNullOrWhiteSpace(argoResponse))
+            {
+                return StatusCode((int)HttpStatusCode.BadGateway, new
+                {
+                    success = false,
+                    message = "Empty response from Argo Workflows API."
+                });
+            }
+
+            using var doc = JsonDocument.Parse(argoResponse);
+            var status = doc.RootElement.TryGetProperty("status", out var statusElement)
+                ? statusElement
+                : default;
+
+            var workflowPhase = status.ValueKind != JsonValueKind.Undefined && status.TryGetProperty("phase", out var phaseElement)
+                ? phaseElement.GetString() ?? "Running"
+                : "Running";
+            var startedAt = status.ValueKind != JsonValueKind.Undefined && status.TryGetProperty("startedAt", out var startedAtElement)
+                ? startedAtElement.GetString()
+                : null;
+            var estimatedDuration = status.ValueKind != JsonValueKind.Undefined && status.TryGetProperty("estimatedDuration", out var estimatedDurationElement)
+                ? estimatedDurationElement.GetInt32()
+                : 90;
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    phase = workflowPhase,
+                    startedAt,
+                    estimatedDuration
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode((int)HttpStatusCode.BadGateway, new
+            {
+                success = false,
+                message = $"Failed to get workflow status from Argo: {ex.Message}"
+            });
+        }
+    }
+}
+
+public class ChallengeUploadWorkflowReqDTO
+{
+    public int challengeId { get; set; }
+    public string challengePath { get; set; } = string.Empty;
+    public string imageTag { get; set; } = string.Empty;
+    public string unixTime { get; set; } = string.Empty;
+}
+
+public class ChallengeWorkflowStatusReqDTO
+{
+    public string workflowName { get; set; } = string.Empty;
+    public string unixTime { get; set; } = string.Empty;
 }
