@@ -82,7 +82,7 @@ spec:
 
         volumeMounts:
           - name: nfs-shared-data
-            mountPath: /nfs/share/data
+            mountPath: /mnt/nfs/data
             readOnly: true
           - name: docker-config
             mountPath: /kaniko/.docker
