@@ -398,9 +398,10 @@ kubectl apply -f ./prod/cron-job/delete-chal-job.yaml
 ### 8. Setup Argo and NFS server to deploy challenge
 ```bash
 
-# Optional cho Rancher: tự lấy projectId mặc định từ namespace default và set vào DeploymentConsumer.
+# Optional cho Rancher: tự lấy projectId từ namespace app (fallback sang default) và set vào DeploymentConsumer.
 # Nếu không dùng Rancher hoặc không lấy được projectId, giữ biến rỗng thì flow vẫn chạy bình thường.
-RANCHER_PROJECT_ID=$(kubectl get ns default -o jsonpath='{.metadata.annotations.field\.cattle\.io/projectId}' 2>/dev/null)
+RANCHER_PROJECT_ID=$(kubectl get ns app -o jsonpath='{.metadata.annotations.field\.cattle\.io/projectId}' 2>/dev/null)
+[ -z "${RANCHER_PROJECT_ID}" ] && RANCHER_PROJECT_ID=$(kubectl get ns default -o jsonpath='{.metadata.annotations.field\.cattle\.io/projectId}' 2>/dev/null)
 kubectl -n app patch configmap deployment-consumer-cm --type merge -p "{\"data\":{\"RANCHER_PROJECT_ID\":\"${RANCHER_PROJECT_ID}\"}}"
 kubectl -n app rollout restart deploy/deployment-consumer
 

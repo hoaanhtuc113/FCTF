@@ -159,7 +159,21 @@ spec:
               export RANCHER_PROJECT_BLOCK=""
             fi
 
-            envsubst < "${NFS_DATA_PATH}" | kubectl apply -f -
+            # Apply Namespace first to avoid cascading "namespace not found" errors.
+            NS_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed -n '1,/^---[[:space:]]*$/p')"
+            REST_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed '1,/^---[[:space:]]*$/d')"
+
+            NS_APPLY_OUTPUT="$(printf '%s\n' "${NS_DOC}" | kubectl apply -f - 2>&1)" || {
+              echo "${NS_APPLY_OUTPUT}"
+              if echo "${NS_APPLY_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces.create-non-kubesystem.*Unauthorized'; then
+                if [ -z "${RANCHER_PROJECT_ID}" ]; then
+                  echo "❌ Rancher chặn tạo namespace vì thiếu project mapping. Hãy set RANCHER_PROJECT_ID trong deployment-consumer-cm (vd: c-m-xxxxx:p-xxxxx)."
+                else
+                  echo "❌ Rancher chặn tạo namespace dù đã có RANCHER_PROJECT_ID=${RANCHER_PROJECT_ID}. Kiểm tra quyền project của SA start-chal-v2-workflow-sa."
+                fi
+              fi
+              exit 1
+            }
 
             echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
             kubectl get secret global-regcred -n argo -o yaml \
@@ -168,8 +182,8 @@ spec:
               | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
               | kubectl apply -f -
 
-            # Re-apply namespaced resources only (skip first Namespace document).
-            envsubst < "${NFS_DATA_PATH}" | sed '1,/^---[[:space:]]*$/d' | kubectl apply -f -
+            # Apply namespaced resources after namespace exists.
+            printf '%s\n' "${REST_DOC}" | kubectl apply -f -
 
             echo "✅ Challenge v2 manifest submitted to cluster"
       volumes:
