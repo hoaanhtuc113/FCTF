@@ -33,8 +33,6 @@ spec:
         value: "true"
       - name: CHALLENGE_TIMEOUT
         value: "15m"
-      - name: RANCHER_PROJECT_ID
-        value: ""
 
   templates:
     - name: main
@@ -65,8 +63,6 @@ spec:
                   value: "{{workflow.parameters.IS_TEMPORARY}}"
                 - name: CHALLENGE_TIMEOUT
                   value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
-                - name: RANCHER_PROJECT_ID
-                  value: "{{workflow.parameters.RANCHER_PROJECT_ID}}"
 
     - name: deploy-challenge-v2
       inputs:
@@ -82,7 +78,6 @@ spec:
           - name: HARDEN_CONTAINER
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
-          - name: RANCHER_PROJECT_ID
       priorityClassName: lowest
       preemptionPolicy: Never
       activeDeadlineSeconds: 120
@@ -129,7 +124,6 @@ spec:
             export MEMORY_REQUEST="{{inputs.parameters.MEMORY_REQUEST}}"
             export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
             export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
-            export RANCHER_PROJECT_ID="{{inputs.parameters.RANCHER_PROJECT_ID}}"
 
             if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
               export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
@@ -152,20 +146,16 @@ spec:
             echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
 
             if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
-              if [ -n "${RANCHER_PROJECT_ID}" ]; then
-                RANCHER_PROJECT_ANNOTATION_LINE="    field.cattle.io/projectId: \"${RANCHER_PROJECT_ID}\""
-              else
-                RANCHER_PROJECT_ANNOTATION_LINE=""
-              fi
+              export IGNORE_RANCHER_NAMESPACE_ERROR="true"
 
+              CREATE_NS_OUTPUT=""
+              CREATE_NS_RC=0
               if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
-                printf '%s\n' \
+                CREATE_NS_OUTPUT="$(printf '%s\n' \
                   'apiVersion: v1' \
                   'kind: Namespace' \
                   'metadata:' \
                   "  name: ${CHALLENGE_NAME}" \
-                  '  annotations:' \
-                  "${RANCHER_PROJECT_ANNOTATION_LINE}" \
                   '  labels:' \
                   "    ctf/temporary: \"${IS_TEMPORARY}\"" \
                   "    ctf/expireAfter: \"${CHALLENGE_TIMEOUT}\"" \
@@ -176,20 +166,34 @@ spec:
                   '    pod-security.kubernetes.io/audit-version: "latest"' \
                   '    pod-security.kubernetes.io/warn: "restricted"' \
                   '    pod-security.kubernetes.io/warn-version: "latest"' \
-                  | kubectl create -f -
+                  | kubectl create -f - 2>&1)" || CREATE_NS_RC=$?
               else
-                printf '%s\n' \
+                CREATE_NS_OUTPUT="$(printf '%s\n' \
                   'apiVersion: v1' \
                   'kind: Namespace' \
                   'metadata:' \
                   "  name: ${CHALLENGE_NAME}" \
-                  '  annotations:' \
-                  "${RANCHER_PROJECT_ANNOTATION_LINE}" \
                   '  labels:' \
                   "    ctf/temporary: \"${IS_TEMPORARY}\"" \
                   "    ctf/expireAfter: \"${CHALLENGE_TIMEOUT}\"" \
                   '    ctf/kind: "challenge"' \
-                  | kubectl create -f -
+                    | kubectl create -f - 2>&1)" || CREATE_NS_RC=$?
+              fi
+
+              if [ "${CREATE_NS_RC}" -ne 0 ]; then
+                echo "${CREATE_NS_OUTPUT}"
+
+                if echo "${CREATE_NS_OUTPUT}" | grep -qi 'rancher.cattle.io.namespaces.create-non-kubesystem.*Unauthorized'; then
+                  echo "⚠️ Rancher webhook denied namespace create for ${CHALLENGE_NAME}."
+
+                  if [ "${IGNORE_RANCHER_NAMESPACE_ERROR}" = "true" ]; then
+                    echo "⚠️ IGNORE_RANCHER_NAMESPACE_ERROR=true -> skipping deploy without failing workflow."
+                    exit 0
+                  fi
+                fi
+
+                echo "❌ Failed to create namespace ${CHALLENGE_NAME}"
+                exit ${CREATE_NS_RC}
               fi
             fi
 

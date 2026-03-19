@@ -8,7 +8,6 @@ data:
   DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
   ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
   START_CHALLENGE_TEMPLATE: "start-chal-v2-template"
-  RANCHER_PROJECT_ID: ""
   RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
   RABBIT_USERNAME: "deployment-consumer"
   RABBIT_VHOST: "fctf_deploy"
