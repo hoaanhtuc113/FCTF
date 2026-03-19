@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-consumer
-          image: quachuoiscontainer/fctf:deployment-consumer-prod-v4.0.0
+          image: quachuoiscontainer/fctf:deployment-consumer-prod-latest
           envFrom:
             - configMapRef:
                 name: deployment-consumer-cm

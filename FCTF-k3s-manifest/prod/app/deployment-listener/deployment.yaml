@@ -18,14 +18,14 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-listener
-          image: quachuoiscontainer/fctf:deployment-listener-prod-v4.0.0
+          image: quachuoiscontainer/fctf:deployment-listener-prod-latest
           envFrom:
             - configMapRef:
                 name: deployment-listener-cm
             - secretRef:
-              name: deployment-listener-secret
+                name: deployment-listener-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.1

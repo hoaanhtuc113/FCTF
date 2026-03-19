@@ -20,7 +20,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: contestant-be
-          image: quachuoiscontainer/fctf:contestant-be-prod-v4.0.0
+          image: quachuoiscontainer/fctf:contestant-be-prod-latest
           ports:
             - name: http-client
               containerPort: 5010
@@ -29,9 +29,9 @@ spec:
             - configMapRef:
                 name: contestant-be-cm
             - secretRef:
-              name: contestant-be-secret
+                name: contestant-be-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
               cpu: 0.2
