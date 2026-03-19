@@ -7,6 +7,7 @@ using ResourceShared.Logger;
 using ResourceShared.Models;
 using ResourceShared.Services;
 using ResourceShared.Utils;
+using RabbitMQ.Client.Exceptions;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -159,6 +160,30 @@ public class DeployService : IDeployService
                 status = (int)HttpStatusCode.OK,
                 success = true,
                 message = "Send to request to deploy successfully. Please wait a moment.",
+            };
+        }
+        catch (BrokerUnreachableException ex)
+        {
+            await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.InternalServerError,
+                success = false,
+                message = $"RabbitMQ unreachable: {ex.Message}"
+            };
+        }
+        catch (OperationInterruptedException ex)
+        {
+            await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.InternalServerError,
+                success = false,
+                message = $"RabbitMQ rejected connection/channel: {ex.Message}"
             };
         }
         catch (Exception ex)

@@ -111,12 +111,11 @@ class VisibilitySettingsForm(BaseForm):
     )
     score_visibility = SelectField(
         "Score Visibility",
-        description="Control whether solves/score are shown to the public, to logged in users, hidden to all non-admins, or only shown to admins",
+        description="Control whether solves/score are shown to the public, to logged in users, or hidden",
         choices=[
             (ScoreVisibilityTypes.PUBLIC, "Public"),
             (ScoreVisibilityTypes.PRIVATE, "Private"),
             (ScoreVisibilityTypes.HIDDEN, "Hidden"),
-            (ScoreVisibilityTypes.ADMINS, "Admins Only"),
         ],
         default=ScoreVisibilityTypes.PUBLIC,
     )

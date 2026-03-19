@@ -11,7 +11,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for topic, teams in top_solves_with_topics.items() %}
+        {% for topic, teams in (top_solves_with_topics or {}).items() %}
             <!-- Display the topic name as a row spanning all columns -->
             <tr>
                 <td colspan="4" class="font-weight-bold cell-truncate-lg" title="{{ topic }}">{{ topic | truncate(40) }}</td>

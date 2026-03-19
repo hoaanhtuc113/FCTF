@@ -94,6 +94,13 @@
                             <option value="false">False</option>
                         </select>
                     </div>
+                    <div class="form-group d-none" id="deploy_resource_container_harden_container">
+                        <label>
+                            <input type="checkbox" name="harden_container" id="harden_container" checked>
+                            Harden Container <br>
+                            <small class="form-text text-muted">Apply security hardening to the container: restricted Pod Security Standards, read-only root filesystem, drop all capabilities, run as non-root user (UID 1000), and mount /tmp as an in-memory volume.</small>
+                        </label>
+                    </div>
                     <div class="form-group d-none" id="deploy_resource_container_max_deploy_count">
                         <label>
                             Max Deploy Count <br>
@@ -134,6 +141,8 @@
                     </div>
 
                     <input id="challenge_id" type="hidden" name="challenge_id">
+
+                    <div id="create-upload-status" class="alert d-none" role="alert"></div>
 
                     <div class="form-group">
                         <button class="btn btn-primary float-right create-challenge-submit"
@@ -231,11 +240,12 @@
             $('#expose_port_container').removeClass('d-none');
             $('.upload-file').removeClass('d-none');
             $('.multi_files').addClass('d-none');
-            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count').removeClass('d-none');
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count').removeClass('d-none');
             $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
                 .prop('disabled', false)
                 .prop('required', true);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
+            $('#deploy_resource_container_harden_container input').prop('disabled', false).prop('required', false);
             $('#deploy_resource_container input[name="cpu_limit"]').val(defaultCpuLimit);
             $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(defaultCpuRequest);
             $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(defaultMemoryLimit);
@@ -244,11 +254,12 @@
             $('#expose_port_container').addClass('d-none');
             $('.upload-file').addClass('d-none');
             $('.multi_files').removeClass('d-none');
-            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count').addClass('d-none');
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count').addClass('d-none');
             $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
                 .prop('disabled', true)
                 .prop('required', false);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', true);
+            $('#deploy_resource_container_harden_container input').prop('disabled', true);
             $('#deploy_resource_container input[name="cpu_limit"]').val('');
             $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val('');
             $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val('');
@@ -272,6 +283,7 @@
               .prop('disabled', false)
               .prop('required', true);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
+                        $('#deploy_resource_container_harden_container input').prop('disabled', false).prop('required', false);
             $('#deploy_resource_container input[name="cpu_limit"]').val(defaultCpuLimit);
             $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(defaultCpuRequest);
             $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(defaultMemoryLimit);

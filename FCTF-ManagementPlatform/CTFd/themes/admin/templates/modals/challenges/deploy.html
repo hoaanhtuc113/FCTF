@@ -68,6 +68,13 @@
       <input type="number" class="form-control clean-form-control" name="max_deploy_count" id="max_deploy_count"
         min="0" value="{{ challenge.max_deploy_count if challenge.max_deploy_count is not none else 0 }}">
     </div>
+    <div class="form-group deploy-resource-field">
+      <label class="clean-checkbox-label">
+        <input type="checkbox" name="harden_container" id="harden_container" {% if challenge.harden_container is none or challenge.harden_container %}checked{% endif %}>
+        <span class="ml-2">Harden Container</span>
+      </label>
+      <small class="form-text text-muted" style="margin-top: 0.25rem;">Apply security hardening to the container: restricted Pod Security Standards, read-only root filesystem, drop all capabilities, run as non-root user (UID 1000), and mount /tmp as an in-memory volume.</small>
+    </div>
     <label class="clean-label">
       {% if image_link_display %}
         <div class="form-group">
@@ -255,6 +262,7 @@
     const memoryRequestInput = document.getElementById("memory_request");
     const useGvisorInput = document.getElementById("use_gvisor");
     const maxDeployCountInput = document.getElementById("max_deploy_count");
+    const hardenContainerCheckbox = document.getElementById("harden_container");
     const defaultCpuLimit = 100;
     const defaultCpuRequest = 10;
     const defaultMemoryLimit = 128;
@@ -294,6 +302,9 @@
           el.disabled = false;
           el.required = true;
         });
+        if (hardenContainerCheckbox) {
+          hardenContainerCheckbox.required = false;
+        }
         if (cpuLimitInput && !cpuLimitInput.value) cpuLimitInput.value = String(defaultCpuLimit);
         if (cpuRequestInput && !cpuRequestInput.value) cpuRequestInput.value = String(defaultCpuRequest);
         if (memoryLimitInput && !memoryLimitInput.value) memoryLimitInput.value = String(defaultMemoryLimit);
@@ -325,6 +336,20 @@
       return `${h}h:${m}m:${s}s`;
     }
 
+    function showStatusMessage(message, type) {
+      if (!statusMessage) return;
+      statusMessage.className = `mt-3 alert alert-${type}`;
+      statusMessage.textContent = message;
+      statusMessage.style.display = "block";
+    }
+
+    function hideStatusMessage() {
+      if (!statusMessage) return;
+      statusMessage.style.display = "none";
+      statusMessage.textContent = "";
+      statusMessage.className = "mt-3 alert";
+    }
+
     function UpdateStatusMessage(estimatedDuration, remainingTime) {
       if (statusDetail) {
         statusDetail.textContent = `Estimated: ${formatTime(estimatedDuration)} | Remaining: ${formatTime(Math.round(remainingTime))}`;
@@ -340,6 +365,15 @@
 
     function handleDeploy(event) {
       event.preventDefault();
+      hideStatusMessage();
+
+      const hasSelectedDeployFile = Boolean(fileInput && fileInput.files && fileInput.files.length > 0);
+      if (hasSelectedDeployFile) {
+        showStatusMessage(`Uploading ${fileInput.files[0].name}...`, "info");
+      } else {
+        showStatusMessage("Saving challenge deploy settings...", "info");
+      }
+
       if (progressContainer && setupDockerCheckbox.checked) {
         progressContainer.style.display = 'block';
         statusTitle.textContent = 'Deploying...';
@@ -392,6 +426,7 @@
               memory_limit: setupDockerCheckbox.checked ? memoryLimit : null,
               memory_request: setupDockerCheckbox.checked ? memoryRequest : null,
               use_gvisor: setupDockerCheckbox.checked ? useGvisor : null,
+              harden_container: setupDockerCheckbox.checked ? hardenContainerCheckbox.checked : null,
               expose_port: setupDockerCheckbox.checked
                 ? parseInt(exposePortInput?.value || "0", 10)
                 : null,
@@ -427,10 +462,16 @@
 
             await helpers.files.upload(form, data);
 
+            if (hasSelectedDeployFile) {
+              showStatusMessage("Deploy request accepted. Executing workflow...", "info");
+            } else {
+              showStatusMessage("Deploy settings saved successfully.", "success");
+            }
+
             setTimeout(function() {
               window.location =
                 CTFd.config.urlRoot + "/admin/challenges/" + CHALLENGE_ID;
-            }, 500);
+            }, 900);
 
             resolve();
           } catch (error) {
@@ -438,6 +479,7 @@
           }
         }),
       ]).catch(function(error) {
+        showStatusMessage(error?.message || "Upload failed. Please try again.", "danger");
         if (setupDockerCheckbox.checked && progressBar) {
           progressBar.classList.remove('progress-bar-animated');
           progressBar.style.backgroundColor = '#dc3545';
@@ -610,7 +652,14 @@
 
     // }
 
-    fileInput.addEventListener("change", updateButtonState);
+    fileInput.addEventListener("change", function () {
+      updateButtonState();
+      if (fileInput.files && fileInput.files.length > 0) {
+        showStatusMessage(`Selected file: ${fileInput.files[0].name}`, "info");
+      } else {
+        hideStatusMessage();
+      }
+    });
     setupDockerCheckbox.addEventListener("change", updateButtonState);
     form.addEventListener("submit", handleDeploy);
     reDeployBtn?.addEventListener("click", handleReDeploy); // Event listener for Re-deploy button
