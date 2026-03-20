@@ -414,8 +414,8 @@ primary:
     {{- if .Values.tls.enabled }}
     ssl_cert=/opt/bitnami/mariadb/certs/{{ .Values.tls.certFilename }}
     ssl_key=/opt/bitnami/mariadb/certs/{{ .Values.tls.certKeyFilename }}
-    {{- if (include "mariadb.tlsCACert" .) }}
-    ssl_ca={{ include "mariadb.tlsCACert" . }}
+    {{- if .Values.tls.certCAFilename }}
+    ssl_ca=/opt/bitnami/mariadb/certs/{{ .Values.tls.certCAFilename }}
     {{- end }}
     {{- end }}
     {{- if .Values.tde.enabled }}
@@ -887,8 +887,8 @@ secondary:
     {{- if .Values.tls.enabled }}
     ssl_cert=/opt/bitnami/mariadb/certs/{{ .Values.tls.certFilename }}
     ssl_key=/opt/bitnami/mariadb/certs/{{ .Values.tls.certKeyFilename }}
-    {{- if (include "mariadb.tlsCACert" .) }}
-    ssl_ca={{ include "mariadb.tlsCACert" . }}
+    {{- if .Values.tls.certCAFilename }}
+    ssl_ca=/opt/bitnami/mariadb/certs/{{ .Values.tls.certCAFilename }}
     {{- end }}
     {{- end }}
 
