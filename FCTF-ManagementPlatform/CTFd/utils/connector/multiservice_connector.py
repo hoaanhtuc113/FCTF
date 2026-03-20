@@ -20,6 +20,7 @@ from CTFd.constants.envvars import (
     DATABASE_PORT,
     REDIS_HOST,
     REDIS_PORT,
+    REDIS_USER,
     REDIS_PASS,
     REDIS_DB,
     NFS_MOUNT_PATH,
@@ -31,6 +32,7 @@ import random
 redis_client = redis.StrictRedis(
     host=f"{REDIS_HOST}",
     port=int(REDIS_PORT),
+    username=REDIS_USER,
     password=REDIS_PASS,
     db=int(REDIS_DB),
     encoding="utf-8",
