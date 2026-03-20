@@ -14,6 +14,7 @@ PRIVATE_KEY = os.environ.get("PRIVATE_KEY", None)  # Giá trị mặc định l�
 # Redis
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+REDIS_USER = os.environ.get("REDIS_USER", None)
 REDIS_PASS = os.environ.get("REDIS_PASS", None)
 REDIS_DB = int(os.environ.get("REDIS_DB", 0))
 

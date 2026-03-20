@@ -21,6 +21,7 @@ type Config struct {
 	TCPAuthTimeoutSeconds int
 	TCPConnTTLSeconds     int
 	RedisAddr             string
+	RedisUsername         string
 	RedisPassword         string
 	RedisDB               int
 	RedisKeyPrefix        string
@@ -46,6 +47,7 @@ func Load() Config {
 		TCPAuthTimeoutSeconds: EnvInt("TCP_AUTH_TIMEOUT_SECONDS", 5),
 		TCPConnTTLSeconds:     EnvInt("TCP_CONN_TTL_SECONDS", 300),
 		RedisAddr:             os.Getenv("REDIS_ADDR"),
+		RedisUsername:         os.Getenv("REDIS_USERNAME"),
 		RedisPassword:         os.Getenv("REDIS_PASSWORD"),
 		RedisDB:               EnvInt("REDIS_DB", 0),
 		RedisKeyPrefix:        EnvString("REDIS_KEY_PREFIX", "fctf:gateway"),

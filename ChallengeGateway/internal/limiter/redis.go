@@ -25,6 +25,7 @@ func InitRedis(cfg config.Config) RedisClient {
 
 	client := redis.NewClient(&redis.Options{
 		Addr:         cfg.RedisAddr,
+		Username:     cfg.RedisUsername,
 		Password:     cfg.RedisPassword,
 		DB:           cfg.RedisDB,
 		PoolSize:     cfg.RedisPoolSize,
