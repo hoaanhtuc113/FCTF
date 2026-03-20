@@ -208,7 +208,7 @@ auth:
         password: "CbeRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +hmget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
-        keys: "~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:ratelimit*"
+        keys: "~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:ratelimit* ~ippp:*"
         channels: "&*"
 
       # Deployment center service + Lua execution.
