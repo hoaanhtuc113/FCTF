@@ -9,7 +9,7 @@ from flask import abort, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
-from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
+from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, REDIS_HOST, REDIS_PORT, REDIS_USER, REDIS_PASS, REDIS_DB
 from sqlalchemy.sql import and_
 
 from CTFd.api.v1.helpers.request import validate_args
@@ -112,6 +112,7 @@ challenges_namespace.schema_model(
 redis_client = redis.StrictRedis(
     host=f"{REDIS_HOST}",
     port=int(REDIS_PORT),
+    username=REDIS_USER,
     password=REDIS_PASS,
     db=int(REDIS_DB),
     encoding="utf-8",
