@@ -7,6 +7,10 @@ metadata:
     workflows.argoproj.io/description: "Template to start and deploy challenge pods v2"
 spec:
   serviceAccountName: start-chal-v2-workflow-sa
+  podMetadata:
+    annotations:
+      linkerd.io/inject: enabled
+      config.linkerd.io/default-inbound-policy: all-authenticated
   activeDeadlineSeconds: 120
   timeout: "120s"
   podGC:

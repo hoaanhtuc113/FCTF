@@ -272,6 +272,12 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   kubectl create namespace challenge --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 
+  echo "==> Enforcing Linkerd mTLS defaults on internal namespaces"
+  for ns in app challenge db; do
+    kubectl annotate namespace "${ns}" linkerd.io/inject=enabled --overwrite
+    kubectl annotate namespace "${ns}" config.linkerd.io/default-inbound-policy=all-authenticated --overwrite
+  done
+
   echo "==> Applying base classes, ConfigMaps and Secrets"
   kubectl apply -f "${PROD_DIR}/priority-classes.yaml"
   kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
@@ -303,6 +309,11 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   else
     echo "==> Applying NodePort service mode"
     kubectl apply -f "${PROD_DIR}/app/service-nodeport.yaml"
+  fi
+
+  if [[ -d "${PROD_DIR}/security/linkerd" ]]; then
+    echo "==> Applying Linkerd security manifests"
+    kubectl apply -f "${PROD_DIR}/security/linkerd/"
   fi
 fi
 
