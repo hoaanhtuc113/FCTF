@@ -191,7 +191,7 @@ auth:
       - username: "svc_admin_mvc"
         password: "AdmMvcRedis2026A"
         enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe"
+        commands: "+ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe"
         keys: "~*"
         channels: "&*"
 
@@ -207,7 +207,7 @@ auth:
       - username: "svc_contestant_be"
         password: "CbeRedis2026A"
         enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +hmget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
         keys: "~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_*"
         channels: "&*"
 
