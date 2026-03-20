@@ -19,6 +19,7 @@ from CTFd.constants.envvars import (
     HOST_CACHE,
     REDIS_HOST,
     REDIS_PORT,
+    REDIS_USER,
     REDIS_PASS,
     REDIS_DB,
 )
@@ -46,6 +47,7 @@ challenge = Blueprint("challenge", __name__)
 redis_client = redis.StrictRedis(
     host=f"{REDIS_HOST}",
     port=int(REDIS_PORT),
+    username=REDIS_USER,
     password=REDIS_PASS,
     db=int(REDIS_DB),
     encoding="utf-8",
