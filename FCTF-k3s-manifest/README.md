@@ -386,7 +386,7 @@ Cấu hình nằm trong file [prod/helm/db/rabbitmq/rabbitmq-values.yaml](prod/h
 Sửa file [prod/helm/db/redis/redis-values.yaml](prod/helm/db/redis/redis-values.yaml):
 - Bật `auth.acl.enabled: true`
 - **Không khai báo `default` trong `auth.acl.users`** (nếu thêm sẽ gây lỗi duplicate user khi Redis start)
-- Để vô hiệu hóa sử dụng thực tế của `default`: không cấp/không phát tán `auth.password`, rotate mật khẩu mạnh và chỉ cho ứng dụng dùng các user `svc_*`
+- Để vô hiệu hóa sử dụng thực tế của `default`: không cấp/không phát tán `auth.password`
 - Tạo các user riêng cho từng service, ví dụ:
   - `svc_admin_mvc`
   - `svc_gateway`
