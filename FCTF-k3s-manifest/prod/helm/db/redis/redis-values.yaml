@@ -172,7 +172,7 @@ auth:
   acl:
     ## @param auth.acl.enabled Enables the support of the Redis ACL system
     ##
-    enabled: false
+    enabled: true
     ## @param auth.acl.sentinel Enables the support of the Redis ACL system for Sentinel Nodes
     ##
     sentinel: false
@@ -186,7 +186,62 @@ auth:
     ##     commands: "+@all"
     ##     keys: "~*"
     ##     channels: "&*"
-    users: []
+    users:
+      # Should disable default user to avoid shared full-privilege access.
+      - username: "default"
+        password: "FCTF2025@"
+        enabled: "on"
+        commands: "-@all"
+        keys: "~*"
+        channels: "&*"
+
+      # CTFd/Admin MVC: needs cache + deploy flow + optional pubsub.
+      - username: "svc_admin_mvc"
+        password: "AdmMvcRedis2026A"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe"
+        keys: "~*"
+        channels: "&*"
+
+      # Challenge Gateway: only limiter keyspace + Lua execution.
+      - username: "svc_gateway"
+        password: "GwRedis2026A"
+        enabled: "on"
+        commands: "+ping +echo +select +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha"
+        keys: "~fctf:gateway:*"
+        channels: "&*"
+
+      # Contestant backend service + Lua execution.
+      - username: "svc_contestant_be"
+        password: "CbeRedis2026A"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        keys: "~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_*"
+        channels: "&*"
+
+      # Deployment center service + Lua execution.
+      - username: "svc_deployment_center"
+        password: "DpcRedis2026A"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        keys: "~deploy_challenge_* ~active_deploys_team_*"
+        channels: "&*"
+
+      # Deployment consumer service + Lua execution.
+      - username: "svc_deployment_consumer"
+        password: "DpsCRedis2026A"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        keys: "~deploy_challenge_* ~active_deploys_team_*"
+        channels: "&*"
+
+      # Deployment listener service + Lua execution.
+      - username: "svc_deployment_listener"
+        password: "DpsLRedis2026A"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        keys: "~deploy_challenge_* ~active_deploys_team_*"
+        channels: "&*"
     ## @param auth.acl.userSecret Name of the Secret, containing user credentials for ACL users. Keys must match usernames.
     userSecret: ""
 ## @param commonConfiguration [string] Common configuration to be added into the ConfigMap
@@ -220,6 +275,11 @@ master:
   disableCommands:
     - FLUSHDB
     - FLUSHALL
+    - CONFIG
+    - DEBUG
+    - SHUTDOWN
+    - MODULE
+    - MONITOR
   ## @param master.command Override default container command (useful when using custom images)
   ##
   command: []
@@ -707,6 +767,11 @@ replica:
   disableCommands:
     - FLUSHDB
     - FLUSHALL
+    - CONFIG
+    - DEBUG
+    - SHUTDOWN
+    - MODULE
+    - MONITOR
   ## @param replica.command Override default container command (useful when using custom images)
   ##
   command: []
