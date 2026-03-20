@@ -403,6 +403,14 @@ primary:
     # Security settings for external access
     max_connections=200
     max_connect_errors=1000
+    # Enable MariaDB audit plugin and stream audit logs to container stdout.
+    plugin_load_add=server_audit
+    server_audit_logging=ON
+    server_audit_events=CONNECT,QUERY_DDL,QUERY_DML,QUERY_DCL,TABLE
+    server_audit_output_type=FILE
+    server_audit_file_path=/proc/1/fd/1
+    server_audit_file_rotate_size=0
+    server_audit_file_rotations=0
     {{- if .Values.tls.enabled }}
     ssl_cert=/opt/bitnami/mariadb/certs/{{ .Values.tls.certFilename }}
     ssl_key=/opt/bitnami/mariadb/certs/{{ .Values.tls.certKeyFilename }}
@@ -677,7 +685,9 @@ primary:
   ##  - name: TZ
   ##    value: "Europe/Paris"
   ##
-  extraEnvVars: []
+  extraEnvVars:
+    - name: MARIADB_AUDIT_PLUGIN
+      value: "ON"
   ## @param primary.extraEnvVarsCM Name of existing ConfigMap containing extra env vars for MariaDB primary containers
   ##
   extraEnvVarsCM: ""
@@ -866,6 +876,14 @@ secondary:
     slow_query_log=0
     long_query_time=10.0
     binlog_expire_logs_seconds=2592000
+    # Enable MariaDB audit plugin and stream audit logs to container stdout.
+    plugin_load_add=server_audit
+    server_audit_logging=ON
+    server_audit_events=CONNECT,QUERY_DDL,QUERY_DML,QUERY_DCL,TABLE
+    server_audit_output_type=FILE
+    server_audit_file_path=/proc/1/fd/1
+    server_audit_file_rotate_size=0
+    server_audit_file_rotations=0
     {{- if .Values.tls.enabled }}
     ssl_cert=/opt/bitnami/mariadb/certs/{{ .Values.tls.certFilename }}
     ssl_key=/opt/bitnami/mariadb/certs/{{ .Values.tls.certKeyFilename }}
@@ -1118,7 +1136,9 @@ secondary:
   ##  - name: TZ
   ##    value: "Europe/Paris"
   ##
-  extraEnvVars: []
+  extraEnvVars:
+    - name: MARIADB_AUDIT_PLUGIN
+      value: "ON"
   ## @param secondary.extraEnvVarsCM Name of existing ConfigMap containing extra env vars for MariaDB secondary containers
   ##
   extraEnvVarsCM: ""
