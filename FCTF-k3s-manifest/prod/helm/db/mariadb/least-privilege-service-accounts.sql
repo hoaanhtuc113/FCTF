@@ -21,7 +21,6 @@ CREATE USER IF NOT EXISTS 'ctfd_admin'@'%' IDENTIFIED BY 'FzR1BXgQ7FjYzm6d2zu2bO
 GRANT SELECT ON ctfd.users TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.users TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.teams TO 'contestant_be'@'%';
-GRANT INSERT ON ctfd.teams TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.brackets TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.config TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenges TO 'contestant_be'@'%';
