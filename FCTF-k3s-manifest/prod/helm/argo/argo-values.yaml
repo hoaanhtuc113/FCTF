@@ -249,7 +249,7 @@ controller:
   cronWorkflowWorkers: # 8
   # -- Restricts the Workflows that the controller will process.
   # Only valid for 2.9+
-  workflowRestrictions: {}
+  workflowRestrictions:
     templateReferencing: Secure
 
   # telemetryConfig controls the path and port for prometheus telemetry. Telemetry is enabled and emitted in the same endpoint
