@@ -187,14 +187,6 @@ auth:
     ##     keys: "~*"
     ##     channels: "&*"
     users:
-      # Should disable default user to avoid shared full-privilege access.
-      - username: "default"
-        password: "FCTF2025@"
-        enabled: "on"
-        commands: "-@all"
-        keys: "~*"
-        channels: "&*"
-
       # CTFd/Admin MVC: needs cache + deploy flow + optional pubsub.
       - username: "svc_admin_mvc"
         password: "AdmMvcRedis2026A"
