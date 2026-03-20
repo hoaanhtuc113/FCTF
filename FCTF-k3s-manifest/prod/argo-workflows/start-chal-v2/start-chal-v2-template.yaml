@@ -7,10 +7,6 @@ metadata:
     workflows.argoproj.io/description: "Template to start and deploy challenge pods v2"
 spec:
   serviceAccountName: start-chal-v2-workflow-sa
-  podMetadata:
-    annotations:
-      linkerd.io/inject: enabled
-      config.linkerd.io/default-inbound-policy: all-authenticated
   activeDeadlineSeconds: 120
   podGC:
     strategy: OnPodCompletion
@@ -106,7 +102,7 @@ spec:
             memory: "32Mi"
             cpu: "0.05"
           limits:
-            memory: "256Mi"
+            memory: "128Mi"
             cpu: "0.25"
         volumeMounts:
           - name: nfs-shared-data
