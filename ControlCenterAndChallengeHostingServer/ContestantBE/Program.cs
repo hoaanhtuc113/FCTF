@@ -1,5 +1,6 @@
 using AspNetCoreRateLimit;
 using AspNetCoreRateLimit.Redis;
+using ContestantBE.RateLimiting;
 using ContestantBE.Filters;
 using ContestantBE.Interfaces;
 using ContestantBE.Services;
@@ -81,9 +82,9 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
-builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 builder.Services.AddRedisRateLimiting();
+builder.Services.AddSingleton<IProcessingStrategy, CustomRedisProcessingStrategy>();
 builder.Services.AddScoped<ConfigHelper>();
 builder.Services.AddScoped<CtfTimeHelper>();
 builder.Services.AddScoped<ScoreHelper>();
