@@ -81,6 +81,8 @@ workflow:
     rules: []
 
 controller:
+  # Use emissary as the default workflow executor for better isolation and reduced privileges.
+  containerRuntimeExecutor: emissary
   image:
     # -- Registry to use for the controller
     registry: quay.io
@@ -220,6 +222,14 @@ controller:
       ttlStrategy:
         secondsAfterSuccess: 300 # 5 minutes
         secondsAfterFailure: 10800 # 3 hours
+      serviceAccountName: argo-workflow
+      automountServiceAccountToken: false
+      executor:
+        serviceAccountName: argo-workflow
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 8737
+        runAsGroup: 8737
   #   spec:
   #     ttlStrategy:
   #       secondsAfterCompletion: 86400
@@ -240,7 +250,7 @@ controller:
   # -- Restricts the Workflows that the controller will process.
   # Only valid for 2.9+
   workflowRestrictions: {}
-    # templateReferencing: Strict|Secure
+    templateReferencing: Secure
 
   # telemetryConfig controls the path and port for prometheus telemetry. Telemetry is enabled and emitted in the same endpoint
   # as metrics by default, but can be overridden using this config.
@@ -491,13 +501,26 @@ mainContainer:
   # -- imagePullPolicy to apply to Workflow main container. Defaults to `.Values.images.pullPolicy`.
   imagePullPolicy: ""
   # -- Resource limits and requests for the Workflow main container
-  resources: {}
+  resources:
+    requests:
+      cpu: 1m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
   # -- Adds environment variables for the Workflow main container
   env: []
   # -- Adds reference environment variables for the Workflow main container
   envFrom: []
   # -- sets security context for the Workflow main container
-  securityContext: {}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 8737
+    runAsGroup: 8737
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 # executor controls how the init and wait container should be customized
 executor:
@@ -509,15 +532,28 @@ executor:
     # -- Image tag for the workflow executor. Defaults to `.Values.images.tag`.
     tag: "v3.7.3"
     # -- Image PullPolicy to use for the Workflow Executors. Defaults to `.Values.images.pullPolicy`.
-    pullPolicy: ""
+    pullPolicy: IfNotPresent
   # -- Resource limits and requests for the Workflow Executors
-  resources: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
   # -- Passes arguments to the executor processes
   args: []
   # -- Adds environment variables for the executor.
   env: []
   # -- sets security context for the executor container
-  securityContext: {}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 8737
+    runAsGroup: 8737
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 server:
   # -- Deploy the Argo Server
@@ -663,7 +699,7 @@ server:
   # -- Run the argo server in "secure" mode. Configure this value instead of `--secure` in extraArgs.
   ## See the following documentation for more details on secure mode:
   ## https://argo-workflows.readthedocs.io/en/stable/tls/
-  secure: false
+  secure: true
 
   # -- Extra environment variables to provide to the argo-server container
   extraEnv: []
@@ -675,7 +711,8 @@ server:
 
   # -- A list of supported authentication modes. Available values are `server`, `client`, or `sso`. If you provide sso, please configure `.Values.server.sso` as well.
   ## Ref: https://argo-workflows.readthedocs.io/en/stable/argo-server-auth-mode/
-  authModes: []
+  authModes:
+    - client
 
   # -- Extra arguments to provide to the Argo server binary.
   ## Ref: https://argo-workflows.readthedocs.io/en/stable/argo-server/#options
