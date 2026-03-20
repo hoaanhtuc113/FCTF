@@ -106,7 +106,7 @@ spec:
             memory: "32Mi"
             cpu: "0.05"
           limits:
-            memory: "128Mi"
+            memory: "256Mi"
             cpu: "0.25"
         volumeMounts:
           - name: nfs-shared-data
