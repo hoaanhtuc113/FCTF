@@ -35,6 +35,16 @@ Neu DB da du lieu san (PVC cu), file initdbScripts se khong chay lai. Khi do hay
 nano ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
 ```
 
+Luu y quan trong cho cai dat moi:
+- CTFd schema/table thuong duoc tao sau khi `admin-mvc` khoi dong lan dau.
+- Vi vay `initdbScripts` co the chay truoc khi schema day du, dan den user da tao nhung grant chua day du.
+- Sau khi `admin-mvc` chay on dinh, can apply lai file SQL grant mot lan:
+
+```bash
+kubectl rollout status deployment/admin-mvc -n app --timeout=300s
+kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
+```
+
 ### 1. Chuẩn bị server
 
 ```bash
@@ -380,6 +390,10 @@ kubectl apply -f ./prod/app/deployment-center/
 kubectl apply -f ./prod/app/deployment-listener/
 kubectl apply -f ./prod/app/challenge-gateway/
 kubectl apply -f ./prod/app/deployment-consumer/
+
+# Sau khi admin-mvc khoi tao xong CTFd schema, apply lai grant SQL de dam bao quyen user dich vu
+kubectl rollout status deployment/admin-mvc -n app --timeout=300s
+kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
 
 # Ở đây có 2 cách bạn có thể chuyển đổi qua lại
 # Apply NodePort services: Nếu Ở môi trường local, ingress domain không hoạt động. sử dụng cách này**

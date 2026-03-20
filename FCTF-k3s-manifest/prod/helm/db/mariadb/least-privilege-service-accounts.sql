@@ -15,7 +15,6 @@ CREATE USER IF NOT EXISTS 'contestant_be'@'%' IDENTIFIED BY 'NKtFmlmqOKWCqmAkE8I
 CREATE USER IF NOT EXISTS 'deployment_center'@'%' IDENTIFIED BY '2ePNjWVf2bPhnXA5bKXNMQDkmziaJT9PqDPkaSbmcutzkzUL89';
 CREATE USER IF NOT EXISTS 'deployment_listener'@'%' IDENTIFIED BY 'iHOu7LxTV0cggemLl2NfDOY6Qq0u6MgueurDCNfwFcU3Awx47H';
 CREATE USER IF NOT EXISTS 'deployment_consumer'@'%' IDENTIFIED BY 'UCEoSbGsU2haYN1jwFPP0JhOBqlGgC1IlociA8i5wIGageGOHF';
-CREATE USER IF NOT EXISTS 'ctfd_admin'@'%' IDENTIFIED BY 'FzR1BXgQ7FjYzm6d2zu2bOGfHlWQDDuluLj5Skqa8CrUYFH56M';
 
 -- ContestantBE
 GRANT SELECT ON ctfd.users TO 'contestant_be'@'%';
@@ -65,8 +64,5 @@ GRANT SELECT ON ctfd.challenges TO 'deployment_listener'@'%';
 
 -- DeploymentConsumer
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
-
--- Admin portal (full privileges on CTFd schema)
-GRANT ALL PRIVILEGES ON ctfd.* TO 'ctfd_admin'@'%';
 
 FLUSH PRIVILEGES;
