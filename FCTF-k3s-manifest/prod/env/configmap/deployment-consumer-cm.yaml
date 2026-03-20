@@ -6,7 +6,7 @@ metadata:
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
   DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
-  ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
+  ARGO_WORKFLOWS_URL: "https://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
   START_CHALLENGE_TEMPLATE: "start-chal-v2-template"
   RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
   RABBIT_USERNAME: "deployment-consumer"

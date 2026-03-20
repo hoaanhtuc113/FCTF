@@ -13,7 +13,14 @@ namespace ResourceShared.Utils
             return new RestClient(new RestClientOptions(baseUrl)
             {
                 CookieContainer = new(),
-                Timeout = TimeSpan.FromMinutes(5)
+                Timeout = TimeSpan.FromMinutes(5),
+                RemoteCertificateValidationCallback = (request, certificate, chain, sslPolicyErrors) =>
+                {
+                    // Argo server in secure mode commonly uses an internal/self-signed cert.
+                    // Keep verification for other services.
+                    return baseUrl.Contains("argo-workflows-server", StringComparison.OrdinalIgnoreCase)
+                        || sslPolicyErrors == System.Net.Security.SslPolicyErrors.None;
+                }
             });
         }
 
