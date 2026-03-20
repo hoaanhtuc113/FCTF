@@ -13,6 +13,7 @@ data:
   IpRateLimiting__StackBlockedRequests: "false"
   IpRateLimiting__RealIpHeader: "X-Forwarded-For"
   IpRateLimiting__ClientIdHeader: "X-ClientId"
+  IpRateLimiting__RateLimitCounterPrefix: "fctf:contestant:ratelimit"
   IpRateLimiting__HttpStatusCode: "429"
   IpRateLimiting__GeneralRules__0__Endpoint: "*"
   IpRateLimiting__GeneralRules__0__Period: "1s"

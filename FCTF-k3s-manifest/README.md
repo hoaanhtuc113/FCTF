@@ -385,7 +385,8 @@ Cấu hình nằm trong file [prod/helm/db/rabbitmq/rabbitmq-values.yaml](prod/h
 
 Sửa file [prod/helm/db/redis/redis-values.yaml](prod/helm/db/redis/redis-values.yaml):
 - Bật `auth.acl.enabled: true`
-- Tắt user `default` (`enabled: "off"`, `commands: "-@all"`)
+- **Không khai báo `default` trong `auth.acl.users`** (nếu thêm sẽ gây lỗi duplicate user khi Redis start)
+- Để vô hiệu hóa sử dụng thực tế của `default`: không cấp/không phát tán `auth.password`, rotate mật khẩu mạnh và chỉ cho ứng dụng dùng các user `svc_*`
 - Tạo các user riêng cho từng service, ví dụ:
   - `svc_admin_mvc`
   - `svc_gateway`
@@ -396,7 +397,8 @@ Sửa file [prod/helm/db/redis/redis-values.yaml](prod/helm/db/redis/redis-value
 
 Lưu ý:
 - `svc_gateway` chỉ nên truy cập key prefix `fctf:gateway:*` và quyền cần cho limiter/Lua (`EVAL`, `EVALSHA`, `HGET/HSET`, `INCR/DECR`, `EXPIRE`, ...)
-- Các service deployment/contestant chỉ cấp key pattern liên quan deploy như `deploy_challenge_*`, `active_deploys_team_*`, ...
+- Các service deployment chỉ cấp key pattern liên quan deploy như `deploy_challenge_*`, `active_deploys_team_*`, ...
+- `svc_contestant_be` hiện cần key rộng (`~*`) do AspNetCoreRateLimit tạo key động (nếu bó hẹp sẽ dễ phát sinh `NOPERM No permissions to access a key`).
 #### 2) Cập nhật secret/env theo từng service
 #### 3) Kiểm tra nhanh
 ```bash
