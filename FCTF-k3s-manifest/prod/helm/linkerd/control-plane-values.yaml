@@ -1,0 +1,7 @@
+identity:
+  issuer:
+    # Workload identity certificates are short-lived and rotated automatically by Linkerd.
+    issuanceLifetime: 24h0m0s
+
+proxy:
+  logLevel: warn,linkerd=info

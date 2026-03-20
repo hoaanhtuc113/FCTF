@@ -7,6 +7,10 @@ metadata:
     workflows.argoproj.io/description: "Build and push challenge image from NFS using Kaniko"
 spec:
   serviceAccountName: up-challenge-workflow-sa
+  podMetadata:
+    annotations:
+      linkerd.io/inject: enabled
+      config.linkerd.io/default-inbound-policy: all-authenticated
   entrypoint: main
   ttlStrategy:
     secondsAfterSuccess: 604800     # 7 days

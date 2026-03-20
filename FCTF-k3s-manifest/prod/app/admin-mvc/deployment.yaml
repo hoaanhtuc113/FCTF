@@ -10,6 +10,9 @@ spec:
       app: admin-mvc
   template:
     metadata:
+      annotations:
+        linkerd.io/inject: enabled
+        config.linkerd.io/default-inbound-policy: all-authenticated
       labels:
         app: admin-mvc
     spec:
