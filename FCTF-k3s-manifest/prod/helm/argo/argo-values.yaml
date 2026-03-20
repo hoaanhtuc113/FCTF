@@ -222,10 +222,6 @@ controller:
       ttlStrategy:
         secondsAfterSuccess: 300 # 5 minutes
         secondsAfterFailure: 10800 # 3 hours
-      serviceAccountName: argo-workflow
-      automountServiceAccountToken: false
-      executor:
-        serviceAccountName: argo-workflow
       securityContext:
         runAsNonRoot: true
         runAsUser: 8737
@@ -300,7 +296,7 @@ controller:
   # workflows. This controls where the service account and RBAC resources will
   # be created. Only valid when singleNamespace is false.
   workflowNamespaces:
-    - default
+    - argo
 
   instanceID:
     # -- Configures the controller to filter workflow submissions
