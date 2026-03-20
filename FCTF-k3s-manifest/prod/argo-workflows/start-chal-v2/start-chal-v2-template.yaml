@@ -12,7 +12,6 @@ spec:
       linkerd.io/inject: enabled
       config.linkerd.io/default-inbound-policy: all-authenticated
   activeDeadlineSeconds: 120
-  timeout: "120s"
   podGC:
     strategy: OnPodCompletion
   entrypoint: main
@@ -83,10 +82,10 @@ spec:
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
       priorityClassName: lowest
-      preemptionPolicy: Never
       activeDeadlineSeconds: 120
       timeout: "120s"
       podSpecPatch: |
+        preemptionPolicy: Never
         securityContext:
           fsGroup: 1104
           fsGroupChangePolicy: OnRootMismatch

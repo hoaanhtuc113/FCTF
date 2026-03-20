@@ -51,8 +51,8 @@ spec:
           - name: IMAGE_REPO
           - name: IMAGE_TAG
       priorityClassName: lowest
-      preemptionPolicy: Never
       podSpecPatch: |
+        preemptionPolicy: Never
         hostNetwork: true
         dnsPolicy: ClusterFirstWithHostNet
         securityContext:
@@ -183,7 +183,8 @@ spec:
     # ======================================================
     - name: send-message
       priorityClassName: lowest
-      preemptionPolicy: Never
+      podSpecPatch: |
+        preemptionPolicy: Never
 
       container:
         image: quachuoiscontainer/kubectl-cli:v0.0.3

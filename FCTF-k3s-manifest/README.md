@@ -306,7 +306,7 @@ kubectl apply -f prod/sa/argo-workflow/argo-sa.yaml
 # Không dùng static token secret nữa.
 # DeploymentCenter / DeploymentConsumer sẽ dùng token tự động được mount theo service account trong pod.
 # Nếu cần test thủ công Argo API, dùng short-lived token:
-kubectl create token deployment-center-sa -n app --duration=1h
+kubectl create token start-chal-v2-workflow-sa -n argo --duration=1h
 
 ```
 
