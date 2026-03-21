@@ -497,26 +497,13 @@ mainContainer:
   # -- imagePullPolicy to apply to Workflow main container. Defaults to `.Values.images.pullPolicy`.
   imagePullPolicy: ""
   # -- Resource limits and requests for the Workflow main container
-  resources:
-    requests:
-      cpu: 1m
-      memory: 64Mi
-    limits:
-      cpu: 500m
-      memory: 128Mi
+  resources: {}
   # -- Adds environment variables for the Workflow main container
   env: []
   # -- Adds reference environment variables for the Workflow main container
   envFrom: []
   # -- sets security context for the Workflow main container
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 8737
-    runAsGroup: 8737
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  securityContext: {}
 
 # executor controls how the init and wait container should be customized
 executor:
@@ -528,28 +515,15 @@ executor:
     # -- Image tag for the workflow executor. Defaults to `.Values.images.tag`.
     tag: ""
     # -- Image PullPolicy to use for the Workflow Executors. Defaults to `.Values.images.pullPolicy`.
-    pullPolicy: IfNotPresent
+    pullPolicy: ""
   # -- Resource limits and requests for the Workflow Executors
-  resources:
-    requests:
-      cpu: 100m
-      memory: 64Mi
-    limits:
-      cpu: 500m
-      memory: 128Mi
+  resources: {}
   # -- Passes arguments to the executor processes
   args: []
   # -- Adds environment variables for the executor.
   env: []
   # -- sets security context for the executor container
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 8737
-    runAsGroup: 8737
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
+  securityContext: {}
 
 server:
   # -- Deploy the Argo Server
