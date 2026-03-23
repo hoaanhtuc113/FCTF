@@ -413,7 +413,7 @@ alertmanager:
   ##
   networkPolicy:
     # -- Enable network policy for Alertmanager
-    enabled: false
+    enabled: true
 
     # -- Define policy types. If egress is enabled, both Ingress and Egress will be used
     # Valid values are ["Ingress"] or ["Ingress", "Egress"]
@@ -1637,7 +1637,7 @@ kubelet:
 
     ## If true, Prometheus use (respect) labels provided by exporter.
     ##
-    honorLabels: true
+    honorLabels: false
 
     ## If true, Prometheus ingests metrics with timestamp provided by exporter. If false, Prometheus ingests metrics with timestamp of scrape.
     ##
@@ -2513,7 +2513,7 @@ kube-state-metrics:
 
       # Keep labels from scraped data, overriding server-side labels
       ##
-      honorLabels: true
+      honorLabels: false
 
       ## MetricRelabelConfigs to apply to samples after scraping, but before ingestion.
       ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#relabelconfig
@@ -3442,7 +3442,7 @@ prometheus:
 
   ## Configure network policy for the prometheus
   networkPolicy:
-    enabled: false
+    enabled: true
 
     ## Flavor of the network policy to use.
     #  Can be:
@@ -4618,7 +4618,7 @@ prometheus:
 
     ## OverrideHonorLabels if set to true overrides all user configured honor_labels. If HonorLabels is set in ServiceMonitor
     ## or PodMonitor to true, this overrides honor_labels to false.
-    overrideHonorLabels: false
+    overrideHonorLabels: true
 
     ## OverrideHonorTimestamps allows to globally enforce honoring timestamps in all scrape configs.
     overrideHonorTimestamps: false
