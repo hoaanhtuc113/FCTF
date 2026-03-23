@@ -86,7 +86,7 @@ kubeVersion: ""
 ##
 clusterDomain: cluster.local
 ## @param extraDeploy Array of extra objects to deploy with the release
-##
+## 
 extraDeploy:
   - apiVersion: v1
     kind: Secret
@@ -103,6 +103,11 @@ extraDeploy:
           ],
           "users": [
             {
+              "name": "rabbit-admin",
+              "password": "Fctf2025@admin",
+              "tags": "administrator"
+            },
+            {
               "name": "deployment-producer",
               "password": "Fctf2025@producer",
               "tags": ""
@@ -114,6 +119,22 @@ extraDeploy:
             }
           ],
           "permissions": [
+          
+            {
+              "user": "rabbit-admin",
+              "vhost": "/",
+              "configure": ".*",
+              "write": ".*",
+              "read": ".*"
+            },
+            {
+              "user": "rabbit-admin",
+              "vhost": "fctf_deploy",
+              "configure": ".*",
+              "write": ".*",
+              "read": ".*"
+            },
+
             {
               "user": "deployment-producer",
               "vhost": "fctf_deploy",
