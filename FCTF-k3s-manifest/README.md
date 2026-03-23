@@ -391,6 +391,8 @@ kubectl apply -f ./prod/app/deployment-listener/
 kubectl apply -f ./prod/app/challenge-gateway/
 kubectl apply -f ./prod/app/deployment-consumer/
 
+#Network Policy
+kubectl apply -f ./prod/app/NetworkPolicy
 # Sau khi admin-mvc khoi tao xong CTFd schema, apply lai grant SQL de dam bao quyen user dich vu
 kubectl rollout status deployment/admin-mvc -n app --timeout=300s
 kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
