@@ -98,6 +98,9 @@ extraDeploy:
         {
           "vhosts": [
             {
+              "name": "/"
+            },
+            {
               "name": "fctf_deploy"
             }
           ],
@@ -119,6 +122,13 @@ extraDeploy:
             }
           ],
           "permissions": [
+            {
+              "user": "rabbit-admin",
+              "vhost": "/",
+              "configure": ".*",
+              "write": ".*",
+              "read": ".*"
+            },
             {
               "user": "rabbit-admin",
               "vhost": "fctf_deploy",
