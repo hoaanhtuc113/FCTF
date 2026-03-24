@@ -22,10 +22,46 @@ PROD_DIR="${SCRIPT_DIR}/prod"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
 
+STORAGE_PV_FILES=(
+  "${PROD_DIR}/storage/pv/admin-mvc-pv.yaml"
+  "${PROD_DIR}/storage/pv/contestant-be-pv.yaml"
+  "${PROD_DIR}/storage/pv/up-challenge-workflow-pv.yaml"
+  "${PROD_DIR}/storage/pv/start-challenge-workflow-pv.yaml"
+  "${PROD_DIR}/storage/pv/filebrowser-pv.yaml"
+)
+
+STORAGE_PVC_FILES=(
+  "${PROD_DIR}/storage/pvc/admin-mvc-pvc.yaml"
+  "${PROD_DIR}/storage/pvc/contestant-be-pvc.yaml"
+  "${PROD_DIR}/storage/pvc/up-challenge-workflow-pvc.yaml"
+  "${PROD_DIR}/storage/pvc/start-challenge-workflow-pvc.yaml"
+  "${PROD_DIR}/storage/pvc/filebrowser-pvc.yaml"
+)
+
+apply_storage_manifests() {
+  echo "==> Applying storage PVs"
+  for manifest in "${STORAGE_PV_FILES[@]}"; do
+    if [[ ! -f "${manifest}" ]]; then
+      echo "Error: PV manifest not found at ${manifest}"
+      exit 1
+    fi
+    kubectl apply -f "${manifest}"
+  done
+
+  echo "==> Applying storage PVCs"
+  for manifest in "${STORAGE_PVC_FILES[@]}"; do
+    if [[ ! -f "${manifest}" ]]; then
+      echo "Error: PVC manifest not found at ${manifest}"
+      exit 1
+    fi
+    kubectl apply -f "${manifest}"
+  done
+}
+
 usage() {
   cat <<EOF
 Usage:
-  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet <cidr|*>] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
+  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet "<client1 client2>|<client1,client2>|*"] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
 
 Examples:
   $0 --tls-san 34.124.131.240
@@ -238,13 +274,7 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   echo "==> Applying MariaDB auth secret before Helm"
   kubectl apply -f "${MARIADB_AUTH_SECRET_FILE}"
 
-  if [[ ! -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml" ]]; then
-    echo "Error: PV/PVC manifest not found at ${PROD_DIR}/storage/nfs-pv-pvc.yaml"
-    exit 1
-  fi
-
-  echo "==> Applying PV/PVC"
-  kubectl apply -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml"
+  apply_storage_manifests
 
   echo "==> Installing Helm (if missing)"
   if ! command -v helm >/dev/null 2>&1; then
@@ -280,13 +310,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   kubectl apply -f "${PROD_DIR}/env/secret/"
 
   if [[ "${APPLY_HELM}" != "true" ]]; then
-    if [[ ! -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml" ]]; then
-      echo "Error: PV/PVC manifest not found at ${PROD_DIR}/storage/nfs-pv-pvc.yaml"
-      exit 1
-    fi
-
-    echo "==> Applying PV/PVC"
-    kubectl apply -f "${PROD_DIR}/storage/nfs-pv-pvc.yaml"
+    apply_storage_manifests
   fi
 
   echo "==> Deploying app services"
@@ -297,6 +321,9 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   kubectl apply -f "${PROD_DIR}/app/deployment-listener/"
   kubectl apply -f "${PROD_DIR}/app/challenge-gateway/"
   kubectl apply -f "${PROD_DIR}/app/deployment-consumer/"
+
+  echo "==> Applying app NetworkPolicy"
+  kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
 
   if [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
     echo "==> Waiting for admin-mvc deployment before applying post-init MariaDB grants"
@@ -326,9 +353,11 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
 
   if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
     echo "==> Applying ClusterIP service mode"
+    kubectl delete -f "${PROD_DIR}/app/service-nodeport.yaml" --ignore-not-found
     kubectl apply -f "${PROD_DIR}/app/service-clusterip.yaml"
   else
     echo "==> Applying NodePort service mode"
+    kubectl delete -f "${PROD_DIR}/app/service-clusterip.yaml" --ignore-not-found
     kubectl apply -f "${PROD_DIR}/app/service-nodeport.yaml"
   fi
 fi

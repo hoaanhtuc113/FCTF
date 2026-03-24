@@ -9,6 +9,31 @@ Docker Hub được sử dụng làm kho lưu trữ và phân phối các contai
 
 ## Các bước cài đặt
 
+### Cach nhanh: dung script setup-master.sh
+
+Ban co the dung script de gom cac buoc cai dat master + NFS + helm + deploy app:
+
+```bash
+chmod +x setup-master.sh nfs-setup.sh
+
+# Vi du production: chi cho phep 3 node truy cap NFS
+./setup-master.sh \
+  --tls-san 34.124.131.240 \
+  --nfs-allowed-subnet "10.184.0.2 10.184.0.6 10.184.0.7" 
+```
+
+Co the dung dau phay thay cho dau cach trong `--nfs-allowed-subnet`, vi du:
+
+```bash
+--nfs-allowed-subnet "10.184.0.2,10.184.0.6,10.184.0.7"
+```
+
+Script hien tai da tu dong:
+- Apply `prod/env/secret/mariadb-auth-secret.yaml` truoc Helm
+- Apply day du PV/PVC trong `prod/storage/pv` va `prod/storage/pvc`
+- Apply `prod/app/NetworkPolicy/` khi deploy app
+- Chuyen doi service mode (`clusterip`/`nodeport`) theo dung thu tu xoa mode cu -> apply mode moi
+
 ### 0. Chuẩn bị secret MariaDB (bat buoc truoc khi cai Helm)
 
 MariaDB da duoc cau hinh dung existingSecret trong Helm values, vi vay ban phai cap nhat secret truoc khi chay helm:

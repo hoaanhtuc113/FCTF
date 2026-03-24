@@ -80,7 +80,7 @@ fi
 echo "==> Updating system and installing dependencies"
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y curl wget git nano vim net-tools nfs-common
+sudo apt install -y curl wget git nano vim net-tools nfs-common acl
 
 echo "==> Setting timezone: ${TIMEZONE}"
 sudo timedatectl set-timezone "${TIMEZONE}"
