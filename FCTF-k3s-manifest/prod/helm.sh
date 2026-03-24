@@ -20,16 +20,6 @@ helm upgrade --install cert-manager jetstack/cert-manager \
   --set installCRDs=true \
   --set webhook.securePort=10250
 
-# cài linkerd service mesh để mã hóa pod-to-pod bằng mTLS và cấp workload identity tự động
-helm repo add linkerd https://helm.linkerd.io/stable
-helm repo update
-helm upgrade --install linkerd-crds linkerd/linkerd-crds \
-  --namespace linkerd --create-namespace
-helm upgrade --install linkerd-control-plane linkerd/linkerd-control-plane \
-  --namespace linkerd \
-  -f ./helm/linkerd/control-plane-values.yaml \
-  --wait
-
 # Cài mariadb
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
@@ -88,12 +78,3 @@ helm repo update
 helm upgrade --install filebrowser utkuozdemir/filebrowser \
   --create-namespace --namespace storage \
   -f ./helm/filebrowser/values.yaml
-
-# Bật mTLS mặc định toàn bộ namespace nội bộ (kể cả DB) bằng Linkerd policy.
-# Không áp cho ingress-nginx/cert-manager vì cần nhận traffic từ bên ngoài mesh.
-for ns in app argo db monitoring storage ; do
-  if kubectl get namespace "${ns}" >/dev/null 2>&1; then
-    kubectl annotate namespace "${ns}" linkerd.io/inject=enabled --overwrite
-    kubectl annotate namespace "${ns}" config.linkerd.io/default-inbound-policy=all-authenticated --overwrite
-  fi
-done

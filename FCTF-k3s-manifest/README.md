@@ -320,43 +320,6 @@ kubectl create token start-chal-v2-workflow-sa -n argo --duration=1h
 
 ```
 
-### 5.1. Bảo mật pod-to-pod toàn hệ thống bằng Linkerd mTLS
-`prod/helm.sh` cài Linkerd control plane (`linkerd-crds`, `linkerd-control-plane`) và tự annotate các namespace nội bộ:
-- `app`, `challenge`, `db`, `argo`, `monitoring`, `storage`, `ctfd`
-
-Mỗi namespace này được bật:
-- `linkerd.io/inject=enabled`
-- `config.linkerd.io/default-inbound-policy=all-authenticated`
-
-Kết quả:
-- Traffic pod-to-pod trong hệ thống nội bộ (bao gồm MariaDB/Redis/RabbitMQ ở namespace `db`) được mã hóa mTLS.
-- Workload identity được cấp tự động theo ServiceAccount bởi Linkerd identity.
-- Workload certificate ngắn hạn được Linkerd xoay vòng tự động.
-- Traffic plaintext inbound vào workload trong các namespace nội bộ bị từ chối.
-
-Lưu ý: `ingress-nginx` và `cert-manager` không bật policy `all-authenticated` vì cần nhận traffic từ ngoài mesh.
-
-Lệnh kiểm tra nhanh:
-
-```bash
-# Kiểm tra control plane Linkerd
-kubectl get pods -n linkerd
-
-# Kiểm tra sidecar injection
-kubectl get pods -n app -l app=deployment-center -o jsonpath='{range .items[*]}{.metadata.name}{" => "}{.spec.containers[*].name}{"\n"}{end}'
-
-# Kiểm tra trạng thái mesh và mTLS
-linkerd check
-linkerd -n app check --proxy
-linkerd -n db check --proxy
-linkerd viz stat deploy -n app
-
-# Rollout để pod cũ nhận sidecar/policy mới
-kubectl rollout restart deploy -n app
-kubectl rollout restart statefulset -n db
-kubectl rollout restart deploy -n db
-```
-
 ### 6. Deploy ứng dụng CTF
 ```bash
 # Đầu tiên bạn cần vào prod\app trong các service có file deployment.yaml để cấu hình sử dụng image nào, resource bao nhiêu
