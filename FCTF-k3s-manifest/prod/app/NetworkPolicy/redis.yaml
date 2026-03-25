@@ -14,6 +14,3 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: app
-      ports:
-        - protocol: TCP
-          port: 6379
