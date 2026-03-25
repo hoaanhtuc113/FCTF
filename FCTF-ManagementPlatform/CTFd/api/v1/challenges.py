@@ -1278,6 +1278,11 @@ class ChallengeDeploy(Resource):
                 challenge.state = "visible"
                 db.session.commit()
 
+            elif workflow_phase in ("Failed", "Error"):
+                challenge.deploy_status = "DEPLOY_FAILED"
+                challenge.state = "hidden"
+                db.session.commit()
+
             return {
                 "success": True,
                 "data": {
