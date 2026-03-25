@@ -17,11 +17,7 @@ from CTFd.constants.envvars import (
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
     HOST_CACHE,
-    REDIS_HOST,
-    REDIS_PORT,
-    REDIS_USER,
-    REDIS_PASS,
-    REDIS_DB,
+    get_redis_client_kwargs,
 )
 # 
 from CTFd.utils.user import get_current_user, is_admin
@@ -45,13 +41,7 @@ from CTFd.utils.connector.multiservice_connector import (
 
 challenge = Blueprint("challenge", __name__)
 redis_client = redis.StrictRedis(
-    host=f"{REDIS_HOST}",
-    port=int(REDIS_PORT),
-    username=REDIS_USER,
-    password=REDIS_PASS,
-    db=int(REDIS_DB),
-    encoding="utf-8",
-    decode_responses=True
+    **get_redis_client_kwargs()
 )
    
 @challenge.route("/api/challenge/status-check/<challenge_id>", methods=["GET"])
