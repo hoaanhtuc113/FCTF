@@ -25,7 +25,7 @@ data:
   # Increased per-IP connection cap to better support LANed contestants
   TCP_MAX_CONNS_PER_IP: "1000"
   TCP_MAX_CONNS_PER_TOKEN: "15"
-  REDIS_ADDR: "redis-headless.db.svc.cluster.local:6380"
+  REDIS_ADDR: "redis-headless.db.svc.cluster.local:6379"
   REDIS_DB: "0"
   REDIS_KEY_PREFIX: "fctf:gateway"
   REDIS_POOL_SIZE: "100"
