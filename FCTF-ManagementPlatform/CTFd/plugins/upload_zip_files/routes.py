@@ -54,23 +54,11 @@ from CTFd.constants.envvars import (
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
     HOST_CACHE,
-    REDIS_HOST,
-    REDIS_PORT,
-    REDIS_USER,
-    REDIS_PASS,
-    REDIS_DB,
+    get_redis_client_kwargs,
 )
 
     
-redis_client = redis.StrictRedis(
-    host=f"{REDIS_HOST}",
-    port=int(REDIS_PORT),
-    username=REDIS_USER,
-    password=REDIS_PASS,
-    db=int(REDIS_DB),
-    encoding="utf-8",
-    decode_responses=True
-)
+redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
 
 def upload_file(challenge_id, file_path, exposed_port=None):
