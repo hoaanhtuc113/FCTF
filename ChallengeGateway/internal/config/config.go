@@ -28,6 +28,7 @@ type Config struct {
 	RedisPoolSize         int
 	RedisMinIdle          int
 	RedisFailClosed       bool
+	RedisTLS              bool
 }
 
 // Load reads configuration from environment variables, applying defaults where unset.
@@ -54,6 +55,7 @@ func Load() Config {
 		RedisPoolSize:         EnvInt("REDIS_POOL_SIZE", 100),
 		RedisMinIdle:          EnvInt("REDIS_MIN_IDLE", 10),
 		RedisFailClosed:       EnvBool("REDIS_FAIL_CLOSED", false),
+		RedisTLS:              EnvBool("REDIS_TLS", false),
 	}
 }
 
