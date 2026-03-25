@@ -13,7 +13,8 @@ data:
   RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
   RABBIT_USERNAME: "deployment-producer"
   RABBIT_VHOST: "fctf_deploy"
-  RABBIT_PORT: "5672"
+  RABBIT_PORT: "5671"
+  RABBIT_TLS: "true"
 
   DEPLOYMENT_QUEUE_TIMEOUT_MINUTES: "5"
 

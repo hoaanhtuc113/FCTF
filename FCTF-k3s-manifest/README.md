@@ -9,6 +9,31 @@ Docker Hub được sử dụng làm kho lưu trữ và phân phối các contai
 
 ## Các bước cài đặt
 
+### Cach nhanh: dung script setup-master.sh
+
+Ban co the dung script de gom cac buoc cai dat master + NFS + helm + deploy app:
+
+```bash
+chmod +x setup-master.sh nfs-setup.sh
+
+# Vi du production: chi cho phep 3 node truy cap NFS
+./setup-master.sh \
+  --tls-san 34.124.131.240 \
+  --nfs-allowed-subnet "10.184.0.2 10.184.0.6 10.184.0.7" 
+```
+
+Co the dung dau phay thay cho dau cach trong `--nfs-allowed-subnet`, vi du:
+
+```bash
+--nfs-allowed-subnet "10.184.0.2,10.184.0.6,10.184.0.7"
+```
+
+Script hien tai da tu dong:
+- Apply `prod/env/secret/mariadb-auth-secret.yaml` truoc Helm
+- Apply day du PV/PVC trong `prod/storage/pv` va `prod/storage/pvc`
+- Apply `prod/app/NetworkPolicy/` khi deploy app
+- Chuyen doi service mode (`clusterip`/`nodeport`) theo dung thu tu xoa mode cu -> apply mode moi
+
 ### 0. Chuẩn bị secret MariaDB (bat buoc truoc khi cai Helm)
 
 MariaDB da duoc cau hinh dung existingSecret trong Helm values, vi vay ban phai cap nhat secret truoc khi chay helm:
@@ -318,43 +343,6 @@ kubectl apply -f prod/sa/argo-workflow/argo-sa.yaml
 # Nếu cần test thủ công Argo API, dùng short-lived token:
 kubectl create token start-chal-v2-workflow-sa -n argo --duration=1h
 
-```
-
-### 5.1. Bảo mật pod-to-pod toàn hệ thống bằng Linkerd mTLS
-`prod/helm.sh` cài Linkerd control plane (`linkerd-crds`, `linkerd-control-plane`) và tự annotate các namespace nội bộ:
-- `app`, `challenge`, `db`, `argo`, `monitoring`, `storage`, `ctfd`
-
-Mỗi namespace này được bật:
-- `linkerd.io/inject=enabled`
-- `config.linkerd.io/default-inbound-policy=all-authenticated`
-
-Kết quả:
-- Traffic pod-to-pod trong hệ thống nội bộ (bao gồm MariaDB/Redis/RabbitMQ ở namespace `db`) được mã hóa mTLS.
-- Workload identity được cấp tự động theo ServiceAccount bởi Linkerd identity.
-- Workload certificate ngắn hạn được Linkerd xoay vòng tự động.
-- Traffic plaintext inbound vào workload trong các namespace nội bộ bị từ chối.
-
-Lưu ý: `ingress-nginx` và `cert-manager` không bật policy `all-authenticated` vì cần nhận traffic từ ngoài mesh.
-
-Lệnh kiểm tra nhanh:
-
-```bash
-# Kiểm tra control plane Linkerd
-kubectl get pods -n linkerd
-
-# Kiểm tra sidecar injection
-kubectl get pods -n app -l app=deployment-center -o jsonpath='{range .items[*]}{.metadata.name}{" => "}{.spec.containers[*].name}{"\n"}{end}'
-
-# Kiểm tra trạng thái mesh và mTLS
-linkerd check
-linkerd -n app check --proxy
-linkerd -n db check --proxy
-linkerd viz stat deploy -n app
-
-# Rollout để pod cũ nhận sidecar/policy mới
-kubectl rollout restart deploy -n app
-kubectl rollout restart statefulset -n db
-kubectl rollout restart deploy -n db
 ```
 
 ### 6. Deploy ứng dụng CTF
