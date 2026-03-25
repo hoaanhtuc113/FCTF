@@ -2,6 +2,7 @@ package limiter
 
 import (
 	"context"
+	"crypto/tls"
 	"log"
 	"time"
 
@@ -23,7 +24,7 @@ func InitRedis(cfg config.Config) RedisClient {
 		return nil
 	}
 
-	client := redis.NewClient(&redis.Options{
+	opts := &redis.Options{
 		Addr:         cfg.RedisAddr,
 		Username:     cfg.RedisUsername,
 		Password:     cfg.RedisPassword,
@@ -33,7 +34,13 @@ func InitRedis(cfg config.Config) RedisClient {
 		DialTimeout:  2 * time.Second,
 		ReadTimeout:  2 * time.Second,
 		WriteTimeout: 2 * time.Second,
-	})
+	}
+	if cfg.RedisTLS {
+		opts.TLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+	client := redis.NewClient(opts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
