@@ -318,6 +318,11 @@ def load_users_csv(dict_reader):
         if response.errors:
             errors.append((i, response.errors))
         else:
+            # Mark imported users as verified
+            try:
+                setattr(response.data, "verified", True)
+            except Exception:
+                pass
             db.session.add(response.data)
             db.session.commit()
     if errors:
@@ -524,6 +529,11 @@ def load_users_and_teams_csv(csvfile_or_reader):
             if user_response.errors:
                 raise ValueError(user_response.errors)
             user = user_response.data
+            # Mark imported users as verified
+            try:
+                setattr(user, "verified", True)
+            except Exception:
+                pass
             db.session.add(user)
             db.session.commit()
             existing_emails.add(email.lower())

@@ -253,7 +253,8 @@ def import_csv():
     elif csv_type == "teams":
         result = load_teams_csv(normalized_reader)
     elif csv_type == "challenges":
-        result = load_challenges_csv(normalized_reader)
+        # Challenge CSV import removed from UI - reject explicit attempts
+        result = False
     else:
         # Handle other CSV types
 
