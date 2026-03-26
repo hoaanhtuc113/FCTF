@@ -1,22 +1,22 @@
 Build Images:
 
-	docker build -t quachuoiscontainer/fctf:contestant-portal-prod-v4.0.0 -f ContestantPortal/docker/Dockerfile ContestantPortal
-	docker build -t quachuoiscontainer/fctf:contestant-be-prod-v4.0.0 -f ./ControlCenterAndChallengeHostingServer/ContestantBE/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t quachuoiscontainer/fctf:deployment-center-prod-v4.0.0 -f ./ControlCenterAndChallengeHostingServer/DeploymentCenter/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t quachuoiscontainer/fctf:deployment-listener-prod-v4.0.0 -f ./ControlCenterAndChallengeHostingServer/DeploymentListener/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t quachuoiscontainer/fctf:deployment-consumer-prod-v4.0.0 -f ./ControlCenterAndChallengeHostingServer/DeploymentConsumer/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t quachuoiscontainer/fctf:admin-mvc-prod-v4.0.0 -f ./FCTF-ManagementPlatform/Dockerfile ./FCTF-ManagementPlatform
-	docker build -t quachuoiscontainer/fctf:challenge-gateway-prod-v4.0.0 -f ./ChallengeGateway/Dockerfile ./ChallengeGateway
+	docker build -t quachuoiscontainer/fctf:contestant-portal-prod-latest -f ContestantPortal/docker/Dockerfile ContestantPortal
+	docker build -t quachuoiscontainer/fctf:contestant-be-prod-latest -f ./ControlCenterAndChallengeHostingServer/ContestantBE/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t quachuoiscontainer/fctf:deployment-center-prod-latest -f ./ControlCenterAndChallengeHostingServer/DeploymentCenter/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t quachuoiscontainer/fctf:deployment-listener-prod-latest -f ./ControlCenterAndChallengeHostingServer/DeploymentListener/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t quachuoiscontainer/fctf:deployment-consumer-prod-latest -f ./ControlCenterAndChallengeHostingServer/DeploymentConsumer/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t quachuoiscontainer/fctf:admin-mvc-prod-latest -f ./FCTF-ManagementPlatform/Dockerfile ./FCTF-ManagementPlatform
+	docker build -t quachuoiscontainer/fctf:challenge-gateway-prod-latest -f ./ChallengeGateway/Dockerfile ./ChallengeGateway
 
 Push:
 
-	docker push quachuoiscontainer/fctf:contestant-portal-prod-v4.0.0
-	docker push quachuoiscontainer/fctf:contestant-be-prod-v4.0.0
-	docker push quachuoiscontainer/fctf:deployment-center-prod-v4.0.0
-	docker push quachuoiscontainer/fctf:deployment-listener-prod-v4.0.0
-	docker push quachuoiscontainer/fctf:deployment-consumer-prod-v4.0.0
-	docker push quachuoiscontainer/fctf:admin-mvc-prod-v4.0.0
-	docker push quachuoiscontainer/fctf:challenge-gateway-prod-v4.0.0
+	docker push quachuoiscontainer/fctf:contestant-portal-prod-latest
+	docker push quachuoiscontainer/fctf:contestant-be-prod-latest
+	docker push quachuoiscontainer/fctf:deployment-center-prod-latest
+	docker push quachuoiscontainer/fctf:deployment-listener-prod-latest
+	docker push quachuoiscontainer/fctf:deployment-consumer-prod-latest
+	docker push quachuoiscontainer/fctf:admin-mvc-prod-latest
+	docker push quachuoiscontainer/fctf:challenge-gateway-prod-latest
 		
 DockerHub:
 u: quachuoiscontainer
