@@ -6,6 +6,54 @@
 /* Challenges page — only page-specific overrides; shared styles in base.html */
 .clean-icon-btn { color: #6c757d; transition: all 0.2s ease; font-size: 1.3rem; }
 .clean-icon-btn:hover { color: var(--primary-orange); }
+
+/* Action dropdown — same behavior/style as Monitoring page */
+.action-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.action-menu {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    min-width: 170px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 4px 0;
+    font-size: 0.875rem;
+}
+
+.action-menu.open {
+    display: block;
+}
+
+.action-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.9rem;
+    color: #495057 !important;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.action-menu-item:hover {
+    background: #fff5f2;
+    color: #ff6b35 !important;
+    text-decoration: none;
+}
+
+.action-menu-divider {
+    height: 1px;
+    background: #dee2e6;
+    margin: 4px 0;
+}
 </style>
 {% endblock %}
 
@@ -173,7 +221,6 @@
                             <th class="sort-col text-center"><b>Deploy Status</b></th>
                             <th class="sort-col text-center"><b>State</b></th>
                             <th class="sort-col text-center"><b>Actions</b></th>
-                            <th class="sort-col text-center"><b>Preview</b></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -240,20 +287,28 @@
                             </td>
                             {% if challenge.require_deploy %}
                             <td class="text-center">
-                                <a href="{{ url_for('challengeHistory.view_deploy_history', challenge_id=challenge.id) }}" 
-                                   class="clean-btn clean-action-btn-sm">
-                                    <i class="fas fa-history"></i> History
-                                </a>
-                            </td>
-                            <td class="text-center">
-                                <button id="preview-button-{{ challenge.id }}" 
-                                        class="clean-btn clean-action-btn-sm"
-                                        onclick="previewChallenge({{ challenge.id }})">
-                                    <i class="fas fa-eye"></i> Preview
-                                </button>
+                                <div class="action-dropdown">
+                                    <button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this, event)">
+                                        Actions
+                                    </button>
+                                    <div class="action-menu">
+                                        <a class="action-menu-item" href="{{ url_for('challengeHistory.view_deploy_history', challenge_id=challenge.id) }}" onclick="closeAllActionMenus()">
+                                            <i class="fas fa-history fa-fw mr-1"></i> History
+                                        </a>
+                                        <a class="action-menu-item" href="#" onclick="previewChallenge({{ challenge.id }}, this); closeAllActionMenus(); return false;">
+                                            <i class="fas fa-eye fa-fw mr-1"></i> Preview
+                                        </a>
+                                        {% if challenge.shared_instant %}
+                                        <div class="action-menu-divider"></div>
+                                        <a class="action-menu-item" href="#" onclick="startSharedChallenge({{ challenge.id }}, this); closeAllActionMenus(); return false;">
+                                            <i class="fas fa-play fa-fw mr-1"></i> Start
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                             {% else %}
-                            <td colspan="2" class="text-center text-muted">
+                            <td class="text-center text-muted">
                                 <i class="fas fa-ban" data-toggle="tooltip"
                                     title="No actions are required for this challenge"></i> Not Applicable
                             </td>

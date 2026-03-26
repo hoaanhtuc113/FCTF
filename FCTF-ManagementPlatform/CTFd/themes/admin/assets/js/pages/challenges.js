@@ -80,8 +80,8 @@ function bulkEditChallenges(_event) {
   });
 }
 
-function previewChallenge(challengeId) {
-  const previewButton = document.getElementById(`preview-button-${challengeId}`);
+function previewChallenge(challengeId, triggerEl = null) {
+  const previewButton = triggerEl || document.getElementById(`preview-button-${challengeId}`);
 
   // const result = confirm("The domain will be immediately returned to you, but it won't be accessible until the environment finishes starting up.\nWould you like to proceed?");
   // if (!result) {
@@ -89,7 +89,9 @@ function previewChallenge(challengeId) {
   // }
 
   // Prepare UI
-  previewButton.disabled = true;
+  if (previewButton) {
+    previewButton.disabled = true;
+  }
 
   CTFd.fetch('/api/challenge/start', {
     method: 'POST',
@@ -166,8 +168,85 @@ function previewChallenge(challengeId) {
     });
   })
   .finally(() => {
-    previewButton.disabled = false;
+    if (previewButton) {
+      previewButton.disabled = false;
+    }
   });
+}
+
+function startSharedChallenge(challengeId, triggerEl = null) {
+  const startButton = triggerEl || null;
+  if (startButton) {
+    startButton.classList.add("disabled");
+    startButton.style.pointerEvents = "none";
+  }
+
+  CTFd.fetch('/api/challenge/start', {
+    method: 'POST',
+    body: JSON.stringify({ challenge_id: challengeId, team_id: -2 })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (!data || !data.success) {
+        ezAlert({
+          title: `Start Challenge ${challengeId} Error`,
+          body: (data && data.message) || 'Failed to start shared instance.',
+          button: "OK"
+        });
+        return;
+      }
+
+      const body = `<div>
+        <p><strong>${data.message || "Shared challenge start requested."}</strong></p>
+        ${data.challenge_url ? `<div style="overflow:auto; max-width:100%; word-break:break-all;"><p>Challenge URL: <code>${data.challenge_url}</code></p></div>` : ""}
+      </div>`;
+
+      ezAlert({
+        title: `Start Challenge ${challengeId} Success`,
+        body,
+        button: "OK"
+      });
+    })
+    .catch(error => {
+      ezAlert({
+        title: "Connection Error",
+        body: error?.message || "Failed to connect to the server. Please try again.",
+        button: "OK"
+      });
+    })
+    .finally(() => {
+      if (startButton) {
+        startButton.classList.remove("disabled");
+        startButton.style.pointerEvents = "";
+      }
+    });
+}
+
+function closeAllActionMenus() {
+  document.querySelectorAll('.action-menu.open').forEach(function (menu) {
+    menu.classList.remove('open');
+  });
+}
+
+function toggleActionMenu(btn, event) {
+  event.stopPropagation();
+  const menu = btn.nextElementSibling;
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  closeAllActionMenus();
+  if (!isOpen) {
+    menu.classList.add('open');
+    positionActionMenu(menu, btn);
+  }
+}
+
+function positionActionMenu(menu, btn) {
+  const rect = btn.getBoundingClientRect();
+  const menuW = menu.offsetWidth || 170;
+  let left = rect.right - menuW;
+  if (left < 4) left = rect.left;
+  menu.style.top = (rect.bottom + 2) + 'px';
+  menu.style.left = left + 'px';
 }
 
 function LoopCheckingStatus(challengeId) {
@@ -304,8 +383,27 @@ $(() => {
   } else {
     console.debug("Tags picker: element not present in DOM");
   }
+
+  document.addEventListener('click', function () {
+    closeAllActionMenus();
+  });
+
+  (function () {
+    function repositionOpenMenu() {
+      const menu = document.querySelector('.action-menu.open');
+      if (!menu) return;
+      const btn = menu.previousElementSibling;
+      if (btn) positionActionMenu(menu, btn);
+    }
+    const tableWrapper = document.querySelector('.clean-table-wrapper');
+    if (tableWrapper) tableWrapper.addEventListener('scroll', repositionOpenMenu);
+    window.addEventListener('scroll', repositionOpenMenu);
+  })();
 });
 
 // Expose functions to global scope
 window.previewChallenge = previewChallenge;
+window.startSharedChallenge = startSharedChallenge;
 window.CheckingStatus = CheckingStatus;
+window.toggleActionMenu = toggleActionMenu;
+window.closeAllActionMenus = closeAllActionMenus;

@@ -1011,7 +1011,7 @@ public class ChallengeController : BaseController
         });
         int teamId = user.TeamId.Value;
         if (challenge.SharedInstant) {
-            teamId = -1; // Use -1 to indicate shared instance in cache keys and service logic
+            teamId = -2; // Use -2 to indicate shared instance in cache keys and service logic
         }
         var response = await _challengeServices.CheckChallengeStart(challenge.Id, teamId);
         return response.status switch

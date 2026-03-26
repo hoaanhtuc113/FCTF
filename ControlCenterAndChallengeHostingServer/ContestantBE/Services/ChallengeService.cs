@@ -212,7 +212,7 @@ public class ChallengeService : IChallengeService
         int teamId = user.TeamId ?? 0;
         if (challenge.SharedInstant)
         {
-            teamId = -1; // use -1 to indicate shared instance, so all teams can see the same deployment status
+            teamId = -2; // use -2 to indicate shared instance, so all teams can see the same deployment status
         }
         var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, teamId);
         if (await _redisHelper.KeyExistsAsync(cache_key))
