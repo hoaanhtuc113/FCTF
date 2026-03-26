@@ -411,6 +411,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.MaxDeployCount)
                 .HasColumnType("int(11)")
                 .HasColumnName("max_deploy_count");
+            entity.Property(e => e.SharedInstant)
+                .HasColumnName("shared_instant")
+                .HasDefaultValue(false);
 
             entity.HasOne(d => d.Next).WithMany(p => p.InverseNext)
                 .HasForeignKey(d => d.NextId)

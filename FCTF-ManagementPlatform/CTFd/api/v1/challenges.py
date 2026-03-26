@@ -333,6 +333,7 @@ class ChallengeList(Resource):
                 "use_gvisor": challenge.use_gvisor,
                 "harden_container": challenge.harden_container,
                 "max_deploy_count": challenge.max_deploy_count,
+                "shared_instant": challenge.shared_instant,
             }
         )
 
@@ -602,6 +603,7 @@ class Challenge(Resource):
             "use_gvisor": challenge.use_gvisor,
             "harden_container": challenge.harden_container,
             "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
         }
 
         if user.type == "admin":
@@ -691,6 +693,7 @@ class Challenge(Resource):
                 "use_gvisor": challenge.use_gvisor,
                 "harden_container": challenge.harden_container,
                 "max_deploy_count": challenge.max_deploy_count,
+                "shared_instant": challenge.shared_instant,
             },
             data={"challenge_id": challenge_id, "name": challenge.name}
         )
@@ -743,6 +746,7 @@ class Challenge(Resource):
             "use_gvisor": challenge.use_gvisor,
             "harden_container": challenge.harden_container,
             "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
         }
 
         if challenge.require_deploy:
