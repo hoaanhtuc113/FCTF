@@ -82,7 +82,7 @@ class ExportCSVForm(BaseForm):
 class ImportCSVForm(BaseForm):
     csv_type = SelectField(
         "CSV Type",
-        choices=[("users", "Users"), ("teams", "Teams"), ("users_and_teams", "Users + Teams"), ("challenges", "Challenges")],
+        choices=[("users", "Users"), ("teams", "Teams"), ("users_and_teams", "Users + Teams")],
         description="Type of CSV data",
     )
     csv_file = FileField("CSV File", description="CSV file contents")
