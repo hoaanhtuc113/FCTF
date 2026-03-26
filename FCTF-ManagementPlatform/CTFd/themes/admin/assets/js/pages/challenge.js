@@ -352,6 +352,7 @@ function handleChallengeOptions(event) {
   let memoryRequest = 0;
   let useGvisor = true;
   let hardenContainer = true;
+  let sharedInstant = false;
   let maxDeployCount = parseInt(params.max_deploy_count || "0", 10);
 
   if (requireDeploy) {
@@ -361,6 +362,7 @@ function handleChallengeOptions(event) {
     memoryRequest = parseInt(params.memory_request || "0", 10);
     useGvisor = (params.use_gvisor || "true") === "true";
     hardenContainer = params.harden_container === true || params.harden_container === "true" || params.harden_container === "on";
+    sharedInstant = params.shared_instant === true || params.shared_instant === "true" || params.shared_instant === "on";
 
     if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
       ezAlert({
@@ -391,6 +393,7 @@ function handleChallengeOptions(event) {
     state: params.state,
     max_deploy_count: maxDeployCount,
     require_deploy: requireDeploy,
+    shared_instant: requireDeploy ? sharedInstant : false,
   };
   if (requireDeploy) {
     patchBody.cpu_limit = cpuLimit;
