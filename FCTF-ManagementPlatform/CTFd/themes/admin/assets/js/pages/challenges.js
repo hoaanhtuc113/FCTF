@@ -243,9 +243,24 @@ function toggleActionMenu(btn, event) {
 function positionActionMenu(menu, btn) {
   const rect = btn.getBoundingClientRect();
   const menuW = menu.offsetWidth || 170;
+  const menuH = menu.offsetHeight || 160;
   let left = rect.right - menuW;
   if (left < 4) left = rect.left;
-  menu.style.top = (rect.bottom + 2) + 'px';
+
+  // Flip upward if bottom space is insufficient
+  const spaceBelow = window.innerHeight - rect.bottom;
+  let top = rect.bottom + 6;
+  if (spaceBelow < menuH + 10) {
+    top = rect.top - menuH - 6;
+  }
+
+  // Keep menu fully inside viewport
+  if (top < 4) top = 4;
+  if (left < 4) left = 4;
+  if (left + menuW > window.innerWidth - 4) left = window.innerWidth - menuW - 4;
+
+  menu.style.position = 'fixed';
+  menu.style.top = top + 'px';
   menu.style.left = left + 'px';
 }
 
