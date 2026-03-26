@@ -199,7 +199,7 @@ auth:
       - username: "svc_gateway"
         password: "GwRedis2026A"
         enabled: "on"
-        commands: "+ping +echo +select +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha"
+        commands: "+ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha"
         keys: "~fctf:gateway:*"
         channels: "&*"
 
@@ -208,7 +208,7 @@ auth:
         password: "CbeRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat"
-        keys: "~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:*"
+        keys: "~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:*"
         channels: "&*"
 
       # Deployment center service + Lua execution.
