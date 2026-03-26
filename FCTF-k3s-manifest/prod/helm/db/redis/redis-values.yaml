@@ -207,7 +207,7 @@ auth:
       - username: "svc_contestant_be"
         password: "CbeRedis2026A"
         enabled: "on"
-        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat"
         keys: "~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:*"
         channels: "&*"
 
