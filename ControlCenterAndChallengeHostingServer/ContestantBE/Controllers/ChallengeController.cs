@@ -701,7 +701,7 @@ public class ChallengeController : BaseController
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
-        if (challenge.State == ChallengeState.HIDDEN) return BadRequest(new { error = "This challenge is not available for deployment" });
+        if (challenge.State == ChallengeState.HIDDEN || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
 
         // Check prerequisites from Requirements JSON
         if (!string.IsNullOrEmpty(challenge.Requirements))
@@ -1009,8 +1009,11 @@ public class ChallengeController : BaseController
             status = (int)HttpStatusCode.BadRequest,
             pod_status = Enums.DeploymentStatusEnum.Failed
         });
-
-        var response = await _challengeServices.CheckChallengeStart(challenge.Id, user.TeamId.Value);
+        int teamId = user.TeamId.Value;
+        if (challenge.SharedInstant) {
+            teamId = -1; // Use -1 to indicate shared instance in cache keys and service logic
+        }
+        var response = await _challengeServices.CheckChallengeStart(challenge.Id, teamId);
         return response.status switch
         {
             (int)HttpStatusCode.OK => Ok(response),
