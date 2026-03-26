@@ -22,12 +22,6 @@ chmod +x setup-master.sh nfs-setup.sh
   --nfs-allowed-subnet "10.184.0.2 10.184.0.6 10.184.0.7" 
 ```
 
-Co the dung dau phay thay cho dau cach trong `--nfs-allowed-subnet`, vi du:
-
-```bash
---nfs-allowed-subnet "10.184.0.2,10.184.0.6,10.184.0.7"
-```
-
 Script hien tai da tu dong:
 - Apply `prod/env/secret/mariadb-auth-secret.yaml` truoc Helm
 - Apply day du PV/PVC trong `prod/storage/pv` va `prod/storage/pvc`
@@ -47,29 +41,6 @@ kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f ./prod/env/secret/mariadb-auth-secret.yaml
 ```
 
-Neu ban dung tai khoan admin DB cho ManagementPlatform, cap nhat them:
-
-```bash
-nano ./prod/env/secret/admin-mvc-secret.yaml
-```
-
-Neu DB da du lieu san (PVC cu), file initdbScripts se khong chay lai. Khi do hay chay SQL cap quyen thu cong:
-
-```bash
-# Sua mat khau trong script truoc khi chay
-nano ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
-```
-
-Luu y quan trong cho cai dat moi:
-- CTFd schema/table thuong duoc tao sau khi `admin-mvc` khoi dong lan dau.
-- Vi vay `initdbScripts` co the chay truoc khi schema day du, dan den user da tao nhung grant chua day du.
-- Sau khi `admin-mvc` chay on dinh, can apply lai file SQL grant mot lan:
-
-```bash
-kubectl rollout status deployment/admin-mvc -n app --timeout=300s
-kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
-```
-
 ### 1. Chuẩn bị server
 
 ```bash
@@ -77,7 +48,7 @@ kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --
 sudo apt update && sudo apt upgrade -y
 
 # Cài đặt các công cụ cần thiết
-sudo apt install -y curl wget git nano vim net-tools nfs-common
+sudo apt install -y curl wget git nano vim net-tools nfs-common acl
 
 # Cấu hình timezone
 sudo timedatectl set-timezone Asia/Ho_Chi_Minh
@@ -381,7 +352,12 @@ kubectl apply -f ./prod/app/deployment-consumer/
 
 #Network Policy
 kubectl apply -f ./prod/app/NetworkPolicy
+
+# Luu y quan trong cho cai dat moi:
+# - CTFd schema/table thuong duoc tao sau khi `admin-mvc` khoi dong lan dau.
+# - Vi vay `initdbScripts` co the chay truoc khi schema day du, dan den user da tao nhung grant chua day du.
 # Sau khi admin-mvc khoi tao xong CTFd schema, apply lai grant SQL de dam bao quyen user dich vu
+
 kubectl rollout status deployment/admin-mvc -n app --timeout=300s
 kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
 
@@ -556,11 +532,9 @@ helm uninstall rabbitmq -n db
 helm uninstall cert-manager -n cert-manager
 helm uninstall ingress-nginx -n ingress-nginx
 helm uninstall rancher -n cattle-system
-helm uninstall linkerd-control-plane -n linkerd
-helm uninstall linkerd-crds -n linkerd
 
 # Xóa namespaces
-kubectl delete namespace storage argo monitoring db cert-manager ingress-nginx linkerd
+kubectl delete namespace storage argo monitoring db cert-manager ingress-nginx
 ```
 
 ### Gỡ K3s hoàn toàn
