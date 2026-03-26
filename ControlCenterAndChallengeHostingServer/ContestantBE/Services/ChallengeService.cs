@@ -208,6 +208,7 @@ public class ChallengeService : IChallengeService
             captain_only_start = captainOnlyStart,
             captain_only_submit = captainOnlySubmit,
             difficulty = difficultyVisible ? challenge.Difficulty : null,
+            shared_instance = challenge.SharedInstant
         };
         int teamId = user.TeamId ?? 0;
         if (challenge.SharedInstant)
