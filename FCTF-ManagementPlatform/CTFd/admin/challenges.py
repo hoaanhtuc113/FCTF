@@ -339,9 +339,14 @@ def challenge_start():
     try:
         data = request.get_json(force=True, silent=True) or {}
         challenge_id = data.get("challenge_id")
+        team_id_raw = data.get("team_id", data.get("teamId", -1))
         if not challenge_id:
             return jsonify({"success": False, "message": "challenge_id is required"}), 400
         challenge_id = int(challenge_id)
+        try:
+            team_id = int(team_id_raw)
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "team_id must be an integer"}), 400
 
         private_key = PRIVATE_KEY
         if not private_key:
@@ -360,13 +365,13 @@ def challenge_start():
             unix_time,
             {
                 "challengeId": challenge_id,
-                "teamId": -1,
+                "teamId": team_id,
                 "userId": user_id,
             },
         )
         payload = {
             "challengeId": challenge_id,
-            "teamId": -1,
+            "teamId": team_id,
             "userId": user_id,
             "unixTime": unix_time,
         }

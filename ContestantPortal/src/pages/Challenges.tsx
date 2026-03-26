@@ -68,6 +68,7 @@ interface Challenge {
   is_captain?: boolean;
   captain_only_start?: boolean;
   captain_only_submit?: boolean;
+  shared_instance?: boolean;
   requirements?: ChallengeRequirements | null;
   pod_status?: string | null;
   difficulty?: number | null;
@@ -3971,7 +3972,7 @@ function ChallengeDetailPanel({
             )}
 
             {/* Start/Stop Buttons */}
-            {challenge.require_deploy && !challenge.solve_by_myteam &&
+            {challenge.require_deploy && !challenge.solve_by_myteam && !challenge.shared_instance &&
               !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
                 <div className="space-y-2">
                   {isHealthChecking || isDeploymentInProgress ? (

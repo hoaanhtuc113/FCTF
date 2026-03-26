@@ -270,7 +270,7 @@ public class K8sService : IK8sService
                 var now = DateTimeOffset.UtcNow;
                 finalUnixFinished = now.AddMinutes(minutes).ToUnixTimeSeconds();
                 //if admin preview challenge skip tracking
-                if(teamId != -1)
+                if(teamId != -1 && teamId != -2)
                 {
                     dbContext.ChallengeStartTrackings.Add(new ChallengeStartTracking
                     {

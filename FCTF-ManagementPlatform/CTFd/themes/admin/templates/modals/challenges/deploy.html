@@ -75,6 +75,13 @@
       </label>
       <small class="form-text text-muted" style="margin-top: 0.25rem;">Apply security hardening to the container: restricted Pod Security Standards, read-only root filesystem, drop all capabilities, run as non-root user (UID 1000), and mount /tmp as an in-memory volume.</small>
     </div>
+    <div class="form-group deploy-resource-field">
+      <label class="clean-checkbox-label">
+        <input type="checkbox" name="shared_instant" id="shared_instant" {% if challenge.shared_instant %}checked{% endif %}>
+        <span class="ml-2">Shared Instance</span>
+      </label>
+      <small class="form-text text-muted" style="margin-top: 0.25rem;">Use one shared deployed instance for all contestants instead of per-user instances.</small>
+    </div>
     <label class="clean-label">
       {% if image_link_display %}
         <div class="form-group">
@@ -263,6 +270,7 @@
     const useGvisorInput = document.getElementById("use_gvisor");
     const maxDeployCountInput = document.getElementById("max_deploy_count");
     const hardenContainerCheckbox = document.getElementById("harden_container");
+    const sharedInstantCheckbox = document.getElementById("shared_instant");
     const defaultCpuLimit = 100;
     const defaultCpuRequest = 10;
     const defaultMemoryLimit = 128;
@@ -305,6 +313,9 @@
         if (hardenContainerCheckbox) {
           hardenContainerCheckbox.required = false;
         }
+        if (sharedInstantCheckbox) {
+          sharedInstantCheckbox.required = false;
+        }
         if (cpuLimitInput && !cpuLimitInput.value) cpuLimitInput.value = String(defaultCpuLimit);
         if (cpuRequestInput && !cpuRequestInput.value) cpuRequestInput.value = String(defaultCpuRequest);
         if (memoryLimitInput && !memoryLimitInput.value) memoryLimitInput.value = String(defaultMemoryLimit);
@@ -323,6 +334,7 @@
         if (cpuRequestInput) cpuRequestInput.value = '';
         if (memoryLimitInput) memoryLimitInput.value = '';
         if (memoryRequestInput) memoryRequestInput.value = '';
+        if (sharedInstantCheckbox) sharedInstantCheckbox.checked = false;
       }
       // File input always enabled, no required attribute
       fileInput.disabled = false;
@@ -427,6 +439,7 @@
               memory_request: setupDockerCheckbox.checked ? memoryRequest : null,
               use_gvisor: setupDockerCheckbox.checked ? useGvisor : null,
               harden_container: setupDockerCheckbox.checked ? hardenContainerCheckbox.checked : null,
+              shared_instant: setupDockerCheckbox.checked ? (sharedInstantCheckbox ? sharedInstantCheckbox.checked : false) : false,
               expose_port: setupDockerCheckbox.checked
                 ? parseInt(exposePortInput?.value || "0", 10)
                 : null,

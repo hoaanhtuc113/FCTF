@@ -27,6 +27,7 @@ export interface Challenge {
   is_captain?: boolean;
   captain_only_start?: boolean;
   captain_only_submit?: boolean;
+  shared_instance?: boolean;
   requirements?: ChallengeRequirements | null;
   pod_status?: DeploymentStatus | null;
 }

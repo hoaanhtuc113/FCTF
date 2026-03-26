@@ -208,9 +208,14 @@ public class ChallengeService : IChallengeService
             captain_only_start = captainOnlyStart,
             captain_only_submit = captainOnlySubmit,
             difficulty = difficultyVisible ? challenge.Difficulty : null,
+            shared_instance = challenge.SharedInstant
         };
-
-        var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.Team.Id);
+        int teamId = user.TeamId ?? 0;
+        if (challenge.SharedInstant)
+        {
+            teamId = -2; // use -2 to indicate shared instance, so all teams can see the same deployment status
+        }
+        var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, teamId);
         if (await _redisHelper.KeyExistsAsync(cache_key))
         {
             var cached_value = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(cache_key);
