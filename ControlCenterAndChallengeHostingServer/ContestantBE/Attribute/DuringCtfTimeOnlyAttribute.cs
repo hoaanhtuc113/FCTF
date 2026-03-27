@@ -63,9 +63,9 @@ public class DuringCtfTimeOnlyFilter : IAsyncActionFilter
 /// Allows access during CTF time OR after CTF ended when view_after_ctf is enabled.
 /// Use this on read-only endpoints (view challenge, hints) — not on attempt/submit.
 /// </summary>
-public class ViewOrDuringCtfTimeOnlyAttribute : TypeFilterAttribute
+public class DuringCtfTimeAndAfterOnlyAttribute : TypeFilterAttribute
 {
-    public ViewOrDuringCtfTimeOnlyAttribute()
+    public DuringCtfTimeAndAfterOnlyAttribute()
         : base(typeof(ViewOrDuringCtfTimeOnlyFilter))
     {
     }
