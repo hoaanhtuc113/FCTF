@@ -55,6 +55,7 @@ GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
 GRANT SELECT ON ctfd.challenges TO 'deployment_center'@'%';
 GRANT UPDATE ON ctfd.challenges TO 'deployment_center'@'%';
 GRANT INSERT ON ctfd.deploy_histories TO 'deployment_center'@'%';
+GRANT SELECT ON ctfd.deploy_histories TO 'deployment_center'@'%';
 GRANT INSERT ON ctfd.challenge_start_tracking TO 'deployment_center'@'%';
 
 -- DeploymentListener
