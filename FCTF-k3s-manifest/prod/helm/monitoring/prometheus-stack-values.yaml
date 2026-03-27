@@ -1301,11 +1301,6 @@ grafana:
   adminPassword: Fctf2025@
 
   grafana.ini:
-    server:
-      # Prevent Host header mismatch / DNS rebinding-style access paths.
-      domain: grafana.fctf.site
-      root_url: https://grafana.fctf.site/
-      enforce_domain: true
     security:
       # Effective only when Grafana is served via HTTPS.
       cookie_secure: true
@@ -1320,9 +1315,6 @@ grafana:
     users:
       # Keep viewers read-focused; prevent panel edits from viewer role.
       viewers_can_edit: false
-    explore:
-      # Explore allows arbitrary queries against datasource credentials.
-      enabled: false
 
   rbac:
     ## If true, Grafana PSPs will be created
