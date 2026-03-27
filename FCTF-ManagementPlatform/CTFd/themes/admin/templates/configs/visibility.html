@@ -1,47 +1,40 @@
 <div role="tabpanel" class="tab-pane config-section" id="visibility">
-	{% 
-		with form = Forms.config.VisibilitySettingsForm(
-			challenge_visibility=challenge_visibility, 
-			account_visibility=account_visibility, 
-			score_visibility=score_visibility, 
-			registration_visibility=registration_visibility
-		) 
+	{%
+	with form = Forms.config.VisibilitySettingsForm(
+	score_visibility=score_visibility,
+	challenge_difficulty_visibility=challenge_difficulty_visibility
+	)
 	%}
 	<form method="POST" autocomplete="off" class="w-100">
-		<div class="form-group">
-			{{ form.challenge_visibility.label }}
-			{{ form.challenge_visibility(class="form-control custom-select") }}
-			<small class="form-text text-muted">
-				{{ form.challenge_visibility.description }}
-			</small>
-		</div>
-
-		<div class="form-group">
-			{{ form.account_visibility.label }}
-			{{ form.account_visibility(class="form-control custom-select") }}
-			<small class="form-text text-muted">
-				{{ form.account_visibility.description }}
-			</small>
-		</div>
-
+		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 		<div class="form-group">
 			{{ form.score_visibility.label }}
 			{{ form.score_visibility(class="form-control custom-select") }}
 			<small class="form-text text-muted">
 				{{ form.score_visibility.description }}
 			</small>
-			<small class="form-text text-muted py-2">
-				Score Visibility is a subset of Account Visibility. 
-				This means that if accounts are visible to a user then score visibility will control whether they can see the score of that user. 
-				If accounts are not visibile then score visibility has no effect.
+		</div>
+
+		<div class="form-group" id="bracket-view-other-group" style="{% if score_visibility != 'private' %}display:none;{% endif %}">
+			<div class="form-check pl-0">
+				<label>
+					<input type="hidden" name="bracket_view_other" value="false">
+					<input id="bracket_view_other" name="bracket_view_other" type="checkbox" value="true" {% if bracket_view_other %}checked{% endif %}>
+					Allow contestants to view other brackets
+				</label>
+			</div>
+			<small class="form-text text-muted">
+				Only applies when Score Visibility is <strong>Private</strong>.
+				When enabled, logged-in contestants can switch between any bracket on the scoreboard.
+				When disabled, they can only see their own bracket&#39;s rankings.
 			</small>
 		</div>
 
 		<div class="form-group">
-			{{ form.registration_visibility.label }}
-			{{ form.registration_visibility(class="form-control custom-select") }}
+			{{ form.challenge_difficulty_visibility.label }}
+			{{ form.challenge_difficulty_visibility(class="form-control custom-select") }}
 			<small class="form-text text-muted">
-				{{ form.registration_visibility.description }}
+				{{ form.challenge_difficulty_visibility.description }}
 			</small>
 		</div>
 
@@ -49,3 +42,15 @@
 	</form>
 	{% endwith %}
 </div>
+
+<script>
+(function () {
+	var scoreSelect = document.querySelector('[name="score_visibility"]');
+	var bracketGroup = document.getElementById('bracket-view-other-group');
+	if (!scoreSelect || !bracketGroup) return;
+	function toggle() {
+		bracketGroup.style.display = scoreSelect.value === 'private' ? '' : 'none';
+	}
+	scoreSelect.addEventListener('change', toggle);
+})();
+</script>

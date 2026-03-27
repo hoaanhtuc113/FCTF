@@ -1,5 +1,6 @@
 <div role="tabpanel" class="tab-pane config-section" id="ctftime">
 	<form method="POST" autocomplete="off" class="w-100">
+		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 		<ul class="nav nav-tabs mb-3">
 			<li class="nav-item">
 				<a class="nav-link active" href="#start-date" aria-controls="start-date" role="tab" data-toggle="tab">
@@ -30,6 +31,7 @@
 					<!-- TODO: these time fields should probably be required, but needs movement of <form> -->
 					<div class="form-group col-md-2">
 						<label for="start-month">Month:</label>
+						<input type="hidden" name="view_after_ctf" value="false">
 						<input class="form-control start-date" id='start-month' min="0" max="12" type='number'>
 					</div>
 
@@ -56,7 +58,11 @@
 					<!-- TODO: Better Timezone options (e.g. with UTC offset info like "UTC+1")-->
 					<div class="form-group col-md-12">
 						<label for="start-timezone">Timezone:</label>
-						<select class="form-control custom-select start-date" id="start-timezone">
+						<select class="form-control custom-select start-date" id="start-timezone" name="start_timezone"
+							data-selected="{% if start_timezone is defined and start_timezone %}{{ start_timezone }}{% endif %}">
+							<option value="{% if start_timezone is defined and start_timezone %}{{ start_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}" selected>
+								{% if start_timezone is defined and start_timezone %}{{ start_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}
+							</option>
 						</select>
 					</div>
 
@@ -73,8 +79,8 @@
 
 					<div class="form-group col-md-12">
 						<label>UTC Timestamp:</label>
-						<input class="form-control" id='start' name='start' type='number'
-							{% if start is defined and start != None %}value="{{ start }}"{% endif %} readonly>
+						<input class="form-control" id='start' name='start' type='number' {% if start is defined and
+							start !=None %}value="{{ start }}" {% endif %}>
 					</div>
 				</div>
 			</div>
@@ -113,7 +119,11 @@
 
 					<div class="form-group col-md-12">
 						<label for="end-timezone">Timezone:</label>
-						<select class="form-control custom-select end-date" id="end-timezone">
+						<select class="form-control custom-select end-date" id="end-timezone" name="end_timezone"
+							data-selected="{% if end_timezone is defined and end_timezone %}{{ end_timezone }}{% endif %}">
+							<option value="{% if end_timezone is defined and end_timezone %}{{ end_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}" selected>
+								{% if end_timezone is defined and end_timezone %}{{ end_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}
+							</option>
 						</select>
 					</div>
 
@@ -122,11 +132,14 @@
 					<div class="form-group col-md-12">
 						<div class="form-check pl-0">
 							<label>
-								<input id="view_after_ctf" name="view_after_ctf" type="checkbox" {% if view_after_ctf %}checked{% endif %}>
+								<input id="view_after_ctf" name="view_after_ctf" type="checkbox" {% if view_after_ctf
+									%}checked{% endif %}>
 								View After CTF
 								<small class="form-text text-muted">
-									Allows challenges to be viewed after the End Time, however no new submissions will be recorded.<br>
-									For participants to be able to submit after End Time but not alter the scoreboard, configure Freeze Time to be your End Time.
+									Allows challenges to be viewed after the End Time, however no new submissions will
+									be recorded.<br>
+									For participants to be able to submit after End Time but not alter the scoreboard,
+									configure Freeze Time to be your End Time.
 								</small>
 							</label>
 						</div>
@@ -144,8 +157,8 @@
 
 					<div class="form-group col-md-12">
 						<label for="end">UTC Timestamp:</label>
-						<input class="form-control" id='end' name='end' type='number'
-							{% if end is defined and end != None %}value="{{ end }}"{% endif %} readonly>
+						<input class="form-control" id='end' name='end' type='number' {% if end is defined and end
+							!=None %}value="{{ end }}" {% endif %}>
 					</div>
 				</div>
 			</div>
@@ -186,7 +199,11 @@
 
 					<div class="form-group col-md-12">
 						<label for="freeze-timezone">CTF Timezone:</label>
-						<select class="form-control custom-select freeze-date" id="freeze-timezone">
+						<select class="form-control custom-select freeze-date" id="freeze-timezone" name="freeze_timezone"
+							data-selected="{% if freeze_timezone is defined and freeze_timezone %}{{ freeze_timezone }}{% endif %}">
+							<option value="{% if freeze_timezone is defined and freeze_timezone %}{{ freeze_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}" selected>
+								{% if freeze_timezone is defined and freeze_timezone %}{{ freeze_timezone }}{% else %}Asia/Ho_Chi_Minh{% endif %}
+							</option>
 						</select>
 					</div>
 
@@ -203,8 +220,8 @@
 
 					<div class="form-group col-md-12">
 						<label for="freeze">UTC Timestamp:</label>
-						<input class="form-control" id='freeze' name='freeze' type='number'
-							{% if freeze is defined and freeze != None %}value="{{ freeze }}"{% endif %} readonly>
+						<input class="form-control" id='freeze' name='freeze' type='number' {% if freeze is defined and
+							freeze !=None %}value="{{ freeze }}" {% endif %}>
 					</div>
 				</div>
 			</div>

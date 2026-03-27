@@ -1,4 +1,29 @@
-FROM python:3.11-slim-bookworm as build
+##############################
+# Stage 1: Build frontend themes (admin + core-beta) with Node.js
+##############################
+FROM node:18-slim AS theme-build
+
+# Build admin theme
+WORKDIR /themes/admin
+COPY CTFd/themes/admin/package.json CTFd/themes/admin/package-lock.json* CTFd/themes/admin/yarn.lock* ./
+RUN npm install
+COPY CTFd/themes/admin/ ./
+RUN npm run build
+
+# Build core-beta theme
+WORKDIR /themes/core-beta
+COPY CTFd/themes/core-beta/package.json CTFd/themes/core-beta/package-lock.json* CTFd/themes/core-beta/yarn.lock* ./
+RUN npm install
+COPY CTFd/themes/core-beta/ ./
+RUN npm run build \
+    && if [ -f static/.vite/manifest.json ] && [ ! -f static/manifest.json ]; then \
+    cp static/.vite/manifest.json static/manifest.json; \
+    fi
+
+##############################
+# Stage 2: Install Python dependencies
+##############################
+FROM python:3.11-slim-bookworm AS build
 
 WORKDIR /opt/CTFd
 
@@ -9,6 +34,9 @@ RUN apt-get update \
     libffi-dev \
     libssl-dev \
     git \
+    gcc \
+    g++ \
+    python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && python -m venv /opt/venv
@@ -24,8 +52,10 @@ RUN pip install --no-cache-dir -r requirements.txt \
     fi; \
     done;
 
-
-FROM python:3.11-slim-bookworm as release
+##############################
+# Stage 3: Final release image
+##############################
+FROM python:3.11-slim-bookworm AS release
 WORKDIR /opt/CTFd
 
 # hadolint ignore=DL3008
@@ -38,6 +68,10 @@ RUN apt-get update \
 
 COPY --chown=1001:1001 . /opt/CTFd
 
+# Copy built theme assets from theme-build stage
+COPY --chown=1001:1001 --from=theme-build /themes/admin/static /opt/CTFd/CTFd/themes/admin/static
+COPY --chown=1001:1001 --from=theme-build /themes/core-beta/static /opt/CTFd/CTFd/themes/core-beta/static
+
 RUN useradd \
     --no-log-init \
     --shell /bin/bash \
@@ -46,6 +80,7 @@ RUN useradd \
     && mkdir -p /var/log/CTFd /var/uploads \
     && mkdir -p /var/log/CTFd /var/template_challenge \
     && chown -R 1001:1001 /var/template_challenge /var/log/CTFd /var/uploads /opt/CTFd \
+    && sed -i 's/\r//' /opt/CTFd/docker-entrypoint.sh \
     && chmod +x /opt/CTFd/docker-entrypoint.sh 
 
 COPY --chown=1001:1001 --from=build /opt/venv /opt/venv

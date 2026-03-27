@@ -49,6 +49,7 @@
                       type="number"
                       class="form-control"
                       name="cost"
+                      min="0"
                       v-model.lazy="cost"
                     />
                   </div>
@@ -73,7 +74,7 @@
                           :value="hint.id"
                           v-model="selectedHints"
                         />
-                        {{ hint.content }} - {{ hint.cost }}
+                        {{ formatHintLabel(hint) }}
                       </label>
                     </div>
                   </div>
@@ -133,6 +134,13 @@ export default {
     },
   },
   methods: {
+    formatHintLabel: function (hint) {
+      const normalized = String(hint.content || "")
+        .replaceAll(/\s+/g, " ")
+        .trim();
+      const preview = normalized.length > 80 ? `${normalized.slice(0, 80)}...` : normalized;
+      return `Hint #${hint.id} | ${preview || "(empty)"} | ${hint.cost} pts`;
+    },
     loadHint: function () {
       CTFd.fetch(`/api/v1/hints/${this.$props.hint_id}?preview=true`, {
         method: "GET",
@@ -168,7 +176,8 @@ export default {
       editor.mde.codemirror.refresh();
     },
     getCost: function () {
-      return this.cost || 0;
+      const cost = Number(this.cost);
+      return Number.isFinite(cost) ? cost : 0;
     },
     getContent: function () {
       this._forceRefresh();
@@ -176,10 +185,15 @@ export default {
       return editor.mde.codemirror.getDoc().getValue();
     },
     updateHint: function () {
+      const cost = this.getCost();
+      if (cost < 0) {
+        alert("Cost must be a positive number");
+        return;
+      }
       let params = {
         challenge_id: this.$props.challenge_id,
         content: this.getContent(),
-        cost: this.getCost(),
+        cost,
         requirements: { prerequisites: this.selectedHints },
       };
 
@@ -215,4 +229,105 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Clean Hint Edit Modal */
+.modal-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 1.25rem;
+}
+
+.modal-header h3 {
+  color: #2c3e50;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-header .close {
+  color: #6c757d;
+  opacity: 1;
+  transition: color 0.2s ease;
+}
+
+.modal-header .close:hover {
+  color: #ff6b35;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group label {
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-group small {
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.form-control {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
+  outline: none;
+}
+
+.form-check {
+  margin-bottom: 0.75rem;
+}
+
+.form-check-label {
+  color: #495057;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.form-check-label:hover {
+  color: #ff6b35;
+}
+
+.form-check-input {
+  cursor: pointer;
+}
+
+.form-check-input:checked {
+  background-color: #ff6b35;
+  border-color: #ff6b35;
+}
+
+.btn-primary {
+  background: #ff6b35;
+  color: #ffffff;
+  border: 1px solid #ff6b35;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: #e85d2a;
+  border-color: #e85d2a;
+}
+
+.modal-footer {
+  border-top: 1px solid #e8e8e8;
+  background: #f8f9fa;
+  padding: 1rem 1.5rem;
+}
+</style>

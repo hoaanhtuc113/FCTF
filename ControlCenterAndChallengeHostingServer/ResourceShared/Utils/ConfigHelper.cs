@@ -1,27 +1,100 @@
-﻿using Microsoft.Extensions.Configuration;
-using ResourceShared.Configs;
+﻿using Microsoft.EntityFrameworkCore;
 using ResourceShared.Models;
 
 namespace ResourceShared.Utils
 {
-    public class SharedConfig
+    public class ConfigHelper
     {
-        /// <summary>
-        /// Hàm đọc các config từ appsettings.json
-        /// </summary>
-        /// <exception cref="Exception">Exception sẽ được throw khi có vấn đề với file appsetting (Thiếu config, không đúng kiểu dữ liệu,...)</exception>
+        private readonly AppDbContext _context;
 
-        public static IConfiguration configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .Build();
-        public virtual void InitConfig()
+        public ConfigHelper(AppDbContext context)
         {
-            RedisConfigs.ConnectionString = configuration.GetConnectionString("RedisConnection") ?? throw new Exception("Can't read RedisConnectionString");
-            ServiceConfigs.PrivateKey = configuration["ServiceConfigs:PrivateKey"] ?? throw new Exception("Can't read ServiceConfigs:PrivateKey");
-            ServiceConfigs.ServerHost = configuration["ServiceConfigs:ServerHost"] ?? throw new Exception("Can't read ServiceConfigs:ServerHost");
-            ServiceConfigs.ServerPort = configuration["ServiceConfigs:ServerPort"] ?? throw new Exception("Can't read ServiceConfigs:ServerPort");
-            ServiceConfigs.DomainName = configuration["ServiceConfigs:DomainName"] ?? throw new Exception("Can't read ServiceConfigs:DomainName");
-            EnvironmentConfigs.ENVIRONMENT_NAME= configuration["EnvironmentConfigs:ENVIRONMENT_NAME"] ?? throw new Exception("Can't read EnvironmentConfigs:ENVIRONMENT_NAME");
+            _context = context;
+        }
+
+        public T? GetConfig<T>(object key, T? defaultValue = default)
+        {
+            if (key is Enum enumKey)
+                key = enumKey.ToString();
+
+            if (key == null)
+                return defaultValue;
+
+            var value = GetConfig(key.ToString()!);
+
+            if (value is KeyNotFoundException || value == null)
+                return defaultValue;
+
+            try
+            {
+                return (T)Convert.ChangeType(value, typeof(T));
+            }
+            catch
+            {
+                return defaultValue;
+            }
+        }
+
+        public object GetConfig(string key)
+        {
+            // If not in cache, query database
+            var config = _context.Configs
+                .AsNoTracking()
+                .FirstOrDefault(c => c.Key == key);
+
+            object result;
+
+            if (config != null && !string.IsNullOrEmpty(config.Value))
+            {
+                string value = config.Value;
+
+                if (int.TryParse(value, out int intVal))
+                    result = intVal;
+                else if (bool.TryParse(value, out bool boolVal))
+                    result = boolVal;
+                else
+                    result = value;
+            }
+            else
+            {
+                result = new KeyNotFoundException();
+            }
+
+            return result;
+        }
+        private long ToLong(object val, int defaultValue = 3)
+        {
+            if (val == null) return defaultValue;
+            if (long.TryParse(val.ToString(), out var result))
+            {
+                return result;
+            }
+
+            return defaultValue;
+        }
+        public long LimitChallenges()
+        {
+            return ToLong(GetConfig("limit_challenges"));
+        }
+        public object CtfName()
+        {
+            return GetConfig("ctf_name", "CTF") ?? "CTF";
+        }
+
+        public string? UserMode()
+        {
+            return GetConfig<string>("user_mode");
+        }
+
+        public bool IsUserMode()
+        {
+            return UserMode()?.ToString() == Enums.Mode.User;
+        }
+
+        public bool IsTeamsMode()
+        {
+            return UserMode()?.ToString() == Enums.Mode.Team;
         }
     }
+
 }

@@ -1,169 +1,240 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Teams page — only page-specific overrides; shared styles in base.html */
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="jumbotron">
+<div class="page-header">
 	<div class="container">
-		<h1>Teams
-			{%if not is_jury()%}
-			<span class="create-team" role="button" data-toggle="tooltip" title="Create Team">
-				<a href="{{ url_for('admin.teams_new') }}" style="color: inherit;">
-					<i class="btn-fa fas fa-plus-circle"></i>
-				</a>
-			</span>
-			{%endif%}
-		</h1>
+		<h1><i class="bx bx-group"></i> Teams</h1>
 	</div>
 </div>
-
 <div class="container">
-	<div class="row">
-		<div class="col-md-12">
-			{% if q and field %}
-			<h5 class="text-muted text-center">
-				Searching for teams with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
-			</h5>
-			<h6 class="text-muted text-center pb-3">
-				Page {{ teams.page }} of {{ teams.total }} results
-			</h6>
-			{% endif %}
-
-			{% with form = Forms.teams.TeamSearchForm(field=field, q=q) %}
-			<form method="GET" class="form-inline">
-				<div class="form-group col-md-2">
-					{{ form.field(class="form-control custom-select w-100") }}
-				</div>
-				<div class="form-group col-md-8">
-					{{ form.q(class="form-control w-100", placeholder="Search for matching teams") }}
-				</div>
-				<div class="form-group col-md-2">
-					<button type="submit" class="btn btn-primary w-100">
-						<i class="fas fa-search" aria-hidden="true"></i>
-					</button>
-				</div>
-			</form>
-			{% endwith %}
+	{% if q and field %}
+	<div class="alert alert-info">
+		<div class="clean-info-text">
+			Searching <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span> &mdash; {{ teams.total }} results
 		</div>
 	</div>
+	{% endif %}
 
-	<hr>
-
-	<div class="row">
-		<div class="col-md-12">
-			<div class="float-right pb-3">
-				<div class="btn-group" role="group">
-					<button type="button" class="btn btn-outline-secondary" data-toggle="tooltip" title="Edit Teams" id="teams-edit-button">
-						<i class="btn-fa fas fa-pencil-alt"></i>
-					</button>
-					{%if not is_jury()%}
-					<button type="button" class="btn btn-outline-danger" data-toggle="tooltip" title="Delete Teams" id="teams-delete-button">
-						<i class="btn-fa fas fa-trash-alt"></i>
-					</button>
-					{%endif%}
+	<div class="clean-search-container">
+		{% with form = Forms.teams.TeamSearchForm(field=field, q=q) %}
+		<form method="GET" class="m-0">
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-2 px-1">
+					<label>Search Field</label>
+					{{ form.field(class="clean-form-control ss-select w-100") }}
 				</div>
-			</div>
-		</div>
-	</div>
-
-	<div class="row">
-		<div class="col-md-12 table-responsive">
-			<table id="teamsboard" class="table table-striped border">
-				<thead>
-					<tr>
-						<th class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" autocomplete="off" data-checkbox-all>&nbsp;
-							</div>
-						</th>
-						<th class="sort-col text-center"><b>ID</b></th>
-						<th class="sort-col text-left"><b>Team</b></th>
-						<th class="sort-col text-center"><b>Country</b></th>
-						<th class="sort-col text-center px-0"><b>Hidden</b></th>
-						<th class="sort-col text-center px-0"><b>Banned</b></th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for team in teams.items %}
-					<tr name="{{ team.id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.id) }}">
-						<td class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" value="{{ team.id }}" autocomplete="off" data-team-id="{{ team.id }}">&nbsp;
-							</div>
-						</td>
-						<td class="team-id text-center" value="{{ team.id }}">{{ team.id }}</td>
-						<td class="team-name" value="{{ team.name }}">
-							<a href="{{ url_for('admin.teams_detail', team_id=team.id) }}">
-								{{ team.name | truncate(32) }}
-							</a>
-							{% if team.oauth_id %}
-								<a href="https://majorleaguecyber.org/t/{{ team.name }}">
-									<span class="badge badge-primary">Official</span>
-								</a>
-							{% endif %}
-							{% if team.website %}
-								<a href="{{ team.website }}" target="_blank" class="badge badge-info" rel="noopener">
-									<i class="btn-fa fas fa-external-link-alt" data-toggle="tooltip" data-placement="top"
-									   title="{{ team.website }}" aria-hidden="true"></i>
-								</a>
-							{% endif %}
-							<span class="d-block text-muted">
-								<small>
-									{% if team.affiliation %}
-										{{ team.affiliation | truncate(20) }}
-									{% endif %}
-								</small>
-							</span>
-						</td>
-						<td class="team-country text-center" value="{{ team.country if team.country is not none }}">
-							<span>
-								{% if team.country %}
-									<i class="flag-{{ team.country.lower() }}"></i>
-									<small>{{ lookup_country_code(team.country) }}</small>
-								{% endif %}
-							</span>
-						</td>
-
-						<td class="team-hidden d-md-table-cell d-lg-table-cell text-center" value="{{ team.hidden }}">
-							{% if team.hidden %}
-								<span class="badge badge-danger">hidden</span>
-							{% endif %}
-						</td>
-
-						<td class="team-banned d-md-table-cell d-lg-table-cell text-center" value="{{ team.banned }}">
-							{% if team.banned %}
-								<span class="badge badge-danger">banned</span>
-							{% endif %}
-						</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-			{% if teams.pages > 1 %}
-			<div class="text-center">Page
-				<br>
-				{% if teams.page != 1 %}
-				<a href="{{ prev_page }}">&lt;&lt;&lt;</a>
-				{% endif %}
-				<select class="page-select">
-					{% for page in range(1, teams.pages + 1) %}
-					<option {% if teams.page == page %}selected{% endif %}>{{ page }}</option>
+				<div class="col-md-4 px-1">
+					<label>Search Text</label>
+					{{ form.q(class="clean-form-control w-100", placeholder="Search for matching teams") }}
+				</div>
+				<div class="col-md-2 px-1">
+				<label>Bracket</label>
+				<select name="bracket_id" class="clean-form-control ss-select w-100">
+					<option value="">All Brackets</option>
+					{% for bracket in brackets %}
+					<option value="{{ bracket.id }}" {% if bracket_id == bracket.id %}selected{% endif %}>{{ bracket.name }}</option>
 					{% endfor %}
 				</select>
-				{% if teams.next_num %}
-				<a href="{{ next_page }}">&gt;&gt;&gt;</a>
-				{% endif %}
 			</div>
-			{%endif%}
-		</div>
-		<input type="hidden" id="is_jury" value="{{ 'true' if is_jury() else 'false' }}">
+			<div class="col-md-1 px-1">
+				<label>Hidden</label>
+				<select name="hidden" class="clean-form-control ss-select w-100">
+					<option value="">All</option>
+					<option value="1" {% if hidden %}selected{% endif %}>Hidden</option>
+				</select>
+			</div>
+			<div class="col-md-1 px-1">
+				<label>Banned</label>
+				<select name="banned" class="clean-form-control ss-select w-100">
+					<option value="">All</option>
+					<option value="1" {% if banned %}selected{% endif %}>Banned</option>
+					</select>
+				</div>
+				<div class="col-md-2 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Search
+					</button>
+					<a href="{{ url_for('admin.teams_listing') }}"
+					   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+					   style="width: 40px;" title="Reset">
+						<i class="fas fa-sync-alt"></i>
+					</a>
+				</div>
+			</div>
+		</form>
+		{% endwith %}
 	</div>
+
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+		<div>
+			{% if not is_jury() %}
+			<a href="{{ url_for('admin.teams_new') }}" class="clean-btn clean-btn-primary">
+				<i class="fas fa-plus"></i> Create Team
+			</a>
+			{% endif %}
+		</div>
+		<div class="btn-group" role="group">
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Edit Teams" id="teams-edit-button">
+				<i class="btn-fa fas fa-pencil-alt"></i> Edit
+			</button>
+			{% if not is_jury() %}
+			<button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip" title="Delete Teams" id="teams-delete-button">
+				<i class="btn-fa fas fa-trash-alt"></i> Delete
+			</button>
+			{% endif %}
+		</div>
+	</div>
+
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		<table id="teamsboard" class="clean-table table">
+			<thead>
+				<tr>
+					<th data-checkbox>
+						<input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+					</th>
+					<th class="sort-col text-center"><b>ID</b></th>
+					<th class="sort-col text-center"><b>Team</b></th>
+					<th class="sort-col text-center"><b>Captain</b></th>
+					<th class="sort-col text-center"><b>Members</b></th>
+					<th class="sort-col text-center"><b>Bracket</b></th>
+					<th class="sort-col text-center"><b>Country</b></th>
+					<th class="sort-col text-center"><b>Hidden</b></th>
+					<th class="sort-col text-center"><b>Banned</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for team in teams.items %}
+				<tr name="{{ team.id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.id) }}">
+					<td data-checkbox>
+						<input type="checkbox" class="table-check" value="{{ team.id }}" autocomplete="off" data-team-id="{{ team.id }}">
+					</td>
+					</td>
+					<td class="text-center" value="{{ team.id }}">{{ team.id }}</td>
+					<td class="text-center" value="{{ team.name }}">
+						<a href="{{ url_for('admin.teams_detail', team_id=team.id) }}">
+							{{ team.name | truncate(32) }}
+						</a>
+						{% if team.oauth_id %}
+							<a href="https://majorleaguecyber.org/t/{{ team.name }}">
+								<span class="clean-badge clean-badge-primary">Official</span>
+							</a>
+						{% endif %}
+						{% if team.website %}
+							<a href="{{ team.website }}" target="_blank" rel="noopener">
+								<span class="clean-badge clean-badge-secondary">
+									<i class="fas fa-external-link-alt" data-toggle="tooltip" title="{{ team.website }}"></i>
+								</span>
+							</a>
+						{% endif %}
+						<span class="d-block text-muted">
+							<small>
+								{% if team.affiliation %}
+									{{ team.affiliation | truncate(20) }}
+								{% endif %}
+							</small>
+						</span>
+					</td>
+					<td class="text-center">
+						{% if team.captain %}
+							<a href="{{ url_for('admin.users_detail', user_id=team.captain.id) }}">
+								{{ team.captain.name | truncate(24) }}
+							</a>
+						{% endif %}
+					</td>
+					<td class="text-center">
+						{{ member_counts.get(team.id, 0) }}
+					</td>
+					<td class="text-center">
+						{% if team.bracket_id %}
+							{% for bracket in brackets %}
+								{% if bracket.id == team.bracket_id %}
+									<span class="clean-badge clean-badge-info">{{ bracket.name }}</span>
+								{% endif %}
+							{% endfor %}
+						{% else %}
+							<span class="text-muted">—</span>
+						{% endif %}
+					</td>
+					<td class="text-center" value="{{ team.country if team.country is not none }}">
+						<span>
+							{% if team.country %}
+								<i class="flag-{{ team.country.lower() }}"></i>
+								<small>{{ lookup_country_code(team.country) }}</small>
+							{% endif %}
+						</span>
+					</td>
+					<td class="text-center" value="{{ team.hidden }}">
+						{% if team.hidden %}
+							<span class="clean-badge clean-badge-danger">hidden</span>
+						{% endif %}
+					</td>
+					<td class="text-center" value="{{ team.banned }}">
+						{% if team.banned %}
+							<span class="clean-badge clean-badge-danger">banned</span>
+						{% endif %}
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Pagination -->
+	{% if teams.pages > 0 %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ teams.page }}</span> of <span class="clean-highlight">{{ teams.pages }}</span> &bull; {{ teams.total }} total
+		</div>
+		{% if teams.pages > 1 %}
+		<nav aria-label="Team pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if teams.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if teams.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set start_page = [1, teams.page - 2]|max %}
+				{% set end_page = [teams.pages, teams.page + 2]|min %}
+				{% if start_page > 1 %}
+					<li class="page-item">
+							<a class="page-link" href="{% if q or hidden or banned or bracket_id %}{{ url_for('admin.teams_listing', page=1, field=field, q=q, hidden=hidden, banned=banned, bracket_id=bracket_id) }}{% else %}{{ url_for('admin.teams_listing', page=1) }}{% endif %}">1</a>
+					</li>
+					{% if start_page > 2 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+				{% endif %}
+				{% for page_num in range(start_page, end_page + 1) %}
+				<li class="page-item {% if page_num == teams.page %}active{% endif %}">
+						<a class="page-link" href="{% if q or hidden or banned or bracket_id %}{{ url_for('admin.teams_listing', page=page_num, field=field, q=q, hidden=hidden, banned=banned, bracket_id=bracket_id) }}{% else %}{{ url_for('admin.teams_listing', page=page_num) }}{% endif %}">{{ page_num }}</a>
+				</li>
+				{% endfor %}
+				{% if end_page < teams.pages %}
+					{% if end_page < teams.pages - 1 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+					<li class="page-item">
+							<a class="page-link" href="{% if q or hidden or banned or bracket_id %}{{ url_for('admin.teams_listing', page=teams.pages, field=field, q=q, hidden=hidden, banned=banned, bracket_id=bracket_id) }}{% else %}{{ url_for('admin.teams_listing', page=teams.pages) }}{% endif %}">{{ teams.pages }}</a>
+					</li>
+				{% endif %}
+				<li class="page-item {% if teams.page == teams.pages %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page if teams.page < teams.pages else '#' }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+		{% endif %}
+	</div>
+	{% endif %}
+
+	<input type="hidden" id="is_jury" value="{{ 'true' if is_jury() else 'false' }}">
 </div>
 {% endblock %}
 
 {% block scripts %}
-
 {% endblock %}
 
 {% block entrypoint %}

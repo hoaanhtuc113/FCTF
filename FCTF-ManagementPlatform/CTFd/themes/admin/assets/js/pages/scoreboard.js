@@ -9,6 +9,19 @@ const api_func = {
   teams: (x, y) => CTFd.api.patch_team_public({ teamId: x }, y),
 };
 
+function setVisibilityButtonState($btn, hidden) {
+  if (hidden) {
+    $btn.data("state", "hidden");
+    $btn.removeClass("is-visible").addClass("is-hidden");
+    $btn.text("Hidden");
+    return;
+  }
+
+  $btn.data("state", "visible");
+  $btn.removeClass("is-hidden").addClass("is-visible");
+  $btn.text("Visible");
+}
+
 function toggleAccount() {
   const $btn = $(this);
   const id = $btn.data("account-id");
@@ -26,15 +39,29 @@ function toggleAccount() {
 
   api_func[CTFd.config.userMode](id, params).then((response) => {
     if (response.success) {
-      if (hidden) {
-        $btn.data("state", "hidden");
-        $btn.addClass("btn-danger").removeClass("btn-success");
-        $btn.text("Hidden");
-      } else {
-        $btn.data("state", "visible");
-        $btn.addClass("btn-success").removeClass("btn-danger");
-        $btn.text("Visible");
-      }
+      setVisibilityButtonState($btn, hidden);
+    }
+  });
+}
+
+function toggleUser() {
+  const $btn = $(this);
+  const id = $btn.data("user-id");
+  const state = $btn.data("state");
+  let hidden = undefined;
+  if (state === "visible") {
+    hidden = true;
+  } else if (state === "hidden") {
+    hidden = false;
+  }
+
+  const params = {
+    hidden: hidden,
+  };
+
+  api_func["users"](id, params).then((response) => {
+    if (response.success) {
+      setVisibilityButtonState($btn, hidden);
     }
   });
 }
@@ -101,5 +128,18 @@ function bulkToggleAccounts(_event) {
 
 $(() => {
   $(".scoreboard-toggle").click(toggleAccount);
+  $(".scoreboard-user-toggle").click(toggleUser);
   $("#scoreboard-edit-button").click(bulkToggleAccounts);
+
+  // Bracket filter
+  $("#bracket-filter").on("change", function () {
+    const bracketId = $(this).val();
+    const url = new URL(window.location.href);
+    if (bracketId) {
+      url.searchParams.set("bracket_id", bracketId);
+    } else {
+      url.searchParams.delete("bracket_id");
+    }
+    window.location.href = url.toString();
+  });
 });

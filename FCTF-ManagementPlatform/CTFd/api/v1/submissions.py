@@ -2,6 +2,7 @@ from typing import List
 
 from flask import request
 from flask_restx import Namespace, Resource
+import redis
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
@@ -11,11 +12,13 @@ from CTFd.api.v1.schemas import (
 )
 from CTFd.cache import clear_challenges, clear_standings
 from CTFd.constants import RawEnum
-from CTFd.models import Solves, Submissions, Tokens, Users, db
+from CTFd.constants.envvars import get_redis_client_kwargs
+from CTFd.models import Challenges, Solves, Submissions, Tokens, Users, db
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.decorators.visibility import check_account_visibility
+from CTFd.utils.logging.audit_logger import log_audit
 
 submissions_namespace = Namespace(
     "submissions", description="Endpoint to retrieve Submission"
@@ -23,6 +26,9 @@ submissions_namespace = Namespace(
 
 SubmissionModel = sqlalchemy_to_pydantic(Submissions)
 TransientSubmissionModel = sqlalchemy_to_pydantic(Submissions, exclude=["id"])
+
+# Initialize Redis client
+redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 
 
 class SubmissionDetailedSuccessResponse(APIDetailedSuccessResponse):
@@ -141,6 +147,30 @@ class SubmissionsList(Resource):
         response = schema.dump(response.data)
         db.session.close()
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        # Audit log
+        log_audit(
+            action="submission_create",
+            data={
+                "id": response.data["id"],
+                "type": response.data.get("type"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+                "user_id": response.data.get("user_id"),
+                "team_id": response.data.get("team_id"),
+                "provided": response.data.get("provided"),
+                "ip": response.data.get("ip"),
+                "date": str(response.data.get("date")) if response.data.get("date") else None,
+            }
+        )
+
         # Delete standings cache
         clear_standings()
         # Delete challenges cache
@@ -187,6 +217,17 @@ class Submission(Resource):
     def patch(self, submission_id):
         submission = Submissions.query.filter_by(id=submission_id).first_or_404()
 
+        # Capture before state for audit
+        before_state = {
+            "type": submission.type,
+            "challenge_id": submission.challenge_id,
+            "user_id": submission.user_id,
+            "team_id": submission.team_id,
+            "provided": submission.provided,
+            "ip": submission.ip,
+            "date": str(submission.date) if submission.date else None,
+        }
+
         req = request.get_json()
         submission_type = req.get("type")
 
@@ -209,11 +250,69 @@ class Submission(Resource):
 
             submission = solve
 
+        elif submission_type == "incorrect":
+            # If the submission is currently a Solve (correct), revert it
+            if submission.type == "correct":
+                # Remove the solve record from solves table
+                solve = Solves.query.filter_by(id=submission_id).first()
+                if solve:
+                    db.session.delete(solve)
+                    db.session.flush()
+
+                # Re-create as an incorrect submission
+                new_sub = Submissions(
+                    user_id=submission.user_id,
+                    challenge_id=submission.challenge_id,
+                    team_id=submission.team_id,
+                    ip=submission.ip,
+                    provided=submission.provided,
+                    type="incorrect",
+                    date=submission.date,
+                )
+                db.session.add(new_sub)
+                db.session.commit()
+
+                # Delete standings cache
+                clear_standings()
+                clear_challenges()
+
+                submission = new_sub
+            else:
+                # Already not correct, just update type
+                submission.type = "incorrect"
+                db.session.commit()
+
         schema = SubmissionSchema()
         response = schema.dump(submission)
 
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
+
+        # Audit log
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        after_state = {
+            "type": response.data.get("type"),
+            "challenge_id": _cid,
+            "challenge_name": _challenge_name,
+            "user_id": response.data.get("user_id"),
+            "team_id": response.data.get("team_id"),
+            "provided": response.data.get("provided"),
+            "ip": response.data.get("ip"),
+            "date": str(response.data.get("date")) if response.data.get("date") else None,
+        }
+        log_audit(
+            action="submission_update",
+            before=before_state,
+            after=after_state,
+            data={"id": submission_id, "challenge_name": _challenge_name}
+        )
 
         return {"success": True, "data": response.data}
 
@@ -230,9 +329,51 @@ class Submission(Resource):
     )
     def delete(self, submission_id):
         submission = Submissions.query.filter_by(id=submission_id).first_or_404()
+        
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        if submission.challenge_id:
+            _ch = Challenges.query.filter_by(id=submission.challenge_id).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        # Capture submission info before deletion
+        submission_info = {
+            "id": submission.id,
+            "type": submission.type,
+            "challenge_id": submission.challenge_id,
+            "challenge_name": _challenge_name,
+            "user_id": submission.user_id,
+            "team_id": submission.team_id,
+            "provided": submission.provided,
+            "ip": submission.ip,
+            "date": str(submission.date) if submission.date else None,
+        }
+        
+        # Decrement Redis attempt counter if submission type is "incorrect"
+        if submission.type == "incorrect" and submission.challenge_id and submission.team_id:
+            attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"           
+            try:
+                # Check if key exists first
+                key_exists = redis_client.exists(attempt_key)                   
+                if key_exists:
+                    new_count = redis_client.decr(attempt_key)
+                    if new_count <= 0:
+                        redis_client.delete(attempt_key)                   
+            except Exception as e:
+                # Log error but don't fail the deletion
+                print(f"[DELETE SUBMISSION] Error decrementing Redis counter for {attempt_key}: {e}")
+        
         db.session.delete(submission)
         db.session.commit()
         db.session.close()
+
+        # Audit log
+        log_audit(
+            action="submission_delete",
+            before=submission_info,
+            data={"id": submission_info["id"]}
+        )
 
         # Delete standings cache
         clear_standings()

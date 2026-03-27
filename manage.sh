@@ -3,7 +3,7 @@
 # Script quản lý triển khai và vận hành hệ thống FCTF
 # Hỗ trợ các môi trường: dev, uat, production
 # Định nghĩa đường dẫn gốc của dự án
-PROJECT_ROOT="/home/$USER/FCTF-Platform-Deploy"
+PROJECT_ROOT="/home/mnhduc/FCTF"
 
 # Kiểm tra quyền sudo ngay từ đầu
 if ! sudo -n true 2>/dev/null; then
@@ -11,22 +11,6 @@ if ! sudo -n true 2>/dev/null; then
     echo "Ví dụ: sudo ./manage.sh <môi trường> <lệnh>"
     exit 1
 fi
-
-# Di chuyển file dịch vụ mẫu và reload systemd
-for service in fctf-challenge fctf-control kubectl-proxy; do
-    SOURCE_PATH="$PROJECT_ROOT/$service.service"
-    DEST_PATH="/etc/systemd/system/$service.service"
-    if [ -f "$SOURCE_PATH" ]; then
-        echo "Di chuyển file dịch vụ $service.service từ $SOURCE_PATH đến $DEST_PATH..."
-        sudo cp "$SOURCE_PATH" "$DEST_PATH"
-        sudo systemctl daemon-reload
-        echo "Đã tải lại cấu hình systemd."
-    else
-        echo "Cảnh báo: File mẫu $service.service không tồn tại tại $SOURCE_PATH."
-    fi
-done
-
-
 
 # Kiểm tra PROJECT_ROOT có tồn tại không
 if [ ! -d "$PROJECT_ROOT" ]; then
@@ -36,14 +20,15 @@ if [ ! -d "$PROJECT_ROOT" ]; then
 fi
 
 # Danh sách các cổng cần kiểm tra và giải phóng
-PORTS=(5000 5001 6379 8000 8010)
+PORTS=(5000 5001 5010 5020 6379 8000 8010)
 
 # Hàm hiển thị hướng dẫn sử dụng
 usage() {
     echo "Sử dụng: $0 <môi trường> <lệnh>"
     echo "Môi trường: dev, uat, production"
     echo "Lệnh:"
-    echo "  up                : Khởi động toàn bộ hệ thống (Docker, ChallengeHosting, ControlCenter)"
+    echo "  up                : Khởi động toàn bộ hệ thống (Docker, ChallengeHosting, ControlCenter)."
+    echo "  up [no-cache]     : Thêm 'no-cache' để rebuild image trước khi up mà không dùng cache."
     echo "  down              : Dừng và xóa toàn bộ dịch vụ Docker"
     echo "  build             : Build themes và ứng dụng .NET (ChallengeHosting và ControlCenter)"
     echo "  check-env         : Kiểm tra môi trường và cài đặt các công cụ cần thiết nếu chưa có"
@@ -236,99 +221,47 @@ update_appsettings() {
     fi
 
     # Tạo thư mục publish nếu chưa tồn tại
-    mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish"
-    mkdir -p "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish"
     mkdir -p "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
-    # Cập nhật appsettings.json cho ChallengeHosting
-    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*",
-  "ConnectionStrings": {
-    "RedisConnection": "127.0.0.1:6379"
-  },
-  "ServiceConfigs": {
-    "PrivateKey": "emdungdepzai",
-    "BaseCTFdURL": "http://127.0.0.1:8000",
-    "ServerId": "may-vip-1",
-    "ServerHost": "http://0.0.0.0",
-    "ServerPort": "5001",
-    "DomainName": "$domain",
-    "K8sPort": 8010,
-    "PwnPortRangeFrom": 35000,
-    "PwnPortRangeTo": 35200
-  },
-  "EnvironmentConfigs": {
-    "ENVIRONMENT_NAME": "$env_upper"
-  },
-  "ChallengeConfigs": {
-    "ChallengeBasePath": "/home/$USER/FCTF-Platform-Deploy/ctf-directory"
-  }
-}
-EOF
-
-    # Cập nhật appsettings.json cho ControlCenter
-    cat > "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/appsettings.json" << EOF
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*",
-  "ConnectionStrings": {
-    "RedisConnection": "127.0.0.1:6379"
-  },
-  "ServiceConfigs": {
-    "PrivateKey": "emdungdepzai",
-    "ServerHost": "http://0.0.0.0",
-    "ServerPort": "5000",
-    "DomainName": "$control_domain",
-    "MaxInstanceAtTime": "4"
-  },
-  "EnvironmentConfigs": {
-    "ENVIRONMENT_NAME": "$env_upper"
-  },
-  "ChallengeServer": [
-    {
-      "ServerId": "may-vip-1",
-      "ServerHost": "http://127.0.0.1",
-      "ServerPort": 5001,
-      "ServerName": "may-vip-1"
-    }
-  ]
-}
-EOF
-
-    # Cập nhật file .env cho FCTF-ManagementPlatform
+    # Cập nhật file .env cho FCTF-ManagementPlatform, ContestantBE & DeploymentCenter
     # API_URL_CONTROLSERVER= Địa chỉ IP hoặc domain của ControlCenter
     cat > "$PROJECT_ROOT/.env" << EOF
-API_URL_CONTROLSERVER=http://172.17.0.1:5000 
-API_URL_ADMINSERVER=http://127.0.0.1:8000
-HOST_CACHE=cache
-PRIVATE_KEY=emdungdepzai
-EOF
+# Cấu hình cho FCTF-ManagementPlatform
+HOST_CACHE=cache:6379
+REDIS_HOST=cache
+REDIS_PORT=6379
+REDIS_PASS=
+REDIS_URL=redis://cache:6379
+REDIS_DB=0
+DATABASE_PORT=3306
+DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
+UPLOAD_PROVIDER=nfs
+UP_CHALLENGE_TEMPLATE=up-challenge-template
+IMAGE_REPO=fctf
+DOCKER_USERNAME=quachuoiscontainer
 
-    # Kiểm tra file appsettings.json
-    for app in ChallengeManagementServer ControlCenterServer; do
-        config_file="$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/$app/bin/Release/net8.0/linux-x64/publish/appsettings.json"
-        if [ ! -f "$config_file" ]; then
-            echo "Lỗi: File $config_file không tồn tại."
-            exit 1
-        fi
-        if ! grep -q '"ENVIRONMENT_NAME": "'"$env_upper"'"' "$config_file"; then
-            echo "Lỗi: Khóa ENVIRONMENT_NAME không được thiết lập đúng trong $config_file."
-            cat "$config_file"
-            exit 1
-        fi
-    done
+# Cấu hình dùng chung
+PRIVATE_KEY=REDACTED
+SECRET_KEY=emdungdepzai
+ARGO_WORKFLOWS_URL=https://argo.fctf.site/api/v1/workflows/argo
+ARGO_WORKFLOWS_TOKEN=REDACTED
+DEPLOYMENT_SERVICE_API=http://172.31.177.154:5020
+NFS_MOUNT_PATH=/mnt/nfs/data
+TCP_DOMAIN=challenge-zg9uj3rfagfja19tzq.fctf.cloud
+
+# Cấu hình cho ContestantBE & DeploymentCenter
+ASPNETCORE_ENVIRONMENT=Production
+DB_CONNECTION=Server=db;Port=3306;Database=ctfd;User=ctfd;Password=ctfd;
+REDIS_CONNECTION=cache:6379
+#REDIS_CONNECTION=dbzmn0zjiwmju.fctf.cloud:30379,password=REDACTED
+
+START_CHALLENGE_TEMPLATE=start-chal-v2-template
+CPU_LIMIT=300m
+CPU_REQUEST=300m
+MEMORY_LIMIT=256Mi
+MEMORY_REQUEST=256Mi
+POW_DIFFICULTY_SECONDS=5 #protect DDOS attack
+EOF
 
     echo "Đã cập nhật cấu hình cho môi trường $env."
 }
@@ -408,88 +341,6 @@ build_apps() {
     fi
     echo "File manifest.json đã được tạo thành công tại themes/core-beta/static/"
 
-    # Build giao diện thi sinh viên (ContestantPlatform)
-    # CONTESTANT_PLATFORM="$PROJECT_ROOT/ContestantPlatform"
-    # if [ ! -d "$CONTESTANT_PLATFORM" ]; then
-    #     echo "Lỗi: Thư mục ContestantPlatform ($CONTESTANT_PLATFORM) không tồn tại."
-    #     exit 1
-    # fi
-    # if [ ! -f "$CONTESTANT_PLATFORM/package.json" ]; then
-    #     echo "Lỗi: File package.json không tồn tại trong $CONTESTANT_PLATFORM."
-    #     exit 1
-    # fi
-    # echo "Cài đặt dependencies cho ContestantPlatform..."
-    # cd "$CONTESTANT_PLATFORM"
-    # # Xóa thư mục dist để tránh cache
-    # rm -rf dist
-    # if ! npm install vite --legacy-peer-deps; then
-    #     echo "Lỗi: Không thể cài đặt vite cho ContestantPlatform."
-    #     exit 1
-    # fi
-    # if ! npm install --legacy-peer-deps; then
-    #     echo "Lỗi: Không thể cài đặt dependencies cho ContestantPlatform."
-    #     exit 1
-    # fi
-    # echo "Build ContestantPlatform..."
-    # if ! npm run build; then
-    #     echo "Lỗi: Không thể build ContestantPlatform."
-    #     exit 1
-    # fi
-    # # Kiểm tra thư mục dist
-    # if [ ! -d "$CONTESTANT_PLATFORM/dist" ]; then
-    #     echo "Lỗi: Thư mục dist không được tạo trong $CONTESTANT_PLATFORM sau khi build."
-    #     echo "Kiểm tra thủ công bằng lệnh:"
-    #     echo "  cd $CONTESTANT_PLATFORM && npm run build"
-    #     exit 1
-    # fi
-    # echo "Giao diện thi sinh viên đã được build thành công tại $CONTESTANT_PLATFORM/dist"
-    # echo "Nhắc nhở: Vui lòng cấu hình Nginx để trỏ tới thư mục $CONTESTANT_PLATFORM/dist"
-
-    # Build ứng dụng .NET
-    if [ ! -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer" ]; then
-        echo "Lỗi: Thư mục ControlCenterAndChallengeHostingServer không tồn tại."
-        exit 1
-    fi
-    cd "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer"
-
-    # Kiểm tra file dự án ChallengeManagementServer
-    if [ ! -f "ChallengeManagementServer/ChallengeManagementServer.csproj" ]; then
-        echo "Lỗi: File dự án ChallengeManagementServer/ChallengeManagementServer.csproj không tồn tại."
-        exit 1
-    fi
-    if ! dotnet publish ChallengeManagementServer/ChallengeManagementServer.csproj -c Release --framework net8.0 --runtime linux-x64 --self-contained true; then
-        echo "Lỗi: Build ChallengeManagementServer thất bại."
-        exit 1
-    fi
-
-    # Kiểm tra file dự án ControlCenterServer
-    if [ ! -f "ControlCenterServer/ControlCenterServer.csproj" ]; then
-        echo "Lỗi: File dự án ControlCenterServer/ControlCenterServer.csproj không tồn tại."
-        exit 1
-    fi
-    if ! dotnet publish ControlCenterServer/ControlCenterServer.csproj -c Release --framework net8.0 --runtime linux-x64 --self-contained true; then
-        echo "Lỗi: Build ControlCenterServer thất bại."
-        exit 1
-    fi
-
-    # Kiểm tra thư mục publish và file thực thi
-    if [ ! -d "ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish" ]; then
-        echo "Lỗi: Không thể tạo thư mục publish cho ChallengeManagementServer."
-        exit 1
-    fi
-    if [ ! -f "ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish/ChallengeManagementServer" ]; then
-        echo "Lỗi: File thực thi ChallengeManagementServer không được tạo."
-        exit 1
-    fi
-    if [ ! -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin" ]; then
-        echo "Lỗi: Không thể tạo Directory publish cho ControlCenterServer."
-        exit 1
-    fi
-    if [ ! -f "ControlCenterServer/bin/Release/net8.0/linux-x64/publish/ControlCenterServer" ]; then
-        echo "Lỗi: File thực thi ControlCenterServer không được tạo."
-        exit 1
-    fi
-
     cd "$PROJECT_ROOT"
     echo "Build themes, ứng dụng .NET, và giao diện thi sinh viên hoàn tất."
 }
@@ -497,6 +348,7 @@ build_apps() {
 # Hàm khởi động hệ thống
 start_system() {
     local env=$1
+    local no_cache=$2
     echo "Starting system in $env environment..."
 
     # Thiết lập umask theo yêu cầu của kCTF
@@ -507,17 +359,17 @@ start_system() {
     sudo sysctl -p /etc/sysctl.d/00-local-userns.conf || true
 
     # Thiết lập quyền thư mục
-    if [ ! -d "$PROJECT_ROOT/ctf-directory/kctf" ]; then
-        echo "Lỗi: Thư mục ctf-directory/kctf không tồn tại."
-        exit 1
-    fi
-    sudo chmod -R 755 "$PROJECT_ROOT/ctf-directory/kctf"
+    # if [ ! -d "$PROJECT_ROOT/ctf-directory/kctf" ]; then
+    #     echo "Lỗi: Thư mục ctf-directory/kctf không tồn tại."
+    #     exit 1
+    # fi
+    # sudo chmod -R 755 "$PROJECT_ROOT/ctf-directory/kctf"
 
-    if [ ! -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
-        echo "Lỗi: Thư mục FCTF-ManagementPlatform không tồn tại."
-        exit 1
-    fi
-    sudo chmod -R 755 "$PROJECT_ROOT/FCTF-ManagementPlatform"
+    # if [ ! -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
+    #     echo "Lỗi: Thư mục FCTF-ManagementPlatform không tồn tại."
+    #     exit 1
+    # fi
+    # sudo chmod -R 755 "$PROJECT_ROOT/FCTF-ManagementPlatform"
 
     # Kiểm tra và dừng các tiến trình trên các cổng được sử dụng
     for port in "${PORTS[@]}"; do
@@ -539,16 +391,6 @@ start_system() {
             fi
         fi
 
-        # Kiểm tra thêm bằng ps aux cho các tiến trình liên quan
-        if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" > /dev/null; then
-            echo "Phát hiện các tiến trình liên quan đang chạy:"
-            ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)"
-            for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" | awk '{print $2}'); do
-                echo "Dừng tiến trình (PID: $pid)..."
-                sudo kill -9 $pid > /dev/null 2>&1 || true
-                sleep 1
-            done
-        fi
     done
 
     # Chạy kubectl proxy
@@ -567,30 +409,30 @@ start_system() {
     fi
 
     # Kích hoạt môi trường kCTF
-    if [ ! -f "$PROJECT_ROOT/ctf-directory/kctf/activate" ]; then
-        echo "Lỗi: File kctf/activate không tồn tại."
-        exit 1
-    fi
-    source "$PROJECT_ROOT/ctf-directory/kctf/activate"
+    # if [ ! -f "$PROJECT_ROOT/ctf-directory/kctf/activate" ]; then
+    #     echo "Lỗi: File kctf/activate không tồn tại."
+    #     exit 1
+    # fi
+    # source "$PROJECT_ROOT/ctf-directory/kctf/activate"
 
-    # Kiểm tra lệnh kctf
-    if ! command -v kctf &> /dev/null; then
-        echo "Lỗi: Lệnh kctf không được tìm thấy sau khi kích hoạt môi trường."
-        echo "Vui lòng kiểm tra cài đặt kCTF trong $PROJECT_ROOT/ctf-directory/kctf."
-        echo "Thử cài đặt kCTF bằng lệnh:"
-        echo "  cd $PROJECT_ROOT/ctf-directory/kctf && pip3 install -r requirements.txt"
-        exit 1
-    fi
+    # # Kiểm tra lệnh kctf
+    # if ! command -v kctf &> /dev/null; then
+    #     echo "Lỗi: Lệnh kctf không được tìm thấy sau khi kích hoạt môi trường."
+    #     echo "Vui lòng kiểm tra cài đặt kCTF trong $PROJECT_ROOT/ctf-directory/kctf."
+    #     echo "Thử cài đặt kCTF bằng lệnh:"
+    #     echo "  cd $PROJECT_ROOT/ctf-directory/kctf && pip3 install -r requirements.txt"
+    #     exit 1
+    # fi
 
     # Tạo cluster kCTF
-    if ! docker info &> /dev/null; then
-        echo "Lỗi: Không thể truy cập Docker daemon. Vui lòng chạy './manage.sh dev check-env' hoặc đăng xuất/đăng nhập lại."
-        exit 1
-    fi
-    if ! kctf cluster create local-cluster --start --type kind; then
-        echo "Lỗi: Không thể tạo cluster kCTF."
-        exit 1
-    fi
+    # if ! docker info &> /dev/null; then
+    #     echo "Lỗi: Không thể truy cập Docker daemon. Vui lòng chạy './manage.sh dev check-env' hoặc đăng xuất/đăng nhập lại."
+    #     exit 1
+    # fi
+    # if ! kctf cluster create local-cluster --start --type kind; then
+    #     echo "Lỗi: Không thể tạo cluster kCTF."
+    #     exit 1
+    # fi
 
     # Chạy FCTF-ManagementPlatform trước để khởi động Redis và MariaDB
     cd "$PROJECT_ROOT"
@@ -601,6 +443,11 @@ start_system() {
     if [ ! -f ".env" ]; then
         echo "Lỗi: File .env không tồn tại trong FCTF-ManagementPlatform."
         exit 1
+    fi
+    # Nếu yêu cầu rebuild không dùng cache thì build trước
+    if [ "$no_cache" = "no-cache" ]; then
+        echo "Rebuilding Docker images with --no-cache..."
+        docker compose build --no-cache
     fi
     docker compose --env-file .env up --force-recreate -d
     echo "Đang chờ Redis và MariaDB khởi động..."
@@ -626,31 +473,13 @@ start_system() {
     sudo chown root:root "$LOG_FILE"
     sudo chmod 664 "$LOG_FILE"
 
-    # Khởi động dịch vụ systemd cho hai ứng dụng .NET
-    for service in fctf-challenge fctf-control; do
-        if [ -f "/etc/systemd/system/$service.service" ]; then
-            echo "Kích hoạt và khởi động dịch vụ $service..."
-            sudo systemctl enable "$service"
-            sudo systemctl start "$service"
-            if ! systemctl is-active --quiet "$service"; then
-                echo "Lỗi: Không thể khởi động $service. Kiểm tra trạng thái:"
-                sudo systemctl status "$service" --no-pager -l
-                exit 1
-            fi
-        else
-            echo "Lỗi: File dịch vụ $service.service không tồn tại trong /etc/systemd/system/."
-            exit 1
-        fi
-    done
-
     echo "Hệ thống đã được khởi động trong môi trường $env."
-    echo "Log của ChallengeManagementServer và ControlCenterServer được ghi tại $LOG_FILE"
     if [ "$env" = "production" ]; then
         echo "Truy cập portal tại: https://$domain hoặc https://$control_domain"
-        echo "Lưu ý: Đảm bảo firewall đã mở các cổng 8000, 5000, 5001, 8010 cho phép truy cập từ bên ngoài nếu cần."
+        echo "Lưu ý: Đảm bảo firewall đã mở các cổng 8000, 5000, 5001, 5010, 5020, 8010 cho phép truy cập từ bên ngoài nếu cần."
     else
         echo "Truy cập portal tại: http://127.0.0.1:8000"
-        echo "Lưu ý: Nếu truy cập từ máy khác, hãy kiểm tra firewall và mở các cổng 8000, 5000, 5001, 8010."
+        echo "Lưu ý: Nếu truy cập từ máy khác, hãy kiểm tra firewall và mở các cổng 8000, 5000, 5001, 5010, 5020, 8010."
     fi
 }
 
@@ -659,7 +488,7 @@ stop_system() {
     echo "Dừng toàn bộ hệ thống..."
 
     # Dừng dịch vụ systemd cho hai ứng dụng .NET
-    for service in fctf-challenge fctf-control; do
+    for service in fctf-challenge fctf-control fctf-contestant; do
         if systemctl is-active --quiet "$service"; then
             echo "Dừng dịch vụ $service..."
             sudo systemctl stop "$service"
@@ -701,18 +530,11 @@ stop_system() {
         fi
     done
 
-    # Dừng tất cả tiến trình kubectl proxy và .NET
-    if ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" > /dev/null; then
-        echo "Dừng các tiến trình liên quan còn lại..."
-        for pid in $(ps aux | grep -v grep | grep -E "(ChallengeManagementServer|ControlCenterServer|kubectl proxy)" | awk '{print $2}'); do
-            sudo kill -9 $pid > /dev/null 2>&1 || true
-        done
-    fi
 
     # Deactivate kCTF
-    if command -v deactivate &> /dev/null; then
-        deactivate
-    fi
+    # if command -v deactivate &> /dev/null; then
+    #     deactivate
+    # fi
 
     echo "Hệ thống đã được dừng."
 }
@@ -741,7 +563,8 @@ show_logs() {
 
 # Hàm rebuild Docker image
 rebuild_images() {
-    local no_cache=$3
+    # note: caller passes (env, [no-cache]) so read flag from $2
+    local no_cache=$2
     if [ -d "$PROJECT_ROOT/FCTF-ManagementPlatform" ]; then
         cd "$PROJECT_ROOT/FCTF-ManagementPlatform"
         echo "Rebuild Docker image cho FCTF-ManagementPlatform..."
@@ -776,7 +599,7 @@ check_status() {
     fi
 
     # Kiểm tra dịch vụ systemd
-    for service in fctf-challenge fctf-control; do
+    for service in fctf-challenge fctf-control fctf-contestant; do
         if [ -f "/etc/systemd/system/$service.service" ]; then
             echo "Trạng thái dịch vụ $service:"
             systemctl is-active --quiet "$service" && echo "$service đang chạy." || echo "$service không chạy."
@@ -826,16 +649,6 @@ clean_system() {
     # Dừng hệ thống (đã có xác nhận trong stop_system)
     stop_system
 
-    # Xóa thư mục publish
-    if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release" ]; then
-        rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release"
-        echo "Đã xóa thư mục publish của ChallengeManagementServer."
-    fi
-    if [ -d "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release" ]; then
-        rm -rf "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release"
-        echo "Đã xóa thư mục publish của ControlCenterServer."
-    fi
-
     # Xóa image và container với xác nhận
     if [ -d "$PROJECT_ROOT" ]; then
         cd "$PROJECT_ROOT"
@@ -860,20 +673,20 @@ clean_system() {
 check_config() {
     echo "Kiểm tra nội dung các file cấu hình..."
 
-    # Kiểm tra appsettings.json của ChallengeHosting
-    if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish/appsettings.json" ]; then
-        echo "Nội dung appsettings.json (ChallengeHosting):"
-        cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ChallengeManagementServer/bin/Release/net8.0/linux-x64/publish/appsettings.json"
+    # kiểm tra .env của ContestantBE
+    if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantBE/.env" ]; then
+        echo "Nội dung .env (ContestantBE):"
+        cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ContestantBE/.env"
     else
-        echo "File appsettings.json của ChallengeHosting không tồn tại."
+        echo "File .env của ContestantBE không tồn tại."
     fi
 
-    # Kiểm tra appsettings.json của ControlCenter
-    if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/appsettings.json" ]; then
-        echo "Nội dung appsettings.json (ControlCenter):"
-        cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/ControlCenterServer/bin/Release/net8.0/linux-x64/publish/appsettings.json"
+    # kiểm tra .env của DeploymentCenter
+    if [ -f "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/DeploymentCenter/.env" ]; then
+        echo "Nội dung .env (DeploymentCenter):"
+        cat "$PROJECT_ROOT/ControlCenterAndChallengeHostingServer/DeploymentCenter/.env"
     else
-        echo "File appsettings.json của ControlCenter không tồn tại."
+        echo "File .env của DeploymentCenter không tồn tại."
     fi
 
     # Kiểm tra .env của FCTF-ManagementPlatform
@@ -898,7 +711,8 @@ check_environment $ENV
 case "$2" in
     up)
         update_appsettings $ENV
-        start_system $ENV
+        # forward optional third arg (e.g. 'no-cache') to start_system
+        start_system $ENV $3
         ;;
     down)
         stop_system

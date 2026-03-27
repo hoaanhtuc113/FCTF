@@ -2,7 +2,7 @@ import "./main";
 import CTFd from "../compat/CTFd";
 import $ from "jquery";
 import { htmlEntities } from "@ctfdio/ctfd-js/utils/html";
-import { ezQuery } from "../compat/ezq";
+import { ezAlert, ezQuery } from "../compat/ezq";
 import "../compat/format";
 
 function deleteCorrectSubmission(_event) {
@@ -58,9 +58,18 @@ function correctSubmissions(_event) {
   });
   let target = submissionIDs.length === 1 ? "submission" : "submissions";
 
+  if (submissionIDs.length === 0) {
+    ezAlert({
+      title: "No Selection",
+      body: "Please select at least one submission.",
+      button: "OK",
+    });
+    return;
+  }
+
   ezQuery({
     title: "Correct Submissions",
-    body: `Are you sure you want to mark ${submissionIDs.length} ${target} correct?`,
+    body: `Are you sure you want to mark ${submissionIDs.length} ${target} as correct?`,
     success: function () {
       const reqs = [];
       for (var subId of submissionIDs) {
@@ -72,6 +81,45 @@ function correctSubmissions(_event) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ type: "correct" }),
+        });
+        reqs.push(req);
+      }
+      Promise.all(reqs).then((_responses) => {
+        window.location.reload();
+      });
+    },
+  });
+}
+
+function incorrectSubmissions(_event) {
+  let submissionIDs = $("input[data-submission-id]:checked").map(function () {
+    return $(this).data("submission-id");
+  });
+  let target = submissionIDs.length === 1 ? "submission" : "submissions";
+
+  if (submissionIDs.length === 0) {
+    ezAlert({
+      title: "No Selection",
+      body: "Please select at least one submission.",
+      button: "OK",
+    });
+    return;
+  }
+
+  ezQuery({
+    title: "Mark Incorrect",
+    body: `Are you sure you want to mark ${submissionIDs.length} ${target} as incorrect? This will remove solves and update standings.`,
+    success: function () {
+      const reqs = [];
+      for (var subId of submissionIDs) {
+        let req = CTFd.fetch(`/api/v1/submissions/${subId}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ type: "incorrect" }),
         });
         reqs.push(req);
       }
@@ -126,12 +174,65 @@ function copyFlag(event) {
   }, 1500);
 }
 
+function resyncDynamicChallenges(_event) {
+  ezQuery({
+    title: "Resync Dynamic Challenges",
+    body: "Are you sure you want to recalculate all dynamic challenge values? This will update the point values based on current solve counts.",
+    success: function () {
+      // Show loading state
+      const $button = $("#resync-dynamic-button");
+      const originalHtml = $button.html();
+      $button.prop("disabled", true);
+      $button.html('<i class="fas fa-spinner fa-spin"></i>');
+
+      CTFd.fetch("/admin/submissions/resync-dynamic", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            ezAlert({
+              title: "Success",
+              body: data.message,
+              button: "OK",
+            });
+          } else {
+            ezAlert({
+              title: "Error",
+              body: data.message || "Failed to resync dynamic challenges",
+              button: "OK",
+            });
+          }
+        })
+        .catch((error) => {
+          ezAlert({
+            title: "Error",
+            body: "An error occurred while resyncing: " + error.message,
+            button: "OK",
+          });
+        })
+        .finally(() => {
+          // Restore button state
+          $button.prop("disabled", false);
+          $button.html(originalHtml);
+        });
+    },
+  });
+}
+
 $(() => {
   $("#show-full-flags-button").click(showFlagsToggle);
   $("#show-short-flags-button").click(showFlagsToggle);
   $(".show-flag").click(showFlag);
   $(".copy-flag").click(copyFlag);
   $("#correct-flags-button").click(correctSubmissions);
+  $("#incorrect-flags-button").click(incorrectSubmissions);
   $(".delete-correct-submission").click(deleteCorrectSubmission);
   $("#submission-delete-button").click(deleteSelectedSubmissions);
+  $("#resync-dynamic-button").click(resyncDynamicChallenges);
 });

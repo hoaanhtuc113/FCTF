@@ -21,7 +21,6 @@ from CTFd.constants.config import (
 )
 from CTFd.forms import BaseForm
 from CTFd.forms.fields import SubmitField
-from CTFd.utils.config import get_themes
 
 
 class SetupForm(BaseForm):
@@ -74,9 +73,8 @@ class SetupForm(BaseForm):
     )
     ctf_theme = SelectField(
         _l("Theme"),
-        description=_l("CTFd Theme to use. Can be changed later."),
-        choices=list(zip(get_themes(), get_themes())),
-        ## TODO: Replace back to DEFAULT_THEME (aka core) in CTFd 4.0
+        description=_l("CTFd Theme to use."),
+        choices=[("core-beta", "core-beta")],
         default="core-beta",
         validators=[InputRequired()],
     )
@@ -124,7 +122,6 @@ class SetupForm(BaseForm):
             (ScoreVisibilityTypes.PUBLIC, "Public"),
             (ScoreVisibilityTypes.PRIVATE, "Private"),
             (ScoreVisibilityTypes.HIDDEN, "Hidden"),
-            (ScoreVisibilityTypes.ADMINS, "Admins Only"),
         ],
         default=AccountVisibilityTypes.PUBLIC,
     )

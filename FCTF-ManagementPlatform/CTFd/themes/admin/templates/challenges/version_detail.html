@@ -1,0 +1,618 @@
+{% extends "admin/base.html" %}
+{% block stylesheets %}
+{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+<style>
+/* Minimalist Clean Design - White background with orange accents */
+.page-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 2rem 0 1rem 0;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+
+.page-header .breadcrumb-link {
+    color: #ff6b35;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+}
+
+.page-header .breadcrumb-link:hover {
+    color: #e85d2a;
+    text-decoration: underline;
+}
+
+.page-header .breadcrumb-sep {
+    color: #6c757d;
+    margin: 0 0.5rem;
+}
+
+.version-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.version-badge {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #ff6b35;
+    background: #ffe8df;
+    padding: 0.25rem 1rem;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.detail-card {
+    background: #ffffff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.detail-card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-card-header i {
+    margin-right: 0.5rem;
+    color: #ff6b35;
+}
+
+.detail-card-body {
+    padding: 1.25rem;
+}
+
+.detail-row {
+    display: flex;
+    border-bottom: 1px solid #f1f1f1;
+    padding: 0.75rem 0;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 180px;
+    font-size: 0.9rem;
+}
+
+.detail-value {
+    color: #2c3e50;
+    font-size: 0.9rem;
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+
+.detail-value code {
+    background: #f8f9fa;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    color: #e83e8c;
+}
+
+.clean-badge {
+    padding: 0.35rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.clean-badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.clean-badge-secondary {
+    background: #e2e3e5;
+    color: #6c757d;
+}
+
+.btn-back {
+    color: #6c757d;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-back:hover {
+    color: #ff6b35;
+}
+
+.btn-rollback {
+    background: #ff6b35;
+    color: #ffffff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-rollback:hover {
+    background: #e85d2a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.btn-rollback:disabled {
+    background: #e8e8e8;
+    color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-rollback i {
+    font-size: 1rem;
+}
+
+.active-banner {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.active-banner i {
+    font-size: 1.1rem;
+}
+
+.rollback-section {
+    background: #fff5f2;
+    border: 1px solid #ffe0d4;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.rollback-section p {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.rollback-warning {
+    color: #856404;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+    display: none;
+}
+
+.notes-box {
+    background: #f8f9fa;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 1rem;
+    font-size: 0.9rem;
+    color: #495057;
+    white-space: pre-wrap;
+}
+
+/* Rollback confirmation modal */
+.rollback-modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.rollback-modal-backdrop.show {
+    display: flex;
+}
+
+.rollback-modal {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.rollback-modal h3 {
+    color: #2c3e50;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.rollback-modal p {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.rollback-modal .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.btn-cancel {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    padding: 0.5rem 1.25rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+    background: #e2e6ea;
+}
+
+.btn-confirm-rollback {
+    background: #ff6b35;
+    color: #ffffff;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-confirm-rollback:hover {
+    background: #e85d2a;
+}
+
+#rollback-status {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    display: none;
+}
+
+#rollback-status.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    display: block;
+}
+
+#rollback-status.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Rollback Confirmation Modal -->
+<div class="rollback-modal-backdrop" id="rollback-modal">
+    <div class="rollback-modal">
+        <h3><i class="fas fa-history" style="color: #ff6b35;"></i> Confirm Rollback</h3>
+        <p>
+            Are you sure you want to rollback <strong>{{ challenge.name }}</strong> to
+            <strong>version {{ version.version_number }}</strong>?
+        </p>
+        <p style="font-size: 0.85rem; color: #856404;">
+            <i class="fas fa-exclamation-triangle"></i>
+            This will update the challenge's image and deploy configuration to match this version.
+            Running instances will not be affected until they are restarted.
+        </p>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeRollbackModal()">Cancel</button>
+            <button class="btn-confirm-rollback" id="confirm-rollback-btn" onclick="executeRollback()">
+                <i class="fas fa-undo-alt"></i> Confirm Rollback
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="page-header">
+    <div class="container">
+        <div class="mb-2">
+            <a class="breadcrumb-link" href="{{ url_for('admin.challenges_listing') }}">Challenges</a>
+            <span class="breadcrumb-sep">/</span>
+            <a class="breadcrumb-link" href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">{{ challenge.name }}</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="text-muted">Versions</span>
+            <span class="breadcrumb-sep">/</span>
+            <span class="text-muted">v{{ version.version_number }}</span>
+        </div>
+        <div class="version-header">
+            <div>
+                <h1>Version {{ version.version_number }} &mdash; {{ challenge.name }}</h1>
+                <p class="text-muted mb-0 mt-1" style="font-size: 0.9rem;">
+                    {{ challenge.category }} &middot; Created {{ version.created_at.strftime('%Y-%m-%d %H:%M:%S') if version.created_at else 'N/A' }}
+                </p>
+            </div>
+            <span class="version-badge">v{{ version.version_number }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a class="btn-back" href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
+                <i class="fas fa-arrow-left"></i> Back to Challenge
+            </a>
+        </div>
+    </div>
+
+    {% if version.is_active %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="active-banner">
+                <i class="fas fa-check-circle"></i>
+                <strong>This is the currently active version.</strong>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div id="rollback-status"></div>
+
+    <div class="row">
+        <!-- Image & Deploy Info -->
+        <div class="col-md-6">
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-docker"></i> Image Information
+                </div>
+                <div class="detail-card-body">
+                    <div class="detail-row">
+                        <span class="detail-label">Image Tag</span>
+                        <span class="detail-value">
+                            <code>{{ version.image_tag or 'N/A' }}</code>
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Exposed Port</span>
+                        <span class="detail-value">{{ version.expose_port or 'N/A' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Deploy File</span>
+                        <span class="detail-value">{{ version.deploy_file or 'N/A' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value">
+                            {% if version.is_active %}
+                            <span class="clean-badge clean-badge-success">Active</span>
+                            {% else %}
+                            <span class="clean-badge clean-badge-secondary">Inactive</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resource Configuration -->
+        <div class="col-md-6">
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-microchip"></i> Resource Configuration
+                </div>
+                <div class="detail-card-body">
+                    <div class="detail-row">
+                        <span class="detail-label">CPU Limit</span>
+                        <span class="detail-value">{{ version.cpu_limit or 'N/A' }} mCPU</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">CPU Request</span>
+                        <span class="detail-value">{{ version.cpu_request or 'N/A' }} mCPU</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Memory Limit</span>
+                        <span class="detail-value">{{ version.memory_limit or 'N/A' }} Mi</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Memory Request</span>
+                        <span class="detail-value">{{ version.memory_request or 'N/A' }} Mi</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">gVisor Sandbox</span>
+                        <span class="detail-value">
+                            {% if version.use_gvisor %}
+                            <span class="clean-badge clean-badge-success">Enabled</span>
+                            {% elif version.use_gvisor is false %}
+                            <span class="clean-badge clean-badge-secondary">Disabled</span>
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Max Deploy Count</span>
+                        <span class="detail-value">
+                            {% if version.max_deploy_count is not none and version.max_deploy_count != 0 %}
+                            {{ version.max_deploy_count }}
+                            {% else %}
+                            <span class="text-muted">Unlimited (0)</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metadata -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-info-circle"></i> Metadata
+                </div>
+                <div class="detail-card-body">
+                    <div class="detail-row">
+                        <span class="detail-label">Version Number</span>
+                        <span class="detail-value"><strong>{{ version.version_number }}</strong></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Created By</span>
+                        <span class="detail-value">{{ version.creator.name if version.creator else 'Unknown' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Created At</span>
+                        <span class="detail-value">{{ version.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if version.created_at else 'N/A' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="col-md-6">
+            <div class="detail-card">
+                <div class="detail-card-header">
+                    <i class="fas fa-sticky-note"></i> Notes
+                </div>
+                <div class="detail-card-body">
+                    {% if version.notes %}
+                    <div class="notes-box">{{ version.notes }}</div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0" style="padding: 1rem;">No notes for this version.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rollback Section -->
+    {% if not version.is_active and version.image_link %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="rollback-section">
+                <h5 style="color: #2c3e50; font-weight: 600; margin-bottom: 0.5rem;">
+                    <i class="fas fa-history" style="color: #ff6b35;"></i> Rollback to This Version
+                </h5>
+                <p>
+                    Restore the challenge configuration and image to version {{ version.version_number }}.
+                </p>
+                <button class="btn-rollback" id="rollback-btn" onclick="openRollbackModal()">
+                    <i class="fas fa-undo-alt"></i>
+                    Rollback to v{{ version.version_number }}
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+var CHALLENGE_ID = {{ challenge.id }};
+var VERSION_ID = {{ version.id }};
+var VERSION_NUMBER = {{ version.version_number }};
+
+function openRollbackModal() {
+    document.getElementById('rollback-modal').classList.add('show');
+}
+
+function closeRollbackModal() {
+    document.getElementById('rollback-modal').classList.remove('show');
+}
+
+function executeRollback() {
+    var confirmBtn = document.getElementById('confirm-rollback-btn');
+    var statusEl = document.getElementById('rollback-status');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rolling back...';
+
+    fetch('/api/v1/challenges/' + CHALLENGE_ID + '/versions/' + VERSION_ID + '/rollback', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'CSRF-Token': init.csrfNonce
+        },
+        credentials: 'same-origin'
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        closeRollbackModal();
+        if (data.success) {
+            statusEl.className = 'success';
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message + ' — Reloading...';
+            statusEl.style.display = 'block';
+            setTimeout(function() {
+                window.location.reload();
+            }, 1500);
+        } else {
+            statusEl.className = 'error';
+            statusEl.innerHTML = '<i class="fas fa-times-circle"></i> ' + (data.message || 'Rollback failed');
+            statusEl.style.display = 'block';
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-undo-alt"></i> Confirm Rollback';
+        }
+    })
+    .catch(function(err) {
+        closeRollbackModal();
+        statusEl.className = 'error';
+        statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Network error: ' + err.message;
+        statusEl.style.display = 'block';
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-undo-alt"></i> Confirm Rollback';
+    });
+}
+
+// Close modal on backdrop click
+document.getElementById('rollback-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeRollbackModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeRollbackModal();
+    }
+});
+</script>
+{% endblock %}

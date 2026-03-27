@@ -159,13 +159,6 @@ def clear_challenges():
     cache.delete_memoized(get_solve_counts_for_challenges)
 
 
-def clear_pages():
-    from CTFd.utils.config.pages import get_page, get_pages
-
-    cache.delete_memoized(get_pages)
-    cache.delete_memoized(get_page)
-
-
 def clear_user_recent_ips(user_id):
     from CTFd.utils.user import get_user_recent_ips
 
@@ -184,6 +177,19 @@ def clear_user_session(user_id):
     cache.delete_memoized(get_user_place, user_id=user_id)
     cache.delete_memoized(get_user_score, user_id=user_id)
     cache.delete_memoized(get_user_recent_ips, user_id=user_id)
+
+
+def clear_auth_cache(user_id):
+    """Clear auth cache used by ContestantBE middleware (best-effort)."""
+    try:
+        client = cache.cache._write_client
+    except Exception:
+        return
+
+    try:
+        client.delete(f"auth:user:{user_id}")
+    except Exception:
+        pass
 
 
 def clear_all_user_sessions():

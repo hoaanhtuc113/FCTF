@@ -7,7 +7,6 @@ from flask import current_app as app
 from flask import send_file, send_from_directory, url_for
 import pytz
 
-from CTFd.utils.config.pages import get_pages
 from CTFd.utils.decorators import admins_only as admins_only_wrapper
 from CTFd.utils.plugins import override_template as utils_override_template
 from CTFd.utils.plugins import (
@@ -147,7 +146,7 @@ def get_user_page_menu_bar():
     :return: Returns a list of Menu namedtuples. They have name, and route attributes.
     """
     pages = []
-    for p in get_pages() + app.plugin_menu_bar:
+    for p in app.plugin_menu_bar:
         if p.route.startswith("http"):
             route = p.route
         else:

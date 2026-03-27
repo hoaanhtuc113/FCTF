@@ -1,0 +1,224 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+	{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+	<style>
+		.pod-logs-header {
+			background: #ffffff;
+			padding: 2rem 0 1rem 0;
+			margin-bottom: 2rem;
+		}
+		.pod-logs-header h1 {
+			font-size: 1.75rem;
+			font-weight: 700;
+			color: #2c3e50;
+			margin: 0;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+		.btn-refresh {
+			background-color: #ff6b35;
+			border-color: #ff6b35;
+			color: #ffffff;
+			padding: 0.5rem 1.25rem;
+			font-weight: 600;
+			border-radius: 6px;
+			transition: all 0.2s ease;
+		}
+		.btn-refresh:hover {
+			background-color: #e85d2a;
+			border-color: #e85d2a;
+			color: #ffffff;
+			transform: translateY(-2px);
+			box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+		}
+		.btn-refresh:disabled {
+			opacity: 0.65;
+			cursor: not-allowed;
+			transform: none;
+			box-shadow: none;
+		}
+		.btn-back {
+			padding: 0.5rem 1.25rem;
+			font-weight: 600;
+			border-radius: 6px;
+		}
+		.log-box {
+			background: #1e1e1e;
+			color: #d4d4d4;
+			border: 1px solid #333;
+			border-radius: 8px;
+			padding: 1rem;
+			height: 70vh;
+			overflow: auto;
+			white-space: pre-wrap;
+			font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+			font-size: 0.85rem;
+			line-height: 1.5;
+		}
+		@keyframes spin {
+			from { transform: rotate(0deg); }
+			to { transform: rotate(360deg); }
+		}
+		.fa-spin {
+			animation: spin 1s linear infinite;
+		}
+		.btn-sync-group {
+			display: inline-flex;
+			align-items: center;
+			gap: 3px;
+			background: #f5f5f5;
+			border: 1px solid #dee2e6;
+			border-radius: 6px;
+			padding: 3px;
+		}
+		.btn-sync-group .sync-label {
+			color: #6c757d;
+			font-size: 0.78rem;
+			font-weight: 600;
+			padding: 0 6px;
+			white-space: nowrap;
+		}
+		.btn-sync {
+			background: transparent;
+			border: 1px solid transparent;
+			color: #495057;
+			padding: 3px 10px;
+			font-size: 0.78rem;
+			font-weight: 600;
+			border-radius: 4px;
+			cursor: pointer;
+			transition: all 0.15s;
+		}
+		.btn-sync:hover {
+			background: #e9ecef;
+			border-color: #ced4da;
+		}
+		.btn-sync.active {
+			background: #ff6b35;
+			border-color: #ff6b35;
+			color: #fff;
+		}
+		.sync-countdown {
+			font-size: 0.78rem;
+			color: #6c757d;
+			font-family: 'Consolas', monospace;
+		}
+	</style>
+{% endblock %}
+
+{% block content %}
+    <div class="pod-logs-header">
+        <div class="container">
+            <h1>Pod Logs - Challenge ID {{ challenge_id }}</h1>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row mb-3">
+            <div class="col-md-12 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-wrap" style="gap:8px">
+                    <button onclick="window.history.back()" class="btn btn-secondary btn-back">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button id="refreshBtn" onclick="refreshLogs()" class="btn btn-refresh">
+                        <i class="fas fa-sync-alt" id="refreshIcon"></i> Refresh
+                    </button>
+                    <div class="btn-sync-group">
+                        <span class="sync-label"><i class="fas fa-clock"></i> Auto:</span>
+                        <button class="btn-sync active" onclick="setAutoSync(0)" id="sync-off">Off</button>
+                        <button class="btn-sync" onclick="setAutoSync(5)" id="sync-5">5s</button>
+                        <button class="btn-sync" onclick="setAutoSync(10)" id="sync-10">10s</button>
+                        <button class="btn-sync" onclick="setAutoSync(30)" id="sync-30">30s</button>
+                        <button class="btn-sync" onclick="setAutoSync(60)" id="sync-60">60s</button>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center" style="gap:12px">
+                    <span class="sync-countdown" id="syncCountdown"></span>
+                    <span class="text-muted" id="lastRefreshed"></span>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div id="log-content" class="log-box">{{ log_content }}</div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var challengeId = {{ challenge_id }};
+    var teamId = new URLSearchParams(window.location.search).get('team_id') || '';
+
+    var _autoSyncTimer = null;
+    var _countdownTimer = null;
+    var _autoSyncSeconds = 0;
+    var _countdownLeft = 0;
+
+    function setAutoSync(seconds) {
+        if (_autoSyncTimer)   { clearInterval(_autoSyncTimer);   _autoSyncTimer = null; }
+        if (_countdownTimer)  { clearInterval(_countdownTimer);  _countdownTimer = null; }
+        _autoSyncSeconds = seconds;
+
+        var keys = ['off', '5', '10', '30', '60'];
+        keys.forEach(function(k) {
+            var el = document.getElementById('sync-' + k);
+            if (el) el.classList.remove('active');
+        });
+        var activeId = seconds === 0 ? 'sync-off' : 'sync-' + seconds;
+        var activeEl = document.getElementById(activeId);
+        if (activeEl) activeEl.classList.add('active');
+
+        var cd = document.getElementById('syncCountdown');
+        if (seconds === 0) {
+            if (cd) cd.textContent = '';
+            return;
+        }
+
+        _countdownLeft = seconds;
+        if (cd) cd.textContent = 'Next in ' + _countdownLeft + 's';
+
+        _autoSyncTimer = setInterval(function() {
+            refreshLogs();
+            _countdownLeft = seconds;
+        }, seconds * 1000);
+
+        _countdownTimer = setInterval(function() {
+            _countdownLeft--;
+            if (_countdownLeft < 0) _countdownLeft = 0;
+            if (cd) cd.textContent = 'Next in ' + _countdownLeft + 's';
+        }, 1000);
+    }
+
+    function refreshLogs() {
+        var btn = document.getElementById('refreshBtn');
+        var icon = document.getElementById('refreshIcon');
+        var logContent = document.getElementById('log-content');
+
+        btn.disabled = true;
+        icon.classList.add('fa-spin');
+
+        var url = `/deploy_History/${challengeId}/pods-logs-api?team_id=${teamId}`;
+
+        fetch(url)
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    logContent.textContent = data.logs;
+                } else {
+                    logContent.textContent = 'Error: ' + (data.error || 'Failed to fetch logs');
+                }
+                var now = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+                document.getElementById('lastRefreshed').textContent = 'Last refreshed: ' + now;
+            })
+            .catch(function(error) {
+                logContent.textContent = 'Network error: ' + error.message;
+            })
+            .finally(function() {
+                btn.disabled = false;
+                icon.classList.remove('fa-spin');
+            });
+    }
+</script>
+{% endblock %}

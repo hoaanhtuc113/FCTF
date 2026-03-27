@@ -1,0 +1,313 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+	/* Instances history page — only page-specific overrides; shared styles in base.html */
+	.mono {
+		font-family: "Space Mono", monospace;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	.action-dropdown {
+		position: relative;
+		display: inline-block;
+	}
+
+	.action-menu {
+		display: none;
+		position: fixed;
+		z-index: 9999;
+		min-width: 160px;
+		background: #fff;
+		border: 1px solid #dee2e6;
+		border-radius: 4px;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+		padding: 4px 0;
+		font-size: 0.875rem;
+	}
+
+	.action-menu.open {
+		display: block;
+	}
+
+	.action-menu-item {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0.45rem 0.9rem;
+		color: #495057 !important;
+		text-decoration: none;
+		font-weight: 500;
+		font-size: 0.875rem;
+		transition: all 0.15s ease;
+		white-space: nowrap;
+	}
+
+	.action-menu-item:hover {
+		background: #fff5f2;
+		color: #ff6b35 !important;
+		text-decoration: none;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-history"></i> Instances History</h1>
+	</div>
+</div>
+<div class="container">
+	<div class="clean-search-container">
+		<form method="GET" action="{{ url_for('admin.instances_history_listing') }}" class="m-0">
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-3 px-1">
+					<label for="user">User (id or name)</label>
+					<input class="clean-form-control w-100" id="user" name="user" value="{{ user_filter }}"
+						placeholder="e.g. 12 or alice" />
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="team">Team (id or name)</label>
+					<input class="clean-form-control w-100" id="team" name="team" value="{{ team_filter }}"
+						placeholder="e.g. 3 or Team A" />
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="challenge">Challenge (id or name)</label>
+					<input class="clean-form-control w-100" id="challenge" name="challenge" value="{{ challenge_filter }}"
+						placeholder="e.g. 42 or Crypto 101" />
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="start">Start time</label>
+					<input type="datetime-local" class="clean-form-control w-100" id="start" name="start"
+						value="{{ start_filter }}" />
+				</div>
+			</div>
+			<div class="row no-gutters align-items-end mt-1">
+				<div class="col-md-3 px-1">
+					<label for="end">End time</label>
+					<input type="datetime-local" class="clean-form-control w-100" id="end" name="end"
+						value="{{ end_filter }}" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="quick">Quick range</label>
+					<select class="clean-form-control ss-select w-100" id="quick" name="quick">
+						<option value="" {% if not quick_filter %}selected{% endif %}>Custom</option>
+						<option value="15m" {% if quick_filter=="15m" %}selected{% endif %}>Last 15 minutes</option>
+						<option value="30m" {% if quick_filter=="30m" %}selected{% endif %}>Last 30 minutes</option>
+						<option value="1h" {% if quick_filter=="1h" %}selected{% endif %}>Last 1 hour</option>
+						<option value="6h" {% if quick_filter=="6h" %}selected{% endif %}>Last 6 hours</option>
+						<option value="12h" {% if quick_filter=="12h" %}selected{% endif %}>Last 12 hours</option>
+						<option value="24h" {% if quick_filter=="24h" %}selected{% endif %}>Last 24 hours</option>
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label for="per_page">Per page</label>
+					<select class="clean-form-control ss-select w-100" id="per_page" name="per_page">
+						{% for n in [25, 50, 100, 200] %}
+						<option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1"></div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Filter
+					</button>
+					<a href="{{ url_for('admin.instances_history_listing') }}"
+					   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+					   style="width: 40px;" title="Reset">
+						<i class="fas fa-sync-alt"></i>
+					</a>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<!-- Summary + export -->
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+		<div class="clean-info-text">
+			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} entries
+		</div>
+		<a class="clean-btn" href="{{ url_for('admin.instances_history_export_csv', user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter) }}">
+			<i class="fas fa-file-csv"></i> Export CSV
+		</a>
+	</div>
+
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		<table class="clean-table table">
+			<thead>
+				<tr>
+					<th class="text-center"><b>Started At</b></th>
+					<th class="text-center"><b>Stopped At</b></th>
+					<th class="text-center"><b>Label</b></th>
+					<th class="text-center"><b>Challenge</b></th>
+					<th class="text-center"><b>User</b></th>
+					<th class="text-center"><b>Team</b></th>
+					<th class="text-center"><b>Tracking ID</b></th>
+					<th class="text-center"><b>Actions</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for row in logs.items %}
+				<tr>
+					<td class="mono text-center">{{ row.ChallengeStartTracking.started_at }}</td>
+					<td class="mono text-center">{% if row.ChallengeStartTracking.stopped_at %}{{ row.ChallengeStartTracking.stopped_at | trim }}{% else %}-{% endif %}</td>
+					<td class="text-center cell-truncate" title="{{ row.ChallengeStartTracking.label }}">
+						{% if row.ChallengeStartTracking.label %}
+							{{ row.ChallengeStartTracking.label | truncate(24) }}
+						{% else %}
+							-
+						{% endif %}
+					</td>
+					<td class="text-center cell-truncate" title="{{ row.challenge_name }}">
+						{% if row.challenge_id %}
+						<a href="{{ url_for('admin.challenges_detail', challenge_id=row.challenge_id) }}">
+							{{ row.challenge_name | truncate(28) }}
+						</a>
+						<div class="text-muted small">#{{ row.challenge_id }}</div>
+						{% else %}
+						-
+						{% endif %}
+					</td>
+					<td class="text-center cell-truncate" title="{{ row.user_name }}">
+						{% if row.user_id %}
+						<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name | truncate(24) }}</a>
+						<div class="text-muted small">#{{ row.user_id }}</div>
+						{% else %}
+						-
+						{% endif %}
+					</td>
+					<td class="text-center cell-truncate" title="{{ row.team_name }}">
+						{% if row.team_id %}
+						<a href="{{ url_for('admin.teams_detail', team_id=row.team_id) }}">{{ row.team_name | truncate(24) }}</a>
+						<div class="text-muted small">#{{ row.team_id }}</div>
+						{% else %}
+						-
+						{% endif %}
+					</td>
+					<td class="mono text-center">{{ row.ChallengeStartTracking.id }}</td>
+					<td class="text-center">
+						{% if row.challenge_id and row.team_id %}
+						<div class="action-dropdown">
+							<button type="button" class="clean-btn clean-btn-sm"
+								onclick="toggleActionMenu(this, event)">
+								Actions <i class="fas fa-caret-down"></i>
+							</button>
+							<div class="action-menu">
+								<a class="action-menu-item"
+									href="/deploy_History/{{ row.challenge_id }}/pods-logs?team_id={{ row.team_id }}">
+									<i class="fas fa-file-alt fa-fw"></i> Pod Logs
+								</a>
+								<a class="action-menu-item"
+									href="/deploy_History/{{ row.challenge_id }}/request-logs?team_id={{ row.team_id }}{% if row.ChallengeStartTracking.label %}&ns={{ row.ChallengeStartTracking.label | urlencode }}{% endif %}">
+									<i class="fas fa-exchange-alt fa-fw"></i> Request Logs
+								</a>
+							</div>
+						</div>
+						{% else %}
+						-
+						{% endif %}
+					</td>
+				</tr>
+				{% endfor %}
+				{% if logs.total == 0 %}
+				<tr>
+					<td colspan="8" class="text-center text-muted">No entries found</td>
+				</tr>
+				{% endif %}
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Pagination -->
+	{% if logs.pages > 1 %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} total
+		</div>
+		<nav aria-label="Instances history pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if not logs.has_prev %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page }}">&laquo;</a>
+				</li>
+				{% set start_page = [1, logs.page - 2]|max %}
+				{% set end_page = [logs.pages, logs.page + 2]|min %}
+				{% if start_page > 1 %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=1, user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">1</a>
+					</li>
+					{% if start_page > 2 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+				{% endif %}
+				{% for page_num in range(start_page, end_page + 1) %}
+				<li class="page-item {% if page_num == logs.page %}active{% endif %}">
+					<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=page_num, user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ page_num }}</a>
+				</li>
+				{% endfor %}
+				{% if end_page < logs.pages %}
+					{% if end_page < logs.pages - 1 %}
+					<li class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+					<li class="page-item">
+						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=logs.pages, user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ logs.pages }}</a>
+					</li>
+				{% endif %}
+				<li class="page-item {% if not logs.has_next %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+	</div>
+	{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+	function closeAllActionMenus() {
+		document.querySelectorAll('.action-menu.open').forEach(function(m) {
+			m.classList.remove('open');
+		});
+	}
+
+	function toggleActionMenu(btn, event) {
+		event.stopPropagation();
+		var menu = btn.nextElementSibling;
+		if (!menu) return;
+		var isOpen = menu.classList.contains('open');
+		closeAllActionMenus();
+		if (!isOpen) {
+			menu.classList.add('open');
+			positionActionMenu(menu, btn);
+		}
+	}
+
+	function positionActionMenu(menu, btn) {
+		var rect = btn.getBoundingClientRect();
+		var menuW = menu.offsetWidth || 160;
+		var left = rect.right - menuW;
+		if (left < 4) left = rect.left;
+		menu.style.top = (rect.bottom + 2) + 'px';
+		menu.style.left = left + 'px';
+	}
+
+	document.addEventListener('click', function() {
+		closeAllActionMenus();
+	});
+
+	(function() {
+		function repositionOpenMenu() {
+			var menu = document.querySelector('.action-menu.open');
+			if (!menu) return;
+			var btn = menu.previousElementSibling;
+			if (btn) positionActionMenu(menu, btn);
+		}
+		var tableWrapper = document.querySelector('.clean-table-wrapper');
+		if (tableWrapper) tableWrapper.addEventListener('scroll', repositionOpenMenu);
+		window.addEventListener('scroll', repositionOpenMenu);
+	})();
+</script>
+{% endblock %}

@@ -2,11 +2,18 @@
 {% endblock %}
 
 <script>
-	document.getElementById("setup_docker").addEventListener("click", () => {
-		const uploadFileSection = document.querySelector(".upload-file");
-		const multi_files = document.querySelector(".multi_files");
-		multi_files.classList.toggle("d-none", document.getElementById("setup_docker").checked);
-		uploadFileSection.classList.toggle("d-none", !document.getElementById("setup_docker").checked);
+	document.addEventListener('DOMContentLoaded', function() {
+		const setupDockerElement = document.getElementById("setup_docker");
+		if (setupDockerElement) {
+			setupDockerElement.addEventListener("click", () => {
+				const uploadFileSection = document.querySelector(".upload-file");
+				const multi_files = document.querySelector(".multi_files");
+				const exposePortContainer = document.getElementById("expose_port_container");
+				if (multi_files) multi_files.classList.toggle("d-none", setupDockerElement.checked);
+				if (uploadFileSection) uploadFileSection.classList.toggle("d-none", !setupDockerElement.checked);
+				if (exposePortContainer) exposePortContainer.classList.toggle("d-none", !setupDockerElement.checked);
+			});
+		}
 	});
 </script>
 
@@ -16,10 +23,13 @@
 		<label>
 			Name:<br>
 			<small class="form-text text-muted">
-				The name of your challenge
+				The name of your challenge (Maximum 40 characters)
 			</small>
 		</label>
-		<input type="text" class="form-control" name="name" placeholder="Enter challenge name">
+		<input type="text" class="form-control chal-name" name="name" placeholder="Enter challenge name" maxlength="40" required>
+		<small class="form-text text-muted">
+			<span id="char-count">0</span>/40 characters
+		</small>
 	</div>
 	{% endblock %}
 
@@ -28,21 +38,46 @@
 		<label>
 			Category:<br>
 			<small class="form-text text-muted">
-				The category of your challenge
+				The category of your challenge (Maximum 20 characters)
 			</small>
 		</label>
-		<input type="text" class="form-control" name="category" placeholder="Enter challenge category">
+		<input type="text" class="form-control" name="category" placeholder="Enter challenge category" maxlength="20" required>
+	</div>
+	{% endblock %}
+
+	{% block difficulty %}
+	<div class="form-group">
+		<label>
+			Difficulty:<br>
+			<small class="form-text text-muted">
+				Rate the difficulty of this challenge (1-5 stars)
+			</small>
+		</label>
+		<div class="star-rating-picker" data-target="difficulty-input-create">
+			{% for i in range(1, 6) %}
+			<i class="far fa-star star-pick" data-value="{{ i }}" style="cursor:pointer;font-size:1.5rem;color:#dee2e6;margin-right:4px;transition:color .15s"></i>
+			{% endfor %}
+			<span class="ml-2 text-muted difficulty-label" style="font-size:.9rem">Not set</span>
+		</div>
+		<input type="hidden" name="difficulty" id="difficulty-input-create" value="">
 	</div>
 	{% endblock %}
 
 
-
 	{% block message %}
+	<div  class="form-group">
+		<label>
+			Files
+			<small class="form-text text-muted">Select PDF file as a description (Maximum 5MB)</small>
+		</label>
+		<input class="form-control-file" type="file" name="file" id="file-upload" accept=".pdf" />
+		<input  type="hidden" name="file_upload" value="description" />
+	</div>
 	<div class="form-group">
 		<label>
-			Message:<br>
+			Description:<br>
 			<small class="form-text text-muted">
-				Use this to give a brief introduction to your challenge.
+				Description for your challenge.
 			</small>
 		</label>
 		<textarea id="new-desc-editor" class="form-control markdown" name="description" rows="10"></textarea>
@@ -56,10 +91,29 @@
 				Specify the time limit for solving this challenge.
 			</small>
 		</label>
-		<input type="number" class="form-control" name="time_limit" min="-1" value="-1" placeholder="Enter value" required>
+		<input type="number" class="form-control" name="time_limit" min="1" max="30" value="30" placeholder="Enter value" required>
 	</div>
 	{% endblock %}
 
+	<div class="form-group">
+		<label>
+			Max Attempts<br>
+			<small class="form-text text-muted">Maximum amount of attempts users receive. Leave at 0 for
+				unlimited.</small>
+		</label>
+
+		<input type="number" class="form-control chal-attempts" name="max_attempts"
+			value="0" min="0" step="1" required>
+	</div>
+	{% block cooldown %}
+	<div class="form-group">
+        <label for="submission_cooldown">
+            Submission cooldown (seconds):<br>
+            <small class="form-text text-muted">Minimum number of seconds required between two submissions for this challenge (0 = disabled).</small>
+        </label>
+        <input type="number" class="form-control" id="submission_cooldown" name="cooldown" min="0" step="1" value="0">
+    </div>
+	{% endblock %}
 	{% block value %}
 	<div class="form-group">
 		<label>
@@ -68,7 +122,7 @@
 				This is how many points are rewarded for solving this challenge.
 			</small>
 		</label>
-		<input type="number" class="form-control" name="value" placeholder="Enter value" required>
+		<input type="number" class="form-control" name="value" placeholder="Enter value" min="0" required>
 	</div>
 	{% endblock %}
 	{% block user_id %}
@@ -93,4 +147,53 @@
 </form>
 
 {% block footer %}
+<script>
+(function() {
+	document.querySelectorAll('.star-rating-picker').forEach(function(picker) {
+		var targetId = picker.getAttribute('data-target');
+		var input = document.getElementById(targetId);
+		var stars = picker.querySelectorAll('.star-pick');
+		var label = picker.querySelector('.difficulty-label');
+		var labels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
+
+		function render(val) {
+			stars.forEach(function(s, idx) {
+				if (idx < val) {
+					s.classList.remove('far');
+					s.classList.add('fas');
+					s.style.color = '#ff6b35';
+				} else {
+					s.classList.remove('fas');
+					s.classList.add('far');
+					s.style.color = '#dee2e6';
+				}
+			});
+			label.textContent = val > 0 ? labels[val - 1] : 'Not set';
+		}
+
+		stars.forEach(function(star) {
+			star.addEventListener('mouseenter', function() {
+				render(parseInt(this.getAttribute('data-value')));
+			});
+			star.addEventListener('click', function() {
+				var v = parseInt(this.getAttribute('data-value'));
+				if (parseInt(input.value) === v) {
+					input.value = '';
+					render(0);
+				} else {
+					input.value = v;
+					render(v);
+				}
+			});
+		});
+
+		picker.addEventListener('mouseleave', function() {
+			render(parseInt(input.value) || 0);
+		});
+
+		// Init
+		render(parseInt(input.value) || 0);
+	});
+})();
+</script>
 {% endblock %}

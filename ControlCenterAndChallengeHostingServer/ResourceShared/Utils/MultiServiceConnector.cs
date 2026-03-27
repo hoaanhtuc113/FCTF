@@ -5,19 +5,45 @@ namespace ResourceShared.Utils
 {
     public class MultiServiceConnector
     {
-        private RestClient client { get; set; }
-        private RestRequest request { get; set; } = new RestRequest();
-        public MultiServiceConnector(string BaseUrl)
+        public MultiServiceConnector()
         {
-            RestClientOptions options = new RestClientOptions(BaseUrl);
-            options.CookieContainer = new();
-            options.Timeout = TimeSpan.FromMinutes(15);
-            client = new RestClient(options);
         }
-        public async Task<string?> ExecuteNormalRequest(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType)
+        private static RestClient CreateClient(string baseUrl)
         {
-            request.Method = method;
-            request.Resource = ApiPath;
+            return new RestClient(new RestClientOptions(baseUrl)
+            {
+                CookieContainer = new(),
+                Timeout = TimeSpan.FromMinutes(5),
+                RemoteCertificateValidationCallback = (request, certificate, chain, sslPolicyErrors) =>
+                {
+                    // Argo server in secure mode commonly uses an internal/self-signed cert.
+                    // Keep verification for other services.
+                    return baseUrl.Contains("argo-workflows-server", StringComparison.OrdinalIgnoreCase)
+                        || sslPolicyErrors == System.Net.Security.SslPolicyErrors.None;
+                }
+            });
+        }
+
+        public async Task<string?> ExecuteNormalRequest(
+            string baseUrl,
+            string apiPath,
+            Method method,
+            Dictionary<string, object> parameters,
+            RequestContentType contentType,
+            Dictionary<string, string>? headers = null)
+        {
+            var request = new RestRequest
+            {
+                Method = method,
+                Resource = apiPath
+            };
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    request.AddHeader(header.Key, header.Value);
+                }
+            }
             switch (contentType)
             {
                 case RequestContentType.Json:
@@ -39,8 +65,9 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var response = await client.ExecuteAsync(request);
-            if (response.StatusCode != System.Net.HttpStatusCode.OK && string.IsNullOrEmpty(response.Content))
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
+
+            if (!response.IsSuccessful && string.IsNullOrEmpty(response.Content))
             {
                 throw new Exception("Failed to execute request");
             }
@@ -54,10 +81,18 @@ namespace ResourceShared.Utils
                 throw new Exception($"Deserialize failed, error: {ex.Message}. string {ex}", ex);
             }
         }
-        public async Task<T?> ExecuteRequest<T>(string ApiPath, Method method, Dictionary<string, object> parameters, RequestContentType contentType)
+        public async Task<T?> ExecuteRequest<T>(
+            string baseUrl,
+            string apiPath,
+            Method method,
+            Dictionary<string, object> parameters,
+            RequestContentType contentType)
         {
-            request.Method = method;
-            request.Resource = ApiPath;
+            var request = new RestRequest
+            {
+                Method = method,
+                Resource = apiPath
+            };
             switch (contentType)
             {
                 case RequestContentType.Json:
@@ -79,8 +114,9 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var response = await client.ExecuteAsync(request);
-            if (response.StatusCode != System.Net.HttpStatusCode.OK || string.IsNullOrEmpty(response.Content) || !IsValidJson(response.Content))
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
+
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
             {
                 throw new Exception("Failed to execute request");
             }
@@ -89,14 +125,18 @@ namespace ResourceShared.Utils
             try
             {
                 result = JsonConvert.DeserializeObject<T>(response.Content);
-            return result;
+                return result;
             }
             catch (Exception ex)
             {
                 throw new Exception($"Deserialize failed, error: {ex.Message}. string {ex}", ex);
             }
         }
-        public async Task<T?> ExecuteRequest<T>(RestRequest request, Dictionary<string, object> parameters, RequestContentType contentType)
+        public async Task<T?> ExecuteRequest<T>(
+            string baseUrl,
+            RestRequest request,
+            Dictionary<string, object> parameters,
+            RequestContentType contentType)
         {
             switch (contentType)
             {
@@ -119,8 +159,9 @@ namespace ResourceShared.Utils
                 default:
                     break;
             }
-            var response = await client.ExecuteAsync(request);
-            if (response.StatusCode != System.Net.HttpStatusCode.OK || string.IsNullOrEmpty(response.Content) || !IsValidJson(response.Content))
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
+
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
             {
                 throw new Exception($"Request failed, status code: {response.StatusCode}. response: {response.Content}", new($"Request failed, status code: {response.StatusCode}. response: {response.Content}"));
             }
@@ -136,31 +177,26 @@ namespace ResourceShared.Utils
             }
             return result;
         }
-        //function to check if a string is a valid json
-        public bool IsValidJson(string strInput)
+        public async Task<string?> ExecuteRequest(
+            string baseUrl,
+            string apiPath,
+            Method method,
+            object body,
+            Dictionary<string, string>? headers = null)
         {
-            strInput = strInput.Trim();
-            if ((strInput.StartsWith("{") && strInput.EndsWith("}")) || //For object
-                (strInput.StartsWith("[") && strInput.EndsWith("]"))) //For array
-            {
-                try
-                {
-                    var obj = Newtonsoft.Json.Linq.JToken.Parse(strInput);
-                    return true;
-                }
-                catch (Newtonsoft.Json.JsonReaderException)
-                {
-                    return false;
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                return false;
-            }
+            var request = new RestRequest(apiPath, method)
+                .AddHeader("Content-Type", "application/json")
+                .AddJsonBody(body);
+
+            if (headers != null)
+                foreach (var h in headers)
+                    request.AddHeader(h.Key, h.Value);
+
+            var response = await CreateClient(baseUrl).ExecuteAsync(request);
+            if (!response.IsSuccessful)
+                throw new Exception($"[{(int)response.StatusCode}] {response.StatusDescription}\n{response.Content}");
+
+            return response.Content;
         }
     }
     public enum RequestContentType

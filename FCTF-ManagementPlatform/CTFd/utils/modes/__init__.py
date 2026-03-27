@@ -14,12 +14,12 @@ def generate_account_url(account_id, admin=False):
         if admin:
             return url_for("admin.users_detail", user_id=account_id)
         else:
-            return url_for("users.public", user_id=account_id)
+            return url_for("admin.users_detail", user_id=account_id)
     elif get_config("user_mode") == TEAMS_MODE:
         if admin:
             return url_for("admin.teams_detail", team_id=account_id)
         else:
-            return url_for("teams.public", team_id=account_id)
+            return url_for("admin.teams_detail", team_id=account_id)
 
 
 def get_model():

@@ -43,12 +43,6 @@ def check_score_visibility(f):
                         403,
                     )
 
-        elif v == ScoreVisibilityTypes.ADMINS:
-            if is_admin():
-                return f(*args, **kwargs)
-            else:
-                abort(404)
-
     return _check_score_visibility
 
 
@@ -114,10 +108,7 @@ def check_account_visibility(f):
 def check_registration_visibility(f):
     @functools.wraps(f)
     def _check_registration_visibility(*args, **kwargs):
-        v = get_config(ConfigTypes.REGISTRATION_VISIBILITY)
-        if v == RegistrationVisibilityTypes.PUBLIC:
-            return f(*args, **kwargs)
-        elif v == RegistrationVisibilityTypes.PRIVATE:
-            abort(404)
+        # Registration is disabled in this deployment.
+        abort(404)
 
     return _check_registration_visibility

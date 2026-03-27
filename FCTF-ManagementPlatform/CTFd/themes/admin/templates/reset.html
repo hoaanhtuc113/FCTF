@@ -44,7 +44,7 @@
 						</div>
 						<span class="text-muted">
 							Deletes all user and team accounts and their associated information<br>
-							<small>(Users, Teams, Submissions, Tracking)</small>
+							<small>(Users, Teams, Submissions, Tracking, Tokens, Tickets, Action Logs, Field Entries)</small>
 						</span>
 					</div>
 
@@ -66,35 +66,25 @@
 						</div>
 						<span class="text-muted">
 							Deletes all challenges and associated data<br>
-							<small>(Challenges, Flags, Hints, Tags, Challenge Files)</small>
+							<small>(Challenges, Flags, Hints, Tags, Topics, Challenge Files, Versions, Deploy Histories, Start Tracking, Badges)</small>
 						</span>
 					</div>
 
 					<div class="form-group pb-2">
 						<div class="form-check">
-							{{ form.pages(class="form-check-input", autocomplete="off") }}
-							{{ form.pages.label(class="form-check-label") }}
+							{{ form.logs(class="form-check-input", autocomplete="off") }}
+							{{ form.logs.label(class="form-check-label") }}
 						</div>
 						<span class="text-muted">
-							Deletes all pages and their associated files<br>
-							<small>(Pages, Page Files)</small>
-						</span>
-					</div>
-
-					<div class="form-group pb-2">
-						<div class="form-check">
-							{{ form.notifications(class="form-check-input", autocomplete="off") }}
-							{{ form.notifications.label(class="form-check-label") }}
-						</div>
-						<span class="text-muted">
-							Deletes all notifications<br>
-							<small>(Notifications)</small>
+							Deletes all action logs and admin audit logs<br>
+							<small>(Action Logs, Admin Audit Logs)</small>
 						</span>
 					</div>
 
 					<br>
 
 					{{ form.nonce() }}
+					<input type="hidden" name="csrf_token" value="{{ Session.nonce }}">
 
 					{{ form.submit(class="btn btn-warning btn-lg btn-block") }}
 				</form>

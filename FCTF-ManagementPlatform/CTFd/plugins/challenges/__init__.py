@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, session
+import json
 
 from CTFd.models import (
     ChallengeFiles,
@@ -32,6 +33,32 @@ class BaseChallenge(object):
         :return:
         """
         data = request.form or request.get_json()
+        data = dict(data)
+        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
+            if key in data and data[key] is not None:
+                try:
+                    data[key] = int(data[key])
+                except (TypeError, ValueError):
+                    pass
+        if "use_gvisor" in data:
+            if isinstance(data["use_gvisor"], str):
+                data["use_gvisor"] = data["use_gvisor"].lower() in ("true", "1", "yes", "on")
+        if "harden_container" in data:
+            if isinstance(data["harden_container"], str):
+                data["harden_container"] = data["harden_container"].lower() in ("true", "1", "yes", "on")
+        if "shared_instant" in data:
+            if isinstance(data["shared_instant"], str):
+                data["shared_instant"] = data["shared_instant"].lower() in ("true", "1", "yes", "on")
+        # Handle difficulty: convert empty string to None, valid string to int
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
         if int(data["time_limit"]) >= -1:
             challenge = cls.challenge_model(**data)
 
@@ -61,6 +88,8 @@ class BaseChallenge(object):
             "max_attempts": challenge.max_attempts,
             "type": challenge.type,
             "require_deploy": challenge.require_deploy,
+            "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
             "type_data": {
                 "id": cls.id,
                 "name": cls.name,
@@ -81,6 +110,59 @@ class BaseChallenge(object):
         :return:
         """
         data = request.form or request.get_json()
+        data = dict(data)
+
+        for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
+            if key in data and data[key] is not None:
+                try:
+                    data[key] = int(data[key])
+                except (TypeError, ValueError):
+                    pass
+        if "use_gvisor" in data:
+            if isinstance(data["use_gvisor"], str):
+                data["use_gvisor"] = data["use_gvisor"].lower() in ("true", "1", "yes", "on")
+        if "harden_container" in data:
+            if isinstance(data["harden_container"], str):
+                data["harden_container"] = data["harden_container"].lower() in ("true", "1", "yes", "on")
+        if "shared_instant" in data:
+            if isinstance(data["shared_instant"], str):
+                data["shared_instant"] = data["shared_instant"].lower() in ("true", "1", "yes", "on")
+        # Handle difficulty: convert empty string to None, valid string to int
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
+
+        # Handle expose_port - store in image_link JSON
+        if "expose_port" in data and data["expose_port"] is not None:
+            try:
+                expose_port_str = str(data["expose_port"])
+                # Remove expose_port from data so it doesn't get set as a direct attribute
+                del data["expose_port"]
+                
+                # Update image_link JSON with exposedPort
+                image_obj = {}
+                if challenge.image_link:
+                    try:
+                        parsed = json.loads(challenge.image_link)
+                        if isinstance(parsed, dict):
+                            image_obj = parsed
+                        else:
+                            image_obj = {"imageLink": challenge.image_link}
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        image_obj = {"imageLink": challenge.image_link}
+                
+                image_obj["exposedPort"] = expose_port_str
+                challenge.image_link = json.dumps(image_obj)
+            except (TypeError, ValueError):
+                # Invalid expose_port, skip updating
+                if "expose_port" in data:
+                    del data["expose_port"]
 
         # Kiểm tra nếu 'time_limit' có trong dữ liệu và kiểm tra giá trị của nó
         if "time_limit" in data:

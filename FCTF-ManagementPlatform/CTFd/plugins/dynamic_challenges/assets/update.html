@@ -1,13 +1,22 @@
 {% extends "admin/challenges/update.html" %}
 
+{% block header %}
+<div class="alert alert-secondary" role="alert">
+	Dynamic value challenges decrease in value as they receive solves. The more solves a dynamic challenge has,
+	the lower its value is to everyone who has solved it.
+</div>
+{% endblock %}
+
 {% block value %}
+<input type="hidden" name="scoring-type-radio" value="dynamic">
+
 <div class="form-group">
 	<label for="value">Current Value<br>
 		<small class="form-text text-muted">
 			This is how many points the challenge is worth right now.
 		</small>
 	</label>
-	<input type="number" class="form-control chal-value" name="value" value="{{ challenge.value }}" disabled>
+	<input type="number" class="form-control chal-value" name="value" value="{{ challenge.value }}" disabled readonly>
 </div>
 
 <div class="form-group">
@@ -16,7 +25,7 @@
 			This is how many points the challenge was worth initially.
 		</small>
 	</label>
-	<input type="number" class="form-control chal-initial" name="initial" value="{{ challenge.initial }}" required>
+	<input type="number" class="form-control chal-initial" name="initial" value="{{ challenge.initial }}" min="0" required>
 </div>
 
 <div class="form-group">
@@ -54,6 +63,25 @@
 			This is the lowest that the challenge can be worth
 		</small>
 	</label>
-	<input type="number" class="form-control chal-minimum" name="minimum" value="{{ challenge.minimum }}" required>
+	<input type="number" class="form-control chal-minimum" name="minimum" value="{{ challenge.minimum }}" min="0" required>
 </div>
+<script>
+(function () {
+	var initialInput = document.querySelector('.chal-initial');
+	var minimumInput = document.querySelector('.chal-minimum');
+	if (!initialInput || !minimumInput) return;
+	function validate() {
+		var iv = parseInt(initialInput.value, 10);
+		var mv = parseInt(minimumInput.value, 10);
+		if (!isNaN(iv) && !isNaN(mv) && mv > iv) {
+			minimumInput.setCustomValidity('Minimum value cannot be greater than Initial value (' + iv + ')');
+		} else {
+			minimumInput.setCustomValidity('');
+		}
+	}
+	initialInput.addEventListener('input', validate);
+	minimumInput.addEventListener('input', validate);
+	validate();
+})();
+</script>
 {% endblock %}

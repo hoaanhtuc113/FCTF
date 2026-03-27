@@ -1,5 +1,5 @@
 from collections import defaultdict
-from flask import render_template
+from flask import render_template, request
 import pytz
 from CTFd.admin import admin
 from CTFd.utils.config import is_teams_mode
@@ -13,7 +13,7 @@ from CTFd.utils.scores import (
     get_teams_cleared_all_challenges_by_topic,
     calculate_and_assign_awards,
 )
-from CTFd.models import Achievements, Awards, Challenges, Solves, Teams, Users, db
+from CTFd.models import Achievements, Awards, Brackets, Challenges, Solves, Teams, Users, db
 from sqlalchemy import and_
 
 
@@ -22,8 +22,11 @@ from sqlalchemy import and_
 @admin_or_jury
 def scoreboard_listing():
     
-    standings = get_standings(admin=True)
-    user_standings = get_user_standings(admin=True) if is_teams_mode() else None
+    bracket_id = request.args.get("bracket_id", type=int)
+    brackets = Brackets.query.all()
+
+    standings = get_standings(admin=True, bracket_id=bracket_id)
+    user_standings = get_user_standings(admin=True, bracket_id=bracket_id) if is_teams_mode() else None
     top_submission = getSubmitStandings(admin=True)
     print('top submit:', top_submission)
     top_solves = get_team_challenge_counts(is_admin=True)
@@ -134,8 +137,10 @@ def scoreboard_listing():
         user_standings=user_standings,
         top_submission=top_submission,
         top_solves=top_solves,
-        last_submission=last_submission,
         top_solves_with_topics=top_solves_with_topics,
+        last_submission=last_submission,
         first_bloods=first_bloods_data,
         challenge_masters=challenge_masters_data,
+        brackets=brackets,
+        selected_bracket_id=bracket_id,
     )

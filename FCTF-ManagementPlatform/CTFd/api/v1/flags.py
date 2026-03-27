@@ -2,16 +2,18 @@ from typing import List
 
 from flask import request
 from flask_restx import Namespace, Resource
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
 from CTFd.constants import RawEnum
-from CTFd.models import Flags, RegexFlag, StaticFlag, db
+from CTFd.models import Challenges, Flags, RegexFlag, StaticFlag, db
 from CTFd.plugins.flags import FLAG_CLASSES, get_flag_class
 from CTFd.schemas.flags import FlagSchema
 from CTFd.utils.decorators import admins_only,admin_or_challenge_writer_only_or_jury
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 
 flags_namespace = Namespace("flags", description="Endpoint to retrieve Flags")
 
@@ -108,10 +110,38 @@ class FlagList(Resource):
             return {"success": False, "errors": response.errors}, 400
         
         db.session.add(response.data)
-        db.session.commit()
+        
+        try:
+            db.session.commit()
+        except (IntegrityError, OperationalError) as e:
+            db.session.rollback()
+            return {"success": False, "errors": {"database": [str(e)]}}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "errors": {"unknown": [str(e)]}}, 400
 
         response = schema.dump(response.data)
         db.session.close()
+
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        log_audit(
+            action="flag_create",
+            data={
+                "flag_id": response.data.get("id"),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+                "type": response.data.get("type"),
+                "content": response.data.get("content"),
+                "data": response.data.get("data"),
+            },
+        )
 
         return {"success": True, "data": response.data}
 
@@ -169,9 +199,31 @@ class Flag(Resource):
     def delete(self, flag_id):
         flag = Flags.query.filter_by(id=flag_id).first_or_404()
 
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        if flag.challenge_id:
+            _ch = Challenges.query.filter_by(id=flag.challenge_id).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        flag_info = {
+            "flag_id": flag.id,
+            "challenge_id": flag.challenge_id,
+            "challenge_name": _challenge_name,
+            "type": flag.type,
+            "content": flag.content,
+            "data": flag.data,
+        }
+
         db.session.delete(flag)
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="flag_delete",
+            before=flag_info,
+            data={"flag_id": int(flag_id)},
+        )
 
         return {"success": True}
 
@@ -188,6 +240,15 @@ class Flag(Resource):
     )
     def patch(self, flag_id):
         flag = Flags.query.filter_by(id=flag_id).first_or_404()
+
+        # Capture before state
+        before_state = {
+            "challenge_id": flag.challenge_id,
+            "type": flag.type,
+            "content": flag.content,
+            "data": flag.data,
+        }
+
         schema = FlagSchema()
         req = request.get_json()
 
@@ -200,5 +261,29 @@ class Flag(Resource):
 
         response = schema.dump(response.data)
         db.session.close()
+
+        # Resolve challenge name for audit context
+        _challenge_name = None
+        _cid = response.data.get("challenge_id")
+        if _cid:
+            _ch = Challenges.query.filter_by(id=_cid).first()
+            if _ch:
+                _challenge_name = _ch.name
+
+        log_audit(
+            action="flag_update",
+            before=before_state,
+            after={
+                "challenge_id": response.data.get("challenge_id"),
+                "type": response.data.get("type"),
+                "content": response.data.get("content"),
+                "data": response.data.get("data"),
+            },
+            data={
+                "flag_id": int(flag_id),
+                "challenge_id": _cid,
+                "challenge_name": _challenge_name,
+            },
+        )
 
         return {"success": True, "data": response.data}

@@ -1,8 +1,10 @@
 from flask import render_template, request, url_for
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import not_
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Teams, Tracking
+from CTFd.models import Brackets, Challenges, Teams, Tracking, Users, db
 from CTFd.utils.decorators import admin_or_jury, admins_only
 
 
@@ -11,6 +13,9 @@ from CTFd.utils.decorators import admin_or_jury, admins_only
 def teams_listing():
     q = request.args.get("q")
     field = request.args.get("field")
+    hidden = request.args.get("hidden") in ("1", "true", "on", "yes")
+    banned = request.args.get("banned") in ("1", "true", "on", "yes")
+    bracket_id = request.args.get("bracket_id", type=int)
     page = abs(request.args.get("page", 1, type=int))
     filters = []
 
@@ -19,11 +24,29 @@ def teams_listing():
         if Teams.__mapper__.has_property(field):
             filters.append(getattr(Teams, field).like("%{}%".format(q)))
 
+    if hidden:
+        filters.append(Teams.hidden.is_(True))
+    if banned:
+        filters.append(Teams.banned.is_(True))
+    if bracket_id:
+        filters.append(Teams.bracket_id == bracket_id)
+
+    brackets = Brackets.query.order_by(Brackets.id.asc()).all()
+
     teams = (
-        Teams.query.filter(*filters)
+        Teams.query.options(joinedload(Teams.captain))
+        .filter(*filters)
         .order_by(Teams.id.asc())
-        .paginate(page=page, per_page=50, error_out=False)
+        .paginate(page=page, per_page=10, error_out=False)
     )
+
+    member_counts = {
+        team_id: count
+        for team_id, count in db.session.query(Users.team_id, func.count(Users.id))
+        .filter(Users.team_id.isnot(None))
+        .group_by(Users.team_id)
+        .all()
+    }
 
     args = dict(request.args)
     args.pop("page", 1)
@@ -35,6 +58,11 @@ def teams_listing():
         next_page=url_for(request.endpoint, page=teams.next_num, **args),
         q=q,
         field=field,
+        hidden=hidden,
+        banned=banned,
+        member_counts=member_counts,
+        brackets=brackets,
+        bracket_id=bracket_id,
     )
 
 

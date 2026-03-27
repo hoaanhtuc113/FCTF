@@ -1,0 +1,832 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+  .rewards-page .page-subtitle {
+    margin-top: 0.5rem;
+    color: #6c757d;
+    font-size: 0.95rem;
+  }
+
+  .section-card {
+    background: #ffffff;
+    padding: 1.25rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e8e8e8;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-title {
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e8910d;
+    margin-bottom: 1rem;
+  }
+
+  .template-card {
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+  }
+
+  .template-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    transition: all 0.2s;
+  }
+
+  .template-card.selected {
+    border-color: #e8910d;
+    box-shadow: 0 0 0 2px rgba(232, 145, 13, 0.25);
+  }
+
+  .stat-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    text-align: center;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-card h4 {
+    margin-bottom: 0;
+    color: #e8910d;
+  }
+
+  .search-select-wrapper {
+    position: relative;
+  }
+
+  .search-select-wrapper .dropdown-list {
+    position: absolute;
+    z-index: 100;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-top: 0;
+    border-radius: 0 0 4px 4px;
+    display: none;
+  }
+
+  .search-select-wrapper .dropdown-list.show {
+    display: block;
+  }
+
+  .search-select-wrapper .dropdown-item {
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+
+  .search-select-wrapper .dropdown-item:hover {
+    background-color: #f0f0f0;
+  }
+
+  .search-select-wrapper .dropdown-item.active {
+    background-color: #e8910d;
+    color: #fff;
+  }
+
+  .detail-row td {
+    background: #fff8f0;
+    padding: 0.5rem 1rem !important;
+  }
+
+  .detail-row .detail-list {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+  }
+
+  .detail-row .detail-list table {
+    margin-bottom: 0;
+  }
+
+  tr.expandable-row {
+    cursor: pointer;
+  }
+
+  tr.expandable-row:hover {
+    background-color: #fff3e6 !important;
+  }
+
+  .cell-truncate {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rewards-page">
+  <div class="page-header">
+    <div class="container">
+      <h1><i class="bx bx-line-chart"></i> Reward Query & Export</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Template Selector -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-th-large"></i> Choose Template</div>
+      <div class="row" id="template-cards">
+        <div class="col-12 text-center py-3">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parameters -->
+    <div class="section-card" id="params-card" style="display: none;">
+      <div class="section-title"><i class="fas fa-sliders-h"></i> Parameters</div>
+      <div class="alert alert-secondary py-2 mb-3">
+        <strong id="selected-template-name" class="d-block"></strong>
+        <small class="text-muted" id="selected-template-desc"></small>
+      </div>
+      <div id="params-container"></div>
+      <div class="mt-2">
+        <button id="preview-btn" class="btn btn-warning text-white">
+          <i class="fas fa-eye"></i> Preview Results
+        </button>
+        <button id="reset-btn" class="btn btn-outline-secondary ml-2">
+          <i class="fas fa-undo"></i> Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="section-card" id="results-card" style="display: none;">
+      <div class="section-title d-flex justify-content-between align-items-center">
+        <div><i class="fas fa-list"></i> Results</div>
+        <span class="badge badge-warning text-white" id="result-count">0</span>
+      </div>
+
+      <div class="card-body p-0">
+        <!-- Stats Row -->
+        <div class="row mb-2" id="stats-row">
+          <div class="col-md-3">
+            <div class="stat-card">
+              <h4 id="stat-count">0</h4>
+              <small class="text-muted">Recipients</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <h4 id="stat-avg">-</h4>
+              <small class="text-muted">Avg Value</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <h4 id="stat-max">-</h4>
+              <small class="text-muted">Max Value</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <h4 id="stat-min">-</h4>
+              <small class="text-muted">Min Value</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table table-sm table-striped table-hover mb-2">
+            <thead class="thead-dark">
+              <tr id="results-header"></tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Export Button -->
+        <div class="mt-2 pt-2 border-top">
+          <button id="export-csv-btn" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Export Excel
+          </button>
+          <small class="text-muted ml-2"><i class="fas fa-info-circle"></i> File CSV có thể mở bằng Excel</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white py-2">
+        <h6 class="modal-title mb-0"><i class="fas fa-exclamation-circle"></i> Error</h6>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body py-2" id="errorMessage"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== State =====
+  let allTemplates = [];
+  let selectedTemplate = null;
+  let currentResults = null;
+  let categoriesCache = [];
+  let challengesCache = [];
+  let teamsCache = [];
+  let bracketsCache = [];
+
+  // ===== Fetch helper — works whether CTFd is loaded or not =====
+  function apiFetch(url, options) {
+    if (window.CTFd && window.CTFd.fetch) {
+      return window.CTFd.fetch(url, options);
+    }
+    // Fallback: plain fetch with CSRF nonce + urlRoot prefix
+    const root = (typeof init !== 'undefined' && init.urlRoot) ? init.urlRoot : '';
+    const nonce = (typeof init !== 'undefined' && init.csrfNonce) ? init.csrfNonce : '';
+    options = options || { method: "GET" };
+    options.credentials = "same-origin";
+    if (!options.headers) options.headers = {};
+    options.headers["Accept"] = "application/json";
+    options.headers["Content-Type"] = "application/json";
+    options.headers["CSRF-Token"] = nonce;
+    return fetch(root + url, options);
+  }
+
+  // ===== Param label mapping =====
+  const PARAM_LABELS = {
+    limit: 'Limit',
+    min_score: 'Min Score',
+    max_score: 'Max Score',
+    min_rank: 'Min Rank',
+    max_rank: 'Max Rank',
+    min_count: 'Min First Bloods',
+    min_categories_solved: 'Min Categories Solved',
+    min_perfect_solves: 'Min Perfect Solves',
+    min_solves: 'Min Solves',
+    min_attempts: 'Min Wrong Attempts',
+    category: 'Category',
+    challenge_id: 'Challenge',
+    team_id: 'Team',
+  };
+
+  // ===== Value column label by template =====
+  const VALUE_LABELS = {
+    top_teams_by_score: 'Score',
+    first_blood_hunters: 'First Bloods',
+    category_masters: 'Categories Cleared',
+    perfect_solvers: 'Perfect Solves',
+    most_attempts: 'Wrong Attempts',
+    solve_count_champions: 'Challenges Solved',
+    first_clear_each_category: 'Full Clear Date',
+    first_blood_by_category: 'Category',
+    no_hints_solvers: 'No-Hint Solves',
+  };
+
+  // ===== Init =====
+  async function initPage() {
+    await Promise.all([loadTemplates(), loadCategories(), loadChallenges(), loadTeams(), loadBrackets()]);
+  }
+
+  async function loadTemplates() {
+    try {
+      const res = await apiFetch("/admin/rewards/templates");
+      const data = await res.json();
+      if (data.success) {
+        allTemplates = data.templates;
+        renderTemplateCards();
+      }
+    } catch (err) {
+      showError("Failed to load templates");
+    }
+  }
+
+  async function loadCategories() {
+    try {
+      const res = await apiFetch("/admin/rewards/categories");
+      const data = await res.json();
+      if (data.success) categoriesCache = data.categories;
+    } catch (err) { /* ignore */ }
+  }
+
+  async function loadChallenges() {
+    try {
+      const res = await apiFetch("/admin/rewards/challenges");
+      const data = await res.json();
+      if (data.success) challengesCache = data.challenges;
+    } catch (err) { /* ignore */ }
+  }
+
+  async function loadTeams() {
+    try {
+      const res = await apiFetch("/admin/rewards/teams");
+      const data = await res.json();
+      if (data.success) teamsCache = data.teams;
+    } catch (err) { /* ignore */ }
+  }
+
+  async function loadBrackets() {
+    try {
+      const res = await apiFetch("/admin/rewards/brackets");
+      const data = await res.json();
+      if (data.success) bracketsCache = data.brackets;
+    } catch (err) { /* ignore */ }
+  }
+
+  // ===== Template Cards =====
+  function renderTemplateCards() {
+    const container = document.getElementById("template-cards");
+    if (allTemplates.length === 0) {
+      container.innerHTML = '<div class="col-12 text-center py-3"><p class="text-muted mb-0">No templates found</p></div>';
+      return;
+    }
+
+    const CATEGORY_BADGE = {
+      ranking: 'badge-primary',
+      achievement: 'badge-primary',
+      special: 'badge-primary',
+    };
+    container.innerHTML = allTemplates.map(t => {
+      const badgeClass = CATEGORY_BADGE[t.category] || 'badge-secondary';
+      return `
+      <div class="col-md-4 col-lg-3 mb-2">
+        <div class="card template-card h-100" style="cursor: pointer;" data-template-id="${t.id}">
+          <div class="card-body p-2">
+            <h6 class="mb-1"><i class="fas fa-${t.icon}"></i> ${t.name}</h6>
+            <p class="small text-muted mb-1">${t.description}</p>
+            <span class="badge ${badgeClass} badge-sm">${t.category}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    }).join('');
+
+    document.querySelectorAll(".template-card").forEach(card => {
+      card.addEventListener("click", () => {
+        document.querySelectorAll(".template-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        selectTemplate(card.dataset.templateId);
+      });
+    });
+  }
+
+  async function selectTemplate(templateId) {
+    try {
+      const res = await apiFetch(`/admin/rewards/templates/${templateId}`);
+      const data = await res.json();
+      if (data.success) {
+        selectedTemplate = data.template;
+        showParams();
+      }
+    } catch (err) {
+      showError("Failed to load template");
+    }
+  }
+
+  // ===== Parameters =====
+  function buildField(p) {
+    const label = PARAM_LABELS[p] || p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    let input = '';
+
+    if (p === 'category') {
+      const options = categoriesCache.map(c => `<option value="${c}">${c}</option>`).join('');
+      input = `<select class="form-control form-control-sm" id="param-${p}">
+        <option value="">All</option>
+        ${options}
+      </select>`;
+    } else if (p === 'challenge_id') {
+      input = buildSearchSelect(p, challengesCache.map(c => ({ value: c.id, label: `${c.name} (${c.category})` })));
+    } else if (p === 'team_id') {
+      input = buildSearchSelect(p, teamsCache.map(t => ({ value: t.id, label: t.name })));
+    } else {
+      input = `<input type="number" class="form-control form-control-sm" id="param-${p}" placeholder="${p === 'limit' ? '10' : ''}">`;
+    }
+
+    return `
+      <div class="form-group col-md-6 mb-2">
+        <label class="mb-1 small font-weight-bold">${label}</label>
+        ${input}
+      </div>
+    `;
+  }
+
+  function buildSearchSelect(paramName, items) {
+    const id = `param-${paramName}`;
+    return `
+      <div class="search-select-wrapper" id="wrapper-${id}">
+        <input type="text" class="form-control form-control-sm" id="${id}-search"
+          placeholder="Type to search..." autocomplete="off">
+        <input type="hidden" id="${id}">
+        <div class="dropdown-list" id="${id}-list">
+          <div class="dropdown-item text-muted">Type to search...</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function initSearchSelects() {
+    document.querySelectorAll('.search-select-wrapper').forEach(wrapper => {
+      const searchInput = wrapper.querySelector('input[type="text"]');
+      const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+      const list = wrapper.querySelector('.dropdown-list');
+      const paramName = hiddenInput.id.replace('param-', '');
+      const items = paramName === 'challenge_id'
+        ? challengesCache.map(c => ({ value: c.id, label: `${c.name} (${c.category})` }))
+        : teamsCache.map(t => ({ value: t.id, label: t.name }));
+
+      searchInput.addEventListener('focus', () => {
+        renderDropdown(list, items, '', hiddenInput, searchInput);
+        list.classList.add('show');
+      });
+
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase();
+        const filtered = items.filter(i => i.label.toLowerCase().includes(q));
+        renderDropdown(list, filtered, q, hiddenInput, searchInput);
+        list.classList.add('show');
+        hiddenInput.value = '';
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) {
+          list.classList.remove('show');
+        }
+      });
+    });
+  }
+
+  function renderDropdown(listEl, items, query, hiddenInput, searchInput) {
+    if (items.length === 0) {
+      listEl.innerHTML = '<div class="dropdown-item text-muted">No results</div>';
+      return;
+    }
+    listEl.innerHTML = items.slice(0, 50).map(i => `
+      <div class="dropdown-item" data-value="${i.value}">${highlightMatch(i.label, query)}</div>
+    `).join('');
+
+    listEl.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        hiddenInput.value = item.dataset.value;
+        searchInput.value = item.textContent;
+        listEl.classList.remove('show');
+      });
+    });
+  }
+
+  function highlightMatch(text, query) {
+    if (!query) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return text.substring(0, idx) + '<strong>' + text.substring(idx, idx + query.length) + '</strong>' + text.substring(idx + query.length);
+  }
+
+  function showParams() {
+    document.getElementById("selected-template-name").textContent = selectedTemplate.name;
+    document.getElementById("selected-template-desc").textContent = selectedTemplate.description;
+
+    const container = document.getElementById("params-container");
+    const params = selectedTemplate.customizable_params || [];
+
+    // Build bracket dropdown HTML (shown for all templates if brackets exist)
+    let bracketHtml = '';
+    if (bracketsCache.length > 0) {
+      const bracketOptions = bracketsCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      bracketHtml = `
+        <div class="form-group col-md-6 mb-2">
+          <label class="mb-1 small font-weight-bold">Bracket</label>
+          <select class="form-control form-control-sm" id="param-bracket_id">
+            <option value="">All Brackets</option>
+            ${bracketOptions}
+          </select>
+        </div>
+      `;
+    }
+
+    if (params.length === 0 && !bracketHtml) {
+      container.innerHTML = '<p class="text-muted small mb-0">No customizable parameters — click Preview to run with defaults</p>';
+    } else {
+      container.innerHTML = `<div class="form-row">${params.map(buildField).join('')}${bracketHtml}</div>`;
+      initSearchSelects();
+    }
+
+    document.getElementById("params-card").style.display = "block";
+    document.getElementById("results-card").style.display = "none";
+    document.getElementById("params-card").scrollIntoView({ behavior: "smooth" });
+  }
+
+  // ===== Preview =====
+  async function previewResults() {
+    if (!selectedTemplate) return;
+
+    const params = {};
+    // Collect bracket filter
+    const bracketEl = document.getElementById('param-bracket_id');
+    if (bracketEl && bracketEl.value) {
+      params['bracket_id'] = Number(bracketEl.value);
+    }
+    (selectedTemplate.customizable_params || []).forEach(p => {
+      const el = document.getElementById(`param-${p}`);
+      if (el && el.value) {
+        if (el.type === 'number' || ['challenge_id', 'team_id', 'limit', 'min_score', 'max_score',
+          'min_rank', 'max_rank', 'min_count', 'min_categories_solved', 'min_perfect_solves',
+          'min_solves', 'min_attempts'].includes(p)) {
+          params[p] = Number(el.value);
+        } else {
+          params[p] = el.value;
+        }
+      }
+    });
+
+    try {
+      document.getElementById("preview-btn").disabled = true;
+      document.getElementById("preview-btn").innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+      const res = await apiFetch("/admin/rewards/preview", {
+        method: "POST",
+        body: JSON.stringify({ template_id: selectedTemplate.id, params })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        showError(data.error || "Preview failed");
+        return;
+      }
+
+      currentResults = data;
+      renderResults(data);
+    } catch (err) {
+      showError("Network error");
+    } finally {
+      document.getElementById("preview-btn").disabled = false;
+      document.getElementById("preview-btn").innerHTML = '<i class=\"fas fa-eye\"></i> Preview Results';
+    }
+  }
+
+  // ===== Results =====
+  function truncText(s, n) { return s && s.length > n ? s.substring(0, n) + '…' : (s || ''); }
+
+  function getResultColumns() {
+    const tid = selectedTemplate ? selectedTemplate.id : '';
+    const defaultEntity = selectedTemplate ? (selectedTemplate.query_config || {}).entity : 'team';
+    const entity = defaultEntity;
+    let valueLabel = VALUE_LABELS[tid] || 'Value';
+
+    // Override entity in currentResults for CSV export consistency
+    if (currentResults) currentResults._effectiveEntity = entity;
+
+    if (entity === 'solve') {
+      const solveCols = [
+        { key: 'rank', label: '#', width: '5%' },
+        { key: 'entity_name', label: 'Challenge', width: '30%' },
+        { key: 'category', label: 'Category', width: '20%' },
+        { key: 'team_name', label: 'Team', width: '25%' },
+      ];
+      // Hide metric_value for first_blood_by_category (redundant 1/0)
+      if (tid !== 'first_blood_by_category') {
+        solveCols.push({ key: 'metric_value', label: valueLabel, width: '20%' });
+      }
+      return solveCols;
+    }
+
+    // team entity (default)
+    const cols = [
+      { key: 'rank', label: '#', width: '5%' },
+      { key: 'entity_id', label: 'ID', width: '8%' },
+      { key: 'entity_name', label: 'Team', width: '25%' },
+      { key: 'metric_value', label: valueLabel, width: '15%' },
+    ];
+    if (tid === 'first_clear_each_category') {
+      cols.push({ key: 'category', label: 'Category', width: '14%' });
+    }
+    cols.push({ key: 'last_solve_date', label: 'Last Solve', width: '18%' });
+    return cols;
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return dateStr; }
+  }
+
+  // Templates that support detail expansion (click row to see solved challenges)
+  const EXPANDABLE_TEMPLATES = [
+    'first_blood_hunters', 'category_masters', 'perfect_solvers',
+    'solve_count_champions', 'no_hints_solvers'
+  ];
+
+  function renderResults(data) {
+    const results = data.result || [];
+    const tid = selectedTemplate ? selectedTemplate.id : '';
+    const isExpandable = EXPANDABLE_TEMPLATES.includes(tid);
+
+    // Stats
+    document.getElementById("stat-count").textContent = results.length;
+    if (results.length > 0) {
+      const values = results.map(r => Number(r.metric_value) || 0);
+
+      const sum = values.reduce((a, b) => a + b, 0);
+      const avg = sum / values.length;
+
+      const rounded = Math.round((avg + Number.EPSILON) * 100) / 100;
+
+      let display;
+
+      if (Math.abs(rounded) >= 1e12) {
+        display = rounded.toExponential(2);
+      } else {
+        display = rounded.toFixed(2);
+      }
+
+      document.getElementById("stat-avg").textContent = display;
+      document.getElementById("stat-max").textContent = Math.max(...values);
+      document.getElementById("stat-min").textContent = Math.min(...values);
+    } else {
+      ["stat-avg", "stat-max", "stat-min"].forEach(id => document.getElementById(id).textContent = "-");
+    }
+
+    // Build dynamic columns
+    const columns = getResultColumns();
+
+    // Filter columns based on available data
+    const visibleColumns = columns.filter(col => {
+      if (col.key === 'rank') return true;
+      if (col.key === 'metric_value') return true;
+      if (col.key === 'entity_id') return true;
+      if (col.key === 'entity_name') return true;
+      if (col.key === 'category') return results.some(r => r.category);
+      if (col.key === 'team_name') return results.some(r => r.team_name);
+      if (col.key === 'last_solve_date') return results.some(r => r.last_solve_date);
+      if (col.key === 'solved_count') return results.some(r => r.solved_count != null);
+      return true;
+    });
+
+    // Header
+    const thead = document.getElementById("results-header");
+    thead.innerHTML = visibleColumns.map(col =>
+      `<th style="width:${col.width}">${col.label}</th>`
+    ).join('');
+
+    // Body
+    const tbody = document.getElementById("results-body");
+    tbody.innerHTML = results.map((r, i) => {
+      const rowClass = isExpandable ? 'expandable-row' : '';
+      const expandIcon = isExpandable ? '<i class="fas fa-chevron-right fa-xs mr-1 expand-icon"></i>' : '';
+      return '<tr class="' + rowClass + '" data-idx="' + i + '">' + visibleColumns.map(col => {
+        if (col.key === 'rank') return `<td>${expandIcon}${r.rank != null ? r.rank : i + 1}</td>`;
+        if (col.key === 'last_solve_date') return `<td>${formatDate(r.last_solve_date)}</td>`;
+        if (col.key === 'entity_name' || col.key === 'team_name')
+          return `<td class="cell-truncate" title="${(r[col.key] || '').replace(/"/g, '&quot;')}">${truncText(r[col.key], 30)}</td>`;
+        const val = r[col.key];
+        return `<td>${val !== null && val !== undefined ? val : ''}</td>`;
+      }).join('') + '</tr>';
+    }).join('');
+
+    // Expandable row click handler
+    if (isExpandable) {
+      tbody.querySelectorAll('tr.expandable-row').forEach(row => {
+        row.addEventListener('click', function () {
+          const idx = parseInt(this.dataset.idx);
+          const existing = this.nextElementSibling;
+          if (existing && existing.classList.contains('detail-row')) {
+            existing.remove();
+            this.querySelector('.expand-icon').classList.replace('fa-chevron-down', 'fa-chevron-right');
+            return;
+          }
+          // Close other open details
+          tbody.querySelectorAll('.detail-row').forEach(d => d.remove());
+          tbody.querySelectorAll('.expand-icon').forEach(ic => ic.classList.replace('fa-chevron-down', 'fa-chevron-right'));
+
+          this.querySelector('.expand-icon').classList.replace('fa-chevron-right', 'fa-chevron-down');
+          const r = results[idx];
+          loadRowDetails(this, r, visibleColumns.length);
+        });
+      });
+    }
+
+    document.getElementById("result-count").textContent = `${results.length} results`;
+    document.getElementById("results-card").style.display = "block";
+    document.getElementById("results-card").scrollIntoView({ behavior: "smooth" });
+  }
+
+  // ===== Row Detail Loading =====
+  async function loadRowDetails(rowEl, rowData, colSpan) {
+    const tid = selectedTemplate ? selectedTemplate.id : '';
+    const entityId = rowData.entity_id;
+
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'detail-row';
+    detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i> Loading details...</div></td>`;
+    rowEl.after(detailRow);
+
+    try {
+      const res = await apiFetch("/admin/rewards/details", {
+        method: "POST",
+        body: JSON.stringify({
+          template_id: tid,
+          entity_type: 'team',
+          entity_id: entityId
+        })
+      });
+      const data = await res.json();
+
+      if (data.success && data.details && data.details.length > 0) {
+        const details = data.details;
+        let html = '<div class="detail-list"><table class="table table-sm table-bordered mb-0"><thead><tr>';
+        if (data.detail_type === 'category_clear') {
+          html += '<th>#</th><th>Category</th><th>Solved</th><th>Total</th><th>Clear Date</th>';
+          html += '</tr></thead><tbody>';
+          details.forEach((d, i) => {
+            html += `<tr><td>${i + 1}</td><td>${d.category || ''}</td><td>${d.solved_count || ''}</td><td>${d.total_challenges || ''}</td><td>${formatDate(d.full_clear_date)}</td></tr>`;
+          });
+        } else {
+          html += '<th>#</th><th>Challenge</th><th>Category</th><th>Score</th>';
+          html += '</tr></thead><tbody>';
+          details.forEach((d, i) => {
+            html += `<tr><td>${i + 1}</td><td>${d.challenge_name || ''}</td><td>${d.category || ''}</td><td>${d.score || ''}</td></tr>`;
+          });
+        }
+        html += '</tbody></table></div>';
+        detailRow.innerHTML = `<td colspan="${colSpan}">${html}</td>`;
+      } else {
+        detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-muted text-center py-2">No details available</div></td>`;
+      }
+    } catch (e) {
+      detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-danger text-center py-2">Failed to load details</div></td>`;
+    }
+  }
+
+  // ===== Export =====
+  function exportToCSV() {
+    if (!currentResults || !currentResults.result || currentResults.result.length === 0) {
+      showError("No results to export");
+      return;
+    }
+
+    const results = currentResults.result;
+    const columns = getResultColumns().filter(col => {
+      if (col.key === 'rank') return true;
+      if (col.key === 'metric_value') return true;
+      if (col.key === 'entity_id') return true;
+      if (col.key === 'entity_name') return true;
+      if (col.key === 'category') return results.some(r => r.category);
+      if (col.key === 'team_name') return results.some(r => r.team_name);
+      if (col.key === 'last_solve_date') return results.some(r => r.last_solve_date);
+      if (col.key === 'solved_count') return results.some(r => r.solved_count != null);
+      return true;
+    });
+
+    let csv = columns.map(c => c.label).join(',') + '\n';
+    results.forEach((r, i) => {
+      const row = columns.map(col => {
+        if (col.key === 'rank') return r.rank != null ? r.rank : i + 1;
+        if (col.key === 'last_solve_date') return r.last_solve_date ? `"${r.last_solve_date}"` : '';
+        const val = r[col.key];
+        if (typeof val === 'string') return `"${val.replace(/"/g, '""')}"`;
+        return val !== null && val !== undefined ? val : '';
+      });
+      csv += row.join(',') + '\n';
+    });
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `rewards_${selectedTemplate.id}_${new Date().getTime()}.csv`;
+    link.click();
+  }
+
+  // ===== Helpers =====
+  function resetForm() {
+    selectedTemplate = null;
+    currentResults = null;
+    document.querySelectorAll(".template-card").forEach(c => c.classList.remove("selected"));
+    document.getElementById("params-card").style.display = "none";
+    document.getElementById("results-card").style.display = "none";
+  }
+
+  function showError(msg) {
+    document.getElementById("errorMessage").textContent = msg;
+    try {
+      $('#errorModal').modal('show');
+    } catch (e) {
+      alert(msg);
+    }
+  }
+
+  // ===== Event Listeners =====
+  document.getElementById("preview-btn").addEventListener("click", previewResults);
+  document.getElementById("reset-btn").addEventListener("click", resetForm);
+  document.getElementById("export-csv-btn").addEventListener("click", exportToCSV);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initPage();
+  });
+</script>
+{% endblock %}

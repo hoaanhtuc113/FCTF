@@ -5,7 +5,7 @@ import requests
 from CTFd.admin import admin
 from CTFd.SendTicket import get_all_tickets, get_ticket_by_id, send_ticket_from_relier
 from CTFd.utils.decorators import admins_only
-from CTFd.plugins import bypass_csrf_protection
+from CTFd.utils.user import get_current_user
 
 
 # View tickets with filter, search, pagination, and bulk delete
@@ -59,7 +59,9 @@ def view_tickets():
 @admin.route("/admin/ticket-details/<int:ticket_id>", methods=['GET'])
 def view_tickets_detail(ticket_id):
     try:
-        user_id = session.get("id")
+        # Get current user
+        current_user = get_current_user()
+        user_id = current_user.id if current_user else None
 
         (response, status_code) = get_ticket_by_id(ticket_id=ticket_id)
         ticket_data = response.get('ticket')
@@ -77,14 +79,19 @@ def view_tickets_detail(ticket_id):
 
 
 @admin.route("/admin/send-ticket-response", methods=['POST'])
-@bypass_csrf_protection
 def send_response():
     try:
+        # Get current user
+        current_user = get_current_user()
+        if not current_user:
+            flash("You must be logged in to reply to tickets", "danger")
+            return redirect(url_for('admin.view_tickets'))
+        
         ticket_id = request.form.get("ticket_id")
-        replier_id = session["id"]
+        replier_id = current_user.id
         response_content = request.form.get("response")
 
-        if not ticket_id or not replier_id or not response_content:
+        if not ticket_id or not response_content:
             flash("All fields are required", "danger")
             return redirect(url_for('admin.view_tickets_detail', ticket_id=ticket_id))
 
@@ -94,7 +101,7 @@ def send_response():
             "replier_message": response_content
         }
         
-        (response, status_code) = send_ticket_from_relier(ticket_id,data)
+        (response, status_code) = send_ticket_from_relier(ticket_id, data)
         
         if status_code == 200:
             flash("Message sent successfully", "success")
@@ -105,4 +112,39 @@ def send_response():
 
     except Exception as e:
         flash(f"An unexpected error occurred: {str(e)}", "danger")
+        return redirect(url_for('admin.view_tickets'))
+
+
+@admin.route("/admin/tickets/delete", methods=['POST'])
+@admins_only
+def delete_tickets():
+    try:
+        from CTFd.models import Tickets, db
+        
+        ticket_ids = request.form.getlist("ticket_ids[]")
+        
+        if not ticket_ids:
+            flash("No tickets selected for deletion", "warning")
+            return redirect(url_for('admin.view_tickets'))
+        
+        # Delete tickets
+        deleted_count = 0
+        for ticket_id in ticket_ids:
+            ticket = Tickets.query.filter_by(id=int(ticket_id)).first()
+            if ticket:
+                db.session.delete(ticket)
+                deleted_count += 1
+        
+        db.session.commit()
+        
+        if deleted_count > 0:
+            flash(f"Successfully deleted {deleted_count} ticket(s)", "success")
+        else:
+            flash("No tickets were deleted", "warning")
+        
+        return redirect(url_for('admin.view_tickets'))
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f"An error occurred while deleting tickets: {str(e)}", "danger")
         return redirect(url_for('admin.view_tickets'))

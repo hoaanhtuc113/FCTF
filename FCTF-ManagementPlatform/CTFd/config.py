@@ -138,6 +138,8 @@ class ServerConfig(object):
     SESSION_COOKIE_SAMESITE: str = empty_str_cast(config_ini["security"]["SESSION_COOKIE_SAMESITE"]) \
         or "Lax"
 
+    SESSION_COOKIE_SECURE: bool = config_ini["security"].getboolean("SESSION_COOKIE_SECURE", fallback=False)
+
     PERMANENT_SESSION_LIFETIME: int = config_ini["security"].getint("PERMANENT_SESSION_LIFETIME") \
         or 604800
 
@@ -199,6 +201,9 @@ class ServerConfig(object):
     UPLOAD_PROVIDER: str = empty_str_cast(config_ini["uploads"]["UPLOAD_PROVIDER"]) \
         or "filesystem"
 
+    NFS_MOUNT_PATH: str = empty_str_cast(config_ini["uploads"]["NFS_MOUNT_PATH"]) \
+        or "/mnt/nfs/data"
+
     UPLOAD_FOLDER: str = empty_str_cast(config_ini["uploads"]["UPLOAD_FOLDER"]) \
         or os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 
@@ -230,7 +235,13 @@ class ServerConfig(object):
 
     SWAGGER_UI: bool = process_boolean_str(empty_str_cast(config_ini["optional"]["SWAGGER_UI"], default=False))
 
-    SWAGGER_UI_ENDPOINT: str = "/" if SWAGGER_UI else None
+    if SWAGGER_UI:
+        SWAGGER_UI_ENDPOINT: str = empty_str_cast(
+            config_ini["optional"].get("SWAGGER_UI_ENDPOINT", fallback="/"),
+            default="/",
+        )
+    else:
+        SWAGGER_UI_ENDPOINT: str = None
 
     UPDATE_CHECK: bool = process_boolean_str(empty_str_cast(config_ini["optional"]["UPDATE_CHECK"], default=True))
 

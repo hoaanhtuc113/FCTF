@@ -23,6 +23,7 @@
       <thead>
         <tr>
           <td class="text-center"><b>ID</b></td>
+          <td class="text-center"><b>Type</b></td>
           <td class="text-center"><b>Hint</b></td>
           <td class="text-center"><b>Cost</b></td>
           <td class="text-center"><b>Settings</b></td>
@@ -30,6 +31,7 @@
       </thead>
       <tbody>
         <tr v-for="hint in hints" :key="hint.id">
+          <td class="text-center">{{ hint.id }}</td>
           <td class="text-center">{{ hint.type }}</td>
           <td class="text-break">
             <pre>{{ hint.content }}</pre>
@@ -156,4 +158,86 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Clean Hints List Styles */
+.table {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.table thead {
+  background: #f8f9fa;
+}
+
+.table thead td {
+  border-bottom: 2px solid #e8e8e8;
+  color: #495057;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  padding: 0.75rem;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid #f1f1f1;
+  transition: all 0.15s ease;
+}
+
+.table tbody tr:hover {
+  background: #fffbf9;
+}
+
+.table tbody td {
+  padding: 0.75rem;
+  vertical-align: middle;
+}
+
+.table tbody td pre {
+  color: #2c3e50;
+  font-size: 0.875rem;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  background: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.btn-fa {
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+  padding: 0.25rem 0.5rem;
+  margin: 0 0.25rem;
+}
+
+.btn-fa:hover {
+  color: #ff6b35;
+  transform: scale(1.1);
+}
+
+.btn-fa.fa-times:hover {
+  color: #dc3545;
+}
+
+.btn-primary {
+  background: #ff6b35;
+  color: #ffffff;
+  border: 1px solid #ff6b35;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: #e85d2a;
+  border-color: #e85d2a;
+  color: #ffffff;
+}
+</style>

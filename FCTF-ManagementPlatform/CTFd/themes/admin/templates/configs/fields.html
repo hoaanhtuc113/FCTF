@@ -1,5 +1,6 @@
 <div role="tabpanel" class="tab-pane config-section" id="fields">
 	<form method="POST" autocomplete="off" class="w-100">
+		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 		<h5>Custom Fields</h5>
 
 		<small class="form-text text-muted">
@@ -22,7 +23,8 @@
 		<div class="tab-content">
 			<div role="tabpanel" class="tab-pane active" id="user-fields">
 				<div class="col-md-12 py-3">
-					<small>Custom user fields are shown during registration. Users can optionally edit these fields in their profile.</small>
+					<small>Custom user fields are shown during registration. Users can optionally edit these fields in
+						their profile.</small>
 				</div>
 
 				<div id="user-field-list" class="pt-3">
@@ -30,7 +32,8 @@
 			</div>
 			<div role="tabpanel" class="tab-pane" id="team-fields">
 				<div class="col-md-12 py-3">
-					<small>Custom team fields are shown during team creation. Team captains can optionally edit these fields in the team profile.</small>
+					<small>Custom team fields are shown during team creation. Team captains can optionally edit these
+						fields in the team profile.</small>
 				</div>
 
 				<div id="team-field-list" class="pt-3">

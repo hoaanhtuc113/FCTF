@@ -1,0 +1,33 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Gateway: Quick Tests + Report",
+            "type": "shell",
+            "command": "cd Test/Gateway && chmod +x ./run-gateway-tests.sh && ./run-gateway-tests.sh --type quick",
+            "problemMatcher": [],
+            "group": "test"
+        },
+        {
+            "label": "Gateway: All (Skip Long) + Report",
+            "type": "shell",
+            "command": "cd Test/Gateway && chmod +x ./run-gateway-tests.sh && ./run-gateway-tests.sh --type all --skip-long-running",
+            "problemMatcher": [],
+            "group": "test"
+        },
+        {
+            "label": "Gateway: All (Include Soak/Spike/Load) + Report",
+            "type": "shell",
+            "command": "cd Test/Gateway && chmod +x ./run-gateway-tests.sh && ./run-gateway-tests.sh --type all",
+            "problemMatcher": [],
+            "group": "test"
+        },
+        {
+            "label": "Gateway: Race Under Load + Report",
+            "type": "shell",
+            "command": "cd Test/Gateway && chmod +x ./run-gateway-tests.sh && ./run-gateway-tests.sh --type race",
+            "problemMatcher": [],
+            "group": "test"
+        }
+    ]
+}

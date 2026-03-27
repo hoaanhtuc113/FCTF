@@ -11,12 +11,19 @@ class ConfigTypes(str, RawEnum):
     SCORE_VISIBILITY = "score_visibility"
     ACCOUNT_VISIBILITY = "account_visibility"
     REGISTRATION_VISIBILITY = "registration_visibility"
+    CHALLENGE_DIFFICULTY_VISIBILITY = "challenge_difficulty_visibility"
 
 
 @JinjaEnum
 class UserModeTypes(str, RawEnum):
     USERS = "users"
     TEAMS = "teams"
+
+
+@JinjaEnum
+class ChallengeDifficultyVisibilityTypes(str, RawEnum):
+    ENABLED = "enabled"
+    DISABLED = "disabled"
 
 
 @JinjaEnum
@@ -31,7 +38,6 @@ class ScoreVisibilityTypes(str, RawEnum):
     PUBLIC = "public"
     PRIVATE = "private"
     HIDDEN = "hidden"
-    ADMINS = "admins"
 
 
 @JinjaEnum

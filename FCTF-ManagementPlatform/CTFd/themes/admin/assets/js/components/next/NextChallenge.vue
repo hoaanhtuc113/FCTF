@@ -131,4 +131,59 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Clean Next Challenge Styles */
+.form-group label {
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-group small {
+  color: #6c757d;
+  font-size: 0.875rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.form-control {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.form-control:focus {
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
+  outline: none;
+}
+
+.btn-primary {
+  background: #ff6b35;
+  color: #ffffff;
+  border: 1px solid #ff6b35;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: #e85d2a;
+  border-color: #e85d2a;
+}
+
+.btn-primary:disabled {
+  background: #f8f9fa;
+  color: #9ca3af;
+  border-color: #e8e8e8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+</style>

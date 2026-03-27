@@ -8,7 +8,10 @@
 			Name<br>
 			<small class="form-text text-muted">Challenge Name</small>
 		</label>
-		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}">
+		<input type="text" class="form-control chal-name" name="name" value="{{ challenge.name }}" maxlength="40" pattern=".*\S+.*" title="Challenge name cannot be empty or contain only spaces" required>
+		<small class="form-text text-muted">
+			<span id="char-count">{{ challenge.name|length if challenge.name else 0 }}</span>/40 characters
+		</small>
 	</div>
 	{% endblock %}
 
@@ -18,32 +21,137 @@
 			Category<br>
 			<small class="form-text text-muted">Challenge Category</small>
 		</label>
-		<input type="text" class="form-control chal-category" name="category" value="{{ challenge.category }}">
+		<input type="text" class="form-control chal-category" name="category" maxlength="30" value="{{ challenge.category }}" pattern=".*\S+.*" title="Category cannot be empty or contain only spaces" required>
+	</div>
+	{% endblock %}
+
+	{% block difficulty %}
+	<div class="form-group">
+		<label>
+			Difficulty:<br>
+			<small class="form-text text-muted">
+				Rate the difficulty of this challenge (1-5 stars)
+			</small>
+		</label>
+		<div class="star-rating-picker" data-target="difficulty-input-update">
+			{% for i in range(1, 6) %}
+			<i class="far fa-star star-pick" data-value="{{ i }}" style="cursor:pointer;font-size:1.5rem;color:#dee2e6;margin-right:4px;transition:color .15s"></i>
+			{% endfor %}
+			<span class="ml-2 text-muted difficulty-label" style="font-size:.9rem">Not set</span>
+		</div>
+		<input type="hidden" name="difficulty" id="difficulty-input-update" value="{{ challenge.difficulty if challenge.difficulty else '' }}">
 	</div>
 	{% endblock %}
 
 	{% block message %}
+	
 	<div class="form-group">
 		<label>
-			Message<br>
+			Description:<br>
 			<small class="form-text text-muted">
-				Use this to give a brief introduction to your challenge.
+				Description for your challenge.
 			</small>
 		</label>
 		<textarea id="desc-editor" class="form-control chal-desc-editor markdown" name="description"
 			rows="10">{{ challenge.description }}</textarea>
 	</div>
 	{% endblock %}
-
-	{% block value %}
 	<div class="form-group">
+        <label for="submission_cooldown">
+            Submission cooldown (seconds):<br>
+            <small class="form-text text-muted">Minimum number of seconds required between two submissions for this challenge (0 = disabled).</small>
+        </label>
+        <input type="number" class="form-control" id="submission_cooldown" name="cooldown" min="0" step="1" value="{{ challenge.cooldown }}">
+    </div>
+	{% block value %}
+	<!-- Challenge Scoring Type Toggle -->
+	{% if not ctf_is_active and challenge.type != 'multiple_choice' %}
+	<div class="form-group">
+		<label>
+			Scoring Type<br>
+			<small class="form-text text-muted">
+				Choose between standard (fixed) or dynamic (decreasing) scoring
+			</small>
+		</label>
+		<div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
+			<label class="btn btn-outline-success {% if challenge.type != 'dynamic' %}active{% endif %}" id="standard-scoring-btn">
+				<input type="radio" name="scoring-type-radio" value="standard" {% if challenge.type != 'dynamic' %}checked{% endif %}> Standard
+			</label>
+			<label class="btn btn-outline-info {% if challenge.type == 'dynamic' %}active{% endif %}" id="dynamic-scoring-btn">
+				<input type="radio" name="scoring-type-radio" value="dynamic" {% if challenge.type == 'dynamic' %}checked{% endif %}> Dynamic
+			</label>
+		</div>
+	</div>
+	{% endif %}
+
+	<!-- Standard Value Section -->
+	<div class="form-group {% if challenge.type == 'dynamic' %}d-none{% endif %}" id="standard-value-section">
 		<label for="value">
 			Value<br>
 			<small class="form-text text-muted">
 				This is how many points teams will receive once they solve this challenge.
 			</small>
 		</label>
-		<input type="number" class="form-control chal-value" name="value" value="{{ challenge.value }}" required>
+		<input type="number" class="form-control chal-value" name="value" value="{{ challenge.value }}" min="0" {% if challenge.type != 'dynamic' %}required{% endif %}>
+	</div>
+
+	<!-- Dynamic Value Section (will be shown when Dynamic is selected) -->
+	<div id="dynamic-value-section" class="{% if challenge.type != 'dynamic' %}d-none{% endif %}">
+		<div class="form-group">
+			<label for="value">Current Value<br>
+				<small class="form-text text-muted">
+					This is how many points the challenge is worth right now.
+				</small>
+			</label>
+			<input type="number" class="form-control chal-value" name="value" value="{{ challenge.value }}" disabled readonly>
+		</div>
+
+		<div class="form-group">
+			<label for="value">Initial Value<br>
+				<small class="form-text text-muted">
+					This is how many points the challenge was worth initially.
+				</small>
+			</label>
+			<input type="number" class="form-control chal-initial" name="initial" value="{{ challenge.initial }}" min="0" required>
+		</div>
+
+		<div class="form-group">
+			<label for="value">Decay Function<br>
+				<small class="form-text text-muted">
+					<span>How the dynamic value will be calculated based on the Decay value</span>
+					<ul>
+						<li>Linear: Calculated as <code>Initial - (Decay * SolveCount)</code></li>
+						<li>Logarithmic: Calculated as <code>(((Minimum - Initial) / (Decay^2)) * (SolveCount^2)) + Initial</code></li>
+					</ul>
+				</small>
+			</label>
+			<select name="function" class="custom-select">
+				<option value="linear" {% if challenge.function == "linear" %}selected{% endif %}>Linear</option>
+				<option value="logarithmic" {% if challenge.function == "logarithmic" %}selected{% endif %}>Logarithmic</option>
+			</select>
+		</div>
+
+		<div class="form-group">
+			<label for="value">Decay<br>
+				<small class="form-text text-muted">
+					<span>The decay value is used differently depending on the above Decay Function</span>
+					<ul>
+						<li>Linear: The amount of points deducted per solve. Equal deduction per solve.</li>
+						<li>Logarithmic: The amount of solves before the challenge reaches its minimum value. Earlier solves will lose less points. Later solves will lose more points</li>
+					</ul>
+				</small>
+			</label>
+			<input type="number" class="form-control chal-decay" min="1" name="decay" value="{{ challenge.decay }}" required>
+		</div>
+
+		<div class="form-group">
+			<label for="value">Minimum Value<br>
+				<small class="form-text text-muted">
+					This is the lowest that the challenge can be worth
+				</small>
+			</label>
+			<input type="number" class="form-control chal-minimum" name="minimum" value="{{ challenge.minimum }}" min="0" required>
+		</div>
 	</div>
 	{% endblock %}
 	{% block time_limit %}
@@ -95,7 +203,7 @@
 		</label>
 
 		<input type="number" class="form-control chal-attempts" name="max_attempts"
-			value="{{ challenge.max_attempts }}">
+			value="{{ challenge.max_attempts }}" min="0">
 	</div>
 	{% endblock %}
 
@@ -125,4 +233,53 @@
 </form>
 
 {% block footer %}
+<script>
+(function() {
+	document.querySelectorAll('.star-rating-picker').forEach(function(picker) {
+		var targetId = picker.getAttribute('data-target');
+		var input = document.getElementById(targetId);
+		var stars = picker.querySelectorAll('.star-pick');
+		var label = picker.querySelector('.difficulty-label');
+		var labels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
+
+		function render(val) {
+			stars.forEach(function(s, idx) {
+				if (idx < val) {
+					s.classList.remove('far');
+					s.classList.add('fas');
+					s.style.color = '#ff6b35';
+				} else {
+					s.classList.remove('fas');
+					s.classList.add('far');
+					s.style.color = '#dee2e6';
+				}
+			});
+			label.textContent = val > 0 ? labels[val - 1] : 'Not set';
+		}
+
+		stars.forEach(function(star) {
+			star.addEventListener('mouseenter', function() {
+				render(parseInt(this.getAttribute('data-value')));
+			});
+			star.addEventListener('click', function() {
+				var v = parseInt(this.getAttribute('data-value'));
+				if (parseInt(input.value) === v) {
+					input.value = '';
+					render(0);
+				} else {
+					input.value = v;
+					render(v);
+				}
+			});
+		});
+
+		picker.addEventListener('mouseleave', function() {
+			render(parseInt(input.value) || 0);
+		});
+
+		// Init from existing value
+		render(parseInt(input.value) || 0);
+	});
+})();
+</script>
 {% endblock %}

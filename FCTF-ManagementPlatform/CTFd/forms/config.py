@@ -1,9 +1,10 @@
-from wtforms import BooleanField, FileField, SelectField, StringField, TextAreaField
-from wtforms.fields.html5 import IntegerField, URLField
+from wtforms import BooleanField, FileField, SelectField, StringField
+from wtforms.fields.html5 import IntegerField
 from wtforms.widgets.html5 import NumberInput
 
 from CTFd.constants.config import (
     AccountVisibilityTypes,
+    ChallengeDifficultyVisibilityTypes,
     ChallengeVisibilityTypes,
     RegistrationVisibilityTypes,
     ScoreVisibilityTypes,
@@ -26,20 +27,14 @@ class ResetInstanceForm(BaseForm):
     challenges = BooleanField(
         "Challenges", description="Deletes all challenges and associated data"
     )
-    pages = BooleanField(
-        "Pages", description="Deletes all pages and their associated files"
-    )
-    notifications = BooleanField(
-        "Notifications", description="Deletes all notifications"
+    logs = BooleanField(
+        "Logs",
+        description="Deletes all action logs and admin audit logs",
     )
     submit = SubmitField("Reset CTF")
 
 
 class AccountSettingsForm(BaseForm):
-    domain_whitelist = StringField(
-        "Email Domain Allowlist",
-        description="Comma-seperated list of allowable email domains which users can register under (e.g. examplectf.com, example.com, *.example.com)",
-    )
     team_creation = SelectField(
         "Team Creation",
         description="Control whether users can create their own teams (Teams mode only)",
@@ -54,17 +49,6 @@ class AccountSettingsForm(BaseForm):
         "Maximum Number of Teams",
         widget=NumberInput(min=0),
         description="Maximum number of teams allowed to register with this CTF (Teams mode only)",
-    )
-    num_users = IntegerField(
-        "Maximum Number of Users",
-        widget=NumberInput(min=0),
-        description="Maximum number of user accounts allowed to register with this CTF",
-    )
-    verify_emails = SelectField(
-        "Verify Emails",
-        description="Control whether users must confirm their email addresses before playing",
-        choices=[("true", "Enabled"), ("false", "Disabled")],
-        default="false",
     )
     team_disbanding = SelectField(
         "Team Disbanding",
@@ -98,40 +82,10 @@ class ExportCSVForm(BaseForm):
 class ImportCSVForm(BaseForm):
     csv_type = SelectField(
         "CSV Type",
-        choices=[("users", "Users"), ("teams", "Teams"), ("users_and_teams", "Users + Teams"), ("challenges", "Challenges")],
+        choices=[("users", "Users"), ("teams", "Teams"), ("users_and_teams", "Users + Teams")],
         description="Type of CSV data",
     )
     csv_file = FileField("CSV File", description="CSV file contents")
-
-
-class SocialSettingsForm(BaseForm):
-    social_shares = SelectField(
-        "Social Shares",
-        description="Enable or Disable social sharing links for challenge solves",
-        choices=[("true", "Enabled"), ("false", "Disabled")],
-        default="true",
-    )
-    submit = SubmitField("Update")
-
-
-class LegalSettingsForm(BaseForm):
-    tos_url = URLField(
-        "Terms of Service URL",
-        description="External URL to a Terms of Service document hosted elsewhere",
-    )
-    tos_text = TextAreaField(
-        "Terms of Service",
-        description="Text shown on the Terms of Service page",
-    )
-    privacy_url = URLField(
-        "Privacy Policy URL",
-        description="External URL to a Privacy Policy document hosted elsewhere",
-    )
-    privacy_text = TextAreaField(
-        "Privacy Policy",
-        description="Text shown on the Privacy Policy page",
-    )
-    submit = SubmitField("Update")
 
 
 class VisibilitySettingsForm(BaseForm):
@@ -157,12 +111,11 @@ class VisibilitySettingsForm(BaseForm):
     )
     score_visibility = SelectField(
         "Score Visibility",
-        description="Control whether solves/score are shown to the public, to logged in users, hidden to all non-admins, or only shown to admins",
+        description="Control whether solves/score are shown to the public, to logged in users, or hidden",
         choices=[
             (ScoreVisibilityTypes.PUBLIC, "Public"),
             (ScoreVisibilityTypes.PRIVATE, "Private"),
             (ScoreVisibilityTypes.HIDDEN, "Hidden"),
-            (ScoreVisibilityTypes.ADMINS, "Admins Only"),
         ],
         default=ScoreVisibilityTypes.PUBLIC,
     )
@@ -175,6 +128,15 @@ class VisibilitySettingsForm(BaseForm):
             (RegistrationVisibilityTypes.MLC, "MajorLeagueCyber Only"),
         ],
         default=RegistrationVisibilityTypes.PUBLIC,
+    )
+    challenge_difficulty_visibility = SelectField(
+        "Challenge Difficulty Visibility",
+        description="Control whether the difficulty level of challenges is visible to contestants",
+        choices=[
+            (ChallengeDifficultyVisibilityTypes.ENABLED, "Enabled"),
+            (ChallengeDifficultyVisibilityTypes.DISABLED, "Disabled"),
+        ],
+        default=ChallengeDifficultyVisibilityTypes.DISABLED,
     )
 
 

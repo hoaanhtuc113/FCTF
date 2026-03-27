@@ -52,61 +52,6 @@ def compile_datetime_mysql(_type, _compiler, **kw):
     return "DATETIME(6)"
 
 
-class Notifications(db.Model):
-    __tablename__ = "notifications"
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.Text)
-    content = db.Column(db.Text)
-    date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"))
-
-    user = db.relationship("Users", foreign_keys="Notifications.user_id", lazy="select")
-    team = db.relationship("Teams", foreign_keys="Notifications.team_id", lazy="select")
-
-    @property
-    def html(self):
-        from CTFd.utils.config.pages import build_markdown
-        from CTFd.utils.helpers import markup
-
-        return markup(build_markdown(self.content))
-
-    def __init__(self, *args, **kwargs):
-        super(Notifications, self).__init__(**kwargs)
-
-
-class Pages(db.Model):
-    __tablename__ = "pages"
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(80))
-    route = db.Column(db.String(128), unique=True)
-    content = db.Column(db.Text)
-    draft = db.Column(db.Boolean)
-    hidden = db.Column(db.Boolean)
-    auth_required = db.Column(db.Boolean)
-    format = db.Column(db.String(80), default="markdown")
-    link_target = db.Column(db.String(80), nullable=True)
-
-    files = db.relationship("PageFiles", backref="page")
-
-    @property
-    def html(self):
-        from CTFd.utils.config.pages import build_html, build_markdown
-
-        if self.format == "markdown":
-            return build_markdown(self.content)
-        elif self.format == "html":
-            return build_html(self.content)
-        else:
-            return build_markdown(self.content)
-
-    def __init__(self, *args, **kwargs):
-        super(Pages, self).__init__(**kwargs)
-
-    def __repr__(self):
-        return "<Pages {0}>".format(self.route)
-
-
 class Challenges(db.Model):
     __tablename__ = "challenges"
     id = db.Column(db.Integer, primary_key=True)
@@ -124,11 +69,21 @@ class Challenges(db.Model):
     time_finished = db.Column(db.DateTime, nullable=True)
     start_time = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-
+    cooldown = db.Column(db.Integer, nullable=True, default=0)
     require_deploy = db.Column(db.Boolean, nullable=False, default=False)
     deploy_status = db.Column(db.Text, nullable=True, default="CREATED")
     last_update = db.Column(db.DateTime)
     image_link = db.Column(db.Text,nullable =True)
+    deploy_file = db.Column(db.String(256), nullable=True)
+    cpu_limit = db.Column(db.Integer, nullable=True)
+    cpu_request = db.Column(db.Integer, nullable=True)
+    memory_limit = db.Column(db.Integer, nullable=True)
+    memory_request = db.Column(db.Integer, nullable=True)
+    use_gvisor = db.Column(db.Boolean, nullable=True)
+    harden_container = db.Column(db.Boolean, nullable=True, default=True)
+    max_deploy_count = db.Column(db.Integer, default=0, nullable=True)
+    difficulty = db.Column(db.Integer, nullable=True, default=None)
+    shared_instant = db.Column(db.Boolean, nullable=False, default=False)
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")
@@ -242,6 +197,86 @@ class DeployedChallenge(db.Model):
     )
 
 
+class ChallengeVersion(db.Model):
+    __tablename__ = "challenge_versions"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
+    version_number = db.Column(db.Integer, nullable=False, default=1)
+    image_link = db.Column(db.Text, nullable=True)
+    deploy_file = db.Column(db.String(256), nullable=True)
+    cpu_limit = db.Column(db.Integer, nullable=True)
+    cpu_request = db.Column(db.Integer, nullable=True)
+    memory_limit = db.Column(db.Integer, nullable=True)
+    memory_request = db.Column(db.Integer, nullable=True)
+    use_gvisor = db.Column(db.Boolean, nullable=True)
+    harden_container = db.Column(db.Boolean, nullable=True, default=True)
+    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=False)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+    challenge = db.relationship("Challenges", backref=db.backref("versions", lazy="dynamic", order_by="ChallengeVersion.version_number.desc()"))
+    creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeVersion, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeVersion challenge_id={} version={}>".format(
+            self.challenge_id, self.version_number
+        )
+
+    @property
+    def image_tag(self):
+        """Extract the image tag from the image_link JSON"""
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                link = obj.get("imageLink", "")
+                return link.split(":")[-1] if link else ""
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
+    @property
+    def expose_port(self):
+        """Extract the exposed port from the image_link JSON"""
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                return obj.get("exposedPort", "")
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
+
+class ChallengeStartTracking(db.Model):
+    __tablename__ = "challenge_start_tracking"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    stopped_at = db.Column(db.DateTime, nullable=True)
+    label = db.Column(db.String(255), nullable=True)
+    
+    # Relationships
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")
+    
+    def __init__(self, *args, **kwargs):
+        super(ChallengeStartTracking, self).__init__(**kwargs)
+    
+    def __repr__(self):
+        return "<ChallengeStartTracking user_id={} team_id={} challenge_id={}>".format(
+            self.user_id, self.team_id, self.challenge_id
+        )
+
+
 class Awards(db.Model):
     __tablename__ = "awards"
     id = db.Column(db.Integer, primary_key=True)
@@ -341,14 +376,6 @@ class ChallengeFiles(Files):
 
     def __init__(self, *args, **kwargs):
         super(ChallengeFiles, self).__init__(**kwargs)
-
-
-class PageFiles(Files):
-    __mapper_args__ = {"polymorphic_identity": "page"}
-    page_id = db.Column(db.Integer, db.ForeignKey("pages.id"))
-
-    def __init__(self, *args, **kwargs):
-        super(PageFiles, self).__init__(**kwargs)
 
 
 class Flags(db.Model):
@@ -1184,11 +1211,6 @@ class TeamComments(Comments):
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
 
 
-class PageComments(Comments):
-    __mapper_args__ = {"polymorphic_identity": "page"}
-    page_id = db.Column(db.Integer, db.ForeignKey("pages.id", ondelete="CASCADE"))
-
-
 class Fields(db.Model):
     __tablename__ = "fields"
     id = db.Column(db.Integer, primary_key=True)
@@ -1255,3 +1277,75 @@ class Brackets(db.Model):
     name = db.Column(db.String(255))
     description = db.Column(db.Text)
     type = db.Column(db.String(80))
+
+
+class AdminAuditLog(db.Model):
+    """
+    Persistent audit trail for all privileged operations performed by
+    admins, jury members, and challenge writers.
+
+    Tracked actions include: user CRUD, team CRUD, challenge CRUD,
+    configuration changes, and manual submission override
+    (mark correct / incorrect / delete).
+    """
+
+    __tablename__ = "admin_audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # ── Who did it ─────────────────────────────────────────────────────────
+    actor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Cached so the record survives user deletion
+    actor_name = db.Column(db.String(128), nullable=True)
+    actor_type = db.Column(db.String(80), nullable=True)   # admin / jury / challenge_writer
+
+    # ── What happened ──────────────────────────────────────────────────────
+    action = db.Column(db.String(128), nullable=False)     # e.g. "challenge_update"
+    target_type = db.Column(db.String(80), nullable=True)  # user / team / challenge / config / submission
+    target_id = db.Column(db.Integer, nullable=True)       # PK of the affected entity
+
+    # ── Change snapshots ───────────────────────────────────────────────────
+    before_state = db.Column(db.JSON, nullable=True)
+    after_state = db.Column(db.JSON, nullable=True)
+    extra_data = db.Column(db.JSON, nullable=True)         # arbitrary extra context
+
+    # ── Request metadata ───────────────────────────────────────────────────
+    ip_address = db.Column(db.String(46), nullable=True)
+    timestamp = db.Column(
+        db.DateTime,
+        default=datetime.datetime.utcnow,
+        nullable=False,
+        index=True,
+    )
+
+    actor = db.relationship(
+        "Users",
+        foreign_keys=[actor_id],
+        lazy="select",
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "actor_id": self.actor_id,
+            "actor_name": self.actor_name,
+            "actor_type": self.actor_type,
+            "action": self.action,
+            "target_type": self.target_type,
+            "target_id": self.target_id,
+            "before_state": self.before_state,
+            "after_state": self.after_state,
+            "extra_data": self.extra_data,
+            "ip_address": self.ip_address,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+    def __repr__(self):
+        return (
+            f"<AdminAuditLog id={self.id} action={self.action!r} "
+            f"actor_id={self.actor_id}>"
+        )

@@ -121,4 +121,32 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Clean Flag Edit Modal */
+.modal-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 1.25rem;
+}
+
+.modal-header h3 {
+  color: #2c3e50;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-header .close {
+  color: #6c757d;
+  opacity: 1;
+  transition: color 0.2s ease;
+}
+
+.modal-header .close:hover {
+  color: #ff6b35;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+</style>

@@ -2,7 +2,7 @@ from flask import render_template, request, url_for
 from sqlalchemy.sql import not_
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Tracking, Users
+from CTFd.models import Challenges, Teams, Tracking, Users
 from CTFd.utils import get_config
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.modes import TEAMS_MODE
@@ -14,26 +14,58 @@ def users_listing():
     q = request.args.get("q")
     field = request.args.get("field")
     page = abs(request.args.get("page", 1, type=int))
+
+    # Filter params
+    role_filter = request.args.get("role", "")
+    verified_filter = request.args.get("verified", "")
+    hidden_filter = request.args.get("hidden", "")
+    banned_filter = request.args.get("banned", "")
+
     filters = []
-    users = []
 
     if q:
         # The field exists as an exposed column
         if Users.__mapper__.has_property(field):
             filters.append(getattr(Users, field).like("%{}%".format(q)))
 
+    # Apply dropdown filters
+    if role_filter == "admin":
+        filters.append(Users.type == "admin")
+    elif role_filter == "user":
+        filters.append(Users.type == "user")
+    elif role_filter == "challenge_writer":
+        filters.append(Users.type == "challenge_writer")
+    elif role_filter == "jury":
+        filters.append(Users.type == "jury")
+
+    if verified_filter == "true":
+        filters.append(Users.verified == True)
+    elif verified_filter == "false":
+        filters.append(Users.verified == False)
+
+    if hidden_filter == "true":
+        filters.append(Users.hidden == True)
+    elif hidden_filter == "false":
+        filters.append(Users.hidden == False)
+
+    if banned_filter == "true":
+        filters.append(Users.banned == True)
+    elif banned_filter == "false":
+        filters.append(Users.banned == False)
+
     if q and field == "ip":
         users = (
             Users.query.join(Tracking, Users.id == Tracking.user_id)
             .filter(Tracking.ip.like("%{}%".format(q)))
+            .filter(*filters[1:] if filters else [])
             .order_by(Users.id.asc())
-            .paginate(page=page, per_page=50, error_out=False)
+            .paginate(page=page, per_page=10, error_out=False)
         )
     else:
         users = (
             Users.query.filter(*filters)
             .order_by(Users.id.asc())
-            .paginate(page=page, per_page=50, error_out=False)
+            .paginate(page=page, per_page=10, error_out=False)
         )
 
     args = dict(request.args)
@@ -46,6 +78,10 @@ def users_listing():
         next_page=url_for(request.endpoint, page=users.next_num, **args),
         q=q,
         field=field,
+        role_filter=role_filter,
+        verified_filter=verified_filter,
+        hidden_filter=hidden_filter,
+        banned_filter=banned_filter,
     )
 
 

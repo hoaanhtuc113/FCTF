@@ -1,6 +1,0 @@
-@ChallengeManagementServer_HostAddress = http://localhost:5087
-
-GET {{ChallengeManagementServer_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

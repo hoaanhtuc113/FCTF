@@ -4,7 +4,7 @@ import os
 import sys
 
 from flask import abort, redirect, render_template, request, session, url_for
-from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from CTFd.cache import clear_user_recent_ips
@@ -19,7 +19,6 @@ from CTFd.utils.config import (
     integrations,
     is_setup,
 )
-from CTFd.utils.config.pages import get_pages
 from CTFd.utils.dates import isoformat, unix_time, unix_time_millis, unix_time_to_utc
 from CTFd.utils.events import EventManager, RedisEventManager
 from CTFd.utils.humanize.words import pluralize
@@ -81,7 +80,6 @@ def init_template_globals(app):
     from CTFd.utils.countries.geoip import lookup_ip_address, lookup_ip_address_city
 
     app.jinja_env.globals.update(config=config)
-    app.jinja_env.globals.update(get_pages=get_pages)
     app.jinja_env.globals.update(can_send_mail=can_send_mail)
     app.jinja_env.globals.update(get_ctf_name=ctf_name)
     app.jinja_env.globals.update(get_ctf_logo=ctf_logo)
@@ -138,10 +136,12 @@ def init_logs(app):
     logger_submissions = logging.getLogger("submissions")
     logger_logins = logging.getLogger("logins")
     logger_registrations = logging.getLogger("registrations")
+    logger_audit = logging.getLogger("audit")
 
     logger_submissions.setLevel(logging.INFO)
     logger_logins.setLevel(logging.INFO)
     logger_registrations.setLevel(logging.INFO)
+    logger_audit.setLevel(logging.INFO)
 
     log_dir = app.config["LOG_FOLDER"]
     if not os.path.exists(log_dir):
@@ -151,6 +151,7 @@ def init_logs(app):
         "submissions": os.path.join(log_dir, "submissions.log"),
         "logins": os.path.join(log_dir, "logins.log"),
         "registrations": os.path.join(log_dir, "registrations.log"),
+        "audit": os.path.join(log_dir, "audit.log"),
     }
 
     try:
@@ -167,10 +168,14 @@ def init_logs(app):
         registration_log = logging.handlers.RotatingFileHandler(
             logs["registrations"], maxBytes=10485760, backupCount=5
         )
+        audit_log = logging.handlers.RotatingFileHandler(
+            logs["audit"], maxBytes=10485760, backupCount=5
+        )
 
         logger_submissions.addHandler(submission_log)
         logger_logins.addHandler(login_log)
         logger_registrations.addHandler(registration_log)
+        logger_audit.addHandler(audit_log)
     except IOError:
         pass
 
@@ -179,10 +184,12 @@ def init_logs(app):
     logger_submissions.addHandler(stdout)
     logger_logins.addHandler(stdout)
     logger_registrations.addHandler(stdout)
+    logger_audit.addHandler(stdout)
 
     logger_submissions.propagate = 0
     logger_logins.propagate = 0
     logger_registrations.propagate = 0
+    logger_audit.propagate = 0
 
 
 def init_events(app):
@@ -198,15 +205,18 @@ def init_events(app):
 def init_request_processors(app):
     @app.url_defaults
     def inject_theme(endpoint, values):
-        if "theme" not in values and app.url_map.is_endpoint_expecting(
-            endpoint, "theme"
-        ):
-            values["theme"] = ctf_theme()
+        try:
+            if "theme" not in values and app.url_map.is_endpoint_expecting(
+                endpoint, "theme"
+            ):
+                values["theme"] = "core-beta"
+        except KeyError:
+            pass
 
     @app.before_request
     def needs_setup():
         if import_in_progress():
-            if request.endpoint == "admin.import_ctf":
+            if request.endpoint in ("admin.import_ctf", "views.healthcheck"):
                 return
             else:
                 return "Import currently in progress", 403
@@ -229,7 +239,7 @@ def init_request_processors(app):
             return
 
         if import_in_progress():
-            if request.endpoint == "admin.import_ctf":
+            if request.endpoint in ("admin.import_ctf", "views.healthcheck"):
                 return
             else:
                 return "Import currently in progress", 403
@@ -257,6 +267,21 @@ def init_request_processors(app):
                     db.session.rollback()
                     db.session.close()
                     logout_user()
+                except OperationalError as e:
+                    # Handle race condition errors (e.g., concurrent updates to tracking table)
+                    # Error 1020: "Record has changed since last read in table 'tracking'"
+                    # This happens when multiple requests try to update the same tracking record
+                    db.session.rollback()
+                    # Don't logout user on race conditions, just log and continue
+                    if "1020" in str(e) or "Record has changed" in str(e):
+                        logging.debug(f"Tracking update race condition for user {session.get('id')}: {e}")
+                    else:
+                        # For other operational errors, log as warning
+                        logging.warning(f"Tracking update failed: {e}")
+                except Exception as e:
+                    # Catch any other unexpected errors
+                    db.session.rollback()
+                    logging.error(f"Unexpected error in tracking: {e}")
                 else:
                     clear_user_recent_ips(user_id=session["id"])
 
@@ -264,26 +289,6 @@ def init_request_processors(app):
     def banned():
         if request.endpoint == "views.themes":
             return
-        if request.endpoint == "login.login":
-            return
-        if request.endpoint == "get_date_config.get_date_timr_config":
-            return
-        if request.endpoint == "api.notifications_notificantion_list":
-            return
-        if request.endpoint== "teams.solves":
-            return
-        if request.endpoint== "api.users_user_constant":
-            return
-        if request.endpoint== "api.teams_team_contestant":
-            return
-        if request.endpoint== "sendticket.get_user_tickets":
-            return
-        if request.endpoint=="sendticket.send_ticket_from_user":
-            return
-        if request.endpoint== "sendticket.get_ticket_by_id":
-            return
-        if request.endpoint== "get_registration_config.get":
-            return 
 
         if authed():
             user = get_current_user_attrs()
@@ -338,8 +343,8 @@ def init_request_processors(app):
             abort(404)
         if hasattr(func, "_bypass_csrf"):
             return
-        if request.headers.get("Authorization"):
-            return
+        # REMOVED: Authorization header bypass - this was a CSRF vulnerability!
+        # Token-based auth is already handled by tokens() middleware above
         if not session.get("nonce"):
             session["nonce"] = generate_nonce()
         if request.method not in ("GET", "HEAD", "OPTIONS", "TRACE"):

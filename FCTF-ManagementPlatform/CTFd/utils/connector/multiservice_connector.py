@@ -1,8 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import io
 import json
 import os
+import shutil
+import tempfile
 import threading
 import time
 import zipfile
@@ -10,14 +12,26 @@ import zipfile
 from flask import jsonify, render_template, request
 import redis
 import requests
-from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY
-from CTFd.schemas.notifications import NotificationSchema
+from CTFd.constants.envvars import (
+    API_URL_CONTROLSERVER,
+    DEPLOYMENT_SERVICE_API,
+    HOST_CACHE,
+    PRIVATE_KEY,
+    DATABASE_PORT,
+    get_redis_client_kwargs,
+    NFS_MOUNT_PATH,
+    IMAGE_REPO,
+    DOCKER_USERNAME,
+)
+import random 
+    
 redis_client = redis.StrictRedis(
-    host=f"{HOST_CACHE}", port=6379, db=0, encoding="utf-8", decode_responses=True
+    **get_redis_client_kwargs()
 )
 from CTFd.models import (
     ChallengeFiles,
     Challenges,
+    ChallengeVersion,
     Teams,
     Tokens,
     Users,
@@ -46,11 +60,19 @@ def create_secret_key(private_key: str, unix_time: int, data: dict) -> str:
 
 
 def generate_cache_key(challenge_id, team_id):
-    raw_key = f"challenge_url_{challenge_id}_{team_id}"
+    raw_key = f"deploy_challenge_{challenge_id}_{team_id}"
     return raw_key
 
+def get_workflow_key(challenge_id):
+    key = f"challenge_up_workflow_{challenge_id}"
+    return key
 
-def get_team_id_and_cache_key(user, challenge_id, challenge_time):
+def get_workflow_name(challenge_id):
+    key = get_workflow_key(challenge_id)
+    workflow_name = redis_client.get(key)
+    return workflow_name
+
+def get_team_id_and_cache_key(user, challenge_id):
     if user.type != "user":
         team_id = -1
         cache_key = generate_cache_key(challenge_id, team_id)
@@ -59,31 +81,50 @@ def get_team_id_and_cache_key(user, challenge_id, challenge_time):
         cache_key = generate_cache_key(challenge_id, team_id)
     return team_id, cache_key
 
-def prepare_challenge_payload(challenge, user, team_id, challenge_time):
+def prepare_start_challenge_payload(challenge, user_id, team_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
         PRIVATE_KEY,
         unix_time,
         {
-            "ChallengeId": challenge.id,
-            "TeamId": team_id,
-            "TimeLimit": challenge_time,
-            "ImageLink": challenge.image_link,
+            "challengeId": challenge.id,
+            "teamId": team_id,
+            "userId": user_id,
         },
     )
     payload = {
-        "ChallengeId": challenge.id,
-        "TeamId": team_id,
-        "TimeLimit": challenge_time,
-        "ImageLink": challenge.image_link,
-        "UnixTime": unix_time,
+        "challengeId": challenge.id,
+        "teamId": team_id,
+        "userId": user_id,
+        "unixTime": unix_time, 
     }
     headers = {"SecretKey": secret_key}
-    api_start = f"{API_URL_CONTROLSERVER}/api/challenge/start"
+    api_start = f"{DEPLOYMENT_SERVICE_API}/api/challenge/start"
     
     return payload, headers, api_start
 
-def challenge_start(payload, headers, api_start, challenge, challenge_time, cache_key, user_id, challenge_id, team_id):
+def prepare_up_challenge_payload(challenge_id,path, image_tag):
+    unix_time = str(int(time.time()))
+    signing_data = {
+        "challengeId": challenge_id,
+        "challengePath": path,
+        "imageTag": image_tag,
+    }
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
+    headers = {
+        "SecretKey": secret_key,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "challengeId": challenge_id,
+        "challengePath": path,
+        "imageTag": image_tag,
+        "unixTime": unix_time,
+    }
+    api_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/upload"
+    return payload, headers, api_url
+
+def challenge_start(payload, headers, api_start):
     try:
         redis_client.ping()
     except redis.ConnectionError as e:
@@ -92,85 +133,89 @@ def challenge_start(payload, headers, api_start, challenge, challenge_time, cach
 
     try:
         print("API Endpoint: " + api_start)
-        print(json.dumps(payload))
-        print(json.dumps(headers))
+        print("Payload: " + json.dumps(payload, indent=2))
+        print("Headers: " + json.dumps(headers, indent=2))
+
+        # Luôn gửi request, không cần kiểm tra if payload
+        response = requests.post(api_start, headers=headers, json=payload, timeout=30)
         
-        if payload:
-            response = requests.post(api_start, data=payload, headers=headers)
-        
-        print("Response data: " + response.text)
+        print(f"Response Status Code: {response.status_code}")
+        print(f"Response Text: {response.text}")
 
         res_data = response.json()
-        if res_data.get("isSuccess"):
-            challenge_url = res_data.get("data")
-            time_finished = datetime.now() + timedelta(minutes=challenge_time)
-            db.session.commit()
 
-            if challenge_time == -1 or team_id == -1:
-                cache_expiry = None
-            else:
-                cache_expiry = challenge_time * 60
+        if not res_data:
+            return jsonify({"success": False, "message": "Empty response from server"}), 400
 
-            try:
-                redis_client.set(
-                    cache_key,
-                    json.dumps(
-                        {"challenge_url": challenge_url, "user_id": user_id, "challenge_id": challenge_id, "time_finished": int(time_finished.timestamp())}
-                    ),
-                    ex=cache_expiry,
-                )
-                
-                print(f"Cache saved: {cache_key} -> challenge_url: {challenge_url}, time_finished: {time_finished}")
-
-                if challenge_time != -1:
-                    threading.Timer(
-                        max(30, challenge_time * 60),
-                        lambda: force_stop(cache_key, challenge_id, team_id),
-                    ).start()
-
-            except Exception as e:
-                print(f"Error saving to Redis: {e}")
-                return jsonify({"error": "Failed to save cache"}), 400
-
-            return format_response({"success": True, "challenge_url": challenge_url})
-
-        else:
-            message = res_data.get("message")
-            if res_data.get("data"):
-                message += "<br><br>Running challenge is: "
-                challenge_names = []
-                for item in res_data.get("data"):
-                    challenges = Challenges.query.filter_by(id=item).first()
-                    if challenges is not None:
-                        challenge_names.append(f"<b>{challenges.name}</b>")
-                message += "<b>,</b> ".join(challenge_names)
-            return format_response({"message": message})
+        print("Response start data: " + json.dumps(res_data))
+        return res_data
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to API: {e}")
-        return format_response({"message": "Connection url failed"})
-def force_stop(cache_key, challenge_id, team_id):
+        return format_response({"message": "Connection url failed", "success": False, "status": 400}) 
+
+def force_stop(user_id, challenge_id, team_id):
+    team_name = "Preview"
+
+    team = Teams.query.filter_by(id=team_id).first()
+    if team:
+        team_name = team.name
+
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(
-        PRIVATE_KEY, unix_time, {"ChallengeId": challenge_id, "TeamId": team_id}
+        PRIVATE_KEY, unix_time, {
+            "challengeId": challenge_id,
+            "teamId": team_id,
+            "userId": user_id
+        }
     )
-
     payload = {
-        "ChallengeId": challenge_id,
-        "TeamId": team_id,
-        "UnixTime": unix_time,
+        "challengeId": challenge_id,
+        "teamId": team_id,
+        "userId": user_id,
+        "unixTime": unix_time,
     }
+    print(f"User {user_id} is forcing stop challenge {challenge_id} for team {team_name} ({team_id})")
     headers = {"Secretkey": secret_key}
-    stop_url = f"{API_URL_CONTROLSERVER}/api/challenge/stop"
+    stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/stop"
     try:
-        response = requests.post(stop_url, data=payload, headers=headers)
-        response.raise_for_status()
+        response = requests.post(stop_url,  headers=headers,json=payload)
         response_data = response.json()
-        if response_data.get("isSuccess") == True:
-            redis_client.delete(cache_key)
-        else:
-            raise Exception(response.get("message"))
+        print(f"Force stop response: {response_data}")
+        # if response_data.get("isSuccess") == True:
+        #     redis_client.delete(cache_key)
+        # else:
+        #     raise Exception(response.get("message"))
+
+        return response_data
     except requests.exceptions.RequestException as e:
         raise Exception(e)
+
+def force_stop_all(user_id):
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY, unix_time, {
+            "challengeId": 0,
+            "teamId": -1,
+            "userId": user_id
+        }
+    )
+    payload = {
+        "challengeId": 0,
+        "teamId": -1,
+        "userId": user_id,
+        "unixTime": unix_time,
+    }
+    headers = {"Secretkey": secret_key}
+    stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/stop-all"
+    try:
+        response = requests.post(stop_url,  headers=headers,json=payload)
+        response_data = response.json()
+        print(f"Force stop all response: {response_data}")
+
+        return response_data
+    except requests.exceptions.RequestException as e:
+        raise Exception(e)
+
 def format_response(data):
     return jsonify(data), 200
 
@@ -208,7 +253,7 @@ def redeploy(challenge_id):
         return jsonify({"error": "Connection failed"})
     
 def delete_cached_files(challenge_id):
-    raw_key_pattern = f"challenge_url_{challenge_id}_*"
+    raw_key_pattern = f"deploy_challenge_{challenge_id}_*"
     keys_to_delete = redis_client.scan_iter(raw_key_pattern)
     deleted_count = 0
     for key in keys_to_delete:
@@ -217,18 +262,7 @@ def delete_cached_files(challenge_id):
     print(f"Deleted {deleted_count} cache entries for challenge_id: {challenge_id}")
 
 
-def create_notification_data(challenge_name):
-    return {
-        "title": f"The challenge '{challenge_name}' is being redeployed",
-        "content": f"The challenge '{challenge_name}' is being redeployed. Please wait a few minutes",
-        "date": time.time(),
-        "html": f"<p>The challenge '<strong>{challenge_name}</strong>' is being redeployed. Please wait a few minutes</p>\n",
-        "sound": True,
-        "type": "toast",
-    }
-
-
-def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data):
+def handle_zip_file_upload(challenge, file_path, challenge_id):
     """
     Handle the zip file upload process
     """
@@ -253,9 +287,6 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
 
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
-                if(challenge.state != "hidden"):
-                    print("Gui thong bao")
-                    post_notification(notification_data)
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
                 challenge.state = "hidden"
@@ -270,25 +301,367 @@ def handle_zip_file_upload(challenge, file_path, challenge_id, notification_data
 
         else:
             return jsonify({"error": "Challenge already pending deploy"}), 400
+
+def handle_challenge_upload(challenge, file_path, expose_port=None):
+    """
+    Handle the challenge upload process
+    - Unzip the uploaded file
+    - Upload folder to NFS_MOUNT_PATH directory
+    """
+    zip_filename = os.path.basename(file_path) 
+    folder_name = os.path.splitext(zip_filename)[0] + f"-{challenge.id}" 
+    safe_folder_name = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in folder_name)
+    
+    # Create temporary directory for extraction
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        with open(file_path, "rb") as file:
+            zip_content = file.read()
+            
+            try:
+                with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
+                    if z.testzip() is not None:
+                        return {"success": False, "error": "Invalid Zip file"}, 400
+            except zipfile.BadZipFile:
+                return {"success": False, "error": "Invalid zip file format"}, 400
         
-def post_notification(notify_data):
+        # Extract the zip file to temporary directory
+        extract_path = os.path.join(temp_dir, f"challenge_{challenge.id}")
+        os.makedirs(extract_path, exist_ok=True)
+        
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+        
+        print(f"Extracted challenge files to: {extract_path}")
+        
+        # Create challenges directory if it doesn't exist
+        challenges_dir = os.path.join(NFS_MOUNT_PATH, "challenges")
+        os.makedirs(challenges_dir, exist_ok=True)
+        
+        # Define destination path using the zip file name
+        nfs_destination = os.path.join(challenges_dir, safe_folder_name)
+        
+        # Remove existing directory if it exists
+        if os.path.exists(nfs_destination):
+            print(f"Removing existing challenge directory: {nfs_destination}")
+            shutil.rmtree(nfs_destination)
+        
+        # Copy the extracted folder to NFS_MOUNT_PATH
+        print(f"Copying challenge folder to: {nfs_destination}")
+        shutil.copytree(extract_path, nfs_destination)
+        challenge.deploy_file = nfs_destination
+        print(f"Challenge folder copied successfully")
+        
+        # Find Dockerfile directory path (relative to challenges directory)
+        dockerfile_path = None
+        for root, dirs, files in os.walk(nfs_destination):
+            if "Dockerfile" in files:
+                # Get directory path relative to NFS_MOUNT_PATH (without Dockerfile filename)
+                dockerfile_path = os.path.relpath(root, NFS_MOUNT_PATH)
+                break
+        
+        if dockerfile_path is None:
+            print(f"Warning: Dockerfile not found in {nfs_destination}")
+            return {"success": False, "error": "Dockerfile not found in challenge folder"}, 400
 
-    schema = NotificationSchema()
-    result = schema.load(notify_data)
-    if result.errors:
-        return {"success": False, "errors": result.errors}, 400
+        if expose_port is None:
+            print(f"Warning: No exposed port found")
+            return {"success": False, "error": "No exposed port found"}, 400
 
-    db.session.add(result.data)
-    db.session.commit()
+        # Update challenge status
+        if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
+            try:
+                unix_time = str(int(time.time()))
+                image_tag = f"challenge-{challenge.id}-{safe_folder_name}-{unix_time}"
+                image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}:{image_tag}"
 
-    response = schema.dump(result.data)
+                object_image = {
+                    "imageLink": image_link,
+                    "exposedPort": expose_port,
+                }
 
-    # Grab additional settings
-    notif_type = notify_data.get("type", "alert")
-    notif_sound = notify_data.get("sound", True)
-    response.data["type"] = notif_type
-    response.data["sound"] = notif_sound
-    return {"success": True}
+                payload, headers, api_url = prepare_up_challenge_payload(challenge.id,dockerfile_path, image_tag)
+                response = requests.post(api_url, headers=headers, json=payload)
+
+                if response.status_code != 200:
+                    print(f"Error uploading challenge: {response.text}")
+                    return {"success": False, "error": f"Deployment service error: {response.text}"}, 500
+                    
+                result = response.json()
+                workflow_name = result.get("metadata", {}).get("name")
+
+                redis_client.set(
+                    f"{get_workflow_key(challenge.id)}",
+                    workflow_name,
+                    ex=86400  # TTL: 1 day
+                )
+                workflow_phase, started_at, estimated_duration = get_workflow_status(workflow_name)
+                if workflow_phase is None:
+                    return {"success": False, "error": "Error getting workflow status"}, 500
+
+                print(f"Challenge {challenge.id} deployment started with workflow {workflow_name}, started at {started_at}")
+                challenge.require_deploy = True
+                challenge.deploy_status = "PENDING_DEPLOY"
+                challenge.state = "hidden"
+                challenge.image_link = json.dumps(object_image)
+
+                # Auto-save challenge version
+                try:
+                    latest_version = (
+                        ChallengeVersion.query
+                        .filter_by(challenge_id=challenge.id)
+                        .order_by(ChallengeVersion.version_number.desc())
+                        .first()
+                    )
+                    next_version = (latest_version.version_number + 1) if latest_version else 1
+
+                    # Deactivate all previous versions
+                    ChallengeVersion.query.filter_by(
+                        challenge_id=challenge.id
+                    ).update({"is_active": False})
+
+                    # Get current user ID from session
+                    from flask import session as flask_session
+                    current_user_id = flask_session.get("id", None)
+
+                    new_version = ChallengeVersion(
+                        challenge_id=challenge.id,
+                        version_number=next_version,
+                        image_link=json.dumps(object_image),
+                        deploy_file=challenge.deploy_file,
+                        cpu_limit=challenge.cpu_limit,
+                        cpu_request=challenge.cpu_request,
+                        memory_limit=challenge.memory_limit,
+                        memory_request=challenge.memory_request,
+                        use_gvisor=challenge.use_gvisor,
+                        harden_container=challenge.harden_container,
+                        max_deploy_count=challenge.max_deploy_count,
+                        is_active=True,
+                        created_by=current_user_id,
+                        notes=f"Auto-created on deploy: {image_tag}",
+                    )
+                    db.session.add(new_version)
+                    print(f"Challenge version v{next_version} created for challenge {challenge.id}")
+                except Exception as ver_err:
+                    print(f"Warning: Failed to save challenge version: {ver_err}")
+
+                db.session.commit()
+                return {
+                    "success": True,
+                    "message": "Challenge folder uploaded successfully",
+                    "challenge_id": challenge.id,
+                    "workflow_name": workflow_name,
+                    "workflow_phase": workflow_phase,
+                    "estimated_duration": estimated_duration,
+                    "started_at": started_at
+                }, 200
+                
+            except Exception as e:
+                print(f"Error updating challenge status: {e}")
+                db.session.rollback()
+                return {"success": False, "error": f"Error updating challenge status: {str(e)}"}, 500
+        else:
+            return {"success": False, "error": "Challenge already pending deploy"}, 400
+            
+    except Exception as e:
+        challenge.deploy_status = "FILE_UPLOAD_FAILED"
+        challenge.state = "hidden"
+        db.session.commit()
+        print(f"Error handling challenge upload: {e}")
+        return {"success": False, "error": f"Error processing challenge upload: {str(e)}"}, 500
+    finally:
+        try:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+                print(f"Cleaned up temporary directory: {temp_dir}")
+        except Exception as e:
+            print(f"Error cleaning up temporary directory: {e}")
+    
+def get_workflow_status(workflow_name):
+    """
+    Get workflow status from DeploymentCenter
+    Returns: (workflow_phase, started_at, estimated_duration)
+    """
+    unix_time = str(int(time.time()))
+    signing_data = {"workflowName": workflow_name}
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
+    payload = {
+        "workflowName": workflow_name,
+        "unixTime": unix_time,
+    }
+    headers = {
+        "SecretKey": secret_key,
+        "Content-Type": "application/json",
+    }
+    url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/workflow-status"
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code != 200:
+            print(f"Error getting workflow status: {response.status_code} - {response.text}")
+            return None, None, None
+        
+        data = response.json()
+        status = data.get("data", {})
+        
+        workflow_phase = status.get("phase", "Running")
+        started_at_str = status.get("startedAt")
+        estimated_duration = status.get("estimatedDuration", 90)
+        print(f"Workflow raw data {workflow_name}: phase={workflow_phase}, started={started_at_str}, duration={estimated_duration}s")
+        started_at = datetime.now(timezone.utc)
+        if started_at_str:
+            try:
+                started_at = datetime.fromisoformat(
+                    started_at_str.replace('Z', '+00:00')
+                ).astimezone(timezone.utc)
+            except Exception as e:
+                print(f"Error parsing startedAt: {e}")
+                started_at = None
+        print(f"Workflow response data {workflow_name}: phase={workflow_phase}, started={started_at}, duration={estimated_duration}s")
+        return workflow_phase, (started_at.isoformat() if started_at else None), int(estimated_duration)
+        
+    except Exception as e:
+        print(f"Error getting workflow status: {e}")
+        return None, None, None
+
+def get_workflow_logs(challenge_id, workflow_name, user_id):
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY, unix_time, {
+            "challengeId": challenge_id,
+            "teamId": -1,
+            "userId": user_id
+        }
+    )
+    payload = {
+        "challengeId": challenge_id,
+        "teamId": -1,
+        "userId": user_id,
+        "unixTime": unix_time,
+    }
+    headers = {"Secretkey": secret_key}
+    
+    if not workflow_name:
+        return jsonify({"success": False, "message": "Workflow name not found for challenge"}), 404
+
+    stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/deployment-logs/{workflow_name}"
+    try:
+        response = requests.post(stop_url,  headers=headers,json=payload)
+        response_data = response.json()
+        print(f"Get deployment logs response: {response_data}")
+
+        return response_data
+    except requests.exceptions.RequestException as e:
+        raise Exception(e)
+
+def get_challenge_pod_logs(challenge_id, team_id):
+    if team_id is None:
+        team_id = -1
+
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY, unix_time, {
+            "challengeId": challenge_id,
+            "teamId": team_id,
+        }
+    )
+    payload = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+        "unixTime": unix_time,
+    }
+    headers = {"SecretKey": secret_key}
+    logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/pod-logs"
+    try:
+        response = requests.post(logs_url, headers=headers, json=payload)
+        print(f"Get pod logs response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            # Extract logs from the nested data structure
+            if response_data.get("success") and "data" in response_data:
+                logs = response_data["data"].get("logs", "")
+                return logs
+            return response_data.get("logs", "")
+        else:
+            print(f"Get pod logs failed: {response.text}")
+            response_data = response.json()
+            logs = response_data.get("message", "")
+            return logs
+    except requests.exceptions.RequestException as e:
+        print(f"Error getting pod logs: {e}")
+        return str(e)
+
+def get_challenge_request_logs(challenge_id, team_id, ns=None):
+    if team_id is None:
+        team_id = -1
+
+    unix_time = str(int(time.time()))
+    signing_data = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+    }
+    if ns:
+        signing_data["ns"] = ns
+    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
+    payload = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+        "unixTime": unix_time,
+    }
+    if ns:
+        payload["ns"] = ns
+    headers = {"SecretKey": secret_key}
+
+    logs_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/request-logs"
+    try:
+        response = requests.post(logs_url, headers=headers, json=payload)
+        print(f"Get request logs response status: {response.status_code}")
+
+        if response.status_code == 200:
+            response_data = response.json()
+            if response_data.get("success") and "data" in response_data:
+                logs = response_data["data"].get("logs", "")
+                return logs
+            return response_data.get("logs", "")
+
+        print(f"Get request logs failed: {response.text}")
+        response_data = response.json()
+        return response_data.get("message", "")
+    except requests.exceptions.RequestException as e:
+        print(f"Error getting request logs: {e}")
+        return str(e)
+
+def start_challenge_status_checking(challenge_id, team_id):
+    unix_time = str(int(time.time()))
+    secret_key = create_secret_key(
+        PRIVATE_KEY,
+        unix_time,
+        {
+            "challengeId": challenge_id,
+            "teamId": team_id,
+        },
+    )
+    payload = {
+        "challengeId": challenge_id,
+        "teamId": team_id,
+        "unixTime": unix_time, 
+    }
+    headers = {"SecretKey": secret_key}
+    api_status = f"{DEPLOYMENT_SERVICE_API}/api/statuscheck/admin-start"
+
+    try:
+        response = requests.post(api_status, json=payload, headers=headers)
+
+        if response.status_code != 200:
+            return {"success": False, "message": "Failed to start status checking"}, 400
+            
+        result = response.json()
+        return result
+    except requests.exceptions.RequestException as e:
+        print(f"Error connecting to API: {e}")
+        return {"success": False, "message": "Connection url failed"}, 400
+
 def delete_challenge(challenge_id):
     unix_time = str(int(time.time()))
     secret_key = create_secret_key(

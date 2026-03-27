@@ -1,5 +1,5 @@
 from marshmallow import ValidationError, post_dump, pre_load, validate
-from marshmallow.fields import Nested
+from marshmallow.fields import Integer, Nested
 from marshmallow_sqlalchemy import field_for
 from sqlalchemy.orm import load_only
 
@@ -48,7 +48,7 @@ class TeamSchema(ma.ModelSchema):
         ],
     )
     country = field_for(Teams, "country", validate=[validate_country_code])
-    bracket_id = field_for(Teams, "bracket_id")
+    bracket_id = Integer(allow_none=True, missing=None)
     fields = Nested(
         TeamFieldEntriesSchema, partial=True, many=True, attribute="field_entries"
     )
@@ -204,7 +204,8 @@ class TeamSchema(ma.ModelSchema):
     @pre_load
     def validate_bracket_id(self, data):
         bracket_id = data.get("bracket_id")
-        if bracket_id is None:
+        if bracket_id == "" or bracket_id is None:
+            data["bracket_id"] = None
             return
 
         if is_admin():

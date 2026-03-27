@@ -47,24 +47,76 @@
                     <div class="form-group">
                         <label>
                             <input type="checkbox" name="require_deploy" id="setup_docker">
-                            Setup Docker
+                            Setup Deploy
                         </label>
                     </div>
-
+                    <div class="form-group d-none" id="expose_port_container">
+                        <label> Expose port <br>
+                        <small class="form-text text-muted">Expose a port for the Docker container</small>
+                        </label>
+                        <input type="text" class="form-control" name="expose_port" id="expose_port"  min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container">
+                        <label>
+                            CPU Limit (mCPU) <br>
+                            <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_limit" min="1" max="500" value="100">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_cpu_request">
+                        <label>
+                            CPU Request (mCPU) <br>
+                            <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_request" min="1" max="500" value="10">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_memory_limit">
+                        <label>
+                            Memory Limit (Mi) <br>
+                            <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_limit" min="1" max="1024" value="128">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_memory_request">
+                        <label>
+                            Memory Request (Mi) <br>
+                            <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_request" min="1" max="1024" value="32">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_use_gvisor">
+                        <label>
+                            Use gVisor <br>
+                            <small class="form-text text-muted">Run the pod with gVisor sandbox for extra isolation.</small>
+                        </label>
+                        <select class="form-control" name="use_gvisor">
+                            <option value="true" selected>True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_harden_container">
+                        <label>
+                            <input type="checkbox" name="harden_container" id="harden_container" checked>
+                            Harden Container <br>
+                            <small class="form-text text-muted">Apply security hardening to the container: restricted Pod Security Standards, read-only root filesystem, drop all capabilities, run as non-root user (UID 1000), and mount /tmp as an in-memory volume.</small>
+                        </label>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_max_deploy_count">
+                        <label>
+                            Max Deploy Count <br>
+                            <small class="form-text text-muted">Maximum number of times a contestant can start/deploy this challenge. Set 0 for unlimited.</small>
+                        </label>
+                        <input type="number" class="form-control" name="max_deploy_count" min="0" value="0">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_shared_instant">
+                        <label>
+                            <input type="checkbox" name="shared_instant" id="shared_instant">
+                            Shared Instance <br>
+                            <small class="form-text text-muted">Use one shared deployed instance for all contestants instead of per-user instances.</small>
+                        </label>
+                    </div>
                     <div class="form-group">
                         <div class="form-group d-none upload-file">
-                            <label>Files template:</label>
-                            <ul id="template-list">
-                                {% for filename in template_files %}
-                                <li class="list-unstyled">
-                                    <a href="{{ url_for('admin.download_template', filename=filename) }}" download>
-                                        {{ filename }}
-                                    </a>
-                                </li>
-                                {% else %}
-                                <li>No templates available.</li>
-                                {% endfor %}
-                            </ul>
                             <label>
                                 Deploy Files:
                                 <small class="form-text text-muted">Files distributed along with your challenge</small>
@@ -95,12 +147,13 @@
                         </select>
                     </div>
 
-                    <input id="require_deploy" type="hidden" name="require_deploy">
                     <input id="challenge_id" type="hidden" name="challenge_id">
+
+                    <div id="create-upload-status" class="alert d-none" role="alert"></div>
 
                     <div class="form-group">
                         <button class="btn btn-primary float-right create-challenge-submit"
-                            type="submit">Finish</button>
+                            type="submit" id="deploy-btn">Finish</button>
                     </div>
                 </form>
             </div>
@@ -155,8 +208,6 @@
 {% endblock %}
 
 {% block scripts %}
-{% endblock %}
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const radioButtons = document.querySelectorAll('.card-radio');
@@ -175,7 +226,6 @@
                 cards[index].classList.add('active');
             }
         });
-
         cards.forEach((card, index) => {
             card.addEventListener('click', function () {
                 radioButtons[index].checked = true;
@@ -183,7 +233,87 @@
             });
         });
     });
+
+    // Handle Setup Docker checkbox toggle - using jQuery for consistency
+    $(document).on('change', '#setup_docker', function() {
+        const isChecked = $(this).is(':checked');
+        console.log('Setup Docker checkbox changed:', isChecked);
+        const defaultCpuLimit = 100;
+        const defaultCpuRequest = 10;
+        const defaultMemoryLimit = 128;
+        const defaultMemoryRequest = 32;
+        
+        if (isChecked) {
+            $('#expose_port_container').removeClass('d-none');
+            $('.upload-file').removeClass('d-none');
+            $('.multi_files').addClass('d-none');
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').removeClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+                .prop('disabled', false)
+                .prop('required', true);
+            $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
+            $('#deploy_resource_container_harden_container input').prop('disabled', false).prop('required', false);
+            $('#deploy_resource_container_shared_instant input').prop('disabled', false).prop('required', false);
+            $('#deploy_resource_container input[name="cpu_limit"]').val(defaultCpuLimit);
+            $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(defaultCpuRequest);
+            $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(defaultMemoryLimit);
+            $('#deploy_resource_container_memory_request input[name="memory_request"]').val(defaultMemoryRequest);
+        } else {
+            $('#expose_port_container').addClass('d-none');
+            $('.upload-file').addClass('d-none');
+            $('.multi_files').removeClass('d-none');
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').addClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+                .prop('disabled', true)
+                .prop('required', false);
+            $('#deploy_resource_container_max_deploy_count input').prop('disabled', true);
+            $('#deploy_resource_container_harden_container input').prop('disabled', true);
+            $('#deploy_resource_container_shared_instant input').prop('disabled', true).prop('checked', false);
+            $('#deploy_resource_container input[name="cpu_limit"]').val('');
+            $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val('');
+            $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val('');
+            $('#deploy_resource_container_memory_request input[name="memory_request"]').val('');
+        }
+    });
+
+    // Also handle when modal is shown
+    $('#challenge-create-options').on('shown.bs.modal', function() {
+        const setupDockerCheckbox = $('#setup_docker');
+        const defaultCpuLimit = 100;
+        const defaultCpuRequest = 10;
+        const defaultMemoryLimit = 128;
+        const defaultMemoryRequest = 32;
+        if (setupDockerCheckbox.is(':checked')) {
+            $('#expose_port_container').removeClass('d-none');
+            $('.upload-file').removeClass('d-none');
+            $('.multi_files').addClass('d-none');
+                        $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').removeClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+              .prop('disabled', false)
+              .prop('required', true);
+            $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
+                        $('#deploy_resource_container_harden_container input').prop('disabled', false).prop('required', false);
+                        $('#deploy_resource_container_shared_instant input').prop('disabled', false).prop('required', false);
+            $('#deploy_resource_container input[name="cpu_limit"]').val(defaultCpuLimit);
+            $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(defaultCpuRequest);
+            $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(defaultMemoryLimit);
+            $('#deploy_resource_container_memory_request input[name="memory_request"]').val(defaultMemoryRequest);
+        } else {
+            $('.multi_files').removeClass('d-none');
+                        $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').addClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+              .prop('disabled', true)
+              .prop('required', false);
+            $('#deploy_resource_container_max_deploy_count input').prop('disabled', true);
+                        $('#deploy_resource_container_shared_instant input').prop('disabled', true).prop('checked', false);
+            $('#deploy_resource_container input[name="cpu_limit"]').val('');
+            $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val('');
+            $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val('');
+            $('#deploy_resource_container_memory_request input[name="memory_request"]').val('');
+        }
+    });
 </script>
+{% endblock %}
 
 {% block entrypoint %}
 {{ Assets.js("assets/js/pages/challenge.js", theme="admin") }}

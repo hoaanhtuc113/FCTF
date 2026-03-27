@@ -95,3 +95,100 @@ class ChallengeSchema(ma.ModelSchema):
             )
         ]
     )
+    cooldown = field_for(
+        Challenges,
+        "cooldown",
+        allow_none=False,
+        validate=[
+            validate.Range(min=0, error="Cooldown must be greater than or equal to 0")
+        ],
+    )
+
+    cpu_limit = field_for(
+        Challenges,
+        "cpu_limit",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=1,
+                max=500,
+                error="CPU limit must be between 1 and 500 (mCPU)",
+            )
+        ],
+    )
+
+    cpu_request = field_for(
+        Challenges,
+        "cpu_request",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=1,
+                max=500,
+                error="CPU request must be between 1 and 500 (mCPU)",
+            )
+        ],
+    )
+
+    memory_limit = field_for(
+        Challenges,
+        "memory_limit",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=1,
+                max=1024,
+                error="Memory limit must be between 1 and 1024 (Mi)",
+            )
+        ],
+    )
+
+    memory_request = field_for(
+        Challenges,
+        "memory_request",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=1,
+                max=1024,
+                error="Memory request must be between 1 and 1024 (Mi)",
+            )
+        ],
+    )
+
+    use_gvisor = field_for(
+        Challenges,
+        "use_gvisor",
+        allow_none=True,
+    )
+
+    harden_container = field_for(
+        Challenges,
+        "harden_container",
+        allow_none=True,
+    )
+
+    max_deploy_count = field_for(
+        Challenges,
+        "max_deploy_count",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=0,
+                error="Max deploy count must be greater than or equal to 0",
+            )
+        ],
+    )
+
+    difficulty = field_for(
+        Challenges,
+        "difficulty",
+        allow_none=True,
+        validate=[
+            validate.Range(
+                min=1,
+                max=5,
+                error="Difficulty must be between 1 and 5",
+            )
+        ],
+    )

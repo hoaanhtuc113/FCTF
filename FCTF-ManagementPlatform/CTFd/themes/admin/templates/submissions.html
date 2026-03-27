@@ -1,178 +1,293 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Submissions page — only page-specific overrides; shared styles in base.html */
+</style>
 {% endblock %}
 
 {% block content %}
-
-<div class="jumbotron">
+<div class="page-header">
 	<div class="container">
-		<h1>{% if type %}{{ type|title }} {% endif %}Submissions</h1>
+		<h1><i class="bx bx-down-arrow-circle"></i> {% if type %}{{ type|title }} {% endif %}Submissions</h1>
 	</div>
 </div>
-
 <div class="container">
-
-	<div class="row">
-		<div class="col-md-12">
-			{% if q and field %}
-			<h5 class="text-muted text-center">
-				Searching for submissions with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
-			</h5>
-			<h6 class="text-muted text-center pb-3">
-				Page {{ submissions.page }} of {{ submissions.total }} results
-			</h6>
-			{% endif %}
-
-			{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
-			<form method="GET" class="form-inline">
-				<div class="form-group col-md-2 pr-0">
-					{{ form.field(class="form-control custom-select w-100") }}
-				</div>
-				<div class="form-group col-md-8">
-					{{ form.q(class="form-control w-100", placeholder="Search for matching submission") }}
-				</div>
-				<div class="form-group col-md-2">
-					<button type="submit" class="btn btn-primary w-100">
-						<i class="fas fa-search" aria-hidden="true"></i>
-					</button>
-				</div>
-				
-
-			</form>
-			{% endwith %}
+	{% if q and field %}
+	<div class="alert alert-info">
+		<div class="clean-info-text">
+			Searching <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q
+				}}</span> &mdash; {{ submissions.total }} results
 		</div>
 	</div>
+	{% endif %}
 
-	<hr>
-
-	<div class="row">
-		<div class="col-md-12">
-			<div class="float-right pb-3">
-				<div class="btn-group" role="group">
-					{% if type == "incorrect" %}
-					<button type="button" class="btn btn-outline-success" data-toggle="tooltip" title="Mark submissions correct" id="correct-flags-button">
-						<i class="btn-fa fas fa-check"></i>
-					</button>
-					{% endif %}
-					{% if request.args.get("full") %}
-					<button type="button" class="btn btn-outline-primary" data-toggle="tooltip" title="Show truncated flags" id="show-short-flags-button">
-						<i class="btn-fa far fa-flag"></i>
-					</button>
-					{% else %}
-					<button type="button" class="btn btn-outline-primary" data-toggle="tooltip" title="Show full flags" id="show-full-flags-button">
-						<i class="btn-fa fas fa-flag"></i>
-					</button>
-					{% endif %}
-					<button type="button" class="btn btn-outline-danger" data-toggle="tooltip" title="Delete selected submissions" id="submission-delete-button">
-						<i class="btn-fa fas fa-trash-alt"></i>
-					</button>
-					<a href="{{ url_for('admin.export_submission_data') }}" class="btn btn-outline-primary" title="Export Data">
-                        <i class="btn-fa fas fa-file-excel"></i> Export
-                    </a>
+	<!-- Filter & Search -->
+	<div class="clean-search-container">
+		<form method="GET" id="filterForm" class="m-0">
+			{% if type %}<input type="hidden" name="submission_type" value="{{ type }}">{% endif %}
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-3 px-1">
+					<label for="team_id">Team</label>
+					<div class="searchable-select-wrapper" data-ss-target="team_id">
+						<input type="hidden" name="team_id" id="team_id" value="{{ team_filter }}">
+						<input type="text" class="clean-form-control ss-input w-100" placeholder="All Teams"
+							autocomplete="off">
+						<div class="ss-dropdown">
+							<div class="ss-option" data-value="">All Teams</div>
+							{% for team in all_teams %}
+							<div class="ss-option" data-value="{{ team.id }}">{{ team.name }}</div>
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="user_id">User</label>
+					<div class="searchable-select-wrapper" data-ss-target="user_id">
+						<input type="hidden" name="user_id" id="user_id" value="{{ user_filter }}">
+						<input type="text" class="clean-form-control ss-input w-100" placeholder="All Users"
+							autocomplete="off">
+						<div class="ss-dropdown">
+							<div class="ss-option" data-value="">All Users</div>
+							{% for user in all_users %}
+							<div class="ss-option" data-value="{{ user.id }}">{{ user.name }}</div>
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="challenge_id">Challenge</label>
+					<div class="searchable-select-wrapper" data-ss-target="challenge_id">
+						<input type="hidden" name="challenge_id" id="challenge_id" value="{{ challenge_filter }}">
+						<input type="text" class="clean-form-control ss-input w-100" placeholder="All Challenges"
+							autocomplete="off">
+						<div class="ss-dropdown">
+							<div class="ss-option" data-value="">All Challenges</div>
+							{% for ch in all_challenges %}
+							<div class="ss-option" data-value="{{ ch.id }}">{{ ch.name }}</div>
+							{% endfor %}
+						</div>
+					</div>
+				</div>
+				<div class="col-md-3 px-1">
+					<label for="date_from">From Date</label>
+					<input type="date" name="date_from" id="date_from" class="clean-form-control w-100"
+						value="{{ date_from }}">
 				</div>
 			</div>
-		</div>
-	</div>
-	<div class="row">
-		<div class="col-md-12 table-responsive">
-			{% set mode = Configs.user_mode %}
-			<table id="teamsboard" class="table table-striped border">
-				<thead>
-					<tr>
-						<th class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" autocomplete="off" data-checkbox-all>&nbsp;
-							</div>
-						</th>
-						<th class="text-center sort-col"><b>ID</b></th>
-						{% if mode == UserModeTypes.TEAMS %}
-						<th class="sort-col"><b>User</b></th>
-						{% endif %}
-						<th class="sort-col"><b>{{ get_mode_as_word(capitalize=True) }}</b></th>
-						<th class="sort-col"><b>Challenge</b></th>
-						<th class="sort-col"><b>Type</b></th>
-						<th class="sort-col"><b>Provided</b></th>
-						<th class="text-center sort-col"><b>Date</b></th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for sub in submissions.items %}
-					<tr>
-						<td class="border-right" data-checkbox>
-							<div class="form-check text-center">
-								<input type="checkbox" class="form-check-input" value="{{ sub.id }}" data-submission-id="{{ sub.id }}" autocomplete="off">&nbsp;
-							</div>
-						</td>
-						<td class="text-center" id="{{ sub.id }}">
-							{{ sub.id }}
-						</td>
-						{% if mode == UserModeTypes.TEAMS %}
-						<td>
-							<a href="{{ url_for('admin.users_detail', user_id=sub.user_id) }}">
-								{{ sub.user.name }}
-							</a>
-						</td>
-						{% endif %}
-						<td class="team" id="{{ sub.account_id }}">
-							<a href="{{ generate_account_url(sub.account_id, admin=True) }}">
-								{{ sub.account.name }}
-							</a>
-						</td>
-						<td class="chal" id="{{ sub.challenge_id }}">
-							<a href="{{ url_for('admin.challenges_detail', challenge_id=sub.challenge_id) }}">
-								{{ sub.challenge.name }}
-							</a>
-						</td>
-						<td>
-							{{ sub.type }}
-						</td>
-						<td class="flag" id="{{ sub.id }}">
-							<button class="btn btn-link p-0 float-left copy-flag" type="button">
-								<i class="fas fa-clipboard"></i>
-							</button>
-							{% if request.args.get('full') %}
-								<pre class="mb-0 pl-2" title="{{ sub.provided }}">{{ sub.provided }}</pre>
-							{% else %}
-								<pre class="mb-0 pl-2 float-left" title="{{ sub.provided }}">{{ sub.provided | truncate(45, True) }}</pre>
-								{% if sub.provided | length > 50 %}
-									<button class="btn btn-link p-0 pl-1 float-left show-flag">
-										<i class="fas fa-eye"></i>
-									</button>
-								{% endif %}
-							{% endif %}
-						</td>
-						<td class="text-center solve-time">
-							<span>{{ sub.date.strftime('%Y-%m-%dT%H:%M:%S.%f') }}</span>
-						</td>
-					</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-			{% if submissions.pages > 1 %}
-			<div class="text-center">Page
-				<br>
-				{% if submissions.page != 1 %}
-					<a href="{{ prev_page }}">&lt;&lt;&lt;</a>
-				{% endif %}
-				<select class="page-select">
-					{% for page in range(1, submissions.pages + 1) %}
-					<option {% if submissions.page == page %}selected{% endif %}>{{ page }}</option>
-					{% endfor %}
-				</select>
-				{% if submissions.next_num %}
-					<a href="{{ next_page }}">&gt;&gt;&gt;</a>
-				{% endif %}
+			<div class="row no-gutters align-items-end mt-1">
+				<div class="col-md-2 px-1">
+					<label for="date_to">To Date</label>
+					<input type="date" name="date_to" id="date_to" class="clean-form-control w-100"
+						value="{{ date_to }}">
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Search Field</label>
+					{% with form = Forms.submissions.SubmissionSearchForm(field=field, q=q) %}
+					{{ form.field(class="clean-form-control ss-select w-100") }}
+					{% endwith %}
+				</div>
+				<div class="col-md-5 px-1">
+					<label>Search Text</label>
+					<input type="text" name="q" class="clean-form-control w-100"
+						placeholder="Search for matching submission" value="{{ q or '' }}">
+				</div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Search
+					</button>
+					<button type="button" class="clean-btn btn-outline-secondary" onclick="clearAllFilters()"
+						title="Reset">
+						<i class="fas fa-sync-alt"></i>
+					</button>
+				</div>
 			</div>
+		</form>
+	</div>
+
+	<!-- Action Buttons -->
+	<div class="d-flex justify-content-end align-items-center action-buttons mt-2">
+		<div class="btn-group" role="group">
+			{% if type != 'correct' %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Mark selected as correct"
+				id="correct-flags-button">
+				<i class="btn-fa fas fa-check" style="color:#28a745"></i>
+			</button>
 			{% endif %}
+			{% if type != 'incorrect' %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Mark selected as incorrect"
+				id="incorrect-flags-button">
+				<i class="btn-fa fas fa-times" style="color:#ffc107"></i>
+			</button>
+			{% endif %}
+			{% if request.args.get("full") %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Show truncated flags"
+				id="show-short-flags-button">
+				<i class="btn-fa far fa-flag"></i>
+			</button>
+			{% else %}
+			<button type="button" class="clean-btn" data-toggle="tooltip" title="Show full flags"
+				id="show-full-flags-button">
+				<i class="btn-fa fas fa-flag"></i>
+			</button>
+			{% endif %}
+			<button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip"
+				title="Delete selected submissions" id="submission-delete-button">
+				<i class="btn-fa fas fa-trash-alt"></i> Delete
+			</button>
+			<button type="button" class="clean-btn ml-2" data-toggle="tooltip" title="Resync Dynamic Challenges"
+				id="resync-dynamic-button">
+				<i class="btn-fa fas fa-sync-alt"></i>
+			</button>
+			<a href="{{ url_for('admin.export_submission_data') }}{% if export_query %}?{{ export_query }}{% endif %}"
+				class="clean-btn ml-2" title="Export Data">
+				<i class="btn-fa fas fa-file-excel"></i> Export
+			</a>
 		</div>
 	</div>
+
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		{% set mode = Configs.user_mode %}
+		<table id="teamsboard" class="clean-table table">
+			<thead>
+				<tr>
+					<th data-checkbox>
+						<input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+					</th>
+					<th class="text-center sort-col"><b>ID</b></th>
+					{% if mode == UserModeTypes.TEAMS %}
+					<th class="sort-col text-center"><b>User</b></th>
+					{% endif %}
+					<th class="sort-col text-center"><b>{{ get_mode_as_word(capitalize=True) }}</b></th>
+					<th class="sort-col text-center"><b>Challenge</b></th>
+					<th class="sort-col text-center"><b>Type</b></th>
+					<th class="sort-col text-center"><b>Provided</b></th>
+					<th class="text-center sort-col"><b>Date</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for sub in submissions.items %}
+				<tr>
+					<td data-checkbox>
+						<input type="checkbox" class="table-check" value="{{ sub.id }}"
+							data-submission-id="{{ sub.id }}" autocomplete="off">
+					</td>
+					<td class="text-center" id="{{ sub.id }}">
+						{{ sub.id }}
+					</td>
+					{% if mode == UserModeTypes.TEAMS %}
+					<td class="text-center cell-truncate" title="{{ sub.user.name }}">
+						<a href="{{ url_for('admin.users_detail', user_id=sub.user_id) }}">
+							{{ sub.user.name | truncate(28) }}
+						</a>
+					</td>
+					{% endif %}
+					<td class="text-center cell-truncate" id="{{ sub.account_id }}" title="{{ sub.account.name }}">
+						<a href="{{ generate_account_url(sub.account_id, admin=True) }}">
+							{{ sub.account.name | truncate(28) }}
+						</a>
+					</td>
+					<td class="text-center cell-truncate" id="{{ sub.challenge_id }}" title="{{ sub.challenge.name }}">
+						<a href="{{ url_for('admin.challenges_detail', challenge_id=sub.challenge_id) }}">
+							{{ sub.challenge.name | truncate(28) }}
+						</a>
+					</td>
+					<td class="text-center">
+						{{ sub.type }}
+					</td>
+					<td class="flag" id="{{ sub.id }}">
+						<button class="btn btn-link p-0 float-left copy-flag" type="button">
+							<i class="fas fa-clipboard"></i>
+						</button>
+						{% if request.args.get('full') %}
+						<pre class="mb-0 pl-2" title="{{ sub.provided }}">{{ sub.provided }}</pre>
+						{% else %}
+						<pre class="mb-0 pl-2 float-left"
+							title="{{ sub.provided }}">{{ sub.provided | truncate(45, True) }}</pre>
+						{% if sub.provided | length > 50 %}
+						<button class="btn btn-link p-0 pl-1 float-left show-flag">
+							<i class="fas fa-eye"></i>
+						</button>
+						{% endif %}
+						{% endif %}
+					</td>
+					<td class="text-center solve-time">
+						<span>{{ sub.date.strftime('%Y-%m-%dT%H:%M:%S.%f') if sub.date else 'N/A' }}</span>
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Pagination -->
+	{% if submissions.pages > 0 %}
+	{% set filter_args = {} %}
+	{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
+	{% if team_filter %}{% set _ = filter_args.update({"team_id": team_filter}) %}{% endif %}
+	{% if user_filter %}{% set _ = filter_args.update({"user_id": user_filter}) %}{% endif %}
+	{% if challenge_filter %}{% set _ = filter_args.update({"challenge_id": challenge_filter}) %}{% endif %}
+	{% if date_from %}{% set _ = filter_args.update({"date_from": date_from}) %}{% endif %}
+	{% if date_to %}{% set _ = filter_args.update({"date_to": date_to}) %}{% endif %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text" role="status" aria-live="polite">
+			Page <span class="clean-highlight">{{ submissions.page }}</span> of <span class="clean-highlight">{{
+				submissions.pages }}</span> &bull; {{ submissions.total }} total
+		</div>
+		{% if submissions.pages > 1 %}
+		<nav aria-label="Submission pagination">
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if submissions.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if submissions.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set start_page = [1, submissions.page - 2]|max %}
+				{% set end_page = [submissions.pages, submissions.page + 2]|min %}
+				{% if start_page > 1 %}
+				<li class="page-item">
+					<a class="page-link"
+						href="{{ url_for('admin.submissions_listing', submission_type=type, page=1, **filter_args) }}">1</a>
+				</li>
+				{% if start_page > 2 %}
+				<li class="page-item disabled"><span class="page-link">...</span></li>
+				{% endif %}
+				{% endif %}
+				{% for page_num in range(start_page, end_page + 1) %}
+				<li class="page-item {% if page_num == submissions.page %}active{% endif %}">
+					<a class="page-link"
+						href="{{ url_for('admin.submissions_listing', submission_type=type, page=page_num, **filter_args) }}">{{
+						page_num }}</a>
+				</li>
+				{% endfor %}
+				{% if end_page < submissions.pages %} {% if end_page < submissions.pages - 1 %} <li
+					class="page-item disabled"><span class="page-link">...</span></li>
+					{% endif %}
+					<li class="page-item">
+						<a class="page-link"
+							href="{{ url_for('admin.submissions_listing', submission_type=type, page=submissions.pages, **filter_args) }}">{{
+							submissions.pages }}</a>
+					</li>
+					{% endif %}
+					<li class="page-item {% if submissions.page == submissions.pages %}disabled{% endif %}">
+						<a class="page-link"
+							href="{{ next_page if submissions.page < submissions.pages else '#' }}">&raquo;</a>
+					</li>
+			</ul>
+		</nav>
+		{% endif %}
+	</div>
+	{% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script>
+	function clearAllFilters() {
+		window.location.href = window.location.pathname;
+	}
+</script>
 {% endblock %}
 
 {% block entrypoint %}
-	{{ Assets.js("assets/js/pages/submissions.js", theme="admin") }}
+{{ Assets.js("assets/js/pages/submissions.js", theme="admin") }}
 {% endblock %}

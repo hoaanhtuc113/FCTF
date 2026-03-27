@@ -2,15 +2,14 @@ import hashlib
 import json
 import time
 from typing import List
-
+from datetime import datetime, timedelta, timezone
 import requests  # noqa: I001
 
 from flask import abort, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
-from CTFd.utils.notifications import notify_to_contestant
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
-from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY
+from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, get_redis_client_kwargs
 from sqlalchemy.sql import and_
 
 from CTFd.api.v1.helpers.request import validate_args
@@ -24,11 +23,13 @@ from CTFd.models import (
     Tokens,
     Users,
     DeployedChallenge,
+    ChallengeVersion,
 )
 from CTFd.models import Challenges
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
 from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
+from CTFd.plugins.dynamic_challenges import DynamicChallenge
 from CTFd.schemas.challenges import ChallengeSchema
 from CTFd.schemas.flags import FlagSchema
 from CTFd.schemas.hints import HintSchema
@@ -60,6 +61,7 @@ from CTFd.utils.decorators.visibility import (
 )
 from CTFd.utils.humanize.words import pluralize
 from CTFd.utils.logging import log
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.signing import serialize
 from CTFd.utils.user import (
     authed,
@@ -72,8 +74,14 @@ from CTFd.utils.user import (
     is_jury,
 )
 
-from CTFd.plugins import bypass_csrf_protection
-from CTFd.utils.connector.multiservice_connector import delete_challenge, force_stop, post_notification
+from CTFd.utils.connector.multiservice_connector import (
+    delete_challenge,
+    force_stop,
+    get_workflow_status,
+    get_workflow_name,
+    delete_cached_files,
+)
+from CTFd.utils.uploads import delete_folder
 
 challenges_namespace = Namespace(
     "challenges", description="Endpoint to retrieve Challenges"
@@ -101,9 +109,7 @@ challenges_namespace.schema_model(
     "ChallengeListSuccessResponse", ChallengeListSuccessResponse.apidoc()
 )
 
-redis_client = redis.StrictRedis(
-    host=f"{HOST_CACHE}", port=6379, db=0, encoding="utf-8", decode_responses=True
-)
+redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 
 
 @challenges_namespace.route("")
@@ -224,7 +230,6 @@ class ChallengeList(Resource):
 
             try:
                 challenge_type = get_chal_class(challenge.type)
-                print(challenge.requirements)
             except KeyError:
                 # Challenge type does not exist. Fall through to next challenge.
                 continue
@@ -262,7 +267,33 @@ class ChallengeList(Resource):
     def post(self):
         data = request.form or request.get_json()
 
-        # Load data through schema for validation but not for insertion
+        # Trim name and category fields
+        if "name" in data:
+            data["name"] = data["name"].strip()
+        if "category" in data:
+            data["category"] = data["category"].strip()
+
+        # Validate name and category are not empty after trim
+        if not data.get("name"):
+            return {"success": False, "errors": {"name": ["Name cannot be empty"]}}, 400
+        if not data.get("category"):
+            return {"success": False, "errors": {"category": ["Category cannot be empty"]}}, 400
+        
+        # Validate category max length
+        if len(data.get("category", "")) > 20:
+            return {"success": False, "errors": {"category": ["Category must be 20 characters or less"]}}, 400
+
+        # Normalize difficulty: empty string → None so schema validation passes
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
+
         schema = ChallengeSchema()
         response = schema.load(data)
         if response.errors:
@@ -272,6 +303,39 @@ class ChallengeList(Resource):
         challenge_class = get_chal_class(challenge_type)
         challenge = challenge_class.create(request)
         response = challenge_class.read(challenge)
+
+        log_audit(
+            action="challenge_create",
+            data={
+                "challenge_id": challenge.id,
+                "name": challenge.name,
+                "description": challenge.description,
+                "category": challenge.category,
+                "type": challenge.type,
+                "value": challenge.value,
+                "state": challenge.state,
+                "max_attempts": challenge.max_attempts,
+                "connection_info": challenge.connection_info,
+                "time_limit": challenge.time_limit,
+                "cooldown": challenge.cooldown,
+                "difficulty": challenge.difficulty,
+                "requirements": challenge.requirements,
+                "next_id": challenge.next_id,
+                "user_id": challenge.user_id,
+                "require_deploy": challenge.require_deploy,
+                "deploy_status": challenge.deploy_status,
+                "image_link": challenge.image_link,
+                "deploy_file": challenge.deploy_file,
+                "cpu_limit": challenge.cpu_limit,
+                "cpu_request": challenge.cpu_request,
+                "memory_limit": challenge.memory_limit,
+                "memory_request": challenge.memory_request,
+                "use_gvisor": challenge.use_gvisor,
+                "harden_container": challenge.harden_container,
+                "max_deploy_count": challenge.max_deploy_count,
+                "shared_instant": challenge.shared_instant,
+            }
+        )
 
         clear_challenges()
 
@@ -459,21 +523,20 @@ class Challenge(Resource):
         response["tags"] = tags
         response["hints"] = hints
 
+        # FIX: Don't pass Hints objects to template, use dict instead
         response["view"] = render_template(
             chal_class.templates["view"].lstrip("/"),
             solves=solve_count,
             solved_by_me=solved_by_user,
             files=files,
             tags=tags,
-            hints=[Hints(**h) for h in hints],
+            hints=hints,  # Changed from [Hints(**h) for h in hints] to just hints
             max_attempts=chal.max_attempts,
             attempts=attempts,
             challenge=chal,
         )
 
         db.session.close()
-        print("challenge response")
-        print(response)
         return {"success": True, "data": response}
 
     @admin_or_challenge_writer_only_or_jury
@@ -489,10 +552,21 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+        # Normalize difficulty: empty string → None so schema validation passes
+        if "difficulty" in data:
+            diff_val = data["difficulty"]
+            if diff_val is None or (isinstance(diff_val, str) and diff_val.strip() == ""):
+                data["difficulty"] = None
+            else:
+                try:
+                    data["difficulty"] = int(diff_val)
+                except (TypeError, ValueError):
+                    data["difficulty"] = None
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         data["user_id"] = session["id"]
         response = schema.load(data)
+        scoringType = data.get("scoring-type-radio")
 
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
@@ -500,10 +574,37 @@ class Challenge(Resource):
         user_id = session["id"]
         user = Users.query.filter_by(id=user_id).first()
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
-        
-        # Debugging logs
-        print(f"Challenge user_id: {challenge.user_id}")
-        print(f"Current user's user_id: {user_id}")
+        print(f"Challenge {challenge.name} has been updated by user {user_id} ({user.type})")
+
+        # Store before state for audit
+        before_state = {
+            "name": challenge.name,
+            "description": challenge.description,
+            "category": challenge.category,
+            "type": challenge.type,
+            "value": challenge.value,
+            "state": challenge.state,
+            "max_attempts": challenge.max_attempts,
+            "connection_info": challenge.connection_info,
+            "time_limit": challenge.time_limit,
+            "cooldown": challenge.cooldown,
+            "difficulty": challenge.difficulty,
+            "requirements": challenge.requirements,
+            "next_id": challenge.next_id,
+            "user_id": challenge.user_id,
+            "require_deploy": challenge.require_deploy,
+            "deploy_status": challenge.deploy_status,
+            "image_link": challenge.image_link,
+            "deploy_file": challenge.deploy_file,
+            "cpu_limit": challenge.cpu_limit,
+            "cpu_request": challenge.cpu_request,
+            "memory_limit": challenge.memory_limit,
+            "memory_request": challenge.memory_request,
+            "use_gvisor": challenge.use_gvisor,
+            "harden_container": challenge.harden_container,
+            "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
+        }
 
         if user.type == "admin":
             data["user_id"] = challenge.user_id
@@ -518,24 +619,89 @@ class Challenge(Resource):
         else:
             return {"success": False, "error": "Unauthorized user type."}, 403
 
+        if scoringType == "standard" and challenge.type == "dynamic":
+            # Converting from dynamic to standard
+            from sqlalchemy import text
+            db.session.execute(
+                text("DELETE FROM dynamic_challenge WHERE id = :id"),
+                {"id": challenge_id}
+            )
+            
+            challenge.type = "standard"
+            db.session.commit()
+            db.session.expunge_all()
+            challenge = Challenges.query.filter_by(id=challenge_id).first()
+            
+        elif scoringType == "dynamic" and challenge.type == "standard":
+            # Converting from standard to dynamic
+            challenge.type = "dynamic"
+            db.session.flush()
+
+            initial = int(data.get("initial", 100))
+            minimum = int(data.get("minimum", 10))
+            decay = int(data.get("decay", 50))
+            function = data.get("function", "logarithmic")
+            
+            from sqlalchemy import text
+            db.session.execute(
+                text(
+                    "INSERT INTO dynamic_challenge (id, initial, minimum, decay, function) "
+                    "VALUES (:id, :initial, :minimum, :decay, :function)"
+                ),
+                {
+                    "id": challenge_id,
+                    "initial": initial,
+                    "minimum": minimum,
+                    "decay": decay,
+                    "function": function
+                }
+            )
+            db.session.commit()
+            db.session.expunge_all()
+            challenge = Challenges.query.filter_by(id=challenge_id).first()
+
         challenge_class = get_chal_class(challenge.type)
         challenge = challenge_class.update(challenge, request)
         response = challenge_class.read(challenge)
+        
+        log_audit(
+            action="challenge_update",
+            before=before_state,
+            after={
+                "name": challenge.name,
+                "description": challenge.description,
+                "category": challenge.category,
+                "type": challenge.type,
+                "value": challenge.value,
+                "state": challenge.state,
+                "max_attempts": challenge.max_attempts,
+                "connection_info": challenge.connection_info,
+                "time_limit": challenge.time_limit,
+                "cooldown": challenge.cooldown,
+                "difficulty": challenge.difficulty,
+                "requirements": challenge.requirements,
+                "next_id": challenge.next_id,
+                "user_id": challenge.user_id,
+                "require_deploy": challenge.require_deploy,
+                "deploy_status": challenge.deploy_status,
+                "image_link": challenge.image_link,
+                "deploy_file": challenge.deploy_file,
+                "cpu_limit": challenge.cpu_limit,
+                "cpu_request": challenge.cpu_request,
+                "memory_limit": challenge.memory_limit,
+                "memory_request": challenge.memory_request,
+                "use_gvisor": challenge.use_gvisor,
+                "harden_container": challenge.harden_container,
+                "max_deploy_count": challenge.max_deploy_count,
+                "shared_instant": challenge.shared_instant,
+            },
+            data={"challenge_id": challenge_id, "name": challenge.name}
+        )
+        
         print("challengeState:" + challenge.state)
         if challenge.state == "visible":
-            notify_to_contestant(notif_type = "toast",
-                                notif_sound = True,
-                                notif_title = "Thông báo từ ban quản trị",
-                                notif_message = f"Thử thách '{challenge.name}' vừa được cập nhật.")
-            notification_data = {
-                "title": f"Thông báo từ ban quản trị",
-                "content": f"Thử thách '{challenge.name}' vừa được cập nhật.",
-                "date": time.time(),
-                "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa được cập nhật</p>\n",
-                "sound": False,
-                "type": "background",
-            }
-            post_notification(notification_data)
+            # notification to contestants disabled
+            pass
 
         clear_standings()
         clear_challenges()
@@ -551,36 +717,65 @@ class Challenge(Resource):
         DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        
+        # Store challenge info before deletion for audit
+        challenge_info = {
+            "challenge_id": challenge.id,
+            "name": challenge.name,
+            "description": challenge.description,
+            "category": challenge.category,
+            "type": challenge.type,
+            "value": challenge.value,
+            "state": challenge.state,
+            "max_attempts": challenge.max_attempts,
+            "connection_info": challenge.connection_info,
+            "time_limit": challenge.time_limit,
+            "cooldown": challenge.cooldown,
+            "difficulty": challenge.difficulty,
+            "requirements": challenge.requirements,
+            "next_id": challenge.next_id,
+            "user_id": challenge.user_id,
+            "require_deploy": challenge.require_deploy,
+            "deploy_status": challenge.deploy_status,
+            "image_link": challenge.image_link,
+            "deploy_file": challenge.deploy_file,
+            "cpu_limit": challenge.cpu_limit,
+            "cpu_request": challenge.cpu_request,
+            "memory_limit": challenge.memory_limit,
+            "memory_request": challenge.memory_request,
+            "use_gvisor": challenge.use_gvisor,
+            "harden_container": challenge.harden_container,
+            "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
+        }
+
         if challenge.require_deploy:
-            if challenge.deploy_status != "PENDING_DEPLOY":
-                delete_response, status_code = delete_challenge(challenge_id)
-                if status_code != 200 or not delete_response.get("isSuccess"):
-                    return {
-                        "isSuccess": False,
-                        "message": delete_response.get("message"),
-                    }, status_code
-            else:
-                pass
+            delete_folder(challenge.deploy_file)
+            delete_cached_files(challenge.id)
+            # if challenge.deploy_status != "PENDING_DEPLOY":
+            #     delete_response, status_code = delete_challenge(challenge_id)
+            #     if status_code != 200 or not delete_response.get("isSuccess"):
+            #         return {
+            #             "isSuccess": False,
+            #             "message": delete_response.get("message"),
+            #         }, status_code
+            # else:
+            #     pass
 
         chal_class = get_chal_class(challenge.type)
         chal_class.delete(challenge)
         clear_standings()
         clear_challenges()
         
+        log_audit(
+            action="challenge_delete",
+            before=challenge_info,
+            data={"challenge_id": challenge_id, "name": challenge_info["name"]}
+        )
+        
         if(challenge.state == "visible"):
-            notify_to_contestant(notif_type = "toast", 
-                             notif_sound = True,
-                             notif_title= "Thông báo từ ban quản trị",
-                             notif_message= f"Thử thách '{challenge.name}' vừa bị xóa bỏ.")
-            notification_data = {
-            "title": f"Thông báo từ ban quản trị",
-            "content": f"Thử thách '{challenge.name}' vừa bị xóa bỏ.",
-            "date": time.time(),
-            "html": f"<p>Thử thách '<strong>{challenge.name}</strong>' vừa bị xóa bỏ</p>\n",
-            "sound": False,
-            "type": "background",
-            }
-            post_notification(notification_data)
+            # notification to contestants disabled
+            pass
         
 
         return {"success": True}
@@ -610,12 +805,11 @@ def get_token_from_header():
 @challenges_namespace.route("/attempt")
 class ChallengeAttempt(Resource):
     @during_ctf_time_only
-    @bypass_csrf_protection
     def post(self):
         print("Chay vao day")
         auth_header = get_token_from_header()
         if not auth_header:
-            return jsonify({"message": "Authorization missing"}), 403
+            return {"success": False, "message": "Authorization missing"}, 403
 
         if request.is_json:
             request_data = request.get_json()
@@ -629,19 +823,19 @@ class ChallengeAttempt(Resource):
         # Kiểm tra nếu dữ liệu cache không tồn tại
         token = Tokens.query.filter_by(value=auth_header).first()
         if token is None:
-            return jsonify({"error": "Token not found"}), 404
+            return {"success": False, "error": "Token not found"}, 404
 
         user = Users.query.filter_by(id=token.user_id).first()
         if user is None:
-            return jsonify({"error": "User not found"}), 404
+            return {"success": False, "error": "User not found"}, 404
 
         team_id = user.team_id
         if not challenge_id:
-            return jsonify({"error": "ChallengeId is required"}), 400
+            return {"success": False, "error": "ChallengeId is required"}, 400
 
         challenge = Challenges.query.filter_by(id=challenge_id).first()
         if not challenge:
-            return jsonify({"error": "Challenge not found"}), 400
+            return {"success": False, "error": "Challenge not found"}, 400
 
         # cache_name = f"challenge:{challenge_id}:team_id:{team_id}"
 
@@ -669,11 +863,11 @@ class ChallengeAttempt(Resource):
                     "data": {
                         "status": "correct" if status else "incorrect",
                         "message": message,
+                        "cooldown": challenge.cooldown,
                     },
                 }
 
         if ctf_paused():
-
             return (
                 {
                     "success": True,
@@ -685,10 +879,49 @@ class ChallengeAttempt(Resource):
                 403,
             )
 
-        # user = get_current_user()
-        # team = get_current_team()
-
         team = Teams.query.filter_by(id=team_id).first()
+        
+        # Check captain_only_submit_challenge config
+        captain_only_submit = get_config("captain_only_submit_challenge")
+        if (captain_only_submit == 1 or captain_only_submit == "true") and user.type == 'user':
+            if not team or not team.captain_id or team.captain_id != user.id:
+                return (
+                    {
+                        "success": False,
+                        "data": {
+                            "status": "forbidden",
+                            "message": "Only the team captain has permission to submit flags for challenges.",
+                        },
+                    },
+                    403,
+                )
+        
+        # Cooldown check
+        cooldown_seconds = challenge.cooldown or 0
+        if cooldown_seconds > 0:
+            cooldown_key = f"submission_cooldown_{challenge_id}_{team_id}"
+            last_submission_time = redis_client.get(cooldown_key)
+            
+            if last_submission_time:
+                last_submission_time = float(last_submission_time)
+                current_time = time.time()
+                time_elapsed = current_time - last_submission_time
+                
+                if time_elapsed < cooldown_seconds:
+                    remaining_cooldown = int(cooldown_seconds - time_elapsed)
+                    return (
+                        {
+                            "success": True,
+                            "data": {
+                                "status": "ratelimited",
+                                "message": f"Please wait {remaining_cooldown} seconds before submitting again.",
+                            },
+                        },
+                        429,
+                    )
+            
+            redis_client.set(cooldown_key, str(time.time()))
+        
         # TODO: Convert this into a re-useable decorator
         if config.is_teams_mode() and team is None:
             abort(403)
@@ -714,7 +947,6 @@ class ChallengeAttempt(Resource):
                 .all()
             )
             solve_ids = {solve_id for solve_id, in solve_ids}
-            # Gather all challenge IDs so that we can determine invalid challenge prereqs
             all_challenge_ids = {
                 c.id for c in Challenges.query.with_entities(Challenges.id).all()
             }
@@ -742,7 +974,6 @@ class ChallengeAttempt(Resource):
                 challenge_id=challenge_id,
                 kpm=kpm,
             )
-            # Submitting too fast
             return (
                 {
                     "success": True,
@@ -760,7 +991,6 @@ class ChallengeAttempt(Resource):
 
         # Challenge not solved yet
         if not solves:
-            # Hit max attempts
             max_tries = challenge.max_attempts
             if max_tries and fails >= max_tries >= 0:
                 return (
@@ -777,7 +1007,7 @@ class ChallengeAttempt(Resource):
             status, message = chal_class.attempt(challenge, request)
 
             if status:
-                print("Print hello")  # The challenge plugin says the input is right
+                print("Print hello")
                 if (
                     ctftime()
                     or current_user.is_admin()
@@ -787,10 +1017,8 @@ class ChallengeAttempt(Resource):
                     chal_class.solve(
                         user=user, team=team, challenge=challenge, request=request
                     )
-
                     clear_standings()
                     clear_challenges()
-                    cache_key = generate_cache_attempt_key(challenge_id, team_id)
 
                 log(
                     "submissions",
@@ -800,49 +1028,48 @@ class ChallengeAttempt(Resource):
                     challenge_id=challenge_id,
                     kpm=kpm,
                 )
+                
                 cache_key = generate_cache_key(challenge_id, team_id)
                 if challenge.require_deploy:
-
-                    if not redis_client.exists(cache_key):
-                        pass
-
-                    try:
-                        force_stop(
-                            cache_key=cache_key,
-                            challenge_id=challenge_id,
-                            team_id=team_id,
-                        )
-                    except requests.exceptions.RequestException as e:
-                        log(
-                            "errors",
-                            "[{date}] Error stopping challenge {challenge_id} for team {team_id}: {error}",
-                            challenge_id=challenge_id,
-                            team_id=team_id,
-                            error=str(e),
-                        )
-                        return (
-                            jsonify(
+                    if redis_client.exists(cache_key):
+                        try:
+                            force_stop(
+                                cache_key=cache_key,
+                                challenge_id=challenge_id,
+                                team_id=team_id,
+                            )
+                        except requests.exceptions.RequestException as e:
+                            log(
+                                "errors",
+                                "[{date}] Error stopping challenge {challenge_id} for team {team_id}: {error}",
+                                challenge_id=challenge_id,
+                                team_id=team_id,
+                                error=str(e),
+                            )
+                            return (
                                 {
                                     "success": False,
                                     "message": f"Failed to stop challenge: {e}",
-                                }
-                            ),
-                            500,
-                        )
+                                },
+                                500,
+                            )
 
-                return jsonify(
-                    {"success": True, "data": {"status": "correct", "message": message}}
-                )
+                return {
+                    "success": True, 
+                    "data": {
+                        "status": "correct", 
+                        "message": message
+                    }
+                }
 
             else:
-                print("dddddd")  # The challenge plugin says the input is wrong
+                print("dddddd")
                 if (
                     ctftime()
                     or current_user.is_admin()
                     or current_user.is_challenge_writer()
                     or current_user.is_jury()
                 ):
-
                     chal_class.fail(
                         user=user, team=team, challenge=challenge, request=request
                     )
@@ -859,10 +1086,8 @@ class ChallengeAttempt(Resource):
                 )
 
                 if max_tries:
-                    # Off by one since fails has changed since it was gotten
                     attempts_left = max_tries - fails - 1
                     tries_str = pluralize(attempts_left, singular="try", plural="tries")
-                    # Add a punctuation mark if there isn't one
                     if message[-1] not in "!().;?[]{}":
                         message = message + "."
                     return {
@@ -872,12 +1097,13 @@ class ChallengeAttempt(Resource):
                             "message": "{} You have {} {} remaining.".format(
                                 message, attempts_left, tries_str
                             ),
+                            "cooldown": challenge.cooldown,
                         },
                     }
                 else:
                     return {
                         "success": True,
-                        "data": {"status": "incorrect", "message": message},
+                        "data": {"status": "incorrect", "message": message, "cooldown": challenge.cooldown},
                     }
 
         # Challenge already solved
@@ -1015,3 +1241,183 @@ class ChallengeRequirements(Resource):
     def get(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         return {"success": True, "data": challenge.requirements}
+
+@challenges_namespace.route("/<challenge_id>/deploy-duration")
+class ChallengeDeploy(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, challenge_id):
+        try:
+            challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+            if not challenge.require_deploy:
+                return {"success": False, "error": "Challenge does not require deployment"}, 400
+            
+            workflow_name = get_workflow_name(challenge.id)
+            if not workflow_name:
+                return {"success": False, "error": "Workflow name not found for challenge"}, 404
+            
+            workflow_phase, started_at_iso, estimated_duration = get_workflow_status(workflow_name)
+            if workflow_phase is None or started_at_iso is None or estimated_duration is None:
+                return {"success": False, "error": "Could not retrieve workflow status"}, 500
+
+            remaining_time = None
+            if estimated_duration and started_at_iso:
+                started_at_dt = datetime.fromisoformat(started_at_iso.replace("Z", "+00:00"))
+                now_utc = datetime.now(timezone.utc)
+
+                elapsed_time = max(0.0, (now_utc - started_at_dt).total_seconds())
+                remaining_time = max(0.0, float(estimated_duration) - elapsed_time)
+
+                print(f"Started at: {started_at_dt}, Now: {now_utc}, Elapsed: {elapsed_time}, Remaining: {remaining_time}")
+
+            if workflow_phase == "Succeeded":
+                challenge.deploy_status = "DEPLOY_SUCCESS"
+                challenge.state = "visible"
+                db.session.commit()
+
+            elif workflow_phase in ("Failed", "Error"):
+                challenge.deploy_status = "DEPLOY_FAILED"
+                challenge.state = "hidden"
+                db.session.commit()
+
+            return {
+                "success": True,
+                "data": {
+                    "phase": workflow_phase,
+                    "estimated_duration": float(estimated_duration),
+                    "started_at": started_at_iso,
+                    "remaining_time": remaining_time
+                }
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}, 500
+
+
+@challenges_namespace.route("/<challenge_id>/versions")
+class ChallengeVersionList(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, challenge_id):
+        """List all versions for a challenge"""
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        versions = (
+            ChallengeVersion.query
+            .filter_by(challenge_id=challenge.id)
+            .order_by(ChallengeVersion.version_number.desc())
+            .all()
+        )
+        data = []
+        for v in versions:
+            data.append({
+                "id": v.id,
+                "challenge_id": v.challenge_id,
+                "version_number": v.version_number,
+                "image_tag": v.image_tag,
+                "expose_port": v.expose_port,
+                "deploy_file": v.deploy_file,
+                "cpu_limit": v.cpu_limit,
+                "cpu_request": v.cpu_request,
+                "memory_limit": v.memory_limit,
+                "memory_request": v.memory_request,
+                "use_gvisor": v.use_gvisor,
+                "max_deploy_count": v.max_deploy_count,
+                "is_active": v.is_active,
+                "created_by": v.creator.name if v.creator else "Unknown",
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+                "notes": v.notes,
+            })
+        return {"success": True, "data": data}
+
+
+@challenges_namespace.route("/<challenge_id>/versions/<version_id>")
+class ChallengeVersionDetail(Resource):
+    @admin_or_challenge_writer_only_or_jury
+    def get(self, challenge_id, version_id):
+        """Get a specific version detail"""
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        version = ChallengeVersion.query.filter_by(
+            id=version_id, challenge_id=challenge.id
+        ).first_or_404()
+        data = {
+            "id": version.id,
+            "challenge_id": version.challenge_id,
+            "version_number": version.version_number,
+            "image_link": version.image_link,
+            "image_tag": version.image_tag,
+            "expose_port": version.expose_port,
+            "deploy_file": version.deploy_file,
+            "cpu_limit": version.cpu_limit,
+            "cpu_request": version.cpu_request,
+            "memory_limit": version.memory_limit,
+            "memory_request": version.memory_request,
+            "use_gvisor": version.use_gvisor,
+            "harden_container": version.harden_container,
+            "max_deploy_count": version.max_deploy_count,
+            "is_active": version.is_active,
+            "created_by": version.creator.name if version.creator else "Unknown",
+            "created_at": version.created_at.isoformat() if version.created_at else None,
+            "notes": version.notes,
+        }
+        return {"success": True, "data": data}
+
+
+@challenges_namespace.route("/<challenge_id>/versions/<version_id>/rollback")
+class ChallengeVersionRollback(Resource):
+    @admins_only
+    def post(self, challenge_id, version_id):
+        """Rollback a challenge to a specific version"""
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        version = ChallengeVersion.query.filter_by(
+            id=version_id, challenge_id=challenge.id
+        ).first_or_404()
+
+        if version.is_active:
+            return {"success": False, "message": "This version is already active"}, 400
+
+        if not version.image_link:
+            return {"success": False, "message": "This version has no image to rollback to"}, 400
+
+        try:
+            # Deactivate all versions for this challenge
+            ChallengeVersion.query.filter_by(
+                challenge_id=challenge.id
+            ).update({"is_active": False})
+
+            # Activate the target version
+            version.is_active = True
+
+            # Update challenge with the version's config
+            challenge.image_link = version.image_link
+            if version.deploy_file:
+                challenge.deploy_file = version.deploy_file
+            if version.cpu_limit is not None:
+                challenge.cpu_limit = version.cpu_limit
+            if version.cpu_request is not None:
+                challenge.cpu_request = version.cpu_request
+            if version.memory_limit is not None:
+                challenge.memory_limit = version.memory_limit
+            if version.memory_request is not None:
+                challenge.memory_request = version.memory_request
+            if version.use_gvisor is not None:
+                challenge.use_gvisor = version.use_gvisor
+            if version.harden_container is not None:
+                challenge.harden_container = version.harden_container
+            if version.max_deploy_count is not None:
+                challenge.max_deploy_count = version.max_deploy_count
+
+            challenge.deploy_status = "DEPLOY_SUCCESS"
+            challenge.last_update = datetime.utcnow()
+
+            db.session.commit()
+
+            return {
+                "success": True,
+                "message": f"Challenge rolled back to version {version.version_number}",
+                "data": {
+                    "version_number": version.version_number,
+                    "image_tag": version.image_tag,
+                    "max_deploy_count": version.max_deploy_count,
+                }
+            }
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "message": f"Rollback failed: {str(e)}"}, 500
+

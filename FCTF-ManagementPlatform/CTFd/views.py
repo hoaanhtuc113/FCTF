@@ -27,8 +27,6 @@ from CTFd.constants.themes import DEFAULT_THEME
 from CTFd.models import (
     Admins,
     Files,
-    Notifications,
-    Pages,
     Teams,
     Users,
     UserTokens,
@@ -38,7 +36,6 @@ from CTFd.utils import config, get_config, set_config
 from CTFd.utils import user as current_user
 from CTFd.utils import validators
 from CTFd.utils.config import is_setup, is_teams_mode
-from CTFd.utils.config.pages import build_markdown, get_page
 from CTFd.utils.config.visibility import challenges_visible
 from CTFd.utils.dates import ctf_ended, ctftime, view_after_ctf
 from CTFd.utils.decorators import authed_only
@@ -54,7 +51,7 @@ from CTFd.utils.email import (
 )
 from CTFd.utils.health import check_config, check_database
 from CTFd.utils.helpers import get_errors, get_infos, markup
-from CTFd.utils.modes import USERS_MODE
+from CTFd.utils.modes import TEAMS_MODE
 from CTFd.utils.security.auth import login_user
 from CTFd.utils.security.csrf import generate_nonce
 from CTFd.utils.security.signing import (
@@ -80,10 +77,9 @@ def setup():
             # General
             ctf_name = request.form.get("ctf_name")
             ctf_description = request.form.get("ctf_description")
-            user_mode = request.form.get("user_mode", USERS_MODE)
             set_config("ctf_name", ctf_name)
             set_config("ctf_description", ctf_description)
-            set_config("user_mode", user_mode)
+            set_config("user_mode", TEAMS_MODE)
 
             # Settings
             challenge_visibility = ChallengeVisibilityTypes(
@@ -193,18 +189,13 @@ def setup():
                 name=name, email=email, password=password, type="admin", hidden=True
             )
 
-            # Create an empty index page
-            page = Pages(title=ctf_name, route="index", content="", draft=False)
-
             # Upload banner
             default_ctf_banner_location = url_for("views.themes", path="img/logo.png")
             ctf_banner = request.files.get("ctf_banner")
             if ctf_banner:
-                f = upload_file(file=ctf_banner, page_id=page.id)
+                f = upload_file(file=ctf_banner)
                 default_ctf_banner_location = url_for("views.files", path=f.location)
                 set_config("ctf_banner", f.location)
-
-            page.content = ""
 
             # Visibility
             set_config(ConfigTypes.CHALLENGE_VISIBILITY, challenge_visibility)
@@ -259,16 +250,18 @@ def setup():
                 ),
             )
 
+            # Set default value for captain only start challenge (using "0" for disabled, "1" for enabled)
+            set_config("captain_only_start_challenge", 1)
+            
+            # Set default value for captain only submit challenge (using "0" for disabled, "1" for enabled)
+            set_config("captain_only_submit_challenge", 0)
+
+            set_config("limit_challenges", 3)
+
             set_config("setup", True)
 
             try:
                 db.session.add(admin)
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-
-            try:
-                db.session.add(page)
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
@@ -289,40 +282,6 @@ def setup():
     return redirect(url_for("views.static_html"))
 
 
-@views.route("/setup/integrations", methods=["GET", "POST"])
-def integrations():
-    if is_admin() or is_setup() is False:
-        name = request.values.get("name")
-        state = request.values.get("state")
-
-        try:
-            state = unserialize(state, max_age=3600)
-        except (BadSignature, BadTimeSignature):
-            state = False
-        except Exception:
-            state = False
-
-        if state:
-            if name == "mlc":
-                mlc_client_id = request.values.get("mlc_client_id")
-                mlc_client_secret = request.values.get("mlc_client_secret")
-                set_config("oauth_client_id", mlc_client_id)
-                set_config("oauth_client_secret", mlc_client_secret)
-                return render_template("admin/integrations.html")
-            else:
-                abort(404)
-        else:
-            abort(403)
-    else:
-        abort(403)
-
-
-@views.route("/notifications", methods=["GET"])
-def notifications():
-    notifications = Notifications.query.order_by(Notifications.id.desc()).all()
-    return render_template("notifications.html", notifications=notifications)
-
-
 @views.route("/settings", methods=["GET"])
 @authed_only
 def settings():
@@ -332,10 +291,9 @@ def settings():
     user = get_current_user()
 
     if is_teams_mode() and get_current_team() is None:
-        team_url = url_for("teams.private")
         infos.append(
             markup(
-                f'In order to participate you must either <a href="{team_url}">join or create a team</a>.'
+                'In order to participate you must either join or create a team.'
             )
         )
 
@@ -368,46 +326,17 @@ def settings():
     )
 
 
-@views.route("/", defaults={"route": "index"})
-@views.route("/<path:route>")
-def static_html(route):
+@views.route("/")
+def static_html():
     """
-    Route in charge of routing users to Pages.
-    :param route:
-    :return:
+    Root route: redirect staff to admin, show landing page for unauthenticated users.
     """
-    page = get_page(route)
-    if page is None:
-        abort(404)
-    else:
-        if page.auth_required and authed() is False:
-            return redirect(url_for("auth.login", next=request.full_path))
-
-        return render_template("page.html", content=page.html, title=page.title)
-
-
-@views.route("/tos")
-def tos():
-    tos_url = get_config("tos_url")
-    tos_text = get_config("tos_text")
-    if tos_url:
-        return redirect(tos_url)
-    elif tos_text:
-        return render_template("page.html", content=build_markdown(tos_text))
-    else:
-        abort(404)
-
-
-@views.route("/privacy")
-def privacy():
-    privacy_url = get_config("privacy_url")
-    privacy_text = get_config("privacy_text")
-    if privacy_url:
-        return redirect(privacy_url)
-    elif privacy_text:
-        return render_template("page.html", content=build_markdown(privacy_text))
-    else:
-        abort(404)
+    if is_setup() is False:
+        return redirect(url_for("views.setup"))
+    if authed():
+        return redirect(url_for("admin.view"))
+    # Show landing page for unauthenticated users
+    return render_template("page.html", content="", title="Welcome")
 
 
 @views.route("/files", defaults={"path": ""})
@@ -557,9 +486,3 @@ def debug():
     abort(404)
 
 
-@views.route("/robots.txt")
-def robots():
-    text = get_config("robots_txt", "User-agent: *\nDisallow: /admin\n")
-    r = make_response(text, 200)
-    r.mimetype = "text/plain"
-    return r

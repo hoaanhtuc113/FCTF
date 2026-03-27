@@ -1,9 +1,207 @@
 {% extends "admin/base.html" %}
 
 {% block stylesheets %}
+<style>
+	/* Clean Team Detail Page Styles - Same as User Detail */
+	.team-detail-page .jumbotron {
+		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+		border-bottom: 2px solid #e8e8e8;
+		margin-bottom: 0;
+		padding: 3rem 0;
+		text-align: center;
+		text-transform: none;
+	}
+	
+	.team-detail-page .jumbotron h1,
+	.team-detail-page .jumbotron h2,
+	.team-detail-page .jumbotron h3 {
+		color: #2c3e50;
+		text-align: center;
+	}
+	
+	.team-detail-page .jumbotron h1 {
+		display: block;
+		text-align: center;
+		text-transform: none;
+		font-weight: 700;
+		font-size: 2.2rem;
+		margin-bottom: 1rem;
+		letter-spacing: normal;
+	}
+	
+	.team-detail-page .jumbotron h2 {
+		font-weight: 500;
+		font-size: 1.2rem;
+		margin: 0.75rem 0;
+	}
+	
+	.team-detail-page .jumbotron h3 {
+		font-weight: 500;
+		font-size: 1rem;
+	}
+	
+	.team-detail-page .jumbotron hr {
+		border-top: 2px solid #e8e8e8;
+		opacity: 0.3;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	
+	.team-detail-page .btn-fa {
+		color: #495057;
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+	
+	.team-detail-page .btn-fa:hover {
+		color: #ff6b35;
+		transform: scale(1.15);
+	}
+	
+	.team-detail-page .badge {
+		padding: 0.4rem 0.75rem;
+		border-radius: 4px;
+		font-weight: 500;
+		font-size: 0.85rem;
+	}
+	
+	.team-detail-page .badge-primary {
+		background-color: #ff6b35;
+		color: #ffffff;
+	}
+	
+	.team-detail-page .badge-success {
+		background-color: #28a745;
+		color: #ffffff;
+	}
+	
+	.team-detail-page .badge-danger {
+		background-color: #dc3545;
+		color: #ffffff;
+	}
+	
+	.nav-tabs {
+		border-bottom: 2px solid #e8e8e8;
+		background: #ffffff;
+		padding: 0.5rem 1rem 0 1rem;
+		border-radius: 8px 8px 0 0;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+	}
+	
+	.nav-tabs .nav-link {
+		color: #495057;
+		border: none;
+		border-bottom: 3px solid transparent;
+		padding: 0.75rem 1.5rem;
+		font-weight: 500;
+		transition: all 0.2s ease;
+	}
+	
+	.nav-tabs .nav-link:hover {
+		color: #ff6b35;
+		border-bottom-color: #ff6b35;
+		background-color: transparent !important;
+	}
+	
+	.nav-tabs .nav-link.active {
+		color: #ff6b35 !important;
+		background-color: transparent !important;
+		border-bottom-color: #ff6b35 !important;
+		font-weight: 600;
+	}
+	
+	.tab-content {
+		background: #ffffff;
+		padding: 2rem;
+		border-radius: 0 0 8px 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		border-top: none;
+	}
+	
+	.tab-content .table thead th {
+		background-color: #f8f9fa;
+		color: #2c3e50;
+		font-weight: 600;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 0.9rem 0.75rem;
+	}
+	
+	.tab-content .table tbody td {
+		padding: 0.85rem 0.75rem;
+		vertical-align: middle;
+		color: #495057;
+		border-bottom: 1px solid #f1f1f1;
+	}
+	
+	.tab-content .table tbody tr:hover {
+		background-color: #fff5f2;
+	}
+	
+	.tab-content .table tbody td a {
+		color: #2c3e50;
+		font-weight: 500;
+		transition: color 0.2s ease;
+	}
+	
+	.tab-content .table tbody td a:hover {
+		color: #ff6b35;
+		text-decoration: none;
+	}
+	
+	.modal-header {
+		background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1.5rem;
+	}
+	
+	.modal-header h2 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.5rem;
+		margin: 0;
+	}
+	
+	.modal-body {
+		padding: 2rem;
+	}
+	
+	.card {
+		border: 1px solid #e8e8e8;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		margin-bottom: 1.5rem;
+	}
+	
+	.card-header {
+		background-color: #f8f9fa;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 1.25rem;
+	}
+	
+	.card-header h5 {
+		color: #2c3e50;
+		font-weight: 600;
+		margin: 0;
+	}
+	
+	.btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		transition: all 0.2s ease;
+	}
+	
+	.btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+</style>
 {% endblock %}
 
 {% block content %}
+<div class="team-detail-page">
 <div id="team-info-edit-modal" class="modal fade">
 	<div class="modal-dialog">
 		<div class="modal-content">
@@ -204,7 +402,7 @@
 			<small>points</small>
 			{% endif %}
 		</h3>
-		<hr class="w-50">
+		<hr class="w-50 mx-auto">
 		<div class="pt-3">
 			{% if not is_jury() %}
 
@@ -259,16 +457,17 @@
 
 <div class="container">
 	<div class="row min-vh-25 pt-5 pb-5">
-		<div class="col-md-12 table-responsive">
-			<table class="table table-striped">
-				<h3 class="text-center">Team Members</h3>
+		<div class="col-md-12">
+			<h3 class="text-center">Team Members</h3>
+			<div class="clean-table-wrapper">
+			<table class="clean-table table">
 				<thead>
 					<tr>
-						<td class="text-center"></td>
-						<td class="text-center"><b>User Name</b></td>
-						<td class="text-center"><b>E-Mail</b></td>
-						<td class="text-center"><b>Score</b></td>
-						<td class="text-center"></td>
+						<th class="text-center"></th>
+						<th class="text-center"><b>User Name</b></th>
+						<th class="text-center"><b>E-Mail</b></th>
+						<th class="text-center"><b>Score</b></th>
+						<th class="text-center"></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -303,6 +502,7 @@
 					{% endfor %}
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 
@@ -335,15 +535,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Challenge</b></th>
 								<th class="sort-col text-center"><b>User</b></th>
@@ -357,13 +556,11 @@
 							{% for solve in solves %}
 							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
 								challenge_id=solve.challenge_id) }}">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ solve.id }}"
-											autocomplete="off" data-submission-id="{{ solve.id }}"
-											data-submission-type="{{ solve.type }}"
-											data-submission-challenge="{{ solve.challenge.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ solve.id }}"
+										autocomplete="off" data-submission-id="{{ solve.id }}"
+										data-submission-type="{{ solve.type }}"
+										data-submission-challenge="{{ solve.challenge.name }}">
 								</td>
 								<td class="text-center chal" id="{{ solve.challenge_id }}">
 									<a href="{{ url_for("admin.challenges_detail", challenge_id=solve.challenge_id)
@@ -376,7 +573,7 @@
 										{{ solve.user.name }}
 									</a>
 								</td>
-								<td class="flag" id="{{ solve.id }}">
+								<td class="text-center flag" id="{{ solve.id }}">
 									<pre>{{ solve.provided }}</pre>
 								</td>
 								<td class="text-center">{{ solve.challenge.category }}</td>
@@ -388,6 +585,7 @@
 							{% endfor %}
 						</tbody>
 					</table>
+				</div>
 				</div>
 			</div>
 		</div>
@@ -409,15 +607,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Challenge</b></th>
 								<th class="sort-col text-center"><b>User</b></th>
@@ -429,13 +626,11 @@
 							{% for fail in fails %}
 							<tr class="chal-wrong"
 								data-href="{{ url_for('admin.challenges_detail', challenge_id=fail.challenge_id) }}">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ fail.id }}"
-											autocomplete="off" data-submission-id="{{ fail.id }}"
-											data-submission-type="{{ fail.type }}"
-											data-submission-challenge="{{ fail.challenge.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ fail.id }}"
+										autocomplete="off" data-submission-id="{{ fail.id }}"
+										data-submission-type="{{ fail.type }}"
+										data-submission-challenge="{{ fail.challenge.name }}">
 								</td>
 								<td class="text-center chal" id="{{ fail.challenge_id }}">
 									<a href="{{ url_for("admin.challenges_detail", challenge_id=fail.challenge_id) }}">
@@ -447,7 +642,7 @@
 										{{ fail.user.name }}
 									</a>
 								</td>
-								<td class="flag" id="{{ fail.id }}">
+								<td class="text-center flag" id="{{ fail.id }}">
 									<pre>{{ fail.provided }}</pre>
 								</td>
 								<td class="text-center solve-time">
@@ -457,6 +652,7 @@
 							{% endfor %}
 						</tbody>
 					</table>
+				</div>
 				</div>
 			</div>
 		</div>
@@ -475,15 +671,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Name</b></th>
 								<th class="sort-col text-center"><b>User</b></th>
@@ -497,12 +692,10 @@
 						<tbody id="awards-body">
 							{% for award in awards %}
 							<tr class="award-row">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ award.id }}"
-											autocomplete="off" data-award-id="{{ award.id }}"
-											data-award-name="{{ award.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ award.id }}"
+										autocomplete="off" data-award-id="{{ award.id }}"
+										data-award-name="{{ award.name }}">
 								</td>
 								<td class="text-center chal" id="{{ award.id }}">{{ award.name }}</td>
 								<td class="text-center">
@@ -510,7 +703,7 @@
 										{{ award.user.name }}
 									</a>
 								</td>
-								<td class="">
+								<td class="text-center">
 									<pre>{{ award.description }}</pre>
 								</td>
 								<td class="text-center solve-time">
@@ -524,6 +717,7 @@
 							{% endfor %}
 						</tbody>
 					</table>
+				</div>
 				</div>
 			</div>
 		</div>
@@ -542,15 +736,14 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-md-12 table-responsive">
-					<table class="table table-striped border">
+				<div class="col-md-12">
+				<div class="clean-table-wrapper">
+					<table class="clean-table table">
 						<thead>
 							<tr>
-								<th class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" autocomplete="off"
-											data-checkbox-all>&nbsp;
-									</div>
+								<th data-checkbox>
+									<input type="checkbox" class="table-check" autocomplete="off"
+										data-checkbox-all>
 								</th>
 								<th class="sort-col text-center"><b>Challenge</b></th>
 								<th class="sort-col text-center"><b>Category</b></th>
@@ -561,12 +754,10 @@
 							{% for challenge in missing %}
 							<tr class="chal-solve" data-href="{{ url_for("admin.challenges_detail",
 								challenge_id=challenge.id) }}">
-								<td class="border-right" data-checkbox>
-									<div class="form-check text-center">
-										<input type="checkbox" class="form-check-input" value="{{ challenge.id }}"
-											autocomplete="off" data-missing-challenge-id="{{ challenge.id }}"
-											data-missing-challenge-name="{{ challenge.name }}">&nbsp;
-									</div>
+								<td data-checkbox>
+									<input type="checkbox" class="table-check" value="{{ challenge.id }}"
+										autocomplete="off" data-missing-challenge-id="{{ challenge.id }}"
+										data-missing-challenge-name="{{ challenge.name }}">
 								</td>
 								<td class="text-center chal" id="{{ challenge.id }}">
 									<a href="{{ url_for("admin.challenges_detail", challenge_id=challenge.id) }}">
@@ -580,6 +771,7 @@
 						</tbody>
 					</table>
 				</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -591,7 +783,7 @@
 		</div>
 	</div>
 </div>
-
+</div>
 
 {% endblock %}
 

@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  database-migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fctf-database-migration
+    env_file:
+      - .env
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./.env:/app/.env
+      - ./mapping_fctf_to_ctfd.json:/app/mapping_fctf_to_ctfd.json
+      - ./mapping_ctfd_to_fctf.json:/app/mapping_ctfd_to_fctf.json
+    network_mode: "host"
+    restart: "no"

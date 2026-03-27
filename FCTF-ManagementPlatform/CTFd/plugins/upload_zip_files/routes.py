@@ -13,14 +13,11 @@ from CTFd.constants.formats import FORMAT_DATETIME
 from CTFd.StartChallenge import generate_cache_key
 from CTFd.constants.status_challenge import STATUS
 from CTFd.constants.envvars import API_URL_CONTROLSERVER, PRIVATE_KEY
-from CTFd.api.v1.notifications import NotificantionList
 from CTFd.utils.security.auth import generate_user_token
-from CTFd.schemas.notifications import NotificationSchema
 from CTFd.utils.connector.multiservice_connector import (
-    create_notification_data,
     delete_cached_files,
-    handle_zip_file_upload,
     redeploy,
+    handle_challenge_upload,
 )
 import pytz
 
@@ -54,34 +51,28 @@ import asyncio
 import json
 import redis
 from CTFd.constants.envvars import (
-    API_URL_ADMINSERVER,
     PRIVATE_KEY,
     API_URL_CONTROLSERVER,
     HOST_CACHE,
+    get_redis_client_kwargs,
 )
 
-redis_client = redis.StrictRedis(
-    host=f"{HOST_CACHE}", port=6379, db=0, encoding="utf-8", decode_responses=True
-)
+    
+redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
 
-def upload_file(challenge_id, file_path):
+def upload_file(challenge_id, file_path, exposed_port=None):
     delete_cached_files(challenge_id)
 
     if not os.path.exists(file_path):
-        return jsonify({"error": "File not found"}), 400
+        return {"success": False, "error": "File not found"}, 400
 
     challenge = Challenges.query.filter_by(id=challenge_id).first()
     
-    if challenge.require_deploy:
-        notification_data = create_notification_data(challenge.name)
-    else:
-        notification_data = None
-    
     if allowed_file(file_path) and file_path.endswith(".zip"):
-        return handle_zip_file_upload(challenge, file_path, challenge_id, notification_data)
+        return handle_challenge_upload(challenge, file_path, exposed_port)
     else:
-        return jsonify({"error": "File type not allowed. Only zip files are allowed."}), 400
+        return {"success": False, "error": "File type not allowed. Only zip files are allowed."}, 400
 
 @file_app.route("/challenges/update-info-by-cs", methods=["POST"])
 @bypass_csrf_protection

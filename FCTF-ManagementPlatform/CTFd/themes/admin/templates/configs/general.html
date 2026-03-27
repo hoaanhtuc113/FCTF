@@ -1,12 +1,13 @@
 <div role="tabpanel" class="tab-pane config-section active" id="general">
 	<form method="POST" autocomplete="off" class="w-100">
+		<input type="hidden" name="nonce" value="{{ Session.nonce }}">
 		<div class="form-group">
 			<label for="ctf_name">
 				Event Name
 				<small class="form-text text-muted">When no logo is specified, the CTF's name is used instead.</small>
 			</label>
-			<input class="form-control" id='ctf_name' name='ctf_name' type='text' placeholder="CTF Name"
-				{% if ctf_name is defined and ctf_name != None %}value="{{ ctf_name }}"{% endif %}>
+			<input class="form-control" id='ctf_name' name='ctf_name' type='text' placeholder="CTF Name" {% if ctf_name
+				is defined and ctf_name !=None %}value="{{ ctf_name }}" {% endif %}>
 		</div>
 
 		<div class="form-group">
@@ -14,10 +15,63 @@
 				Event Description<br>
 				<!-- TODO: Clarify WHERE this description is used. -->
 				<small class="form-text text-muted">
-					Description of your CTF. Available for use on your custom pages and emails as <code>{ctf_description}</code>.
+					Description of your CTF. Available for use on your custom pages and emails as
+					<code>{ctf_description}</code>.
 				</small>
 			</label>
-			<textarea class="form-control" type="text" id="ctf_description" name="ctf_description" rows="5">{{ ctf_description }}</textarea>
+			<textarea class="form-control" type="text" id="ctf_description" name="ctf_description"
+				rows="5">{{ ctf_description }}</textarea>
+		</div>
+
+		<div class="form-group">
+			<label for="captain_only_start_challenge">
+				Captain Only Start Challenge
+				<small class="form-text text-muted">
+					When enabled, only team captains can start challenges that require deployment. Other team members
+					will see a message indicating they need captain permission.
+				</small>
+			</label>
+			<select class="form-control custom-select" id="captain_only_start_challenge"
+				name="captain_only_start_challenge">
+				<option value="1" {% if captain_only_start_challenge==1 %}selected{% endif %}>Enabled</option>
+				<option value="0" {% if captain_only_start_challenge !=1 %}selected{% endif %}>Disabled</option>
+			</select>
+		</div>
+
+		<div class="form-group">
+			<label for="captain_only_submit_challenge">
+				Captain Only Submit Challenge
+				<small class="form-text text-muted">
+					When enabled, only team captains can submit flags for challenges. Other team members will not be
+					able to submit answers.
+				</small>
+			</label>
+			<select class="form-control custom-select" id="captain_only_submit_challenge"
+				name="captain_only_submit_challenge">
+				<option value="1" {% if captain_only_submit_challenge==1 %}selected{% endif %}>Enabled</option>
+				<option value="0" {% if captain_only_submit_challenge !=1 %}selected{% endif %}>Disabled</option>
+			</select>
+		</div>
+
+		<div class="form-group">
+			<label for="limit_challenges">
+				Limit Challenges
+				<small class="form-text text-muted">
+					Maximum number of challenges that can be started simultaneously by a team. Must be at least 1.
+				</small>
+			</label>
+			<input class="form-control" id="limit_challenges" name="limit_challenges" type="number" min="1"
+				placeholder="3" {% if limit_challenges is defined and limit_challenges !=None
+				%}value="{{ limit_challenges }}" {% endif %}>
+		</div>
+
+		<div class="form-group">
+			<label for="incorrect_submissions_per_min">
+				Incorrect Submissions per Minute
+				<small class="form-text text-muted">Number of submissions allowed per minute for flag bruteforce protection (default: 10)</small>
+			</label>
+			<input class="form-control" id="incorrect_submissions_per_min" name="incorrect_submissions_per_min" type="number" min="1"
+				placeholder="10" {% if incorrect_submissions_per_min is defined and incorrect_submissions_per_min != None %}value="{{ incorrect_submissions_per_min }}" {% endif %}>
 		</div>
 
 		<button type="submit" class="btn btn-md btn-primary float-right">Update</button>

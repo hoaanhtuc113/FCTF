@@ -9,11 +9,10 @@ from CTFd.api.v1.schemas import (
     APIDetailedSuccessResponse,
     PaginatedAPIListSuccessResponse,
 )
-from CTFd.cache import clear_challenges, clear_standings, clear_user_session
+from CTFd.cache import clear_auth_cache, clear_challenges, clear_standings, clear_user_session
 from CTFd.constants import RawEnum
 from CTFd.models import (
     Awards,
-    Notifications,
     Solves,
     Submissions,
     Tracking,
@@ -33,6 +32,7 @@ from CTFd.utils.decorators.visibility import (
 )
 from CTFd.utils.email import sendmail, user_created_notification
 from CTFd.utils.helpers.models import build_model_filters
+from CTFd.utils.logging.audit_logger import log_audit
 from CTFd.utils.security.auth import update_user
 from CTFd.utils.user import get_current_user, get_current_user_type, is_admin
 
@@ -169,6 +169,25 @@ class UserList(Resource):
         db.session.add(response.data)
         db.session.commit()
 
+        log_audit(
+            action="user_create",
+            data={
+                "user_id": response.data.id,
+                "name": response.data.name,
+                "email": response.data.email,
+                "type": response.data.type,
+                "website": response.data.website,
+                "affiliation": response.data.affiliation,
+                "country": response.data.country,
+                "bracket_id": response.data.bracket_id,
+                "hidden": response.data.hidden,
+                "banned": response.data.banned,
+                "verified": response.data.verified,
+                "language": response.data.language,
+                "team_id": response.data.team_id,
+            }
+        )
+
         if request.args.get("notify"):
             name = response.data.name
             email = response.data.email
@@ -228,6 +247,23 @@ class UserPublic(Resource):
     )
     def patch(self, user_id):
         user = Users.query.filter_by(id=user_id).first_or_404()
+        
+        # Store before state for audit
+        before_state = {
+            "name": user.name,
+            "email": user.email,
+            "type": user.type,
+            "banned": user.banned,
+            "hidden": user.hidden,
+            "verified": user.verified,
+            "website": user.website,
+            "affiliation": user.affiliation,
+            "country": user.country,
+            "bracket_id": user.bracket_id,
+            "language": user.language,
+            "team_id": user.team_id,
+        }
+        
         data = request.get_json()
         data["id"] = user_id
         Tokens.query.filter_by(user_id=user_id).delete()
@@ -252,9 +288,35 @@ class UserPublic(Resource):
         # https://github.com/CTFd/CTFd/issues/1794
         response = schema.dump(response.data)
         db.session.commit()
+        
+        # Collect after_state BEFORE closing session to avoid DetachedInstanceError
+        after_state = {
+            "name": user.name,
+            "email": user.email,
+            "type": user.type,
+            "banned": user.banned,
+            "hidden": user.hidden,
+            "verified": user.verified,
+            "website": user.website,
+            "affiliation": user.affiliation,
+            "country": user.country,
+            "bracket_id": user.bracket_id,
+            "language": user.language,
+            "team_id": user.team_id,
+            "password_changed": bool(data.get("password")),
+        }
+        
         db.session.close()
 
+        log_audit(
+            action="user_update",
+            before=before_state,
+            after=after_state,
+            data={"user_id": user_id, "name": after_state["name"]}
+        )
+
         clear_user_session(user_id=user_id)
+        clear_auth_cache(user_id=user_id)
         clear_standings()
         clear_challenges()
 
@@ -273,7 +335,23 @@ class UserPublic(Resource):
                 400,
             )
 
-        Notifications.query.filter_by(user_id=user_id).delete()
+        user = Users.query.filter_by(id=user_id).first_or_404()
+        user_info = {
+            "user_id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "type": user.type,
+            "website": user.website,
+            "affiliation": user.affiliation,
+            "country": user.country,
+            "bracket_id": user.bracket_id,
+            "hidden": user.hidden,
+            "banned": user.banned,
+            "verified": user.verified,
+            "language": user.language,
+            "team_id": user.team_id,
+        }
+
         Awards.query.filter_by(user_id=user_id).delete()
         Unlocks.query.filter_by(user_id=user_id).delete()
         Submissions.query.filter_by(user_id=user_id).delete()
@@ -282,6 +360,12 @@ class UserPublic(Resource):
         Users.query.filter_by(id=user_id).delete()
         db.session.commit()
         db.session.close()
+
+        log_audit(
+            action="user_delete",
+            before=user_info,
+            data={"user_id": user_id, "name": user_info["name"]}
+        )
 
         clear_user_session(user_id=user_id)
         clear_standings()

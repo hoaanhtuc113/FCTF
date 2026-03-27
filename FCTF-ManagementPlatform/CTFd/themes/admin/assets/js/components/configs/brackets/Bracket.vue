@@ -30,22 +30,9 @@
             class="form-control"
             v-model.lazy="bracket.description"
           />
-          <small class="form-text text-muted">Bracket Description</small>
         </div>
       </div>
 
-      <div class="col-md-12">
-        <label>Bracket Type</label>
-        <select class="custom-select" v-model.lazy="bracket.type">
-          <option></option>
-          <option value="users">Users</option>
-          <option value="teams">Teams</option>
-        </select>
-        <small class="form-text text-muted">
-          If you are using Team Mode and would like the bracket to apply to
-          entire teams instead of individuals, select Teams.
-        </small>
-      </div>
     </div>
 
     <div class="row pb-3">
@@ -85,7 +72,7 @@ export default {
       return this.bracket.id >= 1;
     },
     saveBracket: function () {
-      let body = this.bracket;
+      let body = { ...this.bracket, type: "teams" };
       let url = "";
       let method = "";
       let message = "";

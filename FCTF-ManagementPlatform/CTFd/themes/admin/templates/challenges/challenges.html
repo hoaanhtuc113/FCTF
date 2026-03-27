@@ -2,163 +2,313 @@
 
 {% block stylesheets %}
 {{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+<style>
+/* Challenges page — only page-specific overrides; shared styles in base.html */
+.clean-icon-btn { color: #6c757d; transition: all 0.2s ease; font-size: 1.3rem; }
+.clean-icon-btn:hover { color: var(--primary-orange); }
+
+/* Action dropdown — same behavior/style as Monitoring page */
+.action-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.action-menu {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    min-width: 170px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 4px 0;
+    font-size: 0.875rem;
+}
+
+.action-menu.open {
+    display: block;
+}
+
+.action-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.9rem;
+    color: #495057 !important;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.action-menu-item:hover {
+    background: #fff5f2;
+    color: #ff6b35 !important;
+    text-decoration: none;
+}
+
+.action-menu-divider {
+    height: 1px;
+    background: #dee2e6;
+    margin: 4px 0;
+}
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="jumbotron">
+<div class="page-header">
     <div class="container">
-        <h1>Challenges
-            {%if not is_jury()%}
-            <a class="no-decoration" href="{{ url_for('admin.challenges_new') }}">
-                <span role="button" data-toggle="tooltip" title="Create Challenge">
-                    <i class="btn-fa fas fa-plus-circle"></i>
-                </span>
-            </a>
-            {%endif%}
-        </h1>
+        <h1><i class="bx bx-book"></i> Challenges</h1>
     </div>
 </div>
 <div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            {% if q and field %}
-            <h5 class="text-muted text-center">
-                Searching for challenges with <strong>{{ field }}</strong> matching <strong>{{ q }}</strong>
-            </h5>
-            <h6 class="text-muted text-center pb-3">
-                {{ total }} results
-            </h6>
-            {% endif %}
-
-            {% with form = Forms.challenges.ChallengeSearchForm(field=field, q=q) %}
-            <form method="GET" class="form-inline">
-                <div class="form-group col-md-2">
-                    {{ form.field(class="form-control custom-select w-100") }}
+                {% if q and field or tag_terms or difficulty or state_filter or has_prereq %}
+                <div class="alert alert-info">
+                    <div class="clean-info-text">
+                        {% if tag_terms %}
+                            Searching for challenges matching tags:
+                            {% for t in tag_terms %}
+                                <span class="clean-badge clean-badge-secondary mr-1">{{ t }}</span>
+                            {% endfor %}
+                        {% elif q %}
+                            Searching for challenges with <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span>
+                        {% endif %}
+                        {% if difficulty %}
+                            {% set diff_labels = {'1': 'Very Easy', '2': 'Easy', '3': 'Medium', '4': 'Hard', '5': 'Very Hard'} %}
+                            <span class="ml-2">| Difficulty: <span class="clean-highlight">{{ diff_labels[difficulty] }}</span></span>
+                        {% endif %}
+                        {% if state_filter %}
+                            <span class="ml-2">| State: <span class="clean-highlight">{{ state_filter }}</span></span>
+                        {% endif %}
+                        {% if has_prereq %}
+                            <span class="ml-2">| Prerequisites: <span class="clean-highlight">{{ 'Yes' if has_prereq == 'yes' else 'No' }}</span></span>
+                        {% endif %}
+                    </div>
+                    <div class="clean-info-text">
+                        {{ challenges.total }} results
+                    </div>
                 </div>
-                <div class="form-group col-md-8">
-                    {{ form.q(class="form-control w-100", placeholder="Search for matching challenge") }}
-                </div>
-                <div class="form-group col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search" aria-hidden="true"></i>
-                    </button>
-                </div>
-            </form>
-            {% endwith %}
-        </div>
-    </div>
+                {% endif %}
 
-    <hr>
-
-    {% if not is_jury() %}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="float-left pb-3">
-                    <button class="btn btn-outline-primary w-100">
-                        <a class="nav-link p-0" href="{{ url_for('admin.challenge_template') }}">
-                            <i class="bx bx-cog"></i> Challenge Template
-                        </a>
-                    </button>
+{% with form = Forms.challenges.ChallengeSearchForm(field=field, q=q) %}
+<div class="clean-search-container">
+    <form method="GET" class="m-0">
+        <div class="row no-gutters align-items-center">
+            
+            <div class="col-md-2 px-1">
+                <select name="category" class="clean-form-control ss-select w-100">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="float-right pb-3">
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-secondary" data-toggle="tooltip"
-                        title="Edit Challenges" id="challenges-edit-button">
-                        <i class="btn-fa fas fa-pencil-alt"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-danger ml-2" data-toggle="tooltip" title="Delete Challenges"
-                        id="challenges-delete-button">
-                        <i class="btn-fa fas fa-trash-alt"></i>
-                    </button>
-                </div>
+
+            <div class="col-md-2 px-1">
+                <select name="type" class="clean-form-control ss-select w-100">
+                    <option value="">All Types</option>
+                    {% for t in types %}
+                    <option value="{{ t }}" {% if t == type %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
             </div>
+
+            <div class="col-md-2 px-1">
+                {{ form.field(class="clean-form-control ss-select w-100") }}
+            </div>
+
+            <div class="col-md-6 px-1">
+                {{ form.q(class="clean-form-control w-100", placeholder="Search keywords...") }}
+            </div>
+
         </div>
-    </div>
-    {%endif%}
-    <div class="row">
-        <div class="col-md-12">
+
+        <div class="row no-gutters align-items-center mt-1">
+            <div class="col-md-2 px-1">
+                <select name="difficulty" class="clean-form-control ss-select w-100">
+                    <option value="">All Difficulties</option>
+                    <option value="1" {% if difficulty == '1' %}selected{% endif %}>&#9733; Very Easy</option>
+                    <option value="2" {% if difficulty == '2' %}selected{% endif %}>&#9733;&#9733; Easy</option>
+                    <option value="3" {% if difficulty == '3' %}selected{% endif %}>&#9733;&#9733;&#9733; Medium</option>
+                    <option value="4" {% if difficulty == '4' %}selected{% endif %}>&#9733;&#9733;&#9733;&#9733; Hard</option>
+                    <option value="5" {% if difficulty == '5' %}selected{% endif %}>&#9733;&#9733;&#9733;&#9733;&#9733; Very Hard</option>
+                </select>
+            </div>
+
+            <div class="col-md-2 px-1">
+                <select name="state" class="clean-form-control ss-select w-100">
+                    <option value="">All States</option>
+                    <option value="visible" {% if state_filter == 'visible' %}selected{% endif %}>Visible</option>
+                    <option value="hidden" {% if state_filter == 'hidden' %}selected{% endif %}>Hidden</option>
+                </select>
+            </div>
+
+            <div class="col-md-2 px-1">
+                <select name="has_prereq" class="clean-form-control ss-select w-100">
+                    <option value="">All Prerequisites</option>
+                    <option value="yes" {% if has_prereq == 'yes' %}selected{% endif %}>Has Prerequisites</option>
+                    <option value="no" {% if has_prereq == 'no' %}selected{% endif %}>No Prerequisites</option>
+                </select>
+            </div>
+
+            <div class="col-md-6 px-1"></div>
+        </div>
+
+        <div class="row no-gutters align-items-center mt-1">
+            
+            <div class="col-md-9 px-1">
+                <div id="tags-picker" class="border rounded d-flex align-items-center px-2 bg-light" 
+                     style="min-height: 34px;"
+                     data-init-tags="{% if tag_terms %}{{ tag_terms|join(',') }}{% endif %}">
+                    </div>
+                <input type="hidden" name="tags" id="tags-hidden" value="{% if tag_terms %}{{ tag_terms|join(',') }}{% endif %}">
+            </div>
+
+            <div class="col-md-3 px-1 d-flex">
+                <button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <a href="{{ url_for('admin.challenges_listing') }}" 
+                   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center" 
+                   style="width: 40px;" title="Reset">
+                    <i class="fas fa-sync-alt"></i>
+                </a>
+            </div>
+
+        </div>
+    </form>
+</div>
+{% endwith %}
+
+        {% if not is_jury() %}
+        <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
             <div>
-                <table id="challenges" class="table table-striped border">
-                    <thead class="thead-light">
+                <a href="{{ url_for('admin.challenges_new') }}" class="clean-btn clean-btn-primary">
+                    <i class="fas fa-plus"></i> Create Challenge
+                </a>
+            </div>
+            <div class="btn-group" role="group">
+                <button type="button" class="clean-btn" data-toggle="tooltip"
+                    title="Edit Challenges" id="challenges-edit-button">
+                    <i class="btn-fa fas fa-pencil-alt"></i> Edit
+                </button>
+                <button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip" title="Delete Challenges"
+                    id="challenges-delete-button">
+                    <i class="btn-fa fas fa-trash-alt"></i> Delete
+                </button>
+            </div>
+        </div>
+        {%endif%}
+
+        <!-- Table -->
+        <div class="clean-table-wrapper mt-2">
+                    <table id="challenges" class="clean-table table">
+                    <thead>
                         <tr>
-                            <td class="d-block border-right border-bottom text-center" data-checkbox>
-                                <div class="form-check">
-                                    <input type="checkbox" class="form-check-input" autocomplete="off"
-                                        data-checkbox-all>
-                                </div>
-                            </td>
+                            <th data-checkbox>
+                                <input type="checkbox" class="table-check" autocomplete="off" data-checkbox-all>
+                            </th>
                             <th class="sort-col text-center"><b>ID</b></th>
                             <th class="sort-col text-center"><b>Name</b></th>
                             <th class="sort-col text-center"><b>Category</b></th>
+                            <th class="sort-col text-center"><b>Difficulty</b></th>
                             <th class="sort-col text-center"><b>Creator</b></th>
                             <th class="sort-col text-center"><b>Value</b></th>
                             <th class="sort-col text-center"><b>Type</b></th>
+                            <th class="sort-col text-center"><b>Tags</b></th>
                             <th class="sort-col text-center"><b>Deploy Status</b></th>
                             <th class="sort-col text-center"><b>State</b></th>
                             <th class="sort-col text-center"><b>Actions</b></th>
-                            <th class="sort-col text-center"><b>Preview</b></th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for challenge in challenges %}
+                        {% for challenge in challenges.items %}
                         <tr {% if not is_jury() %} data-href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
-                            <td class="d-block border-right text-center" data-checkbox>
-                                <div class="form-check">
-                                    <input type="checkbox" class="form-check-input" value="{{ challenge.id }}"
-                                        autocomplete="off" data-challenge-id="{{ challenge.id }}">
-                                </div>
+                            <td data-checkbox>
+                                <input type="checkbox" class="table-check" value="{{ challenge.id }}"
+                                    autocomplete="off" data-challenge-id="{{ challenge.id }}">
                             </td>
                             <td class="text-center">{{ challenge.id }}</td>
                             {% if not is_jury() %}
-                            <td cllass="text-center text-wrap">
+                            <td class="text-center cell-truncate" title="{{ challenge.name }}">
                                 <a href="{{ url_for('admin.challenges_detail', challenge_id=challenge.id) }}">
-                                    {{ challenge.name }}
+                                    {{ challenge.name | truncate(40) }}
                                 </a>
                             </td>
                             {% else %}
-                            <td class="text-center text-wrap"> {{ challenge.name }}</td>
+                            <td class="text-center cell-truncate" title="{{ challenge.name }}">{{ challenge.name | truncate(40) }}</td>
                             {% endif %}
-                            <td class="text-center text-wrap"> {{ challenge.category }}</td>
-                            <td class="text-center text-wrap"> {{ challenge.creator }}</td>
+                            <td class="text-center cell-truncate-sm" title="{{ challenge.category }}">{{ challenge.category | truncate(20) }}</td>
+                            <td class="text-center" style="white-space:nowrap">
+                                {% if challenge.difficulty %}
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= challenge.difficulty %}
+                                        <i class="fas fa-star" style="color:#ff6b35;font-size:.75rem"></i>
+                                        {% else %}
+                                        <i class="far fa-star" style="color:#dee2e6;font-size:.75rem"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center cell-truncate-sm" title="{{ challenge.creator }}">{{ challenge.creator | truncate(20) }}</td>
 
                             <td class="text-center">{{ challenge.value }}</td>
                             <td class="text-center">{{ challenge.type }}</td>
                             <td class="text-center">
-                                {% if challenge.deploy_status == 'DEPLOY_SUCCESS' %}
-                                <span class="badge badge-success">DEPLOY_SUCCESS</span>
-                                {% elif challenge.deploy_status == 'DEPLOY_FAILED' %}
-                                <span class="badge badge-danger">DEPLOY_FAILED</span>
-                                {% elif challenge.deploy_status == 'PENDING_DEPLOY' %}
-                                <span class="badge badge-primary">PENDING_DEPLOY</span>
-                                {% elif challenge.deploy_status == 'CREATED' %}
-                                <span class="badge badge-secondary">CREATED</span>
+                                {% if challenge.tags %}
+                                    {% for t in challenge.tags %}
+                                        <span class="clean-badge clean-badge-secondary mr-1" title="{{ t.value }}">{{ t.value | truncate(15) }}</span>
+                                    {% endfor %}
                                 {% else %}
-                                <span class="badge badge-warning">NOT YET</span>
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if challenge.deploy_status == 'DEPLOY_SUCCESS' %}
+                                <span class="clean-badge clean-badge-success">DEPLOY_SUCCESS</span>
+                                {% elif challenge.deploy_status == 'DEPLOY_FAILED' %}
+                                <span class="clean-badge clean-badge-danger">DEPLOY_FAILED</span>
+                                {% elif challenge.deploy_status == 'PENDING_DEPLOY' %}
+                                <span class="clean-badge clean-badge-primary">PENDING_DEPLOY</span>
+                                {% elif challenge.deploy_status == 'CREATED' %}
+                                <span class="clean-badge clean-badge-secondary">CREATED</span>
+                                {% else %}
+                                <span class="clean-badge clean-badge-warning">NOT YET</span>
                                 {% endif %}
                             </td>
 
                             <td class="text-center">
-                                {% set badge_state = 'badge-danger' if challenge.state == 'hidden' else 'badge-success'
-                                %}
-                                <span class="badge {{ badge_state }}">{{ challenge.state }}</span>
+                                {% set badge_state = 'clean-badge-danger' if challenge.state == 'hidden' else 'clean-badge-success' %}
+                                <span class="clean-badge {{ badge_state }}">{{ challenge.state }}</span>
                             </td>
                             {% if challenge.require_deploy %}
                             <td class="text-center">
-                                <a
-                                    href="{{ url_for('challengeHistory.view_deploy_history', challenge_id=challenge.id) }}">
-                                    <button class="btn btn-primary btn-sm">View Deploy History</button>
-                                </a>
-                            </td>
-                            <td class="text-center">
-                                <button id="preview-button-{{ challenge.id }}" class="btn btn-success btn-sm"
-                                    onclick="previewChallenge({{ challenge.id }})">
-                                    Preview
-                                </button>
-                                <div id="preview-error-{{ challenge.id }}" class="text-danger mt-1"></div>
-                                <div id="preview-success-{{ challenge.id }}" class="text-success mt-1"></div>
+                                <div class="action-dropdown">
+                                    <button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this, event)">
+                                        Actions
+                                    </button>
+                                    <div class="action-menu">
+                                        <a class="action-menu-item" href="{{ url_for('challengeHistory.view_deploy_history', challenge_id=challenge.id) }}" onclick="closeAllActionMenus()">
+                                            <i class="fas fa-history fa-fw mr-1"></i> History
+                                        </a>
+                                        <a class="action-menu-item" href="#" onclick="previewChallenge({{ challenge.id }}, this); closeAllActionMenus(); return false;">
+                                            <i class="fas fa-eye fa-fw mr-1"></i> Preview
+                                        </a>
+                                        {% if challenge.shared_instant %}
+                                        <div class="action-menu-divider"></div>
+                                        <a class="action-menu-item" href="#" onclick="startSharedChallenge({{ challenge.id }}, this); closeAllActionMenus(); return false;">
+                                            <i class="fas fa-play fa-fw mr-1"></i> Start
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                             {% else %}
-                            <td colspan="2" class="text-center text-muted">
+                            <td class="text-center text-muted">
                                 <i class="fas fa-ban" data-toggle="tooltip"
                                     title="No actions are required for this challenge"></i> Not Applicable
                             </td>
@@ -170,70 +320,61 @@
                         {% endfor %}
                     </tbody>
                 </table>
-
             </div>
-        </div>
-    </div>
+
+            <!-- Backend Pagination Controls -->
+            {% if challenges.pages > 0 %}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <div class="clean-info-text" role="status" aria-live="polite">
+                    Page <span class="clean-highlight">{{ challenges.page }}</span> of <span class="clean-highlight">{{ challenges.pages }}</span> • {{ challenges.total }} total
+                </div>
+                {% if challenges.pages > 1 %}
+                <nav aria-label="Challenge pagination">
+                    <ul class="clean-pagination pagination mb-0">
+                                <li class="page-item {% if challenges.page == 1 %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ prev_page if challenges.page > 1 else '#' }}">&laquo;</a>
+                                </li>
+                                
+                                {% set start_page = [1, challenges.page - 2]|max %}
+                                {% set end_page = [challenges.pages, challenges.page + 2]|min %}
+                                
+                                {% if start_page > 1 %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=1, field=field, q=q, category=category, type=type, difficulty=difficulty, state=state_filter, has_prereq=has_prereq) }}">1</a>
+                                    </li>
+                                    {% if start_page > 2 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% for page_num in range(start_page, end_page + 1) %}
+                                <li class="page-item {% if page_num == challenges.page %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('admin.challenges_listing', page=page_num, field=field, q=q, category=category, type=type, difficulty=difficulty, state=state_filter, has_prereq=has_prereq) }}">{{ page_num }}</a>
+                                </li>
+                                {% endfor %}
+                                
+                                {% if end_page < challenges.pages %}
+                                    {% if end_page < challenges.pages - 1 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.challenges_listing', page=challenges.pages, field=field, q=q, category=category, type=type, difficulty=difficulty, state=state_filter, has_prereq=has_prereq) }}">{{ challenges.pages }}</a>
+                                    </li>
+                                {% endif %}
+                                
+                                <li class="page-item {% if challenges.page == challenges.pages %}disabled{% endif %}">
+                                    <a class="page-link" href="{{ next_page if challenges.page < challenges.pages else '#' }}">&raquo;</a>
+                                </li>
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+            {% endif %}
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    function previewChallenge(challengeId) {
-        const errorElement = document.getElementById(`preview-error-${challengeId}`);
-        const previewButton = document.getElementById(`preview-button-${challengeId}`);
-        const successElement = document.getElementById(`preview-success-${challengeId}`);
-
-        errorElement.innerText = "Waiting for response...";
-        previewButton.disabled = true;
-
-        fetch("/api/challenge/start", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                challenge_id: challengeId
-            })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.challenge_url) {
-                        errorElement.style.display = "none";
-
-                        alert("http://" + data.challenge_url);
-                            
-                        } else if (data.Challenge_url) {
-                            try {
-                            errorElement.style.display = "none";
-                            const cacheData = JSON.parse(data.Challenge_url);
-                            const challengeUrl = cacheData.challenge_url;
-                            if (challengeUrl) {
-                                alert("http://" + data.challenge_url);
-
-                            } else {
-                                errorElement.innerText = "Challenge URL not found in cached data.";
-                            }
-                        } catch (e) {
-                            errorElement.innerText = "Error parsing cached data.";
-                        }
-                    } else {
-                        errorElement.innerText = "Challenge URL not available.";
-                    }
-                } else {
-                    errorElement.innerText = data.message || "Failed to Preview challenge.";
-                }
-            })
-            .catch(error => {
-                console.error(error);
-                errorElement.innerText = "Connection failed.";
-            })
-            .finally(() => {
-                previewButton.disabled = false;
-            });
-    }
-</script>
 
 {% endblock %}
 
