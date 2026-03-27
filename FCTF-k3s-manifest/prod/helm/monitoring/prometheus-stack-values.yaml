@@ -413,7 +413,7 @@ alertmanager:
   ##
   networkPolicy:
     # -- Enable network policy for Alertmanager
-    enabled: true
+    enabled: false
 
     # -- Define policy types. If egress is enabled, both Ingress and Egress will be used
     # Valid values are ["Ingress"] or ["Ingress", "Egress"]
@@ -1291,7 +1291,7 @@ grafana:
 
   ## Editable flag for the default dashboards
   ##
-  defaultDashboardsEditable: false
+  defaultDashboardsEditable: true
 
   ## Default interval for Grafana dashboards
   ##
@@ -1299,22 +1299,6 @@ grafana:
 
   adminUser: admin
   adminPassword: Fctf2025@
-
-  grafana.ini:
-    security:
-      # Effective only when Grafana is served via HTTPS.
-      cookie_secure: true
-      cookie_samesite: strict
-      content_security_policy: true
-      content_security_policy_template: "script-src 'self' 'unsafe-eval' 'unsafe-inline' 'strict-dynamic' $NONCE;object-src 'none';font-src 'self';style-src 'self' 'unsafe-inline' blob:;img-src * data:;base-uri 'self';connect-src 'self' grafana.com ws://$ROOT_PATH wss://$ROOT_PATH;manifest-src 'self';media-src 'none';form-action 'self';require-trusted-types-for 'script';"
-    auth:
-      login_cookie_name: __Host-grafana_session
-    auth.anonymous:
-      enabled: false
-      hide_version: true
-    users:
-      # Keep viewers read-focused; prevent panel edits from viewer role.
-      viewers_can_edit: false
 
   rbac:
     ## If true, Grafana PSPs will be created
@@ -1629,7 +1613,7 @@ kubelet:
 
     ## If true, Prometheus use (respect) labels provided by exporter.
     ##
-    honorLabels: false
+    honorLabels: true
 
     ## If true, Prometheus ingests metrics with timestamp provided by exporter. If false, Prometheus ingests metrics with timestamp of scrape.
     ##
@@ -2505,7 +2489,7 @@ kube-state-metrics:
 
       # Keep labels from scraped data, overriding server-side labels
       ##
-      honorLabels: false
+      honorLabels: true
 
       ## MetricRelabelConfigs to apply to samples after scraping, but before ingestion.
       ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#relabelconfig
@@ -3434,7 +3418,7 @@ prometheus:
 
   ## Configure network policy for the prometheus
   networkPolicy:
-    enabled: true
+    enabled: false
 
     ## Flavor of the network policy to use.
     #  Can be:
@@ -4610,7 +4594,7 @@ prometheus:
 
     ## OverrideHonorLabels if set to true overrides all user configured honor_labels. If HonorLabels is set in ServiceMonitor
     ## or PodMonitor to true, this overrides honor_labels to false.
-    overrideHonorLabels: true
+    overrideHonorLabels: false
 
     ## OverrideHonorTimestamps allows to globally enforce honoring timestamps in all scrape configs.
     overrideHonorTimestamps: false
