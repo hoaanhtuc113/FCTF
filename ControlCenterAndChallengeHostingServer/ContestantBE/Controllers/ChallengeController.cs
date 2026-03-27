@@ -181,6 +181,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("list_challenge/{category_name}")]
+    [ViewOrDuringCtfTimeOnly]
     public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
     {
         var userId = UserContext.UserId;
@@ -195,6 +196,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("instances")]
+    [ViewOrDuringCtfTimeOnly]
     public async Task<IActionResult> GetAllInstances()
     {
         try
@@ -763,7 +765,7 @@ public class ChallengeController : BaseController
             }
         }
 
-        if(challenge.MaxDeployCount.HasValue && challenge.MaxDeployCount.Value > 0)
+        if (challenge.MaxDeployCount.HasValue && challenge.MaxDeployCount.Value > 0)
         {
             var currentDeployCount = await _context.ChallengeStartTrackings
                 .AsNoTracking()
@@ -1010,7 +1012,8 @@ public class ChallengeController : BaseController
             pod_status = Enums.DeploymentStatusEnum.Failed
         });
         int teamId = user.TeamId.Value;
-        if (challenge.SharedInstant) {
+        if (challenge.SharedInstant)
+        {
             teamId = -2; // Use -2 to indicate shared instance in cache keys and service logic
         }
         var response = await _challengeServices.CheckChallengeStart(challenge.Id, teamId);
