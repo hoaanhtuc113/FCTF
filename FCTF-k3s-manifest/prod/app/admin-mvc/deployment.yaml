@@ -34,10 +34,10 @@ spec:
                 name: common-private-key-secret
           resources:
             requests:
-              cpu: 0.2
+              cpu: 0.5
               memory: 512Mi
             limits:
-              cpu: 0.5
+              cpu: 1
               memory: 1Gi
           readinessProbe:
             httpGet:
