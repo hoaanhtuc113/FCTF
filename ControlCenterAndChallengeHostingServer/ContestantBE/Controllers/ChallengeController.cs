@@ -89,7 +89,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("{id}")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetById(int id)
     {
         try
@@ -148,7 +148,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("by-topic")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetByTopic()
     {
         var userId = UserContext.UserId;
@@ -181,6 +181,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("list_challenge/{category_name}")]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
     {
         var userId = UserContext.UserId;
@@ -195,6 +196,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("instances")]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetAllInstances()
     {
         try
@@ -763,7 +765,7 @@ public class ChallengeController : BaseController
             }
         }
 
-        if(challenge.MaxDeployCount.HasValue && challenge.MaxDeployCount.Value > 0)
+        if (challenge.MaxDeployCount.HasValue && challenge.MaxDeployCount.Value > 0)
         {
             var currentDeployCount = await _context.ChallengeStartTrackings
                 .AsNoTracking()
@@ -920,6 +922,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpPost("stop-by-user")]
+    [DuringCtfTimeOnly]
     public async Task<IActionResult> StopChallengeByUser([FromBody] ChallengeStartStopReqDTO challengeStartReq)
     {
         if (challengeStartReq == null || challengeStartReq.challengeId <= 0)
@@ -970,6 +973,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpPost("check-status")]
+    [DuringCtfTimeOnly]
     public async Task<IActionResult> CheckChallengeStatus([FromBody] ChallengCheckStatusReqDTO statusReq)
     {
         if (statusReq == null || statusReq.challengeId <= 0)
@@ -1010,7 +1014,8 @@ public class ChallengeController : BaseController
             pod_status = Enums.DeploymentStatusEnum.Failed
         });
         int teamId = user.TeamId.Value;
-        if (challenge.SharedInstant) {
+        if (challenge.SharedInstant)
+        {
             teamId = -2; // Use -2 to indicate shared instance in cache keys and service logic
         }
         var response = await _challengeServices.CheckChallengeStart(challenge.Id, teamId);
