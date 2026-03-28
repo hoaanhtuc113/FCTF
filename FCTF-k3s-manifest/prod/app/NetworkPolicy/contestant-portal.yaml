@@ -8,7 +8,12 @@ spec:
     matchLabels:
       app: contestant-portal
   policyTypes:
+    - Ingress
     - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080
   egress:
     # DNS resolution
     - to:
