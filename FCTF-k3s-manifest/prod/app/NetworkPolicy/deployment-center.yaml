@@ -66,12 +66,8 @@ spec:
           port: 5671
     # Kubernetes API server
     - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-apiserver
+        - ipBlock:
+            cidr: 10.43.0.1/32
       ports:
         - protocol: TCP
           port: 443
