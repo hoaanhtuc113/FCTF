@@ -63,13 +63,3 @@ spec:
       ports:
         - protocol: TCP
           port: 5020
-    # Allow Loki / Prometheus (monitoring namespace) for log/metrics pushes or callbacks
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 3100
-        - protocol: TCP
-          port: 9090

@@ -68,19 +68,3 @@ spec:
       ports:
         - protocol: TCP
           port: 5671
-    # Loki
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 3100
-    # Prometheus
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 9090

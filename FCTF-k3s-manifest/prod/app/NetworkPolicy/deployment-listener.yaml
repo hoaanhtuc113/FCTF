@@ -51,19 +51,3 @@ spec:
       ports:
         - port: 6443
         - port: 443
-    # Loki internal (push logs)
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 3100
-    # Prometheus internal (if needed)
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 9090
