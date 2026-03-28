@@ -36,13 +36,15 @@ builder.Services.AddSingleton<IDeploymentProducerService>(sp =>
     var pass = DeploymentCenterConfigHelper.RABBIT_PASSWORD;
     var port = DeploymentCenterConfigHelper.RABBIT_PORT;
     var vhost = DeploymentCenterConfigHelper.RABBIT_VHOST;
+    var useTls = DeploymentCenterConfigHelper.RABBIT_TLS;
 
     return new DeploymentProducerService(
         host,
         user,
         pass,
         port,
-        vhost);
+        vhost,
+        useTls);
 });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
