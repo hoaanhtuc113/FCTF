@@ -26,7 +26,9 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
         string username,
         string password,
         int port,
-        string vhost = "/")
+        string vhost = "/",
+        bool useTls = false,
+        string? sslServerName = null)
     {
         _factory = new ConnectionFactory
         {
@@ -35,8 +37,21 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             Password = password,
             Port = port,
             VirtualHost = string.IsNullOrWhiteSpace(vhost) ? "/" : vhost,
-            AutomaticRecoveryEnabled = true
+            AutomaticRecoveryEnabled = true,
+            Ssl = new SslOption
+            {
+                Enabled = useTls,
+                ServerName = string.IsNullOrWhiteSpace(sslServerName) ? host : sslServerName,
+                Version = System.Security.Authentication.SslProtocols.Tls12,
+                AcceptablePolicyErrors = useTls ? System.Net.Security.SslPolicyErrors.None : System.Net.Security.SslPolicyErrors.RemoteCertificateNotAvailable
+            }
         };
+
+        if (useTls)
+        {
+            _factory.Ssl.Enabled = true;
+            _factory.Ssl.AcceptablePolicyErrors = System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch | System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors;
+        }
     }
 
 
