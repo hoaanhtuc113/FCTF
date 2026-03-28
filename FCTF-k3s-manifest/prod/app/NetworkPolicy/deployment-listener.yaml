@@ -8,7 +8,9 @@ spec:
     matchLabels:
       app: deployment-listener
   policyTypes:
+    - Ingress
     - Egress
+  ingress: []
   egress:
     # DNS
     - to:

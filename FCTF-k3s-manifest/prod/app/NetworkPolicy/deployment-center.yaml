@@ -8,7 +8,12 @@ spec:
     matchLabels:
       app: deployment-center
   policyTypes:
+    - Ingress
     - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 5020
   egress:
     # DNS
     - to:

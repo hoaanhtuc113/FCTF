@@ -8,7 +8,12 @@ spec:
     matchLabels:
       app: admin-mvc
   policyTypes:
+    - Ingress
     - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8000
   egress:
     - to:
         - ipBlock:
