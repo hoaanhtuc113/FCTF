@@ -1,0 +1,78 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: admin-mvc-network-policy
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      app: admin-mvc
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Ingress from external Internet via nginx ingress-controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # DNS for name resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Redis in db namespace (including headless pods)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: db
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # MariaDB in db namespace (including headless pods)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: db
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mariadb
+      ports:
+        - protocol: TCP
+          port: 3306
+    # DeploymentCenter in app namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+          podSelector:
+            matchLabels:
+              app: deployment-center
+      ports:
+        - protocol: TCP
+          port: 5020
+    # Allow Loki / Prometheus (monitoring namespace) for log/metrics pushes or callbacks
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 3100
+        - protocol: TCP
+          port: 9090
