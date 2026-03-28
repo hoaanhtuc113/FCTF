@@ -8,14 +8,7 @@ spec:
     matchLabels:
       app: challenge-gateway
   policyTypes:
-    - Ingress
     - Egress
-  ingress:
-    - ports:
-        - protocol: TCP
-          port: 8080
-        - protocol: TCP
-          port: 1337
   egress:
     # Allow DNS resolution
     - to:

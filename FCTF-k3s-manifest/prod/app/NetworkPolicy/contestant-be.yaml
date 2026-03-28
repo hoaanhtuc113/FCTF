@@ -8,12 +8,7 @@ spec:
     matchLabels:
       app: contestant-be
   policyTypes:
-    - Ingress
     - Egress
-  ingress:
-    - ports:
-        - protocol: TCP
-          port: 5010
   egress:
     - to:
         - ipBlock:
