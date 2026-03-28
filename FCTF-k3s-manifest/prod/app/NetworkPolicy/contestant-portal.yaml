@@ -8,17 +8,7 @@ spec:
     matchLabels:
       app: contestant-portal
   policyTypes:
-    - Ingress
     - Egress
-  ingress:
-    # Internet -> nginx ingress -> contestant-portal
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
-      ports:
-        - protocol: TCP
-          port: 5173
   egress:
     # DNS resolution
     - to:

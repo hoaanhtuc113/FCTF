@@ -8,17 +8,7 @@ spec:
     matchLabels:
       app: contestant-be
   policyTypes:
-    - Ingress
     - Egress
-  ingress:
-    # Ingress from external Internet via nginx ingress-controller
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
-      ports:
-        - protocol: TCP
-          port: 5010
   egress:
     # DNS for name resolution
     - to:

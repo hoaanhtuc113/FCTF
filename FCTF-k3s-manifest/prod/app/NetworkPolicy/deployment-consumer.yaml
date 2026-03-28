@@ -8,9 +8,7 @@ spec:
     matchLabels:
       app: deployment-consumer
   policyTypes:
-    - Ingress
     - Egress
-  ingress: []
   egress:
     # DNS
     - to:
