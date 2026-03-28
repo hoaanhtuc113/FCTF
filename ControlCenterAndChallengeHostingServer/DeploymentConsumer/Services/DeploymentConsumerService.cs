@@ -24,7 +24,7 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
 
     private const string QueueName = "deployment_queue";
 
-    public DeploymentConsumerService(string host, string username, string password, int port, string vhost = "/")
+    public DeploymentConsumerService(string host, string username, string password, int port, string vhost = "/", bool useTls = false, string? sslServerName = null)
     {
         _factory = new ConnectionFactory
         {
@@ -33,8 +33,22 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
             Password = password,
             Port = port,
             VirtualHost = string.IsNullOrWhiteSpace(vhost) ? "/" : vhost,
-            AutomaticRecoveryEnabled = true
+            AutomaticRecoveryEnabled = true,
+            Ssl = new SslOption
+            {
+                Enabled = useTls,
+                ServerName = string.IsNullOrWhiteSpace(sslServerName) ? host : sslServerName,
+                Version = System.Security.Authentication.SslProtocols.Tls12,
+                AcceptablePolicyErrors = System.Net.Security.SslPolicyErrors.None
+            }
         };
+
+        if (useTls)
+        {
+            _factory.Ssl.Enabled = true;
+            _factory.Ssl.AcceptablePolicyErrors = System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors | System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch;
+        }
+
         _messageBuffer = Channel.CreateUnbounded<DequeuedMessage>();
     }
 
