@@ -10,6 +10,11 @@ spec:
   policyTypes:
     - Egress
   egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
     # DNS for name resolution
     - to:
         - namespaceSelector:

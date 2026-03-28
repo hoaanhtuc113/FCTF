@@ -67,10 +67,9 @@ spec:
     # Kubernetes API server
     - to:
         - ipBlock:
-            cidr: 10.43.0.1/32
+            cidr: 0.0.0.0/0
       ports:
-        - protocol: TCP
-          port: 443
+        - port: 443
     # Loki API endpoint
     - to:
         - namespaceSelector:
