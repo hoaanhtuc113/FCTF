@@ -24,7 +24,14 @@ public class DeploymentConsumerService : IDeploymentConsumerService, IAsyncDispo
 
     private const string QueueName = "deployment_queue";
 
-    public DeploymentConsumerService(string host, string username, string password, int port, string vhost = "/", bool useTls = false, string? sslServerName = null)
+    public DeploymentConsumerService(
+        string host,
+        string username,
+        string password,
+        int port,
+        string vhost = "/",
+        bool useTls = false,
+        string? sslServerName = null)
     {
         _factory = new ConnectionFactory
         {
