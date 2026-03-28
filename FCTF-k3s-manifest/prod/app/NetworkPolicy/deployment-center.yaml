@@ -8,32 +8,7 @@ spec:
     matchLabels:
       app: deployment-center
   policyTypes:
-    - Ingress
     - Egress
-  ingress:
-    # Cho phép admin-mvc gọi API deployment-center
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: app
-          podSelector:
-            matchLabels:
-              app: admin-mvc
-      ports:
-        - protocol: TCP
-          port: 5020
-    # Cho phép contestant-be gọi API deployment-center
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: app
-          podSelector:
-            matchLabels:
-              app: contestant-be
-      ports:
-        - protocol: TCP
-          port: 5020
-
   egress:
     # DNS
     - to:
