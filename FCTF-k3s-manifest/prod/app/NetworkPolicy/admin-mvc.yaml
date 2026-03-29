@@ -22,13 +22,6 @@ spec:
       ports:
         - port: 443
 
-    # NFS external
-    - to:
-        - ipBlock:
-            cidr: 10.184.0.2/32
-      ports:
-        - port: 2049
-
     # DNS for name resolution
     - to:
         - namespaceSelector:

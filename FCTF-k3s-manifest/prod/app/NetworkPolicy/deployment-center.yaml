@@ -18,7 +18,7 @@ spec:
           podSelector:
             matchLabels:
               app: admin-mvc
-          namespaceSelector:
+        - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: app
           podSelector:
