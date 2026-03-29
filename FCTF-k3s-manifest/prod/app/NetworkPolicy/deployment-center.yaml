@@ -11,7 +11,23 @@ spec:
     - Ingress
     - Egress
   ingress:
-    - ports:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+          podSelector:
+            matchLabels:
+              app: admin-mvc
+          namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+          podSelector:
+            matchLabels:
+              app: contestant-be
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argo
+      ports:
         - protocol: TCP
           port: 5020
   egress:
