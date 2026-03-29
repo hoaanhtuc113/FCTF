@@ -15,13 +15,20 @@ spec:
         - protocol: TCP
           port: 8000
   egress:
+    # Internet HTTPS
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
       ports:
         - port: 443
-        - protocol: TCP
-          port: 2049
+
+    # NFS external
+    - to:
+        - ipBlock:
+            cidr: 10.184.0.2/32
+      ports:
+        - port: 2049
+
     # DNS for name resolution
     - to:
         - namespaceSelector:
