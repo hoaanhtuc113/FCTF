@@ -3,10 +3,20 @@
 -- Update all REPLACE_* passwords before running.
 
 -- Baseline hardening equivalent to mysql_secure_installation tasks.
-SELECT CONCAT("DROP USER '", user, "'@'", host, "';")
-FROM mysql.user
-WHERE user = 'root'
-  AND host NOT IN ('localhost', '127.0.0.1');
+SET @sql = (
+  SELECT GROUP_CONCAT(
+    CONCAT("DROP USER '", user, "'@'", host, "'")
+    SEPARATOR '; '
+  )
+  FROM mysql.user
+  WHERE user = 'root'
+    AND host NOT IN ('localhost', '127.0.0.1')
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 DROP USER IF EXISTS ''@'localhost';
 DROP USER IF EXISTS ''@'%';
 DROP DATABASE IF EXISTS test;
