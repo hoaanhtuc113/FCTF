@@ -21,6 +21,14 @@ helm upgrade --install cert-manager jetstack/cert-manager \
   --set webhook.securePort=10250 \
   --wait --debug
 
+#cài filebrowser
+helm repo add utkuozdemir https://utkuozdemir.github.io/helm-charts
+helm repo update
+helm upgrade --install filebrowser utkuozdemir/filebrowser \
+  --create-namespace --namespace storage \
+  -f ./helm/filebrowser/values.yaml \
+  --wait --debug
+
 # Cài mariadb
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
@@ -79,11 +87,3 @@ helm upgrade --install rancher rancher-latest/rancher \
   -f ./helm/rancher/rancher-values.yaml \
   --wait --debug
 
-
-#cài filebrowser
-helm repo add utkuozdemir https://utkuozdemir.github.io/helm-charts
-helm repo update
-helm upgrade --install filebrowser utkuozdemir/filebrowser \
-  --create-namespace --namespace storage \
-  -f ./helm/filebrowser/values.yaml \
-  --wait --debug
