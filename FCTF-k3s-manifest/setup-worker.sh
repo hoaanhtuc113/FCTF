@@ -2,7 +2,7 @@
 set -euo pipefail
 
 TIMEZONE="Asia/Ho_Chi_Minh"
-MAX_PODS="250"
+MAX_PODS="110"
 MASTER_URL=""
 NODE_TOKEN=""
 INSTALL_GVISOR="true"
