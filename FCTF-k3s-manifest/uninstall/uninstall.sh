@@ -106,6 +106,27 @@ fi
 run_shell "sudo apt remove --purge -y nfs-kernel-server nfs-common"
 run_shell "sudo apt autoremove -y"
 
+log "3.1) Stop K3s immediately"
+run_shell "sudo systemctl stop k3s"
+run_shell "sudo systemctl stop k3s-agent"
+
+log "3.2) Stop and remove all running containers via CRI (containerd/K3s)"
+run_shell "if command -v crictl >/dev/null 2>&1; then sudo crictl ps -aq | xargs -r sudo crictl stop; else echo 'crictl not found, skip'; fi"
+run_shell "if command -v crictl >/dev/null 2>&1; then sudo crictl ps -aq | xargs -r sudo crictl rm; else echo 'crictl not found, skip'; fi"
+
+log "3.3) Unmount kubelet/rancher mounts to avoid stuck PV/PVC"
+run_shell "sudo mount | grep -E 'kubelet|rancher' | awk '{print \$3}' | sort -r | xargs -r sudo umount -l"
+
+log "3.4) Remove gVisor binaries"
+run_shell "sudo rm -f /usr/local/bin/runsc /usr/local/bin/containerd-shim-runsc-v1"
+
+log "3.5) Remove virtual network interfaces (Calico/K3s)"
+run_shell "sudo ip link delete cni0"
+run_shell "sudo ip link delete flannel.1"
+run_shell "sudo ip link delete tunl0"
+run_shell "sudo ip link show | grep cali | awk '{print \$2}' | cut -d'@' -f1 | xargs -r -I {} sudo ip link delete {}"
+
+log "3.6) Run K3s uninstall scripts"
 run_shell "if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; else echo 'k3s-uninstall.sh not found'; fi"
 run_shell "if [ -x /usr/local/bin/k3s-agent-uninstall.sh ]; then sudo /usr/local/bin/k3s-agent-uninstall.sh; else echo 'k3s-agent-uninstall.sh not found'; fi"
 
@@ -120,6 +141,7 @@ LEFTOVER_PATHS=(
 	"/var/lib/rancher"
 	"/var/lib/kubelet"
 	"/var/lib/cni"
+	"/etc/cni"
 )
 
 for p in "${LEFTOVER_PATHS[@]}"; do
