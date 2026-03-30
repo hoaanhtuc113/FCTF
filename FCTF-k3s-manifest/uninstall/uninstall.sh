@@ -81,8 +81,19 @@ run helm uninstall rancher -n cattle-system
 
 log "2) Delete namespaces (best-effort)"
 for ns in app challenge db storage argo monitoring ctfd cert-manager ingress-nginx cattle-system kubernetes-dashboard; do
-	run kubectl delete namespace "$ns" --ignore-not-found
+	run kubectl delete namespace "$ns" --ignore-not-found --wait=true --timeout=120s
 done
+
+log "2.1) Force Delete PVs to avoid hanging"
+PV_NAMES=$(kubectl get pv -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep -E 'nfs-|pvc-')
+
+if [ -n "$PV_NAMES" ]; then
+    log "Patching finalizers for PVs..."
+    echo "$PV_NAMES" | xargs -I {} kubectl patch pv {} -p '{"metadata":{"finalizers":null}}' --type merge
+    
+    log "Deleting PVs..."
+    run kubectl delete pv $PV_NAMES --ignore-not-found --timeout=30s
+fi
 
 log "3) Host cleanup (NFS + K3s)"
 if [ -f "$(dirname "${BASH_SOURCE[0]}")/clean-nfs.sh" ]; then
@@ -98,7 +109,12 @@ run_shell "sudo apt autoremove -y"
 run_shell "if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; else echo 'k3s-uninstall.sh not found'; fi"
 run_shell "if [ -x /usr/local/bin/k3s-agent-uninstall.sh ]; then sudo /usr/local/bin/k3s-agent-uninstall.sh; else echo 'k3s-agent-uninstall.sh not found'; fi"
 
-log "4) Verify leftover K3s/Rancher directories and force-clean if needed"
+log "4) Cleaning up Mount Points and Directories"
+if mount | grep -qE '/var/lib/kubelet|/var/lib/rancher'; then
+    log "Active mounts detected. Unmounting..."
+    cat /proc/mounts | grep -E '/var/lib/kubelet|/var/lib/rancher' | awk '{print $2}' | sort -r | xargs -r sudo umount -l
+fi
+
 LEFTOVER_PATHS=(
 	"/etc/rancher"
 	"/var/lib/rancher"
