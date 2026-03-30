@@ -98,5 +98,22 @@ run_shell "sudo apt autoremove -y"
 run_shell "if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; else echo 'k3s-uninstall.sh not found'; fi"
 run_shell "if [ -x /usr/local/bin/k3s-agent-uninstall.sh ]; then sudo /usr/local/bin/k3s-agent-uninstall.sh; else echo 'k3s-agent-uninstall.sh not found'; fi"
 
+log "4) Verify leftover K3s/Rancher directories and force-clean if needed"
+LEFTOVER_PATHS=(
+	"/etc/rancher"
+	"/var/lib/rancher"
+	"/var/lib/kubelet"
+	"/var/lib/cni"
+)
+
+for p in "${LEFTOVER_PATHS[@]}"; do
+	if [ -e "$p" ]; then
+		warn "Found leftover path: $p"
+		run_shell "sudo rm -rf '$p'"
+	else
+		log "Already clean: $p"
+	fi
+done
+
 log "Done."
 log "You can verify with: kubectl get pods -A ; kubectl get pvc -A ; kubectl get pv"
