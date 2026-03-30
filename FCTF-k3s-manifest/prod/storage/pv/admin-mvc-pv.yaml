@@ -14,7 +14,7 @@ spec:
   mountOptions:
     - noexec
   nfs:
-    server: 10.184.0.2
+    server: 10.148.0.2
     path: /srv/nfs/share/challenges
 ---
 apiVersion: v1
@@ -30,5 +30,5 @@ spec:
   mountOptions:
     - noexec
   nfs:
-    server: 10.184.0.2
+    server: 10.148.0.2
     path: /srv/nfs/share/file
