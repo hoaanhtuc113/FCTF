@@ -335,7 +335,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
 
   if [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
     echo "==> Waiting for admin-mvc deployment before applying post-init MariaDB grants"
-    kubectl rollout status deployment/admin-mvc -n app --timeout=300s || true
+    kubectl rollout status deployment/admin-mvc -n app --timeout=600s || true
 
     echo "==> Waiting for ctfd schema bootstrap"
     schema_ready="false"

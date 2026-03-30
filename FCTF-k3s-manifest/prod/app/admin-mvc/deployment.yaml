@@ -55,8 +55,8 @@ spec:
             httpGet:
               path: /healthcheck
               port: 8000
-            initialDelaySeconds: 15
-            periodSeconds: 20
+            initialDelaySeconds: 30
+            periodSeconds: 30
             timeoutSeconds: 2
             failureThreshold: 3
           imagePullPolicy: Always
