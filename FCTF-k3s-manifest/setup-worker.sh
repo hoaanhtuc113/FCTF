@@ -109,8 +109,16 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
 
   sudo curl -fsSL "${URL}/runsc" -o /usr/local/bin/runsc
   sudo curl -fsSL "${URL}/runsc.sha512" -o /tmp/runsc.sha512
-  (cd /tmp && sha512sum -c runsc.sha512)
+
+  EXPECTED=$(cut -d ' ' -f1 /tmp/runsc.sha512)
+  ACTUAL=$(sha512sum /usr/local/bin/runsc | cut -d ' ' -f1)
+
   sudo chmod +x /usr/local/bin/runsc
+
+  if [[ "$EXPECTED" != "$ACTUAL" ]]; then
+    echo "Checksum mismatch!"
+    exit 1
+  fi
 
   sudo curl -fsSL "${URL}/containerd-shim-runsc-v1" -o /usr/local/bin/containerd-shim-runsc-v1
   sudo chmod +x /usr/local/bin/containerd-shim-runsc-v1
