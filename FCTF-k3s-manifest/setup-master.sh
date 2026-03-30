@@ -199,8 +199,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
   --write-kubeconfig-mode 644 \
-  --tls-san=${TLS_SAN} \
-  --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
+  --tls-san=${TLS_SAN}" sh -
 
 echo "==> Waiting for k3s service"
 sudo systemctl enable --now k3s

@@ -19,19 +19,6 @@ helm upgrade --install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
   --set installCRDs=true \
   --set webhook.securePort=10250 \
-  \
-  --set "tolerations[0].key=node-role.kubernetes.io/control-plane" \
-  --set "tolerations[0].operator=Exists" \
-  --set "tolerations[0].effect=NoSchedule" \
-  \
-  --set "webhook.tolerations[0].key=node-role.kubernetes.io/control-plane" \
-  --set "webhook.tolerations[0].operator=Exists" \
-  --set "webhook.tolerations[0].effect=NoSchedule" \
-  \
-  --set "cainjector.tolerations[0].key=node-role.kubernetes.io/control-plane" \
-  --set "cainjector.tolerations[0].operator=Exists" \
-  --set "cainjector.tolerations[0].effect=NoSchedule" \
-  \
   --wait --debug
 
 # Cài mariadb
