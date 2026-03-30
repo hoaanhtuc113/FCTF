@@ -271,6 +271,7 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
 
   echo "==> Creating required namespace for Helm components"
   kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 
