@@ -218,7 +218,7 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
   ACTUAL=$(sha512sum /usr/local/bin/runsc | cut -d ' ' -f1)
 
   sudo chmod +x /usr/local/bin/runsc
-  
+
   if [[ "$EXPECTED" != "$ACTUAL" ]]; then
     echo "Checksum mismatch!"
     exit 1
@@ -270,6 +270,8 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
   fi
 
   echo "==> Creating required namespace for Helm components"
+  kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 
@@ -308,7 +310,6 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
 
   echo "==> Creating required namespaces"
   kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace challenge --dry-run=client -o yaml | kubectl apply -f -
   kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 
   echo "==> Applying base classes, ConfigMaps and Secrets"
