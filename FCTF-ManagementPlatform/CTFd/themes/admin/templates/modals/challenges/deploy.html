@@ -20,7 +20,7 @@
           <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
       </label>
         <input type="number" class="form-control clean-form-control" name="cpu_limit" id="cpu_limit"
-        min="1" max="500" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 100 }}" required>
+        min="1" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 100 }}" required>
     </div>
 
      <div class="form-group deploy-resource-field">
@@ -29,7 +29,7 @@
         <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="cpu_request" id="cpu_request"
-        min="1" max="500" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 10 }}" required>
+        min="1" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 10 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -38,7 +38,7 @@
         <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_limit" id="memory_limit"
-        min="1" max="1024" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 128 }}" required>
+        min="1" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 128 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -47,7 +47,7 @@
         <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_request" id="memory_request"
-        min="1" max="1024" value="{{ challenge.memory_request if challenge.memory_request is not none else 32 }}" required>
+        min="1" value="{{ challenge.memory_request if challenge.memory_request is not none else 32 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -408,19 +408,19 @@
         memoryRequest = parseInt(memoryRequestInput?.value || "0", 10);
         useGvisor = (useGvisorInput?.value || "true") === "true";
 
-        if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
+        if (cpuLimit < 1 || cpuRequest < 1) {
           ezAlert({
             title: "Validation Error",
-            body: "CPU limit/request must be between 1 and 500 (mCPU).",
+            body: "CPU limit/request must be greater than or equal to 1 (mCPU).",
             button: "OK"
           });
           return;
         }
 
-        if (memoryLimit < 1 || memoryLimit > 1024 || memoryRequest < 1 || memoryRequest > 1024) {
+        if (memoryLimit < 1 || memoryRequest < 1) {
           ezAlert({
             title: "Validation Error",
-            body: "Memory limit/request must be between 1 and 1024 (Mi).",
+            body: "Memory limit/request must be greater than or equal to 1 (Mi).",
             button: "OK"
           });
           return;
