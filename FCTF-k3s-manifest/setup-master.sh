@@ -333,32 +333,6 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
   echo "==> Applying app NetworkPolicy"
   kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
 
-  if [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
-    echo "==> Waiting for admin-mvc deployment before applying post-init MariaDB grants"
-    kubectl rollout status deployment/admin-mvc -n app --timeout=600s || true
-
-    echo "==> Waiting for ctfd schema bootstrap"
-    schema_ready="false"
-    for _ in $(seq 1 30); do
-      if kubectl -n db exec mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" -Nse "SELECT 1 FROM information_schema.tables WHERE table_schema=\"ctfd\" AND table_name=\"users\" LIMIT 1;"' 2>/dev/null | grep -q '^1$'; then
-        schema_ready="true"
-        break
-      fi
-      sleep 10
-    done
-
-    if [[ "${schema_ready}" == "true" ]]; then
-      echo "==> Applying least-privilege MariaDB grants"
-      kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < "${MARIADB_POST_INIT_GRANTS_SQL}"
-    else
-      echo "Warning: ctfd schema not ready after timeout."
-      echo "Run grants manually when admin bootstrap has completed:"
-      echo "kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p\"\$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)\" ctfd' < ${MARIADB_POST_INIT_GRANTS_SQL}"
-    fi
-  else
-    echo "Warning: grants SQL file not found at ${MARIADB_POST_INIT_GRANTS_SQL}; skipping post-init grants."
-  fi
-
   if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
     echo "==> Applying ClusterIP service mode"
     kubectl delete -f "${PROD_DIR}/app/service-nodeport.yaml" --ignore-not-found
@@ -401,6 +375,32 @@ if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
   echo "==> Applying Argo workflow templates"
   kubectl apply -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml"
   kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml"
+fi
+
+if [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
+  echo "==> Waiting for admin-mvc deployment before applying post-init MariaDB grants"
+  kubectl rollout status deployment/admin-mvc -n app --timeout=600s || true
+
+  echo "==> Waiting for ctfd schema bootstrap"
+  schema_ready="false"
+  for _ in $(seq 1 30); do
+    if kubectl -n db exec mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" -Nse "SELECT 1 FROM information_schema.tables WHERE table_schema=\"ctfd\" AND table_name=\"users\" LIMIT 1;"' 2>/dev/null | grep -q '^1$'; then
+      schema_ready="true"
+      break
+    fi
+    sleep 10
+  done
+
+  if [[ "${schema_ready}" == "true" ]]; then
+    echo "==> Applying least-privilege MariaDB grants"
+    kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < "${MARIADB_POST_INIT_GRANTS_SQL}"
+  else
+    echo "Warning: ctfd schema not ready after timeout."
+    echo "Run grants manually when admin bootstrap has completed:"
+    echo "kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p\"\$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)\" ctfd' < ${MARIADB_POST_INIT_GRANTS_SQL}"
+  fi
+else
+  echo "Warning: grants SQL file not found at ${MARIADB_POST_INIT_GRANTS_SQL}; skipping post-init grants."
 fi
 
 echo
