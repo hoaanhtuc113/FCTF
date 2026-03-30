@@ -85,5 +85,5 @@ helm upgrade --install rancher rancher-latest/rancher \
   -n cattle-system \
   --create-namespace \
   -f ./helm/rancher/rancher-values.yaml \
-  --wait --debug
+  --debug
 
