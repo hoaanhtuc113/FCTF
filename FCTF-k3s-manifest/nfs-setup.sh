@@ -5,6 +5,8 @@ set -euo pipefail
 
 SHARE_PATH="${1:-/srv/nfs/share}"
 ALLOWED_SUBNET="${2:-*}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKFLOW_DIR="${SCRIPT_DIR}/prod/argo-workflows"
 
 normalize_clients() {
   local raw="$1"
@@ -37,6 +39,18 @@ sudo apt install -y nfs-kernel-server nfs-common acl
 
 echo "==> Preparing share at ${SHARE_PATH}"
 sudo mkdir -p "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file"
+
+echo "==> Copying start-challenge templates"
+for workflow_file in challenge-hardened.yaml challenge-plain.yaml; do
+  src="${WORKFLOW_DIR}/${workflow_file}"
+  dst="${SHARE_PATH}/start-challenge/${workflow_file}"
+  if [[ -f "${src}" ]]; then
+    sudo cp -f "${src}" "${dst}"
+    echo "Copied ${workflow_file} -> ${dst}"
+  else
+    echo "Warning: ${src} not found, skipping"
+  fi
+done
 
 echo "==> Applying ACL model for service UIDs"
 sudo chmod 770 "${SHARE_PATH}/challenges" "${SHARE_PATH}/start-challenge" "${SHARE_PATH}/file"
