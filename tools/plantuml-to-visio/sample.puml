@@ -1,0 +1,19 @@
+@startuml
+skinparam shadowing false
+skinparam monochrome false
+
+title FCTF Login Flow
+
+actor User
+participant "Contestant Portal" as Portal
+participant "Challenge Gateway" as Gateway
+participant "Auth Service" as Auth
+
+User -> Portal: Open login page
+Portal -> Auth: Submit username/password
+Auth --> Portal: JWT token
+Portal -> Gateway: Request challenge list (JWT)
+Gateway --> Portal: Challenge data
+Portal --> User: Show dashboard
+
+@enduml

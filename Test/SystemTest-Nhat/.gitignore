@@ -3,3 +3,5 @@ playwright-report/
 test-results/
 playwright-results.json
 package-lock.json
+k6-results/
+k6/accounts.csv
