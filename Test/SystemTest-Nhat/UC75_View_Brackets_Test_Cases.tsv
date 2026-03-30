@@ -1,9 +1,0 @@
-VBK-01	Verify that the Config page shows the Scoreboard Brackets section	"1. Login to admin.fctf.site as an admin.
-2. Open the Config page.
-3. Navigate to the Scoreboard Brackets section.
-4. Inspect the section content.
-5. Confirm the Add New Bracket action is present." 	"- The Scoreboard Brackets section is visible.
-- Existing bracket entries are displayed when present.
-- The Add New Bracket action is visible.
-- The Config page remains stable while viewing the section." 	"- Admin is logged in to admin.fctf.site.
-- The Config page is accessible with sufficient permissions."

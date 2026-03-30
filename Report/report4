@@ -1,0 +1,617 @@
+
+
+
+
+
+CAPSTONE PROJECT REPORT
+Report 4 – Software Design Document
+
+
+
+
+
+
+
+– Hanoi, Feb 2026 –
+Table of Contents
+I. Record of Changes	3
+II. Software Design Document	4
+1. System Design	4
+1.1 System Architecture	4
+1.2 Package Diagram	4
+2. Database Design	15
+3. Detailed Design	19
+3.1 Upgrade Start Challenge Flow	21
+3.2 Cải thiện cơ chế log	23
+3.4 Challenge access gateway	25
+3.5 Network policy	25
+3.6 Thiếu cơ chế lưu trữ và truy vết lịch sử Challenge Instance	25
+3.7  Thiếu quy trình CI/CD tự động hóa cho việc triển khai hệ thống	25
+
+I. Record of Changes
+Date
+A*
+M, D
+In charge
+Change Description
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*A - Added M - Modified D - Deleted
+
+II. Software Design Document
+1. System Design
+1.1 System Architecture
+1.1.1 Component Diagram Overview
+a. FCTF System
+
+b. Migration System
+
+c. Monitoring And Logging System
+
+d. Admin Component
+
+e. Deployment Listener Component
+
+f. Deployment Center Component
+
+g. Deployment Listener Component
+
+1.1.2 Deployment Diagram Overview
+
+1.2 Package Diagram
+1.2.1 Contestant Portal Service
+
+Figure ?: Contestant Portal Package Diagram
+Package Descriptions
+No
+Package
+Description
+01
+Pages
+Chứa các thành phần trang chính của ứng dụng. Đây là điểm bắt đầu của luồng UI, phụ thuộc vào hầu hết các thành phần khác như Context, Component, Assets, Hooks, Services và Shared.
+02
+Shared
+Khối thành phần dùng chung nội bộ của project. Đây là nơi tập hợp các Models, Types, Constants và Utils được sử dụng chung cho toàn bộ project.
+03
+Context
+Khối quản lý trạng thái tập trung (Global State). Giúp chia sẻ dữ liệu giữa các Component mà không cần truyền qua nhiều cấp, phụ thuộc vào các thành phần trong khối Shared.
+04
+Component
+Tập hợp các thành phần giao diện dùng lại (UI Widgets). Các thành phần này lấy tài nguyên từ Assets, nhận dữ liệu từ Context và tuân thủ các kiểu dữ liệu từ Shared.
+05
+Assets
+Nơi lưu trữ tài nguyên tĩnh như hình ảnh, icons, stylesheets và các tệp cấu hình giao diện.
+06
+Hooks
+Chứa các Custom Hooks (logic xử lý trạng thái hoặc side-effects)
+07
+Services
+Tầng giao tiếp với API bên ngoài (Backend). Nó gửi/nhận dữ liệu và ánh xạ chúng dựa trên các Models/Types được định nghĩa trong khối Shared.
+08
+Models
+Định nghĩa cấu trúc dữ liệu của các đối tượng trong hệ thống
+09
+Types
+Định nghĩa các kiểu dữ liệu (Typescript) nhằm đảm bảo tính an toàn về kiểu dữ liệu (type-safety) trong toàn project.
+10
+Constants
+Lưu trữ các giá trị hằng số cố định để dễ dàng quản lý và thay đổi.
+11
+Utils
+Các hàm tiện ích xử lý logic (như format ngày tháng, tính toán toán học) được sử dụng chung.
+
+
+1.2.2 Contestant BE Service
+
+Figure ?: ContestantBE Package Diagram
+Package Descriptions
+No
+Package
+Description
+01
+ContestantBE
+Là thành phần Business Logic chính (Back-end) của phân hệ Contestant. Nó đóng vai trò điều hướng yêu cầu từ Contestant Portal và xử lý các nghiệp vụ đặc thù cho thí sinh. Project này có các phụ thuộc (Project Reference) đến ResourceShared để sử dụng lại các tài nguyên chung.
+02
+ResourceShared 
+Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03
+Controllers
+Chứa các API Endpoints, tiếp nhận yêu cầu HTTP từ phía client. Package này phụ thuộc vào Filters, Interfaces, Attribute và đặc biệt là tham chiếu đến DTOs của ResourceShared để định nghĩa dữ liệu đầu vào/đầu ra.
+04
+Filters
+Chứa các bộ lọc tùy chỉnh (Action Filters, Exception Filters) dùng để can thiệp vào pipeline xử lý của Controller.
+05
+Attribute
+Định nghĩa các thuộc tính tùy chỉnh (Custom Attributes) dùng để trang trí cho các Class hoặc Method trong Controller nhằm thực hiện các logic bổ trợ.
+06
+Services (ContestantBE)
+Chứa logic nghiệp vụ cốt lõi. Nó thực thi (implement) các Interfaces và sử dụng các Utils nội bộ. Ngoài ra, nó tham chiếu đến Models của ResourceShared để thực hiện các thao tác dữ liệu.
+07
+Interfaces
+Định nghĩa các bản thiết kế (contracts) cho các lớp Service, giúp tách biệt phần định nghĩa và phần thực thi.
+08
+Utils (ContestantBE)
+Các lớp tiện ích chỉ dùng riêng trong phạm vi nội bộ của service ContestantBE.
+09
+DTOs
+Định nghĩa cấu trúc dữ liệu dùng để truyền tải giữa các tầng hoặc giữa Client và Server.
+10
+Enums
+Định nghĩa các kiểu liệt kê (Constants/States) dùng chung cho toàn hệ thống để đảm bảo tính nhất quán.
+11
+Utils
+(ResourceShared)
+Các thư viện tiện ích có thể dùng chung (Helper classes) cho toàn hệ thống. Các tiện ích này có thể sử dụng Logger để ghi log khi cần thiết và được các Middleware hoặc các thành phần khác trong hệ thống gọi sử dụng.
+12
+Logger
+Thành phần đảm nhận việc ghi nhận nhật ký hệ thống (Logging), giúp theo dõi lỗi và hoạt động của toàn bộ ứng dụng.
+13
+Middlewares
+Chứa các lớp xử lý trung gian trong Request Pipeline. Package này sử dụng Utils và Models.
+14
+Services (ResourceShared)
+Các dịch vụ mang tính hạ tầng hoặc dùng chung cho nhiều module. Nó tham chiếu đến Logger, Utils và Models.
+15
+Models
+Chứa các thực thể đại diện cho cấu trúc cơ sở dữ liệu hoặc các đối tượng dữ liệu cốt lõi của hệ thống.
+
+
+1.2.3 Deployment Center 
+
+Figure ?: Deployment Center Package Diagram
+Package Descriptions
+No
+Package
+Description
+01
+Deployment Center
+Là service Backend chịu trách nhiệm quản lý việc triển khai (deployment) trong hệ thống. Tương tự như ContestantBE, project này cũng có Project Reference đến ResourceShared.
+02
+ResourceShared 
+Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03
+Services
+Chứa logic nghiệp vụ liên quan đến điều phối và triển khai. Package này sử dụng các Utils nội bộ và tham chiếu trực tiếp đến Models của ResourceShared để thực hiện các thao tác dữ liệu cốt lõi.
+04
+Middlewares
+Chứa các trình xử lý trung gian đặc thù cho Deployment Center. Package này phụ thuộc vào các Utils dùng chung từ ResourceShared để thực hiện các tác vụ bổ trợ
+05
+Utils (Deployment Center)
+Tập hợp các hàm tiện ích và lớp trợ giúp chỉ phục vụ riêng cho các xử lý logic bên trong service Deployment Center. Nó cũng tham chiếu đến Models từ ResourceShared khi cần xử lý các thực thể chung.
+
+
+1.2.4. Deployment Consumer
+
+Figure ?: Deployment Consumer Package Diagram
+Package Descriptions
+No
+Package
+Description
+01
+Deployment Consumer
+Là một Service (Worker Service) đóng vai trò là "Consumer" trong mô hình Message Broker. Service này chạy độc lập, chuyên lắng nghe và tiêu thụ các thông điệp (messages) từ RabbitMQ để thực hiện các tác vụ deploy thử thách. Nó thực hiện Project Reference đến ResourceShared.
+02
+ResourceShared 
+Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03
+Worker
+Thành phần cốt lõi điều hành vòng đời của service ngầm. Nó chịu trách nhiệm lắng nghe yêu cầu và điều phối công việc cho tầng Services. Package này tham chiếu đến các Models của ResourceShared để hiểu cấu trúc dữ liệu đầu vào.
+04
+Services
+Chứa logic nghiệp vụ xử lý chi tiết các bản tin hoặc tác vụ nhận được. Nó phụ thuộc vào các Models nội bộ và tham chiếu đến DTOs của ResourceShared để thực hiện việc chuyển đổi hoặc truyền tải dữ liệu.
+05
+Models (Deployment Consumer)
+Chứa các thực thể hoặc cấu trúc dữ liệu đặc thù chỉ dùng riêng cho logic xử lý bên trong của Consumer này.
+
+
+1.2.5. Deployment Listener
+
+Figure ?: Deployment Listener Package Diagram
+Package Descriptions
+No
+Package
+Description
+01
+Deployment Listener
+Là một Service chuyên biệt đảm nhận nhiệm vụ theo dõi (watch) các sự kiện từ Kubernetes (K8s). Nó giúp hệ thống cập nhật kịp thời tình trạng hạ tầng thực tế với các challenge pod được triển khai.
+02
+ResourceShared 
+Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03
+Worker
+Chứa các lớp thực thi chạy ngầm duy trì kết nối với K8s API. Khi có sự kiện phát sinh từ cụm K8s, Worker sẽ bắt lấy và chuyển tiếp dữ liệu cho tầng Services xử lý.
+04
+Services
+Chứa logic xử lý các sự kiện K8s. Nó sử dụng các định nghĩa từ ResourceShared để đảm bảo dữ liệu đồng bộ.
+
+
+1.2.6. Challenge Gateway 
+
+Figure ?: Challenge Gateway Package Diagram
+Package Descriptions
+No
+Package
+Description
+01
+main
+Là Composition Root, điểm khởi đầu của service. Chịu trách nhiệm nạp cấu hình (config), khởi tạo bộ lọc giới hạn (limiter), kích hoạt cổng kết nối (gateway) và quản lý tắt máy an toàn (graceful shutdown).
+02
+internal/gateway
+Thành phần trung tâm điều phối lưu lượng. Thực hiện Reverse Proxy (HTTP) và Proxy (TCP), gọi sang package token để xác thực, gọi limiter để áp hạn mức và định tuyến request đến đích.
+03
+internal/limiter
+Cung cấp cơ chế kiểm soát tần suất (Rate Limit) và số kết nối đồng thời (Concurrency Limit) sử dụng Redis. Hỗ trợ chặn theo IP, Token hoặc giới hạn toàn cục (Global).
+04
+internal/token
+Chuyên trách xử lý logic về bảo mật. Thực hiện giải mã HMAC, kiểm tra thời hạn (Expiration), parse thông tin từ Payload và chuẩn hóa dữ liệu định tuyến (Route).
+05
+internal/config
+Quản lý cấu hình Runtime. Đọc dữ liệu từ biến môi trường (Environment Variables) và cung cấp các tham số thiết lập dùng chung cho các package khác trong hệ thống.
+
+
+1.2.7. Admin Management
+
+Figure ?: Admin Management Package Diagram
+Package Descriptions
+No
+Package
+Description
+01
+Admin View
+Thành phần giao diện chính của Admin. Quản lý việc hiển thị dữ liệu, tích hợp các thành phần từ Forms, Models và Template để tạo ra trải nghiệm người dùng cuối.
+02
+api/v1
+Cung cấp các giao diện lập trình ứng dụng (API). Chịu trách nhiệm giao tiếp giữa client và server, sử dụng Schemas để định nghĩa dữ liệu và Utils cho các xử lý bổ trợ.
+03
+Models
+Chứa các định nghĩa về cấu trúc dữ liệu cốt lõi và logic nghiệp vụ liên quan đến cơ sở dữ liệu. Đây là nguồn dữ liệu chính cho cả Admin View và api/v1.
+04
+Forms
+Quản lý các cấu trúc biểu mẫu (Form) nhập liệu, bao gồm định nghĩa các trường thông tin và các quy tắc kiểm tra tính hợp lệ của dữ liệu (Validation) phía giao diện.
+05
+Schemas
+Định nghĩa các cấu trúc dữ liệu (Data Transfer Objects - DTO) dùng để xác thực và chuyển đổi dữ liệu khi giao tiếp qua API hoặc giữa các lớp logic.
+
+
+Utils
+Package chứa các công cụ, hàm hỗ trợ dùng chung (Utilities). Đây là thành phần trung tâm cung cấp các hàm bổ trợ cho hầu hết các package khác như api/v1, Models, Template, Plugins.
+
+
+Template
+Quản lý các tệp giao diện mẫu (Layout/Components). Kết hợp với themes để định hình giao diện hiển thị và cung cấp khung sườn cho Admin View.
+
+
+Plugins
+Cho phép mở rộng tính năng của hệ thống một cách linh hoạt. Các plugin tương tác với hệ thống thông qua Utils và có thể tác động đến logic trong Models.
+
+
+Events
+Hệ thống quản lý sự kiện (Event-driven). Chịu trách nhiệm kích hoạt hoặc lắng nghe các thông báo thay đổi trạng thái trong hệ thống, thường được gọi bởi Utils.
+
+
+Constants
+Lưu trữ các giá trị hằng số, cấu hình tĩnh hoặc các mã lỗi dùng chung cho toàn bộ hệ thống để đảm bảo tính nhất quán.
+
+
+themes
+Quản lý giao diện, màu sắc, CSS và các tài nguyên liên quan đến phong cách thiết kế của hệ thống Admin, phục vụ cho package Template.
+
+
+
+
+
+
+
+2. Database Design
+
+Table Descriptions
+No
+Table
+Description
+01
+challenges
+Description: Stores information about CTF challenges in the system, including metadata, deployment config, and scoring. 
+Primary key: id 
+Foreign key: next_id → challenges.id, user_id → users.id
+02
+ticket
+Description: Stores support tickets submitted by contestants, including title, description, and reply status. 
+Primary key: id 
+Foreign key: author_id → users.id, replier_id → users.id
+03
+deploy_histories
+Description: Stores the deployment history and logs for each challenge deployment event. 
+Primary key: id 
+Foreign key: challenge_id → challenges.id
+04
+hints
+Description: Stores hints associated with challenges that contestants can unlock for a cost. 
+Primary key: id 
+Foreign key: challenge_id → challenges.id
+05
+challenge_versions
+Description: Stores versioned snapshots of a challenge's deployment configuration (image, resources, etc.).
+Primary key: id
+Foreign key: challenge_id → challenges.id, created_by → users.id
+
+
+06
+challenge_start_tracking
+Description: Tracks when a user or team starts and stops a challenge instance.
+Primary key: id
+Foreign key: user_id → users.id, team_id → teams.id, challenge_id → challenges.id
+07
+awards
+Description: Stores awards granted to users or teams, including point value and category.
+Primary key: id
+Foreign key: user_id → users.id, team_id → teams.id
+08
+tags
+Description: Stores tags attached to challenges for categorization and filtering.
+Primary key: id
+Foreign key: challenge_id → challenges.id
+9
+topics
+Description: Stores unique topic labels that can be associated with challenges.
+Primary key: id
+10
+challenge_topics
+Description: Junction table mapping topics to challenges (many-to-many relationship).
+Primary key: id
+Foreign key: challenge_id → challenges.id, topic_id → topics.id
+11
+files
+Description: Stores metadata about uploaded files, including type and storage location.
+Primary key: id
+12
+flags
+Description: Stores flags for challenges types (static, regex, dynamic).
+Primary key: id
+Foreign key: challenge_id → challenges.id
+13
+action_logs
+Description: Stores a log of user actions within the platform for auditing purposes.
+Primary key: actionId
+Foreign key: userId → users.id
+14
+users
+Description: Stores contestant and staff user accounts, including authentication and profile information. Base table for polymorphic user types.
+Primary key: id
+Foreign key: bracket_id → brackets.id, team_id → teams.id
+15
+teams
+Description: Stores team information including authentication, profile, and captain assignment.
+Primary key: id
+Foreign key: bracket_id → brackets.id, captain_id → users.id
+16
+achievements
+Description: Records achievements earned by users or teams for completing specific challenges.
+Primary key: id
+Foreign key: user_id → users.id, team_id → teams.id, challenge_id → challenges.id, achievement_id → award_badges.id
+17
+award_badges
+Description: Defines badge/award templates that can be assigned to users or teams upon challenge completion.
+Primary key: id
+Foreign key: user_id → users.id, team_id → teams.id, challenge_id → challenges.id
+18
+submissions
+Description: Stores all flag submission attempts by users or teams. Base table for polymorphic submission types (correct, incorrect, discard).
+Primary key: id
+Foreign key: challenge_id → challenges.id, user_id → users.id, team_id → teams.id
+19
+unlocks
+Description: Tracks items (e.g. hints) unlocked by users or teams. Base table for polymorphic unlock types.
+Primary key: id
+Foreign key: user_id → users.id, team_id → teams.id
+20
+tracking
+Description: Tracks IP-based activity for users, used for access logging. Base table for polymorphic tracking types.
+Primary key: id
+Foreign key: user_id → users.id
+21
+config
+Description: Stores platform-wide key-value configuration settings.
+Primary key: id
+22
+tokens
+Description: Stores authentication tokens issued to users with expiration dates. Base table for polymorphic token types.
+Primary key: id
+Foreign key: user_id → users.id
+23
+comments
+Description: Stores comments made by users on various entities.
+Primary key: id
+Foreign key: author_id → users.id
+24
+field_entries
+Description: Stores the values entered by users or teams for custom profile fields. Base table for polymorphic entry types.
+Primary key: id
+Foreign key: field_id → fields.id
+25
+admin_audit_logs
+Description: Persistent audit trail recording all privileged operations performed by admins, jury, and challenge writers, including before/after state snapshots.
+Primary key: id
+Foreign key: actor_id → users.id
+26
+dynamic_challenge
+dynamic_challenge
+Description: Stores dynamic challenge-specific scoring parameters for challenges configured with dynamic scoring.
+Primary key: id
+Foreign key: id → challenges.id
+27
+multiple_choice_challenge
+Description: Stores challenge type mapping records for multiple-choice challenges.
+Primary key: id
+Foreign key: id → challenges.id
+28
+solves
+Description: Stores correct submission records, linking successful solves to the base submission entry and related challenge/user/team entities.
+Primary key: id
+Foreign key: id → submissions.id, challenge_id → challenges.id, user_id → users.id, team_id → teams.id
+29
+fields
+Description: Stores definitions of custom profile fields (for users/teams).
+Primary key: id
+30
+bracket
+Description: Stores bracket definitions used to group participants (users or teams) into competition categories for registration, filtering, and ranking contexts.
+Primary key: id
+
+
+3. Detailed Design
+
+
+Class diagram of Contestant Service
+3.1 Upgrade Start Challenge Flow
+3.1.1 
+
+
+
+
+
+3.1.2 Challenge state diagram
+
+3.1.3 Queue Logic and Strategy
+a. Cơ chế Điều tiết
+Hệ thống sử dụng kỹ thuật In-memory Buffering để giới hạn số lượng yêu cầu xử lý cùng lúc giúp tách biệt tốc độ mạng của RabbitMQ và tốc độ xử lý logic của hệ thống.
+RabbitMQ Prefetch: cấu hình mặc định 40. Điều này đảm bảo Consumer chỉ nhận tối đa 40 message
+Kiểm tra khả năng hệ thống: Trước khi gửi request sang argo, Worker truy vấn Argo API để lấy số lượng Workflow đang chạy
+b. Quản lý Vòng đời
+Ack (Acknowledgement): Chỉ được gọi sau khi Argo Workflow đã tiếp nhận yêu cầu thành công
+Nack (Negative Acknowledgement): Khi xảy ra lỗi hệ thống hoặc lỗi Deserialize, message sẽ bị loại bỏ hoặc đẩy lại queue
+c. Xử lý TLL cho message
+Hệ thống áp dụng cơ chế bảo vệ hai lớp để loại bỏ các yêu cầu deploy không còn được quản lý nữa, giúp tiết kiệm tài nguyên cho cụm.
+Tầng Hạ tầng (RabbitMQ TTL)
+Đây là lớp bảo vệ đầu tiên nhằm tự động dọn dẹp hàng đợi mà không cần sự can thiệp của Worker.
+Tầng Ứng dụng (Application-level TTL)
+để xử lý các bản tin trong quá trình buffer hoặc do IO.
+
+3.2 Cải thiện cơ chế log
+
+Log phía server
+Hệ thống loại bỏ hoàn toàn sự phụ thuộc vào Client bằng cách tích hợp trực tiếp việc ghi log vào quy trình xử lý nghiệp vụ tại Backend. Mỗi khi một hành động nhạy cảm hoặc quan trọng được thực thi thành công trên Server, Log sẽ được ghi ngay lập tức trước khi trả kết quả về cho người dùng.
+API Endpoint
+Action Name
+POST /challenge/start
+START_CHALLENGE
+GET /challenge/hint
+UNLOCK_HINT
+POST /challenge/submit
+CORRECT_FLAG, INCORRECT_FLAG
+
+
+
+Request log qua gateway
+
+3.4 Challenge access gateway
+3.5 Network policy
+3.6 Thiếu cơ chế lưu trữ và truy vết lịch sử Challenge Instance
+3.7  Thiếu quy trình CI/CD tự động hóa cho việc triển khai hệ thống
+3.8 unlock hint race condition
+3.9 stop challenge race condition
+3.10 improve file access flow 
+3.11 refactor listener improve multi thread 
+

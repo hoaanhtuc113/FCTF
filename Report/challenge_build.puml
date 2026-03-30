@@ -1,0 +1,23 @@
+@startuml
+|Author|
+start
+:Provide Challenge Information and file;
+:Submit form;
+|Server|
+:Create record in database;
+if (Build Challenge Image?) then (yes)
+  :Build Challenge Image;
+  if (Build success?) then (yes)
+    :Push image to registry;
+    :Update challenge status;
+    stop
+  else (no)
+    :Display error;
+    |Author|
+    :Re-upload file;
+    -> [loop] :Build Challenge Image;
+  endif
+else (no)
+  stop
+endif
+@enduml
