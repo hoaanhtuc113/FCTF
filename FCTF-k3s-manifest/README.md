@@ -14,7 +14,7 @@ Docker Hub được sử dụng làm kho lưu trữ và phân phối các contai
 Ban co the dung script de gom cac buoc cai dat master + NFS + helm + deploy app:
 
 ```bash
-chmod +x setup-master.sh nfs-setup.sh
+chmod +x setup-master.sh nfs-setup.sh apply-fctf.sh
 
 # Vi du production: chi cho phep 3 node truy cap NFS
 ./setup-master.sh \

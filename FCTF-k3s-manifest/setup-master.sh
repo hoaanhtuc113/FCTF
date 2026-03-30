@@ -22,41 +22,6 @@ PROD_DIR="${SCRIPT_DIR}/prod"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
 
-STORAGE_PV_FILES=(
-  "${PROD_DIR}/storage/pv/admin-mvc-pv.yaml"
-  "${PROD_DIR}/storage/pv/contestant-be-pv.yaml"
-  "${PROD_DIR}/storage/pv/up-challenge-workflow-pv.yaml"
-  "${PROD_DIR}/storage/pv/start-challenge-workflow-pv.yaml"
-  "${PROD_DIR}/storage/pv/filebrowser-pv.yaml"
-)
-
-STORAGE_PVC_FILES=(
-  "${PROD_DIR}/storage/pvc/admin-mvc-pvc.yaml"
-  "${PROD_DIR}/storage/pvc/contestant-be-pvc.yaml"
-  "${PROD_DIR}/storage/pvc/up-challenge-workflow-pvc.yaml"
-  "${PROD_DIR}/storage/pvc/start-challenge-workflow-pvc.yaml"
-  "${PROD_DIR}/storage/pvc/filebrowser-pvc.yaml"
-)
-
-apply_storage_manifests() {
-  echo "==> Applying storage PVs"
-  for manifest in "${STORAGE_PV_FILES[@]}"; do
-    if [[ ! -f "${manifest}" ]]; then
-      echo "Error: PV manifest not found at ${manifest}"
-      exit 1
-    fi
-    kubectl apply -f "${manifest}"
-  done
-
-  echo "==> Applying storage PVCs"
-  for manifest in "${STORAGE_PVC_FILES[@]}"; do
-    if [[ ! -f "${manifest}" ]]; then
-      echo "Error: PVC manifest not found at ${manifest}"
-      exit 1
-    fi
-    kubectl apply -f "${manifest}"
-  done
-}
 
 install_gvisor_production() {
   local arch version release_base url tmpdir expected actual
@@ -247,7 +212,8 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
   --write-kubeconfig-mode 644 \
-  --tls-san=${TLS_SAN}" sh -
+  --tls-san=${TLS_SAN} \
+  --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
 
 echo "==> Waiting for k3s service"
 sudo systemctl enable --now k3s
@@ -290,147 +256,6 @@ if [[ "${INSTALL_CALICO}" == "true" ]]; then
   echo "==> Installing Calico"
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml || true
   kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml || true
-fi
-
-if [[ "${APPLY_HELM}" == "true" ]]; then
-  if [[ ! -d "${PROD_DIR}" ]]; then
-    echo "Error: prod directory not found at ${PROD_DIR}"
-    exit 1
-  fi
-
-  echo "==> Creating required namespace for Helm components"
-  kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
-
-  if [[ ! -f "${MARIADB_AUTH_SECRET_FILE}" ]]; then
-    echo "Error: MariaDB auth secret manifest not found at ${MARIADB_AUTH_SECRET_FILE}"
-    echo "Please create/update this file before running Helm so MariaDB existingSecret can be resolved."
-    exit 1
-  fi
-
-  echo "==> Applying MariaDB auth secret before Helm"
-  kubectl apply -f "${MARIADB_AUTH_SECRET_FILE}"
-
-  apply_storage_manifests
-
-  echo "==> Installing Helm (if missing)"
-  if ! command -v helm >/dev/null 2>&1; then
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-  fi
-
-  echo "==> Applying Helm stack via prod/helm.sh"
-  (
-    cd "${PROD_DIR}"
-    chmod +x ./helm.sh
-    bash ./helm.sh
-  )
-
-  echo "==> Applying Argo ServiceAccount"
-  kubectl apply -f "${PROD_DIR}/sa/argo-workflow/argo-sa.yaml"
-fi
-
-if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
-  if [[ ! -d "${PROD_DIR}" ]]; then
-    echo "Error: prod directory not found at ${PROD_DIR}"
-    exit 1
-  fi
-
-  echo "==> Creating required namespaces"
-  kubectl create namespace app --dry-run=client -o yaml | kubectl apply -f -
-  kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
-
-  echo "==> Applying base classes, ConfigMaps and Secrets"
-  kubectl apply -f "${PROD_DIR}/priority-classes.yaml"
-  kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
-  kubectl apply -f "${PROD_DIR}/env/configmap/"
-  kubectl apply -f "${PROD_DIR}/env/secret/"
-
-  if [[ "${APPLY_HELM}" != "true" ]]; then
-    apply_storage_manifests
-  fi
-
-  echo "==> Deploying app services"
-  kubectl apply -f "${PROD_DIR}/app/admin-mvc/"
-  kubectl apply -f "${PROD_DIR}/app/contestant-be/"
-  kubectl apply -f "${PROD_DIR}/app/contestant-portal/"
-  kubectl apply -f "${PROD_DIR}/app/deployment-center/"
-  kubectl apply -f "${PROD_DIR}/app/deployment-listener/"
-  kubectl apply -f "${PROD_DIR}/app/challenge-gateway/"
-  kubectl apply -f "${PROD_DIR}/app/deployment-consumer/"
-
-  echo "==> Applying app NetworkPolicy"
-  kubectl apply -f "${PROD_DIR}/app/NetworkPolicy/"
-
-  if [[ "${SERVICE_MODE}" == "clusterip" ]]; then
-    echo "==> Applying ClusterIP service mode"
-    kubectl delete -f "${PROD_DIR}/app/service-nodeport.yaml" --ignore-not-found
-    kubectl apply -f "${PROD_DIR}/app/service-clusterip.yaml"
-  else
-    echo "==> Applying NodePort service mode"
-    kubectl delete -f "${PROD_DIR}/app/service-clusterip.yaml" --ignore-not-found
-    kubectl apply -f "${PROD_DIR}/app/service-nodeport.yaml"
-  fi
-fi
-
-if [[ "${APPLY_PRODUCTION_INGRESS}" == "true" ]]; then
-  if [[ ! -d "${PROD_DIR}/ingress" || ! -d "${PROD_DIR}/cert-manager" ]]; then
-    echo "Error: ingress/cert-manager manifests not found under ${PROD_DIR}"
-    exit 1
-  fi
-
-  echo "==> Applying production ingress manifests"
-  kubectl apply -f "${PROD_DIR}/cert-manager/cluster-issuer.yaml"
-  kubectl apply -f "${PROD_DIR}/ingress/certificate/"
-  kubectl apply -f "${PROD_DIR}/ingress/nginx/"
-fi
-
-if [[ "${APPLY_CRONJOB}" == "true" ]]; then
-  if [[ ! -f "${PROD_DIR}/cron-job/delete-chal-job.yaml" ]]; then
-    echo "Error: cronjob manifest not found at ${PROD_DIR}/cron-job/delete-chal-job.yaml"
-    exit 1
-  fi
-
-  echo "==> Applying cleanup cronjob"
-  kubectl apply -f "${PROD_DIR}/cron-job/delete-chal-job.yaml"
-fi
-
-if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
-  if [[ ! -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml" || ! -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml" ]]; then
-    echo "Error: Argo templates not found under ${PROD_DIR}/argo-workflows"
-    exit 1
-  fi
-
-  echo "==> Applying Argo workflow templates"
-  kubectl apply -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml"
-  kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml"
-fi
-
-if [[ -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
-  echo "==> Waiting for admin-mvc deployment before applying post-init MariaDB grants"
-  kubectl rollout status deployment/admin-mvc -n app --timeout=600s || true
-
-  echo "==> Waiting for ctfd schema bootstrap"
-  schema_ready="false"
-  for _ in $(seq 1 30); do
-    if kubectl -n db exec mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" -Nse "SELECT 1 FROM information_schema.tables WHERE table_schema=\"ctfd\" AND table_name=\"users\" LIMIT 1;"' 2>/dev/null | grep -q '^1$'; then
-      schema_ready="true"
-      break
-    fi
-    sleep 10
-  done
-
-  if [[ "${schema_ready}" == "true" ]]; then
-    echo "==> Applying least-privilege MariaDB grants"
-    kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < "${MARIADB_POST_INIT_GRANTS_SQL}"
-  else
-    echo "Warning: ctfd schema not ready after timeout."
-    echo "Run grants manually when admin bootstrap has completed:"
-    echo "kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p\"\$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)\" ctfd' < ${MARIADB_POST_INIT_GRANTS_SQL}"
-  fi
-else
-  echo "Warning: grants SQL file not found at ${MARIADB_POST_INIT_GRANTS_SQL}; skipping post-init grants."
 fi
 
 echo
