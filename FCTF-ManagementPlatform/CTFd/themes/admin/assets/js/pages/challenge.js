@@ -364,19 +364,19 @@ function handleChallengeOptions(event) {
     hardenContainer = params.harden_container === true || params.harden_container === "true" || params.harden_container === "on";
     sharedInstant = params.shared_instant === true || params.shared_instant === "true" || params.shared_instant === "on";
 
-    if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
+    if (cpuLimit < 1 || cpuRequest < 1) {
       ezAlert({
         title: "Validation Error",
-        body: "CPU limit/request must be between 1 and 500 (mCPU).",
+        body: "CPU limit/request must be greater than or equal to 1 (mCPU).",
         button: "OK",
       });
       return;
     }
 
-    if (memoryLimit < 1 || memoryLimit > 1024 || memoryRequest < 1 || memoryRequest > 1024) {
+    if (memoryLimit < 1 || memoryRequest < 1) {
       ezAlert({
         title: "Validation Error",
-        body: "Memory limit/request must be between 1 and 1024 (Mi).",
+        body: "Memory limit/request must be greater than or equal to 1 (Mi).",
         button: "OK",
       });
       return;
