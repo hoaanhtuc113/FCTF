@@ -58,6 +58,54 @@ apply_storage_manifests() {
   done
 }
 
+install_gvisor_production() {
+  local arch version release_base url tmpdir expected actual
+
+  arch="$(uname -m)"
+  case "${arch}" in
+    x86_64|amd64)
+      arch="x86_64"
+      ;;
+    aarch64|arm64)
+      arch="aarch64"
+      ;;
+    *)
+      echo "Error: Unsupported architecture for gVisor: ${arch}"
+      exit 1
+      ;;
+  esac
+
+  version="${GVISOR_VERSION:-latest}"
+  release_base="${GVISOR_RELEASE_BASE:-https://storage.googleapis.com/gvisor/releases/release}"
+  url="${release_base}/${version}/${arch}"
+
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+
+  for bin in runsc containerd-shim-runsc-v1; do
+    echo "==> Downloading ${bin} (version=${version}, arch=${arch})"
+    curl --fail --silent --show-error --location \
+      --retry 5 --retry-delay 2 --connect-timeout 10 \
+      "${url}/${bin}" -o "${tmpdir}/${bin}"
+    curl --fail --silent --show-error --location \
+      --retry 5 --retry-delay 2 --connect-timeout 10 \
+      "${url}/${bin}.sha512" -o "${tmpdir}/${bin}.sha512"
+
+    expected="$(awk '{print $1}' "${tmpdir}/${bin}.sha512")"
+    actual="$(sha512sum "${tmpdir}/${bin}" | awk '{print $1}')"
+    if [[ -z "${expected}" || "${expected}" != "${actual}" ]]; then
+      echo "Error: Checksum mismatch for ${bin}"
+      exit 1
+    fi
+  done
+
+  echo "==> Installing verified gVisor binaries"
+  sudo install -o root -g root -m 0755 "${tmpdir}/runsc" /usr/local/bin/runsc
+  sudo install -o root -g root -m 0755 "${tmpdir}/containerd-shim-runsc-v1" /usr/local/bin/containerd-shim-runsc-v1
+
+  echo "==> gVisor installed: $(/usr/local/bin/runsc --version 2>/dev/null | head -n 1 || echo "unknown version")"
+}
+
 usage() {
   cat <<EOF
 Usage:
@@ -206,37 +254,19 @@ sudo systemctl enable --now k3s
 sudo systemctl is-active --quiet k3s
 
 if [[ "${INSTALL_GVISOR}" == "true" ]]; then
-  echo "==> Installing gVisor (runsc)"
-  ARCH="$(uname -m)"
-  URL="https://storage.googleapis.com/gvisor/releases/release/latest/${ARCH}"
+  echo "==> Installing gVisor (runsc) in production mode"
+  install_gvisor_production
 
-  sudo curl -fsSL "${URL}/runsc" -o /usr/local/bin/runsc
-  sudo curl -fsSL "${URL}/runsc.sha512" -o /tmp/runsc.sha512
-
-  EXPECTED=$(cut -d ' ' -f1 /tmp/runsc.sha512)
-  ACTUAL=$(sha512sum /usr/local/bin/runsc | cut -d ' ' -f1)
-
-  sudo chmod +x /usr/local/bin/runsc
-
-  if [[ "$EXPECTED" != "$ACTUAL" ]]; then
-    echo "Checksum mismatch!"
-    exit 1
-  fi
-
-  sudo curl -fsSL "${URL}/containerd-shim-runsc-v1" -o /usr/local/bin/containerd-shim-runsc-v1
-  sudo chmod +x /usr/local/bin/containerd-shim-runsc-v1
-
-  echo "==> Configuring containerd runtime for runsc"
+  echo "==> Configuring containerd runtime for runsc (preserve k3s base template)"
   sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd
-  sudo tee /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl >/dev/null <<'EOF'
-version = 2
-
-[plugins."io.containerd.grpc.v1.cri".containerd]
-  default_runtime_name = "runc"
+  for tmpl in config.toml.tmpl config-v3.toml.tmpl; do
+    sudo tee "/var/lib/rancher/k3s/agent/etc/containerd/${tmpl}" >/dev/null <<'EOF'
+{{ template "base" . }}
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
   runtime_type = "io.containerd.runsc.v1"
 EOF
+  done
 
   echo "==> Restarting k3s to apply runsc runtime"
   sudo systemctl restart k3s
