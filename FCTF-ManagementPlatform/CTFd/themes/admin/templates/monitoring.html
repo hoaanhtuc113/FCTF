@@ -200,22 +200,22 @@
 		<div class="clean-search-container">
 			<div class="row no-gutters align-items-center">
 				<div class="col-md-3 px-1">
-					<select id="teamFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
-						<option value="">All Teams</option>
-					</select>
+					<input type="text" id="teamFilter" list="teamFilterList" class="clean-form-control w-100"
+						placeholder="All Teams" onkeyup="handleSearch()" onchange="handleSearch()">
+					<datalist id="teamFilterList"></datalist>
 				</div>
 				<div class="col-md-3 px-1">
-					<select id="userFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
-						<option value="">All Users</option>
-					</select>
+					<input type="text" id="userFilter" list="userFilterList" class="clean-form-control w-100"
+						placeholder="All Users" onkeyup="handleSearch()" onchange="handleSearch()">
+					<datalist id="userFilterList"></datalist>
 				</div>
 				<div class="col-md-3 px-1">
-					<select id="categoryFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
-						<option value="">All Categories</option>
-					</select>
+					<input type="text" id="categoryFilter" list="categoryFilterList" class="clean-form-control w-100"
+						placeholder="All Categories" onkeyup="handleSearch()" onchange="handleSearch()">
+					<datalist id="categoryFilterList"></datalist>
 				</div>
 				<div class="col-md-3 px-1">
-					<select id="statusFilter" class="clean-form-control ss-select w-100" onchange="handleSearch()">
+					<select id="statusFilter" class="clean-form-control w-100" onchange="handleSearch()">
 						<option value="">All Status</option>
 						<option value="pending">Pending</option>
 						<option value="running">Running</option>
@@ -374,41 +374,38 @@
 		selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
 	}
 
-	// Generic function to populate a dropdown from data
-	function populateDropdown(elementId, items, allLabel) {
-		const dropdown = document.getElementById(elementId);
-		if (!dropdown) return;
+	// Populate datalist suggestions for text-based filters
+	function populateSuggestions(inputId, listId, items) {
+		const input = document.getElementById(inputId);
+		const datalist = document.getElementById(listId);
+		if (!input || !datalist) return;
 		const normalizedItems = Array.isArray(items) ? items : [];
-		const currentValue = dropdown.value;
+		const currentValue = input.value;
 
-		// Clear existing options except the "All" option
-		dropdown.innerHTML = `<option value="">${allLabel}</option>`;
-
-		// Add options from the provided list
+		datalist.innerHTML = "";
 		normalizedItems.forEach(item => {
 			const option = document.createElement("option");
 			option.value = item;
-			option.textContent = item;
-			dropdown.appendChild(option);
+			datalist.appendChild(option);
 		});
 
-		// Restore previous selection if exists
-		if (currentValue && normalizedItems.includes(currentValue)) {
-			dropdown.value = currentValue;
+		if (currentValue && !normalizedItems.includes(currentValue)) {
+			// Keep user's typed value for partial/free-text filtering
+			input.value = currentValue;
 		}
 	}
 
 	// Populate teams dropdown from data
 	function populateTeams(teams) {
-		populateDropdown("teamFilter", teams, "All Teams");
+		populateSuggestions("teamFilter", "teamFilterList", teams);
 	}
 
 	function populateUsers(users) {
-		populateDropdown("userFilter", users, "All Users");
+		populateSuggestions("userFilter", "userFilterList", users);
 	}
 
 	function populateCategories(categories) {
-		populateDropdown("categoryFilter", categories, "All Categories");
+		populateSuggestions("categoryFilter", "categoryFilterList", categories);
 	}
 
 	function showTableFooter(msg) {
