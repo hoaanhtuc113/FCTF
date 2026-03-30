@@ -2,7 +2,7 @@
 set -euo pipefail
 
 TIMEZONE="Asia/Ho_Chi_Minh"
-MAX_PODS="250"
+MAX_PODS="110"
 TLS_SAN=""
 INSTALL_CALICO="true"
 INSTALL_GVISOR="true"
