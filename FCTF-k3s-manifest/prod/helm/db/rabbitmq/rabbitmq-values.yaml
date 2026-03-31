@@ -169,7 +169,10 @@ extraDeploy:
               "vhost": "fctf_deploy",
               "durable": true,
               "auto_delete": false,
-              "arguments": {}
+              "arguments": {
+                "x-max-length": 5000,
+                "x-overflow": "reject-publish"
+              }
             }
           ],
           "bindings": [

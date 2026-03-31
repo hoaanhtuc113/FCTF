@@ -842,12 +842,7 @@ public class ChallengeController : BaseController
                             message = "Challenge is deploying.",
                         });
                     case DeploymentStatus.DELETING:
-                        return Ok(new ChallengeDeployResponeDTO
-                        {
-                            status = (int)HttpStatusCode.OK,
-                            success = true,
-                            message = "Challenge is deleting.",
-                        });
+                        return BadRequest(new { error = "Challenge is being deleted. Please wait a moment before starting again." });
                     case DeploymentStatus.RUNING:
                         int timeLeft = 0;
                         if (deploymentCache.time_finished > 0)

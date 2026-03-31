@@ -1316,13 +1316,7 @@ function ChallengeDetailPanel({
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [copiedTcp, setCopiedTcp] = useState(false);
-  const [showGuidelines, setShowGuidelines] = useState(false);
   const [isAccessTokenCollapsed, setIsAccessTokenCollapsed] = useState(false);
-
-  // derive gateway/ports from environment helper so we can display them in the UI
-  const baseGateway = getBaseGateway();
-  const httpPort = getHttpPort();
-  const tcpPort = getTcpPort();
 
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
@@ -2077,9 +2071,8 @@ function ChallengeDetailPanel({
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-red-400 mb-2">[!] Deploy failed</div>
+              <div class="text-red-400 mb-2">Deploy failed</div>
               <div class="text-gray-400">> ${data.message || data.error || 'Unknown error'}</div>
-              <div class="text-gray-500 mt-2">> Status: ${response.status}</div>
             </div>
           `,
           icon: 'error',
@@ -4039,61 +4032,6 @@ function ChallengeDetailPanel({
                   )}
                 </div>
               )}
-
-            {/* Connection Guidelines Section - Dropdown */}
-            {challenge.require_deploy && (
-              <div className={`rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
-                <button
-                  onClick={() => setShowGuidelines(!showGuidelines)}
-                  className={`w-full p-3 flex items-center justify-between text-left transition-colors ${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
-                >
-                  <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
-                    [CONNECTION GUIDELINES]
-                  </span>
-                  <span className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {showGuidelines ? '▲' : '▼'}
-                  </span>
-                </button>
-
-                {showGuidelines && (
-                  <div className={`px-4 pb-4 space-y-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                    {/* Web Challenges Section */}
-                    <div className="pt-3">
-                      <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        1. Web Challenges (HTTP)
-                      </div>
-                      <div className={`text-xs font-mono leading-relaxed space-y-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <p className="italic">Using for challenges viewed in a web browser.</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Get your Token from [YOUR ACCESS TOKEN]</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Access the challenge with token:</p>
-                        <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          {`http://${baseGateway}:${httpPort}?fctftoken={YOUR_TOKEN}`}
-                        </code>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Gateway will remember you</p>
-                        <p className={`text-[10px] italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>Note: Re-enter token to switch challenges</p>
-                      </div>
-                    </div>
-
-                    {/* TCP Challenges Section */}
-                    <div>
-                      <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        2. Technical Challenges (TCP)
-                      </div>
-                      <div className={`text-xs font-mono leading-relaxed space-y-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <p className="italic">Using for Pwn, Reverse, or direct connections.</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Open Terminal/PowerShell</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Connect to gateway:</p>
-                        <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          {`nc ${baseGateway} ${tcpPort}`}
-                        </code>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Enter your token when prompted</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 4:</span> See "Access Granted!" message</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {challenge.next_id && (
               <div className="mt-6 flex items-center gap-3">
