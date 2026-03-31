@@ -196,7 +196,7 @@ test.describe("UC-82 Delete Custom Field", () => {
         }
     });
 
-    test("TC82.02 - Cancel xóa user custom field → field vẫn tồn tại ở user edit form", async ({ page }) => {
+    test("TC82.02 - C ancel xóa user custom field → field vẫn tồn tại ở user edit form", async ({ page }) => {
         const name = `UC82_CANCEL_${Date.now()}`;
         let createdId: number | null = null;
         const targetUser = (await getUsers(page, 5)).find((user) => user.name !== "admin") ?? (await getUsers(page, 1))[0];

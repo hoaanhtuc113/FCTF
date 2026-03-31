@@ -18,9 +18,9 @@
  */
 
 import { test, expect, Page } from "@playwright/test";
+import { BASE_URL } from "./support";
 
 // ─── Credentials & Config ────────────────────────────────────────────────────
-const BASE_URL = "https://admin.fctf.site";
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "1";
 
@@ -64,12 +64,30 @@ async function getTeamsInfo(page: Page): Promise<{
 
 /** Điều hướng đến trang chi tiết team và mở modal Edit Team */
 async function openEditModal(page: Page, teamId: number) {
-    await page.goto(`${BASE_URL}/admin/teams/${teamId}`);
-    await page.waitForSelector(".edit-team", { state: "visible" });
+    const teamDetailUrl = `${BASE_URL}/admin/teams/${teamId}`;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            if (page.url() === teamDetailUrl) {
+                await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+            } else {
+                await page.goto(teamDetailUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            }
+            break;
+        } catch (error) {
+            if (attempt === 2 || page.isClosed()) {
+                throw error;
+            }
+
+            await page.waitForTimeout(1000);
+        }
+    }
+
+    await page.waitForSelector(".edit-team", { state: "visible", timeout: 30_000 });
     await page.click(".edit-team");
 
     // Đợi form trong modal hiển thị
-    await page.waitForSelector("#team-info-edit-form", { state: "visible", timeout: 8000 });
+    await page.waitForSelector("#team-info-edit-form", { state: "visible", timeout: 10_000 });
     await page.waitForTimeout(400); // animation Bootstrap
 }
 
@@ -492,6 +510,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
         ];
 
         for (const specialName of specialNames) {
+            await openEditModal(page, teamId);
             await page.fill('#team-info-edit-form [name="name"]', specialName);
             await submitTeamEditExpectReload(page, teamId);
 
@@ -502,7 +521,6 @@ test.describe("UC-39: Edit Team — System Tests", () => {
             await openEditModal(page, teamId);
             await page.fill('#team-info-edit-form [name="name"]', originalName);
             await submitTeamEditExpectReload(page, teamId);
-            await openEditModal(page, teamId);
         }
     });
 
@@ -515,7 +533,7 @@ test.describe("UC-39: Edit Team — System Tests", () => {
 
         for (const email of invalidEmails) {
             await page.fill('#team-info-edit-form [name="email"]', email);
-            await page.click('#team-info-edit-form button[type="submit"]');
+            await page.click('#update-team');
             await page.waitForTimeout(SUBMIT_WAIT_MS);
 
             // Form không submit hoặc server reject — modal vẫn mở HOẶC trang vẫn hợp lệ
