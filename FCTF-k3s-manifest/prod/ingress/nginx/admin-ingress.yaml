@@ -4,10 +4,10 @@ metadata:
   name: admin-ingress
   namespace: app
   annotations:
-    kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-dev
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
+  ingressClassName: nginx
   rules:
     - host: admin.fctf.site
       http:

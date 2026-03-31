@@ -4,10 +4,10 @@ metadata:
   name: rabbitmq-ingress
   namespace: db
   annotations:
-    kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-dev
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
+  ingressClassName: nginx
   rules:
     - host: rabbitmq.fctf.site
       http:
