@@ -70,7 +70,7 @@ helm upgrade --install argo-workflows argo/argo-workflows \
   -f ./helm/argo/argo-values.yaml \
   --debug
 
-# cài harbour registry
+# cài harbor registry
 helm repo add harbor https://helm.goharbor.io
 helm repo update
 helm upgrade --install harbor harbor/harbor \

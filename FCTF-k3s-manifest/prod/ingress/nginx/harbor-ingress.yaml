@@ -19,7 +19,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: harbor-core
+                name: harbor
                 port:
                   number: 80
   tls:
