@@ -22,7 +22,7 @@ persistence:
   persistentVolumeClaim:
     registry:
       size: 100Gi
-      accessMode: ReadWriteMany
+      accessMode: ReadWriteOnce
     database:
       size: 5Gi
     redis:
@@ -42,7 +42,7 @@ jobservice:
   replicas: 1
 
 registry:
-  replicas: 2
+  replicas: 1
   garbageCollection:
     enabled: true
     schedule: "0 */6 * * *"
@@ -58,10 +58,10 @@ notary:
 
 resources:
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 250m
+    memory: 512Mi
   limits:
     cpu: 1000m
-    memory: 1Gi
+    memory: 2Gi
 
 logLevel: warn
