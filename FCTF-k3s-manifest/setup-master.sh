@@ -229,6 +229,9 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
     sudo tee "/var/lib/rancher/k3s/agent/etc/containerd/${tmpl}" >/dev/null <<'EOF'
 {{ template "base" . }}
 
+[plugins."io.containerd.grpc.v1.cri".containerd]
+  default_runtime_name = "runc"
+
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
   runtime_type = "io.containerd.runsc.v1"
 
