@@ -142,6 +142,14 @@ LEFTOVER_PATHS=(
 	"/var/lib/kubelet"
 	"/var/lib/cni"
 	"/etc/cni"
+
+	"/opt/cni"
+	"/var/lib/containerd"
+	"/run/containerd"
+
+	"/run/k3s"
+
+	"$HOME/.kube"
 )
 
 for p in "${LEFTOVER_PATHS[@]}"; do
