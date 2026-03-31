@@ -8,12 +8,23 @@ const BASE_URL = (__ENV.BASE_URL || 'http://localhost:5000').replace(/\/+$/, '')
 const ACCOUNTS_CSV = __ENV.ACCOUNTS_CSV || './accounts.csv';
 const TARGET_VUS = parseInt(__ENV.TARGET_VUS || '500', 10);
 const TOP_COUNT = parseInt(__ENV.TOP_COUNT || '10', 10);
+const ATTEMPT_RATE = Number(__ENV.ATTEMPT_RATE || '0.2');
+const FORCE_CHALLENGE_ID = parseInt(__ENV.FORCE_CHALLENGE_ID || '0', 10);
+const QUICK_TEST = (__ENV.QUICK_TEST || 'false').toLowerCase() === 'true';
+const QUICK_STAGE_1_TARGET = Math.max(1, Math.floor(TARGET_VUS * 0.2));
+const QUICK_STAGE_2_TARGET = Math.max(QUICK_STAGE_1_TARGET, Math.floor(TARGET_VUS * 0.5));
 
 const loginFailures = new Counter('login_failures');
 const businessFailures = new Counter('business_failures');
 const portalFlowSuccess = new Rate('portal_flow_success');
 const challengeFetchDuration = new Trend('challenge_fetch_duration', true);
 const scoreboardDuration = new Trend('scoreboard_duration', true);
+const leaderboardQueryDuration = new Trend('leaderboard_query_duration', true);
+const submissionHistoryDuration = new Trend('submission_history_duration', true);
+const challengeInfoDuration = new Trend('challenge_info_duration', true);
+const scoreUpdatePathDuration = new Trend('score_update_path_duration', true);
+const submissionAttemptCount = new Counter('submission_attempt_count');
+const submissionAttemptAccepted = new Rate('submission_attempt_accepted');
 
 const tokenByVu = {};
 const accountByVu = {};
@@ -154,6 +165,7 @@ function pickCategoryName(topicsBody) {
 function executePortalFlow(token) {
     const headers = authHeaders(token);
     let allChecksPass = true;
+    let selectedChallengeId = null;
 
     const profileRes = http.get(buildUrl('/api/Users/profile'), { headers });
     allChecksPass =
@@ -192,13 +204,19 @@ function executePortalFlow(token) {
         if (listBody && Array.isArray(listBody.data) && listBody.data.length > 0) {
             const challengeId = listBody.data[Math.floor(Math.random() * listBody.data.length)]?.id;
             if (challengeId) {
-                const detailRes = http.get(buildUrl(`/api/Challenge/${challengeId}`), { headers });
-                allChecksPass =
-                    check(detailRes, {
-                        'challenge detail status valid': (r) => r.status >= 200 && r.status < 500,
-                    }) && allChecksPass;
+                selectedChallengeId = challengeId;
             }
         }
+    }
+
+    const challengeIdForDetail = selectedChallengeId || (FORCE_CHALLENGE_ID > 0 ? FORCE_CHALLENGE_ID : null);
+    if (challengeIdForDetail) {
+        const detailRes = http.get(buildUrl(`/api/Challenge/${challengeIdForDetail}`), { headers });
+        challengeInfoDuration.add(detailRes.timings.duration);
+        allChecksPass =
+            check(detailRes, {
+                'challenge detail status valid': (r) => r.status >= 200 && r.status < 500,
+            }) && allChecksPass;
     }
 
     const teamScoreRes = http.get(buildUrl('/api/Team/contestant'), { headers });
@@ -208,6 +226,7 @@ function executePortalFlow(token) {
         }) && allChecksPass;
 
     const teamSolvesRes = http.get(buildUrl('/api/Team/solves'), { headers });
+    submissionHistoryDuration.add(teamSolvesRes.timings.duration);
     allChecksPass =
         check(teamSolvesRes, {
             'team solves status 200': (r) => r.status === 200,
@@ -221,10 +240,33 @@ function executePortalFlow(token) {
 
     const scoreboardRes = http.get(buildUrl(`/api/Scoreboard/top/${TOP_COUNT}`));
     scoreboardDuration.add(scoreboardRes.timings.duration);
+    leaderboardQueryDuration.add(scoreboardRes.timings.duration);
     allChecksPass =
         check(scoreboardRes, {
             'scoreboard status 200': (r) => r.status === 200,
         }) && allChecksPass;
+
+    // Submit flow exercises submission writes and score update path under load.
+    const challengeIdForAttempt = selectedChallengeId || (FORCE_CHALLENGE_ID > 0 ? FORCE_CHALLENGE_ID : null);
+    if (challengeIdForAttempt && Math.random() < ATTEMPT_RATE) {
+        submissionAttemptCount.add(1);
+        const attemptRes = http.post(
+            buildUrl('/api/Challenge/attempt'),
+            JSON.stringify({
+                challengeId: challengeIdForAttempt,
+                submission: `loadtest-${exec.vu.idInTest}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            }),
+            { headers }
+        );
+
+        scoreUpdatePathDuration.add(attemptRes.timings.duration);
+        const attemptOk = check(attemptRes, {
+            'attempt status accepted': (r) =>
+                r.status === 200 || r.status === 400 || r.status === 403 || r.status === 404 || r.status === 429,
+        });
+        submissionAttemptAccepted.add(attemptOk);
+        allChecksPass = attemptOk && allChecksPass;
+    }
 
     if (!allChecksPass) {
         businessFailures.add(1);
@@ -237,11 +279,21 @@ export const options = {
         contestant_portal_1h_500_accounts: {
             executor: 'ramping-vus',
             startVUs: 0,
-            stages: [
-                { duration: '5m', target: TARGET_VUS },
-                { duration: '50m', target: TARGET_VUS },
-                { duration: '5m', target: 0 },
-            ],
+            stages: QUICK_TEST
+                ? [
+                    { duration: '30s', target: QUICK_STAGE_1_TARGET },
+                    { duration: '30s', target: QUICK_STAGE_2_TARGET },
+                    { duration: '30s', target: TARGET_VUS },
+                    { duration: '2m', target: TARGET_VUS },
+                    { duration: '30s', target: QUICK_STAGE_2_TARGET },
+                    { duration: '30s', target: QUICK_STAGE_1_TARGET },
+                    { duration: '30s', target: 0 },
+                ]
+                : [
+                    { duration: '5m', target: TARGET_VUS },
+                    { duration: '50m', target: TARGET_VUS },
+                    { duration: '5m', target: 0 },
+                ],
             gracefulRampDown: '30s',
         },
     },
@@ -294,6 +346,12 @@ export function handleSummary(data) {
                     business_failures: data.metrics.business_failures,
                     challenge_fetch_duration: data.metrics.challenge_fetch_duration,
                     scoreboard_duration: data.metrics.scoreboard_duration,
+                    leaderboard_query_duration: data.metrics.leaderboard_query_duration,
+                    submission_history_duration: data.metrics.submission_history_duration,
+                    challenge_info_duration: data.metrics.challenge_info_duration,
+                    score_update_path_duration: data.metrics.score_update_path_duration,
+                    submission_attempt_count: data.metrics.submission_attempt_count,
+                    submission_attempt_accepted: data.metrics.submission_attempt_accepted,
                 },
             },
             null,

@@ -1,5 +1,5 @@
 
-
+ 
 
 
 
@@ -17,387 +17,173 @@ Table of Contents
 I. Record of Changes	3
 II. Software Design Document	4
 1. System Design	4
-1.1 System Architecture	4
-1.2 Package Diagram	4
+1.1. System Architecture	4
+1.2. Package Diagram	5
 2. Database Design	15
 3. Detailed Design	19
-3.1 Upgrade Start Challenge Flow	21
-3.2 Cải thiện cơ chế log	23
-3.4 Challenge access gateway	25
-3.5 Network policy	25
-3.6 Thiếu cơ chế lưu trữ và truy vết lịch sử Challenge Instance	25
-3.7  Thiếu quy trình CI/CD tự động hóa cho việc triển khai hệ thống	25
-
+3.1. Enhance Start Challenge Flow (Meets NFR-02, NFR-12)	21
+3.2. Cải thiện cơ chế log  (Meets NFR-19, FR-07, FR-08, FR-11)	24
+3.4. Challenge access gateway (Meets requirement NFR-05)	26
+3.5. Challenge Isolation	31
+3.6. Storing and tracing Challenge Instance History mechanism	33
+3.7. CI/CD workflow (NFR-18)	34
+3.8. Dynamic score calculation race condition	36
+3.9. Unlock hint race condition	37
+3.10. Stop challenge race condition	37
+3.11. Improve File Access Control	37
+3.12. Refactor listener improve multi thread	40
+ 
 I. Record of Changes
-Date
-A*
-M, D
-In charge
-Change Description
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Date	A*
+M, D	In charge	Change Description
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
 *A - Added M - Modified D - Deleted
-
+ 
 II. Software Design Document
 1. System Design
-1.1 System Architecture
-1.1.1 Component Diagram Overview
+1.1. System Architecture
+1.1.1. Component Diagram Overview
 a. FCTF System
-
+ 
 b. Migration System
+ 
+c. Admin Portal Component
+ 
+d. Deployment Center Component
+ 
+e. Deployment Consumer Component
+ 
+f. Deployment Listener Component
+ 
+g. Contestant Service Component
+ 
+h. Challenge Gateway Component
+ 
+1.1.2. Deployment Diagram Overview
+ 
+1.1.3. Network Design
 
-c. Monitoring And Logging System
-
-d. Admin Component
-
-e. Deployment Listener Component
-
-f. Deployment Center Component
-
-g. Deployment Listener Component
-
-1.1.2 Deployment Diagram Overview
-
-1.2 Package Diagram
-1.2.1 Contestant Portal Service
-
+1.2. Package Diagram
+1.2.1. Contestant Portal Service
+ 
 Figure ?: Contestant Portal Package Diagram
 Package Descriptions
-No
-Package
-Description
-01
-Pages
-Chứa các thành phần trang chính của ứng dụng. Đây là điểm bắt đầu của luồng UI, phụ thuộc vào hầu hết các thành phần khác như Context, Component, Assets, Hooks, Services và Shared.
-02
-Shared
-Khối thành phần dùng chung nội bộ của project. Đây là nơi tập hợp các Models, Types, Constants và Utils được sử dụng chung cho toàn bộ project.
-03
-Context
-Khối quản lý trạng thái tập trung (Global State). Giúp chia sẻ dữ liệu giữa các Component mà không cần truyền qua nhiều cấp, phụ thuộc vào các thành phần trong khối Shared.
-04
-Component
-Tập hợp các thành phần giao diện dùng lại (UI Widgets). Các thành phần này lấy tài nguyên từ Assets, nhận dữ liệu từ Context và tuân thủ các kiểu dữ liệu từ Shared.
-05
-Assets
-Nơi lưu trữ tài nguyên tĩnh như hình ảnh, icons, stylesheets và các tệp cấu hình giao diện.
-06
-Hooks
-Chứa các Custom Hooks (logic xử lý trạng thái hoặc side-effects)
-07
-Services
-Tầng giao tiếp với API bên ngoài (Backend). Nó gửi/nhận dữ liệu và ánh xạ chúng dựa trên các Models/Types được định nghĩa trong khối Shared.
-08
-Models
-Định nghĩa cấu trúc dữ liệu của các đối tượng trong hệ thống
-09
-Types
-Định nghĩa các kiểu dữ liệu (Typescript) nhằm đảm bảo tính an toàn về kiểu dữ liệu (type-safety) trong toàn project.
-10
-Constants
-Lưu trữ các giá trị hằng số cố định để dễ dàng quản lý và thay đổi.
-11
-Utils
-Các hàm tiện ích xử lý logic (như format ngày tháng, tính toán toán học) được sử dụng chung.
+No	Package	Description
+01	Pages	Chứa các thành phần trang chính của ứng dụng. Đây là điểm bắt đầu của luồng UI, phụ thuộc vào hầu hết các thành phần khác như Context, Component, Assets, Hooks, Services và Shared.
+02	Shared	Khối thành phần dùng chung nội bộ của project. Đây là nơi tập hợp các Models, Types, Constants và Utils được sử dụng chung cho toàn bộ project.
+03	Context	Khối quản lý trạng thái tập trung (Global State). Giúp chia sẻ dữ liệu giữa các Component mà không cần truyền qua nhiều cấp, phụ thuộc vào các thành phần trong khối Shared.
+04	Component	Tập hợp các thành phần giao diện dùng lại (UI Widgets). Các thành phần này lấy tài nguyên từ Assets, nhận dữ liệu từ Context và tuân thủ các kiểu dữ liệu từ Shared.
+05	Assets	Nơi lưu trữ tài nguyên tĩnh như hình ảnh, icons, stylesheets và các tệp cấu hình giao diện.
+06	Hooks	Chứa các Custom Hooks (logic xử lý trạng thái hoặc side-effects)
+07	Services	Tầng giao tiếp với API bên ngoài (Backend). Nó gửi/nhận dữ liệu và ánh xạ chúng dựa trên các Models/Types được định nghĩa trong khối Shared.
+08	Models	Định nghĩa cấu trúc dữ liệu của các đối tượng trong hệ thống
+09	Types	Định nghĩa các kiểu dữ liệu (Typescript) nhằm đảm bảo tính an toàn về kiểu dữ liệu (type-safety) trong toàn project.
+10	Constants	Lưu trữ các giá trị hằng số cố định để dễ dàng quản lý và thay đổi.
+11	Utils	Các hàm tiện ích xử lý logic (như format ngày tháng, tính toán toán học) được sử dụng chung.
 
-
-1.2.2 Contestant BE Service
-
+1.2.2. Contestant BE Service
+ 
 Figure ?: ContestantBE Package Diagram
 Package Descriptions
-No
-Package
-Description
-01
-ContestantBE
-Là thành phần Business Logic chính (Back-end) của phân hệ Contestant. Nó đóng vai trò điều hướng yêu cầu từ Contestant Portal và xử lý các nghiệp vụ đặc thù cho thí sinh. Project này có các phụ thuộc (Project Reference) đến ResourceShared để sử dụng lại các tài nguyên chung.
-02
-ResourceShared 
-Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
-03
-Controllers
-Chứa các API Endpoints, tiếp nhận yêu cầu HTTP từ phía client. Package này phụ thuộc vào Filters, Interfaces, Attribute và đặc biệt là tham chiếu đến DTOs của ResourceShared để định nghĩa dữ liệu đầu vào/đầu ra.
-04
-Filters
-Chứa các bộ lọc tùy chỉnh (Action Filters, Exception Filters) dùng để can thiệp vào pipeline xử lý của Controller.
-05
-Attribute
-Định nghĩa các thuộc tính tùy chỉnh (Custom Attributes) dùng để trang trí cho các Class hoặc Method trong Controller nhằm thực hiện các logic bổ trợ.
-06
-Services (ContestantBE)
-Chứa logic nghiệp vụ cốt lõi. Nó thực thi (implement) các Interfaces và sử dụng các Utils nội bộ. Ngoài ra, nó tham chiếu đến Models của ResourceShared để thực hiện các thao tác dữ liệu.
-07
-Interfaces
-Định nghĩa các bản thiết kế (contracts) cho các lớp Service, giúp tách biệt phần định nghĩa và phần thực thi.
-08
-Utils (ContestantBE)
-Các lớp tiện ích chỉ dùng riêng trong phạm vi nội bộ của service ContestantBE.
-09
-DTOs
-Định nghĩa cấu trúc dữ liệu dùng để truyền tải giữa các tầng hoặc giữa Client và Server.
-10
-Enums
-Định nghĩa các kiểu liệt kê (Constants/States) dùng chung cho toàn hệ thống để đảm bảo tính nhất quán.
-11
-Utils
-(ResourceShared)
-Các thư viện tiện ích có thể dùng chung (Helper classes) cho toàn hệ thống. Các tiện ích này có thể sử dụng Logger để ghi log khi cần thiết và được các Middleware hoặc các thành phần khác trong hệ thống gọi sử dụng.
-12
-Logger
-Thành phần đảm nhận việc ghi nhận nhật ký hệ thống (Logging), giúp theo dõi lỗi và hoạt động của toàn bộ ứng dụng.
-13
-Middlewares
-Chứa các lớp xử lý trung gian trong Request Pipeline. Package này sử dụng Utils và Models.
-14
-Services (ResourceShared)
-Các dịch vụ mang tính hạ tầng hoặc dùng chung cho nhiều module. Nó tham chiếu đến Logger, Utils và Models.
-15
-Models
-Chứa các thực thể đại diện cho cấu trúc cơ sở dữ liệu hoặc các đối tượng dữ liệu cốt lõi của hệ thống.
+No	Package	Description
+01	ContestantBE	Là thành phần Business Logic chính (Back-end) của phân hệ Contestant. Nó đóng vai trò điều hướng yêu cầu từ Contestant Portal và xử lý các nghiệp vụ đặc thù cho thí sinh. Project này có các phụ thuộc (Project Reference) đến ResourceShared để sử dụng lại các tài nguyên chung.
+02	ResourceShared 	Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03	Controllers	Chứa các API Endpoints, tiếp nhận yêu cầu HTTP từ phía client. Package này phụ thuộc vào Filters, Interfaces, Attribute và đặc biệt là tham chiếu đến DTOs của ResourceShared để định nghĩa dữ liệu đầu vào/đầu ra.
+04	Filters	Chứa các bộ lọc tùy chỉnh (Action Filters, Exception Filters) dùng để can thiệp vào pipeline xử lý của Controller.
+05	Attribute	Định nghĩa các thuộc tính tùy chỉnh (Custom Attributes) dùng để trang trí cho các Class hoặc Method trong Controller nhằm thực hiện các logic bổ trợ.
+06	Services (ContestantBE)	Chứa logic nghiệp vụ cốt lõi. Nó thực thi (implement) các Interfaces và sử dụng các Utils nội bộ. Ngoài ra, nó tham chiếu đến Models của ResourceShared để thực hiện các thao tác dữ liệu.
+07	Interfaces	Định nghĩa các bản thiết kế (contracts) cho các lớp Service, giúp tách biệt phần định nghĩa và phần thực thi.
+08	Utils (ContestantBE)	Các lớp tiện ích chỉ dùng riêng trong phạm vi nội bộ của service ContestantBE.
+09	DTOs	Định nghĩa cấu trúc dữ liệu dùng để truyền tải giữa các tầng hoặc giữa Client và Server.
+10	Enums	Định nghĩa các kiểu liệt kê (Constants/States) dùng chung cho toàn hệ thống để đảm bảo tính nhất quán.
+11	Utils
+(ResourceShared)	Các thư viện tiện ích có thể dùng chung (Helper classes) cho toàn hệ thống. Các tiện ích này có thể sử dụng Logger để ghi log khi cần thiết và được các Middleware hoặc các thành phần khác trong hệ thống gọi sử dụng.
+12	Logger	Thành phần đảm nhận việc ghi nhận nhật ký hệ thống (Logging), giúp theo dõi lỗi và hoạt động của toàn bộ ứng dụng.
+13	Middlewares	Chứa các lớp xử lý trung gian trong Request Pipeline. Package này sử dụng Utils và Models.
+14	Services (ResourceShared)	Các dịch vụ mang tính hạ tầng hoặc dùng chung cho nhiều module. Nó tham chiếu đến Logger, Utils và Models.
+15	Models	Chứa các thực thể đại diện cho cấu trúc cơ sở dữ liệu hoặc các đối tượng dữ liệu cốt lõi của hệ thống.
 
-
-1.2.3 Deployment Center 
-
+1.2.3. Deployment Center 
+ 
 Figure ?: Deployment Center Package Diagram
 Package Descriptions
 No
-Package
-Description
-01
-Deployment Center
-Là service Backend chịu trách nhiệm quản lý việc triển khai (deployment) trong hệ thống. Tương tự như ContestantBE, project này cũng có Project Reference đến ResourceShared.
-02
-ResourceShared 
-Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
-03
-Services
-Chứa logic nghiệp vụ liên quan đến điều phối và triển khai. Package này sử dụng các Utils nội bộ và tham chiếu trực tiếp đến Models của ResourceShared để thực hiện các thao tác dữ liệu cốt lõi.
-04
-Middlewares
-Chứa các trình xử lý trung gian đặc thù cho Deployment Center. Package này phụ thuộc vào các Utils dùng chung từ ResourceShared để thực hiện các tác vụ bổ trợ
-05
-Utils (Deployment Center)
-Tập hợp các hàm tiện ích và lớp trợ giúp chỉ phục vụ riêng cho các xử lý logic bên trong service Deployment Center. Nó cũng tham chiếu đến Models từ ResourceShared khi cần xử lý các thực thể chung.
+Package	Description
+01	Deployment Center	Là service Backend chịu trách nhiệm quản lý việc triển khai (deployment) trong hệ thống. Tương tự như ContestantBE, project này cũng có Project Reference đến ResourceShared.
+02	ResourceShared 	Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03	Services	Chứa logic nghiệp vụ liên quan đến điều phối và triển khai. Package này sử dụng các Utils nội bộ và tham chiếu trực tiếp đến Models của ResourceShared để thực hiện các thao tác dữ liệu cốt lõi.
+04	Middlewares	Chứa các trình xử lý trung gian đặc thù cho Deployment Center. Package này phụ thuộc vào các Utils dùng chung từ ResourceShared để thực hiện các tác vụ bổ trợ
+05	Utils (Deployment Center)	Tập hợp các hàm tiện ích và lớp trợ giúp chỉ phục vụ riêng cho các xử lý logic bên trong service Deployment Center. Nó cũng tham chiếu đến Models từ ResourceShared khi cần xử lý các thực thể chung.
 
 
 1.2.4. Deployment Consumer
-
+ 
 Figure ?: Deployment Consumer Package Diagram
 Package Descriptions
 No
-Package
-Description
-01
-Deployment Consumer
-Là một Service (Worker Service) đóng vai trò là "Consumer" trong mô hình Message Broker. Service này chạy độc lập, chuyên lắng nghe và tiêu thụ các thông điệp (messages) từ RabbitMQ để thực hiện các tác vụ deploy thử thách. Nó thực hiện Project Reference đến ResourceShared.
-02
-ResourceShared 
-Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
-03
-Worker
-Thành phần cốt lõi điều hành vòng đời của service ngầm. Nó chịu trách nhiệm lắng nghe yêu cầu và điều phối công việc cho tầng Services. Package này tham chiếu đến các Models của ResourceShared để hiểu cấu trúc dữ liệu đầu vào.
-04
-Services
-Chứa logic nghiệp vụ xử lý chi tiết các bản tin hoặc tác vụ nhận được. Nó phụ thuộc vào các Models nội bộ và tham chiếu đến DTOs của ResourceShared để thực hiện việc chuyển đổi hoặc truyền tải dữ liệu.
-05
-Models (Deployment Consumer)
-Chứa các thực thể hoặc cấu trúc dữ liệu đặc thù chỉ dùng riêng cho logic xử lý bên trong của Consumer này.
+Package	Description
+01	Deployment Consumer	Là một Service (Worker Service) đóng vai trò là "Consumer" trong mô hình Message Broker. Service này chạy độc lập, chuyên lắng nghe và tiêu thụ các thông điệp (messages) từ RabbitMQ để thực hiện các tác vụ deploy thử thách. Nó thực hiện Project Reference đến ResourceShared.
+02	ResourceShared 	Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03	Worker	Thành phần cốt lõi điều hành vòng đời của service ngầm. Nó chịu trách nhiệm lắng nghe yêu cầu và điều phối công việc cho tầng Services. Package này tham chiếu đến các Models của ResourceShared để hiểu cấu trúc dữ liệu đầu vào.
+04	Services	Chứa logic nghiệp vụ xử lý chi tiết các bản tin hoặc tác vụ nhận được. Nó phụ thuộc vào các Models nội bộ và tham chiếu đến DTOs của ResourceShared để thực hiện việc chuyển đổi hoặc truyền tải dữ liệu.
+05	Models (Deployment Consumer)	Chứa các thực thể hoặc cấu trúc dữ liệu đặc thù chỉ dùng riêng cho logic xử lý bên trong của Consumer này.
 
 
 1.2.5. Deployment Listener
-
+ 
 Figure ?: Deployment Listener Package Diagram
 Package Descriptions
 No
-Package
-Description
-01
-Deployment Listener
-Là một Service chuyên biệt đảm nhận nhiệm vụ theo dõi (watch) các sự kiện từ Kubernetes (K8s). Nó giúp hệ thống cập nhật kịp thời tình trạng hạ tầng thực tế với các challenge pod được triển khai.
-02
-ResourceShared 
-Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
-03
-Worker
-Chứa các lớp thực thi chạy ngầm duy trì kết nối với K8s API. Khi có sự kiện phát sinh từ cụm K8s, Worker sẽ bắt lấy và chuyển tiếp dữ liệu cho tầng Services xử lý.
-04
-Services
-Chứa logic xử lý các sự kiện K8s. Nó sử dụng các định nghĩa từ ResourceShared để đảm bảo dữ liệu đồng bộ.
+Package	Description
+01	Deployment Listener	Là một Service chuyên biệt đảm nhận nhiệm vụ theo dõi (watch) các sự kiện từ Kubernetes (K8s). Nó giúp hệ thống cập nhật kịp thời tình trạng hạ tầng thực tế với các challenge pod được triển khai.
+02	ResourceShared 	Là một thư viện dùng chung (Shared Library/Project), chứa các thành phần dùng chung cho toàn bộ hệ thống (như Models, DTOs, Utils) để đảm bảo tính nhất quán và tái sử dụng mã nguồn giữa các service khác nhau.
+03	Worker	Chứa các lớp thực thi chạy ngầm duy trì kết nối với K8s API. Khi có sự kiện phát sinh từ cụm K8s, Worker sẽ bắt lấy và chuyển tiếp dữ liệu cho tầng Services xử lý.
+04	Services	Chứa logic xử lý các sự kiện K8s. Nó sử dụng các định nghĩa từ ResourceShared để đảm bảo dữ liệu đồng bộ.
 
 
 1.2.6. Challenge Gateway 
-
+ 
 Figure ?: Challenge Gateway Package Diagram
 Package Descriptions
 No
-Package
-Description
-01
-main
-Là Composition Root, điểm khởi đầu của service. Chịu trách nhiệm nạp cấu hình (config), khởi tạo bộ lọc giới hạn (limiter), kích hoạt cổng kết nối (gateway) và quản lý tắt máy an toàn (graceful shutdown).
-02
-internal/gateway
-Thành phần trung tâm điều phối lưu lượng. Thực hiện Reverse Proxy (HTTP) và Proxy (TCP), gọi sang package token để xác thực, gọi limiter để áp hạn mức và định tuyến request đến đích.
-03
-internal/limiter
-Cung cấp cơ chế kiểm soát tần suất (Rate Limit) và số kết nối đồng thời (Concurrency Limit) sử dụng Redis. Hỗ trợ chặn theo IP, Token hoặc giới hạn toàn cục (Global).
-04
-internal/token
-Chuyên trách xử lý logic về bảo mật. Thực hiện giải mã HMAC, kiểm tra thời hạn (Expiration), parse thông tin từ Payload và chuẩn hóa dữ liệu định tuyến (Route).
-05
-internal/config
-Quản lý cấu hình Runtime. Đọc dữ liệu từ biến môi trường (Environment Variables) và cung cấp các tham số thiết lập dùng chung cho các package khác trong hệ thống.
+Package	Description
+01	main	Là Composition Root, điểm khởi đầu của service. Chịu trách nhiệm nạp cấu hình (config), khởi tạo bộ lọc giới hạn (limiter), kích hoạt cổng kết nối (gateway) và quản lý tắt máy an toàn (graceful shutdown).
+02	internal/gateway	Thành phần trung tâm điều phối lưu lượng. Thực hiện Reverse Proxy (HTTP) và Proxy (TCP), gọi sang package token để xác thực, gọi limiter để áp hạn mức và định tuyến request đến đích.
+03	internal/limiter	Cung cấp cơ chế kiểm soát tần suất (Rate Limit) và số kết nối đồng thời (Concurrency Limit) sử dụng Redis. Hỗ trợ chặn theo IP, Token hoặc giới hạn toàn cục (Global).
+04	internal/token	Chuyên trách xử lý logic về bảo mật. Thực hiện giải mã HMAC, kiểm tra thời hạn (Expiration), parse thông tin từ Payload và chuẩn hóa dữ liệu định tuyến (Route).
+05	internal/config	Quản lý cấu hình Runtime. Đọc dữ liệu từ biến môi trường (Environment Variables) và cung cấp các tham số thiết lập dùng chung cho các package khác trong hệ thống.
 
 
 1.2.7. Admin Management
-
+ 
 Figure ?: Admin Management Package Diagram
 Package Descriptions
 No
-Package
-Description
-01
-Admin View
-Thành phần giao diện chính của Admin. Quản lý việc hiển thị dữ liệu, tích hợp các thành phần từ Forms, Models và Template để tạo ra trải nghiệm người dùng cuối.
-02
-api/v1
-Cung cấp các giao diện lập trình ứng dụng (API). Chịu trách nhiệm giao tiếp giữa client và server, sử dụng Schemas để định nghĩa dữ liệu và Utils cho các xử lý bổ trợ.
-03
-Models
-Chứa các định nghĩa về cấu trúc dữ liệu cốt lõi và logic nghiệp vụ liên quan đến cơ sở dữ liệu. Đây là nguồn dữ liệu chính cho cả Admin View và api/v1.
-04
-Forms
-Quản lý các cấu trúc biểu mẫu (Form) nhập liệu, bao gồm định nghĩa các trường thông tin và các quy tắc kiểm tra tính hợp lệ của dữ liệu (Validation) phía giao diện.
-05
-Schemas
-Định nghĩa các cấu trúc dữ liệu (Data Transfer Objects - DTO) dùng để xác thực và chuyển đổi dữ liệu khi giao tiếp qua API hoặc giữa các lớp logic.
+Package	Description
+01	Admin View	Thành phần giao diện chính của Admin. Quản lý việc hiển thị dữ liệu, tích hợp các thành phần từ Forms, Models và Template để tạo ra trải nghiệm người dùng cuối.
+02	api/v1	Cung cấp các giao diện lập trình ứng dụng (API). Chịu trách nhiệm giao tiếp giữa client và server, sử dụng Schemas để định nghĩa dữ liệu và Utils cho các xử lý bổ trợ.
+03	Models	Chứa các định nghĩa về cấu trúc dữ liệu cốt lõi và logic nghiệp vụ liên quan đến cơ sở dữ liệu. Đây là nguồn dữ liệu chính cho cả Admin View và api/v1.
+04	Forms	Quản lý các cấu trúc biểu mẫu (Form) nhập liệu, bao gồm định nghĩa các trường thông tin và các quy tắc kiểm tra tính hợp lệ của dữ liệu (Validation) phía giao diện.
+05	Schemas	Định nghĩa các cấu trúc dữ liệu (Data Transfer Objects - DTO) dùng để xác thực và chuyển đổi dữ liệu khi giao tiếp qua API hoặc giữa các lớp logic.
 
-
-Utils
-Package chứa các công cụ, hàm hỗ trợ dùng chung (Utilities). Đây là thành phần trung tâm cung cấp các hàm bổ trợ cho hầu hết các package khác như api/v1, Models, Template, Plugins.
-
-
-Template
-Quản lý các tệp giao diện mẫu (Layout/Components). Kết hợp với themes để định hình giao diện hiển thị và cung cấp khung sườn cho Admin View.
-
-
-Plugins
-Cho phép mở rộng tính năng của hệ thống một cách linh hoạt. Các plugin tương tác với hệ thống thông qua Utils và có thể tác động đến logic trong Models.
-
-
-Events
-Hệ thống quản lý sự kiện (Event-driven). Chịu trách nhiệm kích hoạt hoặc lắng nghe các thông báo thay đổi trạng thái trong hệ thống, thường được gọi bởi Utils.
-
-
-Constants
-Lưu trữ các giá trị hằng số, cấu hình tĩnh hoặc các mã lỗi dùng chung cho toàn bộ hệ thống để đảm bảo tính nhất quán.
-
-
-themes
-Quản lý giao diện, màu sắc, CSS và các tài nguyên liên quan đến phong cách thiết kế của hệ thống Admin, phục vụ cho package Template.
+	Utils	Package chứa các công cụ, hàm hỗ trợ dùng chung (Utilities). Đây là thành phần trung tâm cung cấp các hàm bổ trợ cho hầu hết các package khác như api/v1, Models, Template, Plugins.
+	Template	Quản lý các tệp giao diện mẫu (Layout/Components). Kết hợp với themes để định hình giao diện hiển thị và cung cấp khung sườn cho Admin View.
+	Plugins	Cho phép mở rộng tính năng của hệ thống một cách linh hoạt. Các plugin tương tác với hệ thống thông qua Utils và có thể tác động đến logic trong Models.
+	Events	Hệ thống quản lý sự kiện (Event-driven). Chịu trách nhiệm kích hoạt hoặc lắng nghe các thông báo thay đổi trạng thái trong hệ thống, thường được gọi bởi Utils.
+	Constants	Lưu trữ các giá trị hằng số, cấu hình tĩnh hoặc các mã lỗi dùng chung cho toàn bộ hệ thống để đảm bảo tính nhất quán.
+	themes	Quản lý giao diện, màu sắc, CSS và các tài nguyên liên quan đến phong cách thiết kế của hệ thống Admin, phục vụ cho package Template.
 
 
 
@@ -406,212 +192,351 @@ Quản lý giao diện, màu sắc, CSS và các tài nguyên liên quan đến 
 
 
 2. Database Design
+ 
 
 Table Descriptions
-No
-Table
-Description
-01
-challenges
-Description: Stores information about CTF challenges in the system, including metadata, deployment config, and scoring. 
+No	Table	Description
+01	challenges	Description: Stores information about CTF challenges in the system, including metadata, deployment config, and scoring. 
 Primary key: id 
 Foreign key: next_id → challenges.id, user_id → users.id
-02
-ticket
-Description: Stores support tickets submitted by contestants, including title, description, and reply status. 
+
+02	ticket	Description: Stores support tickets submitted by contestants, including title, description, and reply status. 
 Primary key: id 
 Foreign key: author_id → users.id, replier_id → users.id
-03
-deploy_histories
-Description: Stores the deployment history and logs for each challenge deployment event. 
+
+03	deploy_histories	Description: Stores the deployment history and logs for each challenge deployment event. 
 Primary key: id 
 Foreign key: challenge_id → challenges.id
-04
-hints
-Description: Stores hints associated with challenges that contestants can unlock for a cost. 
+
+04	hints	Description: Stores hints associated with challenges that contestants can unlock for a cost. 
 Primary key: id 
 Foreign key: challenge_id → challenges.id
-05
-challenge_versions
-Description: Stores versioned snapshots of a challenge's deployment configuration (image, resources, etc.).
+
+05	challenge_versions	Description: Stores versioned snapshots of a challenge's deployment configuration (image, resources, etc.).
 Primary key: id
 Foreign key: challenge_id → challenges.id, created_by → users.id
 
-
-06
-challenge_start_tracking
-Description: Tracks when a user or team starts and stops a challenge instance.
+06	challenge_start_tracking	Description: Tracks when a user or team starts and stops a challenge instance.
 Primary key: id
 Foreign key: user_id → users.id, team_id → teams.id, challenge_id → challenges.id
-07
-awards
-Description: Stores awards granted to users or teams, including point value and category.
+
+07	awards	Description: Stores awards granted to users or teams, including point value and category.
 Primary key: id
 Foreign key: user_id → users.id, team_id → teams.id
-08
-tags
-Description: Stores tags attached to challenges for categorization and filtering.
+
+08	tags	Description: Stores tags attached to challenges for categorization and filtering.
 Primary key: id
 Foreign key: challenge_id → challenges.id
-9
-topics
-Description: Stores unique topic labels that can be associated with challenges.
+
+9	topics	Description: Stores unique topic labels that can be associated with challenges.
 Primary key: id
-10
-challenge_topics
-Description: Junction table mapping topics to challenges (many-to-many relationship).
+10	challenge_topics	Description: Junction table mapping topics to challenges (many-to-many relationship).
 Primary key: id
 Foreign key: challenge_id → challenges.id, topic_id → topics.id
-11
-files
-Description: Stores metadata about uploaded files, including type and storage location.
+
+11	files	Description: Stores metadata about uploaded files, including type and storage location.
 Primary key: id
-12
-flags
-Description: Stores flags for challenges types (static, regex, dynamic).
+12	flags	Description: Stores flags for challenges types (static, regex, dynamic).
 Primary key: id
 Foreign key: challenge_id → challenges.id
-13
-action_logs
-Description: Stores a log of user actions within the platform for auditing purposes.
+
+13	action_logs	Description: Stores a log of user actions within the platform for auditing purposes.
 Primary key: actionId
 Foreign key: userId → users.id
-14
-users
-Description: Stores contestant and staff user accounts, including authentication and profile information. Base table for polymorphic user types.
+
+14	users	Description: Stores contestant and staff user accounts, including authentication and profile information. Base table for polymorphic user types.
 Primary key: id
 Foreign key: bracket_id → brackets.id, team_id → teams.id
-15
-teams
-Description: Stores team information including authentication, profile, and captain assignment.
+
+15	teams	Description: Stores team information including authentication, profile, and captain assignment.
 Primary key: id
 Foreign key: bracket_id → brackets.id, captain_id → users.id
-16
-achievements
-Description: Records achievements earned by users or teams for completing specific challenges.
+
+16	achievements	Description: Records achievements earned by users or teams for completing specific challenges.
 Primary key: id
 Foreign key: user_id → users.id, team_id → teams.id, challenge_id → challenges.id, achievement_id → award_badges.id
-17
-award_badges
-Description: Defines badge/award templates that can be assigned to users or teams upon challenge completion.
+
+17	award_badges	Description: Defines badge/award templates that can be assigned to users or teams upon challenge completion.
 Primary key: id
 Foreign key: user_id → users.id, team_id → teams.id, challenge_id → challenges.id
-18
-submissions
-Description: Stores all flag submission attempts by users or teams. Base table for polymorphic submission types (correct, incorrect, discard).
+
+18	submissions	Description: Stores all flag submission attempts by users or teams. Base table for polymorphic submission types (correct, incorrect, discard).
 Primary key: id
 Foreign key: challenge_id → challenges.id, user_id → users.id, team_id → teams.id
-19
-unlocks
-Description: Tracks items (e.g. hints) unlocked by users or teams. Base table for polymorphic unlock types.
+
+19	unlocks	Description: Tracks items (e.g. hints) unlocked by users or teams. Base table for polymorphic unlock types.
 Primary key: id
 Foreign key: user_id → users.id, team_id → teams.id
-20
-tracking
-Description: Tracks IP-based activity for users, used for access logging. Base table for polymorphic tracking types.
+
+20	tracking	Description: Tracks IP-based activity for users, used for access logging. Base table for polymorphic tracking types.
 Primary key: id
 Foreign key: user_id → users.id
-21
-config
-Description: Stores platform-wide key-value configuration settings.
+
+21	config	Description: Stores platform-wide key-value configuration settings.
 Primary key: id
-22
-tokens
-Description: Stores authentication tokens issued to users with expiration dates. Base table for polymorphic token types.
+22	tokens	Description: Stores authentication tokens issued to users with expiration dates. Base table for polymorphic token types.
 Primary key: id
 Foreign key: user_id → users.id
-23
-comments
-Description: Stores comments made by users on various entities.
+
+23	comments	Description: Stores comments made by users on various entities.
 Primary key: id
 Foreign key: author_id → users.id
-24
-field_entries
-Description: Stores the values entered by users or teams for custom profile fields. Base table for polymorphic entry types.
+
+24	field_entries	Description: Stores the values entered by users or teams for custom profile fields. Base table for polymorphic entry types.
 Primary key: id
 Foreign key: field_id → fields.id
-25
-admin_audit_logs
-Description: Persistent audit trail recording all privileged operations performed by admins, jury, and challenge writers, including before/after state snapshots.
+
+25	admin_audit_logs	Description: Persistent audit trail recording all privileged operations performed by admins, jury, and challenge writers, including before/after state snapshots.
 Primary key: id
 Foreign key: actor_id → users.id
-26
-dynamic_challenge
-dynamic_challenge
+
+26	dynamic_challenge	dynamic_challenge
 Description: Stores dynamic challenge-specific scoring parameters for challenges configured with dynamic scoring.
 Primary key: id
 Foreign key: id → challenges.id
-27
-multiple_choice_challenge
-Description: Stores challenge type mapping records for multiple-choice challenges.
+
+27	multiple_choice_challenge	Description: Stores challenge type mapping records for multiple-choice challenges.
 Primary key: id
 Foreign key: id → challenges.id
-28
-solves
-Description: Stores correct submission records, linking successful solves to the base submission entry and related challenge/user/team entities.
+
+28	solves	Description: Stores correct submission records, linking successful solves to the base submission entry and related challenge/user/team entities.
 Primary key: id
 Foreign key: id → submissions.id, challenge_id → challenges.id, user_id → users.id, team_id → teams.id
-29
-fields
-Description: Stores definitions of custom profile fields (for users/teams).
-Primary key: id
-30
-bracket
-Description: Stores bracket definitions used to group participants (users or teams) into competition categories for registration, filtering, and ranking contexts.
-Primary key: id
 
-
+29	fields	Description: Stores definitions of custom profile fields (for users/teams).
+Primary key: id
+30	bracket	Description: Stores bracket definitions used to group participants (users or teams) into competition categories for registration, filtering, and ranking contexts.
+Primary key: id
 3. Detailed Design
-
+ 
 
 Class diagram of Contestant Service
-3.1 Upgrade Start Challenge Flow
-3.1.1 
+3.1. Enhance Start Challenge Flow (Meets NFR-02, NFR-12)
+3.1.1. sequence diagram
 
+ 
 
+3.1.2. Challenge state diagram
+ 
+3.1.3. Queue Logic and Strategy
+a. Flow Control Mechanism
+The system employs an in-memory buffering strategy to regulate the number of requests processed concurrently. This approach decouples the message ingestion rate from RabbitMQ and the internal processing throughput of the system, thereby improving stability under burst traffic conditions.
+●	RabbitMQ Prefetch: Configured with a default value of 40. This ensures that each consumer retrieves at most 40 messages at a time, preventing overload and enabling controlled backpressure.
+●	System Capacity Check: Before dispatching a request to Argo, the worker queries the Argo API to determine the number of currently running workflows. This allows the system to make admission control decisions based on real-time cluster capacity, avoiding excessive workload submission.
+b. Lifecycle Management
+●	Acknowledgement (Ack): Messages are acknowledged only after the corresponding Argo Workflow has successfully accepted the request. This guarantees at least once delivery semantics while preventing premature message removal.
+●	Negative Acknowledgement (Nack): In the event of system failures or deserialization errors, messages are either discarded or re-queued depending on the failure type and retry policy. This ensures robustness in message handling and fault tolerance.
+c. Message TTL Handling
+The system implements a two-layer protection mechanism to eliminate stale or unmanaged deployment requests, thereby conserving cluster resources and maintaining operational efficiency.
+●	Infrastructure Layer (RabbitMQ TTL):
+ This serves as the first line of defense, automatically expiring messages at the queue level without requiring worker intervention. It prevents the accumulation of outdated requests in the messaging system.
+●	Application Layer (Application-level TTL):
+ This layer handles messages that may remain in intermediate states, such as those buffered in memory or delayed due to I/O operations. By enforcing TTL at the application level, the system ensures that no stale requests are processed even outside the queue boundary.
+3.1.4 Infrastructure configuration
+To ensure the stability of core cluster operations, the K3s server node shall be isolated from general application workloads.
+•	Mechanism: Implementation of a NoSchedule taint on the control-plane node. Only essential system components (etcd, API server, Scheduler) with matching tolerations are permitted to be executed on this node.
+•	Rationale: In a K3s environment where system-reserved configurations are limited, tainting serves as the primary defense against resource contention. This ensures the API server remains responsive, and the Scheduler retains sufficient CPU cycles to process placement decisions during burst traffic.
+•	Effectiveness: Prevents cascading failures where a spike in challenge pods starves the Control Plane of resources, leading to cluster-wide unresponsiveness.
+The system shall enforce explicit resource contracts and execution deadlines for all Argo Workflows.
+•	Resource Requests/Limits: Every workflow pod must declare precise CPU and Memory requests. This enables the Scheduler to perform admission control based on actual node capacity rather than optimistic over-commitment.
+•	Temporal Constraints (activeDeadlineSeconds): A global timeout is enforced at the workflow level. If a workflow fails to progress (e.g., due to schedulable challenge pods) within the defined window, the Argo Controller shall forcefully terminate the process.
+•	Effectiveness: Transitions the system to a "fail-fast" model. Resources are automatically released from stalled workflows, preventing the accumulation of "Zombie" processes that previously paralyzed the Argo Controller.
 
-
-
-3.1.2 Challenge state diagram
-
-3.1.3 Queue Logic and Strategy
-a. Cơ chế Điều tiết
-Hệ thống sử dụng kỹ thuật In-memory Buffering để giới hạn số lượng yêu cầu xử lý cùng lúc giúp tách biệt tốc độ mạng của RabbitMQ và tốc độ xử lý logic của hệ thống.
-RabbitMQ Prefetch: cấu hình mặc định 40. Điều này đảm bảo Consumer chỉ nhận tối đa 40 message
-Kiểm tra khả năng hệ thống: Trước khi gửi request sang argo, Worker truy vấn Argo API để lấy số lượng Workflow đang chạy
-b. Quản lý Vòng đời
-Ack (Acknowledgement): Chỉ được gọi sau khi Argo Workflow đã tiếp nhận yêu cầu thành công
-Nack (Negative Acknowledgement): Khi xảy ra lỗi hệ thống hoặc lỗi Deserialize, message sẽ bị loại bỏ hoặc đẩy lại queue
-c. Xử lý TLL cho message
-Hệ thống áp dụng cơ chế bảo vệ hai lớp để loại bỏ các yêu cầu deploy không còn được quản lý nữa, giúp tiết kiệm tài nguyên cho cụm.
-Tầng Hạ tầng (RabbitMQ TTL)
-Đây là lớp bảo vệ đầu tiên nhằm tự động dọn dẹp hàng đợi mà không cần sự can thiệp của Worker.
-Tầng Ứng dụng (Application-level TTL)
-để xử lý các bản tin trong quá trình buffer hoặc do IO.
-
-3.2 Cải thiện cơ chế log
-
-Log phía server
+3.1.5. Implementation Rationale: Resolving the IS-6 Resource Deadlock
+The transition to an asynchronous admission-controlled model specifically addresses the architectural gaps in the legacy Argo-direct submission flow:
+a. Resolution of Argo Controller Saturation and Observability Deficit
+Problem: In the legacy design, 1,000 concurrent requests were submitted directly to the Argo Workflow Controller. This led to a "Controller Saturation" state where the system could not effectively track the status of individual requests. Argo’s internal queue became unmanageable, providing zero visibility into which requests were valid, stalled, or duplicated.
+Resolution: By introducing RabbitMQ as a pre-submission buffer, the system gains full observability. Each request is tracked as a discrete message before it ever reaches Argo. This allows the DeploymentConsumer to act as a gatekeeper, ensuring only a manageable volume of work is "admitted" into Argo, keeping the Argo Controller's internal state clean and responsive.
+b. Precision TTL and Stale Request Pruning
+Problem: Argo Workflow lacks a high-precision TTL mechanism for requests in the "Pending" or "Submitted" stage under extreme load. Once a request was accepted by Argo, it became nearly impossible to programmatically expire it if the cluster was already hanging, leading to "Zombie Workflows" that occupied slots indefinitely.
+Resolution: The new Two-Layer TTL strategy provides deterministic expiration.
+•	Messages in the queue expire naturally via RabbitMQ TTL if not processed within the timeout window.
+•	The Application-level TTL allows the Worker to discard requests that have become stale during the capacity-wait period. This ensures that only "fresh" requests are ever submitted to Argo, preventing the execution of irrelevant or outdated deployments.
+c. Mitigation of Control Plane Deadlocks via Backpressure
+Problem: Argo’s attempt to process a massive backlog of workflows placed an indirect, unthrottled load on the K3s and API server. Without a way to "pause" submissions at the application level, the entire Control Plane eventually deadlocked.
+Resolution: The Admission Control (Step 17-18) creates an explicit backpressure loop. By querying the actual running workflow count before submission, the system prevents the "Submission Storm" that previously paralyzed the Argo Controller and the underlying K3s infrastructure.
+3.2. Cải thiện cơ chế log  (Meets NFR-19, FR-07, FR-08, FR-11)
+3.2.1. Server-side log
 Hệ thống loại bỏ hoàn toàn sự phụ thuộc vào Client bằng cách tích hợp trực tiếp việc ghi log vào quy trình xử lý nghiệp vụ tại Backend. Mỗi khi một hành động nhạy cảm hoặc quan trọng được thực thi thành công trên Server, Log sẽ được ghi ngay lập tức trước khi trả kết quả về cho người dùng.
 API Endpoint
 Action Name
-POST /challenge/start
-START_CHALLENGE
-GET /challenge/hint
-UNLOCK_HINT
-POST /challenge/submit
-CORRECT_FLAG, INCORRECT_FLAG
+POST /challenge/start	START_CHALLENGE
+GET /challenge/hint	UNLOCK_HINT
+POST /challenge/submit	CORRECT_FLAG, INCORRECT_FLAG
+
+ 
+
+ 
+3.2.2. Action log screen for admin
+Trang này chịu trách nhiệm cung cấp giao diện giám sát toàn diện cho Admin và Ban giám khảo (Jury), cho phép truy cứu mọi hành động của thí sinh trong suốt cuộc thi. Để hỗ trợ Admin tìm kiếm nhanh chóng giữa hàng vạn bản ghi, hệ thống triển khai cơ chế filter theo team, user, log type và số page mỗi lần truy vấn.
+ 
+3.2.3. Audit log screen for admin
+ 
+3.2.4. Contestant request log
+3.4. Challenge access gateway (Meets requirement NFR-05)
+This module acts as the centralized Security Proxy for the entire Challenge system, serving as the single controlled entry point for all external traffic. It is designed to enforce security, access control, and traffic governance policies before any request is allowed to reach internal Challenge services. By consolidating these responsibilities into a single layer, the system minimizes the attack surface, ensures consistent policy enforcement, and simplifies observability and auditing.
+The proxy supports both HTTP and TCP protocols, enabling it to handle a wide range of challenge types, including web-based challenges (e.g., XSS, web exploitation) and binary-based challenges (e.g., Pwn, Reverse Engineering). Each protocol is processed through a dedicated pipeline tailored to its characteristics, while still adhering to shared security principles such as authentication, rate limiting, and resource control.
+In addition to access control, the module is responsible for protecting backend Challenge Pods from direct exposure. All incoming traffic is validated, filtered, and transformed as necessary before being forwarded internally. This design ensures that Challenge instances remain isolated, ephemeral, and resilient against abuse, including unauthorized access, resource exhaustion, and data leakage.
+Furthermore, the proxy integrates tightly with token-based authentication mechanisms, enabling fine-grained session control and ensuring that only properly authenticated participants can interact with the system. It also incorporates defensive mechanisms such as request validation, timeout enforcement, and traffic shaping to maintain system stability under high concurrency conditions, which are typical in competitive environments.
+
+3.1.1. HTTP Reverse Proxy
+This component is responsible for handling web-based challenge requests, ensuring that participants are properly identified and authenticated before accessing any resources.
+Processing Pipeline:
+●	Extraction: Extracts the token from the URL or from cookies (FCTF_Auth_Token).
+●	Authentication: Verifies the token signature to ensure its validity and integrity.
+●	State Management: If a valid token is provided via the URL, the system sets a cookie and performs a redirect to remove the token from the address bar, preventing leakage through mechanisms such as the Referer header.
+●	Rate Limiting: Applies request limits based on both IP address and token identity.
+●	Proxying: Uses httputil.ReverseProxy to forward the request to the appropriate internal Pod.
+To ensure system stability and security, all HTTP requests must pass through the following middleware layers:
+Middleware
+Function
+Rate Limiter	Enforces a limit on the number of requests per second based on both IP address and authentication token.
+Logging	Captures and records HTTP requests and responses from participants.
+Body Size Limit	Rejects requests whose payload size exceeds the configured threshold.
+
+
+ 
+3.1.2. TCP Proxy Gateway
+This component serves as a critical element in supporting Pwn/Reverse challenges. Since TCP does not include structured headers like HTTP, this module implements a custom authentication mechanism.
+Custom Authentication Handshake:
+ Once a connection is established, the Gateway sends a prompt requesting a token from the client. A SetReadDeadline mechanism is applied to enforce a time limit for token submission, mitigating idle connection (resource exhaustion) attacks. The data stream to the Challenge Pod is only established after successful token validation.
+Performance Optimization:
+●	Memory Pooling: A sync.Pool is utilized to manage 32KB buffers. This approach enables efficient memory reuse and significantly reduces the frequency of Garbage Collector (GC) executions under high concurrency (e.g., thousands of simultaneous participants).
+●	Concurrency Control: A semaphore mechanism is employed to enforce a maximum connection limit (MaxConns), preventing system instability caused by exhaustion of operating system resources such as file descriptors.
+Session Monitoring:
+●	Auto-close Mechanism: A time.NewTimer is synchronized with the token expiry time. Once the token expires, the TCP connection is immediately terminated to ensure fairness among participants.
+●	Data Sampling: The system captures the first 32KB of data sent from the client (client-to-server direction), encodes it in Base64, and stores it for further analysis or auditing purposes.
+ 
+3.5. Challenge Isolation 
+3.5.1. Network Policy
+
+ 
+The NetworkPolicy follows a zero-trust model by denying all ingress traffic by default using a deny-all-ingress policy, ensuring no connections are allowed unless explicitly defined
+Ingress traffic is only permitted from a dedicated gateway located in the app namespace with the label app=challenge-gateway, enforcing a single controlled entry point for all incoming requests
+Access is allowed for kubelet health checks (readiness and liveness probes) from the internal IP range 192.168.0.0/16 so that pod health monitoring continues to function without being blocked
+Egress is strictly controlled, allowing DNS queries over TCP and UDP port 53 to enable domain resolution while preventing DNS from being abused as a data exfiltration channel
+Outbound communication is allowed only to the internal gateway in the app namespace to support legitimate service flows through a controlled component
+Internet access is permitted but excludes all private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) and link-local metadata range (169.254.0.0/16), preventing access to internal cluster services and cloud metadata endpoints
+Overall, the policy enforces strong isolation by blocking all unnecessary communication paths, allowing only minimal required traffic, reducing attack surface, and preventing lateral movement within the cluster environment
+3.5.2. gVisor Sandbox
+ 
+The system utilizes gVisor Sandbox as the runtime isolation mechanism for each participant challenge, ensuring that all untrusted workloads are executed within a strongly isolated environment
+Each challenge instance runs inside the gVisor sandbox, where all system calls from the container are intercepted and handled by a user-space kernel, preventing direct interaction with the host kernel
+This design significantly reduces the risk of container escape and kernel-level exploitation, which is critical in a CTF environment where participants may intentionally attempt to break isolation boundaries
+Only a minimal and controlled subset of operations is forwarded to the host kernel when necessary, ensuring strict validation of all interactions
+By isolating each challenge instance with gVisor, the platform prevents cross-tenant interference, protects underlying infrastructure, and ensures that malicious or unintended behavior remains confined within the sandbox
+3.5.3. Hardening configuration
+The hardening configuration enforces a strict security baseline aligned with Kubernetes restricted standards, ensuring workloads operate with minimal privileges and reduced attack surface
+All containers are required to run as non-root users, preventing privilege escalation and limiting the impact of potential container compromise
+Privilege escalation is explicitly disabled and all Linux capabilities are dropped, ensuring that processes inside the container cannot gain additional privileges beyond their intended scope
+The root filesystem is configured as read-only, preventing unauthorized modification of binaries or system files and mitigating persistence techniques commonly used in container breakouts
+A seccomp profile set to RuntimeDefault is applied to restrict available system calls, reducing the risk of kernel-level exploitation
+Service account token automounting is disabled, preventing pods from accessing Kubernetes API credentials and reducing the risk of lateral movement within the cluster
+The Pod Security Admission is enforced at the restricted level across enforce, audit, and warn modes, ensuring policy compliance is both mandatory and observable
+Resource requests and limits are defined to prevent resource exhaustion attacks and ensure fair scheduling within the cluster
+Temporary storage is isolated using in-memory volumes, avoiding persistence of sensitive data on disk and reducing the risk of data leakage
+The workload is executed as a non-privileged, non-preemptible batch job with low priority, minimizing its impact on cluster stability and preventing interference with critical system components
+Overall, the hardening configuration ensures strong isolation, enforces least privilege principles, and significantly reduces the likelihood and impact of container-level and cluster-level attacks
+
+3.6. Storing and tracing Challenge Instance History mechanism
+
+3.7. CI/CD workflow (NFR-18) 
+
+The CI/CD workflow is designed to fully automate the process of building, pushing Docker images, and deploying services to a K3s cluster, while optimizing performance by only processing services that have actual changes. The pipeline is triggered when code is pushed to the `main` branch or manually via a workflow dispatch.
+At the beginning, the workflow checks out the source code and uses a path-based filtering mechanism to determine which services are affected by the changes. Based on this result, a dynamic matrix is generated containing only the services that need to be processed. If no services are changed, the pipeline exits early to save execution time and resources.
+For the services that have changes, the build and push phase runs in parallel for each service in the matrix. Each service is built into a Docker image using Docker Buildx and then pushed to DockerHub with two tags: an immutable tag based on the commit SHA to ensure traceability and rollback capability, and a mutable `latest` tag for convenient access to the most recent version. GitHub Actions cache is leveraged to improve build performance. Concurrency is controlled per service so that if multiple pipeline runs overlap, only the latest run for a specific service continues while previous ones are canceled, preventing conflicts.
+After a successful build, the workflow proceeds to the deployment phase, which also runs in parallel per service. The pipeline configures access to the K3s cluster using a kubeconfig stored securely as a secret. For each service, the deployment image is updated using `kubectl set image`, and the rollout process is monitored using `kubectl rollout status` until completion or timeout. This approach utilizes Kubernetes rolling updates to ensure zero downtime and isolates deployments so that changes to one service do not impact others.
+Finally, the workflow generates a summary that includes the build and deployment results along with the list of processed services, making it easy to track execution outcomes. If any step fails, the pipeline returns a failure status to maintain reliability and consistency.
+The workflow uses GitHub Secrets to manage sensitive data such as DockerHub credentials and kubeconfig, and by applying a least-privilege ServiceAccount model on the cluster.
+3.8. Dynamic score calculation race condition 
+When multiple users submit correct flags at nearly the same time for the same dynamic challenge, the system may trigger multiple concurrent executions of the recalculation logic. Without synchronization, these executions can read different or stale `solveCount` values and overwrite each other when updating `challenge.Value`. This leads to a lost update problem, where the final value does not reflect the actual number of solves.
+To prevent this, a Redis-based distributed lock is used to ensure that only one execution can perform the recalculation for a given challenge at any point in time. The lock is acquired using a `SETNX` operation with a TTL to avoid deadlocks in case the process crashes.
+If a request fails to acquire the lock, it enters a retry loop with a short delay (e.g., 100ms) until the lock becomes available. This guarantees that recalculation will eventually be executed without being skipped.
+Once the lock is acquired, the process enters a critical section where it reads the latest `solveCount` from the database, computes the new challenge value based on the configured function, and updates `challenge.Value`. After completing the update, the lock is released.
+This approach ensures mutual exclusion during recalculation, prevents stale data overwrites, and maintains consistency of the dynamic scoring logic. The use of a distributed lock allows the system to operate correctly in a multi-instance environment without relying on database-level locking, reducing contention on the database layer while preserving correctness.
+3.9. Unlock hint race condition
+ 
+3.10. Stop challenge race condition
+ 
+
+3.11. Improve File Access Control
+The system shall enforce secure file access by implementing both infrastructure-level isolation and application-level authorization controls. This design aims to mitigate risks related to unauthorized file access, path traversal, and over-privileged storage exposure.
+3.11.1 Infrastructure-Level Controls
+a. Principle of Least Privilege
+The system shall restrict access to the Network File System (NFS) by limiting each service to only the minimum required directories 
+For example: 
+The contestant-be service shall only mount: /srv/nfs/share/file
+Access to other directories such as:
+/srv/nfs/share/challenges
+/srv/nfs/share/start-challenge
+Is not granted access to this service.
+This ensures that even if application-level controls are bypassed, unauthorized access to sensitive files (e.g., flags, internal resources) remains prevented.
+The system shall enforce fine-grained access control using Access Control Lists (ACLs) based on service-specific user IDs.
+Access Matrix:
+
+/Challenges	/Start-challenge	/file
+Admin-mvc
+rwx		rwx
+filebrowser	rwx	rwx	rwx
+contestant-be
+		r-x
+up-challenge-workflow			r-x
+start-challenge-workflow		r-x	
+
+b. Root Squash Enforcement
+The NFS server is configured with the root_squash option to map root users from client containers to a non-privileged anonymous user (UID 65534).
+Access permissions for the anonymous user are explicitly defined using ACL to allow only the minimum required read access for specific directories.
+This configuration ensures that services running as root inside containers do not gain elevated privileges on the NFS server and are restricted to non-privileged access.
+c. Network Access Restriction
+The NFS server is configured with IP-based export rules to restrict access to a predefined set of trusted cluster nodes.
+Only the IP addresses of authorized nodes are allowed to mount the NFS share. All other network access is denied by default.
+This configuration ensures that the NFS storage is only accessible from controlled infrastructure components and is not exposed to external or unauthorized internal systems.
+3.11.2 Application-Level Controls
+ 
+a. Token-Based Authentication and Authorization
+All file access requests shall be authenticated using a secure token that contains identity and authorization metadata, including user_id, file_id, and team_id.
+The backend shall validate the integrity of the token using a cryptographic signature and verify that the user_id embedded in the token matches the identity associated with the current user session.
+This mechanism ensures that only authenticated users with valid tokens can initiate file access requests and prevents unauthorized or forged requests originating from the client side.
+b. File-Level Authorization Binding
+The system shall enforce strict binding between the requested file and the authorization data stored in the backend.
+File access shall only be granted when the file_id extracted from the token exactly matches the corresponding file record in the database.
+Any request with mismatched identifiers or attempts to manipulate file-related parameters shall be immediately rejected.
+This mechanism eliminates the risk of Insecure Direct Object Reference (IDOR) by ensuring that file access decisions are based solely on trusted server-side data.
+c. Controlled Path Resolution
+The system shall treat all user-provided file path parameters as untrusted input.
+Before accessing any file, the system shall:
+Normalize the path using canonical path resolution
+Validate that the resolved path remains within the designated NFS storage boundary
+Any attempt to traverse directories, escape the allowed storage scope, or access unauthorized system files shall be rejected at the application layer.
+This ensures that all file operations are confined strictly within approved storage directories.
+d. Challenge-Based Access Control
+For files associated with challenge content, the system shall enforce additional business logic constraints to control access based on competition state and user progress.
+The system shall:
+-	Verify that the associated challenge exists and is not in a hidden state
+-	Validate that all prerequisite challenges have been completed
+-	Confirm that the requesting user or team has the appropriate access rights
+Requests that do not satisfy these conditions shall be denied.
+This mechanism ensures controlled access to challenge resources and preserves the integrity and fairness of the competition environment.
+3.12. Refactor listener improve multi thread 
+
+
+3.13. Health Check mechanism
+3.14. Refactor Code Logic
+3.15. Instances History
+3.16. Audit Log for System
+3.17. Reward Query
+3.18. Refactor Code Logic
 
 
 
-Request log qua gateway
 
-3.4 Challenge access gateway
-3.5 Network policy
-3.6 Thiếu cơ chế lưu trữ và truy vết lịch sử Challenge Instance
-3.7  Thiếu quy trình CI/CD tự động hóa cho việc triển khai hệ thống
-3.8 unlock hint race condition
-3.9 stop challenge race condition
-3.10 improve file access flow 
-3.11 refactor listener improve multi thread 
+
+
+
+
+
+
+
+
+
 

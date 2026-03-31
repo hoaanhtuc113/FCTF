@@ -5,10 +5,42 @@ param(
     [string]$AccountsCsv = ".\k6\accounts.csv",
     [string]$ResultDir = ".\k6-results",
     [int]$TargetVus = 500,
-    [int]$TopCount = 10
+    [int]$TopCount = 10,
+    [double]$AttemptRate = 0.2,
+    [int]$ForceChallengeId = 0
 )
 
 $ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $false
+
+function Get-MetricValue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Metric,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+
+        [double]$Default = 0
+    )
+
+    if ($null -eq $Metric) {
+        return $Default
+    }
+
+    if ($Metric.PSObject.Properties.Name -contains 'values') {
+        $values = $Metric.values
+        if ($null -ne $values -and $values.PSObject.Properties.Name -contains $Name) {
+            return [double]$values.$Name
+        }
+    }
+
+    if ($Metric.PSObject.Properties.Name -contains $Name) {
+        return [double]$Metric.$Name
+    }
+
+    return $Default
+}
 
 function Get-DataRowsCount {
     param(
@@ -54,6 +86,7 @@ $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $summaryJson = Join-Path $ResultDir "k6-summary-$timestamp.json"
 $consoleLog = Join-Path $ResultDir "k6-console-$timestamp.log"
 $reportMd = Join-Path $ResultDir "k6-report-$timestamp.md"
+$resolvedAccountsCsv = (Resolve-Path -Path $AccountsCsv).Path
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  FCTF Contestant 500 Accounts - 1h" -ForegroundColor Cyan
@@ -68,16 +101,21 @@ Write-Host ""
 $k6Args = @(
     'run',
     '-e', "BASE_URL=$BaseUrl",
-    '-e', "ACCOUNTS_CSV=./accounts.csv",
+    '-e', "ACCOUNTS_CSV=$resolvedAccountsCsv",
     '-e', "TARGET_VUS=$TargetVus",
     '-e', "TOP_COUNT=$TopCount",
+    '-e', "ATTEMPT_RATE=$AttemptRate",
+    '-e', "FORCE_CHALLENGE_ID=$ForceChallengeId",
     '--summary-export', $summaryJson,
     '.\k6\contestant-500-1h.js'
 )
 
 $startTime = Get-Date
+$previousErrorAction = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
 & k6 @k6Args *>&1 | Tee-Object -FilePath $consoleLog
 $exitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorAction
 $endTime = Get-Date
 $duration = New-TimeSpan -Start $startTime -End $endTime
 
@@ -88,14 +126,14 @@ if (-not (Test-Path $summaryJson)) {
 
 $summary = Get-Content -Path $summaryJson -Encoding UTF8 | ConvertFrom-Json
 
-$p95 = [math]::Round($summary.metrics.http_req_duration.values.'p(95)', 2)
-$p99 = [math]::Round($summary.metrics.http_req_duration.values.'p(99)', 2)
-$avg = [math]::Round($summary.metrics.http_req_duration.values.avg, 2)
-$med = [math]::Round($summary.metrics.http_req_duration.values.med, 2)
-$errorRate = [math]::Round(($summary.metrics.http_req_failed.values.rate * 100), 3)
-$checksRate = [math]::Round(($summary.metrics.checks.values.rate * 100), 3)
-$flowRate = [math]::Round(($summary.metrics.portal_flow_success.values.rate * 100), 3)
-$httpReqRate = [math]::Round($summary.metrics.http_reqs.values.rate, 2)
+$p95 = [math]::Round((Get-MetricValue -Metric $summary.metrics.http_req_duration -Name 'p(95)'), 2)
+$p99 = [math]::Round((Get-MetricValue -Metric $summary.metrics.http_req_duration -Name 'p(99)'), 2)
+$avg = [math]::Round((Get-MetricValue -Metric $summary.metrics.http_req_duration -Name 'avg'), 2)
+$med = [math]::Round((Get-MetricValue -Metric $summary.metrics.http_req_duration -Name 'med'), 2)
+$errorRate = [math]::Round(((Get-MetricValue -Metric $summary.metrics.http_req_failed -Name 'rate') * 100), 3)
+$checksRate = [math]::Round(((Get-MetricValue -Metric $summary.metrics.checks -Name 'value') * 100), 3)
+$flowRate = [math]::Round(((Get-MetricValue -Metric $summary.metrics.portal_flow_success -Name 'value') * 100), 3)
+$httpReqRate = [math]::Round((Get-MetricValue -Metric $summary.metrics.http_reqs -Name 'rate'), 2)
 
 $report = @"
 # FCTF k6 Report (500 accounts / 1 hour)
