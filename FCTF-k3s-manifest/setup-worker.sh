@@ -125,6 +125,10 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
   runtime_type = "io.containerd.runsc.v1"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
+  BinaryName = "/usr/local/bin/runsc"
+  SystemdCgroup = true
 EOF
 
   sudo tee /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl > /dev/null <<'EOF'
@@ -132,10 +136,14 @@ EOF
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
   runtime_type = "io.containerd.runsc.v1"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
+  BinaryName = "/usr/local/bin/runsc"
+  SystemdCgroup = true
 EOF
 
   echo "==> Restarting k3s-agent to apply runsc runtime"
-  sudo systemctl restart k3s || sudo systemctl restart k3s-agent
+  sudo systemctl restart k3s-agent
   sudo systemctl is-active --quiet k3s-agent
 fi
 
