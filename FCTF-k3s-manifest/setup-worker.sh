@@ -176,10 +176,11 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
   sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd
   for tmpl in config.toml.tmpl config-v3.toml.tmpl; do
     sudo tee "/var/lib/rancher/k3s/agent/etc/containerd/${tmpl}" >/dev/null <<'EOF'
-{{ template "base" . }}
+version = 2
 
-[plugins."io.containerd.runtime.v1.linux"]
-  shim_debug = true
+[plugins."io.containerd.grpc.v1.cri".containerd]
+  default_runtime_name = "runc"
+
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
   runtime_type = "io.containerd.runsc.v1"
 EOF
