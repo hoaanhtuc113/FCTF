@@ -8,8 +8,9 @@ metadata:
 spec:
   serviceAccountName: start-chal-v2-workflow-sa
   activeDeadlineSeconds: 120
-  podGC:
-    strategy: OnPodCompletion
+  ttlStrategy:
+    secondsAfterSuccess: 604800     # 7 days
+    secondsAfterFailure: 1209600    # 14 days
   entrypoint: main
   arguments:
     parameters:
