@@ -165,7 +165,6 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
   [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
     runtime_type = "io.containerd.runsc.v1"
 EOF
-  done
 
   echo "==> Restarting k3s-agent to apply runsc runtime"
   sudo systemctl restart k3s-agent
