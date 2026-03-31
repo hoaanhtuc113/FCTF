@@ -9,7 +9,7 @@ INSTALL_GVISOR="true"
 INTERACTIVE="true"
 ARG_COUNT=$#
 
-install_gvisor_production() {
+install_gvisor_from_release() {
   local arch version release_base url tmpdir expected actual
 
   arch="$(uname -m)"
@@ -55,6 +55,24 @@ install_gvisor_production() {
   sudo install -o root -g root -m 0755 "${tmpdir}/containerd-shim-runsc-v1" /usr/local/bin/containerd-shim-runsc-v1
 
   echo "==> gVisor installed: $(/usr/local/bin/runsc --version 2>/dev/null | head -n 1 || echo "unknown version")"
+}
+
+install_gvisor_production() {
+  echo "==> Installing gVisor (runsc) via apt repository"
+  sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
+
+  curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list >/dev/null
+
+  sudo apt-get update && sudo apt-get install -y runsc
+
+  if ! command -v runsc >/dev/null 2>&1; then
+    echo "Warning: runsc not installed via apt; falling back to release download"
+    install_gvisor_from_release
+    return
+  fi
+
+  echo "==> gVisor installed: $(runsc --version 2>/dev/null | head -n 1 || echo 'unknown version')"
 }
 
 usage() {
@@ -160,14 +178,10 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
     sudo tee "/var/lib/rancher/k3s/agent/etc/containerd/${tmpl}" >/dev/null <<'EOF'
 {{ template "base" . }}
 
-[plugins."io.containerd.grpc.v1.cri".containerd]
-  default_runtime_name = "runc"
-
+[plugins."io.containerd.runtime.v1.linux"]
+  shim_debug = true
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
   runtime_type = "io.containerd.runsc.v1"
-
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
-  BinaryName = "/usr/local/bin/runsc"
 EOF
   done
 
