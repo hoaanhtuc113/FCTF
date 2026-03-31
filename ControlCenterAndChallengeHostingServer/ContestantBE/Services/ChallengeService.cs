@@ -444,7 +444,7 @@ public class ChallengeService : IChallengeService
                 {
                     status = (int)HttpStatusCode.BadRequest,
                     success = false,
-                    message = "No response from server"
+                    message = "Deployment service is not responding. Please try again later."
                 };
 
             var result = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(body);
@@ -455,7 +455,7 @@ public class ChallengeService : IChallengeService
                 {
                     status = (int)HttpStatusCode.InternalServerError,
                     success = false,
-                    message = "Failed to parse server response"
+                    message = "Error processing deployment data. Please contact support."
                 };
             }
             return result;
@@ -468,7 +468,7 @@ public class ChallengeService : IChallengeService
             {
                 status = (int)HttpStatusCode.BadGateway,
                 success = false,
-                message = "Connection url failed"
+                message = "Unable to connect to deployment server. Please contact support."
             };
         }
         catch (Exception ex)
@@ -478,7 +478,7 @@ public class ChallengeService : IChallengeService
             {
                 status = (int)HttpStatusCode.InternalServerError,
                 success = false,
-                message = "Unexpected error occurred"
+                message = "An unexpected error occurred. We are working to fix it."
             };
         }
     }
