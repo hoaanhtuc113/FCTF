@@ -162,6 +162,9 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
   runtime_type = "io.containerd.runsc.v1"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
+  BinaryName = "/usr/local/bin/runsc"
 EOF
   done
 

@@ -21,14 +21,6 @@ helm upgrade --install cert-manager jetstack/cert-manager \
   --set webhook.securePort=10250 \
   --debug
 
-#cài filebrowser
-helm repo add utkuozdemir https://utkuozdemir.github.io/helm-charts
-helm repo update
-helm upgrade --install filebrowser utkuozdemir/filebrowser \
-  --create-namespace --namespace storage \
-  -f ./helm/filebrowser/values.yaml \
-  --debug
-
 # Cài mariadb
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
@@ -76,6 +68,14 @@ helm repo update
 helm upgrade --install argo-workflows argo/argo-workflows \
   --namespace argo --create-namespace \
   -f ./helm/argo/argo-values.yaml \
+  --debug
+
+# cài harbour registry
+helm repo add harbor https://helm.goharbor.io
+helm repo update
+helm upgrade --install harbor harbor/harbor \
+  --namespace registry --create-namespace \
+  -f ./helm/registry/harbor-values.yaml \
   --debug
 
 # cài rancher

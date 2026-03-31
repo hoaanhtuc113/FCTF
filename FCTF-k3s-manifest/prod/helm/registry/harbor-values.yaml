@@ -1,0 +1,67 @@
+expose:
+  type: clusterIP
+  tls:
+    enabled: false   # ingress terminate TLS rồi
+
+externalURL: https://registry.fctf.site 
+
+harborAdminPassword: "FCTF@2025"
+secretKey: "oMT66fZeAVeVE1lLgI6bgn9dQInYWCuOWyGGKYXDDTCh1K8nKj"
+
+internalTLS:
+  enabled: false
+
+database:
+  type: internal
+
+redis:
+  type: internal
+
+persistence:
+  enabled: true
+  persistentVolumeClaim:
+    registry:
+      size: 100Gi
+      accessMode: ReadWriteMany
+    database:
+      size: 5Gi
+    redis:
+      size: 2Gi
+    jobservice:
+      size: 2Gi
+
+portal:
+  replicas: 1
+
+core:
+  replicas: 1
+  config:
+    project_creation_restriction: adminonly
+
+jobservice:
+  replicas: 1
+
+registry:
+  replicas: 2
+  garbageCollection:
+    enabled: true
+    schedule: "0 */6 * * *"
+
+nginx:
+  replicas: 2
+
+trivy:
+  enabled: false
+
+notary:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+logLevel: warn
