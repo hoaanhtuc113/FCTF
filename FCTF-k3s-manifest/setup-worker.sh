@@ -156,15 +156,20 @@ if [[ "${INSTALL_GVISOR}" == "true" ]]; then
 
   echo "==> Configuring containerd runtime for runsc (preserve k3s base template)"
   sudo mkdir -p /var/lib/rancher/k3s/agent/etc/containerd
-  sudo tee /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl > /dev/null <<'EOF'
-  version = 2
+  for tmpl in config.toml.tmpl config-v3.toml.tmpl; do
+    sudo tee "/var/lib/rancher/k3s/agent/etc/containerd/${tmpl}" >/dev/null <<'EOF'
+{{ template "base" . }}
 
-  [plugins."io.containerd.grpc.v1.cri".containerd]
-    default_runtime_name = "runc"
+[plugins."io.containerd.grpc.v1.cri".containerd]
+  default_runtime_name = "runc"
 
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
-    runtime_type = "io.containerd.runsc.v1"
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+  runtime_type = "io.containerd.runsc.v1"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
+  BinaryName = "/usr/local/bin/runsc"
 EOF
+  done
 
   echo "==> Restarting k3s-agent to apply runsc runtime"
   sudo systemctl restart k3s-agent
