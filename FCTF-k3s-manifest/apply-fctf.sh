@@ -27,7 +27,6 @@ STORAGE_PV_FILES=(
   "${PROD_DIR}/storage/pv/contestant-be-pv.yaml"
   "${PROD_DIR}/storage/pv/up-challenge-workflow-pv.yaml"
   "${PROD_DIR}/storage/pv/start-challenge-workflow-pv.yaml"
-  "${PROD_DIR}/storage/pv/filebrowser-pv.yaml"
 )
 
 STORAGE_PVC_FILES=(
@@ -35,7 +34,6 @@ STORAGE_PVC_FILES=(
   "${PROD_DIR}/storage/pvc/contestant-be-pvc.yaml"
   "${PROD_DIR}/storage/pvc/up-challenge-workflow-pvc.yaml"
   "${PROD_DIR}/storage/pvc/start-challenge-workflow-pvc.yaml"
-  "${PROD_DIR}/storage/pvc/filebrowser-pvc.yaml"
 )
 
 apply_storage_manifests() {
