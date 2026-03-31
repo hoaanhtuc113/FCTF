@@ -254,8 +254,7 @@ if [[ "${DEPLOY_APP_SERVICES}" == "true" ]]; then
 
   echo "==> Applying base classes, ConfigMaps and Secrets"
   kubectl apply -f "${PROD_DIR}/priority-classes.yaml"
-  kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
-  kubectl apply -f "${PROD_DIR}/env/configmap/"
+    kubectl apply -f "${PROD_DIR}/env/configmap/"
   kubectl apply -f "${PROD_DIR}/env/secret/"
 
   if [[ "${APPLY_HELM}" != "true" ]]; then
