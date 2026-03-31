@@ -1,1 +1,3 @@
 hostname: rancher.fctf.site
+replicas: 1
+bootstrapPassword: "Ab@123456789"
