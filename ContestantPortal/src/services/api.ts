@@ -15,10 +15,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}, API 
     headers,
   });
 
-  // Only logout on 401 (Unauthorized - invalid/expired token)
-  // Let components handle 403 (Forbidden - valid token but insufficient permissions)
+  // On 401, clear local session only (token is already invalid/expired).
+  // Let components handle 403 (Forbidden - valid token but insufficient permissions).
   if (response.status === 401) {
-    authService.logout();
+    authService.clearSession();
     window.location.href = '/login';
   }
 
@@ -49,9 +49,9 @@ export async function downloadFile(url: string): Promise<Blob> {
     headers,
   });
 
-  // Only logout on 401 (Unauthorized - invalid/expired token)
+  // On 401, clear local session only (token is already invalid/expired).
   if (response.status === 401) {
-    authService.logout();
+    authService.clearSession();
     window.location.href = '/login';
   }
 

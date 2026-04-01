@@ -12,6 +12,7 @@ namespace ContestantBE.Services;
 public class AuthService : IAuthService
 {
     private static readonly string _dummyPasswordHash = SHA256Helper.HashPasswordPythonStyle("fctf-dummy-password");
+    private const string PasswordSpecialCharacters = "!@#$%^&*(),.?\":{}|<>";
 
     private readonly AppDbContext _context;
     private readonly TokenHelper _tokenHelper;
@@ -45,6 +46,16 @@ public class AuthService : IAuthService
         {
             // Intentionally ignore to keep behavior timing-oriented only.
         }
+    }
+
+    private static bool IsValidPasswordPolicy(string password)
+    {
+        return password.Length >= 8
+            && password.Length <= 20
+            && password.Any(char.IsUpper)
+            && password.Any(char.IsLower)
+            && password.Any(char.IsDigit)
+            && password.Any(c => PasswordSpecialCharacters.Contains(c));
     }
 
     public async Task<BaseResponseDTO<AuthResponseDTO>> LoginContestant(LoginDTO loginDto)
@@ -179,16 +190,20 @@ public class AuthService : IAuthService
                 return BaseResponseDTO<string>.Fail("All password fields are required");
             }
 
-            // Check password length (max 20 characters)
-            if (changePasswordDto.newPassword.Length > 20)
-            {
-                return BaseResponseDTO<string>.Fail("Password must not exceed 20 characters");
-            }
-
             // Check if new password matches confirm password
             if (changePasswordDto.newPassword != changePasswordDto.confirmPassword)
             {
                 return BaseResponseDTO<string>.Fail("New password and confirm password do not match");
+            }
+
+            if (string.Equals(changePasswordDto.oldPassword, changePasswordDto.newPassword, StringComparison.Ordinal))
+            {
+                return BaseResponseDTO<string>.Fail("New password must be different from current password");
+            }
+
+            if (!IsValidPasswordPolicy(changePasswordDto.newPassword))
+            {
+                return BaseResponseDTO<string>.Fail("New password must be 8-20 characters and include uppercase, lowercase, number, and special character");
             }
 
             // Get user from database
@@ -216,6 +231,39 @@ public class AuthService : IAuthService
         {
             _logger.LogError(ex, userId);
             return BaseResponseDTO<string>.Fail("An error occurred while changing password");
+        }
+    }
+
+    public async Task<BaseResponseDTO<string>> Logout(int userId)
+    {
+        try
+        {
+            var existingTokens = await _context.Tokens
+                .Where(t => t.UserId == userId && t.Type == ResourceShared.Enums.UserType.User)
+                .ToListAsync();
+
+            if (existingTokens.Count > 0)
+            {
+                _context.Tokens.RemoveRange(existingTokens);
+                await _context.SaveChangesAsync();
+            }
+
+            try
+            {
+                var cacheKey = $"auth:user:{userId}";
+                _ = await _redisHelper.RemoveCacheAsync(cacheKey);
+            }
+            catch
+            {
+                // ignore cache errors
+            }
+
+            return BaseResponseDTO<string>.Ok("Logged out successfully", "Logged out successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, userId);
+            return BaseResponseDTO<string>.Fail("An error occurred during logout");
         }
     }
 }

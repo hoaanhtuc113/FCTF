@@ -196,6 +196,11 @@ export function Profile() {
       return;
     }
 
+    if (oldPassword === newPassword) {
+      showAlert('New password must be different from current password.', 'error');
+      return;
+    }
+
     if (newPassword.length < 8) {
       showAlert('New password must be at least 8 characters long.', 'error');
       return;
