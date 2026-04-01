@@ -226,12 +226,12 @@ if [[ "${INTERACTIVE}" == "true" ]]; then
 
   if [[ "${SETUP_NFS_SERVER}" == "true" ]]; then
     while true; do
-      read -r -p "NFS allowed subnet/client list (IPv4/CIDR, comma/space list, or * for all): " NFS_ALLOWED_SUBNET
+      read -r -p "NFS allowed subnet/client list (IPv4/CIDR, comma/space list, or * for all). Examples: '*' or '10.148.0.0/24' or '10.148.0.0/24 10.149.0.0/24': " NFS_ALLOWED_SUBNET
       NFS_ALLOWED_SUBNET="$(normalize_nfs_allowed_subnet "${NFS_ALLOWED_SUBNET}")"
       if is_valid_nfs_allowed_subnet "${NFS_ALLOWED_SUBNET}"; then
         break
       fi
-      echo "Invalid NFS_ALLOWED_SUBNET format. Examples: *, 10.148.0.0/24, 10.148.0.0/24 10.149.0.0/24"
+      echo "Invalid NFS_ALLOWED_SUBNET format."
     done
   fi
 elif [[ -z "${TLS_SAN}" ]]; then
