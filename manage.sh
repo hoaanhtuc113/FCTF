@@ -37,7 +37,8 @@ show_menu() {
 	echo "4) Setup harbor"
 	echo "5) Setup CI/CD"
 	echo "6) Get Argo token"
-	echo "7) Uninstall"
+	echo "7) Get master token"
+	echo "8) Uninstall"
 	echo "0) Exit"
 	echo "============================================="
 }
@@ -59,6 +60,11 @@ uninstall_worker() {
 uninstall_master() {
 	echo "==> Running uninstall.sh"
 	run_script "${UNINSTALL_MASTER_SH}"
+}
+
+get_master_token() {
+	echo "==> Master join token:"
+	sudo cat /var/lib/rancher/k3s/server/node-token
 }
 
 while true; do
@@ -91,6 +97,10 @@ while true; do
 			run_script "${GET_ARGO_TOKEN_SH}"
 			;;
 		7)
+			echo "==> Running get master token"
+			get_master_token
+			;;
+		8)
 			while true; do
 				show_uninstall_menu
 				read -r -p "Select uninstall option: " uninstall_choice
@@ -118,7 +128,7 @@ while true; do
 			exit 0
 			;;
 		*)
-			echo "Invalid option. Please choose 0-7."
+			echo "Invalid option. Please choose 0-8."
 			;;
 	esac
 done
