@@ -20,6 +20,7 @@ HARBOR_WAIT_SECONDS="${HARBOR_WAIT_SECONDS:-180}"
 BUILDKIT_SOCKET="${BUILDKIT_SOCKET:-unix:///run/buildkit/buildkitd.sock}"
 BUILDKIT_WAIT_SECONDS="${BUILDKIT_WAIT_SECONDS:-60}"
 BUILDKIT_LOG_FILE="${BUILDKIT_LOG_FILE:-/tmp/buildkitd.log}"
+AUTO_SNAPSHOT_RECOVERY="${AUTO_SNAPSHOT_RECOVERY:-true}"
 
 NERDCTL=()
 CI_USER="${CI_USER:-}"
@@ -259,6 +260,52 @@ ensure_buildkit() {
   echo "==> Using BUILDKIT_HOST=${BUILDKIT_HOST}"
 }
 
+# ===== SNAPSHOT ERROR DETECTION =====
+is_stale_snapshot_error() {
+  local log_file=$1
+
+  grep -qiE 'failed to walk: resolve' "$log_file" && \
+  grep -qiE 'io\.containerd\.snapshotter\.v1\.overlayfs/snapshots/.+no such file or directory' "$log_file"
+}
+
+# ===== RESTART BUILDKITD =====
+restart_buildkitd() {
+  local socket_path="${BUILDKIT_SOCKET#unix://}"
+
+  echo "==> Restarting buildkitd..."
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^buildkit\.service'; then
+    sudo systemctl restart buildkit || true
+  else
+    sudo pkill -f "buildkitd --addr ${BUILDKIT_SOCKET}" >/dev/null 2>&1 || true
+    sudo rm -f "$socket_path" >/dev/null 2>&1 || true
+  fi
+
+  start_buildkitd
+}
+
+# ===== RECOVER STALE SNAPSHOT STATE =====
+recover_stale_snapshot_state() {
+  echo "==> Attempting stale snapshot recovery (one-time)..."
+
+  if command -v buildctl >/dev/null 2>&1; then
+    buildctl --addr "$BUILDKIT_SOCKET" prune --all --force >/dev/null 2>&1 || \
+    sudo buildctl --addr "$BUILDKIT_SOCKET" prune --all --force >/dev/null 2>&1 || true
+  fi
+
+  "${NERDCTL[@]}" builder prune -af >/dev/null 2>&1 || true
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^k3s\.service'; then
+    echo "==> Restarting k3s service to refresh containerd snapshots..."
+    sudo systemctl restart k3s || true
+  fi
+
+  check_containerd
+  restart_buildkitd
+
+  echo "==> Snapshot recovery finished"
+}
+
 # ===== DETECT NERDCTL =====
 detect_nerdctl() {
   SOCKET="$CONTAINERD_SOCKET"
@@ -375,6 +422,10 @@ build_and_push () {
   local name=$1
   local dockerfile=$2
   local context=$3
+  local IMAGE
+  local DOCKERFILE_PATH
+  local CONTEXT_PATH
+  local build_log
 
   IMAGE="${HARBOR_HOST}/${PROJECT_NAME}/${name}:latest"
 
@@ -392,7 +443,21 @@ build_and_push () {
 
   echo "==> Building $IMAGE"
 
-  "${NERDCTL[@]}" build -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH"
+  build_log="$(mktemp)"
+  if ! "${NERDCTL[@]}" build -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH" 2>&1 | tee "$build_log"; then
+    if [[ "$AUTO_SNAPSHOT_RECOVERY" == "true" ]] && is_stale_snapshot_error "$build_log"; then
+      echo "==> Detected stale containerd snapshot metadata while building $IMAGE"
+      recover_stale_snapshot_state
+      echo "==> Retrying build once for $IMAGE"
+      "${NERDCTL[@]}" build -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH"
+    else
+      rm -f "$build_log"
+      echo "❌ Build failed for $IMAGE"
+      return 1
+    fi
+  fi
+
+  rm -f "$build_log"
   "${NERDCTL[@]}" push "$IMAGE"
 }
 
