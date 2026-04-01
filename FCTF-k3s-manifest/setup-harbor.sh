@@ -21,6 +21,8 @@ BUILDKIT_SOCKET="${BUILDKIT_SOCKET:-unix:///run/buildkit/buildkitd.sock}"
 BUILDKIT_WAIT_SECONDS="${BUILDKIT_WAIT_SECONDS:-60}"
 BUILDKIT_LOG_FILE="${BUILDKIT_LOG_FILE:-/tmp/buildkitd.log}"
 AUTO_SNAPSHOT_RECOVERY="${AUTO_SNAPSHOT_RECOVERY:-true}"
+BUILD_NO_CACHE="${BUILD_NO_CACHE:-true}"
+SNAPSHOT_RETRY_NO_CACHE="${SNAPSHOT_RETRY_NO_CACHE:-true}"
 
 NERDCTL=()
 CI_USER="${CI_USER:-}"
@@ -261,11 +263,12 @@ ensure_buildkit() {
 }
 
 # ===== SNAPSHOT ERROR DETECTION =====
-is_stale_snapshot_error() {
+is_snapshot_corruption_error() {
   local log_file=$1
 
-  grep -qiE 'failed to walk: resolve' "$log_file" && \
-  grep -qiE 'io\.containerd\.snapshotter\.v1\.overlayfs/snapshots/.+no such file or directory' "$log_file"
+  grep -qiE 'failed to walk: resolve.+io\.containerd\.snapshotter\.v1\.overlayfs/snapshots/.+no such file or directory' "$log_file" || \
+  grep -qiE 'snapshot [^ ]+ does not exist: not found' "$log_file" || \
+  grep -qiE 'failed to solve: snapshot [^ ]+ does not exist' "$log_file"
 }
 
 # ===== RESTART BUILDKITD =====
@@ -426,6 +429,8 @@ build_and_push () {
   local DOCKERFILE_PATH
   local CONTEXT_PATH
   local build_log
+  local build_no_cache_args=()
+  local retry_no_cache_args=()
 
   IMAGE="${HARBOR_HOST}/${PROJECT_NAME}/${name}:latest"
 
@@ -443,13 +448,22 @@ build_and_push () {
 
   echo "==> Building $IMAGE"
 
+  if [[ "$BUILD_NO_CACHE" == "true" ]]; then
+    build_no_cache_args=(--no-cache)
+  fi
+
   build_log="$(mktemp)"
-  if ! "${NERDCTL[@]}" build -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH" 2>&1 | tee "$build_log"; then
-    if [[ "$AUTO_SNAPSHOT_RECOVERY" == "true" ]] && is_stale_snapshot_error "$build_log"; then
-      echo "==> Detected stale containerd snapshot metadata while building $IMAGE"
+  if ! "${NERDCTL[@]}" build "${build_no_cache_args[@]}" -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH" 2>&1 | tee "$build_log"; then
+    if [[ "$AUTO_SNAPSHOT_RECOVERY" == "true" ]] && is_snapshot_corruption_error "$build_log"; then
+      echo "==> Detected containerd snapshot corruption while building $IMAGE"
       recover_stale_snapshot_state
+
+      if [[ "$SNAPSHOT_RETRY_NO_CACHE" == "true" ]]; then
+        retry_no_cache_args=(--no-cache)
+      fi
+
       echo "==> Retrying build once for $IMAGE"
-      "${NERDCTL[@]}" build -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH"
+      "${NERDCTL[@]}" build "${retry_no_cache_args[@]}" -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH"
     else
       rm -f "$build_log"
       echo "❌ Build failed for $IMAGE"
