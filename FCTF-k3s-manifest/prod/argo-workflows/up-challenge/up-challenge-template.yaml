@@ -158,9 +158,9 @@ spec:
               --custom-platform=linux/amd64 \
               --snapshot-mode=redo \
               --verbosity=info \
-              --destination=quachuoiscontainer/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}
+              --destination=registry.fctf.site/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest
 
-            echo "✅ Image pushed: quachuoiscontainer/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}"
+            echo "✅ Image pushed: registry.fctf.site/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest"
 
       volumes:
         - name: nfs-shared-data
@@ -183,7 +183,7 @@ spec:
         preemptionPolicy: Never
 
       container:
-        image: quachuoiscontainer/kubectl-cli:v0.0.3
+        image: registry.fctf.site/fctf/kubectl-cli:latest
         imagePullPolicy: IfNotPresent
 
         # HARDENED (safe – no write needed)

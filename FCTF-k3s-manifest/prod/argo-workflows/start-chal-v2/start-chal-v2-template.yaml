@@ -87,7 +87,7 @@ spec:
           fsGroup: 1104
           fsGroupChangePolicy: OnRootMismatch
       container:
-        image: quachuoiscontainer/kubectl-cli:v0.0.3
+        image: registry.fctf.site/fctf/kubectl-cli:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 1104

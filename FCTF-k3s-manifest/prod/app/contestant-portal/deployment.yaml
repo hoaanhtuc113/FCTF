@@ -19,7 +19,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: contestant-portal
-          image: quachuoiscontainer/fctf:contestant-portal-prod-latest
+          image: registry.fctf.site/fctf/contestant-portal:latest
           ports:
             - name: http-client
               containerPort: 8080
