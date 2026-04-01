@@ -101,6 +101,27 @@ Select:
 - `5) Setup CI/CD`
 - `6) Get Argo token`
 
+### Environment-specific configuration checklist (Important)
+
+Before running production deployment, review and update the following values based on your target environment:
+
+- **NFS server IP in PV manifests**  
+	Update the NFS server address in PersistentVolume files under the K3s manifests (NFS-backed storage).
+
+- **Nginx domain**  
+	Update ingress/nginx hostnames and related domain references to match your actual public domain.
+
+- **Rancher domain in `rancher-values.yaml`**  
+	Ensure Rancher hostname/domain values are set correctly for your environment.
+
+- **ConfigMaps and Secrets**  
+	Review all application configuration and secret values (URLs, keys, credentials, feature flags, etc.).
+
+- **Helm credentials (accounts/passwords)**  
+	Replace default or placeholder usernames/passwords in Helm values files (database, RabbitMQ, Redis, Harbor, and other components).
+
+> All items above must be adjusted per environment (dev/staging/prod) before installation.
+
 ## Uninstall
 
 Use the management menu:
@@ -126,3 +147,6 @@ Recommended order:
 ## Architecture
 
 > (To be completed)
+
+
+
