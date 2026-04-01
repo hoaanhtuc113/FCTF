@@ -50,7 +50,7 @@ func (sr *statusRecorder) WriteHeader(code int) {
 	sr.status = code
 	sr.ResponseWriter.WriteHeader(code)
 }
-
+// ── HTTP gateway ─────────────────────────────────────────────────────────────
 // StartHTTP initialises and starts the HTTP reverse-proxy gateway.
 // It returns the *http.Server so the caller can gracefully shut it down.
 func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
