@@ -67,6 +67,10 @@ sudo rm -rf /var/lib/containerd || true
 echo "Removing gVisor (if installed)"
 sudo rm -f /usr/local/bin/runsc || true
 sudo rm -f /usr/local/bin/containerd-shim-runsc-v1 || true
+sudo rm -f /etc/apt/sources.list.d/gvisor.list || true
+sudo rm -f /usr/share/keyrings/gvisor-archive-keyring.gpg || true
+sudo apt-get remove -y runsc || true
+sudo apt-get autoremove -y || true
 
 echo "Removing virtual interfaces from Calico/K3s (if any)"
 run_cmd sudo ip link delete cni0
