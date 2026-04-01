@@ -3,6 +3,7 @@ set -euo pipefail
 
 TIMEZONE="Asia/Ho_Chi_Minh"
 MAX_PODS="110"
+# inputable
 TLS_SAN=""
 INSTALL_CALICO="true"
 INSTALL_GVISOR="true"
@@ -14,13 +15,112 @@ APPLY_ARGO_TEMPLATES="true"
 SERVICE_MODE="clusterip"
 SETUP_NFS_SERVER="true"
 NFS_SHARE_PATH="/srv/nfs/share"
-NFS_ALLOWED_SUBNET="*"
+# inputable
+NFS_ALLOWED_SUBNET=""
 INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROD_DIR="${SCRIPT_DIR}/prod"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
+
+normalize_nfs_allowed_subnet() {
+  local raw="$1"
+  raw="${raw//,/ }"
+  echo "${raw}" | xargs
+}
+
+is_valid_ipv4() {
+  local ip="$1"
+  local IFS='.'
+  local -a octets
+  read -r -a octets <<< "${ip}"
+  if [[ ${#octets[@]} -ne 4 ]]; then
+    return 1
+  fi
+
+  local o
+  for o in "${octets[@]}"; do
+    [[ "${o}" =~ ^[0-9]{1,3}$ ]] || return 1
+    (( o >= 0 && o <= 255 )) || return 1
+  done
+  return 0
+}
+
+is_valid_nfs_client_token() {
+  local token="$1"
+  local ip mask
+
+  if [[ "${token}" == "*" ]]; then
+    return 0
+  fi
+
+  if [[ "${token}" == */* ]]; then
+    ip="${token%/*}"
+    mask="${token#*/}"
+    is_valid_ipv4 "${ip}" || return 1
+    [[ "${mask}" =~ ^[0-9]{1,2}$ ]] || return 1
+    (( mask >= 0 && mask <= 32 )) || return 1
+    return 0
+  fi
+
+  is_valid_ipv4 "${token}"
+}
+
+is_valid_nfs_allowed_subnet() {
+  local raw="$1"
+  local normalized token
+  normalized="$(normalize_nfs_allowed_subnet "${raw}")"
+
+  [[ -n "${normalized}" ]] || return 1
+
+  if [[ "${normalized}" == "*" ]]; then
+    return 0
+  fi
+
+  for token in ${normalized}; do
+    if [[ "${token}" == "*" ]]; then
+      return 1
+    fi
+    is_valid_nfs_client_token "${token}" || return 1
+  done
+
+  return 0
+}
+
+is_valid_dns_name() {
+  local host="$1"
+  local label
+
+  [[ ${#host} -le 253 ]] || return 1
+  [[ "$host" != .* && "$host" != *. ]] || return 1
+
+  IFS='.' read -r -a labels <<< "$host"
+  [[ ${#labels[@]} -ge 1 ]] || return 1
+
+  for label in "${labels[@]}"; do
+    [[ -n "$label" ]] || return 1
+    [[ ${#label} -le 63 ]] || return 1
+    [[ "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
+  done
+
+  return 0
+}
+
+is_valid_tls_san() {
+  local value="$1"
+
+  [[ -n "$value" ]] || return 1
+  [[ "$value" != *[[:space:]]* ]] || return 1
+  [[ "$value" != *://* ]] || return 1
+  [[ "$value" != */* ]] || return 1
+  [[ "$value" != *:* ]] || return 1
+
+  is_valid_ipv4 "$value" && return 0
+  is_valid_dns_name "$value" && return 0
+
+  return 1
+}
 
 
 usage() {
@@ -116,13 +216,47 @@ if [[ ${ARG_COUNT} -eq 0 ]]; then
 fi
 
 if [[ "${INTERACTIVE}" == "true" ]]; then
-  while [[ -z "${TLS_SAN}" ]]; do
+  while true; do
     read -r -p "Master TLS SAN (public IP/domain, required): " TLS_SAN
+    if is_valid_tls_san "${TLS_SAN}"; then
+      break
+    fi
+    echo "Invalid TLS_SAN format. Use IPv4 or domain only (no scheme, port, or path)."
   done
+
+  if [[ "${SETUP_NFS_SERVER}" == "true" ]]; then
+    while true; do
+      read -r -p "NFS allowed subnet/client list (IPv4/CIDR, comma/space list, or * for all): " NFS_ALLOWED_SUBNET
+      NFS_ALLOWED_SUBNET="$(normalize_nfs_allowed_subnet "${NFS_ALLOWED_SUBNET}")"
+      if is_valid_nfs_allowed_subnet "${NFS_ALLOWED_SUBNET}"; then
+        break
+      fi
+      echo "Invalid NFS_ALLOWED_SUBNET format. Examples: *, 10.148.0.0/24, 10.148.0.0/24 10.149.0.0/24"
+    done
+  fi
 elif [[ -z "${TLS_SAN}" ]]; then
   echo "Error: --tls-san is required."
   usage
   exit 1
+fi
+
+if ! is_valid_tls_san "${TLS_SAN}"; then
+  echo "Error: --tls-san has invalid format: ${TLS_SAN}"
+  echo "Supported: IPv4 or domain only (example: 34.124.131.240 or k8s.example.com)"
+  exit 1
+fi
+
+if [[ "${SETUP_NFS_SERVER}" == "true" && -z "${NFS_ALLOWED_SUBNET}" ]]; then
+  NFS_ALLOWED_SUBNET="*"
+fi
+
+if [[ "${SETUP_NFS_SERVER}" == "true" ]]; then
+  NFS_ALLOWED_SUBNET="$(normalize_nfs_allowed_subnet "${NFS_ALLOWED_SUBNET}")"
+  if ! is_valid_nfs_allowed_subnet "${NFS_ALLOWED_SUBNET}"; then
+    echo "Error: --nfs-allowed-subnet has invalid format: ${NFS_ALLOWED_SUBNET}"
+    echo "Supported: * or IPv4/CIDR list (space/comma separated), e.g. 10.148.0.0/24,10.149.0.0/24"
+    exit 1
+  fi
 fi
 
 if [[ "${SERVICE_MODE}" != "clusterip" && "${SERVICE_MODE}" != "nodeport" ]]; then
