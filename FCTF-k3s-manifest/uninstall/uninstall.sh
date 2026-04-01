@@ -80,10 +80,10 @@ run helm uninstall ingress-nginx -n ingress-nginx
 run helm uninstall rancher -n cattle-system
 run helm uninstall harbor -n registry
 
-log "2) Delete namespaces (best-effort)"
-for ns in app challenge db storage argo monitoring ctfd cert-manager ingress-nginx cattle-system kubernetes-dashboard registry; do
-	run kubectl delete namespace "$ns" --ignore-not-found --wait=true --timeout=120s
-done
+# log "2) Delete namespaces (best-effort)"
+# for ns in app challenge db storage argo monitoring ctfd cert-manager ingress-nginx cattle-system kubernetes-dashboard registry; do
+# 	run kubectl delete namespace "$ns" --ignore-not-found --wait=true --timeout=120s
+# done
 
 log "2.1) Force Delete PVs to avoid hanging"
 PV_NAMES=$(kubectl get pv -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep -E 'nfs-|pvc-')

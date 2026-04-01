@@ -14,6 +14,11 @@ ARGO_NAMESPACE="argo"
 APP_NAMESPACE="app"
 
 INSTALL_NERDCTL="true"
+NERDCTL_VERSION="${NERDCTL_VERSION:-2.1.6}"
+CONTAINERD_SOCKET="${CONTAINERD_SOCKET:-/run/k3s/containerd/containerd.sock}"
+CONTAINERD_WAIT_SECONDS="${CONTAINERD_WAIT_SECONDS:-90}"
+
+NERDCTL=()
 
 # ===== PATH RESOLUTION =====
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,29 +61,62 @@ install_dependencies() {
 check_containerd() {
   echo "==> Checking containerd (k3s)..."
 
-  SOCKET="/run/k3s/containerd/containerd.sock"
+  SOCKET="$CONTAINERD_SOCKET"
 
-  if [[ ! -S "$SOCKET" ]]; then
-    echo "❌ containerd socket not found: $SOCKET"
-    exit 1
+  if command -v systemctl >/dev/null 2>&1; then
+    if systemctl list-unit-files | grep -q '^k3s\.service'; then
+      if ! sudo systemctl is-active --quiet k3s; then
+        echo "==> Starting k3s service..."
+        sudo systemctl enable --now k3s
+      fi
+    fi
   fi
 
-  if ! sudo nerdctl --address "$SOCKET" info >/dev/null 2>&1; then
-    echo "❌ containerd not responding"
-    exit 1
-  fi
+  waited=0
+  until sudo test -S "$SOCKET"; do
+    if (( waited >= CONTAINERD_WAIT_SECONDS )); then
+      echo "❌ containerd socket not found after ${CONTAINERD_WAIT_SECONDS}s: $SOCKET"
+      exit 1
+    fi
+
+    sleep 3
+    waited=$((waited + 3))
+  done
+
+  waited=0
+  until (command -v k3s >/dev/null 2>&1 && sudo k3s ctr version >/dev/null 2>&1) || \
+        (command -v ctr >/dev/null 2>&1 && sudo ctr --address "$SOCKET" version >/dev/null 2>&1) || \
+        (command -v nerdctl >/dev/null 2>&1 && sudo nerdctl --address "$SOCKET" info >/dev/null 2>&1); do
+    if (( waited >= CONTAINERD_WAIT_SECONDS )); then
+      echo "❌ containerd not responding after ${CONTAINERD_WAIT_SECONDS}s"
+      if command -v systemctl >/dev/null 2>&1; then
+        sudo systemctl --no-pager --full status k3s 2>/dev/null || true
+        sudo systemctl --no-pager --full status k3s-agent 2>/dev/null || true
+      fi
+      exit 1
+    fi
+
+    sleep 3
+    waited=$((waited + 3))
+  done
 
   echo "==> containerd OK (k3s)"
 }
 
 # ===== INSTALL NERDCTL =====
 install_nerdctl() {
+  current_version=""
   if command -v nerdctl >/dev/null 2>&1; then
-    echo "==> nerdctl already installed"
-    return
-  fi
+    current_version="$(nerdctl --version 2>/dev/null | awk '{print $3}')"
+    if [[ "$current_version" == "$NERDCTL_VERSION" || "$current_version" == "v${NERDCTL_VERSION}" ]]; then
+      echo "==> nerdctl already installed (${current_version})"
+      return
+    fi
 
-  echo "==> Installing nerdctl..."
+    echo "==> nerdctl ${current_version:-unknown} found, installing v${NERDCTL_VERSION}..."
+  else
+    echo "==> Installing nerdctl v${NERDCTL_VERSION}..."
+  fi
 
   ARCH=$(uname -m)
   case "$ARCH" in
@@ -87,32 +125,54 @@ install_nerdctl() {
     *) echo "Unsupported arch: $ARCH"; exit 1 ;;
   esac
 
-  VERSION="1.7.5"
+  TMP_DIR="$(mktemp -d)"
+  ARCHIVE_PATH="${TMP_DIR}/nerdctl.tar.gz"
 
-  curl -L https://github.com/containerd/nerdctl/releases/download/v${VERSION}/nerdctl-${VERSION}-linux-${ARCH}.tar.gz \
-    | sudo tar -C /usr/local -xz
+  curl -fsSL "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${ARCH}.tar.gz" \
+    -o "$ARCHIVE_PATH"
 
-  echo "==> nerdctl installed"
+  tar -xzf "$ARCHIVE_PATH" -C "$TMP_DIR"
+
+  if [[ ! -f "${TMP_DIR}/nerdctl" ]]; then
+    echo "❌ Failed to find nerdctl binary in archive"
+    rm -rf "$TMP_DIR"
+    exit 1
+  fi
+
+  sudo install -m 0755 "${TMP_DIR}/nerdctl" /usr/local/bin/nerdctl
+  rm -rf "$TMP_DIR"
+
+  echo "==> nerdctl installed: $(nerdctl --version 2>/dev/null || echo 'unknown version')"
 }
 
 # ===== DETECT NERDCTL =====
 detect_nerdctl() {
-  SOCKET="/run/k3s/containerd/containerd.sock"
+  SOCKET="$CONTAINERD_SOCKET"
+
+  if ! command -v nerdctl >/dev/null 2>&1; then
+    echo "❌ nerdctl not found in PATH"
+    echo "   Set INSTALL_NERDCTL=true and rerun setup-harbor.sh"
+    exit 1
+  fi
 
   if command -v nerdctl >/dev/null 2>&1 && \
      nerdctl --address "$SOCKET" info >/dev/null 2>&1; then
-    NERDCTL="nerdctl --address $SOCKET --namespace k8s.io"
+    NERDCTL=(nerdctl --address "$SOCKET" --namespace k8s.io)
+  elif sudo nerdctl --address "$SOCKET" info >/dev/null 2>&1; then
+    NERDCTL=(sudo nerdctl --address "$SOCKET" --namespace k8s.io)
   else
-    NERDCTL="sudo nerdctl --address $SOCKET --namespace k8s.io"
+    echo "❌ nerdctl cannot connect to containerd: $SOCKET"
+    echo "   Try upgrading nerdctl by setting NERDCTL_VERSION and rerun the script"
+    exit 1
   fi
 
-  echo "==> Using: $NERDCTL"
+  echo "==> Using: ${NERDCTL[*]}"
 }
 
 # ===== WAIT HARBOR =====
 wait_harbor() {
   echo "==> Waiting Harbor..."
-  until curl -k -s --fail "${HARBOR_URL}/api/v2.0/ping" | grep -q "pong"; do
+  until [ "$(curl -k -s -o /dev/null -w '%{http_code}' "${HARBOR_URL}/api/v2.0/healthy")" = "200" ]; do
     sleep 3
   done
 }
@@ -182,7 +242,7 @@ setup_robots() {
 # ===== LOGIN REGISTRY =====
 login_registry() {
   echo "==> Login registry..."
-  echo "$CI_PASS" | $NERDCTL login "$HARBOR_HOST" -u "$CI_USER" --password-stdin
+  echo "$CI_PASS" | "${NERDCTL[@]}" login "$HARBOR_HOST" -u "$CI_USER" --password-stdin
 }
 
 # ===== BUILD & PUSH =====
@@ -207,8 +267,8 @@ build_and_push () {
 
   echo "==> Building $IMAGE"
 
-  $NERDCTL build -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH"
-  $NERDCTL push "$IMAGE"
+  "${NERDCTL[@]}" build -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH"
+  "${NERDCTL[@]}" push "$IMAGE"
 }
 
 # ===== BUILD ALL =====
