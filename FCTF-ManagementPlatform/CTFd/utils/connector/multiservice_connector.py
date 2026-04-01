@@ -374,7 +374,7 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
             try:
                 unix_time = str(int(time.time()))
                 image_tag = f"challenge-{challenge.id}-{safe_folder_name}-{unix_time}"
-                image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}:{image_tag}"
+                image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}/{image_tag}:latest"
 
                 object_image = {
                     "imageLink": image_link,
