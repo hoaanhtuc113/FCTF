@@ -199,6 +199,7 @@ public class ChallengeService : IChallengeService
             category = challenge.Category,
             time_limit = challenge.TimeLimit,
             require_deploy = challenge.RequireDeploy,
+            connection_protocol = string.IsNullOrWhiteSpace(challenge.ConnectionProtocol) ? "http" : challenge.ConnectionProtocol,
             type = challenge.Type,
             next_id = challenge.NextId,
             next_name = nextName,
@@ -287,6 +288,7 @@ public class ChallengeService : IChallengeService
                 c.Value,
                 c.Category,
                 c.TimeLimit,
+                c.ConnectionProtocol,
                 c.Type,
                 c.Requirements,
                 c.RequireDeploy,
@@ -350,6 +352,7 @@ public class ChallengeService : IChallengeService
                 value = challenge.Value,
                 category = challenge.Category,
                 time_limit = challenge.TimeLimit,
+                connection_protocol = string.IsNullOrWhiteSpace(challenge.ConnectionProtocol) ? "http" : challenge.ConnectionProtocol,
                 type = challenge.Type,
                 requirements = requirementsObj,
                 solve_by_myteam = solvedChallengeIds.Contains(challenge.Id),
@@ -444,7 +447,7 @@ public class ChallengeService : IChallengeService
                 {
                     status = (int)HttpStatusCode.BadRequest,
                     success = false,
-                    message = "No response from server"
+                    message = "Deployment service is not responding. Please try again later."
                 };
 
             var result = JsonConvert.DeserializeObject<ChallengeDeployResponeDTO>(body);
@@ -455,7 +458,7 @@ public class ChallengeService : IChallengeService
                 {
                     status = (int)HttpStatusCode.InternalServerError,
                     success = false,
-                    message = "Failed to parse server response"
+                    message = "Error processing deployment data. Please contact support."
                 };
             }
             return result;
@@ -468,7 +471,7 @@ public class ChallengeService : IChallengeService
             {
                 status = (int)HttpStatusCode.BadGateway,
                 success = false,
-                message = "Connection url failed"
+                message = "Unable to connect to deployment server. Please contact support."
             };
         }
         catch (Exception ex)
@@ -478,7 +481,7 @@ public class ChallengeService : IChallengeService
             {
                 status = (int)HttpStatusCode.InternalServerError,
                 success = false,
-                message = "Unexpected error occurred"
+                message = "An unexpected error occurred. We are working to fix it."
             };
         }
     }

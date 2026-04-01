@@ -9,6 +9,7 @@ public class DeploymentCenterConfigHelper
     public static string RABBIT_PASSWORD = "";
     public static string RABBIT_VHOST = "/";
     public static int RABBIT_PORT = 5672;
+    public static bool RABBIT_TLS = false;
 
     public static string ARGO_WORKFLOWS_URL = "";
     public static string ARGO_WORKFLOWS_TOKEN_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/token";
@@ -27,6 +28,7 @@ public class DeploymentCenterConfigHelper
         RABBIT_PASSWORD = GetRequiredEnv("RABBIT_PASSWORD");
         RABBIT_VHOST = Environment.GetEnvironmentVariable("RABBIT_VHOST") ?? "/";
         RABBIT_PORT = int.TryParse(GetRequiredEnv("RABBIT_PORT"), out var rabbitPort) ? rabbitPort : throw new Exception("Invalid RABBIT_PORT");
+        RABBIT_TLS = bool.TryParse(Environment.GetEnvironmentVariable("RABBIT_TLS"), out var rabbitTls) && rabbitTls;
 
         ARGO_WORKFLOWS_URL = GetRequiredEnv("ARGO_WORKFLOWS_URL");
         ARGO_WORKFLOWS_TOKEN_FILE = Environment.GetEnvironmentVariable("ARGO_WORKFLOWS_TOKEN_FILE")

@@ -37,8 +37,9 @@ var host = Host.CreateDefaultBuilder(args)
             var pass = DeploymentConsumerConfigHelper.RABBIT_PASSWORD;
             var port = DeploymentConsumerConfigHelper.RABBIT_PORT;
             var vhost = DeploymentConsumerConfigHelper.RABBIT_VHOST;
+            var useTls = DeploymentConsumerConfigHelper.RABBIT_TLS;
 
-            return new DeploymentConsumerService(host, user, pass, port, vhost);
+            return new DeploymentConsumerService(host, user, pass, port, vhost, useTls);
         });
 
         services.AddResourceShared();

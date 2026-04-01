@@ -56,33 +56,43 @@
                         </label>
                         <input type="text" class="form-control" name="expose_port" id="expose_port"  min="1" step="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                     </div>
+                    <div class="form-group d-none" id="deploy_resource_container_connection_protocol">
+                        <label>
+                            Connection Protocol <br>
+                            <small class="form-text text-muted">Protocol used by contestants to connect to this challenge instance.</small>
+                        </label>
+                        <select class="form-control" name="connection_protocol" id="connection_protocol">
+                            <option value="http" selected>HTTP</option>
+                            <option value="tcp">TCP</option>
+                        </select>
+                    </div>
                     <div class="form-group d-none" id="deploy_resource_container">
                         <label>
                             CPU Limit (mCPU) <br>
                             <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
                         </label>
-                        <input type="number" class="form-control" name="cpu_limit" min="1" max="500" value="100">
+                        <input type="number" class="form-control" name="cpu_limit" min="1" value="100">
                     </div>
                     <div class="form-group d-none" id="deploy_resource_container_cpu_request">
                         <label>
                             CPU Request (mCPU) <br>
                             <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
                         </label>
-                        <input type="number" class="form-control" name="cpu_request" min="1" max="500" value="10">
+                        <input type="number" class="form-control" name="cpu_request" min="1" value="10">
                     </div>
                     <div class="form-group d-none" id="deploy_resource_container_memory_limit">
                         <label>
                             Memory Limit (Mi) <br>
                             <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
                         </label>
-                        <input type="number" class="form-control" name="memory_limit" min="1" max="1024" value="128">
+                        <input type="number" class="form-control" name="memory_limit" min="1" value="128">
                     </div>
                     <div class="form-group d-none" id="deploy_resource_container_memory_request">
                         <label>
                             Memory Request (Mi) <br>
                             <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
                         </label>
-                        <input type="number" class="form-control" name="memory_request" min="1" max="1024" value="32">
+                        <input type="number" class="form-control" name="memory_request" min="1" value="32">
                     </div>
                     <div class="form-group d-none" id="deploy_resource_container_use_gvisor">
                         <label>
@@ -247,8 +257,8 @@
             $('#expose_port_container').removeClass('d-none');
             $('.upload-file').removeClass('d-none');
             $('.multi_files').addClass('d-none');
-            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').removeClass('d-none');
-            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant, #deploy_resource_container_connection_protocol').removeClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select, #deploy_resource_container_connection_protocol select')
                 .prop('disabled', false)
                 .prop('required', true);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
@@ -262,8 +272,8 @@
             $('#expose_port_container').addClass('d-none');
             $('.upload-file').addClass('d-none');
             $('.multi_files').removeClass('d-none');
-            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').addClass('d-none');
-            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+            $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant, #deploy_resource_container_connection_protocol').addClass('d-none');
+            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select, #deploy_resource_container_connection_protocol select')
                 .prop('disabled', true)
                 .prop('required', false);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', true);
@@ -287,8 +297,8 @@
             $('#expose_port_container').removeClass('d-none');
             $('.upload-file').removeClass('d-none');
             $('.multi_files').addClass('d-none');
-                        $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').removeClass('d-none');
-            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+                                                $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant, #deploy_resource_container_connection_protocol').removeClass('d-none');
+                        $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select, #deploy_resource_container_connection_protocol select')
               .prop('disabled', false)
               .prop('required', true);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', false);
@@ -300,8 +310,8 @@
             $('#deploy_resource_container_memory_request input[name="memory_request"]').val(defaultMemoryRequest);
         } else {
             $('.multi_files').removeClass('d-none');
-                        $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant').addClass('d-none');
-            $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select')
+                                                $('#deploy_resource_container, #deploy_resource_container_cpu_request, #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request, #deploy_resource_container_use_gvisor, #deploy_resource_container_max_deploy_count, #deploy_resource_container_shared_instant, #deploy_resource_container_connection_protocol').addClass('d-none');
+                        $('#deploy_resource_container input, #deploy_resource_container_cpu_request input, #deploy_resource_container_memory_limit input, #deploy_resource_container_memory_request input, #deploy_resource_container_use_gvisor select, #deploy_resource_container_connection_protocol select')
               .prop('disabled', true)
               .prop('required', false);
             $('#deploy_resource_container_max_deploy_count input').prop('disabled', true);

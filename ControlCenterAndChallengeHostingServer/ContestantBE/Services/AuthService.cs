@@ -11,6 +11,8 @@ namespace ContestantBE.Services;
 
 public class AuthService : IAuthService
 {
+    private static readonly string _dummyPasswordHash = SHA256Helper.HashPasswordPythonStyle("fctf-dummy-password");
+
     private readonly AppDbContext _context;
     private readonly TokenHelper _tokenHelper;
     private readonly UserHelper _userHelper;
@@ -33,6 +35,18 @@ public class AuthService : IAuthService
         _redisHelper = redisHelper;
     }
 
+    private static void RunFakeHash(string? password)
+    {
+        try
+        {
+            _ = SHA256Helper.VerifyPassword(password ?? string.Empty, _dummyPasswordHash);
+        }
+        catch
+        {
+            // Intentionally ignore to keep behavior timing-oriented only.
+        }
+    }
+
     public async Task<BaseResponseDTO<AuthResponseDTO>> LoginContestant(LoginDTO loginDto)
     {
         try
@@ -43,6 +57,7 @@ public class AuthService : IAuthService
 
             if (string.IsNullOrEmpty(loginDto.username) || string.IsNullOrEmpty(loginDto.password))
             {
+                RunFakeHash(loginDto.password);
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Missing username or password");
             }
 
@@ -51,6 +66,12 @@ public class AuthService : IAuthService
                 .Include(t => t.Team)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Name == loginDto.username);
+
+            // Always do one password verify operation to reduce response-time variance.
+            var passwordHashToVerify = string.IsNullOrWhiteSpace(user?.Password)
+                ? _dummyPasswordHash
+                : user.Password;
+            var passwordValid = SHA256Helper.VerifyPassword(loginDto.password, passwordHashToVerify);
             
             if (user == null || user.Type != "user")
             {
@@ -62,7 +83,7 @@ public class AuthService : IAuthService
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not verified yet");
             }
 
-            if (!SHA256Helper.VerifyPassword(loginDto.password, user.Password) || user.Type != "user")
+            if (!passwordValid || user.Type != "user")
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Invalid username or password");
             }
