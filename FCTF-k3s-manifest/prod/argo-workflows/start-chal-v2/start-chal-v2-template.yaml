@@ -83,6 +83,8 @@ spec:
       timeout: "120s"
       podSpecPatch: |
         preemptionPolicy: Never
+        imagePullSecrets:
+          - name: global-regcred
         securityContext:
           fsGroup: 1104
           fsGroupChangePolicy: OnRootMismatch

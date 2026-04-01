@@ -181,6 +181,8 @@ spec:
       priorityClassName: lowest
       podSpecPatch: |
         preemptionPolicy: Never
+        imagePullSecrets:
+          - name: global-regcred
 
       container:
         image: registry.fctf.site/fctf/kubectl-cli:latest

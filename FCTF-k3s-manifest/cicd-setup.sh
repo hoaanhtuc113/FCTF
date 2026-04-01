@@ -184,6 +184,33 @@ echo "${KUBECONFIG_BASE64}"
 echo ""
 echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
 
+cat <<'EOF'
+# ============================================================================
+# FCTF – CI/CD Pipeline
+# Triggers on push to main. Only services whose files changed are rebuilt.
+# Each service is built as a Docker image, pushed to DockerHub, then
+# automatically redeployed to the k3s cluster.
+#
+# ─── Required GitHub Secrets ────────────────────────────────────────────────
+#
+#   HARBOR_USERNAME   – Harbor username (NOT email)
+#   HARBOR_TOKEN      – Harbor access token (NOT password)
+#                          Create at: https://registry.fctf.site/settings/security
+#   KUBE_CONFIG          – base64-encoded kubeconfig cho CI/CD ServiceAccount
+#                          Chạy script trên server K3s để tạo tự động:
+#                            cd FCTF-k3s-manifest
+#                            chmod +x cicd-setup.sh && ./cicd-setup.sh
+#                          Script sẽ tạo ServiceAccount least-privilege và
+#                          xuất base64 kubeconfig để paste vào secret này.
+#                          (xem FCTF-k3s-manifest/cicd-setup.sh để biết chi tiết)
+#
+# ─── How to add secrets ────────────────────────────────────────────────────
+#
+#   GitHub repo → Settings → Secrets and variables → Actions → New secret
+#
+# ============================================================================
+EOF
+
 # ─── Verify ───────────────────────────────────────────────────────────────
 echo -e "\n${GREEN}✅ Setup complete!${NC}"
 echo -e "   ServiceAccount: ${NAMESPACE}/${SA_NAME}"
