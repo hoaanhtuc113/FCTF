@@ -16,6 +16,16 @@
     </div>
     <div class="form-group deploy-resource-field">
       <label class="clean-label">
+        Connection Protocol <br>
+        <small class="form-text text-muted">Protocol used by contestants to connect to this challenge instance.</small>
+      </label>
+      <select class="form-control clean-form-control" name="connection_protocol" id="connection_protocol" required>
+        <option value="http" {% if challenge.connection_protocol != 'tcp' %}selected{% endif %}>HTTP</option>
+        <option value="tcp" {% if challenge.connection_protocol == 'tcp' %}selected{% endif %}>TCP</option>
+      </select>
+    </div>
+    <div class="form-group deploy-resource-field">
+      <label class="clean-label">
         CPU Limit (mCPU) <br>
           <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
       </label>
@@ -268,6 +278,7 @@
     const memoryLimitInput = document.getElementById("memory_limit");
     const memoryRequestInput = document.getElementById("memory_request");
     const useGvisorInput = document.getElementById("use_gvisor");
+    const connectionProtocolInput = document.getElementById("connection_protocol");
     const maxDeployCountInput = document.getElementById("max_deploy_count");
     const hardenContainerCheckbox = document.getElementById("harden_container");
     const sharedInstantCheckbox = document.getElementById("shared_instant");
@@ -440,6 +451,7 @@
               use_gvisor: setupDockerCheckbox.checked ? useGvisor : null,
               harden_container: setupDockerCheckbox.checked ? hardenContainerCheckbox.checked : null,
               shared_instant: setupDockerCheckbox.checked ? (sharedInstantCheckbox ? sharedInstantCheckbox.checked : false) : false,
+              connection_protocol: (connectionProtocolInput?.value || "http"),
               expose_port: setupDockerCheckbox.checked
                 ? parseInt(exposePortInput?.value || "0", 10)
                 : null,
