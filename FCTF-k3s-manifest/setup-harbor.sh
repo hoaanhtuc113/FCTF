@@ -172,7 +172,7 @@ detect_nerdctl() {
 # ===== WAIT HARBOR =====
 wait_harbor() {
   echo "==> Waiting Harbor..."
-  until curl -k -s --fail "${HARBOR_URL}/api/v2.0/ping" | grep -q "pong"; do
+  until curl -k -s --fail "${HARBOR_URL}/api/v2.0/health" | grep -q "pong"; do
     sleep 3
   done
 }
