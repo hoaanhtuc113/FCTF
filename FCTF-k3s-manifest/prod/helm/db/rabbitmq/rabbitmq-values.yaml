@@ -170,7 +170,7 @@ extraDeploy:
               "durable": true,
               "auto_delete": false,
               "arguments": {
-                "x-max-length": 5000,
+                "x-max-length": 300,
                 "x-overflow": "reject-publish"
               }
             }

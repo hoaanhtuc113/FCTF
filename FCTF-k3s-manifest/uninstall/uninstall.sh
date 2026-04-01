@@ -78,9 +78,10 @@ run helm uninstall rabbitmq -n db
 run helm uninstall cert-manager -n cert-manager
 run helm uninstall ingress-nginx -n ingress-nginx
 run helm uninstall rancher -n cattle-system
+run helm uninstall harbor -n registry
 
 log "2) Delete namespaces (best-effort)"
-for ns in app challenge db storage argo monitoring ctfd cert-manager ingress-nginx cattle-system kubernetes-dashboard; do
+for ns in app challenge db storage argo monitoring ctfd cert-manager ingress-nginx cattle-system kubernetes-dashboard registry; do
 	run kubectl delete namespace "$ns" --ignore-not-found --wait=true --timeout=120s
 done
 
