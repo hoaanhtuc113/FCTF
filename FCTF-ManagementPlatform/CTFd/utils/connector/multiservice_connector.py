@@ -373,7 +373,7 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
                 unix_time = str(int(time.time()))
-                image_tag = f"challenge-{challenge.id}-{safe_folder_name}-{unix_time}"
+                image_tag = f"challenge-{challenge.id}-{safe_folder_name.lower()}-{unix_time}"
                 image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}/{image_tag}:latest"
 
                 object_image = {
