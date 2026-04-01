@@ -43,6 +43,31 @@ public class AuthController : BaseController
 
     }
 
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout()
+    {
+        var userId = UserContext.UserId;
+        var teamId = UserContext.TeamId;
+
+        var result = await _authService.Logout(userId);
+        await Console.Out.WriteLineAsync($"[Auth] Account {userId} logout");
+        _userBehaviorLogger.Log("LOGOUT", userId, teamId, null);
+
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                message = result.Message,
+            });
+        }
+
+        return Ok(new
+        {
+            message = result.Message,
+        });
+    }
+
     [HttpPost("change-password")]
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDTO changePasswordDto)
