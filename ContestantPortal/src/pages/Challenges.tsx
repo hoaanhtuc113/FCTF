@@ -77,6 +77,7 @@ interface Challenge {
   // backend now provides the ID and name of the "next" challenge in a sequence
   next_id?: number | null;
   next_name?: string | null;
+  connection_protocol?: 'http' | 'tcp' | string | null;
 }
 
 interface PrerequisiteChallenge {
@@ -1087,6 +1088,15 @@ function ChallengeListItem({
               </div>
 
               <div className="flex flex-wrap gap-2 text-xs font-mono">
+                {challenge.shared_instance && (
+                  <span className={`px-2 py-0.5 rounded ${theme === 'dark'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                    : 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                    }`}>
+                    [↻] shared instance
+                  </span>
+                )}
+
                 {isLocked && (
                   <span className={`px-2 py-0.5 rounded ${theme === 'dark'
                     ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
@@ -1210,6 +1220,17 @@ function ChallengeListItem({
 
         {/* ROW 2 */}
         <div className="mt-1.5 flex gap-1.5 flex-wrap text-[11px] font-mono">
+          {challenge.shared_instance && (
+            <span
+              className={`px-1.5 py-0.5 rounded border ${theme === 'dark'
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                : 'bg-cyan-100 text-cyan-800 border-cyan-300'}
+              `}
+            >
+              [↻] shared
+            </span>
+          )}
+
           {isLocked && (
             <span
               className={`px-1.5 py-0.5 rounded border
@@ -3610,6 +3631,15 @@ function ChallengeDetailPanel({
                   {challenge.value} pts
                 </span>
               </Tooltip>
+              {challenge.shared_instance && (
+                <Tooltip title="This challenge uses a shared instance for all teams" placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                  <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark'
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                    : 'bg-cyan-100 text-cyan-800 border-cyan-300'}`}>
+                    Shared Instance
+                  </span>
+                </Tooltip>
+              )}
               {challenge.require_deploy && (
                 <Tooltip title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
                   <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
@@ -3753,6 +3783,8 @@ function ChallengeDetailPanel({
 
                 {!isAccessTokenCollapsed && (() => {
                   const token = url ? url.trim() : "Deploying... Please wait";
+                  const connectionProtocol = (challenge.connection_protocol ?? 'http').toLowerCase();
+                  const isHttpProtocol = connectionProtocol !== 'tcp';
                   const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}?fctftoken={token}` : `${getBaseGateway()}:${getHttpPort()}?fctftoken=${token}`;
                   const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
                   return (
@@ -3786,49 +3818,51 @@ function ChallengeDetailPanel({
 
                       <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}></div>
 
-                      {/* HTTP & TCP */}
+                      {/* Active protocol only (from challenge.connection_protocol) */}
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            HTTP
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                              {httpAddr}
+                        {isHttpProtocol ? (
+                          <div className="flex items-center gap-2">
+                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              HTTP
                             </div>
-                          </div>
-                          <button
-                            onClick={() => handleCopyHttp(httpAddr)}
-                            className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedHttp
-                              ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
-                              : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
-                              }`}
-                            title="Copy HTTP"
-                          >
-                            {copiedHttp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            TCP
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
-                              {tcpAddr}
+                            <div className="flex-1 min-w-0">
+                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                                {httpAddr}
+                              </div>
                             </div>
+                            <button
+                              onClick={() => handleCopyHttp(httpAddr)}
+                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedHttp
+                                ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
+                                : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                                }`}
+                              title="Copy HTTP"
+                            >
+                              {copiedHttp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
+                            </button>
                           </div>
-                          <button
-                            onClick={() => handleCopyTcp(tcpAddr)}
-                            className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedTcp
-                              ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
-                              : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
-                              }`}
-                            title="Copy TCP"
-                          >
-                            {copiedTcp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              TCP
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                                {tcpAddr}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleCopyTcp(tcpAddr)}
+                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedTcp
+                                ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
+                                : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                                }`}
+                              title="Copy TCP"
+                            >
+                              {copiedTcp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
