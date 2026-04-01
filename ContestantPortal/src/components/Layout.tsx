@@ -161,9 +161,9 @@ export function Layout({ children }: LayoutProps) {
     toast.success(`Switched to ${theme === 'dark' ? 'light' : 'dark'} mode`);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     handleMenuClose();
-    logout();
+    await logout();
     toast.success('Logged out successfully');
     navigate('/login');
   };
