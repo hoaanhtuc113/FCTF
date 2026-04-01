@@ -11,10 +11,15 @@ ARGO_NAMESPACE="argo"
 APP_NAMESPACE="app"
 
 INSTALL_NERDCTL="true"
+INSTALL_BUILDKIT="${INSTALL_BUILDKIT:-true}"
 NERDCTL_VERSION="${NERDCTL_VERSION:-2.1.6}"
+BUILDKIT_VERSION="${BUILDKIT_VERSION:-0.14.1}"
 CONTAINERD_SOCKET="${CONTAINERD_SOCKET:-/run/k3s/containerd/containerd.sock}"
 CONTAINERD_WAIT_SECONDS="${CONTAINERD_WAIT_SECONDS:-90}"
 HARBOR_WAIT_SECONDS="${HARBOR_WAIT_SECONDS:-180}"
+BUILDKIT_SOCKET="${BUILDKIT_SOCKET:-unix:///run/buildkit/buildkitd.sock}"
+BUILDKIT_WAIT_SECONDS="${BUILDKIT_WAIT_SECONDS:-60}"
+BUILDKIT_LOG_FILE="${BUILDKIT_LOG_FILE:-/tmp/buildkitd.log}"
 
 NERDCTL=()
 CI_USER="${CI_USER:-}"
@@ -52,6 +57,7 @@ install_dependencies() {
   install_pkg curl
   install_pkg git
   install_pkg ca-certificates
+  install_pkg tar
 
   echo "==> Dependencies OK"
 }
@@ -142,6 +148,112 @@ install_nerdctl() {
   rm -rf "$TMP_DIR"
 
   echo "==> nerdctl installed: $(nerdctl --version 2>/dev/null || echo 'unknown version')"
+}
+
+# ===== INSTALL BUILDKIT =====
+install_buildkit() {
+  if command -v buildctl >/dev/null 2>&1 && command -v buildkitd >/dev/null 2>&1; then
+    echo "==> buildkit already installed"
+    return
+  fi
+
+  echo "==> Installing buildkit v${BUILDKIT_VERSION}..."
+
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64|amd64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *) echo "Unsupported arch: $ARCH"; exit 1 ;;
+  esac
+
+  TMP_DIR="$(mktemp -d)"
+  ARCHIVE_PATH="${TMP_DIR}/buildkit.tar.gz"
+
+  curl -fsSL "https://github.com/moby/buildkit/releases/download/v${BUILDKIT_VERSION}/buildkit-v${BUILDKIT_VERSION}.linux-${ARCH}.tar.gz" \
+    -o "$ARCHIVE_PATH"
+
+  tar -xzf "$ARCHIVE_PATH" -C "$TMP_DIR"
+
+  if [[ ! -f "${TMP_DIR}/bin/buildctl" || ! -f "${TMP_DIR}/bin/buildkitd" ]]; then
+    echo "❌ Failed to find buildctl/buildkitd in archive"
+    rm -rf "$TMP_DIR"
+    exit 1
+  fi
+
+  sudo install -m 0755 "${TMP_DIR}/bin/buildctl" /usr/local/bin/buildctl
+  sudo install -m 0755 "${TMP_DIR}/bin/buildkitd" /usr/local/bin/buildkitd
+  rm -rf "$TMP_DIR"
+
+  echo "==> buildkit installed: $(buildctl --version 2>/dev/null || echo 'unknown version')"
+}
+
+# ===== CHECK BUILDKIT CONNECTION =====
+buildkit_ready() {
+  buildctl --addr "$BUILDKIT_SOCKET" debug workers >/dev/null 2>&1 || \
+  sudo buildctl --addr "$BUILDKIT_SOCKET" debug workers >/dev/null 2>&1
+}
+
+# ===== START BUILDKITD =====
+start_buildkitd() {
+  local socket_path="${BUILDKIT_SOCKET#unix://}"
+  local socket_dir
+  socket_dir="$(dirname "$socket_path")"
+
+  if buildkit_ready; then
+    echo "==> buildkitd already ready"
+    return
+  fi
+
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^buildkit\.service'; then
+    echo "==> Starting buildkit service..."
+    sudo systemctl enable --now buildkit
+  else
+    echo "==> Starting buildkitd process..."
+    sudo mkdir -p "$socket_dir" /var/lib/buildkit
+
+    if ! sudo ps -eo args | grep -F "buildkitd --addr ${BUILDKIT_SOCKET}" | grep -v grep >/dev/null 2>&1; then
+      sudo nohup /usr/local/bin/buildkitd \
+        --addr "$BUILDKIT_SOCKET" \
+        --root /var/lib/buildkit \
+        >"$BUILDKIT_LOG_FILE" 2>&1 &
+    fi
+  fi
+
+  local waited=0
+  until buildkit_ready; do
+    if (( waited >= BUILDKIT_WAIT_SECONDS )); then
+      echo "❌ buildkitd not ready after ${BUILDKIT_WAIT_SECONDS}s"
+      echo "   socket: ${BUILDKIT_SOCKET}"
+      echo "   log: ${BUILDKIT_LOG_FILE}"
+
+      if command -v systemctl >/dev/null 2>&1; then
+        sudo systemctl --no-pager --full status buildkit 2>/dev/null || true
+      fi
+
+      sudo tail -n 40 "$BUILDKIT_LOG_FILE" 2>/dev/null || true
+      exit 1
+    fi
+
+    sleep 3
+    waited=$((waited + 3))
+  done
+
+  echo "==> buildkitd ready (${BUILDKIT_SOCKET})"
+}
+
+# ===== ENSURE BUILDKIT =====
+ensure_buildkit() {
+  [[ "$INSTALL_BUILDKIT" == "true" ]] && install_buildkit
+
+  if ! command -v buildctl >/dev/null 2>&1 || ! command -v buildkitd >/dev/null 2>&1; then
+    echo "❌ buildkit is required for nerdctl build"
+    echo "   Set INSTALL_BUILDKIT=true or manually install buildctl/buildkitd"
+    exit 1
+  fi
+
+  start_buildkitd
+  export BUILDKIT_HOST="$BUILDKIT_SOCKET"
+  echo "==> Using BUILDKIT_HOST=${BUILDKIT_HOST}"
 }
 
 # ===== DETECT NERDCTL =====
@@ -343,6 +455,7 @@ main() {
   check_containerd
   
   detect_nerdctl
+  ensure_buildkit
   wait_harbor
   print_harbor_manual_guide
   confirm_harbor_manual_done
