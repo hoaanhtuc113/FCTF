@@ -41,6 +41,7 @@ GRANT DELETE ON ctfd.tickets TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.tokens TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.tokens TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tokens TO 'contestant_be'@'%';
+GRANT DELETE ON ctfd.tokens TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
@@ -64,3 +65,4 @@ GRANT SELECT ON ctfd.challenges TO 'deployment_listener'@'%';
 GRANT SELECT ON ctfd.challenges TO 'deployment_consumer'@'%';
 
 FLUSH PRIVILEGES;
+

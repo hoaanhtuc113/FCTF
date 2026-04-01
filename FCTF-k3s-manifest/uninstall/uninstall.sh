@@ -120,6 +120,11 @@ run_shell "sudo mount | grep -E 'kubelet|rancher' | awk '{print \$3}' | sort -r 
 
 log "3.4) Remove gVisor binaries"
 run_shell "sudo rm -f /usr/local/bin/runsc /usr/local/bin/containerd-shim-runsc-v1"
+log "3.4.1) Remove gVisor apt repo and keyring"
+run_shell "sudo rm -f /etc/apt/sources.list.d/gvisor.list"
+run_shell "sudo rm -f /usr/share/keyrings/gvisor-archive-keyring.gpg"
+run_shell "sudo apt-get remove -y runsc"
+run_shell "sudo apt-get autoremove -y"
 
 log "3.5) Remove virtual network interfaces (Calico/K3s)"
 run_shell "sudo ip link delete cni0"
