@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: argo.fctf.site
+    - host: argo3.fctf.site
       http:
         paths:
           - path: /
@@ -22,5 +22,5 @@ spec:
                   number: 2746
   tls:
     - hosts:
-        - argo.fctf.site
+        - argo3.fctf.site
       secretName: argo-tls

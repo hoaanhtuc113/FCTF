@@ -17,7 +17,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: challenge-gateway
-          image: registry.fctf.site/fctf/challenge-gateway:latest
+          image: registry3.fctf.site/fctf/challenge-gateway:latest
           envFrom:
             - configMapRef:
                 name: challenge-gateway-cm

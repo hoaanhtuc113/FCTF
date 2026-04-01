@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: argo-tls
   dnsNames:
-    - argo.fctf.site
+    - argo3.fctf.site
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

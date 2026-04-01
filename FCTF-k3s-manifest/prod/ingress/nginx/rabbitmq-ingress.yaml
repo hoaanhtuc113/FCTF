@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: rabbitmq.fctf.site
+    - host: rabbitmq3.fctf.site
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 15672
   tls:
     - hosts:
-        - rabbitmq.fctf.site
+        - rabbitmq3.fctf.site
       secretName: rabbitmq-tls

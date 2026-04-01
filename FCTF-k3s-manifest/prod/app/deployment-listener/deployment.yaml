@@ -18,7 +18,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-listener
-          image: registry.fctf.site/fctf/deployment-listener:latest
+          image: registry3.fctf.site/fctf/deployment-listener:latest
           envFrom:
             - configMapRef:
                 name: deployment-listener-cm

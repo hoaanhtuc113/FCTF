@@ -3,7 +3,7 @@ expose:
   tls:
     enabled: false   # ingress terminate TLS rồi
 
-externalURL: https://registry.fctf.site 
+externalURL: https://registry3.fctf.site 
 
 harborAdminPassword: "FCTF@2025"
 secretKey: "oMT66fZeAVeVE1lLgI6bgn9dQInYWCuOWyGGKYXDDTCh1K8nKj"

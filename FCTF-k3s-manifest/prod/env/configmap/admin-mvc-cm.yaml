@@ -15,4 +15,4 @@ data:
   WORKERS: "1"
   UPLOAD_PROVIDER: "nfs"
   IMAGE_REPO: "fctf"
-  DOCKER_USERNAME: "registry.fctf.site"
+  DOCKER_USERNAME: "registry3.fctf.site"
