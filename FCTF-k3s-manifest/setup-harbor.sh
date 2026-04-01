@@ -172,7 +172,25 @@ detect_nerdctl() {
 # ===== WAIT HARBOR =====
 wait_harbor() {
   echo "==> Waiting Harbor..."
-  until [ "$(curl -k -s -o /dev/null -w '%{http_code}' "${HARBOR_URL}/api/v2.0/healthy")" = "200" ]; do
+
+  local timeout=120
+  local elapsed=0
+
+  while true; do
+    HTTP_CODE=$(curl -4 -k -s -o /dev/null -w '%{http_code}' "${HARBOR_URL}/api/v2.0/health")
+    echo "HTTP: $HTTP_CODE"
+
+    if [ "$HTTP_CODE" = "200" ]; then
+      echo "==> Harbor ready"
+      return 0
+    fi
+
+    elapsed=$((elapsed + 3))
+    if [ "$elapsed" -ge "$timeout" ]; then
+      echo "❌ Timeout waiting Harbor"
+      exit 1
+    fi
+
     sleep 3
   done
 }
