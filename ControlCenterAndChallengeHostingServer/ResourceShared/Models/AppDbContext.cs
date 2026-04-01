@@ -346,6 +346,10 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.ConnectionInfo)
                 .HasColumnType("text")
                 .HasColumnName("connection_info");
+            entity.Property(e => e.ConnectionProtocol)
+                .HasMaxLength(10)
+                .HasDefaultValueSql("'http'")
+                .HasColumnName("connection_protocol");
             entity.Property(e => e.DeployStatus)
                 .HasColumnType("text")
                 .HasColumnName("deploy_status");
