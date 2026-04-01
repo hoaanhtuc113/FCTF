@@ -9,6 +9,7 @@ SETUP_WORKER_SH="${K3S_DIR}/setup-worker.sh"
 APPLY_FCTF_SH="${K3S_DIR}/apply-fctf.sh"
 SETUP_HARBOR_SH="${K3S_DIR}/setup-harbor.sh"
 CICD_SETUP_SH="${K3S_DIR}/cicd-setup.sh"
+GET_ARGO_TOKEN_SH="${K3S_DIR}/prod/sa/argo-workflow/get-token.sh"
 UNINSTALL_MASTER_SH="${K3S_DIR}/uninstall/uninstall.sh"
 UNINSTALL_WORKER_SH="${K3S_DIR}/uninstall/uninstall-worker.sh"
 
@@ -35,7 +36,9 @@ show_menu() {
 	echo "3) Install FCTF"
 	echo "4) Setup harbor"
 	echo "5) Setup CI/CD"
-	echo "6) Uninstall"
+	echo "6) Get Argo token"
+	echo "7) Get master token"
+	echo "8) Uninstall"
 	echo "0) Exit"
 	echo "============================================="
 }
@@ -57,6 +60,11 @@ uninstall_worker() {
 uninstall_master() {
 	echo "==> Running uninstall.sh"
 	run_script "${UNINSTALL_MASTER_SH}"
+}
+
+get_master_token() {
+	echo "==> Master join token:"
+	sudo cat /var/lib/rancher/k3s/server/node-token
 }
 
 while true; do
@@ -85,6 +93,14 @@ while true; do
 			run_script "${CICD_SETUP_SH}"
 			;;
 		6)
+			echo "==> Running get-token.sh"
+			run_script "${GET_ARGO_TOKEN_SH}"
+			;;
+		7)
+			echo "==> Running get master token"
+			get_master_token
+			;;
+		8)
 			while true; do
 				show_uninstall_menu
 				read -r -p "Select uninstall option: " uninstall_choice
@@ -112,7 +128,7 @@ while true; do
 			exit 0
 			;;
 		*)
-			echo "Invalid option. Please choose 0-6."
+			echo "Invalid option. Please choose 0-8."
 			;;
 	esac
 done

@@ -6,7 +6,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   loading: boolean;
 }
 
@@ -34,8 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user);
   };
 
-  const logout = () => {
-    authService.logout();
+  const logout = async () => {
+    await authService.logout();
     setIsAuthenticated(false);
     setUser(null);
   };
