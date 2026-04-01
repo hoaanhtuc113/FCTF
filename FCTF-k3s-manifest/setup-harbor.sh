@@ -10,21 +10,13 @@ PROJECT_NAME="fctf"
 ARGO_NAMESPACE="argo"
 APP_NAMESPACE="app"
 
-INSTALL_NERDCTL="true"
-INSTALL_BUILDKIT="${INSTALL_BUILDKIT:-true}"
-NERDCTL_VERSION="${NERDCTL_VERSION:-2.1.6}"
-BUILDKIT_VERSION="${BUILDKIT_VERSION:-0.14.1}"
-CONTAINERD_SOCKET="${CONTAINERD_SOCKET:-/run/k3s/containerd/containerd.sock}"
-CONTAINERD_WAIT_SECONDS="${CONTAINERD_WAIT_SECONDS:-90}"
+INSTALL_DOCKER="${INSTALL_DOCKER:-true}"
+DOCKER_WAIT_SECONDS="${DOCKER_WAIT_SECONDS:-120}"
 HARBOR_WAIT_SECONDS="${HARBOR_WAIT_SECONDS:-180}"
-BUILDKIT_SOCKET="${BUILDKIT_SOCKET:-unix:///run/buildkit/buildkitd.sock}"
-BUILDKIT_WAIT_SECONDS="${BUILDKIT_WAIT_SECONDS:-60}"
-BUILDKIT_LOG_FILE="${BUILDKIT_LOG_FILE:-/tmp/buildkitd.log}"
-AUTO_SNAPSHOT_RECOVERY="${AUTO_SNAPSHOT_RECOVERY:-true}"
 BUILD_NO_CACHE="${BUILD_NO_CACHE:-true}"
-SNAPSHOT_RETRY_NO_CACHE="${SNAPSHOT_RETRY_NO_CACHE:-true}"
 
-NERDCTL=()
+DOCKER=()
+SUDO=()
 CI_USER="${CI_USER:-}"
 CI_PASS="${CI_PASS:-}"
 
@@ -35,21 +27,37 @@ ROOT_DIR="$(realpath "${SCRIPT_DIR}/..")"
 echo "==> SCRIPT_DIR: $SCRIPT_DIR"
 echo "==> ROOT_DIR:   $ROOT_DIR"
 
+# ===== SUDO HELPERS =====
+setup_sudo() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    SUDO=()
+    return
+  fi
+
+  if command -v sudo >/dev/null 2>&1; then
+    SUDO=(sudo)
+    return
+  fi
+
+  echo "❌ Script requires root privileges (run as root or install sudo)"
+  exit 1
+}
+
 # ===== INSTALL DEPENDENCIES =====
 install_dependencies() {
   echo "==> Checking dependencies..."
 
   install_pkg() {
-    PKG=$1
-    if ! command -v "$PKG" >/dev/null 2>&1; then
-      echo "==> Installing $PKG..."
+    local pkg=$1
+    if ! command -v "$pkg" >/dev/null 2>&1; then
+      echo "==> Installing $pkg..."
       if command -v apt-get >/dev/null 2>&1; then
-        sudo apt-get update -y
-        sudo apt-get install -y "$PKG"
+        "${SUDO[@]}" apt-get update -y
+        "${SUDO[@]}" apt-get install -y "$pkg"
       elif command -v yum >/dev/null 2>&1; then
-        sudo yum install -y "$PKG"
+        "${SUDO[@]}" yum install -y "$pkg"
       elif command -v apk >/dev/null 2>&1; then
-        sudo apk add --no-cache "$PKG"
+        "${SUDO[@]}" apk add --no-cache "$pkg"
       else
         echo "❌ Unsupported package manager"
         exit 1
@@ -65,178 +73,73 @@ install_dependencies() {
   echo "==> Dependencies OK"
 }
 
-# ===== CHECK CONTAINERD =====
-check_containerd() {
-  echo "==> Checking containerd (k3s)..."
-
-  SOCKET="$CONTAINERD_SOCKET"
-
-  if command -v systemctl >/dev/null 2>&1; then
-    if systemctl list-unit-files | grep -q '^k3s\.service'; then
-      if ! sudo systemctl is-active --quiet k3s; then
-        echo "==> Starting k3s service..."
-        sudo systemctl enable --now k3s
-      fi
-    fi
-  fi
-
-  waited=0
-  until sudo test -S "$SOCKET"; do
-    if (( waited >= CONTAINERD_WAIT_SECONDS )); then
-      echo "❌ containerd socket not found after ${CONTAINERD_WAIT_SECONDS}s: $SOCKET"
-      exit 1
-    fi
-
-    sleep 3
-    waited=$((waited + 3))
-  done
-
-  waited=0
-  until (command -v k3s >/dev/null 2>&1 && sudo k3s ctr version >/dev/null 2>&1) || \
-        (command -v ctr >/dev/null 2>&1 && sudo ctr --address "$SOCKET" version >/dev/null 2>&1) || \
-        (command -v nerdctl >/dev/null 2>&1 && sudo nerdctl --address "$SOCKET" info >/dev/null 2>&1); do
-    if (( waited >= CONTAINERD_WAIT_SECONDS )); then
-      echo "❌ containerd not responding after ${CONTAINERD_WAIT_SECONDS}s"
-      if command -v systemctl >/dev/null 2>&1; then
-        sudo systemctl --no-pager --full status k3s 2>/dev/null || true
-        sudo systemctl --no-pager --full status k3s-agent 2>/dev/null || true
-      fi
-      exit 1
-    fi
-
-    sleep 3
-    waited=$((waited + 3))
-  done
-
-  echo "==> containerd OK (k3s)"
-}
-
-# ===== INSTALL NERDCTL =====
-install_nerdctl() {
-  current_version=""
-  if command -v nerdctl >/dev/null 2>&1; then
-    current_version="$(nerdctl --version 2>/dev/null | awk '{print $3}')"
-    if [[ "$current_version" == "$NERDCTL_VERSION" || "$current_version" == "v${NERDCTL_VERSION}" ]]; then
-      echo "==> nerdctl already installed (${current_version})"
-      return
-    fi
-
-    echo "==> nerdctl ${current_version:-unknown} found, installing v${NERDCTL_VERSION}..."
-  else
-    echo "==> Installing nerdctl v${NERDCTL_VERSION}..."
-  fi
-
-  ARCH=$(uname -m)
-  case "$ARCH" in
-    x86_64|amd64) ARCH="amd64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
-    *) echo "Unsupported arch: $ARCH"; exit 1 ;;
-  esac
-
-  TMP_DIR="$(mktemp -d)"
-  ARCHIVE_PATH="${TMP_DIR}/nerdctl.tar.gz"
-
-  curl -fsSL "https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-${ARCH}.tar.gz" \
-    -o "$ARCHIVE_PATH"
-
-  tar -xzf "$ARCHIVE_PATH" -C "$TMP_DIR"
-
-  if [[ ! -f "${TMP_DIR}/nerdctl" ]]; then
-    echo "❌ Failed to find nerdctl binary in archive"
-    rm -rf "$TMP_DIR"
-    exit 1
-  fi
-
-  sudo install -m 0755 "${TMP_DIR}/nerdctl" /usr/local/bin/nerdctl
-  rm -rf "$TMP_DIR"
-
-  echo "==> nerdctl installed: $(nerdctl --version 2>/dev/null || echo 'unknown version')"
-}
-
-# ===== INSTALL BUILDKIT =====
-install_buildkit() {
-  if command -v buildctl >/dev/null 2>&1 && command -v buildkitd >/dev/null 2>&1; then
-    echo "==> buildkit already installed"
+# ===== INSTALL DOCKER =====
+install_docker() {
+  if command -v docker >/dev/null 2>&1; then
+    echo "==> docker already installed: $(docker --version 2>/dev/null || echo 'unknown version')"
     return
   fi
 
-  echo "==> Installing buildkit v${BUILDKIT_VERSION}..."
+  echo "==> Installing Docker Engine (official script)..."
+  local tmp_script
+  tmp_script="$(mktemp)"
 
-  ARCH=$(uname -m)
-  case "$ARCH" in
-    x86_64|amd64) ARCH="amd64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
-    *) echo "Unsupported arch: $ARCH"; exit 1 ;;
-  esac
+  curl -fsSL https://get.docker.com -o "$tmp_script"
+  "${SUDO[@]}" sh "$tmp_script"
+  rm -f "$tmp_script"
 
-  TMP_DIR="$(mktemp -d)"
-  ARCHIVE_PATH="${TMP_DIR}/buildkit.tar.gz"
-
-  curl -fsSL "https://github.com/moby/buildkit/releases/download/v${BUILDKIT_VERSION}/buildkit-v${BUILDKIT_VERSION}.linux-${ARCH}.tar.gz" \
-    -o "$ARCHIVE_PATH"
-
-  tar -xzf "$ARCHIVE_PATH" -C "$TMP_DIR"
-
-  if [[ ! -f "${TMP_DIR}/bin/buildctl" || ! -f "${TMP_DIR}/bin/buildkitd" ]]; then
-    echo "❌ Failed to find buildctl/buildkitd in archive"
-    rm -rf "$TMP_DIR"
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "❌ docker installation failed"
     exit 1
   fi
 
-  sudo install -m 0755 "${TMP_DIR}/bin/buildctl" /usr/local/bin/buildctl
-  sudo install -m 0755 "${TMP_DIR}/bin/buildkitd" /usr/local/bin/buildkitd
-  rm -rf "$TMP_DIR"
-
-  echo "==> buildkit installed: $(buildctl --version 2>/dev/null || echo 'unknown version')"
+  echo "==> docker installed: $(docker --version 2>/dev/null || echo 'unknown version')"
 }
 
-# ===== CHECK BUILDKIT CONNECTION =====
-buildkit_ready() {
-  buildctl --addr "$BUILDKIT_SOCKET" debug workers >/dev/null 2>&1 || \
-  sudo buildctl --addr "$BUILDKIT_SOCKET" debug workers >/dev/null 2>&1
-}
-
-# ===== START BUILDKITD =====
-start_buildkitd() {
-  local socket_path="${BUILDKIT_SOCKET#unix://}"
-  local socket_dir
-  socket_dir="$(dirname "$socket_path")"
-
-  if buildkit_ready; then
-    echo "==> buildkitd already ready"
+start_docker_service_if_available() {
+  if ! command -v systemctl >/dev/null 2>&1; then
     return
   fi
 
-  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^buildkit\.service'; then
-    echo "==> Starting buildkit service..."
-    sudo systemctl enable --now buildkit
-  else
-    echo "==> Starting buildkitd process..."
-    sudo mkdir -p "$socket_dir" /var/lib/buildkit
+  if ! systemctl list-unit-files | grep -q '^docker\.service'; then
+    return
+  fi
 
-    if ! sudo ps -eo args | grep -F "buildkitd --addr ${BUILDKIT_SOCKET}" | grep -v grep >/dev/null 2>&1; then
-      sudo nohup /usr/local/bin/buildkitd \
-        --addr "$BUILDKIT_SOCKET" \
-        --root /var/lib/buildkit \
-        --containerd-worker-addr "$CONTAINERD_SOCKET" \
-        --containerd-worker-namespace k8s.io \
-        --oci-worker=false \
-        >"$BUILDKIT_LOG_FILE" 2>&1 &
-    fi
+  if ! "${SUDO[@]}" systemctl is-active --quiet docker; then
+    echo "==> Starting docker service..."
+    "${SUDO[@]}" systemctl enable --now docker
+  fi
+}
+
+# ===== DETECT DOCKER =====
+detect_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "❌ docker not found in PATH"
+    echo "   Set INSTALL_DOCKER=true and rerun setup-harbor.sh"
+    exit 1
   fi
 
   local waited=0
-  until buildkit_ready; do
-    if (( waited >= BUILDKIT_WAIT_SECONDS )); then
-      echo "❌ buildkitd not ready after ${BUILDKIT_WAIT_SECONDS}s"
-      echo "   socket: ${BUILDKIT_SOCKET}"
-      echo "   log: ${BUILDKIT_LOG_FILE}"
+  while true; do
+    if docker info >/dev/null 2>&1; then
+      DOCKER=(docker)
+      break
+    fi
 
+    if "${SUDO[@]}" docker info >/dev/null 2>&1; then
+      DOCKER=("${SUDO[@]}" docker)
+      break
+    fi
+
+    if (( waited == 0 )); then
+      start_docker_service_if_available
+    fi
+
+    if (( waited >= DOCKER_WAIT_SECONDS )); then
+      echo "❌ docker daemon is not ready after ${DOCKER_WAIT_SECONDS}s"
       if command -v systemctl >/dev/null 2>&1; then
-        sudo systemctl --no-pager --full status buildkit 2>/dev/null || true
+        "${SUDO[@]}" systemctl --no-pager --full status docker 2>/dev/null || true
       fi
-
-      sudo tail -n 40 "$BUILDKIT_LOG_FILE" 2>/dev/null || true
       exit 1
     fi
 
@@ -244,93 +147,7 @@ start_buildkitd() {
     waited=$((waited + 3))
   done
 
-  echo "==> buildkitd ready (${BUILDKIT_SOCKET})"
-}
-
-# ===== ENSURE BUILDKIT =====
-ensure_buildkit() {
-  [[ "$INSTALL_BUILDKIT" == "true" ]] && install_buildkit
-
-  if ! command -v buildctl >/dev/null 2>&1 || ! command -v buildkitd >/dev/null 2>&1; then
-    echo "❌ buildkit is required for nerdctl build"
-    echo "   Set INSTALL_BUILDKIT=true or manually install buildctl/buildkitd"
-    exit 1
-  fi
-
-  start_buildkitd
-  export BUILDKIT_HOST="$BUILDKIT_SOCKET"
-  echo "==> Using BUILDKIT_HOST=${BUILDKIT_HOST}"
-}
-
-# ===== SNAPSHOT ERROR DETECTION =====
-is_snapshot_corruption_error() {
-  local log_file=$1
-
-  grep -qiE 'failed to walk: resolve.+io\.containerd\.snapshotter\.v1\.overlayfs/snapshots/.+no such file or directory' "$log_file" || \
-  grep -qiE 'snapshot [^ ]+ does not exist: not found' "$log_file" || \
-  grep -qiE 'failed to solve: snapshot [^ ]+ does not exist' "$log_file"
-}
-
-# ===== RESTART BUILDKITD =====
-restart_buildkitd() {
-  local socket_path="${BUILDKIT_SOCKET#unix://}"
-
-  echo "==> Restarting buildkitd..."
-
-  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^buildkit\.service'; then
-    sudo systemctl restart buildkit || true
-  else
-    sudo pkill -f "buildkitd --addr ${BUILDKIT_SOCKET}" >/dev/null 2>&1 || true
-    sudo rm -f "$socket_path" >/dev/null 2>&1 || true
-  fi
-
-  start_buildkitd
-}
-
-# ===== RECOVER STALE SNAPSHOT STATE =====
-recover_stale_snapshot_state() {
-  echo "==> Attempting stale snapshot recovery (one-time)..."
-
-  if command -v buildctl >/dev/null 2>&1; then
-    buildctl --addr "$BUILDKIT_SOCKET" prune --all --force >/dev/null 2>&1 || \
-    sudo buildctl --addr "$BUILDKIT_SOCKET" prune --all --force >/dev/null 2>&1 || true
-  fi
-
-  "${NERDCTL[@]}" builder prune -af >/dev/null 2>&1 || true
-
-  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^k3s\.service'; then
-    echo "==> Restarting k3s service to refresh containerd snapshots..."
-    sudo systemctl restart k3s || true
-  fi
-
-  check_containerd
-  restart_buildkitd
-
-  echo "==> Snapshot recovery finished"
-}
-
-# ===== DETECT NERDCTL =====
-detect_nerdctl() {
-  SOCKET="$CONTAINERD_SOCKET"
-
-  if ! command -v nerdctl >/dev/null 2>&1; then
-    echo "❌ nerdctl not found in PATH"
-    echo "   Set INSTALL_NERDCTL=true and rerun setup-harbor.sh"
-    exit 1
-  fi
-
-  if command -v nerdctl >/dev/null 2>&1 && \
-     nerdctl --address "$SOCKET" info >/dev/null 2>&1; then
-    NERDCTL=(nerdctl --address "$SOCKET" --namespace k8s.io)
-  elif sudo nerdctl --address "$SOCKET" info >/dev/null 2>&1; then
-    NERDCTL=(sudo nerdctl --address "$SOCKET" --namespace k8s.io)
-  else
-    echo "❌ nerdctl cannot connect to containerd: $SOCKET"
-    echo "   Try upgrading nerdctl by setting NERDCTL_VERSION and rerun the script"
-    exit 1
-  fi
-
-  echo "==> Using: ${NERDCTL[*]}"
+  echo "==> Using: ${DOCKER[*]}"
 }
 
 # ===== WAIT HARBOR =====
@@ -417,62 +234,45 @@ prompt_robot_credentials() {
 # ===== LOGIN REGISTRY =====
 login_registry() {
   echo "==> Login registry..."
-  echo "$CI_PASS" | "${NERDCTL[@]}" login "$HARBOR_HOST" -u "$CI_USER" --password-stdin
+  echo "$CI_PASS" | "${DOCKER[@]}" login "$HARBOR_HOST" -u "$CI_USER" --password-stdin
 }
 
 # ===== BUILD & PUSH =====
-build_and_push () {
+build_and_push() {
   local name=$1
   local dockerfile=$2
   local context=$3
-  local IMAGE
-  local DOCKERFILE_PATH
-  local CONTEXT_PATH
-  local build_log
+  local image
+  local dockerfile_path
+  local context_path
   local build_no_cache_args=()
-  local retry_no_cache_args=()
 
-  IMAGE="${HARBOR_HOST}/${PROJECT_NAME}/${name}:latest"
+  image="${HARBOR_HOST}/${PROJECT_NAME}/${name}:latest"
 
   if [[ -f "${ROOT_DIR}/${dockerfile}" ]]; then
-    DOCKERFILE_PATH="${ROOT_DIR}/${dockerfile}"
+    dockerfile_path="${ROOT_DIR}/${dockerfile}"
   else
-    DOCKERFILE_PATH="${SCRIPT_DIR}/${dockerfile}"
+    dockerfile_path="${SCRIPT_DIR}/${dockerfile}"
   fi
 
   if [[ -d "${ROOT_DIR}/${context}" ]]; then
-    CONTEXT_PATH="${ROOT_DIR}/${context}"
+    context_path="${ROOT_DIR}/${context}"
   else
-    CONTEXT_PATH="${SCRIPT_DIR}/${context}"
+    context_path="${SCRIPT_DIR}/${context}"
   fi
 
-  echo "==> Building $IMAGE"
+  echo "==> Building $image"
 
   if [[ "$BUILD_NO_CACHE" == "true" ]]; then
     build_no_cache_args=(--no-cache)
   fi
 
-  build_log="$(mktemp)"
-  if ! "${NERDCTL[@]}" build "${build_no_cache_args[@]}" -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH" 2>&1 | tee "$build_log"; then
-    if [[ "$AUTO_SNAPSHOT_RECOVERY" == "true" ]] && is_snapshot_corruption_error "$build_log"; then
-      echo "==> Detected containerd snapshot corruption while building $IMAGE"
-      recover_stale_snapshot_state
-
-      if [[ "$SNAPSHOT_RETRY_NO_CACHE" == "true" ]]; then
-        retry_no_cache_args=(--no-cache)
-      fi
-
-      echo "==> Retrying build once for $IMAGE"
-      "${NERDCTL[@]}" build "${retry_no_cache_args[@]}" -t "$IMAGE" -f "$DOCKERFILE_PATH" "$CONTEXT_PATH"
-    else
-      rm -f "$build_log"
-      echo "❌ Build failed for $IMAGE"
-      return 1
-    fi
+  if ! "${DOCKER[@]}" build "${build_no_cache_args[@]}" -t "$image" -f "$dockerfile_path" "$context_path"; then
+    echo "❌ Build failed for $image"
+    return 1
   fi
 
-  rm -f "$build_log"
-  "${NERDCTL[@]}" push "$IMAGE"
+  "${DOCKER[@]}" push "$image"
 }
 
 # ===== BUILD ALL =====
@@ -484,12 +284,11 @@ build_all() {
   build_and_push "deployment-consumer" "ControlCenterAndChallengeHostingServer/DeploymentConsumer/Dockerfile" "ControlCenterAndChallengeHostingServer"
   build_and_push "admin-mvc" "FCTF-ManagementPlatform/Dockerfile" "FCTF-ManagementPlatform"
   build_and_push "challenge-gateway" "ChallengeGateway/Dockerfile" "ChallengeGateway"
-
   build_and_push "kubectl-cli" "docker/kubectl/dockerfile" "docker/kubectl"
 }
 
 # ===== APPLY SECRET =====
-apply_secret () {
+apply_secret() {
   local name=$1
   local ns=$2
 
@@ -531,20 +330,16 @@ EOF
 
 # ===== MAIN =====
 main() {
-
-  install_dependencies  
-  [[ "$INSTALL_NERDCTL" == "true" ]] && install_nerdctl
-  check_containerd
-  
-  detect_nerdctl
-  ensure_buildkit
+  setup_sudo
+  install_dependencies
+  [[ "$INSTALL_DOCKER" == "true" ]] && install_docker
+  detect_docker
   wait_harbor
   print_harbor_manual_guide
   confirm_harbor_manual_done
   prompt_robot_credentials
   apply_registry_secrets
   login_registry
-
   build_all
 
   echo "==> DONE"
