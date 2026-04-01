@@ -158,9 +158,9 @@ spec:
               --custom-platform=linux/amd64 \
               --snapshot-mode=redo \
               --verbosity=info \
-              --destination=registry3.fctf.site/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest
+              --destination=registry0.fctf.site/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest
 
-            echo "✅ Image pushed: registry3.fctf.site/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest"
+            echo "✅ Image pushed: registry0.fctf.site/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest"
 
       volumes:
         - name: nfs-shared-data
@@ -185,7 +185,7 @@ spec:
           - name: global-regcred
 
       container:
-        image: registry3.fctf.site/fctf/kubectl-cli:latest
+        image: registry0.fctf.site/fctf/kubectl-cli:latest
         imagePullPolicy: IfNotPresent
 
         # HARDENED (safe – no write needed)

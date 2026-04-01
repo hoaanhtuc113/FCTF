@@ -24,7 +24,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: admin-mvc
-          image: registry3.fctf.site/fctf/admin-mvc:latest
+          image: registry0.fctf.site/fctf/admin-mvc:latest
           ports:
             - name: http-client
               containerPort: 8000

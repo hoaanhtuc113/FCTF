@@ -18,7 +18,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-center
-          image: registry3.fctf.site/fctf/deployment-center:latest
+          image: registry0.fctf.site/fctf/deployment-center:latest
           ports:
             - name: http-client
               containerPort: 5020

@@ -4,7 +4,7 @@ set -euo pipefail
 TIMEZONE="Asia/Ho_Chi_Minh"
 MAX_PODS="110"
 # inputable
-TLS_SAN=""
+TLS_SAN="42.115.38.90"
 INSTALL_CALICO="true"
 INSTALL_GVISOR="true"
 APPLY_HELM="true"
@@ -16,7 +16,7 @@ SERVICE_MODE="clusterip"
 SETUP_NFS_SERVER="true"
 NFS_SHARE_PATH="/srv/nfs/share"
 # inputable
-NFS_ALLOWED_SUBNET=""
+NFS_ALLOWED_SUBNET="10.13.2.0/24"
 INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

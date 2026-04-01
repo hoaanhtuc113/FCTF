@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: harbor-tls
   dnsNames:
-    - registry3.fctf.site
+    - registry0.fctf.site
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

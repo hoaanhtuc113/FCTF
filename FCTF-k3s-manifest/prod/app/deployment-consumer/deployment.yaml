@@ -18,7 +18,7 @@ spec:
       preemptionPolicy: Never
       containers:
         - name: deployment-consumer
-          image: registry3.fctf.site/fctf/deployment-consumer:latest
+          image: registry0.fctf.site/fctf/deployment-consumer:latest
           envFrom:
             - configMapRef:
                 name: deployment-consumer-cm

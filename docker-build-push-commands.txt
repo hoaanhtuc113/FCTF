@@ -1,25 +1,25 @@
 Harbor Login:
 
-	docker login registry3.fctf.site
+	docker login registry0.fctf.site
 
 Build Images:
 
-	docker build -t registry3.fctf.site/fctf/contestant-portal:latest -f ContestantPortal/docker/Dockerfile ContestantPortal
-	docker build -t registry3.fctf.site/fctf/contestant-be:latest -f ./ControlCenterAndChallengeHostingServer/ContestantBE/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t registry3.fctf.site/fctf/deployment-center:latest -f ./ControlCenterAndChallengeHostingServer/DeploymentCenter/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t registry3.fctf.site/fctf/deployment-listener:latest -f ./ControlCenterAndChallengeHostingServer/DeploymentListener/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t registry3.fctf.site/fctf/deployment-consumer:latest -f ./ControlCenterAndChallengeHostingServer/DeploymentConsumer/Dockerfile ./ControlCenterAndChallengeHostingServer
-	docker build -t registry3.fctf.site/fctf/admin-mvc:latest -f ./FCTF-ManagementPlatform/Dockerfile ./FCTF-ManagementPlatform
-	docker build -t registry3.fctf.site/fctf/challenge-gateway:latest -f ./ChallengeGateway/Dockerfile ./ChallengeGateway
-	docker build -t registry3.fctf.site/fctf/kubectl-cli:latest -f ./FCTF-k3s-manifest/docker/kubectl/dockerfile ./FCTF-k3s-manifest/docker/kubectl
+	docker build -t registry0.fctf.site/fctf/contestant-portal:latest -f ContestantPortal/docker/Dockerfile ContestantPortal
+	docker build -t registry0.fctf.site/fctf/contestant-be:latest -f ./ControlCenterAndChallengeHostingServer/ContestantBE/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t registry0.fctf.site/fctf/deployment-center:latest -f ./ControlCenterAndChallengeHostingServer/DeploymentCenter/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t registry0.fctf.site/fctf/deployment-listener:latest -f ./ControlCenterAndChallengeHostingServer/DeploymentListener/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t registry0.fctf.site/fctf/deployment-consumer:latest -f ./ControlCenterAndChallengeHostingServer/DeploymentConsumer/Dockerfile ./ControlCenterAndChallengeHostingServer
+	docker build -t registry0.fctf.site/fctf/admin-mvc:latest -f ./FCTF-ManagementPlatform/Dockerfile ./FCTF-ManagementPlatform
+	docker build -t registry0.fctf.site/fctf/challenge-gateway:latest -f ./ChallengeGateway/Dockerfile ./ChallengeGateway
+	docker build -t registry0.fctf.site/fctf/kubectl-cli:latest -f ./FCTF-k3s-manifest/docker/kubectl/dockerfile ./FCTF-k3s-manifest/docker/kubectl
 
 Push:
 
-	docker push registry3.fctf.site/fctf/contestant-portal:latest
-	docker push registry3.fctf.site/fctf/contestant-be:latest
-	docker push registry3.fctf.site/fctf/deployment-center:latest
-	docker push registry3.fctf.site/fctf/deployment-listener:latest
-	docker push registry3.fctf.site/fctf/deployment-consumer:latest
-	docker push registry3.fctf.site/fctf/admin-mvc:latest
-	docker push registry3.fctf.site/fctf/challenge-gateway:latest
-	docker push registry3.fctf.site/fctf/kubectl-cli:latest
+	docker push registry0.fctf.site/fctf/contestant-portal:latest
+	docker push registry0.fctf.site/fctf/contestant-be:latest
+	docker push registry0.fctf.site/fctf/deployment-center:latest
+	docker push registry0.fctf.site/fctf/deployment-listener:latest
+	docker push registry0.fctf.site/fctf/deployment-consumer:latest
+	docker push registry0.fctf.site/fctf/admin-mvc:latest
+	docker push registry0.fctf.site/fctf/challenge-gateway:latest
+	docker push registry0.fctf.site/fctf/kubectl-cli:latest

@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: admin3.fctf.site
+    - host: admin0.fctf.site
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 8000
   tls:
     - hosts:
-        - admin3.fctf.site
+        - admin0.fctf.site
       secretName: admin-tls

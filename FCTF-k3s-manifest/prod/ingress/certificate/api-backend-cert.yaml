@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: api-backend-tls
   dnsNames:
-    - api3.fctf.site
+    - api0.fctf.site
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer
