@@ -63,6 +63,8 @@ public partial class Challenge
 
     public bool SharedInstant { get; set; }
 
+    public string ConnectionProtocol { get; set; } = null!;
+
     public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 
     public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();
