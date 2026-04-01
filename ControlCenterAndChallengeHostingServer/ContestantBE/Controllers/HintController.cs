@@ -71,7 +71,7 @@ public class HintController : BaseController
 
         if (teamId == 0 || userId == 0)
         {
-            return Unauthorized(new { success = false, error = "Permission denied" });
+            return Unauthorized(new { success = false, error = "PermisUnlockHintsion denied" });
         }
         try
         {
