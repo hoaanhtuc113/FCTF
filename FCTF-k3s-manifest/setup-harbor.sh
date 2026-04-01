@@ -215,6 +215,9 @@ start_buildkitd() {
       sudo nohup /usr/local/bin/buildkitd \
         --addr "$BUILDKIT_SOCKET" \
         --root /var/lib/buildkit \
+        --containerd-worker-addr "$CONTAINERD_SOCKET" \
+        --containerd-worker-namespace k8s.io \
+        --oci-worker=false \
         >"$BUILDKIT_LOG_FILE" 2>&1 &
     fi
   fi
