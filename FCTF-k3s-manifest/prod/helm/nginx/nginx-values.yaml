@@ -53,17 +53,23 @@ controller:
     https: 443
   # -- Global configuration passed to the ConfigMap consumed by the controller. Values may contain Helm templates.
   # Ref.: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/
-  config:
-    use-forwarded-headers: "false"
-    compute-full-forwarded-for: "false"
-    limit-req-status-code: "429"
-    limit-conn-status-code: "429"
-    http-snippet: |
-      limit_req_zone $binary_remote_addr zone=global_rate:20m rate=100r/s;
-      limit_conn_zone $binary_remote_addr zone=global_conn:20m;
-    server-snippet: |
-      limit_req zone=global_rate burst=200 nodelay;
-      limit_conn global_conn 100;
+config:
+  use-forwarded-headers: "true"
+  compute-full-forwarded-for: "true"
+  limit-req-status-code: "429"
+  limit-conn-status-code: "429"
+
+  http-snippet: |
+    real_ip_header CF-Connecting-IP;
+    set_real_ip_from 0.0.0.0/0;
+
+    limit_req_zone $realip_remote_addr zone=global_rate:20m rate=100r/s;
+    limit_conn_zone $realip_remote_addr zone=global_conn:20m;
+
+  server-snippet: |
+    limit_req zone=global_rate burst=200;
+    limit_conn global_conn 100;
+    
   # -- Annotations to be added to the controller config configuration configmap.
   configAnnotations: {}
   # -- Will add custom headers before sending traffic to backends according to https://github.com/kubernetes/ingress-nginx/tree/main/docs/examples/customization/custom-headers
