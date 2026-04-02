@@ -111,6 +111,9 @@ log "3.1) Stop K3s immediately"
 run_shell "sudo systemctl stop k3s"
 run_shell "sudo systemctl stop k3s-agent"
 
+log "3.1.1) Prune Docker builder cache (if docker exists)"
+run_shell "if command -v docker >/dev/null 2>&1; then sudo docker builder prune -a -f; else echo 'docker not found, skip'; fi"
+
 log "3.2) Stop and remove all running containers via CRI (containerd/K3s)"
 run_shell "if command -v crictl >/dev/null 2>&1; then sudo crictl ps -aq | xargs -r sudo crictl stop; else echo 'crictl not found, skip'; fi"
 run_shell "if command -v crictl >/dev/null 2>&1; then sudo crictl ps -aq | xargs -r sudo crictl rm; else echo 'crictl not found, skip'; fi"
