@@ -15,6 +15,10 @@ spec:
     spec:
       priorityClassName: app-normal
       preemptionPolicy: Never
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       securityContext:
         fsGroup: 1102
         fsGroupChangePolicy: OnRootMismatch

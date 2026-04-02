@@ -17,6 +17,10 @@ spec:
         fsGroup: 1000
       priorityClassName: app-normal
       preemptionPolicy: Never
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: contestant-portal
           image: registry0.fctf.site/fctf/contestant-portal:latest
