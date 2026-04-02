@@ -16,6 +16,10 @@ spec:
       serviceAccountName: deployment-center-sa
       priorityClassName: app-normal
       preemptionPolicy: Never
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: deployment-center
           image: registry0.fctf.site/fctf/deployment-center:latest

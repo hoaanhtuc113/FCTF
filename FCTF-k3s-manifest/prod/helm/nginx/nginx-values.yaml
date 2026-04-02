@@ -1102,7 +1102,10 @@ defaultBackend:
   # -- Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   ##
-  tolerations: []
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
   #  - key: "key"
   #    operator: "Equal|Exists"
   #    value: "value"
