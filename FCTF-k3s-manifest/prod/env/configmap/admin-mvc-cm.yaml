@@ -12,7 +12,7 @@ data:
   REDIS_HOST: "redis-headless.db.svc.cluster.local"
   HOST_CACHE: "redis-headless.db.svc.cluster.local"
   REVERSE_PROXY: "true"
-  WORKERS: "1"
+  WORKERS: "3"
   UPLOAD_PROVIDER: "nfs"
   IMAGE_REPO: "fctf"
   DOCKER_USERNAME: "registry0.fctf.site"
