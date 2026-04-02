@@ -292,7 +292,7 @@ maxPods: ${MAX_PODS}
 EOF
 
 echo "==> Installing K3s server"
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+curl -sfL https://get.k3s.io | K3S_NODE_NAME=server-1-master INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
   --disable-network-policy \
   --disable traefik \
