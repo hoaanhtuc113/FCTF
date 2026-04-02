@@ -26,8 +26,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 -- Table structure for achievements
 -- ----------------------------
-DROP TABLE IF EXISTS `achievements`;
-CREATE TABLE `achievements`  (
+CREATE TABLE IF NOT EXISTS `achievements`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NULL DEFAULT NULL,
   `team_id` int(11) NULL DEFAULT NULL,
@@ -52,8 +51,7 @@ CREATE TABLE `achievements`  (
 -- ----------------------------
 -- Table structure for action_logs
 -- ----------------------------
-DROP TABLE IF EXISTS `action_logs`;
-CREATE TABLE `action_logs`  (
+CREATE TABLE IF NOT EXISTS `action_logs`  (
   `actionId` int(11) NOT NULL AUTO_INCREMENT,
   `userId` int(11) NULL DEFAULT NULL,
   `actionDate` datetime NOT NULL,
@@ -72,8 +70,7 @@ CREATE TABLE `action_logs`  (
 -- ----------------------------
 -- Table structure for admin_audit_logs
 -- ----------------------------
-DROP TABLE IF EXISTS `admin_audit_logs`;
-CREATE TABLE `admin_audit_logs`  (
+CREATE TABLE IF NOT EXISTS `admin_audit_logs`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `actor_id` int(11) NULL DEFAULT NULL,
   `actor_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -100,8 +97,7 @@ CREATE TABLE `admin_audit_logs`  (
 -- ----------------------------
 -- Table structure for alembic_version
 -- ----------------------------
-DROP TABLE IF EXISTS `alembic_version`;
-CREATE TABLE `alembic_version`  (
+CREATE TABLE IF NOT EXISTS `alembic_version`  (
   `version_num` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   PRIMARY KEY (`version_num`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
@@ -109,13 +105,16 @@ CREATE TABLE `alembic_version`  (
 -- ----------------------------
 -- Records of alembic_version
 -- ----------------------------
-INSERT INTO `alembic_version` VALUES ('e9a1c2d3f4b5');
+INSERT INTO `alembic_version` (`version_num`)
+SELECT 'e9a1c2d3f4b5'
+WHERE NOT EXISTS (
+  SELECT 1 FROM `alembic_version` LIMIT 1
+);
 
 -- ----------------------------
 -- Table structure for award_badges
 -- ----------------------------
-DROP TABLE IF EXISTS `award_badges`;
-CREATE TABLE `award_badges`  (
+CREATE TABLE IF NOT EXISTS `award_badges`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NULL DEFAULT NULL,
   `team_id` int(11) NULL DEFAULT NULL,
@@ -137,8 +136,7 @@ CREATE TABLE `award_badges`  (
 -- ----------------------------
 -- Table structure for awards
 -- ----------------------------
-DROP TABLE IF EXISTS `awards`;
-CREATE TABLE `awards`  (
+CREATE TABLE IF NOT EXISTS `awards`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NULL DEFAULT NULL,
   `team_id` int(11) NULL DEFAULT NULL,
@@ -164,8 +162,7 @@ CREATE TABLE `awards`  (
 -- ----------------------------
 -- Table structure for brackets
 -- ----------------------------
-DROP TABLE IF EXISTS `brackets`;
-CREATE TABLE `brackets`  (
+CREATE TABLE IF NOT EXISTS `brackets`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -180,8 +177,7 @@ CREATE TABLE `brackets`  (
 -- ----------------------------
 -- Table structure for challenge_start_tracking
 -- ----------------------------
-DROP TABLE IF EXISTS `challenge_start_tracking`;
-CREATE TABLE `challenge_start_tracking`  (
+CREATE TABLE IF NOT EXISTS `challenge_start_tracking`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NULL DEFAULT NULL,
   `team_id` int(11) NULL DEFAULT NULL,
@@ -205,8 +201,7 @@ CREATE TABLE `challenge_start_tracking`  (
 -- ----------------------------
 -- Table structure for challenge_topics
 -- ----------------------------
-DROP TABLE IF EXISTS `challenge_topics`;
-CREATE TABLE `challenge_topics`  (
+CREATE TABLE IF NOT EXISTS `challenge_topics`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `challenge_id` int(11) NULL DEFAULT NULL,
   `topic_id` int(11) NULL DEFAULT NULL,
@@ -224,8 +219,7 @@ CREATE TABLE `challenge_topics`  (
 -- ----------------------------
 -- Table structure for challenge_versions
 -- ----------------------------
-DROP TABLE IF EXISTS `challenge_versions`;
-CREATE TABLE `challenge_versions`  (
+CREATE TABLE IF NOT EXISTS `challenge_versions`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `challenge_id` int(11) NOT NULL,
   `version_number` int(11) NOT NULL DEFAULT 1,
@@ -257,8 +251,7 @@ CREATE TABLE `challenge_versions`  (
 -- ----------------------------
 -- Table structure for challenges
 -- ----------------------------
-DROP TABLE IF EXISTS `challenges`;
-CREATE TABLE `challenges`  (
+CREATE TABLE IF NOT EXISTS `challenges`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -304,8 +297,7 @@ CREATE TABLE `challenges`  (
 -- ----------------------------
 -- Table structure for comments
 -- ----------------------------
-DROP TABLE IF EXISTS `comments`;
-CREATE TABLE `comments`  (
+CREATE TABLE IF NOT EXISTS `comments`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -332,8 +324,7 @@ CREATE TABLE `comments`  (
 -- ----------------------------
 -- Table structure for config
 -- ----------------------------
-DROP TABLE IF EXISTS `config`;
-CREATE TABLE `config`  (
+CREATE TABLE IF NOT EXISTS `config`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `key` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -343,15 +334,23 @@ CREATE TABLE `config`  (
 -- ----------------------------
 -- Records of config
 -- ----------------------------
-INSERT INTO `config` VALUES (1, 'ctf_theme', 'core-beta');
-INSERT INTO `config` VALUES (2, 'version_latest', 'https://github.com/CTFd/CTFd/releases/tag/3.8.2');
-INSERT INTO `config` VALUES (3, 'next_update_check', '1775081408');
+INSERT INTO `config` (`id`, `key`, `value`)
+SELECT s.`id`, s.`key`, s.`value`
+FROM (
+  SELECT 1 AS `id`, 'ctf_theme' AS `key`, 'core-beta' AS `value`
+  UNION ALL
+  SELECT 2 AS `id`, 'version_latest' AS `key`, 'https://github.com/CTFd/CTFd/releases/tag/3.8.2' AS `value`
+  UNION ALL
+  SELECT 3 AS `id`, 'next_update_check' AS `key`, '1775081408' AS `value`
+) AS s
+WHERE NOT EXISTS (
+  SELECT 1 FROM `config` LIMIT 1
+);
 
 -- ----------------------------
 -- Table structure for deploy_histories
 -- ----------------------------
-DROP TABLE IF EXISTS `deploy_histories`;
-CREATE TABLE `deploy_histories`  (
+CREATE TABLE IF NOT EXISTS `deploy_histories`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `challenge_id` int(11) NOT NULL,
   `log_content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -369,8 +368,7 @@ CREATE TABLE `deploy_histories`  (
 -- ----------------------------
 -- Table structure for dynamic_challenge
 -- ----------------------------
-DROP TABLE IF EXISTS `dynamic_challenge`;
-CREATE TABLE `dynamic_challenge`  (
+CREATE TABLE IF NOT EXISTS `dynamic_challenge`  (
   `id` int(11) NOT NULL,
   `initial` int(11) NULL DEFAULT NULL,
   `minimum` int(11) NULL DEFAULT NULL,
@@ -387,8 +385,7 @@ CREATE TABLE `dynamic_challenge`  (
 -- ----------------------------
 -- Table structure for field_entries
 -- ----------------------------
-DROP TABLE IF EXISTS `field_entries`;
-CREATE TABLE `field_entries`  (
+CREATE TABLE IF NOT EXISTS `field_entries`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `value` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL CHECK (json_valid(`value`)),
@@ -411,8 +408,7 @@ CREATE TABLE `field_entries`  (
 -- ----------------------------
 -- Table structure for fields
 -- ----------------------------
-DROP TABLE IF EXISTS `fields`;
-CREATE TABLE `fields`  (
+CREATE TABLE IF NOT EXISTS `fields`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -431,8 +427,7 @@ CREATE TABLE `fields`  (
 -- ----------------------------
 -- Table structure for files
 -- ----------------------------
-DROP TABLE IF EXISTS `files`;
-CREATE TABLE `files`  (
+CREATE TABLE IF NOT EXISTS `files`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `location` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -450,8 +445,7 @@ CREATE TABLE `files`  (
 -- ----------------------------
 -- Table structure for flags
 -- ----------------------------
-DROP TABLE IF EXISTS `flags`;
-CREATE TABLE `flags`  (
+CREATE TABLE IF NOT EXISTS `flags`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `challenge_id` int(11) NULL DEFAULT NULL,
   `type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -469,8 +463,7 @@ CREATE TABLE `flags`  (
 -- ----------------------------
 -- Table structure for hints
 -- ----------------------------
-DROP TABLE IF EXISTS `hints`;
-CREATE TABLE `hints`  (
+CREATE TABLE IF NOT EXISTS `hints`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `type` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `challenge_id` int(11) NULL DEFAULT NULL,
@@ -489,8 +482,7 @@ CREATE TABLE `hints`  (
 -- ----------------------------
 -- Table structure for multiple_choice_challenge
 -- ----------------------------
-DROP TABLE IF EXISTS `multiple_choice_challenge`;
-CREATE TABLE `multiple_choice_challenge`  (
+CREATE TABLE IF NOT EXISTS `multiple_choice_challenge`  (
   `id` int(11) NOT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   CONSTRAINT `multiple_choice_challenge_ibfk_1` FOREIGN KEY (`id`) REFERENCES `challenges` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
@@ -503,8 +495,7 @@ CREATE TABLE `multiple_choice_challenge`  (
 -- ----------------------------
 -- Table structure for solves
 -- ----------------------------
-DROP TABLE IF EXISTS `solves`;
-CREATE TABLE `solves`  (
+CREATE TABLE IF NOT EXISTS `solves`  (
   `id` int(11) NOT NULL,
   `challenge_id` int(11) NULL DEFAULT NULL,
   `user_id` int(11) NULL DEFAULT NULL,
@@ -527,8 +518,7 @@ CREATE TABLE `solves`  (
 -- ----------------------------
 -- Table structure for submissions
 -- ----------------------------
-DROP TABLE IF EXISTS `submissions`;
-CREATE TABLE `submissions`  (
+CREATE TABLE IF NOT EXISTS `submissions`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `challenge_id` int(11) NULL DEFAULT NULL,
   `user_id` int(11) NULL DEFAULT NULL,
@@ -553,8 +543,7 @@ CREATE TABLE `submissions`  (
 -- ----------------------------
 -- Table structure for tags
 -- ----------------------------
-DROP TABLE IF EXISTS `tags`;
-CREATE TABLE `tags`  (
+CREATE TABLE IF NOT EXISTS `tags`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `challenge_id` int(11) NULL DEFAULT NULL,
   `value` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -570,8 +559,7 @@ CREATE TABLE `tags`  (
 -- ----------------------------
 -- Table structure for teams
 -- ----------------------------
-DROP TABLE IF EXISTS `teams`;
-CREATE TABLE `teams`  (
+CREATE TABLE IF NOT EXISTS `teams`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `oauth_id` int(11) NULL DEFAULT NULL,
   `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -603,8 +591,7 @@ CREATE TABLE `teams`  (
 -- ----------------------------
 -- Table structure for tickets
 -- ----------------------------
-DROP TABLE IF EXISTS `tickets`;
-CREATE TABLE `tickets`  (
+CREATE TABLE IF NOT EXISTS `tickets`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `author_id` int(11) NULL DEFAULT NULL,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -628,8 +615,7 @@ CREATE TABLE `tickets`  (
 -- ----------------------------
 -- Table structure for tokens
 -- ----------------------------
-DROP TABLE IF EXISTS `tokens`;
-CREATE TABLE `tokens`  (
+CREATE TABLE IF NOT EXISTS `tokens`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `user_id` int(11) NULL DEFAULT NULL,
@@ -650,8 +636,7 @@ CREATE TABLE `tokens`  (
 -- ----------------------------
 -- Table structure for topics
 -- ----------------------------
-DROP TABLE IF EXISTS `topics`;
-CREATE TABLE `topics`  (
+CREATE TABLE IF NOT EXISTS `topics`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `value` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
@@ -665,8 +650,7 @@ CREATE TABLE `topics`  (
 -- ----------------------------
 -- Table structure for tracking
 -- ----------------------------
-DROP TABLE IF EXISTS `tracking`;
-CREATE TABLE `tracking`  (
+CREATE TABLE IF NOT EXISTS `tracking`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `ip` varchar(46) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
@@ -684,8 +668,7 @@ CREATE TABLE `tracking`  (
 -- ----------------------------
 -- Table structure for unlocks
 -- ----------------------------
-DROP TABLE IF EXISTS `unlocks`;
-CREATE TABLE `unlocks`  (
+CREATE TABLE IF NOT EXISTS `unlocks`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NULL DEFAULT NULL,
   `team_id` int(11) NULL DEFAULT NULL,
@@ -706,8 +689,7 @@ CREATE TABLE `unlocks`  (
 -- ----------------------------
 -- Table structure for users
 -- ----------------------------
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE `users`  (
+CREATE TABLE IF NOT EXISTS `users`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `oauth_id` int(11) NULL DEFAULT NULL,
   `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
