@@ -174,7 +174,7 @@ def challenges_detail(challenge_id):
         expose_port = object_image.get("exposedPort", "")
         image_link_name = object_image.get("imageLink", "")
         if image_link_name:
-            image_link_display = image_link_name.split(":")[-1]
+            image_link_display = image_link_name
 
     try:
         challenge_class = get_chal_class(challenge.type)
