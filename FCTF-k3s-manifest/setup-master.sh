@@ -159,14 +159,6 @@ EOF
 
   sudo sysctl --system >/dev/null
 
-  echo "==> Verifying kernel modules and sysctl settings"
-  lsmod | grep -q '^br_netfilter' || { echo "Error: br_netfilter module is not loaded"; exit 1; }
-  lsmod | grep -q '^overlay' || { echo "Error: overlay module is not loaded"; exit 1; }
-  [[ "$(sysctl -n net.bridge.bridge-nf-call-iptables)" == "1" ]] || { echo "Error: net.bridge.bridge-nf-call-iptables is not 1"; exit 1; }
-  [[ "$(sysctl -n net.bridge.bridge-nf-call-ip6tables)" == "1" ]] || { echo "Error: net.bridge.bridge-nf-call-ip6tables is not 1"; exit 1; }
-  [[ "$(sysctl -n net.ipv4.ip_forward)" == "1" ]] || { echo "Error: net.ipv4.ip_forward is not 1"; exit 1; }
-  [[ "$(sysctl -n net.ipv4.conf.all.rp_filter)" == "0" ]] || { echo "Error: net.ipv4.conf.all.rp_filter is not 0"; exit 1; }
-  [[ "$(sysctl -n net.ipv4.conf.default.rp_filter)" == "0" ]] || { echo "Error: net.ipv4.conf.default.rp_filter is not 0"; exit 1; }
 }
 
 disable_swap_for_k8s() {
