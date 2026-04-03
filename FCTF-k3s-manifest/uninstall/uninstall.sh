@@ -111,6 +111,12 @@ log "3.1) Stop K3s immediately"
 run_shell "sudo systemctl stop k3s"
 run_shell "sudo systemctl stop k3s-agent"
 
+log "3.1.1) Prune Docker builder cache (if docker exists)"
+run_shell "if command -v docker >/dev/null 2>&1; then sudo docker builder prune -a -f; else echo 'docker not found, skip'; fi"
+
+log "3.1.2) Stop Docker service (if exists)"
+run_shell "if systemctl list-unit-files | grep -q '^docker.service'; then sudo systemctl stop docker; sudo systemctl disable docker; else echo 'docker service not found, skip'; fi"
+
 log "3.2) Stop and remove all running containers via CRI (containerd/K3s)"
 run_shell "if command -v crictl >/dev/null 2>&1; then sudo crictl ps -aq | xargs -r sudo crictl stop; else echo 'crictl not found, skip'; fi"
 run_shell "if command -v crictl >/dev/null 2>&1; then sudo crictl ps -aq | xargs -r sudo crictl rm; else echo 'crictl not found, skip'; fi"
@@ -135,6 +141,11 @@ run_shell "sudo ip link show | grep cali | awk '{print \$2}' | cut -d'@' -f1 | x
 log "3.6) Run K3s uninstall scripts"
 run_shell "if [ -x /usr/local/bin/k3s-uninstall.sh ]; then sudo /usr/local/bin/k3s-uninstall.sh; else echo 'k3s-uninstall.sh not found'; fi"
 run_shell "if [ -x /usr/local/bin/k3s-agent-uninstall.sh ]; then sudo /usr/local/bin/k3s-agent-uninstall.sh; else echo 'k3s-agent-uninstall.sh not found'; fi"
+
+log "3.7) Uninstall Docker packages and data (if installed)"
+run_shell "sudo apt-get remove --purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras || true"
+run_shell "sudo apt-get autoremove -y"
+run_shell "sudo rm -rf /var/lib/docker /var/lib/buildkit /etc/docker /run/docker /var/run/docker.sock"
 
 log "4) Cleaning up Mount Points and Directories"
 if mount | grep -qE '/var/lib/kubelet|/var/lib/rancher'; then

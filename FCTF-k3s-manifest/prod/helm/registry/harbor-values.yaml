@@ -32,23 +32,43 @@ persistence:
 
 portal:
   replicas: 1
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
 
 core:
   replicas: 1
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
   config:
     project_creation_restriction: adminonly
 
 jobservice:
   replicas: 1
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
 
 registry:
   replicas: 1
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
   garbageCollection:
     enabled: true
     schedule: "0 */6 * * *"
 
 nginx:
   replicas: 2
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
 
 trivy:
   enabled: false

@@ -17,7 +17,7 @@ import {
   ExpandLess,
 } from '@mui/icons-material';
 import { FaDownload } from 'react-icons/fa';
-import Swal from 'sweetalert2';
+import Swal from '../services/safeSwal';
 import { saveAs } from 'file-saver';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
