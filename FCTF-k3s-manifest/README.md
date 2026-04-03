@@ -100,6 +100,10 @@ kubectl get nodes
 ```bash
 kubectl apply --server-side=true -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
 
+until kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; do sleep 2; done
+kubectl wait --for=condition=Established crd/installations.operator.tigera.io --timeout=180s
+kubectl -n tigera-operator rollout status deploy/tigera-operator --timeout=180s
+
 cat <<'EOF' | kubectl apply -f -
 apiVersion: operator.tigera.io/v1
 kind: Installation

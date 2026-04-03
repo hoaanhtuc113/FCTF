@@ -407,6 +407,25 @@ if [[ "${INSTALL_CALICO}" == "true" ]]; then
   echo "==> Installing Calico operator"
   kubectl apply --server-side=true -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
 
+  echo "==> Waiting for Calico Installation CRD to appear"
+  for i in {1..90}; do
+    if kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; then
+      break
+    fi
+    sleep 2
+  done
+
+  if ! kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; then
+    echo "Error: Calico Installation CRD was not created in time"
+    exit 1
+  fi
+
+  echo "==> Waiting for Calico Installation CRD to be established"
+  kubectl wait --for=condition=Established crd/installations.operator.tigera.io --timeout=180s
+
+  echo "==> Waiting for tigera-operator deployment rollout"
+  kubectl -n tigera-operator rollout status deploy/tigera-operator --timeout=180s
+
   if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
     echo "==> Applying Calico Installation with L2 non-overlay mode (encapsulation=None, BGP enabled)"
     cat <<'EOF' | kubectl apply -f -
