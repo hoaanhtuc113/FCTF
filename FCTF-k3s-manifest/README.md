@@ -19,6 +19,7 @@ chmod +x setup-master.sh nfs-setup.sh apply-fctf.sh
 # Vi du production: chi cho phep 3 node truy cap NFS
 ./setup-master.sh \
   --tls-san 34.124.131.240 \
+  --calico-network-mode l2 \
   --nfs-allowed-subnet "10.13.2.3 10.184.0.6 10.184.0.7" 
 ```
 
@@ -95,7 +96,7 @@ echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 # Kiểm tra cluster
 kubectl get nodes
 ```
-## install calico
+## install calico (L2 non-overlay)
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
 
@@ -106,10 +107,11 @@ metadata:
   name: default
 spec:
   calicoNetwork:
+    bgp: Enabled
     ipPools:
     - blockSize: 26
       cidr: 192.168.0.0/16
-      encapsulation: VXLAN
+      encapsulation: None
       natOutgoing: Enabled
       nodeSelector: all()
 ---
@@ -120,6 +122,8 @@ metadata:
 spec: {}
 EOF
 ```
+
+Neu can quay lai overlay, dung `--calico-network-mode vxlan` khi chay `setup-master.sh`.
 
 
 # cài k3s worker-node là ip private của server

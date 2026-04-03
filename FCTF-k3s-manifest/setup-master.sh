@@ -6,6 +6,7 @@ MAX_PODS="110"
 # inputable
 TLS_SAN="42.115.38.90"
 INSTALL_CALICO="true"
+CALICO_NETWORK_MODE="l2"
 INSTALL_GVISOR="true"
 APPLY_HELM="true"
 DEPLOY_APP_SERVICES="true"
@@ -126,11 +127,11 @@ is_valid_tls_san() {
 usage() {
   cat <<EOF
 Usage:
-  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet "<client1 client2>|<client1,client2>|*"] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
+  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--calico-network-mode l2|vxlan] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet "<client1 client2>|<client1,client2>|*"] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
 
 Examples:
   $0 --tls-san 34.124.131.240
-  $0 --tls-san k8s.example.com --max-pods 250 --install-calico true
+  $0 --tls-san k8s.example.com --max-pods 250 --install-calico true --calico-network-mode l2
   $0 --tls-san 34.124.131.240 --setup-nfs-server true --nfs-allowed-subnet 10.148.0.0/24
   $0 --tls-san 34.124.131.240 --install-gvisor true --apply-helm true --deploy-app-services true --apply-production-ingress true --apply-cronjob true --apply-argo-templates true
   $0 --interactive
@@ -188,6 +189,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --install-calico)
       INSTALL_CALICO="${2:-}"
+      shift 2
+      ;;
+    --calico-network-mode)
+      CALICO_NETWORK_MODE="${2:-}"
       shift 2
       ;;
     --install-gvisor)
@@ -299,6 +304,11 @@ if [[ "${SERVICE_MODE}" != "clusterip" && "${SERVICE_MODE}" != "nodeport" ]]; th
   exit 1
 fi
 
+if [[ "${CALICO_NETWORK_MODE}" != "l2" && "${CALICO_NETWORK_MODE}" != "vxlan" ]]; then
+  echo "Error: --calico-network-mode must be l2 or vxlan"
+  exit 1
+fi
+
 echo "==> Updating system and installing dependencies"
 sudo apt update
 sudo apt upgrade -y
@@ -397,8 +407,32 @@ if [[ "${INSTALL_CALICO}" == "true" ]]; then
   echo "==> Installing Calico operator"
   kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
 
-  echo "==> Applying Calico Installation with VXLAN encapsulation"
-  cat <<'EOF' | kubectl apply -f -
+  if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
+    echo "==> Applying Calico Installation with L2 non-overlay mode (encapsulation=None, BGP enabled)"
+    cat <<'EOF' | kubectl apply -f -
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    bgp: Enabled
+    ipPools:
+    - blockSize: 26
+      cidr: 192.168.0.0/16
+      encapsulation: None
+      natOutgoing: Enabled
+      nodeSelector: all()
+---
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}
+EOF
+  else
+    echo "==> Applying Calico Installation with VXLAN encapsulation"
+    cat <<'EOF' | kubectl apply -f -
 apiVersion: operator.tigera.io/v1
 kind: Installation
 metadata:
@@ -418,6 +452,7 @@ metadata:
   name: default
 spec: {}
 EOF
+  fi
 fi
 
 kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
