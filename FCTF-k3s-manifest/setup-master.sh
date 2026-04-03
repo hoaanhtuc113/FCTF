@@ -394,9 +394,30 @@ echo "==> Cluster nodes"
 kubectl get nodes -o wide
 
 if [[ "${INSTALL_CALICO}" == "true" ]]; then
-  echo "==> Installing Calico"
-  kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml || true
-  kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml || true
+  echo "==> Installing Calico operator"
+  kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+
+  echo "==> Applying Calico Installation with VXLAN encapsulation"
+  cat <<'EOF' | kubectl apply -f -
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    ipPools:
+    - blockSize: 26
+      cidr: 192.168.0.0/16
+      encapsulation: VXLAN
+      natOutgoing: Enabled
+      nodeSelector: all()
+---
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}
+EOF
 fi
 
 kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
