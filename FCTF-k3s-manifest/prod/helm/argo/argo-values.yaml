@@ -562,11 +562,11 @@ server:
   # -- Server name string
   name: server
   # -- Service type for server pods ClusterIP|NodePort
-  serviceType: NodePort
+  serviceType: ClusterIP
   # -- Service port for server
   servicePort: 2746
   # -- Service node port
-  serviceNodePort: 32746
+  serviceNodePort: ~
   # -- Service port name
   servicePortName: "" # http
 
