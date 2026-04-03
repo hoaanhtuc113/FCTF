@@ -98,7 +98,7 @@ kubectl get nodes
 ```
 ## install calico (L2 non-overlay)
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+kubectl apply --server-side=true -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
 
 cat <<'EOF' | kubectl apply -f -
 apiVersion: operator.tigera.io/v1

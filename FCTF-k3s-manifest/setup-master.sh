@@ -405,7 +405,7 @@ kubectl get nodes -o wide
 
 if [[ "${INSTALL_CALICO}" == "true" ]]; then
   echo "==> Installing Calico operator"
-  kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+  kubectl apply --server-side=true -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
 
   if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
     echo "==> Applying Calico Installation with L2 non-overlay mode (encapsulation=None, BGP enabled)"
