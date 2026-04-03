@@ -1317,6 +1317,115 @@ Figure 17 shows the deployment state of a challenge over time when a contestant 
  
 Figure 15: Activity Diagram for Submit Flag
 The Activity Diagram for Submit Flag describes the processing workflow when a contestant submits a flag for a challenge in the system. The process begins when the contestant performs the Submit Flag action. Then, the system validates the flag by checking if the flag submitted by the contestant matches the value in the database. If the flag is correct, the system records the submission information, updates the score and scoreboard in the database, then stops the challenge and sends a notification to the contestant about the successful submission result. The process ends after the contestant receives the notification. Conversely, if the flag is incorrect, the system increments the contestant's number of attempts and updates it in Redis, while simultaneously recording the submission into the database. After that, the system sends a notification to the contestant about the incorrect flag and terminates the process.
+3.1.6.3. Hướng dẫn thao tác cho thí sinh: Làm bài, xem instance và Ticket CRUD
+Mục này mô tả luồng thao tác end-to-end dành cho thí sinh khi tham gia cuộc thi trên Contestant Portal, bao gồm: đăng nhập, chọn challenge, deploy instance, truy cập challenge bằng token, nộp flag, theo dõi instance đang chạy, và quản lý ticket hỗ trợ.
+
+Điều kiện tiên quyết:
+- Thí sinh đã có tài khoản hợp lệ (username/password).
+- Tài khoản thuộc team hợp lệ, không bị hidden/banned.
+- Cuộc thi đang ở trạng thái cho phép thao tác tương ứng (xem challenge, start challenge, submit flag).
+
+A. Hướng dẫn làm challenge deploy
+Bước 1: Đăng nhập vào Contestant Portal
+- Truy cập trang đăng nhập Contestant Portal.
+- Nhập thông tin vào các ô [username] và [PASSWORD].
+- Nhấn nút [LOGIN]. Nếu hợp lệ, hệ thống điều hướng vào trang [CHALLENGES].
+
+Figure 1: Contestant Portal login screen
+
+Bước 2: Chọn category và challenge cần làm
+- Tại trang [CHALLENGES], hệ thống hiển thị danh sách category dạng collapsible.
+- Chọn 1 category để mở danh sách challenge bên trong.
+- Chọn challenge muốn làm để mở panel [CHALLENGE INFO].
+
+Figure 2: Challenges List for Contestant screen
+
+Bước 3: Deploy challenge instance (đối với challenge require_deploy)
+- Trong màn hình chi tiết challenge, nhấn nút [+] Start Challenge.
+- Hệ thống chuyển trạng thái qua Checking/Pending, sau đó Running khi pod sẵn sàng.
+- Khi deploy thành công, hệ thống hiển thị khối [YOUR ACCESS TOKEN] gồm Token, HTTP endpoint, TCP endpoint.
+
+Figure 3: Challenge Detail for Contestant screen
+
+Các thông tin challenge trên panel chi tiết:
+Block 1 (thông tin nhanh, từ trái sang phải):
+- pts: Điểm của challenge.
+- Time: Thời gian giới hạn cho 1 phiên deploy. Bộ đếm bắt đầu khi instance chạy.
+- Attempts: Số lượt submit flag tối đa (0 = không giới hạn).
+- Deploys: Số lần deploy đã dùng/tổng số lần được phép (vd: 0/1).
+Block 2:
+- [ATTACHMENTS]: Danh sách file đính kèm. Thí sinh click từng file để tải về.
+
+Bước 4: Truy cập challenge với token được cấp
+a) Truy cập bằng HTTP (web challenge):
+- Lấy token trong khối [YOUR ACCESS TOKEN].
+- Truy cập URL theo format:
+http://<gateway-host>:<http-port>?fctftoken=<YOUR_TOKEN>
+- Sau khi gateway xác thực token, thí sinh làm bài trên giao diện web của challenge.
+
+b) Truy cập bằng TCP (pwn/reverse):
+- Dùng terminal để kết nối gateway TCP:
+nc <gateway-host> <tcp-port>
+- Hệ thống sẽ yêu cầu nhập token, thí sinh paste token để xác thực.
+- Sau khi thấy thông báo access granted, bắt đầu tương tác dịch vụ challenge.
+
+Lưu ý cho máy Windows:
+- Có thể dùng WSL2 + Ubuntu để chạy lệnh nc.
+- Hoặc dùng netcat/ncat tương đương nếu đã cài trên Windows.
+
+Bước 5: Submit flag
+- Nhập flag vào vùng [SUBMIT FLAG] theo định dạng challenge yêu cầu (ví dụ: flag{...}).
+- Nhấn nút [SUBMIT].
+- Kết quả hệ thống có thể trả về:
+	+ Correct: cộng điểm, cập nhật scoreboard; với challenge deploy có thể tự stop instance theo cấu hình.
+	+ Incorrect: trừ lượt attempts còn lại, có thể phát sinh cooldown.
+	+ Rate limited / Paused / Invalid: hiển thị thông báo lỗi tương ứng.
+
+Lưu ý vận hành quan trọng:
+- Nếu bật captain_only_start/captain_only_submit, chỉ captain được start challenge hoặc submit flag.
+- Nếu đạt max attempts, hệ thống khóa submit cho challenge đó.
+- Khi hết thời gian instance (TTL/time limit), instance có thể bị stop tự động.
+
+B. Hướng dẫn xem và quản lý instance của team
+- Truy cập menu [Instances] trên thanh điều hướng.
+- Màn hình hiển thị các cột: ID, Challenge, Cat, Status, Your Access Token, Age, Actions.
+- Ý nghĩa thao tác chính:
+	+ [REFRESH]: làm mới danh sách instance.
+	+ [GO]: quay lại challenge tương ứng.
+	+ [STOP]: dừng instance đang Running.
+- Trạng thái thường gặp: Pending, Running, Failed, Succeeded.
+
+Figure 4: View Team Instances screen
+
+C. Hướng dẫn Ticket CRUD cho thí sinh
+1. Create (C) - Tạo ticket
+- Vào menu [Tickets].
+- Nhấn [NEW TICKET].
+- Nhập các trường bắt buộc: Title, Type (Question/Error/Inform), Description.
+- Nhấn [CREATE TICKET] để gửi yêu cầu hỗ trợ.
+
+Figure 5: Create Ticket Form Popup
+
+2. Read (R) - Xem ticket
+- Trên trang [Tickets], thí sinh xem danh sách ticket đã gửi, lọc theo trạng thái, tìm kiếm theo từ khóa.
+- Nhấn vào dòng ticket để mở màn hình chi tiết [TICKET_DETAIL], theo dõi phản hồi từ admin/jury.
+
+Figure 6: View Contestant Tickets screen
+Figure 7: Ticket Detail screen
+
+3. Update (U) - Cập nhật ticket
+- Hệ thống hiện tại KHÔNG hỗ trợ thí sinh chỉnh sửa trực tiếp ticket đã tạo (không có endpoint update từ contestant).
+- Khi cần bổ sung nội dung, thí sinh nên tạo ticket mới với thông tin rõ ràng hơn.
+
+4. Delete (D) - Xóa ticket
+- Thí sinh được xóa ticket của chính mình khi ticket còn open và chưa có phản hồi.
+- Trên danh sách ticket, chọn biểu tượng xóa, xác nhận thao tác ở hộp thoại cảnh báo.
+- Ticket đã có phản hồi hoặc đã đóng sẽ không thể xóa.
+
+Khuyến nghị khi dùng ticket:
+- Tiêu đề ngắn gọn, mô tả đầy đủ bước tái hiện lỗi.
+- Đính kèm thông tin challenge/category và thời điểm xảy ra sự cố để ban tổ chức xử lý nhanh hơn.
+
 3.2. Manage Feature
 3.2.1. FR-01: Challenge Gateway for Start Challenge
  
