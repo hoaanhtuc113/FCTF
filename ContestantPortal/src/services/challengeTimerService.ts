@@ -1,6 +1,6 @@
 import { fetchWithAuth } from './api';
 import { API_ENDPOINTS } from '../config/endpoints';
-import Swal from 'sweetalert2';
+import Swal from './safeSwal';
 
 interface TimerData {
   challengeId: number;
@@ -25,13 +25,13 @@ class ChallengeTimerService {
       if (stored) {
         const timers: TimerData[] = JSON.parse(stored);
         const now = Date.now();
-        
+
         // Filter out expired timers
         const activeTimers = timers.filter(timer => timer.expireTime > now);
-        
+
         // Save cleaned up list
         this.saveTimersToStorage(activeTimers);
-        
+
         // Start monitoring active timers
         activeTimers.forEach(timer => {
           this.scheduleAutoStop(timer);
@@ -61,9 +61,9 @@ class ChallengeTimerService {
   }
 
   startTimer(challengeId: number, challengeName: string, timeRemaining: number, requireDeploy: boolean) {
-    
+
     const expireTime = Date.now() + (timeRemaining * 1000);
-    
+
     const timerData: TimerData = {
       challengeId,
       challengeName,
@@ -74,13 +74,13 @@ class ChallengeTimerService {
     // Add to active timers
     const activeTimers = this.getActiveTimers();
     const existingIndex = activeTimers.findIndex(t => t.challengeId === challengeId);
-    
+
     if (existingIndex >= 0) {
       activeTimers[existingIndex] = timerData;
     } else {
       activeTimers.push(timerData);
     }
-    
+
     this.saveTimersToStorage(activeTimers);
     this.scheduleAutoStop(timerData);
   }
@@ -88,7 +88,7 @@ class ChallengeTimerService {
   private scheduleAutoStop(timerData: TimerData) {
     const now = Date.now();
     const timeUntilExpire = timerData.expireTime - now;
-    
+
     if (timeUntilExpire <= 0) {
       // Already expired, stop immediately
       this.autoStopChallenge(timerData);
@@ -109,7 +109,7 @@ class ChallengeTimerService {
   }
 
   private async autoStopChallenge(timerData: TimerData) {
-    
+
     try {
       // Show toast notification
       Swal.fire({
@@ -162,8 +162,8 @@ class ChallengeTimerService {
         });
 
         // Dispatch custom event for UI updates
-        window.dispatchEvent(new CustomEvent('challengeAutoStopped', { 
-          detail: { challengeId: timerData.challengeId } 
+        window.dispatchEvent(new CustomEvent('challengeAutoStopped', {
+          detail: { challengeId: timerData.challengeId }
         }));
       }
     } catch (error) {
@@ -175,7 +175,7 @@ class ChallengeTimerService {
   }
 
   stopTimer(challengeId: number) {
-    
+
     // Clear timeout
     if (this.timers.has(challengeId)) {
       clearTimeout(this.timers.get(challengeId)!);
@@ -191,12 +191,12 @@ class ChallengeTimerService {
   getTimeRemaining(challengeId: number): number | null {
     const activeTimers = this.getActiveTimers();
     const timer = activeTimers.find(t => t.challengeId === challengeId);
-    
+
     if (!timer) return null;
-    
+
     const now = Date.now();
     const remaining = Math.max(0, Math.floor((timer.expireTime - now) / 1000));
-    
+
     return remaining;
   }
 
@@ -205,7 +205,7 @@ class ChallengeTimerService {
     this.checkInterval = setInterval(() => {
       const activeTimers = this.getActiveTimers();
       const now = Date.now();
-      
+
       activeTimers.forEach(timer => {
         if (timer.expireTime <= now) {
           this.autoStopChallenge(timer);
@@ -218,7 +218,7 @@ class ChallengeTimerService {
     // Clean up all timers
     this.timers.forEach(timeout => clearTimeout(timeout));
     this.timers.clear();
-    
+
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
     }
