@@ -359,8 +359,7 @@ curl -sfL https://get.k3s.io | K3S_NODE_NAME=server-1-master INSTALL_K3S_EXEC="s
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
   --write-kubeconfig-mode 644 \
-  --tls-san=${TLS_SAN} \
-  --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
+  --tls-san=${TLS_SAN}" sh -
 
 echo "==> Waiting for k3s service"
 sudo systemctl enable --now k3s
@@ -420,19 +419,6 @@ if [[ "${INSTALL_CALICO}" == "true" ]]; then
   echo "==> Installing Calico from official manifest (${CALICO_VERSION})"
   kubectl apply -f "https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml"
 
-  echo "==> Adding tolerations for Calico components"
-  CALICO_TOLERATIONS_PATCH="$(cat <<'EOF'
-spec:
-  template:
-    spec:
-      tolerations:
-      - key: node-role.kubernetes.io/control-plane
-        operator: Exists
-        effect: NoSchedule
-EOF
-)"
-  kubectl -n kube-system patch daemonset/calico-node --type strategic --patch "${CALICO_TOLERATIONS_PATCH}"
-  kubectl -n kube-system patch deployment/calico-kube-controllers --type strategic --patch "${CALICO_TOLERATIONS_PATCH}"
 
   echo "==> Aligning Calico IP pool with K3s cluster CIDR (${K3S_CLUSTER_CIDR})"
   if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
@@ -463,6 +449,9 @@ EOF
 fi
 
 kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
+
+echo "==> Applying control-plane taint after all apply steps complete"
+kubectl taint nodes server-1-master node-role.kubernetes.io/control-plane=true:NoSchedule --overwrite
 
 echo
 echo "Master setup complete."
