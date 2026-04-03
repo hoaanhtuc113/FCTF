@@ -6,7 +6,7 @@ MAX_PODS="110"
 # inputable
 TLS_SAN="42.115.38.90"
 INSTALL_CALICO="true"
-CALICO_NETWORK_MODE="l2"
+CALICO_NETWORK_MODE="vxlan"
 INSTALL_GVISOR="true"
 APPLY_HELM="true"
 DEPLOY_APP_SERVICES="true"
@@ -131,7 +131,7 @@ Usage:
 
 Examples:
   $0 --tls-san 34.124.131.240
-  $0 --tls-san k8s.example.com --max-pods 250 --install-calico true --calico-network-mode l2
+  $0 --tls-san k8s.example.com --max-pods 250 --install-calico true --calico-network-mode vxlan
   $0 --tls-san 34.124.131.240 --setup-nfs-server true --nfs-allowed-subnet 10.148.0.0/24
   $0 --tls-san 34.124.131.240 --install-gvisor true --apply-helm true --deploy-app-services true --apply-production-ingress true --apply-cronjob true --apply-argo-templates true
   $0 --interactive
