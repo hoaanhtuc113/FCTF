@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
 using System.Globalization;
@@ -253,7 +253,7 @@ namespace ResourceShared.Utils
 
         public static async Task<AttemptDTO> Attempt(AppDbContext db, Challenge challenge, ChallengeAttemptRequest request)
         {
-            var flags = await db.Flags.Where(f => f.ChallengeId == challenge.Id && f.Content.Equals(request.Submission)).ToListAsync();
+            var flags = await db.Flags.Where(f => f.ChallengeId == challenge.Id).ToListAsync();
             foreach (var flag in flags)
             {
                 try

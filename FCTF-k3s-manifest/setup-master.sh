@@ -3,9 +3,13 @@ set -euo pipefail
 
 TIMEZONE="Asia/Ho_Chi_Minh"
 MAX_PODS="110"
+K3S_CLUSTER_CIDR="10.42.0.0/16"
+K3S_SERVICE_CIDR="10.43.0.0/16"
 # inputable
 TLS_SAN="42.115.38.90"
 INSTALL_CALICO="true"
+CALICO_NETWORK_MODE="vxlan"
+CALICO_VERSION="v3.27.0"
 INSTALL_GVISOR="true"
 APPLY_HELM="true"
 DEPLOY_APP_SERVICES="true"
@@ -126,15 +130,50 @@ is_valid_tls_san() {
 usage() {
   cat <<EOF
 Usage:
-  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet "<client1 client2>|<client1,client2>|*"] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
+  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--cluster-cidr <cidr>] [--service-cidr <cidr>] [--install-calico true|false] [--calico-network-mode l2|vxlan] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet "<client1 client2>|<client1,client2>|*"] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
 
 Examples:
   $0 --tls-san 34.124.131.240
-  $0 --tls-san k8s.example.com --max-pods 250 --install-calico true
+  $0 --tls-san k8s.example.com --max-pods 250 --cluster-cidr 10.42.0.0/16 --service-cidr 10.43.0.0/16 --install-calico true --calico-network-mode vxlan
   $0 --tls-san 34.124.131.240 --setup-nfs-server true --nfs-allowed-subnet 10.148.0.0/24
   $0 --tls-san 34.124.131.240 --install-gvisor true --apply-helm true --deploy-app-services true --apply-production-ingress true --apply-cronjob true --apply-argo-templates true
   $0 --interactive
 EOF
+}
+
+configure_k8s_kernel_prereqs() {
+  echo "==> Loading kernel modules required by Kubernetes"
+  sudo modprobe br_netfilter
+  sudo modprobe overlay
+
+  echo "==> Persisting kernel modules across reboot"
+  sudo tee /etc/modules-load.d/k8s.conf >/dev/null <<EOF
+overlay
+br_netfilter
+EOF
+
+  echo "==> Writing sysctl settings for Kubernetes networking"
+  sudo tee /etc/sysctl.d/99-k8s.conf >/dev/null <<EOF
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.rp_filter = 0
+net.ipv4.conf.default.rp_filter = 0
+EOF
+
+  sudo sysctl --system >/dev/null
+
+}
+
+disable_swap_for_k8s() {
+  echo "==> Disabling swap"
+  sudo swapoff -a
+  sudo sed -i '/^[^#].*[[:space:]]swap[[:space:]]/ s/^/#/' /etc/fstab
+
+  if sudo swapon --summary | grep -q .; then
+    echo "Error: swap is still active after swapoff -a"
+    exit 1
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -151,8 +190,20 @@ while [[ $# -gt 0 ]]; do
       MAX_PODS="${2:-}"
       shift 2
       ;;
+    --cluster-cidr)
+      K3S_CLUSTER_CIDR="${2:-}"
+      shift 2
+      ;;
+    --service-cidr)
+      K3S_SERVICE_CIDR="${2:-}"
+      shift 2
+      ;;
     --install-calico)
       INSTALL_CALICO="${2:-}"
+      shift 2
+      ;;
+    --calico-network-mode)
+      CALICO_NETWORK_MODE="${2:-}"
       shift 2
       ;;
     --install-gvisor)
@@ -264,6 +315,11 @@ if [[ "${SERVICE_MODE}" != "clusterip" && "${SERVICE_MODE}" != "nodeport" ]]; th
   exit 1
 fi
 
+if [[ "${CALICO_NETWORK_MODE}" != "l2" && "${CALICO_NETWORK_MODE}" != "vxlan" ]]; then
+  echo "Error: --calico-network-mode must be l2 or vxlan"
+  exit 1
+fi
+
 echo "==> Updating system and installing dependencies"
 sudo apt update
 sudo apt upgrade -y
@@ -271,6 +327,9 @@ sudo apt install -y curl wget git nano vim net-tools nfs-common
 
 echo "==> Setting timezone: ${TIMEZONE}"
 sudo timedatectl set-timezone "${TIMEZONE}"
+
+configure_k8s_kernel_prereqs
+disable_swap_for_k8s
 
 if [[ "${SETUP_NFS_SERVER}" == "true" ]]; then
   if [[ ! -f "${SCRIPT_DIR}/nfs-setup.sh" ]]; then
@@ -294,12 +353,13 @@ EOF
 echo "==> Installing K3s server"
 curl -sfL https://get.k3s.io | K3S_NODE_NAME=server-1-master INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
+  --cluster-cidr=${K3S_CLUSTER_CIDR} \
+  --service-cidr=${K3S_SERVICE_CIDR} \
   --disable-network-policy \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
   --write-kubeconfig-mode 644 \
-  --tls-san=${TLS_SAN} \
-  --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule" sh -
+  --tls-san=${TLS_SAN}" sh -
 
 echo "==> Waiting for k3s service"
 sudo systemctl enable --now k3s
@@ -356,12 +416,42 @@ echo "==> Cluster nodes"
 kubectl get nodes -o wide
 
 if [[ "${INSTALL_CALICO}" == "true" ]]; then
-  echo "==> Installing Calico"
-  kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml || true
-  kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml || true
+  echo "==> Installing Calico from official manifest (${CALICO_VERSION})"
+  kubectl apply -f "https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml"
+
+
+  echo "==> Aligning Calico IP pool with K3s cluster CIDR (${K3S_CLUSTER_CIDR})"
+  if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
+    kubectl -n kube-system set env daemonset/calico-node \
+      CALICO_IPV4POOL_CIDR="${K3S_CLUSTER_CIDR}" \
+      CALICO_IPV4POOL_VXLAN="Never" \
+      CALICO_IPV4POOL_IPIP="Never"
+  else
+    kubectl -n kube-system set env daemonset/calico-node \
+      CALICO_IPV4POOL_CIDR="${K3S_CLUSTER_CIDR}" \
+      CALICO_IPV4POOL_VXLAN="Always" \
+      CALICO_IPV4POOL_IPIP="Never"
+  fi
+
+  echo "==> Waiting for Calico components to be ready"
+  kubectl -n kube-system rollout status daemonset/calico-node --timeout=300s
+  kubectl -n kube-system rollout status deployment/calico-kube-controllers --timeout=300s
+
+  echo "==> Verifying CoreDNS pod network is in pod CIDR"
+  EXPECTED_POD_IP_PREFIX="$(echo "${K3S_CLUSTER_CIDR}" | cut -d'/' -f1 | awk -F. '{print $1"."$2"."}')"
+  CORE_DNS_IP="$(kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{.items[0].status.podIP}' 2>/dev/null || true)"
+
+  if [[ -n "${CORE_DNS_IP}" && "${CORE_DNS_IP}" != ${EXPECTED_POD_IP_PREFIX}* ]]; then
+    echo "Error: CoreDNS pod IP ${CORE_DNS_IP} is outside expected pod CIDR ${K3S_CLUSTER_CIDR}."
+    echo "Hint: if this node was reused, run uninstall/cleanup before reinstalling cluster."
+    exit 1
+  fi
 fi
 
 kubectl apply -f "${PROD_DIR}/runtime-class.yaml"
+
+echo "==> Applying control-plane taint after all apply steps complete"
+kubectl taint nodes server-1-master node-role.kubernetes.io/control-plane=true:NoSchedule --overwrite
 
 echo
 echo "Master setup complete."

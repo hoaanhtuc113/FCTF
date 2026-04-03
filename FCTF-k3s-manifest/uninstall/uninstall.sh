@@ -147,6 +147,12 @@ run_shell "sudo apt-get remove --purge -y docker-ce docker-ce-cli containerd.io 
 run_shell "sudo apt-get autoremove -y"
 run_shell "sudo rm -rf /var/lib/docker /var/lib/buildkit /etc/docker /run/docker /var/run/docker.sock"
 
+log "3.8) Flush iptables rules to remove stale CNI state"
+run_shell "sudo iptables -F"
+run_shell "sudo iptables -t nat -F"
+run_shell "sudo iptables -t mangle -F"
+run_shell "sudo iptables -X"
+
 log "4) Cleaning up Mount Points and Directories"
 if mount | grep -qE '/var/lib/kubelet|/var/lib/rancher'; then
     log "Active mounts detected. Unmounting..."

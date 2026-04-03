@@ -19,6 +19,7 @@ chmod +x setup-master.sh nfs-setup.sh apply-fctf.sh
 # Vi du production: chi cho phep 3 node truy cap NFS
 ./setup-master.sh \
   --tls-san 34.124.131.240 \
+  --calico-network-mode vxlan \
   --nfs-allowed-subnet "10.13.2.3 10.184.0.6 10.184.0.7" 
 ```
 
@@ -69,6 +70,8 @@ EOF
 # Chú ý đổi tls-san thành ip của master 
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
+  --cluster-cidr=10.42.0.0/16 \
+  --service-cidr=10.43.0.0/16 \
   --disable-network-policy \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
@@ -95,11 +98,27 @@ echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 # Kiểm tra cluster
 kubectl get nodes
 ```
-## install calico
+## install calico (VXLAN overlay)
 ```bash
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+
+# align Calico pod CIDR with K3s cluster CIDR
+kubectl -n kube-system set env daemonset/calico-node \
+  CALICO_IPV4POOL_CIDR=10.42.0.0/16 \
+  CALICO_IPV4POOL_VXLAN=Always \
+  CALICO_IPV4POOL_IPIP=Never
+
+kubectl -n kube-system rollout status daemonset/calico-node --timeout=300s
+kubectl -n kube-system rollout status deployment/calico-kube-controllers --timeout=300s
+
+# Verify pod IPs are in 10.42.x.x
+kubectl get pods -A -o wide
+kubectl -n kube-system get pod -l k8s-app=kube-dns -o wide
 ```
+
+Neu CoreDNS/pod IP roi vao 192.168.x.x (hoac trung mang node), can reset cluster va cai lai de tranh state CNI dirty.
+
+Neu can dung non-overlay L2, dung --calico-network-mode l2 khi chay setup-master.sh.
 
 
 # cài k3s worker-node là ip private của server

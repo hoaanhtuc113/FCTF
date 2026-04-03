@@ -64,6 +64,12 @@ sudo systemctl daemon-reload || true
 echo "Cleaning up containerd remnants (if any)"
 sudo rm -rf /var/lib/containerd || true
 
+echo "Flushing iptables rules to remove stale CNI state"
+run_shell "sudo iptables -F"
+run_shell "sudo iptables -t nat -F"
+run_shell "sudo iptables -t mangle -F"
+run_shell "sudo iptables -X"
+
 echo "Removing gVisor (if installed)"
 sudo rm -f /usr/local/bin/runsc || true
 sudo rm -f /usr/local/bin/containerd-shim-runsc-v1 || true

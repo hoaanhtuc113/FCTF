@@ -23,6 +23,41 @@ Example:
 EOF
 }
 
+configure_k8s_kernel_prereqs() {
+  echo "==> Loading kernel modules required by Kubernetes"
+  sudo modprobe br_netfilter
+  sudo modprobe overlay
+
+  echo "==> Persisting kernel modules across reboot"
+  sudo tee /etc/modules-load.d/k8s.conf >/dev/null <<EOF
+overlay
+br_netfilter
+EOF
+
+  echo "==> Writing sysctl settings for Kubernetes networking"
+  sudo tee /etc/sysctl.d/99-k8s.conf >/dev/null <<EOF
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.rp_filter = 0
+net.ipv4.conf.default.rp_filter = 0
+EOF
+
+  sudo sysctl --system >/dev/null
+
+}
+
+disable_swap_for_k8s() {
+  echo "==> Disabling swap"
+  sudo swapoff -a
+  sudo sed -i '/^[^#].*[[:space:]]swap[[:space:]]/ s/^/#/' /etc/fstab
+
+  if sudo swapon --summary | grep -q .; then
+    echo "Error: swap is still active after swapoff -a"
+    exit 1
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --master-url)
@@ -86,6 +121,9 @@ sudo apt install -y curl wget git nano vim net-tools nfs-common acl
 
 echo "==> Setting timezone: ${TIMEZONE}"
 sudo timedatectl set-timezone "${TIMEZONE}"
+
+configure_k8s_kernel_prereqs
+disable_swap_for_k8s
 
 echo "==> Writing kubelet config (maxPods=${MAX_PODS})"
 sudo mkdir -p /etc/rancher/k3s
