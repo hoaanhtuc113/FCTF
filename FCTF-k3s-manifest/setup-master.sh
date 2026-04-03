@@ -420,6 +420,20 @@ if [[ "${INSTALL_CALICO}" == "true" ]]; then
   echo "==> Installing Calico from official manifest (${CALICO_VERSION})"
   kubectl apply -f "https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml"
 
+  echo "==> Adding tolerations for Calico components"
+  CALICO_TOLERATIONS_PATCH="$(cat <<'EOF'
+spec:
+  template:
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+EOF
+)"
+  kubectl -n kube-system patch daemonset/calico-node --type strategic --patch "${CALICO_TOLERATIONS_PATCH}"
+  kubectl -n kube-system patch deployment/calico-kube-controllers --type strategic --patch "${CALICO_TOLERATIONS_PATCH}"
+
   echo "==> Aligning Calico IP pool with K3s cluster CIDR (${K3S_CLUSTER_CIDR})"
   if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
     kubectl -n kube-system set env daemonset/calico-node \
