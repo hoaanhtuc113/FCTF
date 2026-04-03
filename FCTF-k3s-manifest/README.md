@@ -70,6 +70,8 @@ EOF
 # Chú ý đổi tls-san thành ip của master 
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
+  --cluster-cidr=10.42.0.0/16 \
+  --service-cidr=10.43.0.0/16 \
   --disable-network-policy \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
@@ -98,35 +100,25 @@ kubectl get nodes
 ```
 ## install calico (VXLAN overlay)
 ```bash
-kubectl apply --server-side=true -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
 
-until kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; do sleep 2; done
-kubectl wait --for=condition=Established crd/installations.operator.tigera.io --timeout=180s
-kubectl -n tigera-operator rollout status deploy/tigera-operator --timeout=180s
+# align Calico pod CIDR with K3s cluster CIDR
+kubectl -n kube-system set env daemonset/calico-node \
+  CALICO_IPV4POOL_CIDR=10.42.0.0/16 \
+  CALICO_IPV4POOL_VXLAN=Always \
+  CALICO_IPV4POOL_IPIP=Never
 
-cat <<'EOF' | kubectl apply -f -
-apiVersion: operator.tigera.io/v1
-kind: Installation
-metadata:
-  name: default
-spec:
-  calicoNetwork:
-    ipPools:
-    - blockSize: 26
-      cidr: 192.168.0.0/16
-      encapsulation: VXLAN
-      natOutgoing: Enabled
-      nodeSelector: all()
----
-apiVersion: operator.tigera.io/v1
-kind: APIServer
-metadata:
-  name: default
-spec: {}
-EOF
+kubectl -n kube-system rollout status daemonset/calico-node --timeout=300s
+kubectl -n kube-system rollout status deployment/calico-kube-controllers --timeout=300s
+
+# Verify pod IPs are in 10.42.x.x
+kubectl get pods -A -o wide
+kubectl -n kube-system get pod -l k8s-app=kube-dns -o wide
 ```
 
-Neu can dung non-overlay L2, dung `--calico-network-mode l2` khi chay `setup-master.sh`.
+Neu CoreDNS/pod IP roi vao 192.168.x.x (hoac trung mang node), can reset cluster va cai lai de tranh state CNI dirty.
+
+Neu can dung non-overlay L2, dung --calico-network-mode l2 khi chay setup-master.sh.
 
 
 # cài k3s worker-node là ip private của server

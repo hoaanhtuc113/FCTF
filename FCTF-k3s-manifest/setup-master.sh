@@ -3,10 +3,13 @@ set -euo pipefail
 
 TIMEZONE="Asia/Ho_Chi_Minh"
 MAX_PODS="110"
+K3S_CLUSTER_CIDR="10.42.0.0/16"
+K3S_SERVICE_CIDR="10.43.0.0/16"
 # inputable
 TLS_SAN="42.115.38.90"
 INSTALL_CALICO="true"
 CALICO_NETWORK_MODE="vxlan"
+CALICO_VERSION="v3.27.0"
 INSTALL_GVISOR="true"
 APPLY_HELM="true"
 DEPLOY_APP_SERVICES="true"
@@ -127,11 +130,11 @@ is_valid_tls_san() {
 usage() {
   cat <<EOF
 Usage:
-  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--install-calico true|false] [--calico-network-mode l2|vxlan] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet "<client1 client2>|<client1,client2>|*"] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
+  $0 --tls-san <master-public-ip-or-domain> [--timezone <tz>] [--max-pods <n>] [--cluster-cidr <cidr>] [--service-cidr <cidr>] [--install-calico true|false] [--calico-network-mode l2|vxlan] [--install-gvisor true|false] [--setup-nfs-server true|false] [--nfs-share-path <path>] [--nfs-allowed-subnet "<client1 client2>|<client1,client2>|*"] [--apply-helm true|false] [--deploy-app-services true|false] [--apply-production-ingress true|false] [--apply-cronjob true|false] [--apply-argo-templates true|false] [--service-mode clusterip|nodeport] [--interactive]
 
 Examples:
   $0 --tls-san 34.124.131.240
-  $0 --tls-san k8s.example.com --max-pods 250 --install-calico true --calico-network-mode vxlan
+  $0 --tls-san k8s.example.com --max-pods 250 --cluster-cidr 10.42.0.0/16 --service-cidr 10.43.0.0/16 --install-calico true --calico-network-mode vxlan
   $0 --tls-san 34.124.131.240 --setup-nfs-server true --nfs-allowed-subnet 10.148.0.0/24
   $0 --tls-san 34.124.131.240 --install-gvisor true --apply-helm true --deploy-app-services true --apply-production-ingress true --apply-cronjob true --apply-argo-templates true
   $0 --interactive
@@ -185,6 +188,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --max-pods)
       MAX_PODS="${2:-}"
+      shift 2
+      ;;
+    --cluster-cidr)
+      K3S_CLUSTER_CIDR="${2:-}"
+      shift 2
+      ;;
+    --service-cidr)
+      K3S_SERVICE_CIDR="${2:-}"
       shift 2
       ;;
     --install-calico)
@@ -342,6 +353,8 @@ EOF
 echo "==> Installing K3s server"
 curl -sfL https://get.k3s.io | K3S_NODE_NAME=server-1-master INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
+  --cluster-cidr=${K3S_CLUSTER_CIDR} \
+  --service-cidr=${K3S_SERVICE_CIDR} \
   --disable-network-policy \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
@@ -404,73 +417,34 @@ echo "==> Cluster nodes"
 kubectl get nodes -o wide
 
 if [[ "${INSTALL_CALICO}" == "true" ]]; then
-  echo "==> Installing Calico operator"
-  kubectl apply --server-side=true -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
+  echo "==> Installing Calico from official manifest (${CALICO_VERSION})"
+  kubectl apply -f "https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml"
 
-  echo "==> Waiting for Calico Installation CRD to appear"
-  for i in {1..90}; do
-    if kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; then
-      break
-    fi
-    sleep 2
-  done
-
-  if ! kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; then
-    echo "Error: Calico Installation CRD was not created in time"
-    exit 1
+  echo "==> Aligning Calico IP pool with K3s cluster CIDR (${K3S_CLUSTER_CIDR})"
+  if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
+    kubectl -n kube-system set env daemonset/calico-node \
+      CALICO_IPV4POOL_CIDR="${K3S_CLUSTER_CIDR}" \
+      CALICO_IPV4POOL_VXLAN="Never" \
+      CALICO_IPV4POOL_IPIP="Never"
+  else
+    kubectl -n kube-system set env daemonset/calico-node \
+      CALICO_IPV4POOL_CIDR="${K3S_CLUSTER_CIDR}" \
+      CALICO_IPV4POOL_VXLAN="Always" \
+      CALICO_IPV4POOL_IPIP="Never"
   fi
 
-  echo "==> Waiting for Calico Installation CRD to be established"
-  kubectl wait --for=condition=Established crd/installations.operator.tigera.io --timeout=180s
+  echo "==> Waiting for Calico components to be ready"
+  kubectl -n kube-system rollout status daemonset/calico-node --timeout=300s
+  kubectl -n kube-system rollout status deployment/calico-kube-controllers --timeout=300s
 
-  echo "==> Waiting for tigera-operator deployment rollout"
-  kubectl -n tigera-operator rollout status deploy/tigera-operator --timeout=180s
+  echo "==> Verifying CoreDNS pod network is in pod CIDR"
+  EXPECTED_POD_IP_PREFIX="$(echo "${K3S_CLUSTER_CIDR}" | cut -d'/' -f1 | awk -F. '{print $1"."$2"."}')"
+  CORE_DNS_IP="$(kubectl -n kube-system get pod -l k8s-app=kube-dns -o jsonpath='{.items[0].status.podIP}' 2>/dev/null || true)"
 
-  if [[ "${CALICO_NETWORK_MODE}" == "l2" ]]; then
-    echo "==> Applying Calico Installation with L2 non-overlay mode (encapsulation=None, BGP enabled)"
-    cat <<'EOF' | kubectl apply -f -
-apiVersion: operator.tigera.io/v1
-kind: Installation
-metadata:
-  name: default
-spec:
-  calicoNetwork:
-    bgp: Enabled
-    ipPools:
-    - blockSize: 26
-      cidr: 192.168.0.0/16
-      encapsulation: None
-      natOutgoing: Enabled
-      nodeSelector: all()
----
-apiVersion: operator.tigera.io/v1
-kind: APIServer
-metadata:
-  name: default
-spec: {}
-EOF
-  else
-    echo "==> Applying Calico Installation with VXLAN encapsulation"
-    cat <<'EOF' | kubectl apply -f -
-apiVersion: operator.tigera.io/v1
-kind: Installation
-metadata:
-  name: default
-spec:
-  calicoNetwork:
-    ipPools:
-    - blockSize: 26
-      cidr: 192.168.0.0/16
-      encapsulation: VXLAN
-      natOutgoing: Enabled
-      nodeSelector: all()
----
-apiVersion: operator.tigera.io/v1
-kind: APIServer
-metadata:
-  name: default
-spec: {}
-EOF
+  if [[ -n "${CORE_DNS_IP}" && "${CORE_DNS_IP}" != ${EXPECTED_POD_IP_PREFIX}* ]]; then
+    echo "Error: CoreDNS pod IP ${CORE_DNS_IP} is outside expected pod CIDR ${K3S_CLUSTER_CIDR}."
+    echo "Hint: if this node was reused, run uninstall/cleanup before reinstalling cluster."
+    exit 1
   fi
 fi
 
