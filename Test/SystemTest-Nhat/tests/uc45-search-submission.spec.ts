@@ -131,7 +131,9 @@ test.describe("UC-45 Search Submission", () => {
 
     test("TC45.06 - Dropdown Search Field có đủ options: Provided, ID, Account ID, Challenge ID, Challenge Name", async ({ page }) => {
         await openSubmissions(page);
-        const options = await page.locator('select[name="field"] option').allTextContents();
+        const wrapper = page.locator('.ss-wrapper').filter({ has: page.locator('input[name="field"]') }).first();
+        await expect(wrapper).toBeVisible();
+        const options = await wrapper.locator('.ss-option').allTextContents();
         const normalized = options.map((o) => o.trim());
         expect(normalized).toContain("Provided");
         expect(normalized).toContain("ID");

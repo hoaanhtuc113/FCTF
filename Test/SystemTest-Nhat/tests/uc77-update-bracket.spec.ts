@@ -4,6 +4,7 @@ import {
     commitLazyInput,
     createBracket,
     deleteBracketByApi,
+    findConfigBlockByInputValue,
     getBrackets,
     getTeams,
     loginAsAdmin,
@@ -87,21 +88,10 @@ test.describe("UC-77 Update Bracket", () => {
             await page.goto(`${BASE_URL}/admin/config`, { waitUntil: "domcontentloaded" });
             await page.click('a[href="#brackets"]');
 
-            // Tìm block chứa bracket target
-            const blocks = page.locator("#brackets .border-bottom");
-            const blockCount = await blocks.count();
-            let targetBlock = null;
-            for (let i = 0; i < blockCount; i++) {
-                const nameVal = await blocks.nth(i).locator("input.form-control").nth(0).inputValue();
-                if (nameVal === originalName) {
-                    targetBlock = blocks.nth(i);
-                    break;
-                }
-            }
+            // Tìm block chứa bracket target (retry đến khi UI load xong)
+            const targetBlock = await findConfigBlockByInputValue(page, "#brackets", originalName);
 
-            test.skip(targetBlock === null, "Không tìm thấy block bracket trên UI");
-
-            await commitLazyInput(targetBlock!.locator("input.form-control").nth(0), updatedName);
+            await commitLazyInput(targetBlock.locator("input.form-control").nth(0), updatedName);
 
             const responsePromise = page.waitForResponse((response) => {
                 return response.url().includes(`/api/v1/brackets/${targetBracket!.id}`) && response.request().method() === "PATCH";

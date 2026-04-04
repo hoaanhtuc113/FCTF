@@ -75,7 +75,7 @@ npm run test:headed
 
 ---
 
-## Chạy riêng UC03 (không dùng config ngoài thư mục)
+(dùng chung 1 config duy nhất)
 
 ```powershell
 npm run test:uc03
@@ -155,9 +155,79 @@ SystemTest-Nhat/
 ├── playwright.config.ts      # Config Playwright (self-contained)
 ├── run-ordered-tests.js      # Runner điều phối thứ tự chạy
 ├── package.json              # Dependencies và npm scripts
+├── assets/                   # Test assets local (PDF/ZIP...) dùng cho upload
 ├── tests/
 │   ├── support.ts            # Hàm tiện ích dùng chung
 │   └── uc*.spec.ts           # Các file test
 ├── playwright-report/        # HTML report (được tạo sau khi chạy)
 └── test-results/             # Trace, screenshot, video khi test lỗi
+
+---
+
+## Tính di động của thư mục
+
+Để copy nguyên thư mục `SystemTest-Nhat` sang project khác và chạy được ngay:
+
+1. Chỉ dùng **một** config: `playwright.config.ts`
+2. Đặt toàn bộ file upload test vào `SystemTest-Nhat/assets` (hoặc root `SystemTest-Nhat`)
+3. Không đặt dependency test assets ở thư mục cha
 ```
+
+---
+
+## Performance Test (k6) - 500 tài khoản trong 1 giờ
+
+Thư mục này đã có sẵn bộ k6 riêng để mô phỏng 500 contestant account thật truy cập Contestant Portal trong khoảng 1 giờ.
+
+### File chính
+
+- `k6/contestant-500-1h.js`: Kịch bản load test (5m ramp-up, 50m giữ 500 VU, 5m ramp-down)
+- `k6/run-500-1h.ps1`: Runner chính, kiểm tra đủ 500 account và xuất report
+- `k6/accounts-template-500.csv`: Mẫu 500 dòng account
+- `k6/generate-accounts-template.ps1`: Script sinh nhanh file CSV theo số lượng
+
+### 1) Cài k6
+
+```powershell
+winget install k6
+```
+
+### 2) Chuẩn bị file account thật
+
+```powershell
+cd "FCTF\Test\SystemTest-Nhat"
+Copy-Item .\k6\accounts-template-500.csv .\k6\accounts.csv
+```
+
+Sau đó thay thông tin trong `k6/accounts.csv` bằng tài khoản thật.
+
+Format bắt buộc:
+
+```csv
+username,password
+contestant001,realPassword1
+contestant002,realPassword2
+```
+
+### 3) Chạy test 1 giờ với 500 account
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\k6\run-500-1h.ps1 `
+	-BaseUrl "https://api.fctf.site" `
+	-AccountsCsv ".\k6\accounts.csv" `
+	-TargetVus 500
+```
+
+### 4) Kết quả report
+
+Sau khi chạy xong, kết quả nằm trong `k6-results/`:
+
+- `k6-summary-<timestamp>.json`: dữ liệu đầy đủ từ k6
+- `k6-console-<timestamp>.log`: log console
+- `k6-report-<timestamp>.md`: báo cáo tóm tắt (p95, p99, avg, error rate, req/s)
+
+### Lưu ý vận hành
+
+- Chỉ chạy trên môi trường staging/perf, tránh chạy trực tiếp production khi chưa có phê duyệt.
+- Cần tối thiểu 500 account hợp lệ; script sẽ tự fail nếu file thiếu account.
+- Bộ test ưu tiên luồng đọc dữ liệu contestant portal, phù hợp đo độ trễ phản hồi hệ thống và DB dưới tải cao.

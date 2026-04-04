@@ -7,7 +7,6 @@
  *  - Click vào tên team dẫn đến trang detail đúng
  *  - Pagination hiển thị khi có nhiều team
  *
- * Site  : https://admin.fctf.site
  * Actor : Admin (admin / 1)
  */
 

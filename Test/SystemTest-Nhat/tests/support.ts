@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from "@playwright/test";
 
-export const BASE_URL = "https://admin.fctf.site";
-export const CONTESTANT_URL = "https://contestant.fctf.site";
+export const BASE_URL = "https://admin2.fctf.site";
+export const CONTESTANT_URL = "https://contestant2.fctf.site";
 export const CONTESTANT_API_URL = "https://api.fctf.site/api";
 export const ADMIN_USER = "admin";
 export const ADMIN_PASS = "1";
@@ -128,14 +128,14 @@ export async function loginAsAdmin(page: Page) {
         try {
             await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
-            if (/\/admin\//.test(page.url())) {
+            if (/\/admin(\/|$)/.test(page.url())) {
                 return;
             }
 
             await page.fill('input[name="name"]', ADMIN_USER);
             await page.fill('input[name="password"]', ADMIN_PASS);
             await Promise.all([
-                page.waitForURL(/\/admin\//, { waitUntil: "domcontentloaded", timeout: 30_000 }),
+                page.waitForURL(/\/admin(\/|$)/, { timeout: 45_000 }),
                 page.click('button[type="submit"], input[type="submit"]'),
             ]);
             return;
