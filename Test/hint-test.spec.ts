@@ -14,7 +14,7 @@ test.describe.configure({ mode: 'serial' });
 
 async function loginUser(page: Page, user: string = 'user2', pass: string = '1') {
     await test.step(`Login as ${user}`, async () => {
-        await page.goto('https://contestant.fctf.site/login');
+        await page.goto('https://contestant0.fctf.site/login');
         await page.locator("input[placeholder='input username...']").fill(user);
         await page.locator("input[placeholder='enter_password']").fill(pass);
         await page.locator("button[type='submit']").click();

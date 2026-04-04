@@ -4,7 +4,7 @@ import { test, expect, Page, request as playwrightRequest } from '@playwright/te
 // CONFIGURATION
 // =============================================================================
 
-const ADMIN_URL = 'https://admin.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
 
 test.describe.configure({ mode: 'serial' });
 

@@ -125,7 +125,7 @@ const allTestData: LoginTestData[] = [
 // PHẦN 2: HELPER FUNCTIONS
 // =============================================================================
 
-const LOGIN_URL = 'https://contestant.fctf.site/login';
+const LOGIN_URL = 'https://contestant0.fctf.site/login';
 
 // Helper: Điền form login
 async function fillLoginForm(page: Page, username: string, password: string) {

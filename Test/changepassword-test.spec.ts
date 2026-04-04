@@ -134,7 +134,7 @@ const allTestData: ChangePassTestData[] = [
 // PHẦN 2: HELPER FUNCTIONS
 // =============================================================================
 
-const BASE_URL = 'https://contestant.fctf.site';
+const BASE_URL = 'https://contestant0.fctf.site';
 
 // Helper: Login
 async function login(page: Page, user: string, pass: string) {

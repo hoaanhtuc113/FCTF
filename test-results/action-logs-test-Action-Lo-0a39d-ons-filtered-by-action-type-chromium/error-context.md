@@ -1,0 +1,68 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - img "FCTF Logo" [ref=e8] [cursor=pointer]
+      - generic [ref=e9]:
+        - button "Challenges" [ref=e10]:
+          - img [ref=e11]
+          - generic [ref=e13]: Challenges
+        - button "Instances" [ref=e14]:
+          - img [ref=e15]
+          - generic [ref=e17]: Instances
+        - button "Scoreboard" [ref=e18]:
+          - img [ref=e19]
+          - generic [ref=e21]: Scoreboard
+        - button "Action Logs" [active] [ref=e22]:
+          - img [ref=e23]
+          - generic [ref=e25]: Action Logs
+        - button "Tickets" [ref=e26]:
+          - img [ref=e27]
+          - generic [ref=e32]: Tickets
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - img [ref=e35]
+          - generic [ref=e37]:
+            - paragraph [ref=e38]: Ends in
+            - paragraph [ref=e39]: 26569d:22h:11m:04s
+        - generic [ref=e40]:
+          - paragraph [ref=e41]: user1
+          - paragraph [ref=e42]: // team1
+        - button "U" [ref=e44] [cursor=pointer]:
+          - generic [ref=e45]: U
+  - generic [ref=e48]:
+    - heading "[TEAM_ACTION_LOGS]" [level=1] [ref=e50]
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - generic:
+            - img
+          - textbox "Search by detail, user, or topic..." [ref=e54]
+        - combobox [ref=e56]:
+          - option "All Actions"
+          - option "Access Challenge"
+          - option "Start Challenge"
+          - option "Correct Flag"
+          - option "Incorrect Flag"
+          - option "Unlock Hint" [selected]
+        - combobox [ref=e58]:
+          - option "All Topics" [selected]
+          - option "TCP"
+          - option "WEB"
+          - option "Web"
+      - paragraph [ref=e60]: "[i] Showing 0 of 9 logs"
+    - table [ref=e62]:
+      - rowgroup [ref=e63]:
+        - row "DATE & TIME ACTION TYPE TOPIC DETAIL USER" [ref=e64]:
+          - columnheader "DATE & TIME" [ref=e65]
+          - columnheader "ACTION TYPE" [ref=e66]
+          - columnheader "TOPIC" [ref=e67]
+          - columnheader "DETAIL" [ref=e68]
+          - columnheader "USER" [ref=e69]
+      - rowgroup [ref=e70]:
+        - row "[i] No action logs found" [ref=e71]:
+          - cell "[i] No action logs found" [ref=e72]:
+            - paragraph [ref=e73]: "[i] No action logs found"
+```
