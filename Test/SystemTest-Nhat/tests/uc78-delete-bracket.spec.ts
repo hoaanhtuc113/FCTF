@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, commitLazyInput, deleteBracketByApi, findConfigBlockByInputValue, getTeams, loginAsAdmin, openAdminConfigTab, openTeamEditModal } from "./support";
+import { BASE_URL, createBracket, deleteBracketByApi, findConfigBlockByInputValue, getBrackets, getTeams, loginAsAdmin, openTeamEditModal } from "./support";
 
 test.describe("UC-78 Delete Bracket", () => {
     test.beforeEach(async ({ page }) => {
@@ -12,28 +12,19 @@ test.describe("UC-78 Delete Bracket", () => {
         const targetTeam = (await getTeams(page, 1))[0];
 
         try {
-            await openAdminConfigTab(page, "#brackets");
-            await page.click('#brackets button:has-text("Add New Bracket")');
-
-            const block = page.locator("#brackets .border-bottom").last();
-            await expect(block).toBeVisible();
-
-            await commitLazyInput(block.locator("input.form-control").nth(0), name);
-            await commitLazyInput(block.locator("input.form-control").nth(1), "Bracket to delete");
-
-            const createResponsePromise = page.waitForResponse((response) => {
-                return response.url().includes("/api/v1/brackets") && response.request().method() === "POST";
+            const created = await createBracket(page, {
+                name,
+                description: "Bracket to delete",
+                type: "teams",
             });
-
-            await block.locator('button:has-text("Save")').click();
-            const createResponse = await createResponsePromise;
-            const createBody = await createResponse.json();
-            createdId = createBody.data.id;
+            createdId = created.id;
 
             await openTeamEditModal(page, targetTeam.id);
             await expect(page.locator('#team-info-edit-form select[name="bracket_id"]')).toContainText(name);
 
-            await openAdminConfigTab(page, "#brackets");
+            await page.goto(`${BASE_URL}/admin/config`, { waitUntil: "domcontentloaded" });
+            await page.click('a[href="#brackets"]');
+            await expect(page.locator("#brackets")).toBeVisible();
             const persistedBlock = await findConfigBlockByInputValue(page, "#brackets", name);
             await expect(persistedBlock).toBeVisible();
 
@@ -50,6 +41,11 @@ test.describe("UC-78 Delete Bracket", () => {
             const deleteResponse = await responsePromise;
             expect(deleteResponse.ok(), "DELETE /api/v1/brackets phải trả về HTTP thành công").toBe(true);
 
+            await expect.poll(async () => {
+                const brackets = await getBrackets(page);
+                return brackets.some((bracket) => bracket.id === createdId);
+            }, { timeout: 10_000 }).toBeFalsy();
+
             await openTeamEditModal(page, targetTeam.id);
             await expect(page.locator('#team-info-edit-form select[name="bracket_id"]')).not.toContainText(name);
             createdId = null;
@@ -65,67 +61,32 @@ test.describe("UC-78 Delete Bracket", () => {
         let createdId: number | null = null;
 
         try {
-            await openAdminConfigTab(page, "#brackets");
-            await page.click('#brackets button:has-text("Add New Bracket")');
+            const created = await createBracket(page, {
+                name,
+                description: "Cancel delete test",
+                type: "teams",
+            });
+            createdId = created.id;
 
-            const block = page.locator("#brackets .border-bottom").last();
-            await expect(block).toBeVisible();
-
-            // Set up response listener BEFORE commitLazyInput so we don't miss the POST
-            const createResponsePromise = page.waitForResponse((response) => {
-                return response.url().includes("/api/v1/brackets") && response.request().method() === "POST";
-            }, { timeout: 10000 }).catch(() => null);
-
-            await commitLazyInput(block.locator("input.form-control").nth(0), name);
-            await commitLazyInput(block.locator("input.form-control").nth(1), "Cancel delete test");
-
-            await block.locator('button:has-text("Save")').click();
-            const createResponse = await createResponsePromise;
-
-            if (createResponse !== null) {
-                const createBody = await createResponse.json().catch(() => ({}));
-                createdId = createBody.data?.id ?? null;
-            }
-
-            if (createdId === null) {
-                // commitLazyInput may have fired POST already — try to find via API
-                const brackets = await page.request.get(`${BASE_URL}/api/v1/brackets`);
-                const bracketsBody = await brackets.json();
-                const found = (bracketsBody.data ?? []).find((b: any) => b.name === name);
-                if (found) createdId = found.id;
-            }
-
-            if (createdId === null) {
-                throw new Error("Không thể tạo bracket để test cancel dialog");
-            }
-
-            // Reload the config page to stabilize DOM
-            await openAdminConfigTab(page, "#brackets");
-            // Extra wait to let the bracket list render
-            await page.waitForTimeout(1000);
+            await page.goto(`${BASE_URL}/admin/config`, { waitUntil: "domcontentloaded" });
+            await page.click('a[href="#brackets"]');
+            await expect(page.locator("#brackets")).toBeVisible();
 
             const persistedBlock = await findConfigBlockByInputValue(page, "#brackets", name);
             await expect(persistedBlock).toBeVisible();
 
-            // Dismiss dialog (cancel)
             page.once("dialog", (dialog) => dialog.dismiss());
             const deleteButton = persistedBlock.locator("button.close");
             await deleteButton.scrollIntoViewIfNeeded();
             await deleteButton.click({ force: true });
 
-            // Small wait to ensure no DELETE request was sent
-            await page.waitForTimeout(1000);
+            await expect.poll(async () => {
+                const brackets = await getBrackets(page);
+                return brackets.some((bracket) => bracket.id === createdId);
+            }, { timeout: 10_000 }).toBeTruthy();
 
-            // Verify bracket vẫn tồn tại qua API
-            const brackets = await page.evaluate(async ({ BASE_URL }) => {
-                const res = await fetch(`${BASE_URL}/api/v1/brackets`, {
-                    headers: { "Content-Type": "application/json" },
-                });
-                const json = await res.json();
-                return json.data;
-            }, { BASE_URL: "https://admin.fctf.site" });
-
-            const found = brackets.find((b: any) => b.id === createdId);
+            const brackets = await getBrackets(page);
+            const found = brackets.find((bracket) => bracket.id === createdId);
             expect(found, "Bracket phải vẫn tồn tại sau khi cancel dialog").toBeTruthy();
         } finally {
             if (createdId !== null) {

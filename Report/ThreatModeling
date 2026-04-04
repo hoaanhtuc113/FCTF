@@ -1,0 +1,743 @@
+FCTF Threat Model v4.0.0
+
+A. Scope: Cluster Infrastructure & Dataflow	6
+1. System Overview	6
+Threat Model Coverage & Scope	6
+Threat Model Information	6
+Assumptions & Out-of-Scope	6
+Risk Ranking Convention (H/M/L)	6
+Trust Levels	6
+Asset Inventory (Global)	7
+2. Architecture & Deep Dataflow Analysis	8
+2.1 System Architecture Overview	8
+2.2 External Dependencies Inventory	9
+2.3 Cluster Entry Points	10
+3. Trust Boundaries (Global)	11
+3.1. Bảng Tổng hợp Trust Boundaries	11
+3.2. Phân tích Chi tiết Boundary Inventory & Permissions	12
+3.3. Tổng kết Least-Privilege Theo Account	12
+3.4. Security Pattern Baseline Khuyến nghị cho toàn bộ Trust Boundary	12
+3.5. Các Threat Trọng yếu cần ưu tiên xử lý ngay (Top Priority)	13
+3.6. Security Action Items theo thứ tự triển khai	13
+4. Threat Identification (Threat-first) & STRIDE Categorization	13
+4.1. STRIDE Categorization Matrix (method-only)	13
+4.2. Threat Register (detailed, separate from STRIDE)	13
+5. Observed Security Controls	19
+6. Gaps & Risk Assessment	19
+7. Mitigations / Action Items	19
+
+
+
+
+
+
+
+
+
+
+
+
+
+A. Scope: Cluster Infrastructure & Dataflow
+1. System Overview
+Threat Model Coverage & Scope
+Report này bao gồm:
+Architecture + entry points + trust boundaries + canonical dataflows + integration matrix
+Per-service scope sheets:
+Contestant Portal
+Contestant BE
+Challenge Gateway
+Admin MVC / CTFd
+Deployment Center
+Deployment Consumer
+Deployment Listener
+Data Zone
+Orchestration
+Threat Model Information
+Application name: FCTF Platform
+Version: v4.0.0
+Scope: K3s production deployment + all app services + challenge sandbox
+Method: STRIDE + trust boundary/DFD
+Assumptions & Out-of-Scope
+Assumes base OS/node hardening đã được thực hiện (SSH policy, patching, firewall baseline).
+Supply-chain chi tiết (SBOM, signing, provenance) chỉ được nhắc ở mức rủi ro; không triển khai đầy đủ trong report này.
+Không mô hình hoá chi tiết các luồng nội bộ của từng challenge binary/source; coi challenge pods là Hostile Compute (TL-6).
+Risk Ranking Convention (H/M/L)
+High (H): remote = Yes, automatable = Yes, auth = No hoặc ảnh hưởng “system-wide” (cluster/data compromise)
+Medium (M): remote = Yes nhưng cần auth hoặc automatable = Partial
+Low (L): remote = No hoặc cần nhiều điều kiện/khó tự động hóa
+Trust Levels
+Trust levels được dùng để cross-reference Entry Points và Assets.
+Trust Level
+Description
+Entity Examples
+TL-1
+Untrusted External - hoàn toàn không tin cậy, xuất phát từ Internet công cộng. Mọi request từ zone này phải được validate + authenticate trước khi vào các thành phần nội bộ.
+Internet, contestant browsers, unknown attackers, automated bots
+TL-2
+Authenticated Contestant - người chơi đã đăng nhập thành công và có JWT bearer token hợp lệ. Có quyền truy cập contestant-level API nhưng không có quyền admin.
+Logged-in contestants, browser sessions with JWT
+TL-3
+Admin Operator - người vận hành có quyền cao, thao tác qua admin interfaces và backend management services.
+Admin browsers, Admin MVC/CTFd admin panel
+TL-4
+Application Internal - luồng giao tiếp nội bộ giữa các service trong namespace app. Vẫn cần authN/authZ theo nguyên tắc least privilege.
+Portal↔BE calls via Ingress/service, internal APIs, service-to-service communication
+TL-5
+Orchestration Privileged - thành phần infra-level có quyền tạo/đổi tài nguyên K8s. Nếu bị compromise có thể ảnh hưởng đa workload.
+Deployment Center service account, Argo controller service account, Kaniko build pods
+TL-6
+Hostile Compute - compute chạy code do contestant kiểm soát; phải coi là độc hại và cách ly.
+Challenge pods running contestant-controlled code
+TL-7
+Data Zone - hệ thống lưu trữ dữ liệu nhạy cảm; truy cập phải giới hạn nghiêm ngặt cho service được phép.
+MariaDB, Redis, RabbitMQ, NFS persistent storage
+
+Asset Inventory (Global)
+ID
+Asset
+Where
+Why it matters
+A-1
+JWT tokens
+Contestant Portal localStorage, BE
+Account takeover, privilege misuse
+A-2
+Gateway HMAC tokens
+Challenge Gateway
+Bypass gateway to reach sandbox
+A-3
+App secrets
+K8s Secrets (common-secret, admin-mvc-secret)
+Lateral movement, DB access
+A-4
+Team/user data + solves
+MariaDB
+Integrity (score), confidentiality (PII)
+A-5
+Challenge artifacts (files)
+NFS
+Tampering/disclosure; code execution in sandbox
+A-6
+RabbitMQ messages
+RabbitMQ
+Trigger deployments, queue poisoning
+A-7
+Argo workflow templates
+argo
+Arbitrary workload execution if abused
+A-8
+Container images/tags/digests
+registry
+Supply chain tampering
+A-9
+Audit logs
+Loki/stdout
+Repudiation defense, forensics
+A-10
+Availability
+All
+DoS affects contest fairness
+
+2. Architecture & Deep Dataflow Analysis
+2.1 System Architecture Overview
+Hệ thống FCTF được chia thành nhiều lớp (tiers) với các phân vùng mạng (namespaces) riêng biệt. Kiến trúc tổng quan được mô tả qua các sơ đồ DFD dưới đây:
+
+Figure 1: Data Flow Diagram for Cluster
+
+2.2 External Dependencies Inventory
+ID
+Dependency
+Where
+Notes
+ED-1
+K3s / Kubernetes API
+kube-system / host
+Cluster control plane; high impact if compromised
+ED-2
+Nginx Ingress
+ingress-nginx
+TB-1: TLS termination + edge rate limiting
+ED-3
+cert-manager
+cert-manager
+Issues/renews TLS certs
+ED-4
+NFS server
+host / 10.184.0.2
+App & build read/write mounts (high risk)
+ED-5
+MariaDB
+db
+Primary relational store
+ED-6
+Redis
+db
+Cache/session + gateway rate limit
+ED-7
+RabbitMQ
+db
+Message broker for deployments
+ED-8
+Argo Workflows
+argo
+Workflow execution & orchestration
+ED-9
+Kaniko builder
+argo
+Image build/push, flagged as privileged in boundary map
+ED-10
+gVisor / runsc
+host/runtimeClass
+Challenge isolation layer
+ED-11
+Container registries
+external
+Pull/push images (supply chain)
+ED-12
+Observability stack
+monitoring
+Prometheus/Grafana/Loki/Tempo
+ED-13
+Node OS / kernel
+host nodes
+container breakout leads to node compromise
+ED-14
+DNS resolution
+kube-system
+service discovery; poisoning affects service routing
+
+2.3 Cluster Entry Points
+Bảng tổng hợp các bề mặt giao tiếp ngoại vi và nội bộ quan trọng đóng vai trò là entry points thâm nhập vào cụm.
+ID
+Interface
+Protocol
+Component
+Notes
+CL-EP-1
+Web UI
+HTTPS
+Contestant Portal (SPA)
+Ingress TLS termination
+CL-EP-2
+Admin UI
+HTTPS
+Admin MVC (CTFd)
+Highly privileged management surface
+CL-EP-3
+Orchestration
+HTTPS
+Argo Workflows Server
+CI/CD pipeline triggers
+CL-EP-4
+Infrastructure UI
+HTTPS
+Rancher
+Full cluster control
+CL-EP-5
+Storage UI
+HTTPS
+Filebrowser
+Direct NFS interactions
+CL-EP-6
+Challenge Native
+TCP/HTTP
+Challenge Gateway
+Raw TCP stream / HTTP proxy to Sandbox
+CL-EP-7
+Data Services
+TCP/HTTP
+MariaDB / Redis
+Data zone access (if NodePort enabled)
+CL-EP-8
+Observability
+HTTPS
+Grafana / Loki / RabbitMQ
+Logs, metrics may expose internal state & secrets
+CL-EP-9
+Control Plane
+HTTPS
+Kubernetes API
+Core cluster management (e.g., port 6443)
+
+
+3. Trust Boundaries (Global)
+Mục này mô tả các trust boundary (ranh giới tin cậy) trong hệ thống dựa trên sơ đồ luồng dữ liệu (DFD), với trọng tâm:
+- Bảng thống kê tổng quan các Trust Boundary.
+- Giao diện (Interface) giao tiếp thực tế.
+- Tài khoản/Credential/Service Account đang được sử dụng.
+- Đánh giá quyền hiện tại và nguyên tắc đặc quyền tối thiểu (Least Privilege).
+- Các Security Patterns, mối đe dọa trọng yếu và biện pháp kiểm soát.
+
+3.1. Bảng Tổng hợp Trust Boundaries
+Bảng dưới đây thống kê nhanh tất cả các Trust Boundary có trong hệ thống FCTF trước khi đi vào phân tích chi tiết.
+
+| ID | Tên Trust Boundary | Các Thành phần Giao tiếp | Giao thức / Interface Chính | Trust Levels Liên quan |
+|---|---|---|---|---|
+| TB-G1 | Edge Ingress Boundary | Internet <-> Public Endpoints (Portal, Admin, Argo, RBMQ, Grafana,...) | HTTPS / Nginx Ingress | TL-1, TL-2, TL-3 |
+| TB-G2 | Portal/API Boundary | Contestant Portal <-> Contestant BE | HTTPS / REST API | TL-2 <-> TL-4 |
+| TB-G3 | Data Zone (MariaDB) | Các Backend Services <-> MariaDB | TCP 3306 / MySQL | TL-4 <-> TL-7 |
+| TB-G4 | Data Zone (Redis) | Gateway & Backends <-> Redis | TCP 6379 / Redis | TL-4, TL-6 <-> TL-7 |
+| TB-G5 | Data Zone (RabbitMQ) | Deployment Center <-> Consumer | AMQP 5672 | TL-4 <-> TL-7 |
+| TB-G6 | Control Plane Privilege | Deployment Services <-> K8s API | HTTPS (K8s API) | TL-4 <-> TL-5 |
+| TB-G7 | Orchestration API | Deployment Services <-> Argo API | HTTPS (Argo REST) | TL-4 <-> TL-5 |
+| TB-G8 | Challenge Zone | Challenge Gateway <-> Challenge Pods | TCP, HTTP Proxy | TL-1, TL-2 <-> TL-6 |
+| TB-G9 | Host Storage | App Services & Workflows <-> NFS | NFS Mount (RWX) | TL-4, TL-5 <-> TL-7 |
+| TB-G10| Workload Supply/Build | Argo/Kaniko <-> Image Registry & Cluster | HTTPS, K8s API (privileged) | TL-5 <-> Build Env |
+| TB-G11| Observability/Mgmt | Admin Operators <-> Grafana, Rancher, Filebrowser | HTTPS / Ingress | TL-3 <-> TL-5, TL-7 |
+
+3.2. Phân tích Chi tiết Boundary Inventory & Permissions
+TB-G1: Edge Ingress Boundary (Internet <-> Public Endpoints)
+- Giao diện (Interface): Dòng traffic HTTPS đi qua Nginx Ingress dẫn vào các subdomain (contestant, api, admin, argo, rabbitmq, grafana, rancher, filebrowser).
+- Account & Quyền hiện tại (Permissions):
+	- Account: Truy cập Internet chưa xác thực (TL-1); Account người chơi qua JWT (TL-2); Account Admin (TL-3).
+	- Quyền (Permission): Các Ingress route hiện đang mở toàn bộ ra Internet công cộng cho cả các ứng dụng hệ thống nội bộ. Đặc biệt, tham số `proxy-body-size: "0"` cho phép quyền gửi payload không hệ hạn chế lưu lượng.
+- Đánh giá Least Privilege: DƯ THỪA QUYỀN. Bề mặt công khai quá lỏng lẻo.
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Do mở toang các endpoint quản trị, kẻ tấn công có quyền (access) trực diện dò quét, dò mật khẩu (Credential Stuffing) và chiếm đoạt Account vận hành (Spoofing).
+	- Quyền "body vô hạn" tạo kẽ hở lớn cho tấn công từ chối dịch vụ (DoS/L7 Flood) bằng cách xả thẳng các luồng dữ liệu bơm phồng lên tài nguyên mạng.
+- Giải pháp đề xuất: Tách bạch ingress class cho Public và Private. Chỉ Public các nền tảng Contestant. Mọi Ingress Admin/Argo/Rancher bắt buộc đi kèm MFA, SSO và lọc IP (IP Allowlist).
+
+TB-G2: Portal/API Boundary (Contestant Portal <-> Contestant BE)
+- Giao diện (Interface): Gọi hàm API (HTTPS REST) nội bộ tới `/contestant-be/api`.
+- Account & Quyền hiện tại (Permissions):
+	- Account: Xác thực bằng JWT Bearer sinh ra bởi máy chủ thi đấu.
+	- Quyền (Permission): Role của người tham dự tự định tuyến qua cơ chế authorize tại cấp route. Quá trình kiểm tra phụ thuộc vào Cache Redis (hậu kiểm DB).
+- Đánh giá Least Privilege: TƯƠNG ĐỐI ĐỦ. Phụ thuộc chặt chẽ vào độ trễ đồng bộ của lớp middleware.
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Dù bị giới hạn bằng account thường, nếu Object-level Authorization (điều quyền theo đối tượng) làm không chặt, hacker vẫn có quyền sửa đổi tham số (Parameter Tampering) của POST request để lợi dụng danh tính nhằm nộp cờ gian lận, trộm quyền (Theft) điểm số người khác (Broken Access Control).
+- Giải pháp đề xuất: Áp dụng chữ ký Token vòng đời ngắn (Short-lived JWT), đối soát lại Authorization với từng API endpoint nhạy cảm; sinh log gắn liền mã ID.
+
+TB-G3: Data Zone Boundary - MariaDB (Contestant BE/Admin MVC/Deployment* <-> MariaDB)
+- Giao diện (Interface): Kết nối luồng TCP 3306 đến `mariadb-headless.db.svc.cluster.local`.
+- Account & Quyền hiện tại (Permissions):
+	- Account: Đang DÙNG CHUNG duy nhất một Database principal (`ctfd-username` trong `DB_CONNECTION`) cho tất cả hạ tầng dịch vụ BE và Deployment.
+	- Quyền (Permission): Khai báo qua Helm với Full Quyền CRUD và tác động cấu trúc bảng (DDL) lên schema. Chưa khóa Port mạng cứng (NodePort 30306 lộ).
+- Đánh giá Least Privilege: DƯ CỰC KỲ NGHIÊM TRỌNG (Shared account phá vỡ nguyên tắc giới hạn bề mặt tấn công). Dựa trên phân tích mã nguồn (`Controllers/` và `Services/`) ở ContestantBE, luồng người chơi thực thi thông qua Contestant Portal yêu cầu một hệ thống phân quyền DB (CRUD) cực kỳ khắt khe cho từng Table thay vì dùng chung 1 Account "Root" như hiện tại. 
+
+**Bảng Báo cáo Phân quyền CSDL (MariaDB) dành cho Service Account `contestant_be_user`:**
+
+*(Lưu ý: Bảng này định nghĩa quyền của chính ứng dụng **ContestantBE** khi kết nối xuống Database. Nó cho thấy BE cần quyền gì để phục vụ thí sinh, và bảng nào bị khóa hoàn toàn để thu hẹp phạm vi tấn công nếu BE bị chiếm quyền).*
+
+| Nhóm Table (Bảng) | Quyền Đọc (SELECT) | Quyền Thêm (INSERT) | Quyền Sửa (UPDATE) | Quyền Xóa (DELETE) | Chức năng thực tế của ContestantBE & Rủi ro bảo mật |
+|---|---|---|---|---|---|
+| **Flags** | Cho phép | **CẤM** | **CẤM** | **CẤM** | ContestantBE **CẦN ĐỌC** để đối chiếu cờ thí sinh nộp với DB. Tuy nhiên, tuyệt đối CẤM Insert/Update/Delete để ngăn chặn trường hợp BE bị lỗi SQLi/RCE dẫn đến việc tự ý đổi cờ hoặc xóa cờ hệ thống. |
+| **AlembicVersions**, **DeployHistories**, **ChallengeVersions**, **AdminAuditLogs**, **Comments** | **CẤM** | **CẤM** | **CẤM** | **CẤM** | Bảng quản lý di trú (Migration), tham số hạ tầng, log kiểm toán admin và bình luận nội bộ. ContestantBE không có tính năng nào cần đụng tới. Phải REVOKE toàn bộ để tránh lộ cấu trúc nội bộ. |
+| **Challenges**, **DynamicChallenges**, **MultipleChoiceChallenges**, **ChallengeTopics**, **Topics**, **Tags**, **Hints**, **Files** | Cho phép | **CẤM** | **CẤM** | **CẤM** | ContestantBE chỉ cần Đọc (SELECT) để Query hiển thị danh sách bài thi, gợi ý, và đường dẫn file tải về cho thí sinh. Cấm hoàn toàn Ghi/Sửa/Xóa để đề phòng Hacker lợi dụng API thay đổi luật chơi hay sửa nội dung thử thách. |
+| **Configs**, **Achievements**, **Brackets**, **AwardBadges** | Cho phép | **CẤM** | **CẤM** | **CẤM** | ContestantBE cần đọc cấu hình giải đấu và dữ liệu bảng điểm/phân hạng để render đúng trạng thái cuộc thi. Cấm toàn bộ quyền ghi để tránh sửa luật điểm. |
+| **Users** | Cho phép | **CẤM** | Cho phép | **CẤM** | ContestantBE cần SELECT khi đăng nhập/lấy hồ sơ và UPDATE khi đổi mật khẩu hoặc cập nhật trạng thái tham gia team. Cấm INSERT/DELETE ở boundary này. |
+| **Teams** | Cho phép | Cho phép | **CẤM** | **CẤM** | ContestantBE cần SELECT để xem thông tin team/scoreboard và INSERT khi tạo team mới. Không có luồng cập nhật/xóa team từ Contestant API. |
+| **Fields**, **FieldEntries** | **CẤM** | **CẤM** | **CẤM** | **CẤM** | Hiện tại không có code-path ContestantBE thao tác trực tiếp lên hai bảng này. Giữ REVOKE toàn bộ cho `contestant_be_user` để tránh mở thừa quyền. |
+| **Tokens** | Cho phép | Cho phép | Cho phép | **CẤM** | ContestantBE dùng token table để tạo token login mới và cập nhật UUID token khi user đăng nhập lại. Không có luồng xóa token tại Contestant API. |
+| **Tickets** | Cho phép | Cho phép | **CẤM** | Cho phép | Contestant có quyền tạo ticket, xem ticket của mình và xóa ticket còn mở/chưa phản hồi. Không có endpoint cập nhật ticket trực tiếp. |
+| **Trackings** | Cho phép | Cho phép | Cho phép | **CẤM** | Dùng để ghi/refresh IP tracking khi đăng nhập. Cho phép INSERT/UPDATE theo user-session, cấm DELETE để giữ lịch sử điều tra. |
+| **Submissions**, **ActionLogs** | Cho phép | Cho phép | **CẤM** | **CẤM** | Bảng append-only ghi nhận lần nộp bài và hành vi thao tác. CẤM UPDATE/DELETE để chống phi tang dấu vết gian lận. |
+| **Solves**, **Unlocks**, **Awards** | Cho phép | Cho phép | **CẤM** | **CẤM** | Dùng để ghi nhận điểm (Solve/Award) hoặc trừ tiền mở Hint (Unlocks). Cho phép Đọc để render Scoreboard cá nhân, Insert khi Backend xác thực đúng Flag. CẤM Cập nhật/Xóa để tránh trường hợp khai thác được API rác vào tự tăng điểm cho chính mình. |
+| **ChallengeStartTrackings** | Cho phép | **CẤM** | **CẤM** | **CẤM** | Trong ContestantBE hiện tại chỉ đọc số lần deploy/start để áp giới hạn. Luồng ghi bảng này thuộc service khác (deployment pipeline), không cấp quyền ghi cho `contestant_be_user`. |
+
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Nếu Backend của Contestant (`ContestantBE`) dùng chung Database Account cấp Root (Có quyền DDL và Toàn quyền CRUD) với Admin MVC/Deployment Center, một lỗ hổng chèn mã SQL injection tại Portal API sẽ lôi theo thảm họa: Kẻ tấn công có thể sửa đổi bảng `Challenges`, lấy cắp hoặc thay thế `Flags` giả mạo, và xóa sạch dấu vết `ActionLogs`. Kẻ tấn công cũng có thể đánh sập hệ thống bằng cách Drop Table.
+	- Lộ DB NodePort nội mạng (30306) đồng nghĩa là tạo ra cánh cửa cho kẻ gian quét Port (Dò Brute-force/Credential replay) trực tiếp từ một điểm Compromise ngang hàng.
+- Giải pháp đề xuất: Tạo lập một tài khoản phân quyền DB cực kỳ thu hẹp có tên `contestant_be_user`. Áp dụng cấu hình Chặn Toàn Bộ (`REVOKE`) nhóm luật `DDL`; chỉ cấp quyền `SELECT/INSERT/UPDATE/DELETE` đúng theo ma trận đã rà soát từ code-path ContestantBE. Với `Flags` và `Configs`, chỉ giữ quyền đọc cần thiết cho nghiệp vụ, tuyệt đối không cấp quyền ghi/xóa. Bắt buộc chặn NodePort DB và đổi sang TLS mTLS.
+
+TB-G4: Data Zone Boundary - Redis (Challenge Gateway + Backends <-> Redis)
+- Giao diện (Interface): Giao thức TCP mạng nội bộ qua cổng 6379 tại Redis Headless.
+- Account & Quyền hiện tại (Permissions):
+	- Account: Không phân Account (`auth.acl.enabled: false`). Toàn hệ thống dùng chung 1 Secret `REDIS_PASSWORD`.
+	- Quyền (Permission): Default user có toàn quyền Command (trừ lệnh FLUSH bị chặn rải rác). Map cấu hình NodePort hiện tại `30320`.
+- Đánh giá Least Privilege: DƯ THỪA. (Shared Root Cache).
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Vì Redis chung chạ quyền, ai có password cũng có đặc quyền đọc vạn vật (Toán cục). Gateway, nếu bị chiếm, có thể chỉnh sửa/khóa (Poisoning) các bộ đếm số Rate-limiter để tháo khoán DoS. Trầm trọng hơn, có thể thay đổi JWT đệm (Tampering caching) vào chiếm phiên của Admin Cụm.
+- Giải pháp đề xuất: Bật ACL, chia User `gateway-user`, `auth-cache-user`. Cấm quyền gọi các Keys-prefix không thuộc mảng dịch vụ. Đóng Port hở tĩnh nội mạng.
+
+TB-G5: Data Zone Boundary - RabbitMQ (Deployment Center <-> Deployment Consumer)
+- Giao diện (Interface): Giao thức Broker tin nhắn AMQP 5672 qua exchange nội bộ `deployment_exchange`.
+- Account & Quyền hiện tại (Permissions):
+	- Account: Chung chăn chung gối 1 Account `user`/`RABBIT_PASSWORD` cho luồng ghi (Producer) lẫn luồng đọc (Consumer).
+	- Quyền (Permission): Quyền đọc/ghi/cấu hình (Read/Write/Configure) toàn vẹn trên vhost hệ thống mặc định. Kèm theo Management UI đang phơi bày.
+- Đánh giá Least Privilege: DƯ THỪA NGHIÊM TRỌNG.
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Kẻ gian khi chiếm được luồng Worker/Consumer hoàn toàn có Quyền gửi tin giả mạo (Unauthorized publish) đẩy ngược yêu cầu độc hại vào vòng Exchange (Queue poisoning). 
+	- Có khả năng can thiệp/nhân bản Deployment Trigger message -> ép kịch bản nhồi Container giả (Malicious payload) lên kiến trúc K8s.
+- Giải pháp đề xuất: Phân định rạch ròi 2 mảng User mới: `rabbit_producer` (Quyền Ghi/Write-only) và `rabbit_consumer` (Nửa Đọc/Ack/Read-only). Mã hóa TLS luồng mạng.
+
+TB-G6: Control Plane Privilege Boundary - Deployment services <-> Kubernetes API
+- Giao diện (Interface): API điều khiển trung tâm trong lòng máy chủ (In-cluster Kubernetes API).
+- Account & Quyền hiện tại (Permissions):
+	- Account: Sử dụng `deployment-center-sa` và `deployment-listener-sa`.
+	- Quyền (Permission): 
+		- `Center`: Xin toàn quyền thao tác, xóa trắng (`deletecollection`) trên `pods, services, namespaces` ở quy mô Vạn Cụm (Cluster-wide).
+		- `Listener`: Được cấp phát quyền tương tác mức độ siêu khổng lồ lên tài nguyên Core `nodes` và `namespaces`.
+- Đánh giá Least Privilege: LẠM QUYỀN ĐẠI HỌA (Critical Misconfiguration).
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Khi Service có quá nhiều thẩm quyền RBAC lên Core API K8s, một lỗ hổng chèn mã trên Web (RCE) sẽ lập tức ban quyền phá hủy (Namespace Destruction), thu thập Token của hạ tầng và tái cấu trúc Node K8s (Elevation via Service Account). Đây là sai lầm chết người tạo hố Pivot ngang (Lateral Movement).
+- Giải pháp đề xuất: Chia nhỏ Policy, cô lập Scope theo từng thẻ Label (`ctf/kind=challenge`). Cấm và Tịch thu hoàn toàn Role kiểm soát hệ thống Core `nodes` và thao tác Deletions bừa bãi.
+
+TB-G7: Orchestration Boundary - Deployment services <-> Argo Workflows API
+- Giao diện (Interface): Giao tiếp REST HTTP với Argo Workflow qua Header Token: `Bearer <ARGO_TOKEN>`.
+- Account & Quyền hiện tại (Permissions):
+	- Account: Dùng 1 Token đâm chồi từ Role `argo-sa`, găm trực tiếp vĩnh viễn trên Plain `common-secret`.
+	- Quyền (Permission): TÀI KHOẢN `argo-sa` NẮM QUYỀN `cluster-admin` (THẦN THÁNH TỐI CAO CỦA CỤM).
+- Đánh giá Least Privilege: SAI PHẠM MỨC ĐỘ THIÊN TAI ĐỎ (Catastrophic Root Risk).
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Đặc quyền SA ngất ngưởng làm Token trong `common-secret` trở thành Chìa khóa Vạn năng. Bất kỳ thực thể ứng dụng hèn kém nào bới được Key này sẽ sở hữu "Nút đỏ Xóa Cụm" hay có quyền thả Kịch bản độc hại (Supply-chain Poisoning) chiếm quyền khống chế trọn vẹn FCTF (Full Cluster Takeover).
+- Giải pháp đề xuất: Tước bỏ ngay lập tức Binding `cluster-admin` của `argo-sa`. Áp dụng RBAC Minimalist riêng cho lệnh Workflow. Ngừng sao lưu Token tĩnh, xoay qua hệ thống Inject Token động.
+
+TB-G8: Challenge Zone Boundary - Challenge Gateway <-> Challenge Pods
+- Giao diện (Interface): Giao thức Proxy TCP/HTTP phân giải từ vòng ngoài áp vào NodePort 30037/30038 để kết nối học cụ.
+- Account & Quyền hiện tại (Permissions):
+	- Account: Cơ chế phân quyền luồng qua Key chữ ký vật lý HMAC-SHA256 (`PRIVATE_KEY`).
+	- Quyền (Permission): Các Pod hệ quả Challenge chạy quyền nhàn rỗi (Không cài cắm Service Account nội bộ). Cơ chế mạng Network Policy chặn chết Egress/Ingress.
+- Đánh giá Least Privilege: TƯƠNG ĐỐI ĐỦ. Kiểm soát gắt gao vòng kẹp gVisor.
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Dù quyền hẹp, song nếu Lộ `PRIVATE_KEY` chữ ký ảo sẽ cấp quyền Bẻ Khóa Gateway để tự tiện điều khiển luồng (Token Forgery).
+	- Hạt Container độc bị khống chế lỗi Kernel sẽ thoát xác gVisor, hoành hành tài nguyên phần cứng vật lý (Sandbox Escape - Machine host).
+- Giải pháp đề xuất: Gắn Key Versioning (Xoay vòng mã bảo mật). Bổ túc khóa bảo hộ mTLS khi chọc sâu API ngầm. Dùng eBPF dò syscall lạn mạng.
+
+TB-G9: Host Storage Boundary - Services/Workflows <-> NFS
+- Giao diện (Interface): Gắn vùng lưu trữ ổ quang học ngoại vi NFS RWX (`/srv/nfs/share`).
+- Account & Quyền hiện tại (Permissions):
+	- Account: NFS phân quyền mù theo luồng Network IPv4 (Không cấp danh tính bảo mật Per-Pod Identity).
+	- Quyền (Permission): Argo/Admin đều có toàn Quyền Read/Write lên cây thư mục chằng chịt các Cờ (Flags), kịch bản cấu hình của người chơi.
+- Đánh giá Least Privilege: DƯ THỪA QUYỀN. (Nguyên tắc Storage phẳng không cô lập Tenant).
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Chính vì không chặn quyền của những Pod ít liên đới, chúng đâm nhau thông qua thư mục cha chia sẻ. Kẻ xấu có thể cấy kịch bản giả, sửa Mã phần mềm (Artifact Tampering) của cuộc thi hay thậm chí lấy cắp dữ liệu chéo (Cross-workload contamination).
+- Giải pháp đề xuất: Ly thân đường dẫn Export bằng Volume PVC độc lập cho từng Workload. Tận dụng Read-Only mounts. Dùng hàm Băm (Checksum) phân giải độ vẹn toàn trước mỗi kịch bản triển khai.
+
+TB-G10: Workload Supply/Build Boundary - Argo/Kaniko <-> Registry va Cluster
+- Giao diện (Interface): Công nghệ Kaniko đúc Docker Image đẩy trực diện về Registry hệ thống. Nhúng qua `kubectl`.
+- Account & Quyền hiện tại (Permissions):
+	- Account: Mệnh lệnh gọi Workflow chèo lái bởi SA Root `argo-sa`. 
+	- Quyền (Permission): Tự tay ban phép đúc ảnh dưới nhãn `privileged: true`, ép User thành Kernel `runAsUser: 0` và mở toang cờ `hostNetwork: true`.
+- Đánh giá Least Privilege: LẠM QUYỀN CỰC KHỦNG (Tương đương Kẻ tấn công Root Host).
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Đặt Container có quyền Kernel Privilege tương đương với việc "Giao chìa khóa server" cho kịch bản mã hóa ngoài. Nếu Docker Build bị chèn mã độc, Kịch bản khai thác sẽ xuyên thủng vòm chứa lấy Secret `global-regcred` và tráo đè/đầu độc trọn vẹn các tài sản Cờ tương lai (Malicious Supply-chain tampering).
+- Giải pháp đề xuất: Triệt hạ Flag `privileged` / `hostNetwork` tắp lự. Ký số Image Cosign. Lập trình riêng SA quyền siêu hẹp chỉ áp dụng nhiệm vụ duy nhất: Push Registry.
+
+TB-G11: Observability/Management Boundary (Admin Ops <-> Grafana/RabbitMQ UI/Rancher/Argo/Filebrowser)
+- Giao diện (Interface): Lưu lượng HTTPS vãng lai phang thẳng vào Trang tổng quan Bảng điều khiển Cụm (Dashboard).
+- Account & Quyền hiện tại (Permissions):
+	- Account: Tài khoản Quản trị con người (Ops Human). 
+	- Quyền (Permission): Bất kỳ mạng IP vãng lai nào (Net exposure) cũng được phép Request nạp trang không qua mạng cách ly (VLAN/VPN).
+- Đánh giá Least Privilege: DƯ QUYỀN BỀ MẶT. Quản trị không bị kẹp gông Network Perimeter.
+- Mối đe dọa từ Đặc quyền sai (Threats):
+	- Lộ mặt điều khiển Management Endpoint, tội phạm có cơ may rò mật khẩu hoặc đánh sập phiên đăng nhập đồ họa. Bằng cách thao túng các cụm ghi Log Audit như Grafana, Hacker ngạo nghễ dòm ngó nhật ký, cướp Secret (Credential Theft). Thao tác Admin vô danh khiến quản trị viên không thể quy chụp tội (Repudiation).
+- Giải pháp đề xuất: Đóng hầm Bastion / Truy cập mạng riêng VPN. Tích hợp MFA. Mã hóa trọn Logging Sink bất biến.
+
+3.3. Tổng kết Least-Privilege Theo Account
+- `argo-sa` (namespace argo): Hien tai cluster-admin => DU RAT NGHIEM TRONG. Can tach nhieu SA nho theo tung workflow va thu hep RBAC.
+- `deployment-center-sa`: Dang co quyen delete pod/service/namespace cluster-wide => DU. Can thu hep theo namespace + label-scoped delete policy.
+- `deployment-listener-sa`: Dang co `nodes` + delete => DU. Can bo quyen nodes va han che delete.
+- App pods khong khai bao SA rieng (`contestant-be`, `deployment-consumer`, `challenge-gateway`, `admin-mvc`, `contestant-portal`): dang su dung default SA va mac dinh mount token => DU (neu app khong goi K8s API).
+- DB account `ctfd-username`: dang chia se cho nhieu service => DU (khong dat least privilege theo service boundary).
+- RabbitMQ account `user`: dang chia se producer/consumer => DU.
+- Redis default user (ACL tat): DU.
+
+3.4. Security Pattern Baseline Khuyến nghị cho toàn bộ Trust Boundary
+- Zero Trust service-to-service:
+	- Identity rieng cho moi workload (K8s SA + app credentials rieng).
+	- Explicit authN/authZ cho moi interface noi bo.
+- Policy-as-code:
+	- Kyverno/Gatekeeper enforce: no cluster-admin SA, no privileged pod, no hostNetwork cho app/build workload (tru truong hop duoc phe duyet).
+- Secret hygiene:
+	- Khong de static SA token trong Secret plain.
+	- Secret rotation theo chu ky + scoping theo service.
+- Data-plane hardening:
+	- DB/Rabbit/Redis bat TLS + account separation + network isolation.
+	- Dong NodePort khong can thiet, uu tien ClusterIP + internal access.
+- Isolation for hostile compute:
+	- Duy tri gVisor, no SA token, strict network policy, resource quotas, runtime monitoring.
+
+3.5. Các Threat Trọng yếu cần ưu tiên xử lý ngay (Top Priority)
+- P1: `argo-sa` cluster-admin token duoc phan phoi qua `common-secret` va su dung boi deployment services.
+- P1: Shared credentials (DB/Rabbit/Redis) giua nhieu service, khong tachdanh tinh theo boundary.
+- P1: Management endpoints public exposure (Rancher/Argo/RabbitMQ UI/Grafana/Filebrowser).
+- P2: RBAC over-privilege cho deployment-center-sa va deployment-listener-sa.
+- P2: NFS shared RWX la diem tampering quan trong.
+- P2: DB/Redis NodePort exposure tang attack surface.
+
+3.6. Security Action Items theo thứ tự triển khai
+1. Cat cluster-admin khoi `argo-sa`, tao RBAC toi thieu va token rieng theo dich vu.
+2. Tach account DB/Rabbit/Redis theo service, rotate toan bo secret hien tai.
+3. Dong/han che management ingress bang VPN/IP allowlist + MFA bat buoc.
+4. Bo quyen delete/nodes du thua khoi deployment service accounts.
+5. Loai bo static SA token trong secret, dung projected token/secret manager.
+6. Dong NodePort DB/Redis neu khong bat buoc; bo sung network policy deny-all + allowlist.
+7. Tiet giam quyen NFS theo workload va bo sung integrity check artifact.
+
+4. Threat Identification (Threat-first) & STRIDE Categorization
+4.1. STRIDE Categorization Matrix (method-only)
+Bảng này chỉ dùng để phân loại threat theo STRIDE; threat register chi tiết nằm ở mục 4.2.
+STRIDE
+Category
+Why this category matters in cluster scope
+Threat IDs
+S
+Spoofing
+Mất định danh ở bề mặt quản trị. Giả mạo giao tiếp nội bộ (thiếu mTLS/Zero-Trust).
+TR-CLU-01, TR-CLU-13
+T
+Tampering
+Sai lệch policy/routing. Tấn công Supply chain và đầu độc bộ lưu trữ chia sẻ (NFS).
+TR-CLU-02, TR-CLU-07, TR-CLU-15
+R
+Repudiation
+Thiếu audit trail khiến không thể truy vết sự cố ở hạ tầng đặc quyền cao.
+TR-CLU-03
+I
+Information Disclosure
+Lộ secret qua logs, lưu trữ không mã hóa (etcd at-rest), hoặc sniffing nội mạng.
+TR-CLU-04, TR-CLU-10, TR-CLU-12, TR-CLU-13
+D
+Denial of Service
+Tấn công cạn kiệt tài nguyên (Noisy neighbor) hoặc DoS diện rộng toàn cụm.
+TR-CLU-05, TR-CLU-11
+E
+Elevation of Privilege
+Leo thang đặc quyền RBAC, Sandbox Escape, Lateral movement, lạm dụng HostPath.
+TR-CLU-06, TR-CLU-08, TR-CLU-09, TR-CLU-14
+
+4.2. Threat Register (detailed, separate from STRIDE)
+Threat register là nguồn gốc để suy ra control, gap và mitigation.
+Threat table converted to compact records for DOCX readability.
+1. Record 1
+Threat ID: TR-CLU-01
+Threat name: Đánh cắp thông tin xác thực Admin
+STRIDE: S
+Attack scenario (detailed): Attacker chiếm session/password ở Rancher/Argo/Grafana, sau đó thực hiện thao tác quản trị trái phép.
+Attack surface: CL-EP-4, CL-EP-5, CL-EP-6.1, CL-EP-6.2
+Affected assets: A-3, A-7, A-9
+Boundary crossings: TB-1, TB-2, TB-5
+Likelihood: High
+Impact: High
+Inherent Risk: High
+Existing Controls: CTL-CLU-03
+Planned Mitigations: MIT-CLU-03
+Residual Risk: Medium
+2. Record 2
+Threat ID: TR-CLU-02
+Threat name: Thay đổi Ingress Payload
+STRIDE: T
+Attack scenario (detailed): Lợi dụng ingress/body policy không chặt để bypass kiểm soát hoặc gây lỗi xử lý downstream services.
+Attack surface: CL-EP-1, CL-EP-2, CL-EP-3
+Affected assets: A-10, A-1, A-9
+Boundary crossings: TB-1, TB-2
+Likelihood: High
+Impact: High
+Inherent Risk: High
+Existing Controls: CTL-CLU-02
+Planned Mitigations: -
+Residual Risk: Medium
+3. Record 3
+Threat ID: TR-CLU-03
+Threat name: Thiếu Audit Trails
+STRIDE: R
+Attack scenario (detailed): Thao tác hạ tầng đặc quyền cao không đủ dấu vết forensic, gây khó điều tra và quy trách nhiệm.
+Attack surface: CL-EP-10, INT-9, INT-13
+Affected assets: A-9, A-10
+Boundary crossings: TB-5, TB-6
+Likelihood: Medium
+Impact: High
+Inherent Risk: High
+Existing Controls: -
+Planned Mitigations: MIT-CLU-01
+Residual Risk: Medium
+4. Record 4
+Threat ID: TR-CLU-04
+Threat name: Lộ lọt SA Tokens/Secrets
+STRIDE: I
+Attack scenario (detailed): Secrets/service-account token bị lộ qua manifest/log/mount dẫn đến truy cập trái phép data/control plane.
+Attack surface: INT-8, INT-9, INT-12
+Affected assets: A-3, A-4, A-8
+Boundary crossings: TB-3, TB-5, TB-6
+Likelihood: High
+Impact: High
+Inherent Risk: High
+Existing Controls: CTL-CLU-01
+Planned Mitigations: MIT-CLU-02
+Residual Risk: Medium
+5. Record 5
+Threat ID: TR-CLU-05
+Threat name: Cluster-wide DoS
+STRIDE: D
+Attack scenario (detailed): Flood traffic/workflow gây cạn tài nguyên ở gateway, queue, orchestration và làm gián đoạn contest.
+Attack surface: CL-EP-7, CL-EP-8, INT-10, INT-11
+Affected assets: A-10, A-6
+Boundary crossings: TB-1, TB-3, TB-4, TB-5
+Likelihood: High
+Impact: High
+Inherent Risk: High
+Existing Controls: CTL-CLU-02
+Planned Mitigations: -
+Residual Risk: Medium
+6. Record 6
+Threat ID: TR-CLU-06
+Threat name: Leo thang quyền qua RBAC
+STRIDE: E
+Attack scenario (detailed): Abuse role/rolebinding/service account để nâng quyền từ workload lên control-plane actions.
+Attack surface: CL-EP-10, INT-8, INT-9
+Affected assets: A-3, A-7, A-10
+Boundary crossings: TB-5, TB-6
+Likelihood: High
+Impact: High
+Inherent Risk: High
+Existing Controls: CTL-CLU-01, CTL-CLU-03
+Planned Mitigations: MIT-CLU-02
+Residual Risk: Medium
+7. Record 7
+Threat ID: TR-CLU-07
+Threat name: Supply Chain Compromise
+STRIDE: T
+Attack scenario (detailed): Attacker đẩy container image độc hại vào registry hoặc đầu độc build context.
+Attack surface: CL-EP-4, Pipeline
+Affected assets: A-9, A-10
+Boundary crossings: TB-5, TB-6
+Likelihood: Low
+Impact: Critical
+Inherent Risk: High
+Existing Controls: -
+Planned Mitigations: MIT-CLU-04
+Residual Risk: Medium
+8. Record 8
+Threat ID: TR-CLU-08
+Threat name: Sandbox Escape (gVisor bypass)
+STRIDE: E
+Attack scenario (detailed): Thực thi mã độc từ Challenge Pod, khai thác lỗi kernel OS/Docker để thoát ra Node host.
+Attack surface: CL-EP-7, Pods
+Affected assets: A-3, A-7
+Boundary crossings: TB-4
+Likelihood: Low
+Impact: Critical
+Inherent Risk: High
+Existing Controls: gVisor Runtime
+Planned Mitigations: MIT-CLU-05
+Residual Risk: Low
+9. Record 9
+Threat ID: TR-CLU-09
+Threat name: Lateral Movement
+STRIDE: E
+Attack scenario (detailed): Compromised challenge pod quét port, dò mạng nội bộ Cluster, đánh vào K8s API hoặc microservices (RabbitMQ/Redis).
+Attack surface: Challenge Pod
+Affected assets: A-4, A-1, A-3
+Boundary crossings: TB-4, TB-3
+Likelihood: High
+Impact: High
+Inherent Risk: High
+Existing Controls: Network Policies
+Planned Mitigations: MIT-CLU-06
+Residual Risk: Low
+10. Record 10
+Threat ID: TR-CLU-10
+Threat name: Information Disclosure via Logs
+STRIDE: I
+Attack scenario (detailed): Logs/Metrics đẩy lên Grafana/Loki có chứa plain secret keys, passwords, hoặc API tokens.
+Attack surface: CL-EP-9, System
+Affected assets: A-9
+Boundary crossings: TB-2, TB-5
+Likelihood: Medium
+Impact: High
+Inherent Risk: High
+Existing Controls: -
+Planned Mitigations: MIT-CLU-07
+Residual Risk: Medium
+11. Record 11
+Threat ID: TR-CLU-11
+Threat name: Node Resource Exhaustion (Noisy Neighbor)
+STRIDE: D
+Attack scenario (detailed): Thiếu Limit/Request cho các pod hệ thống dẫn đến một pod lỗi hoặc bị compromise ăn hết CPU/RAM K3s.
+Attack surface: Pod workloads
+Affected assets: Node resources
+Boundary crossings: TB-5
+Likelihood: High
+Impact: High
+Inherent Risk: High
+Existing Controls: Kubelet eviction
+Planned Mitigations: MIT-CLU-08
+Residual Risk: Medium
+12. Record 12
+Threat ID: TR-CLU-12
+Threat name: Lộ lọt Secret tại Rest (Etcd/SQLite)
+STRIDE: I
+Attack scenario (detailed): Dữ liệu K3s không được mã hóa at-rest (Encryption at Rest default tắt), lộ file DB host sẽ mất toàn bộ Secret.
+Attack surface: Node Host/NFS
+Affected assets: A-3, A-8
+Boundary crossings: TB-6
+Likelihood: Low
+Impact: Critical
+Inherent Risk: High
+Existing Controls: -
+Planned Mitigations: MIT-CLU-09
+Residual Risk: Medium
+13. Record 13
+Threat ID: TR-CLU-13
+Threat name: Thiếu mTLS & Zero-Trust nội bộ
+STRIDE: S, I
+Attack scenario (detailed): Giao tiếp Pod-to-Pod (đặc biệt RabbitMQ/DB) sử dụng plaintext, cho phép sniffing và giả mạo API nội bộ.
+Attack surface: Cluster network
+Affected assets: Internal traffic
+Boundary crossings: TB-2, TB-3
+Likelihood: Medium
+Impact: High
+Inherent Risk: Medium
+Existing Controls: K8s DNS
+Planned Mitigations: MIT-CLU-10
+Residual Risk: Medium
+14. Record 14
+Threat ID: TR-CLU-14
+Threat name: Lạm dụng HostPath & Privileged Pods
+STRIDE: E
+Attack scenario (detailed): Workloads (Kaniko/Admin) mount thư mục nhạy cảm (/etc, /var/run) hoặc chạy chế độ privileged bị khai thác lấy root Node.
+Attack surface: K8s API
+Affected assets: Node Host
+Boundary crossings: TB-6
+Likelihood: Low
+Impact: Critical
+Inherent Risk: High
+Existing Controls: -
+Planned Mitigations: MIT-CLU-11
+Residual Risk: Low
+15. Record 15
+Threat ID: TR-CLU-15
+Threat name: Đầu độc Shared Storage (NFS Poisoning)
+STRIDE: T
+Attack scenario (detailed): Điểm lưu trữ tập trung NFS nếu rò rỉ quyền ghi sẽ cho phép attacker ghi đè challenge files, lây lan mã độc sang người chạy (Kaniko/BE).
+Attack surface: NFS Server
+Affected assets: A-5, Build context
+Boundary crossings: TB-6
+Likelihood: Medium
+Impact: High
+Inherent Risk: High
+Existing Controls: File permissions
+Planned Mitigations: MIT-CLU-12
+Residual Risk: Low
+5. Observed Security Controls
+[x] Network segmentation / allowlist policy: NetworkPolicy hiện enforce tốt ở challenge namespaces; data/app zones cần chặt hơn. (TR-CLU-04, TR-CLU-06)
+[x] Defense-in-depth rate limiting: Nhiều lớp limit ở edge/app/gateway, nhưng vẫn cần kiểm soát body/upload đồng nhất. (TR-CLU-02, TR-CLU-05)
+[x] Privilege separation of infra flows: Tách role vận hành và luồng backend; cần audit định kỳ quyền SA/rolebinding. (TR-CLU-01, TR-CLU-06)
+6. Gaps & Risk Assessment
+[ ] Gap - Data zone chưa strict network policy (allowExternal có thể còn mở) (TR-CLU-04)
+[ ] Gap - Chưa có rule chặn quét mã độc trên pipeline (Supply chain risks) (TR-CLU-07)
+[ ] Gap - Observability logs chứa thông tin trạng thái nhạy cảm nhưng chưa được masking/sanitize (TR-CLU-10)
+[ ] Gap - Webhook/callback orchestration chưa được ràng buộc auth đủ mạnh ở mọi đường vào (TR-CLU-01, TR-CLU-05)
+[ ] Gap - Không thiết lập ResourceQuotas và LimitRanges cho các namespaces app/infra (TR-CLU-11)
+[ ] Gap - K3s chưa bật/cấu hình Secret-Encryption-at-Rest (TR-CLU-12)
+[ ] Gap - Giao tiếp nội bộ (RabbitMQ, Redis, API) đều là plaintext, không có Service Mesh/mTLS (TR-CLU-13)
+[ ] Gap - Thiếu PodSecurityAdmission (PSA) / OPA chặn triệt để Privileged/HostPath mounts (TR-CLU-14)
+[ ] Gap - Cấu hình phân quyền NFS chưa được cô lập read-only riêng biệt theo từng tenant (TR-CLU-15)
+7. Mitigations / Action Items
+[ ] Kích hoạt và tập trung hóa audit logs bất biến cho K8s/Argo/admin actions (TR-CLU-03)
+[ ] Tắt automount SA token cho workloads không cần API; rà soát RBAC theo least-privilege (TR-CLU-04, TR-CLU-06)
+[ ] Ẩn bề mặt quản trị qua private access / VPN / SSO-MFA / IP allowlist (TR-CLU-01)
+[ ] Kích hoạt Scan Images / Chữ ký số Image: Triệt tiêu rủi ro đầu độc supply chain. [Security Pattern: Defense in Depth / Integrity] (TR-CLU-07)
+[ ] Cập nhật định kỳ node OS kernel và gVisor: Vá lỗ hổng 0-day Sandbox Escape. [Security Pattern: Isolation / Resource Control] (TR-CLU-08)
+[ ] Thiết lập rule Strict Egress NetworkPolicy: Nhốt Challenge Pods không cho đụng vào các subnet nội bộ RFC1918 (Ngăn Lateral Movement). [Security Pattern: Network Segmentation / Least Privilege] (TR-CLU-09)
+[ ] Áp dụng Redaction rules/Filters để xóa bỏ password/token khỏi stdout trước khi đẩy tới Log Aggregator. [Security Pattern: Defense in Depth / Confidentiality] (TR-CLU-10)
+[ ] Thiết lập ResourceQuotas cứng cho mọi namespaces và ép requests/limits CPU/RAM cho toàn bộ Deployments. [Security Pattern: Resilience / Resource Control] (TR-CLU-11)
+[ ] Bật EncryptionConfiguration cho K3s etcd/SQLite để đảm bảo mã hóa Secret tại ổ cứng. [Security Pattern: Defense in Depth / Confidentiality] (TR-CLU-12)
+[ ] Triển khai mTLS (VD: Linkerd/Istio) hoặc cưỡng ép TLS nội bộ cho Redis/RabbitMQ để ngăn MITM. [Security Pattern: Complete Mediation / Zero Trust] (TR-CLU-13)
+[ ] Kích hoạt Pod Security Standards (Restricted) hoặc Kyverno/OPA gỡ bỏ hoàn toàn hostPath và privileged mode. [Security Pattern: Attack Surface Reduction] (TR-CLU-14)
+[ ] Áp dụng chroot/root_squash ở cấp độ NFS server và dùng volume read-only triệt để (chỉ cho phép ghi ở folder temp tách biệt). [Security Pattern: Isolation / Least Privilege] (TR-CLU-15)
+
+
+
+

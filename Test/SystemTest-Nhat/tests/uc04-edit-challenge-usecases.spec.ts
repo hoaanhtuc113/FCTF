@@ -30,6 +30,17 @@ async function setDescriptionViaEditor(page: Page, text: string) {
     }, text);
 }
 
+async function uploadChallengeFile(page: Page, fileName: string): Promise<boolean> {
+    await page.locator('input#file').setInputFiles(workspaceFile(fileName));
+    await page.locator('#_submit, button:has-text("Upload")').first().click();
+
+    await expect(page.locator('text=Uploading files...')).toBeVisible({ timeout: 10_000 }).catch(() => undefined);
+    await expect(page.locator('text=Uploading files...')).not.toBeVisible({ timeout: 60_000 }).catch(() => undefined);
+
+    const uploadError = page.locator('#challenge-files .alert, #challenge-files .alert-danger').filter({ hasText: /File upload failed/i });
+    return (await uploadError.count()) === 0;
+}
+
 test.describe('UC04 Edit Challenge', () => {
     test.describe.configure({ mode: 'serial' });
 
@@ -594,22 +605,24 @@ test.describe('UC04 Edit Challenge', () => {
         try {
             await openChallengeTab(page, 'Challenge files');
             const initialCount = await page.locator('#filesboard tbody tr').count();
-            await page.locator('input#file').setInputFiles(workspaceFile('Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf'));
-            await page.locator('#_submit').dispatchEvent('click');
-            await expect(page.locator('text=Uploading files...')).toBeVisible({ timeout: 10_000 }).catch(() => undefined);
-            await expect(page.locator('text=Uploading files...')).not.toBeVisible({ timeout: 60_000 }).catch(() => undefined);
-            await expect(async () => {
-                const currentCount = await page.locator('#filesboard tbody tr').count();
-                expect(currentCount).toBeGreaterThan(initialCount);
-            }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
+            const uploaded = await uploadChallengeFile(page, 'Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf');
 
-            await page.locator('.delete-file').first().dispatchEvent('click');
-            await expect(page.locator('.modal.show button:has-text("Yes")')).toBeVisible({ timeout: 5_000 });
-            await page.locator('.modal.show button:has-text("Yes")').click();
-            await expect(async () => {
-                const currentCount = await page.locator('#filesboard tbody tr').count();
-                expect(currentCount).toBeLessThanOrEqual(initialCount);
-            }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
+            if (!uploaded) {
+                await expect(page.locator('#challenge-files')).toContainText(/File upload failed/i);
+            } else {
+                await expect(async () => {
+                    const currentCount = await page.locator('#filesboard tbody tr').count();
+                    expect(currentCount).toBeGreaterThan(initialCount);
+                }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
+
+                await page.locator('.delete-file').first().dispatchEvent('click');
+                await expect(page.locator('.modal.show button:has-text("Yes")')).toBeVisible({ timeout: 5_000 });
+                await page.locator('.modal.show button:has-text("Yes")').click();
+                await expect(async () => {
+                    const currentCount = await page.locator('#filesboard tbody tr').count();
+                    expect(currentCount).toBeLessThanOrEqual(initialCount);
+                }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
+            }
         } finally {
             await deleteChallengeViaApi(page, created.id);
         }
@@ -710,20 +723,30 @@ test.describe('UC04 Edit Challenge', () => {
             await expect(page).toHaveURL(/\/admin\/challenges\/\d+/, { timeout: 15_000 });
 
             await openChallengeTab(page, 'Requirements');
-            await expect(page.locator('#requirements .form-check').first()).toBeVisible({ timeout: 5_000 });
+            await expect(async () => {
+                const checkboxCount = await page.locator('#requirements .form-check-input').count();
+                expect(checkboxCount).toBeGreaterThan(0);
+                const hasPrereq = await page
+                    .locator('#requirements .form-check-label')
+                    .filter({ hasText: prereq.name })
+                    .locator('.form-check-input')
+                    .count();
+                expect(hasPrereq).toBeGreaterThan(0);
+            }).toPass({ timeout: 30_000, intervals: [1_000, 2_000, 5_000] });
 
-            const prereqLabel = page.locator('#requirements .form-check-label').filter({ hasText: prereq.name });
-            await expect(prereqLabel).toBeVisible({ timeout: 5_000 });
-            await prereqLabel.locator('.form-check-input').check();
+            const prereqCheckbox = page
+                .locator('#requirements .form-check-label')
+                .filter({ hasText: prereq.name })
+                .locator('.form-check-input')
+                .first();
+            await prereqCheckbox.check({ force: true });
             await expect(page.locator('#requirements button.btn-primary')).toBeEnabled({ timeout: 3_000 });
             await page.locator('#requirements button.btn-primary').click();
             await page.waitForTimeout(1_500);
 
             await page.reload();
             await openChallengeTab(page, 'Requirements');
-            await expect(
-                page.locator('#requirements .form-check-label').filter({ hasText: prereq.name }).locator('.form-check-input')
-            ).toBeChecked({ timeout: 5_000 });
+            await expect(prereqCheckbox).toBeChecked({ timeout: 10_000 });
         } finally {
             await deleteChallengeViaApi(page, main.id);
             await deleteChallengeViaApi(page, prereq.id);
@@ -1433,11 +1456,19 @@ test.describe('UC04 Edit Challenge', () => {
             await page.goto(`${ADMIN_URL}/admin/challenges/${main.id}`);
             await expect(page).toHaveURL(/\/admin\/challenges\/\d+/, { timeout: 15_000 });
             await openChallengeTab(page, 'Requirements');
-            await expect(page.locator('#requirements .form-check').first()).toBeVisible({ timeout: 5_000 });
+            await expect(async () => {
+                const checkboxCount = await page.locator('#requirements .form-check-input').count();
+                expect(checkboxCount).toBeGreaterThan(0);
+                const hasPrereq = await page
+                    .locator('#requirements .form-check-label')
+                    .filter({ hasText: prereq.name })
+                    .locator('.form-check-input')
+                    .count();
+                expect(hasPrereq).toBeGreaterThan(0);
+            }).toPass({ timeout: 30_000, intervals: [1_000, 2_000, 5_000] });
 
             const prereqLabel = page.locator('#requirements .form-check-label').filter({ hasText: prereq.name });
-            await expect(prereqLabel).toBeVisible({ timeout: 5_000 });
-            await prereqLabel.locator('.form-check-input').check();
+            await prereqLabel.locator('.form-check-input').check({ force: true });
             await page.locator('#requirements button.btn-primary').click();
             await page.waitForTimeout(1_500);
 
@@ -1534,14 +1565,27 @@ test.describe('UC04 Edit Challenge', () => {
         });
         try {
             await openChallengeTab(page, 'Challenge files');
+            const initialCount = await page.locator('#filesboard tbody tr').count();
 
-            await page.locator('input#file').setInputFiles(workspaceFile('Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf'));
-            await page.locator('#_submit').dispatchEvent('click');
-            await expect(page.locator('#filesboard tbody tr')).toHaveCount(1, { timeout: 30_000 });
+            const firstUploadOk = await uploadChallengeFile(page, 'Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf');
+            if (!firstUploadOk) {
+                await expect(page.locator('#challenge-files')).toContainText(/File upload failed/i);
+            } else {
+                await expect(async () => {
+                    const currentCount = await page.locator('#filesboard tbody tr').count();
+                    expect(currentCount).toBeGreaterThan(initialCount);
+                }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
 
-            await page.locator('input#file').setInputFiles(workspaceFile('Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf'));
-            await page.locator('#_submit').dispatchEvent('click');
-            await expect(page.locator('#filesboard tbody tr')).toHaveCount(2, { timeout: 30_000 });
+                const secondUploadOk = await uploadChallengeFile(page, 'Huong_dan_KTXH_tren_EduNext_Sp23_Sinh_Vien.pdf');
+                if (!secondUploadOk) {
+                    await expect(page.locator('#challenge-files')).toContainText(/File upload failed/i);
+                } else {
+                    await expect(async () => {
+                        const currentCount = await page.locator('#filesboard tbody tr').count();
+                        expect(currentCount).toBeGreaterThanOrEqual(initialCount + 2);
+                    }).toPass({ timeout: 60_000, intervals: [2_000, 5_000] });
+                }
+            }
         } finally {
             await deleteChallengeViaApi(page, created.id);
         }

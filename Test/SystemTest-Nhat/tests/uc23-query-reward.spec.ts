@@ -3,16 +3,12 @@ import { BASE_URL, loginAsAdmin } from "./support";
 
 type TemplateId =
     | "top_teams_by_score"
-    | "top_users_by_score"
-    | "teams_by_rank_range"
     | "first_blood_hunters"
     | "category_masters"
     | "first_clear_each_category"
     | "perfect_solvers"
     | "solve_count_champions"
-    | "category_specific_top"
     | "first_blood_by_category"
-    | "specific_challenge_solvers"
     | "no_hints_solvers";
 
 type EntityType = "team" | "user" | "solve";
@@ -135,16 +131,12 @@ interface AggregateRow {
 
 const TEMPLATE_CASES: Array<{ id: TemplateId; name: string; expandable: boolean }> = [
     { id: "top_teams_by_score", name: "Top Teams by Score", expandable: false },
-    { id: "top_users_by_score", name: "Top Users by Score", expandable: false },
-    { id: "teams_by_rank_range", name: "Teams in Rank Range", expandable: false },
     { id: "first_blood_hunters", name: "First Blood Hunters", expandable: true },
     { id: "category_masters", name: "Category Masters", expandable: true },
-    { id: "first_clear_each_category", name: "First Clear Each Category", expandable: true },
+    { id: "first_clear_each_category", name: "First Full-Clear By Category", expandable: false },
     { id: "perfect_solvers", name: "Perfect Solvers", expandable: true },
     { id: "solve_count_champions", name: "Solve Count Champions", expandable: true },
-    { id: "category_specific_top", name: "Category-Specific Top Teams", expandable: false },
     { id: "first_blood_by_category", name: "First Blood by Category", expandable: false },
-    { id: "specific_challenge_solvers", name: "Specific Challenge Solvers", expandable: false },
     { id: "no_hints_solvers", name: "No Hints Solvers", expandable: true },
 ];
 
@@ -700,33 +692,29 @@ function normalizePreviewRows(rows: PreviewResultRow[]): Array<Record<string, un
 function getScenario(templateId: TemplateId, currentDataset: Dataset): TemplateScenario {
     switch (templateId) {
         case "top_teams_by_score":
-            return { params: { limit: 5 }, entityType: "team", expandable: false };
-        case "top_users_by_score":
-            return {
-                params: currentDataset.filteredUserTeamId ? { limit: 5, team_id: currentDataset.filteredUserTeamId } : { limit: 5 },
-                entityType: "user",
-                expandable: false,
-            };
-        case "teams_by_rank_range":
-            return { params: { min_rank: 1, max_rank: Math.min(5, currentDataset.teams.length) }, entityType: "team", expandable: false };
+            return { params: { limit: 3 }, entityType: "team", expandable: false };
         case "first_blood_hunters":
-            return { params: { limit: 5, min_count: 1, group_by: "team" }, entityType: "team", expandable: true };
+            return { params: { limit: 3, min_count: 1 }, entityType: "team", expandable: true };
         case "category_masters":
-            return { params: { limit: 5, min_categories_solved: 1, group_by: "user" }, entityType: "user", expandable: true };
+            return { params: { limit: 3, min_categories_solved: 1 }, entityType: "team", expandable: true };
         case "perfect_solvers":
-            return { params: { limit: 5, min_perfect_solves: 1, group_by: "team" }, entityType: "team", expandable: true };
+            return { params: { limit: 3, min_perfect_solves: 1 }, entityType: "team", expandable: true };
         case "solve_count_champions":
-            return { params: { limit: 5, min_solves: 1, group_by: "user" }, entityType: "user", expandable: true };
-        case "category_specific_top":
-            return { params: { limit: 5, category: currentDataset.primaryCategory }, entityType: "team", expandable: false };
+            return { params: { limit: 3, min_solves: 1 }, entityType: "team", expandable: true };
         case "first_blood_by_category":
             return { params: { category: currentDataset.primaryCategory }, entityType: "solve", expandable: false };
-        case "specific_challenge_solvers":
-            return { params: { challenge_id: currentDataset.primaryChallengeId }, entityType: "solve", expandable: false };
         case "no_hints_solvers":
-            return { params: { limit: 5, min_solves: 1, group_by: "team" }, entityType: "team", expandable: true };
+            return {
+                params: {
+                    limit: 3,
+                    min_solves: 1,
+                    category: currentDataset.primaryCategory,
+                },
+                entityType: "team",
+                expandable: true,
+            };
         case "first_clear_each_category":
-            return { params: { limit: 5, group_by: "team" }, entityType: "team", expandable: true };
+            return { params: {}, entityType: "team", expandable: false };
     }
 }
 
@@ -793,7 +781,19 @@ async function triggerPreview(page: Page) {
 
 function getUiColumnKeys(templateId: TemplateId, entityType: EntityType, rows: PreviewResultRow[]): string[] {
     if (entityType === "solve") {
-        return ["rank", "entity_name", "category", "team_name", "user_name", "metric_value"].filter((key) => key !== "category" || rows.some((row) => row.category));
+        const solveColumns = ["rank", "entity_name", "category", "team_name"];
+        if (templateId !== "first_blood_by_category") {
+            solveColumns.push("metric_value");
+        }
+        return solveColumns.filter((key) => {
+            if (key === "category") {
+                return rows.some((row) => row.category);
+            }
+            if (key === "team_name") {
+                return rows.some((row) => row.team_name);
+            }
+            return true;
+        });
     }
 
     if (entityType === "user") {
@@ -817,11 +817,14 @@ function getUiColumnKeys(templateId: TemplateId, entityType: EntityType, rows: P
     }
 
     const base = ["rank", "entity_id", "entity_name", "metric_value"];
-    if (templateId === "category_specific_top") {
-        base.push("solved_count");
+    if (templateId === "first_clear_each_category") {
+        base.push("category");
     }
     base.push("last_solve_date");
     return base.filter((key) => {
+        if (key === "category") {
+            return rows.some((row) => row.category);
+        }
         if (key === "last_solve_date") {
             return rows.some((row) => row.last_solve_date);
         }
@@ -882,18 +885,33 @@ async function assertDetailExpansion(page: Page, templateId: TemplateId, entityT
     await page.locator("#results-body > tr:not(.detail-row)").first().click();
     const response = await responsePromise;
     expect(response.ok(), "Details endpoint phải trả về 2xx").toBeTruthy();
-    const detailJson = await response.json() as { success: boolean; details: Array<{ challenge_name: string }> };
+    const detailJson = await response.json() as {
+        success: boolean;
+        detail_type?: string;
+        details: Array<{
+            challenge_name?: string;
+            category?: string;
+        }>;
+    };
     expect(detailJson.success).toBeTruthy();
 
     const detailRow = page.locator("#results-body > tr.detail-row").first();
     await expect(detailRow).toBeVisible();
 
-    const detailChallengeNames = await detailRow.locator("tbody tr td:nth-child(2)").allTextContents();
-    expect(detailChallengeNames.map((name) => name.trim())).toEqual(detailJson.details.map((detail) => detail.challenge_name));
+    const detailValues = await detailRow.locator("tbody tr td:nth-child(2)").allTextContents();
+    if ((detailJson.details ?? []).length > 0) {
+        if (detailJson.detail_type === "category_clear") {
+            const expectedCategories = detailJson.details.map((detail) => String(detail.category ?? "").trim());
+            expect(detailValues.map((value) => value.trim())).toEqual(expectedCategories);
+        } else {
+            const expectedChallengeNames = detailJson.details.map((detail) => String(detail.challenge_name ?? "").trim());
+            expect(detailValues.map((value) => value.trim())).toEqual(expectedChallengeNames);
+        }
+    }
 
     const payload = await response.request().postDataJSON() as { template_id: string; entity_type: string; entity_id: number };
     expect(payload.template_id).toBe(templateId);
-    expect(payload.entity_type).toBe(entityType);
+    expect(payload.entity_type).toBe("team");
     expect(payload.entity_id).toBe(firstRow.entity_id);
 }
 

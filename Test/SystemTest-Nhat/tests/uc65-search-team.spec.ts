@@ -50,18 +50,9 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
             await page.goto(`${BASE_URL}/admin/teams`, { waitUntil: "domcontentloaded" });
             await page.waitForSelector("#teamsboard");
 
-            // Verify đầy đủ input/filter của khu vực search
-            const fieldOptions = await page.locator('select[name="field"] option').allTextContents();
-            expect(fieldOptions.map((x) => x.trim())).toEqual([
-                "Name",
-                "ID",
-                "Affiliation",
-                "Website",
-                "Country",
-            ]);
-            await expect(page.locator('select[name="hidden"]')).toBeVisible();
-            await expect(page.locator('select[name="banned"]')).toBeVisible();
-            await expect(page.locator('select[name="bracket_id"]')).toBeVisible();
+            // Verify search form inputs exist
+            await expect(page.locator('input[name="field"]')).toHaveValue("name");
+            await expect(page.locator('input[name="q"]')).toBeVisible();
 
             await page.fill('input[name="q"]', teamName);
             await Promise.all([
@@ -140,8 +131,8 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
             await page.waitForSelector("#teamsboard");
             // Kiểm tra field q được sync từ URL
             await expect(page.locator('input[name="q"]')).toHaveValue(team.id.toString());
-            await expect(page.locator('select[name="hidden"]')).toHaveValue("1");
-            await expect(page.locator('select[name="banned"]')).toHaveValue("1");
+            await expect(page.locator('input[name="hidden"]')).toHaveValue("1");
+            await expect(page.locator('input[name="banned"]')).toHaveValue("1");
 
             await Promise.all([
                 page.waitForURL(`${BASE_URL}/admin/teams`, { waitUntil: "domcontentloaded" }),
@@ -149,8 +140,8 @@ test.describe("UC-65 Team Search Tests - Code Verified & Robust", () => {
             ]);
 
             await expect(page.locator('input[name="q"]')).toHaveValue("");
-            await expect(page.locator('select[name="hidden"]')).toHaveValue("");
-            await expect(page.locator('select[name="banned"]')).toHaveValue("");
+            await expect(page.locator('input[name="hidden"]')).toHaveValue("");
+            await expect(page.locator('input[name="banned"]')).toHaveValue("");
 
             console.log("All code-verified search tests finished successfully.");
 
