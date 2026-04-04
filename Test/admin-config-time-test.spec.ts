@@ -114,13 +114,17 @@ test.describe('Admin Config Start/End Time Tests (CONF-TIME)', () => {
 
         // Verify Contestant Portal
         const contestantPage = await browser.newPage();
+        await contestantPage.goto(`${CONTESTANT_URL}/login`);
+        await contestantPage.evaluate(() => localStorage.clear());
+        await contestantPage.reload({ waitUntil: 'load' });
+
         await loginContestant(contestantPage);
         await contestantPage.goto(`${CONTESTANT_URL}/challenges`);
 
-        // If active, challenges or dashboard should be accessible and no "Contest is not active" message
-        await expect(contestantPage.locator('body')).not.toContainText('CONTEST NOT ACTIVE', { ignoreCase: true });
-        await expect(contestantPage.locator('body')).not.toContainText('NOT STARTED YET', { ignoreCase: true });
-        await expect(contestantPage.locator('body')).not.toContainText('HAS ENDED', { ignoreCase: true });
+        // If active, challenges or dashboard should be accessible and no status messages
+        await expect(contestantPage.locator('body')).not.toContainText('CTF HAS NOT STARTED YET', { ignoreCase: true });
+        await expect(contestantPage.locator('body')).not.toContainText('CTF HAS ENDED', { ignoreCase: true });
+        await expect(contestantPage.locator('body')).not.toContainText('CONTEST NOT ACCESSIBLE', { ignoreCase: true });
         await contestantPage.close();
     });
 
@@ -148,10 +152,14 @@ test.describe('Admin Config Start/End Time Tests (CONF-TIME)', () => {
         await expect(page.locator('#start-month')).toHaveValue((start.getMonth() + 1).toString());
         await expect(page.locator('#start-day')).toHaveValue(start.getDate().toString());
 
-        // Verify Contestant Portal shows not-started gate message.
+        // Verify Contestant Portal - after login should redirect to /challenges with CONTEST NOT ACTIVE
         const contestantPage = await browser.newPage();
+        await contestantPage.goto(`${CONTESTANT_URL}/login`);
+        await contestantPage.evaluate(() => localStorage.clear());
+        await contestantPage.reload({ waitUntil: 'load' });
+
         await loginContestant(contestantPage);
-        // Navigate to challenges page where contest gate message is shown
+        // Navigate to challenges page where CONTEST NOT ACTIVE message is shown
         if (!contestantPage.url().includes('/challenges')) {
             await contestantPage.goto(`${CONTESTANT_URL}/challenges`, { waitUntil: 'load' });
         }
@@ -161,8 +169,8 @@ test.describe('Admin Config Start/End Time Tests (CONF-TIME)', () => {
         const bodyContent = await contestantPage.textContent('body');
         console.log(`Body content snippet (002): ${bodyContent?.substring(0, 400)}`);
 
-        // Check for new contest gate message (UI wording updated)
-        await expect(contestantPage.locator('body')).toContainText(/CTF HAS NOT STARTED YET|NOT STARTED|NOT ACCESSIBLE/i);
+        // Check for contest not active message
+        await expect(contestantPage.locator('body')).toContainText('CONTEST NOT ACTIVE', { ignoreCase: true });
         await contestantPage.close();
     });
 
@@ -190,10 +198,14 @@ test.describe('Admin Config Start/End Time Tests (CONF-TIME)', () => {
         await expect(page.locator('#end-month')).toHaveValue((end.getMonth() + 1).toString());
         await expect(page.locator('#end-day')).toHaveValue(end.getDate().toString());
 
-        // Verify Contestant Portal shows ended gate message.
+        // Verify Contestant Portal - after login should redirect to /challenges with CONTEST NOT ACTIVE
         const contestantPage = await browser.newPage();
+        await contestantPage.goto(`${CONTESTANT_URL}/login`);
+        await contestantPage.evaluate(() => localStorage.clear());
+        await contestantPage.reload({ waitUntil: 'load' });
+
         await loginContestant(contestantPage);
-        // Navigate to challenges page where contest gate message is shown
+        // Navigate to challenges page where CONTEST NOT ACTIVE message is shown
         if (!contestantPage.url().includes('/challenges')) {
             await contestantPage.goto(`${CONTESTANT_URL}/challenges`, { waitUntil: 'load' });
         }
@@ -203,8 +215,8 @@ test.describe('Admin Config Start/End Time Tests (CONF-TIME)', () => {
         const bodyContent = await contestantPage.textContent('body');
         console.log(`Body content snippet (003): ${bodyContent?.substring(0, 400)}`);
 
-        // Check for new contest gate message (UI wording updated)
-        await expect(contestantPage.locator('body')).toContainText(/CTF HAS ENDED|HAS ENDED|NOT ACCESSIBLE/i);
+        // Check for contest not active message
+        await expect(contestantPage.locator('body')).toContainText('CONTEST NOT ACTIVE', { ignoreCase: true });
         await contestantPage.close();
     });
 

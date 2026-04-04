@@ -16,10 +16,11 @@ const CONTESTANT_URL = 'https://contestant0.fctf.site';
 async function loginAdmin(page: Page) {
     await test.step('Login as admin', async () => {
         await page.goto(`${ADMIN_URL}/login`);
-        await page.getByRole('textbox', { name: 'User Name or Email' }).fill('admin');
-        await page.getByRole('textbox', { name: 'Password' }).fill('1');
-        await page.getByRole('button', { name: 'Submit' }).click();
-        await expect(page).toHaveURL(/.*admin/, { timeout: 15000 });
+        await page.locator('#name').fill('admin');
+        await page.locator('#password').fill('1');
+        await page.waitForTimeout(500);
+        await page.locator('#_submit').click();
+        await expect(page).toHaveURL(new RegExp(`${ADMIN_URL}/admin/.*`), { timeout: 20000 });
     });
 }
 
@@ -32,6 +33,7 @@ async function loginContestantMember(page: Page) {
         await page.goto(`${CONTESTANT_URL}/login`);
         await page.locator("input[placeholder='input username...']").fill('user2');
         await page.locator("input[placeholder='enter_password']").fill('1');
+        await page.waitForTimeout(500);
         await page.locator("button[type='submit']").click();
         await page.waitForURL(/\/(dashboard|challenges|tickets)/, { timeout: 15000 }).catch(() => {
             console.log(`loginContestantMember: still on ${page.url()} after 15 s`);
@@ -48,6 +50,7 @@ async function loginContestantCaptain(page: Page) {
         await page.goto(`${CONTESTANT_URL}/login`);
         await page.locator("input[placeholder='input username...']").fill('user9');
         await page.locator("input[placeholder='enter_password']").fill('1');
+        await page.waitForTimeout(500);
         await page.locator("button[type='submit']").click();
         await page.waitForURL(/\/(dashboard|challenges|tickets)/, { timeout: 15000 }).catch(() => {
             console.log(`loginContestantCaptain: still on ${page.url()} after 15 s`);

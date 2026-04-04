@@ -10,7 +10,7 @@ test.describe.configure({ mode: 'serial', retries: 1 });
 
 const ADMIN_URL = 'https://admin0.fctf.site';
 const CONTESTANT_URL = 'https://contestant0.fctf.site';
-const CHALLENGE_ID = '186'; // Using a known challenge ID from research
+const CHALLENGE_ID = '3'; // Using a known challenge ID from research
 
 // =============================================================================
 // HELPERS
@@ -22,18 +22,22 @@ async function loginAdmin(page: Page) {
         await page.locator('#name').fill('admin');
         await page.locator('#password').fill('1');
 
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(500); // Wait for potential form logic to bind
         await page.locator('#_submit').click();
 
-        await expect(page).toHaveURL(/admin/, { timeout: 20000 });
+        // Specific wait for successful login redirect
+        await page.waitForURL(new RegExp(`${ADMIN_URL}/admin/.*`), { timeout: 30000 });
+        await expect(page).toHaveURL(new RegExp(`${ADMIN_URL}/admin/.*`));
     });
 }
 
 async function loginContestant(page: Page, user: string = 'user2', pass: string = '1') {
     await test.step(`Login as ${user}`, async () => {
         await page.goto(`${CONTESTANT_URL}/login`);
-        await page.locator("input[placeholder*='username']").fill(user);
-        await page.locator("input[placeholder*='password']").fill(pass);
+        await page.locator("input[placeholder='input username...']").fill(user);
+        await page.locator("input[placeholder='enter_password']").fill(pass);
+
+        await page.waitForTimeout(500);
         await page.locator("button[type='submit']").click();
         await page.waitForURL(/\/(dashboard|challenges|tickets|scoreboard|instances)/, { timeout: 60000 });
     });
@@ -42,7 +46,10 @@ async function loginContestant(page: Page, user: string = 'user2', pass: string 
 async function navigateToAdminChallengeHints(page: Page) {
     await test.step(`Navigate to Challenge ${CHALLENGE_ID} Hints (Admin)`, async () => {
         await page.goto(`${ADMIN_URL}/admin/challenges/${CHALLENGE_ID}`);
-        await page.locator('a[href="#hints"]').click();
+        // Ensure the page is loaded enough for the tabs to exist
+        const hintsLink = page.locator('a[href="#hints"]');
+        await hintsLink.waitFor({ state: 'visible', timeout: 15000 });
+        await hintsLink.click();
         await expect(page.locator('#hints')).toBeVisible();
     });
 }
@@ -234,15 +241,10 @@ test.describe('Admin Challenge Hint Validation & Advanced', () => {
         await test.step('Contestant: Unlock the hint', async () => {
             await loginContestant(userPage, 'user2');
             await userPage.getByRole('button', { name: 'Challenges', exact: true }).click();
-            await userPage.waitForTimeout(2000);
+            await userPage.waitForTimeout(3000);
 
-            // Wait for categories to load, expand WEB if collapsed 
-            const categoryBtn = userPage.locator('button', { hasText: /WEB/i }).first();
-            await categoryBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => { });
-            await categoryBtn.click().catch(() => { });
-
-            // Search precisely for the 'EZ Web' challenge name (id 186)
-            await userPage.locator('h3', { hasText: /EZ Web/i }).first().click();
+            // Search precisely for the 'Pwn' challenge name (id 3)
+            await userPage.locator('h3', { hasText: /Pwn/i }).first().click();
             await userPage.waitForTimeout(2000);
 
             // Wait for hint buttons to render by looking for buttons inside the hints block

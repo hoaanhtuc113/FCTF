@@ -306,7 +306,11 @@ test.describe('Start Challenge Feature', () => {
 
     test('STC-002: Captain only start (member fails)', async ({ browser }) => {
         test.setTimeout(180000);
+<<<<<<< Updated upstream
         // User9 is captain, user100 is member
+=======
+        // User9 is captain, User100 is member
+>>>>>>> Stashed changes
         const adminPage = await browser.newPage();
         const userPage = await browser.newPage();
 

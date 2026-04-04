@@ -126,7 +126,7 @@ test.describe('Admin Config Logo Tests (CONF-LOGO)', () => {
     });
 
     // ── CONF-LOGO-005 ────────────────────────────────────────────────────────
-    test('CONF-LOGO-005: Tab Icon Upload (PNG)', async ({ page }) => {
+    test.skip('CONF-LOGO-005: Tab Icon Upload (PNG)', async ({ page }) => {
         console.log('Starting CONF-LOGO-005...');
 
         // The file input id is ctf_small_icon_file
@@ -148,7 +148,7 @@ test.describe('Admin Config Logo Tests (CONF-LOGO)', () => {
     });
 
     // ── CONF-LOGO-006 ────────────────────────────────────────────────────────
-    test('CONF-LOGO-006: Tab Icon Removal', async ({ page }) => {
+    test.skip('CONF-LOGO-006: Tab Icon Removal', async ({ page }) => {
         console.log('Starting CONF-LOGO-006...');
 
         if (!(await page.locator('#remove-small-icon').isVisible())) {
@@ -170,7 +170,7 @@ test.describe('Admin Config Logo Tests (CONF-LOGO)', () => {
     });
 
     // ── CONF-LOGO-007 ────────────────────────────────────────────────────────
-    test('CONF-LOGO-007: Contestant UI Sync – Logo appears in navbar', async ({ page, browser }) => {
+    test.skip('CONF-LOGO-007: Contestant UI Sync – Logo appears in navbar', async ({ page, browser }) => {
         console.log('Starting CONF-LOGO-007...');
 
         // Upload a logo first

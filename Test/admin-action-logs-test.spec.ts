@@ -26,38 +26,32 @@ test.describe('Admin Action Logs Filter Tests (FILT-ADM-AL)', () => {
         if (filters.user !== undefined) await page.locator('#user').fill(filters.user);
         if (filters.team !== undefined) await page.locator('#team').fill(filters.team);
 
-        // #action_type and #per_page are hidden by SlimSelect – use JS to set value directly
+        const selectOption = async (name: string, value: string) => {
+            // The custom Searchable Select (SlimSelect) implementation in base.html 
+            // wraps the search input and dropdown inside a .ss-wrapper.
+            const wrapper = page.locator(`.ss-wrapper:has(input[name="${name}"])`);
+            const input = wrapper.locator('.ss-input');
+            
+            await expect(input).toBeVisible();
+            await input.click();
+
+            // Options are divs inside .ss-dropdown using data-value attribute
+            const option = wrapper.locator(`.ss-option[data-value="${value}"]`);
+            await expect(option).toBeVisible();
+            await option.click();
+        };
+
         if (filters.action_type !== undefined) {
-            await page.evaluate((val) => {
-                const el = document.querySelector('#action_type') as HTMLSelectElement;
-                if (el) {
-                    el.value = val;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }, filters.action_type);
+            await selectOption('action_type', filters.action_type);
         }
         if (filters.per_page !== undefined) {
-            await page.evaluate((val) => {
-                const el = document.querySelector('#per_page') as HTMLSelectElement;
-                if (el) {
-                    el.value = val;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }, filters.per_page);
+            await selectOption('per_page', filters.per_page);
         }
 
-        await page.waitForTimeout(500); // Give SlimSelect time to sync
         await page.locator('button[type="submit"]').filter({ hasText: 'Filter' }).click();
         
-        // Wait for the URL to change if we're setting a filter
-        if (filters.per_page || filters.user || filters.team || filters.action_type) {
-            await page.waitForURL(url => url.searchParams.has('per_page') || url.searchParams.has('user'), { timeout: 15000 }).catch(() => {});
-        }
-        
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState('load'); 
+        await page.waitForTimeout(2000); // Wait for potential animations or dynamic rendering
     };
 
     test('FILT-ADM-AL-001: Filter by User Name (partial match)', async ({ page }) => {
