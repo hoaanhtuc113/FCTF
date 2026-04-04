@@ -16,10 +16,10 @@ import { test, expect, Page } from '@playwright/test';
  *   CREATED / NOT YET → no image   → Not applicable (button hidden)
  */
 
-const ADMIN_URL = 'https://admin.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
 
 // Challenge id=194 has deploy_status = DEPLOY_FAILED (provided by user)
-const DEPLOY_FAILED_CHALLENGE_ID = 194;
+const DEPLOY_FAILED_CHALLENGE_ID = 5;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -139,8 +139,8 @@ async function clickPreviewButton(page: Page, challengeId: number): Promise<void
 async function waitForEzAlert(page: Page, timeoutMs = 90000): Promise<{ title: string; body: string }> {
     const dialog = page.locator('.swal2-popup, .modal.show, [role="dialog"]').first();
     await expect(dialog).toBeVisible({ timeout: timeoutMs });
-    const title = (await dialog.locator('.swal2-title, .modal-title').textContent({ timeout: 5000 }).catch(() => '')).trim();
-    const body = (await dialog.locator('.swal2-content, .swal2-html-container, .modal-body').textContent({ timeout: 5000 }).catch(() => '')).trim();
+    const title = (await dialog.locator('.swal2-title, .modal-title').textContent({ timeout: 5000 }).catch(() => '') || '').trim();
+    const body = (await dialog.locator('.swal2-content, .swal2-html-container, .modal-body').textContent({ timeout: 5000 }).catch(() => '') || '').trim();
     console.log(`📋 Dialog → Title: "${title}" | Body (truncated): "${body.substring(0, 200)}"`);
     return { title, body };
 }

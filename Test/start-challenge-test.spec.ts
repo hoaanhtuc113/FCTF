@@ -5,8 +5,8 @@ import { test, expect, Page, request } from '@playwright/test';
  * Covers STC-001 to STC-019
  */
 
-const ADMIN_URL = 'https://admin.fctf.site';
-const CONTESTANT_URL = 'https://contestant.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
+const CONTESTANT_URL = 'https://contestant0.fctf.site';
 const DUMMY_CHALLENGE = 'pwn'; // Assuming 'pwn' is deployable
 
 test.describe.configure({ mode: 'serial' });

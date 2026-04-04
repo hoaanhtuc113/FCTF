@@ -81,7 +81,7 @@ const allTestData: ScoreboardTestData[] = [
 // PHẦN 2: HELPER FUNCTIONS
 // =============================================================================
 
-const BASE_URL = 'https://contestant.fctf.site';
+const BASE_URL = 'https://contestant0.fctf.site';
 
 // Helper: Login
 async function login(page: Page, user: string, pass: string) {
@@ -497,7 +497,7 @@ test.describe('Test Suite: Scoreboard - Bảng Xếp Hạng', () => {
 // PHẦN 4: SCOREBOARD FREEZE TEST (Cross-role: Admin UI + Contestant)
 // =============================================================================
 
-const ADMIN_URL = 'https://admin.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
 
 // Helper: Login Admin portal
 async function loginAdmin(page: Page) {

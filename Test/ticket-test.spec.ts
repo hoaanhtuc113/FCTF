@@ -121,7 +121,7 @@ test.describe.configure({ mode: 'serial' });
 // Helper: Đăng nhập contestant
 async function loginContestant(page: Page) {
     await test.step('Login Contestant', async () => {
-        await page.goto('https://contestant.fctf.site/login');
+        await page.goto('https://contestant0.fctf.site/login');
         await page.locator("input[placeholder='input username...']").fill('user20');
         await page.locator("input[placeholder='enter_password']").fill('1');
         await page.locator("button[type='submit']").click();

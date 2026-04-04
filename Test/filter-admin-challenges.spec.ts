@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
 
 test.describe.configure({ mode: 'serial' });
 

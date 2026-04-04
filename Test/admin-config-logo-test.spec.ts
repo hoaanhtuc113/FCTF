@@ -4,8 +4,8 @@ import path from 'path';
 // ─────────────────────────────────────────
 //  Constants
 // ─────────────────────────────────────────
-const ADMIN_URL = 'https://admin.fctf.site';
-const CONTESTANT_URL = 'https://contestant.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
+const CONTESTANT_URL = 'https://contestant0.fctf.site';
 
 const ASSETS_PATH = path.resolve(__dirname, '..'); // Root directory where logo.jpg/png reside
 const LOGO_JPG = path.join(ASSETS_PATH, 'logo.jpg');

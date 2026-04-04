@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 
-const ADMIN_URL = 'https://admin.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = '1';
 

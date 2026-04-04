@@ -5,8 +5,8 @@ import { test, expect, Page } from '@playwright/test';
  * Covers viewing, copying, and managing active instances.
  */
 
-const CONTESTANT_URL = 'https://contestant.fctf.site';
-const ADMIN_URL = 'https://admin.fctf.site';
+const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
 const TEST_USER = 'user22';
 const TEST_PASSWORD = '1';
 

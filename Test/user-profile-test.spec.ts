@@ -10,8 +10,8 @@ test.describe.configure({ mode: 'serial' });
 // CONFIG & CONSTANTS
 // =============================================================================
 
-const ADMIN_URL = 'https://admin.fctf.site';
-const CONTESTANT_URL = 'https://contestant.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
+const CONTESTANT_URL = 'https://contestant0.fctf.site';
 
 // =============================================================================
 // HELPERS

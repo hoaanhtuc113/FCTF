@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const ADMIN_URL = 'https://admin.fctf.site';
+const ADMIN_URL = 'https://admin0.fctf.site';
 
 (async () => {
     const browser = await chromium.launch({ headless: true });
