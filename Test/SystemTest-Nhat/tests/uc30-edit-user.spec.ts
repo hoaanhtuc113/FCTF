@@ -9,9 +9,7 @@
  */
 
 import { test, expect, Page, Browser } from "@playwright/test";
-
-const BASE_URL = "https://admin.fctf.site";
-const CONTESTANT_URL = "https://contestant.fctf.site";
+import { BASE_URL, CONTESTANT_URL } from "./support";
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "1";
 const KNOWN_EXISTING_USER_PASSWORD = "1";
