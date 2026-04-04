@@ -247,8 +247,8 @@ test.describe.serial('Chức năng: Thay đổi mật khẩu (Change Password)',
 
     test.beforeAll(async ({ browser }) => {
         page = await browser.newPage();
-        // Login tài khoản user2 (Mật khẩu ban đầu: 1)
-        await login(page, 'user2', '1');
+        // Login tài khoản user1 (Mật khẩu ban đầu: 1)
+        await login(page, 'user1', '1');
     });
 
     test.afterAll(async () => {

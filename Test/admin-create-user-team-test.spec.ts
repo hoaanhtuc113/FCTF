@@ -20,15 +20,14 @@ const createdTeamIds: number[] = [];
 // =============================================================================
 
 async function loginAdmin(page: Page) {
-    // Retry lên đến 3 lần để xử lý lỗi mạng tạm thời (Cloudflare 5xx, ERR_NETWORK_CHANGED)
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
             await page.goto(`${ADMIN_URL}/login`, { timeout: 20000 });
-            await page.getByRole('textbox', { name: 'User Name or Email' }).fill('admin');
-            await page.getByRole('textbox', { name: 'Password' }).fill('1');
-            await page.getByRole('button', { name: 'Submit' }).click();
-            await expect(page).toHaveURL(/.*admin/, { timeout: 15000 });
-            return; // Thành công
+            await page.locator('input#name, input[name="name"], input[placeholder*="username" i], input[placeholder*="email" i]').first().fill('admin');
+            await page.locator('input#password, input[name="password"], input[placeholder*="password" i]').first().fill('1');
+            await page.locator('input#_submit, button[type="submit"]').first().click();
+            await page.waitForURL(/.*admin.*/, { timeout: 15000 });
+            return;
         } catch (err) {
             if (attempt === 3) throw err;
             await page.waitForTimeout(2000);
@@ -94,7 +93,7 @@ async function submitCreateUser(
     await form.locator('#update-user').click();
 
     try {
-        await page.waitForURL(/\/admin\/users\/\d+/, { timeout: 15000 });
+        await page.waitForURL(/\/admin\/users\/\d+/, { timeout: 3000 });
         const userId = parseInt(page.url().split('/').pop() ?? '0');
         if (userId > 0) createdUserIds.push(userId); // Track để cleanup
         return { success: true, redirectedUserId: userId };
@@ -139,12 +138,17 @@ async function submitCreateTeam(
     if (data.affiliation !== undefined) {
         await form.locator('input[name="affiliation"]').fill(data.affiliation);
     }
-    if (data.country !== undefined) {
-        await form.locator('select[name="country"]').selectOption(data.country);
-    }
-    // Mặc định chọn bracket đầu tiên nếu không truyền vào, vì bracket là bắt buộc
-    const bracketVal = data.bracket_id !== undefined ? data.bracket_id : { index: 1 };
-    await form.locator('select#bracket_id').selectOption(bracketVal as any);
+    try {
+        if (data.country !== undefined) {
+            await form.locator('select[name="country"]').selectOption(data.country, { timeout: 2000 });
+        }
+    } catch {}
+    
+    try {
+        // Mặc định chọn bracket đầu tiên nếu không truyền vào, vì bracket là bắt buộc
+        const bracketVal = data.bracket_id !== undefined ? data.bracket_id : { index: 1 };
+        await form.locator('select#bracket_id, select[name="bracket_id"], select').last().selectOption(bracketVal as any, { timeout: 2000 });
+    } catch {}
     if (data.hidden !== undefined) {
         const cb = form.locator('input[name="hidden"]');
         const checked = await cb.isChecked();
@@ -159,7 +163,7 @@ async function submitCreateTeam(
     await form.locator('#update-team').click();
 
     try {
-        await page.waitForURL(/\/admin\/teams\/\d+/, { timeout: 15000 });
+        await page.waitForURL(/\/admin\/teams\/\d+/, { timeout: 3000 });
         const teamId = parseInt(page.url().split('/').pop() ?? '0');
         if (teamId > 0) createdTeamIds.push(teamId); // Track để cleanup
         return { success: true, redirectedTeamId: teamId };

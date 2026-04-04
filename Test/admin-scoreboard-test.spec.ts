@@ -17,13 +17,13 @@ const ADMIN_URL = 'https://admin0.fctf.site';
 async function loginAdmin(page: Page) {
     await test.step('Login as Admin', async () => {
         await page.goto(`${ADMIN_URL}/login`);
-        await page.locator('#name').fill('admin');
-        await page.locator('#password').fill('1');
+        await page.locator('input#name, input[name="name"], input[placeholder*="username" i], input[placeholder*="email" i]').first().fill('admin');
+        await page.locator('input#password, input[name="password"], input[placeholder*="password" i]').first().fill('1');
 
         await page.waitForTimeout(500);
-        await page.locator('#_submit').click();
+        await page.locator('input#_submit, button[type="submit"], button#_submit, form button').first().click();
 
-        await expect(page).toHaveURL(/admin/, { timeout: 20000 });
+        await expect(page).toHaveURL(/.*admin.*/, { timeout: 20000 });
     });
 }
 
