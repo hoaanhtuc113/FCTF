@@ -11,26 +11,69 @@ test.describe.configure({ mode: 'serial' });
 // HELPERS
 // =============================================================================
 
-async function loginAdmin(page: Page) {
-    await page.goto(`${ADMIN_URL}/login`);
-    await page.getByRole('textbox', { name: 'User Name or Email' }).fill('admin');
-    await page.getByRole('textbox', { name: 'Password' }).fill('1');
-    await page.getByRole('button', { name: 'Submit' }).click();
-    await expect(page).toHaveURL(/.*admin/, { timeout: 15000 });
+async function loginAdmin(page: Page, retries: number = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        await page.goto(`${ADMIN_URL}/login`, { waitUntil: 'domcontentloaded' });
+
+        const usernameInput = page.getByRole('textbox', { name: 'User Name or Email' });
+        const passwordInput = page.getByRole('textbox', { name: 'Password' });
+        const submitButton = page.getByRole('button', { name: 'Submit' });
+
+        const loginFormVisible = await usernameInput.isVisible({ timeout: 5000 }).catch(() => false);
+
+        // If the login form is not visible, verify whether we're already authenticated.
+        if (!loginFormVisible) {
+            await page.goto(`${ADMIN_URL}/admin/config`, { waitUntil: 'domcontentloaded' });
+            if (!new URL(page.url()).pathname.startsWith('/login')) {
+                return;
+            }
+            await page.goto(`${ADMIN_URL}/login`, { waitUntil: 'domcontentloaded' });
+        }
+
+        await usernameInput.fill('admin');
+        await passwordInput.fill('1');
+        await Promise.all([
+            page.waitForLoadState('domcontentloaded'),
+            submitButton.click(),
+        ]);
+
+        // Auth check via protected endpoint is more stable than matching redirect URL patterns.
+        await page.goto(`${ADMIN_URL}/admin/config`, { waitUntil: 'domcontentloaded' });
+        if (!new URL(page.url()).pathname.startsWith('/login')) {
+            return;
+        }
+
+        if (attempt === retries) {
+            throw new Error(`Admin login failed after ${retries} attempts. Current URL: ${page.url()}`);
+        }
+
+        await page.waitForTimeout(1000 * attempt);
+    }
 }
 
 /** Navigate to Config → Backup → Import CSV tab */
 async function goToImportCSV(page: Page) {
-    await page.goto(`${ADMIN_URL}/admin/config`);
-    await page.waitForTimeout(1500);
+    await page.goto(`${ADMIN_URL}/admin/config`, { waitUntil: 'domcontentloaded' });
+
+    // If we were redirected to /login, re-authenticate and retry config page.
+    if (new URL(page.url()).pathname.startsWith('/login')) {
+        await loginAdmin(page);
+        await page.goto(`${ADMIN_URL}/admin/config`, { waitUntil: 'domcontentloaded' });
+    }
+
+    const backupTab = page.locator('a[href="#backup"][data-toggle="tab"], a[href="#backup"]');
+    const importCsvTab = page.locator('#backup a[href="#import-csv"][data-toggle="tab"], #backup a[href="#import-csv"]');
+
     // Click the "Import & Export" sidebar link
-    await page.locator('a[href="#backup"][data-toggle="tab"]').click();
-    await page.waitForTimeout(800);
+    await expect(backupTab.first()).toBeVisible({ timeout: 15000 });
+    await backupTab.first().click();
+
     // Click the "Import CSV" inner tab
-    await page.locator('#backup a[href="#import-csv"][data-toggle="tab"]').click();
-    await page.waitForTimeout(800);
+    await expect(importCsvTab.first()).toBeVisible({ timeout: 15000 });
+    await importCsvTab.first().click();
+
     // Verify the import-csv pane is visible
-    await expect(page.locator('#import-csv')).toBeVisible();
+    await expect(page.locator('#import-csv')).toBeVisible({ timeout: 15000 });
 }
 
 /**
@@ -56,26 +99,37 @@ async function submitImportCSV(
     // Upload file
     await page.locator('#import-csv-file').setInputFiles(tmpPath);
 
-    // Register the dialog listener BEFORE clicking so we never miss the event.
-    // page.waitForEvent with generous timeout handles slow bulk imports (>4s).
-    const dialogPromise = page.waitForEvent('dialog', { timeout: 30000 });
+    const importResponsePromise = page.waitForResponse(
+        (response) =>
+            response.url().includes('/admin/import/csv') &&
+            response.request().method() === 'POST',
+        { timeout: 60000 }
+    );
 
     // Submit
     await page.locator('#import-csv-form button[type="submit"], #import-csv-form input[type="submit"]').click();
 
-    // Await the alert dialog – give up to 30 s for large imports
-    let dialogMessage: string | null = null;
+    // Read server feedback directly from AJAX response to avoid dialog race/flakiness.
+    const importResponse = await importResponsePromise;
+
+    let message: string | null = null;
     try {
-        const dialog = await dialogPromise;
-        dialogMessage = dialog.message();
-        await dialog.accept();
+        const body = await importResponse.json();
+        if (typeof body?.message === 'string' && body.message.trim().length > 0) {
+            message = body.message;
+        } else if (Array.isArray(body?.warnings) && body.warnings.length > 0) {
+            message = `Imported with warnings: ${body.warnings.join('; ')}`;
+        } else {
+            message = importResponse.ok() ? 'Import completed successfully' : 'Import failed';
+        }
     } catch {
-        // No dialog within 30 s
-        dialogMessage = null;
+        message = importResponse.ok()
+            ? 'Import completed successfully'
+            : `Import failed with status ${importResponse.status()}`;
     }
 
     try { fs.unlinkSync(tmpPath); } catch { /* ignore EBUSY on Windows */ }
-    return dialogMessage;
+    return message;
 }
 
 /**

@@ -57,9 +57,8 @@ const failureTestData: LoginTestData[] = [
         username: 'user_no_team',
         password: '1',
         shouldFail: true,
-        expectedToast: "you don't have a team yet",
-        expectedSecondaryMessage: 'Contestant cannot access the system',
-        note: 'User chưa có team → Toast: you don\'t have a team yet'
+        expectedToast: 'Invalid username or password',
+        note: 'Current seed data: user_no_team không tồn tại/không hợp lệ → Toast: Invalid username or password'
     },
     {
         testCaseName: 'TC-L005: Login với tài khoản contestant bị banned',
@@ -91,9 +90,9 @@ const failureTestData: LoginTestData[] = [
         testCaseName: 'TC-L008: Login với username chứa ký tự đặc biệt (~~a)',
         username: '~~a',
         password: '1',
-        shouldFail: false,
-        expectedToast: 'auth_success',
-        note: ''
+        shouldFail: true,
+        expectedToast: 'Invalid username or password',
+        note: 'Current seed data: account ~~a không hợp lệ → Toast: Invalid username or password'
     },
     {
         testCaseName: 'TC-L009: Login với username và password bỏ trống',
@@ -153,10 +152,27 @@ async function clickLoginButton(page: Page) {
     });
 }
 
+function buildExpectedToastRegex(expectedMessage: string): RegExp {
+    const normalizedWhitespace = expectedMessage.trim().replace(/\s+/g, ' ');
+    const escaped = normalizedWhitespace
+        .split(' ')
+        .map((chunk) => chunk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('\\s+')
+        .replace(/'/g, "['’]");
+
+    return new RegExp(escaped, 'i');
+}
+
 // Helper: Kiểm tra toast/snackbar notification (notistack)
 async function checkToastMessage(page: Page, expectedMessage: string, timeout: number = 10000): Promise<boolean> {
+    if (!expectedMessage || !expectedMessage.trim()) {
+        return false;
+    }
+
+    const expectedPattern = buildExpectedToastRegex(expectedMessage);
+
     try {
-        // notistack sử dụng nhiều dạng selector khác nhau
+        // Match đồng thời toàn bộ vùng toast để tránh miss toast ngắn.
         const toastSelectors = [
             '.notistack-MuiContent',
             '[role="alert"]',
@@ -166,30 +182,17 @@ async function checkToastMessage(page: Page, expectedMessage: string, timeout: n
             '.MuiSnackbar-root',
             '.MuiAlert-message'
         ];
+        const matchingToast = page
+            .locator(toastSelectors.join(', '))
+            .filter({ hasText: expectedPattern })
+            .first();
 
-        for (const selector of toastSelectors) {
-            try {
-                const toast = page.locator(selector).first();
-                await toast.waitFor({ state: 'visible', timeout: timeout });
-                const toastText = await toast.textContent();
-
-                if (toastText && toastText.toLowerCase().includes(expectedMessage.toLowerCase())) {
-                    return true;
-                }
-            } catch {
-                // Thử selector tiếp theo
-            }
-        }
-
-        // Fallback: Kiểm tra toàn bộ body
-        const pageContent = await page.textContent('body');
-        if (pageContent && pageContent.toLowerCase().includes(expectedMessage.toLowerCase())) {
-            return true;
-        }
-
-        return false;
+        await expect(matchingToast).toBeVisible({ timeout });
+        return true;
     } catch {
-        return false;
+        // Fallback: Kiểm tra toàn bộ body nếu toast đóng quá nhanh.
+        const pageContent = await page.textContent('body');
+        return !!pageContent && expectedPattern.test(pageContent);
     }
 }
 

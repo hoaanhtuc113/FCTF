@@ -213,7 +213,7 @@ contestant002,realPassword2
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\k6\run-500-1h.ps1 `
-	-BaseUrl "https://api.fctf.site" `
+	-BaseUrl "https://api0.fctf.site" `
 	-AccountsCsv ".\k6\accounts.csv" `
 	-TargetVus 500
 ```

@@ -70,19 +70,14 @@ const orderedFiles = [
     "tests/uc82-delete-custom-field.spec.ts",
     "tests/uc83-config-sanitize.spec.ts",
     "tests/uc84-pause-contest.spec.ts",
-    // uc03 runs last — challenge creation seeds data consumed by edit/delete suites above
-    // "tests/uc03-create-challenge-test.spec.ts",
-    // "tests/uc04-edit-challenge-usecases.spec.ts",
-    // "tests/uc05-delete-challenge-usecases.spec.ts",
-    // "tests/uc13-challenge-version-usecases.spec.ts",
-];
-
-const excludedFiles = new Set([
     "tests/uc03-create-challenge-test.spec.ts",
     "tests/uc04-edit-challenge-usecases.spec.ts",
     "tests/uc05-delete-challenge-usecases.spec.ts",
     "tests/uc13-challenge-version-usecases.spec.ts",
     "tests/uc23-query-reward.spec.ts",
+];
+
+const excludedFiles = new Set([
 
 ]);
 

@@ -106,6 +106,26 @@ async function startAnUnlockedChallenge(page: Page) {
     });
 }
 
+async function setFilterValue(page: Page, selector: string, value: string) {
+    const filter = page.locator(selector);
+    await expect(filter).toBeVisible({ timeout: 15000 });
+
+    const tagName = await filter.evaluate(el => el.tagName.toLowerCase());
+    if (tagName === 'select') {
+        await page.selectOption(selector, { label: value }).catch(async () => {
+            await page.selectOption(selector, value);
+        });
+        return;
+    }
+
+    // Some deployments hydrate these controls into text inputs with datalist/autocomplete.
+    await filter.click();
+    await filter.fill('');
+    await filter.type(value, { delay: 20 });
+    await filter.press('Enter').catch(() => { });
+    await filter.blur();
+}
+
 test.describe.serial('Monitor Instance (MCI) Test Suite', () => {
     test.setTimeout(400000);
 
@@ -173,10 +193,10 @@ test.describe.serial('Monitor Instance (MCI) Test Suite', () => {
 
     test('MCI-002: Filter challenge instances by team', async ({ page }) => {
         // Get first team name from table
-        const firstTeamName = await page.locator('#challengeTable tbody tr td').nth(3).innerText();
+        const firstTeamName = (await page.locator('#challengeTable tbody tr td').nth(3).innerText()).trim();
         console.log(`🔍 Filtering by Team: ${firstTeamName}`);
 
-        await page.selectOption('#teamFilter', firstTeamName);
+        await setFilterValue(page, '#teamFilter', firstTeamName);
         await page.waitForTimeout(3000); // Wait for filtering
 
         const rows = page.locator('#challengeTable tbody tr');
@@ -206,14 +226,14 @@ test.describe.serial('Monitor Instance (MCI) Test Suite', () => {
 
     test('MCI-007: Filter challenge instances by category', async ({ page }) => {
         // Get first category from table
-        const category = await page.locator('#challengeTable tbody tr td').nth(5).innerText();
+        const category = (await page.locator('#challengeTable tbody tr td').nth(5).innerText()).trim();
         if (category === 'N/A') {
             console.log('⚠ Skipping MCI-007: No category available to filter');
             return;
         }
         console.log(`🔍 Filtering by Category: ${category}`);
 
-        await page.selectOption('#categoryFilter', category);
+        await setFilterValue(page, '#categoryFilter', category);
         await page.waitForTimeout(3000);
 
         const rows = page.locator('#challengeTable tbody tr');
@@ -226,15 +246,23 @@ test.describe.serial('Monitor Instance (MCI) Test Suite', () => {
 
     test('MCI-004: Pod Logs Verification', async ({ page }) => {
         // Assume instance is already running (started manually or by another test)
-        await page.goto(`${ADMIN_URL}/admin/monitoring`);
-        await page.locator('button:has-text("Refresh Data")').click();
+        await page.goto(`${ADMIN_URL}/admin/monitoring`, { waitUntil: 'load', timeout: 90000 });
+        await page.waitForSelector('#challengeTable', { timeout: 30000 });
 
-        const row = page.locator('tr').filter({ hasText: 'EZ Web' }).first();
-        await expect(row).toBeVisible({ timeout: 15000 });
+        const monitoringRefreshBtn = page.locator('button').filter({ hasText: /Refresh Data|Refresh/i }).first();
+        if (await monitoringRefreshBtn.isVisible()) {
+            await monitoringRefreshBtn.click();
+        }
+
+        const rows = page.locator('#challengeTable tbody tr');
+        await expect(rows.first()).toBeVisible({ timeout: 30000 });
+        const row = rows.first();
 
         console.log('🔍 Checking Pod Logs...');
-        await row.locator('button:has-text("Actions")').click();
-        await row.locator('a.action-menu-item:has-text("Pod Logs"), a.dropdown-item:has-text("Pod Logs")').first().click();
+        await row.locator('button:has-text("Actions"), button.clean-action-btn-sm').first().click();
+        const podLogsLink = row.locator('a.action-menu-item:has-text("Pod Logs"), a:has-text("Pod Logs")').first();
+        await expect(podLogsLink).toBeVisible({ timeout: 5000 });
+        await podLogsLink.click();
         await page.waitForURL(/\/deploy_History\/.*\/pods-logs/, { timeout: 15000 });
 
         // Verify Refresh functionality

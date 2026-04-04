@@ -12,7 +12,7 @@ import { test, expect, Page } from '@playwright/test';
 
 const ADMIN_URL = 'https://admin0.fctf.site';
 const CONTESTANT_URL = 'https://contestant0.fctf.site';
-const CORRECT_FLAG = '1';
+const CORRECT_FLAG = 'a';
 
 // =============================================================================
 // HELPERS
