@@ -54,8 +54,8 @@ for (const testFile of finalSpecialTests) {
 function runTest(testFile, configFlag) {
     console.log(`\n[\x1b[34mRUNNING\x1b[0m] ${testFile}...`);
     try {
-        // Run sequentially with --headed as per usual user preference for these tasks
-        execSync(`npx playwright test "${testFile}" ${configFlag} --headed`, { stdio: 'inherit' });
+        // Run sequentially with --headed and --workers=1 to ensure strict ordering
+        execSync(`npx playwright test "${testFile}" ${configFlag} --headed --workers=1`, { stdio: 'inherit' });
     } catch (error) {
         console.error(`[\x1b[31mFAILED\x1b[0m] ${testFile}`);
     }

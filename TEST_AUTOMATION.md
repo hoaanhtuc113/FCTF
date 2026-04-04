@@ -3,6 +3,7 @@
 Tài liệu này mô tả toàn bộ bộ test tự động cho hệ thống FCTF, bao gồm cách cài đặt, cấu hình và điều kiện cần thiết trước khi chạy từng file test.
 
 ---
+Chạy toàn bộ test bằng script: node run-tests.js
 
 ## 1. Cài đặt
 

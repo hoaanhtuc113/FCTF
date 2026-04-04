@@ -26,17 +26,18 @@ Write-Host "--------------------------"
 $sysConfig = if (Test-Path $SystemTestNhatConfig) { "--config=""$SystemTestNhatConfig""" } else { "" }
 foreach ($testFile in $SystemTests) {
     Write-Host "`n[RUNNING] $testFile..." -ForegroundColor Cyan
-    cmd /c "npx playwright test ""$testFile"" $sysConfig --headed"
+    cmd /c "npx playwright test ""$testFile"" $sysConfig --headed --workers=1"
 }
 
 # Execution Category 2
 foreach ($testFile in $TopLevelTests) {
     Write-Host "`n[RUNNING] $testFile..." -ForegroundColor Cyan
-    cmd /c "npx playwright test ""$testFile"" --headed"
+    cmd /c "npx playwright test ""$testFile"" --headed --workers=1"
 }
 
 # Execution Category 3
 foreach ($testFile in $FinalTests) {
     Write-Host "`n[RUNNING] $testFile..." -ForegroundColor Cyan
-    cmd /c "npx playwright test ""$testFile"" --headed"
+    cmd /c "npx playwright test ""$testFile"" --headed --workers=1"
 }
+
