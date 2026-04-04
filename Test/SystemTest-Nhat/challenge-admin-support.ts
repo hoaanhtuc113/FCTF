@@ -5,14 +5,14 @@ import { expect, Page } from '@playwright/test';
 
 const adminUrlCandidates = [
     process.env.ADMIN_URL,
-    'https://admin2.fctf.site',
+    'https://admin0.fctf.site',
 ].filter((url): url is string => Boolean(url));
 
 let resolvedAdminUrl = adminUrlCandidates[0];
 
 export let ADMIN_URL = resolvedAdminUrl;
 
-export const CONTESTANT_URL = process.env.CONTESTANT_URL ?? 'https://contestant2.fctf.site';
+export const CONTESTANT_URL = process.env.CONTESTANT_URL ?? 'https://contestant0.fctf.site';
 
 export type ChallengeType = 'standard' | 'dynamic' | 'multiple_choice';
 

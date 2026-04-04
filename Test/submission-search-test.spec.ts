@@ -10,7 +10,7 @@ async function loginAdmin(page: Page) {
         try {
             console.log(`Login attempt ${attempt}...`);
             await page.goto(`${ADMIN_URL}/login`);
-            
+
             if (page.url().includes('/admin') && !page.url().includes('/login')) {
                 console.log('Already logged in.');
                 return;
@@ -48,13 +48,13 @@ async function selectSearchableValue(page: Page, inputName: string, labelText: s
     const wrapper = page.locator(`.ss-wrapper, .searchable-select-wrapper`).filter({
         has: page.locator(`input[name="${inputName}"]`)
     });
-    
+
     const displayInput = wrapper.locator('input.ss-input');
     await displayInput.click();
-    
+
     // Check if option is already visible/present
     const option = wrapper.locator('.ss-option').filter({ hasText: new RegExp(`^${labelText}$`, 'i') }).first();
-    
+
     try {
         if (await option.isVisible({ timeout: 2000 })) {
             await option.click();
@@ -79,7 +79,7 @@ test.describe('Submission Search Functionality - Full Coverage', () => {
         await loginAdmin(page);
         console.log('Navigating to submissions page...');
         await page.goto(`${ADMIN_URL}/admin/submissions`);
-        
+
         // Wait for the form to be interactive
         await page.locator('#filterForm').waitFor({ state: 'visible', timeout: 30_000 });
         console.log('Submissions page loaded.');
@@ -93,14 +93,14 @@ test.describe('Submission Search Functionality - Full Coverage', () => {
         await expect(page.locator('#teamsboard')).toContainText('a', { timeout: 15_000 });
     });
 
-    test('SRCH-02: Search by Challenge ID (193)', async ({ page }) => {
+    test('SRCH-02: Search by Challenge ID (1)', async ({ page }) => {
         await selectSearchableValue(page, 'field', 'Challenge ID');
-        await page.locator('input[name="q"]').fill('193');
+        await page.locator('input[name="q"]').fill('1');
         await page.locator('#filterForm button[type="submit"]').click();
 
         const row = page.locator('#teamsboard tbody tr').first();
         await expect(row).toBeVisible();
-        const link = row.locator('a[href*="/admin/challenges/193"]');
+        const link = row.locator('a[href*="/admin/challenges/1"]');
         await expect(link).toBeVisible();
     });
 
@@ -145,27 +145,27 @@ test.describe('Submission Search Functionality - Full Coverage', () => {
         await expect(rows.first()).toBeVisible();
         const firstRowId = (await rows.first().locator('td').nth(1).textContent())?.trim();
         const challengeName = (await rows.first().locator('td').nth(4).textContent())?.trim();
-        
+
         if (!firstRowId || !challengeName) throw new Error('Data missing for SRCH-06');
 
         console.log(`Testing SRCH-06 with ID: ${firstRowId} and Challenge: ${challengeName}`);
 
         // Search by challenge using the searchable select
         await selectSearchableValue(page, 'challenge_id', challengeName);
-        
+
         // Search by ID field
         await selectSearchableValue(page, 'field', 'ID');
         await page.locator('input[name="q"]').fill(firstRowId);
-        
+
         await page.locator('#filterForm button[type="submit"]').click();
-        
+
         const row = page.locator('#teamsboard tbody tr').first();
         await expect(row).toContainText(firstRowId);
         await expect(row).toContainText(challengeName.substring(0, 5));
     });
 
     test('SRCH-07: Export Submissions', async ({ page }) => {
-        const [ download ] = await Promise.all([
+        const [download] = await Promise.all([
             page.waitForEvent('download'),
             page.locator('a[title="Export Data"]').click(),
         ]);
@@ -181,7 +181,7 @@ test.describe('Submission Search Functionality - Full Coverage', () => {
 
         // Click Reset
         await page.locator('button[onclick="clearAllFilters()"]').click();
-        
+
         // Verify URL and input are cleared
         await page.waitForURL(/\/admin\/submissions$/, { timeout: 10_000 });
         await expect(page.locator('input[name="q"]')).toHaveValue('');

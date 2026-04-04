@@ -187,8 +187,10 @@ test.describe('Challenges Functionality Suite', () => {
             await loginUser(contestantPage);
             await navigateToChallenges(contestantPage);
 
-            // Verify Contest Not Active Banner
-            await expect(contestantPage.getByText('[!] CONTEST NOT ACTIVE').first()).toBeVisible();
+            // Verify contest gate banner uses the new messaging and challenge list is hidden.
+            await expect(contestantPage.locator('body')).toContainText(/CTF HAS NOT STARTED YET|not started|not accessible/i);
+            const categories = contestantPage.locator('.space-y-2 > div.rounded-lg.border');
+            expect(await categories.count()).toBe(0);
 
             await contestantPage.close();
         } finally {

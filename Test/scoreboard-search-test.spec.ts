@@ -5,47 +5,37 @@ import { test, expect, Page } from '@playwright/test';
 // =============================================================================
 
 const BASE_URL = 'https://contestant0.fctf.site';
+const TEST_USER = 'user22';
+const TEST_PASS = '1';
 
 // Helper: Login
 async function login(page: Page, user: string, pass: string) {
-    // Check if already logged in by checking for a non-login URL or specific element
-    await page.goto(`${BASE_URL}/scoreboard`);
-    const currentUrl = page.url();
-    if (currentUrl.includes('/scoreboard') && !currentUrl.includes('/login')) {
-        console.log('Already logged in.');
-        return;
-    }
+    // Retry once because remote auth can occasionally bounce back to /login.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' });
+        await page.locator("input[placeholder='input username...']").fill(user);
+        await page.locator("input[placeholder='enter_password']").fill(pass);
 
-    await page.goto(`${BASE_URL}/login`);
-    await page.locator("input[placeholder='input username...']").fill(user);
-    await page.locator("input[placeholder='enter_password']").fill(pass);
+        try {
+            await page.locator("button[type='submit']").click();
+            await page.waitForURL(/\/(dashboard|challenges|tickets|scoreboard)/, { timeout: 20000 });
+            await page.goto(`${BASE_URL}/scoreboard`, { waitUntil: 'domcontentloaded' });
+            if (!page.url().includes('/login')) {
+                return;
+            }
+        } catch {
+            // Retry on transient auth/navigation failures.
+        }
 
-    // Use Promise.all to wait for navigation while clicking
-    try {
-        await Promise.all([
-            page.waitForURL(url => !url.href.includes('/login'), { timeout: 20000 }),
-            page.locator("button[type='submit']").click()
-        ]);
-    } catch (e) {
-        console.error('Login submit failed or timed out. Retrying click...');
-        await page.locator("button[type='submit']").click().catch(() => { });
-        await page.waitForURL(url => !url.href.includes('/login'), { timeout: 15000 }).catch(() => { });
-    }
-
-    // Final check
-    if (page.url().includes('/login')) {
-        throw new Error(`Login failed for user ${user}. Still on login page: ${page.url()}`);
+        if (attempt === 2) {
+            throw new Error(`Login failed for user ${user}. Current URL: ${page.url()}`);
+        }
     }
 }
 
 // Helper: Navigate to Scoreboard
 async function navigateToScoreboard(page: Page) {
-    // Attempt sidebar click, fallback to direct navigation if it takes too long
-    try {
-        await page.getByText('Scoreboard').click({ timeout: 5000 });
-    } catch (e) {
-        await page.goto(`${BASE_URL}/scoreboard`);
-    }
+    await page.goto(`${BASE_URL}/scoreboard`, { waitUntil: 'domcontentloaded' });
 
     await expect(page).toHaveURL(/\/scoreboard/, { timeout: 15000 });
     await expect(page.getByText('[LEADERBOARD]')).toBeVisible({ timeout: 20000 });
@@ -89,11 +79,13 @@ async function getVisibleTeamNames(page: Page): Promise<string[]> {
 
 test.describe('Scoreboard Search Functionality (TC-SB-SEA)', () => {
 
+    test.describe.configure({ mode: 'serial' });
+
     test.setTimeout(120000);
 
     test.beforeEach(async ({ page }) => {
         // Login as standard user
-        await login(page, 'user22', '1');
+        await login(page, TEST_USER, TEST_PASS);
         await navigateToScoreboard(page);
     });
 

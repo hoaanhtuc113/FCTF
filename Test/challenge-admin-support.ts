@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { expect, Page } from '@playwright/test';
 
-export const ADMIN_URL = 'https://admin2.fctf.site';
-export const CONTESTANT_URL = 'https://contestant2.fctf.site';
+export const ADMIN_URL = 'https://admin0.fctf.site';
+export const CONTESTANT_URL = 'https://contestant0.fctf.site';
 
 export type ChallengeType = 'standard' | 'dynamic' | 'multiple_choice';
 

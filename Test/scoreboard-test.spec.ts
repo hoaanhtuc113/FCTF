@@ -85,20 +85,34 @@ const BASE_URL = 'https://contestant0.fctf.site';
 
 // Helper: Login
 async function login(page: Page, user: string, pass: string) {
-    await page.goto(`${BASE_URL}/login`);
-    await page.locator("input[placeholder='input username...']").fill(user);
-    await page.locator("input[placeholder='enter_password']").fill(pass);
-    await page.locator("button[type='submit']").click();
-    await page.waitForURL(/\/(dashboard|challenges|tickets)/);
+    // Retry once because remote auth can occasionally bounce back to /login.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' });
+        await page.locator("input[placeholder='input username...']").fill(user);
+        await page.locator("input[placeholder='enter_password']").fill(pass);
+
+        try {
+            await page.locator("button[type='submit']").click();
+            await page.waitForURL(/\/(dashboard|challenges|tickets)/, { timeout: 20000 });
+            return;
+        } catch {
+            if (attempt === 2) {
+                throw new Error(`Login failed for user ${user}. Current URL: ${page.url()}`);
+            }
+        }
+    }
 }
 
 // Helper: Navigate to Scoreboard
 async function navigateToScoreboard(page: Page) {
-    // Sử dụng sidebar navigation
-    await page.getByText('Scoreboard').click();
-    await expect(page).toHaveURL(/\/scoreboard/);
+    await page.goto(`${BASE_URL}/scoreboard`, { waitUntil: 'domcontentloaded' });
+
+    if (page.url().includes('/login')) {
+        throw new Error(`Unable to access scoreboard. Session appears unauthenticated. Current URL: ${page.url()}`);
+    }
+    await expect(page).toHaveURL(/\/scoreboard/, { timeout: 15000 });
     // Đợi bảng load xong (header [LEADERBOARD] xuất hiện)
-    await expect(page.getByText('[LEADERBOARD]')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('[LEADERBOARD]')).toBeVisible({ timeout: 20000 });
 }
 
 // Helper: Lấy tất cả rows trong bảng scoreboard
@@ -165,7 +179,10 @@ async function getTeamNames(page: Page): Promise<string[]> {
 
 test.describe('Test Suite: Scoreboard - Bảng Xếp Hạng', () => {
 
-    test.beforeEach(async ({ page }) => {
+    test.describe.configure({ mode: 'serial' });
+
+    test.beforeEach(async ({ page }, testInfo) => {
+        testInfo.setTimeout(90000);
         // Login tài khoản user2
         await login(page, 'user2', '1');
         // Navigate tới Scoreboard

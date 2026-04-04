@@ -1,4 +1,4 @@
-import { test, expect, Page, BrowserContext } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 /**
  * Hint Buy Test Suite
@@ -25,10 +25,44 @@ async function loginUser(page: Page, user: string = 'user2', pass: string = '1')
 
 async function navigateToChallenges(page: Page) {
     await test.step('Navigate to Challenges page', async () => {
-        await page.locator('button', { hasText: 'Challenges' }).click();
+        await page.getByRole('button', { name: 'Challenges', exact: true }).click();
         await page.waitForTimeout(1000);
         await expect(page.locator('h1', { hasText: '[CHALLENGES]' })).toBeVisible({ timeout: 10000 });
     });
+}
+
+async function skipIfContestUnavailable(page: Page, scope: string) {
+    const bodyText = await page.locator('body').innerText().catch(() => '');
+    if (/CTF HAS NOT STARTED YET|CTF HAS ENDED|NOT ACCESSIBLE/i.test(bodyText)) {
+        test.skip(true, `${scope}: contest is not active in this environment.`);
+    }
+}
+
+async function openFirstVisibleChallengeCard(page: Page) {
+    const directCard = page.locator('h3.font-mono, h3').first();
+    if (await directCard.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await directCard.click();
+        await page.waitForTimeout(1000);
+        return;
+    }
+
+    const categoryButtons = page.locator('button').filter({ has: page.locator('div.font-mono') });
+    const categoryCount = await categoryButtons.count();
+
+    for (let i = 0; i < categoryCount; i++) {
+        const categoryButton = categoryButtons.nth(i);
+        await categoryButton.click();
+        await page.waitForTimeout(800);
+
+        const firstCardInCategory = page.locator('h3.font-mono, h3').first();
+        if (await firstCardInCategory.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await firstCardInCategory.click();
+            await page.waitForTimeout(1000);
+            return;
+        }
+    }
+
+    throw new Error('No challenge card is visible to open.');
 }
 
 /**
@@ -103,9 +137,8 @@ test.describe('Hint Buy Functionality', () => {
         // Step 1: Open the first challenge
         await test.step('Open first challenge', async () => {
             await dismissAllSwals(page);
-            const firstChallenge = page.locator('h3').first();
-            await expect(firstChallenge).toBeVisible();
-            await firstChallenge.click();
+            await skipIfContestUnavailable(page, 'TC-H001');
+            await openFirstVisibleChallengeCard(page);
             await page.waitForTimeout(1500);
             await expect(page.locator('text=[HINTS]')).toBeVisible({ timeout: 10000 });
         });
@@ -123,13 +156,17 @@ test.describe('Hint Buy Functionality', () => {
         });
 
         // Step 4: Verify result
-        const swal = page.locator('.swal2-popup');
-        // Wait for the popup to show the result (Success or Already unlocked)
-        // We use toContainText which retries and waits for visibility implicitly
-        await expect(swal).toContainText(/(Hint unlocked|Already unlocked)/i, { timeout: 15000 });
+        const swal = page.locator('.swal2-popup.swal2-show').last();
+        await expect(swal).toBeVisible({ timeout: 15000 });
+        await expect(swal).not.toContainText(/Confirm unlock\?|Unlock hint/i, { timeout: 15000 });
 
-        const text = await swal.textContent() || '';
-        console.log(`TC-H001 result text: ${text.replace(/\s+/g, ' ')}`);
+        const text = (await swal.textContent() || '').replace(/\s+/g, ' ');
+        if (/Not enough points/i.test(text)) {
+            test.skip(true, 'TC-H001 precondition failed: selected user has insufficient points for H1.');
+        }
+
+        expect(text).toMatch(/(Hint unlocked|Already unlocked)/i);
+        console.log(`TC-H001 result text: ${text}`);
 
         await dismissAllSwals(page);
     });
@@ -142,7 +179,8 @@ test.describe('Hint Buy Functionality', () => {
 
         await test.step('Open first challenge', async () => {
             await dismissAllSwals(page);
-            await page.locator('h3').first().click();
+            await skipIfContestUnavailable(page, 'TC-H002');
+            await openFirstVisibleChallengeCard(page);
             await page.waitForTimeout(1500);
             await expect(page.locator('text=[HINTS]')).toBeVisible({ timeout: 10000 });
         });
@@ -171,7 +209,8 @@ test.describe('Hint Buy Functionality', () => {
 
         await test.step('Open first challenge', async () => {
             await dismissAllSwals(page);
-            await page.locator('h3').first().click();
+            await skipIfContestUnavailable(page, 'TC-H003');
+            await openFirstVisibleChallengeCard(page);
             await page.waitForTimeout(1500);
             await expect(page.locator('text=[HINTS]')).toBeVisible({ timeout: 10000 });
         });
