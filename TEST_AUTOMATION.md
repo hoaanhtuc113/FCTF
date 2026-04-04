@@ -35,6 +35,23 @@ npx playwright install chromium
 
 ## 3. Chạy test
 
+### Chạy toàn bộ (Khuyên dùng)
+Để đảm bảo tất cả các test (bao gồm cả `SystemTest-Nhat`) chạy đúng thứ tự và không bị xung đột, hãy sử dụng script điều hướng sau:
+
+**Cách 1: Chạy bằng Node.js (Mọi hệ điều hành)**
+```bash
+node run-tests.js
+```
+
+**Cách 2: Chạy bằng PowerShell (Windows)**
+```powershell
+.\run-tests.ps1
+```
+
+**Ưu điểm của cách chạy này:**
+- **Thứ tự thông minh**: Tự động chạy `SystemTest-Nhat` trước (35 file), sau đó đến các test giao diện trong folder `Test/` gốc, và cuối cùng mới chạy các file Reset dữ liệu (CSV, Reset Contest).
+- **Worker = 1**: Đảm bảo chạy tuần tự từng test case một, tránh lỗi do quá tải server hoặc xung đột session đăng nhập.
+- **Vượt rào cản Config**: Tự động nạp đúng file cấu hình cho folder `SystemTest-Nhat` (thứ mà lệnh `npx playwright test` thông thường sẽ bỏ qua).
 ### Chạy một file cụ thể
 ```bash
 npx playwright test Test/<tên-file>.spec.ts
