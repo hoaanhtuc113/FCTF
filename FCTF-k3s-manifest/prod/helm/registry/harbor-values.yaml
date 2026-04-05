@@ -5,7 +5,13 @@ expose:
 
 externalURL: https://registry0.fctf.site 
 
+# Prefer existing K8s Secret in production. If left empty, Harbor uses inline values below.
+existingSecretAdminPassword: ""
+existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
 harborAdminPassword: "FCTF@2025"
+
+# If existingSecretSecretKey is set, Harbor reads key `secretKey` from that secret.
+existingSecretSecretKey: ""
 secretKey: "oMT66fZeAVeVE1lLgI6bgn9dQInYWCuOWyGGKYXDDTCh1K8nKj"
 
 internalTLS:
@@ -13,9 +19,9 @@ internalTLS:
 
 database:
   type: internal
-
-redis:
-  type: internal
+  internal:
+    # Inline mode for internal Postgres superuser password
+    password: "Q3m8xN5vR1kL7pT2cD9sH4wF"
 
 persistence:
   enabled: true
@@ -43,6 +49,12 @@ core:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
       effect: "NoSchedule"
+  # Inline secret mode
+  secret: "cR9mJ2qL8vT4xN6p"
+  existingSecret: ""
+  xsrfKey: "Q8m2cV4pR7tY1kN6wF3hD9sL5bG0xZ2a"
+  existingXsrfSecret: ""
+  existingXsrfSecretKey: CSRF_KEY
   config:
     project_creation_restriction: adminonly
 
@@ -52,6 +64,10 @@ jobservice:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
       effect: "NoSchedule"
+  # Inline secret mode
+  secret: "n4Kp7Rz2Mv8Qx1Ld"
+  existingSecret: ""
+  existingSecretKey: JOBSERVICE_SECRET
 
 registry:
   replicas: 1
@@ -59,6 +75,15 @@ registry:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
       effect: "NoSchedule"
+  # Inline secret mode
+  secret: "s3Fv9Tn6Jk2Pw8Qm"
+  existingSecret: ""
+  existingSecretKey: REGISTRY_HTTP_SECRET
+  credentials:
+    username: "harbor_registry_user"
+    password: "W7mQ2pL9xN4vR8kH1tC6sD3y"
+    # If set, secret must contain keys REGISTRY_PASSWD and REGISTRY_HTPASSWD.
+    existingSecret: ""
   garbageCollection:
     enabled: true
     schedule: "0 */6 * * *"
