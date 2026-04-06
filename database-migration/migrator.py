@@ -267,14 +267,18 @@ class DataMigrator:
             source_table = Table(
                 source_table_name, 
                 self.db_config.fctf_metadata if source_engine == self.db_config.fctf_engine else self.db_config.ctfd_metadata,
-                autoload_with=source_engine
+                autoload_with=source_engine,
+                extend_existing=True,
+                autoload_replace=True
             )
             
             # Reflect target table
             target_table = Table(
                 target_table_name,
                 self.db_config.ctfd_metadata if target_engine == self.db_config.ctfd_engine else self.db_config.fctf_metadata,
-                autoload_with=target_engine
+                autoload_with=target_engine,
+                extend_existing=True,
+                autoload_replace=True
             )
             
             # Read source data
@@ -518,10 +522,10 @@ class DataMigrator:
             "DROP TABLE IF EXISTS dynamic_challenge",
             "CREATE TABLE dynamic_challenge ("
             "  id int(11) NOT NULL,"
-            "  dynamic_initial int(11) DEFAULT NULL,"
-            "  dynamic_minimum int(11) DEFAULT NULL,"
-            "  dynamic_decay int(11) DEFAULT NULL,"
-            "  dynamic_function varchar(32) DEFAULT NULL,"
+            "  initial int(11) DEFAULT NULL,"
+            "  minimum int(11) DEFAULT NULL,"
+            "  decay int(11) DEFAULT NULL,"
+            "  `function` varchar(32) DEFAULT NULL,"
             "  PRIMARY KEY (id),"
             "  CONSTRAINT dynamic_challenge_ibfk_1 FOREIGN KEY (id) REFERENCES challenges(id) ON DELETE CASCADE"
             ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
