@@ -4067,6 +4067,18 @@ function ChallengeDetailPanel({
                 </div>
               )}
 
+            {/* Shared instance notice when admin has not started it yet */}
+            {challenge.require_deploy && !challenge.solve_by_myteam && challenge.shared_instance && !url &&
+              !isHealthChecking && !isDeploymentInProgress &&
+              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
+                <div className={`rounded border px-3 py-2 text-center text-xs font-mono ${theme === 'dark'
+                  ? 'bg-amber-900/20 border-amber-700 text-amber-300'
+                  : 'bg-amber-50 border-amber-300 text-amber-700'
+                  }`}>
+                  Wait for admin to start challenge
+                </div>
+              )}
+
             {challenge.next_id && (
               <div className="mt-6 flex items-center gap-3">
                 {/* Status label - keep it concise and professional */}
