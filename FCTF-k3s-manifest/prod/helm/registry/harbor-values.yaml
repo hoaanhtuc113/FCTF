@@ -24,6 +24,20 @@ database:
     password: "Q3m8xN5vR1kL7pT2cD9sH4wF"
     nodeSelector:
       kubernetes.io/hostname: service-1-master
+    tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+redis:
+  type: internal
+  internal:
+    nodeSelector:
+      kubernetes.io/hostname: service-1-master
+    tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
 
 persistence:
   enabled: true
@@ -46,6 +60,7 @@ portal:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
       effect: "NoSchedule"
+ 
 
 core:
   replicas: 1

@@ -20,6 +20,12 @@ spec:
         spec:
           serviceAccountName: cleanup
           priorityClassName: app-normal-preemption
+          nodeSelector:
+            kubernetes.io/hostname: server-1-master
+          tolerations:
+            - key: "node-role.kubernetes.io/control-plane"
+              operator: "Exists"
+              effect: "NoSchedule"
           restartPolicy: Never
           containers:
             - name: cleaner
