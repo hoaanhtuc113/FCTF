@@ -92,7 +92,7 @@ controller:
   # -- Optionally change this to ClusterFirstWithHostNet in case you have 'hostNetwork: true'.
   # By default, while using host network, name resolution uses the host's DNS. If you wish nginx-controller
   # to keep resolving names inside the k8s network, use ClusterFirstWithHostNet.
-  dnsPolicy: ClusterFirst
+  dnsPolicy: ClusterFirstWithHostNet
   # -- Instruct the kubelet to use the named RuntimeClass to run the pod
   runtimeClassName: ""
   # -- Bare-metal considerations via the host network https://kubernetes.github.io/ingress-nginx/deploy/baremetal/#via-the-host-network
@@ -119,12 +119,12 @@ controller:
   # -- Required for use with CNI based kubernetes installations (such as ones set up by kubeadm),
   # since CNI and hostport don't mix yet. Can be deprecated once https://github.com/kubernetes/kubernetes/issues/23920
   # is merged
-  hostNetwork: false
+  hostNetwork: true
   ## Use host ports 80 and 443
   ## Disabled by default
   hostPort:
     # -- Enable 'hostPort' or not
-    enabled: false
+    enabled: true
     ports:
       # -- 'hostPort' http port
       http: 80
@@ -256,7 +256,7 @@ controller:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
-      maxSurge: 1
+      maxSurge: 0
   #  rollingUpdate:
   #    maxUnavailable: 1
   #  type: RollingUpdate
@@ -365,6 +365,7 @@ controller:
   ##
   nodeSelector:
     kubernetes.io/os: linux
+    kubernetes.io/hostname: server-1-master
   ## Liveness and readiness probe values
   ## Ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
   ##
@@ -411,7 +412,7 @@ controller:
   # -- Annotations to be added to controller pods
   ##
   podAnnotations: {}
-  replicaCount: 2
+  replicaCount: 1
   # -- Minimum available pods set in PodDisruptionBudget.
   # Define either 'minAvailable' or 'maxUnavailable', never both.
   minAvailable: 1
@@ -440,10 +441,10 @@ controller:
   #   restartPolicy: RestartContainer
   # Mutually exclusive with keda autoscaling
   autoscaling:
-    enabled: true
+    enabled: false
     annotations: {}
-    minReplicas: 2
-    maxReplicas: 6
+    minReplicas: 1
+    maxReplicas: 1
     targetCPUUtilizationPercentage: 60
     targetMemoryUtilizationPercentage: 70
     behavior:
@@ -549,7 +550,7 @@ controller:
     labels: {}
     # -- Type of the external controller service.
     # Ref: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
-    type: LoadBalancer
+    type: ClusterIP
     # -- Pre-defined cluster internal IP address of the external controller service. Take care of collisions with existing services.
     # This value is immutable. Set once, it can not be changed without deleting and re-creating the service.
     # Ref: https://kubernetes.io/docs/concepts/services-networking/service/#choosing-your-own-ip-address
