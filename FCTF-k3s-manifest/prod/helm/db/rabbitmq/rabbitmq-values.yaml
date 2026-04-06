@@ -857,7 +857,8 @@ affinity: {}
 ## @param nodeSelector Node labels for pod assignment. Evaluated as a template
 ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
 ##
-nodeSelector: {}
+nodeSelector:
+  kubernetes.io/hostname: server-1-master
 ## @param tolerations Tolerations for pod assignment. Evaluated as a template
 ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
 ##

@@ -419,10 +419,10 @@ controller:
   extraInitContainers: []
 
   # -- Workflow retention by number of workflows
-  retentionPolicy: {}
-  #  completed: 10
-  #  failed: 3
-  #  errored: 3
+  retentionPolicy: 
+    completed: 10
+    failed: 30
+    errored: 30
 
   nodeEvents:
     # -- Enable to emit events on node completion.
