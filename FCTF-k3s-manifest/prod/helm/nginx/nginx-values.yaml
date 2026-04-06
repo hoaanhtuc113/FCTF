@@ -56,13 +56,12 @@ controller:
   config:
     use-forwarded-headers: "true"
     compute-full-forwarded-for: "true"
+    forwarded-for-header: "CF-Connecting-IP"
+    proxy-real-ip-cidr: "0.0.0.0/0"
     limit-req-status-code: "429"
     limit-conn-status-code: "429"
 
     http-snippet: |
-      real_ip_header CF-Connecting-IP;
-      set_real_ip_from 0.0.0.0/0;
-
       limit_req_zone $realip_remote_addr zone=global_rate:20m rate=100r/s;
       limit_conn_zone $realip_remote_addr zone=global_conn:20m;
 
