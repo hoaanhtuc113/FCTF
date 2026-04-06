@@ -2,7 +2,7 @@
 set -euo pipefail
 
 TIMEZONE="Asia/Ho_Chi_Minh"
-MAX_PODS="110"
+MAX_PODS="400"
 # inputable
 MASTER_URL="https://10.13.2.3:6443"
 # inputable
