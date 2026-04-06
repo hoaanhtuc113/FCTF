@@ -2,7 +2,7 @@
 
 Comprehensive testing suite for the FCTF (CTF Platform) system, covering race-condition, stress, and gateway-focused tests.
 
-This directory also contains `SystemTest-Nhat/`, an ordered Playwright admin system-test suite for CRUD and admin-management flows.
+This directory also contains `SystemTest-First/`, an ordered Playwright admin system-test suite for CRUD and admin-management flows.
 
 ## 📁 Test Structure
 
@@ -23,7 +23,7 @@ Test/
     ├── k6 scripts + PowerShell runners
     └── README.md
 
-└── SystemTest-Nhat/      # Ordered Playwright admin system tests
+└── SystemTest-First/      # Ordered Playwright admin system tests
     ├── 35 spec files under tests/
     ├── run-ordered-tests.cjs
     ├── playwright.config.ts
@@ -91,7 +91,7 @@ Test/
 
 📖 **[See Stress Test README](Stress/README.md)** for detailed documentation.
 
-### Admin System Tests (`SystemTest-Nhat/`)
+### Admin System Tests (`SystemTest-First/`)
 **Purpose**: Validate admin-side end-to-end workflows such as user/team management, submission moderation, bracket management, and custom field configuration.
 
 **Key Features**:
@@ -103,7 +103,7 @@ Test/
 **Quick Start**:
 
 ```powershell
-cd Test\SystemTest-Nhat
+cd Test\SystemTest-First
 npm test
 ```
 

@@ -3,15 +3,15 @@ const fs = require('fs');
 const path = require('path');
 
 const TEST_DIR = path.join(__dirname, 'Test');
-const SYSTEM_TEST_NHAT_DIR = path.join(TEST_DIR, 'SystemTest-Nhat', 'tests');
-const SYSTEM_TEST_NHAT_CONFIG = path.join(TEST_DIR, 'SystemTest-Nhat', 'playwright.config.ts');
+const SYSTEM_TEST_NHAT_DIR = path.join(TEST_DIR, 'SystemTest-First', 'tests');
+const SYSTEM_TEST_NHAT_CONFIG = path.join(TEST_DIR, 'SystemTest-First', 'playwright.config.ts');
 
-// 1. Get tests in SystemTest-Nhat/tests
+// 1. Get tests in SystemTest-First/tests
 let systemTests = [];
 if (fs.existsSync(SYSTEM_TEST_NHAT_DIR)) {
     systemTests = fs.readdirSync(SYSTEM_TEST_NHAT_DIR)
         .filter(f => f.endsWith('.spec.ts'))
-        .map(f => `Test/SystemTest-Nhat/tests/${f}`);
+        .map(f => `Test/SystemTest-First/tests/${f}`);
 }
 
 // 2. Get top-level tests in Test/
@@ -25,7 +25,7 @@ const topLevelTests = fs.readdirSync(TEST_DIR)
 const finalSpecialTests = SPECIAL_LAST_TESTS.map(f => `Test/${f}`);
 
 console.log('--- Order of Execution ---');
-systemTests.forEach((t, i) => console.log(`${i + 1}. [SystemTest-Nhat] ${t}`));
+systemTests.forEach((t, i) => console.log(`${i + 1}. [SystemTest-First] ${t}`));
 topLevelTests.forEach((t, i) => console.log(`${systemTests.length + i + 1}. [Top-Level] ${t}`));
 finalSpecialTests.forEach((t, i) => console.log(`${systemTests.length + topLevelTests.length + i + 1}. [Final] ${t}`));
 console.log('--------------------------');
@@ -35,7 +35,7 @@ if (process.argv.includes('--dry-run')) {
 }
 
 // Execution
-// Category 1: SystemTest-Nhat (using its own config if it exists)
+// Category 1: SystemTest-First (using its own config if it exists)
 const systemConfigFlag = fs.existsSync(SYSTEM_TEST_NHAT_CONFIG) ? `--config="${SYSTEM_TEST_NHAT_CONFIG}"` : '';
 for (const testFile of systemTests) {
     runTest(testFile, systemConfigFlag);

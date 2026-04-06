@@ -6,21 +6,32 @@ const testsDir = path.join(__dirname, "tests");
 const configPath = path.join(__dirname, "playwright.config.ts");
 
 function resolveLocalPlaywrightCli() {
-    const candidateModules = [
-        path.join(__dirname, "node_modules", "@playwright", "test", "cli"),
-        path.join(__dirname, "node_modules", "playwright", "cli"),
-    ];
-
-    for (const candidate of candidateModules) {
+    try {
+        // Try resolving from standard Node.js resolution (which includes parent node_modules)
+        return require.resolve("@playwright/test/cli");
+    } catch (_error) {
         try {
-            return require.resolve(candidate);
-        } catch (_error) {
-            // Try next local-only candidate.
+            return require.resolve("playwright/cli");
+        } catch (_error2) {
+            // Fallback to searching manually if resolution fails
+            const candidateModules = [
+                path.join(__dirname, "node_modules", "@playwright", "test", "cli"),
+                path.join(__dirname, "node_modules", "playwright", "cli"),
+                path.join(__dirname, "..", "..", "node_modules", "@playwright", "test", "cli"),
+            ];
+
+            for (const candidate of candidateModules) {
+                try {
+                    return require.resolve(candidate);
+                } catch (_internalError) {
+                    // Try next local-only candidate.
+                }
+            }
         }
     }
 
     throw new Error(
-        "Local Playwright CLI was not found in Test/SystemTest-Nhat/node_modules. Run 'npm install' inside Test/SystemTest-Nhat before executing tests.",
+        "Playwright CLI was not found. Run 'npm install' at the root of the repository before executing tests.",
     );
 }
 

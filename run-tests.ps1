@@ -1,7 +1,7 @@
 # Run Tests in Order with Config Support
 $TestDir = "Test"
-$SystemTestNhatDir = "Test/SystemTest-Nhat/tests"
-$SystemTestNhatConfig = "Test/SystemTest-Nhat/playwright.config.ts"
+$SystemTestNhatDir = "Test/SystemTest-First/tests"
+$SystemTestNhatConfig = "Test/SystemTest-First/playwright.config.ts"
 $LastTests = @("import-export-csv-test.spec.ts", "admin-reset-test.spec.ts")
 
 # 1. System tests
@@ -17,7 +17,7 @@ $FinalTests = ($LastTests | ForEach-Object { "$TestDir/$_" })
 
 Write-Host "--- Order of Execution ---"
 $i = 1
-foreach ($test in $SystemTests) { Write-Host "$i. [SystemTest-Nhat] $test"; $i++ }
+foreach ($test in $SystemTests) { Write-Host "$i. [SystemTest-First] $test"; $i++ }
 foreach ($test in $TopLevelTests) { Write-Host "$i. [Top-Level] $test"; $i++ }
 foreach ($test in $FinalTests) { Write-Host "$i. [Final] $test"; $i++ }
 Write-Host "--------------------------"

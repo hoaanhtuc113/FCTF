@@ -163,8 +163,15 @@ test.describe("View Teams — System Tests", () => {
     });
 
     test("TC14 - Dropdown Search Field có đủ options: Name, ID, Affiliation, Website, Country", async ({ page }) => {
-        const options = await page.locator('select[name="field"] option').allTextContents();
-        const normalized = options.map((o) => o.trim());
+        // Search Field được render bằng custom searchable-select, không còn <select> gốc trong DOM.
+        const wrapper = page.locator('.ss-wrapper').filter({
+            has: page.locator('input[type="hidden"][name="field"]'),
+        }).first();
+
+        await expect(wrapper).toBeVisible();
+
+        const options = await wrapper.locator('.ss-option').allTextContents();
+        const normalized = options.map((o) => o.trim()).filter(Boolean);
         expect(normalized).toContain("Name");
         expect(normalized).toContain("ID");
         expect(normalized).toContain("Affiliation");
