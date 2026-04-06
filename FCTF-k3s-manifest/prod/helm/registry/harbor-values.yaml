@@ -22,6 +22,8 @@ database:
   internal:
     # Inline mode for internal Postgres superuser password
     password: "Q3m8xN5vR1kL7pT2cD9sH4wF"
+    nodeSelector:
+      kubernetes.io/hostname: service-1-master
 
 persistence:
   enabled: true
@@ -38,6 +40,8 @@ persistence:
 
 portal:
   replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: service-1-master
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -45,6 +49,8 @@ portal:
 
 core:
   replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: service-1-master
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -60,6 +66,8 @@ core:
 
 jobservice:
   replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: service-1-master
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -71,6 +79,8 @@ jobservice:
 
 registry:
   replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: service-1-master
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -90,6 +100,8 @@ registry:
 
 nginx:
   replicas: 2
+  nodeSelector:
+    kubernetes.io/hostname: service-1-master
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
