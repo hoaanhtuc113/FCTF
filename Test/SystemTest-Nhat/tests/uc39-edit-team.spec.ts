@@ -131,10 +131,28 @@ async function ensureBracketSelected(page: Page) {
 
 async function submitTeamEditExpectReload(page: Page, teamId: number) {
     await ensureBracketSelected(page);
+
     await Promise.all([
         page.waitForURL(`${BASE_URL}/admin/teams/${teamId}`, { waitUntil: "domcontentloaded" }),
         page.click("#update-team"),
     ]);
+}
+
+async function expectTeamCountryPersisted(page: Page, teamId: number, expectedCountry: string) {
+    await expect
+        .poll(async () => {
+            const res = await page.request.get(`${BASE_URL}/api/v1/teams/${teamId}`);
+            if (!res.ok()) {
+                return "";
+            }
+
+            const body = await res.json();
+            return String(body?.data?.country ?? "");
+        }, {
+            timeout: 10_000,
+            message: `Country của team ${teamId} phải được lưu là ${expectedCountry}`,
+        })
+        .toBe(expectedCountry);
 }
 
 /**
@@ -399,19 +417,34 @@ test.describe("UC-39: Edit Team — System Tests", () => {
     test("TC15 - [Valid] Thay đổi country dropdown → trang reload, country mới hiển thị", async ({ page }) => {
         const countrySelect = page.locator('#team-info-edit-form select[name="country"]');
         const currentCountry = await countrySelect.inputValue();
-        const newCountry = currentCountry === "VN" ? "US" : "VN";
 
-        await countrySelect.selectOption(newCountry);
+        const countryOptions = await countrySelect.locator("option").evaluateAll((options) => {
+            return options
+                .filter((option) => option instanceof HTMLOptionElement)
+                .map((option) => option.value)
+                .filter((value) => value.trim() !== "");
+        });
+
+        const preferredCountries = ["VN", "US"].filter((country) => {
+            return country !== currentCountry && countryOptions.includes(country);
+        });
+
+        const newCountry = preferredCountries[0] ?? countryOptions.find((country) => country !== currentCountry);
+        test.skip(!newCountry, "Không có country khác để chuyển đổi trong dropdown");
+
+        await countrySelect.selectOption(newCountry!);
         await submitTeamEditExpectReload(page, teamId);
+        await expectTeamCountryPersisted(page, teamId, newCountry!);
 
         // Verify country badge or text trên trang
         await openEditModal(page, teamId);
         const updatedCountry = await page.locator('#team-info-edit-form select[name="country"]').inputValue();
-        expect(updatedCountry).toBe(newCountry);
+        expect(updatedCountry).toBe(newCountry!);
 
         // Restore
         await page.locator('#team-info-edit-form select[name="country"]').selectOption(currentCountry);
         await submitTeamEditExpectReload(page, teamId);
+        await expectTeamCountryPersisted(page, teamId, currentCountry);
     });
 
     test("TC16 - [Valid] Toggle hidden checkbox → trang reload, badge hidden hiển thị", async ({ page }) => {

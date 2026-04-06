@@ -1,6 +1,6 @@
-# SystemTest-Nhat — Playwright Admin Test Suite
+# SystemTest-First — Playwright Admin Test Suite
 
-Bộ test tự động cho các luồng admin của FCTF. Toàn bộ thiết lập (Playwright, config, runner) nằm trong thư mục `SystemTest-Nhat` và **không phụ thuộc** vào bất kỳ file config hay `node_modules` nào bên ngoài thư mục này.
+Bộ test tự động cho các luồng admin của FCTF. Toàn bộ thiết lập (Playwright, config, runner) nằm trong thư mục `SystemTest-First` và **không phụ thuộc** vào bất kỳ file config hay `node_modules` nào bên ngoài thư mục này.
 
 ---
 
@@ -19,7 +19,7 @@ FCTF phải đang chạy và có thể truy cập qua trình duyệt trước kh
 
 ```powershell
 # Đứng trong thư mục này
-cd "FCTF\Test\SystemTest-Nhat"
+cd "FCTF\Test\SystemTest-First"
 
 # Cài dependency (Playwright và trình duyệt Chromium)
 npm install
@@ -53,7 +53,7 @@ npm run test:report
 **Cách 2 — dùng helper dòng lệnh tùy chỉnh** (tránh phải nhớ tham số):
 ```powershell
 # tạo lần đầu (đã có sẵn trong repo)
-cd FCTF\Test\SystemTest-Nhat
+cd FCTF\Test\SystemTest-First
 show-report.cmd
 ```
 Nó gọi `npx playwright show-report` với `--port=0` để lấy một cổng trống tự động. Muốn cố định thì truyền `show-report.cmd 9330`.
@@ -61,7 +61,7 @@ Nó gọi `npx playwright show-report` với `--port=0` để lấy một cổng
 *Nếu bạn vẫn gọi `npx playwright show-report` trực tiếp, chỉ cần thêm `--port=0` để ngăn lỗi EADDRINUSE.*
 **Cách 2 — mở file trực tiếp:**
 ```
-FCTF\Test\SystemTest-Nhat\playwright-report\index.html
+FCTF\Test\SystemTest-First\playwright-report\index.html
 ```
 (Mở file này bằng bất kỳ trình duyệt nào)
 
@@ -151,7 +151,7 @@ Các file spec mới thêm vào thư mục `tests/` mà chưa có trong danh sá
 ## Cấu trúc thư mục
 
 ```
-SystemTest-Nhat/
+SystemTest-First/
 ├── playwright.config.ts      # Config Playwright (self-contained)
 ├── run-ordered-tests.js      # Runner điều phối thứ tự chạy
 ├── package.json              # Dependencies và npm scripts
@@ -166,10 +166,10 @@ SystemTest-Nhat/
 
 ## Tính di động của thư mục
 
-Để copy nguyên thư mục `SystemTest-Nhat` sang project khác và chạy được ngay:
+Để copy nguyên thư mục `SystemTest-First` sang project khác và chạy được ngay:
 
 1. Chỉ dùng **một** config: `playwright.config.ts`
-2. Đặt toàn bộ file upload test vào `SystemTest-Nhat/assets` (hoặc root `SystemTest-Nhat`)
+2. Đặt toàn bộ file upload test vào `SystemTest-First/assets` (hoặc root `SystemTest-First`)
 3. Không đặt dependency test assets ở thư mục cha
 ```
 
@@ -195,7 +195,7 @@ winget install k6
 ### 2) Chuẩn bị file account thật
 
 ```powershell
-cd "FCTF\Test\SystemTest-Nhat"
+cd "FCTF\Test\SystemTest-First"
 Copy-Item .\k6\accounts-template-500.csv .\k6\accounts.csv
 ```
 

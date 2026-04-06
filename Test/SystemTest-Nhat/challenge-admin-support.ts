@@ -97,7 +97,7 @@ export function workspaceFile(fileName: string) {
     }
 
     throw new Error(
-        `Missing required local test asset: ${fileName}. Place it in SystemTest-Nhat/assets or SystemTest-Nhat root.`,
+        `Missing required local test asset: ${fileName}. Place it in SystemTest-First/assets or SystemTest-First root.`,
     );
 }
 

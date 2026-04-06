@@ -7,6 +7,9 @@ export const ADMIN_USER = "admin";
 export const ADMIN_PASS = "1";
 export const SUBMIT_WAIT_MS = 3000;
 
+const ADMIN_LOGIN_MAX_ATTEMPTS = 3;
+const ADMIN_RATE_LIMIT_BACKOFF_MS = 5_500;
+
 export interface TeamInfo {
     id: number;
     name: string;
@@ -123,8 +126,13 @@ export interface ContestantChallengeCandidate {
     solveByMyTeam: boolean;
 }
 
+async function isRateLimitedPage(page: Page) {
+    const bodyText = await page.locator("body").innerText().catch(() => "");
+    return /too many requests|"code"\s*:\s*429/i.test(bodyText);
+}
+
 export async function loginAsAdmin(page: Page) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < ADMIN_LOGIN_MAX_ATTEMPTS; attempt++) {
         try {
             await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
@@ -132,21 +140,47 @@ export async function loginAsAdmin(page: Page) {
                 return;
             }
 
+            // If the login page is temporarily rate limited, retry after the limiter window.
+            if (await isRateLimitedPage(page)) {
+                throw new Error("Admin login rate limited (429)");
+            }
+
+            await page.locator('input[name="name"]').first().waitFor({ state: "visible", timeout: 5_000 });
+            await page.locator('input[name="password"]').first().waitFor({ state: "visible", timeout: 5_000 });
+
             await page.fill('input[name="name"]', ADMIN_USER);
             await page.fill('input[name="password"]', ADMIN_PASS);
+
             await Promise.all([
-                page.waitForURL(/\/admin(\/|$)/, { timeout: 45_000 }),
+                page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 12_000 }).catch(() => undefined),
                 page.click('button[type="submit"], input[type="submit"]'),
             ]);
+
+            if (/\/admin(\/|$)/.test(page.url())) {
+                return;
+            }
+
+            if (await isRateLimitedPage(page)) {
+                throw new Error("Admin login rate limited (429)");
+            }
+
+            throw new Error(`Admin login failed: stayed on ${page.url()}`);
             return;
         } catch (err) {
-            if (attempt === 1) {
-                throw err;
-            }
             if (page.isClosed()) {
                 throw err;
             }
-            await page.waitForTimeout(1500);
+
+            const rateLimited = String(err).includes("429") || await isRateLimitedPage(page);
+            const isLastAttempt = attempt === ADMIN_LOGIN_MAX_ATTEMPTS - 1;
+            if (isLastAttempt) {
+                throw err;
+            }
+
+            const backoffMs = rateLimited
+                ? ADMIN_RATE_LIMIT_BACKOFF_MS + (attempt * 500)
+                : 1_500 + (attempt * 500);
+            await page.waitForTimeout(backoffMs);
         }
     }
 }

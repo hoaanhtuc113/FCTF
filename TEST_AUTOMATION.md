@@ -36,7 +36,7 @@ npx playwright install chromium
 ## 3. Chạy test
 
 ### Chạy toàn bộ (Khuyên dùng)
-Để đảm bảo tất cả các test (bao gồm cả `SystemTest-Nhat`) chạy đúng thứ tự và không bị xung đột, hãy sử dụng script điều hướng sau:
+Để đảm bảo tất cả các test (bao gồm cả `SystemTest-First`) chạy đúng thứ tự và không bị xung đột, hãy sử dụng script điều hướng sau:
 
 **Cách 1: Chạy bằng Node.js (Mọi hệ điều hành)**
 ```bash
@@ -49,9 +49,9 @@ node run-tests.js
 ```
 
 **Ưu điểm của cách chạy này:**
-- **Thứ tự thông minh**: Tự động chạy `SystemTest-Nhat` trước (35 file), sau đó đến các test giao diện trong folder `Test/` gốc, và cuối cùng mới chạy các file Reset dữ liệu (CSV, Reset Contest).
+- **Thứ tự thông minh**: Tự động chạy `SystemTest-First` trước (35 file), sau đó đến các test giao diện trong folder `Test/` gốc, và cuối cùng mới chạy các file Reset dữ liệu (CSV, Reset Contest).
 - **Worker = 1**: Đảm bảo chạy tuần tự từng test case một, tránh lỗi do quá tải server hoặc xung đột session đăng nhập.
-- **Vượt rào cản Config**: Tự động nạp đúng file cấu hình cho folder `SystemTest-Nhat` (thứ mà lệnh `npx playwright test` thông thường sẽ bỏ qua).
+- **Vượt rào cản Config**: Tự động nạp đúng file cấu hình cho folder `SystemTest-First` (thứ mà lệnh `npx playwright test` thông thường sẽ bỏ qua).
 ### Chạy một file cụ thể
 ```bash
 npx playwright test Test/<tên-file>.spec.ts
@@ -103,7 +103,7 @@ npx playwright show-report
 | `admin-ticket-respond-test.spec.ts` | TC-RES-000 -> 005 | Admin responding and closing tickets |
 | `scoreboard-search-test.spec.ts` | TC-SB-SEA-001 -> 009 | Tìm kiếm và lọc trên scoreboard | Contestant |
 | `reset-contest.spec.ts` | Contest time reset script | Admin |
-| `Test/SystemTest-Nhat/` | 35 admin system-test specs, 113 test cases (UC23 -> UC82) | Admin |
+| `Test/SystemTest-First/` | 35 admin system-test specs, 113 test cases (UC23 -> UC82) | Admin |
 
 ---
 
@@ -528,7 +528,7 @@ npx playwright test Test/reset-contest.spec.ts
 
 ---
 
-### `Test/SystemTest-Nhat/`
+### `Test/SystemTest-First/`
 This folder contains the ordered admin system-test suite contributed by Nhat. It focuses on admin-side CRUD, filtering, search, submission-management, brackets, and custom-field flows.
 
 **Scope:** 35 spec files, 113 test cases, all under ordered execution.
@@ -536,7 +536,7 @@ This folder contains the ordered admin system-test suite contributed by Nhat. It
 **Run commands:**
 
 ```bash
-cd Test/SystemTest-Nhat
+cd Test/SystemTest-First
 npm test
 npm run test:headed
 npm run test:report
@@ -545,8 +545,8 @@ npm run test:report
 **Execution characteristics:**
 - Uses `run-ordered-tests.cjs` to enforce deterministic file order.
 - Runs with `workers: 1` and `fullyParallel: false` because many cases mutate shared admin data.
-- Generates a dedicated report inside `Test/SystemTest-Nhat/playwright-report/`.
-- Full testcase matrix is maintained in `Test/SystemTest-Nhat/all-test-cases.tsv`.
+- Generates a dedicated report inside `Test/SystemTest-First/playwright-report/`.
+- Full testcase matrix is maintained in `Test/SystemTest-First/all-test-cases.tsv`.
 
 **Files and test items:**
 

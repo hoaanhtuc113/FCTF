@@ -26,7 +26,7 @@
         "name": "chromium",
         "testDir": "D:/Semester 9/FCTF-Clone/FCTF/Test",
         "testIgnore": [
-          "SystemTest-Nhat/**"
+          "SystemTest-First/**"
         ],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"

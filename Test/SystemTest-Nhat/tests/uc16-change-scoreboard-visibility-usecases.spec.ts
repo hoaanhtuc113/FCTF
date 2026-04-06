@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import {
     BASE_URL,
     getCSRFToken,
@@ -18,34 +18,73 @@ interface ScoreboardTargets {
     teamHidden: boolean;
 }
 
+function getTabSelectors(tab: ScoreboardTab) {
+    return tab === 'Teams'
+        ? {
+            idAttribute: 'data-account-id',
+            rowSelector: 'tbody tr:has(input[data-account-id])',
+        }
+        : {
+            idAttribute: 'data-user-id',
+            rowSelector: 'tbody tr:has(input[data-user-id])',
+        };
+}
+
+async function getRowHiddenState(row: Locator): Promise<boolean> {
+    const visibilityButton = row.locator('button').first();
+    await expect(visibilityButton).toBeVisible({ timeout: 10_000 });
+
+    const state = (await visibilityButton.getAttribute('data-state'))?.toLowerCase();
+    if (state === 'hidden') {
+        return true;
+    }
+    if (state === 'visible') {
+        return false;
+    }
+
+    const text = ((await visibilityButton.textContent()) ?? '').trim().toLowerCase();
+    if (text.includes('hidden')) {
+        return true;
+    }
+    if (text.includes('visible')) {
+        return false;
+    }
+
+    throw new Error(`Unable to infer visibility state from row text=${JSON.stringify(text)}`);
+}
+
+async function getFirstScoreboardEntry(page: Page, tab: ScoreboardTab) {
+    const pane = await openScoreboardTab(page, tab);
+    const { idAttribute, rowSelector } = getTabSelectors(tab);
+    const row = pane.locator(`${rowSelector}:visible`).first();
+    await expect(row).toBeVisible({ timeout: 10_000 });
+
+    const idRaw = await row.locator(`input[${idAttribute}]`).first().getAttribute(idAttribute);
+    const id = Number(idRaw);
+    if (!idRaw || Number.isNaN(id) || id <= 0) {
+        throw new Error(`Invalid ${tab} row ID: ${String(idRaw)}`);
+    }
+
+    const name = ((await row.locator('td a').first().textContent()) ?? '').trim();
+    if (!name) {
+        throw new Error(`Could not read ${tab} row name for id=${id}`);
+    }
+
+    const hidden = await getRowHiddenState(row);
+    return { id, name, hidden };
+}
+
 async function getUc16Targets(page: Page): Promise<ScoreboardTargets> {
-    const usersResponse = await page.request.get(
-        `${BASE_URL}/api/v1/users?q=${encodeURIComponent('user3')}&field=name`
-    );
-    const usersBody = await usersResponse.json();
-    const user = (usersBody.data as Array<Record<string, unknown>> | undefined)?.find(
-        (candidate) => candidate.name === 'user3'
-    );
-
-    if (!user?.id || !user.team_id) {
-        throw new Error('UC16 requires an existing contestant user "user3" with an assigned team');
-    }
-
-    const teamResponse = await page.request.get(`${BASE_URL}/api/v1/teams/${user.team_id}`);
-    const teamBody = await teamResponse.json();
-    const team = teamBody.data as Record<string, unknown> | undefined;
-
-    if (!team?.id || !team.name) {
-        throw new Error(`UC16 could not load team details for user3 team_id=${String(user.team_id)}`);
-    }
+    const team = await getFirstScoreboardEntry(page, 'Teams');
+    const user = await getFirstScoreboardEntry(page, 'Users');
 
     return {
-        userId: Number(user.id),
-        userName: String(user.name),
-        userHidden: Boolean(user.hidden),
-        teamId: Number(team.id),
-        teamName: String(team.name),
-        teamHidden: Boolean(team.hidden),
+        userId: user.id,
+        userName: user.name,
+        userHidden: user.hidden,
+        teamId: team.id,
+        teamName: team.name,
+        teamHidden: team.hidden,
     };
 }
 
@@ -92,27 +131,64 @@ async function patchHiddenState(
 }
 
 async function openAdminScoreboard(page: Page) {
-    await page.goto(`${BASE_URL}/admin/scoreboard`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /Visibility/i })).toBeVisible({ timeout: 20_000 });
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            await page.goto(`${BASE_URL}/admin/scoreboard`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+            await expect(page.getByRole('button', { name: /Visibility/i })).toBeVisible({ timeout: 20_000 });
+            return;
+        } catch (error) {
+            lastError = error;
+            const isRetryable = /ERR_ABORTED|Navigation timeout/i.test(String(error));
+            const isLastAttempt = attempt === 2;
+
+            if (isLastAttempt || !isRetryable) {
+                throw error;
+            }
+
+            await page.waitForTimeout(1_000 + (attempt * 500));
+        }
+    }
+
+    throw lastError;
 }
 
 async function openScoreboardTab(page: Page, tab: ScoreboardTab) {
     await openAdminScoreboard(page);
-    const targetId = tab === 'Teams' ? '#standings' : '#user-standings';
-    const tabLink = page.locator(`.nav-tabs a[href="${targetId}"]`).first();
+    const tabButton = page.getByRole('tab', { name: new RegExp(`^${tab}$`, 'i') }).first();
 
-    if (await tabLink.count()) {
-        await tabLink.click();
+    if (await tabButton.count()) {
+        await tabButton.click();
+
+        const hasAriaSelected = (await tabButton.getAttribute('aria-selected')) !== null;
+        if (hasAriaSelected) {
+            await expect(tabButton).toHaveAttribute('aria-selected', 'true', { timeout: 10_000 });
+        } else {
+            await expect(tabButton).toHaveClass(/active/, { timeout: 10_000 });
+        }
     }
 
-    const pane = page.locator(`${targetId}.tab-pane.active, ${targetId}.show.active`).first();
-    await expect(pane).toBeVisible({ timeout: 10_000 });
-    return pane;
+    const { rowSelector } = getTabSelectors(tab);
+    const activePane = page
+        .locator('.tab-pane:visible, [role="tabpanel"]:visible')
+        .filter({ has: page.locator(rowSelector) })
+        .first();
+
+    if (await activePane.count()) {
+        await expect(activePane).toBeVisible({ timeout: 10_000 });
+        return activePane;
+    }
+
+    const fallbackRow = page.locator(`${rowSelector}:visible`).first();
+    await expect(fallbackRow).toBeVisible({ timeout: 10_000 });
+    return page.locator('body');
 }
 
-async function getScoreboardRow(page: Page, tab: ScoreboardTab, name: string) {
+async function getScoreboardRow(page: Page, tab: ScoreboardTab, id: number) {
     const pane = await openScoreboardTab(page, tab);
-    const row = pane.locator('tbody tr').filter({ hasText: name }).first();
+    const { idAttribute, rowSelector } = getTabSelectors(tab);
+    const row = pane.locator(`${rowSelector}:has(input[${idAttribute}="${id}"]):visible`).first();
     await expect(row).toBeVisible({ timeout: 10_000 });
     return row;
 }
@@ -120,10 +196,10 @@ async function getScoreboardRow(page: Page, tab: ScoreboardTab, name: string) {
 async function bulkSetVisibility(
     page: Page,
     tab: ScoreboardTab,
-    name: string,
+    id: number,
     targetState: VisibilityState
 ) {
-    const row = await getScoreboardRow(page, tab, name);
+    const row = await getScoreboardRow(page, tab, id);
     await row.locator('input[type="checkbox"]').check();
 
     await expect(page.locator('#scoreboard-edit-button')).toBeVisible({ timeout: 10_000 });
@@ -136,11 +212,13 @@ async function bulkSetVisibility(
     await page.waitForLoadState('domcontentloaded').catch(() => undefined);
     await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => undefined);
 
-    const updatedRow = await getScoreboardRow(page, tab, name);
+    const updatedRow = await getScoreboardRow(page, tab, id);
     const button = updatedRow.locator('button').first();
-    await expect(button).toHaveText(targetState, { timeout: 10_000 });
-    if (targetState === 'Hidden') {
-        await expect(button).toHaveAttribute('data-state', 'hidden');
+    await expect(button).toContainText(targetState, { timeout: 10_000 });
+
+    const dataState = await button.getAttribute('data-state');
+    if (dataState !== null) {
+        await expect(button).toHaveAttribute('data-state', targetState.toLowerCase());
     }
 }
 
@@ -181,18 +259,18 @@ test.describe('UC16 Change Scoreboard Visibility', () => {
     });
 
     test('TC16.01: Hide selected team from scoreboard', async ({ page }) => {
-        await bulkSetVisibility(page, 'Teams', targets.teamName, 'Hidden');
+        await bulkSetVisibility(page, 'Teams', targets.teamId, 'Hidden');
     });
 
     test('TC16.02: Show selected team on scoreboard', async ({ page }) => {
-        await bulkSetVisibility(page, 'Teams', targets.teamName, 'Visible');
+        await bulkSetVisibility(page, 'Teams', targets.teamId, 'Visible');
     });
 
     test('TC16.03: Hide selected user from the admin scoreboard users list', async ({ page }) => {
-        await bulkSetVisibility(page, 'Users', targets.userName, 'Hidden');
+        await bulkSetVisibility(page, 'Users', targets.userId, 'Hidden');
     });
 
     test('TC16.04: Show selected user in the admin scoreboard users list again', async ({ page }) => {
-        await bulkSetVisibility(page, 'Users', targets.userName, 'Visible');
+        await bulkSetVisibility(page, 'Users', targets.userId, 'Visible');
     });
 });

@@ -12,6 +12,31 @@ import {
     updateBracket,
 } from "./support";
 
+async function rollbackBracketSafe(
+    page: Parameters<typeof loginAsAdmin>[0],
+    payload: { id: number; name: string; description: string; type: "teams" | "users" }
+) {
+    try {
+        await updateBracket(page, payload.id, {
+            name: payload.name,
+            description: payload.description,
+            type: payload.type,
+        });
+    } catch (error) {
+        const message = String(error);
+        const bracketNotFound = message.includes(`/api/v1/brackets/${payload.id}`) && message.includes("not found");
+        if (!bracketNotFound) {
+            throw error;
+        }
+
+        await createBracket(page, {
+            name: payload.name,
+            description: payload.description,
+            type: payload.type,
+        });
+    }
+}
+
 test.describe("UC-77 Update Bracket", () => {
     test.beforeEach(async ({ page }) => {
         await loginAsAdmin(page);
@@ -53,9 +78,10 @@ test.describe("UC-77 Update Bracket", () => {
             await expect(bracketSelect).toContainText(updatedName);
         } finally {
             if (createdForTest !== null) {
-                await deleteBracketByApi(page, createdForTest);
+                await deleteBracketByApi(page, createdForTest).catch(() => undefined);
             } else {
-                await updateBracket(page, originalBracket.id, {
+                await rollbackBracketSafe(page, {
+                    id: originalBracket.id,
                     name: originalBracket.name,
                     description: originalBracket.description,
                     type: originalBracket.type,
@@ -107,9 +133,10 @@ test.describe("UC-77 Update Bracket", () => {
         } finally {
             // Restore
             if (createdForTest !== null) {
-                await deleteBracketByApi(page, createdForTest);
+                await deleteBracketByApi(page, createdForTest).catch(() => undefined);
             } else {
-                await updateBracket(page, targetBracket!.id, {
+                await rollbackBracketSafe(page, {
+                    id: targetBracket!.id,
                     name: originalName,
                     description: targetBracket!.description,
                     type: targetBracket!.type === "users" ? "users" : "teams",
