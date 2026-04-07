@@ -1410,6 +1410,10 @@ if [[ "${NEED_REDIS_ROTATION}" == "true" || "${NEED_MARIADB_ROTATION}" == "true"
 fi
 
 if [[ "${SKIP_ROLLOUT_RESTART}" != "true" ]]; then
+  if [[ "${ROTATE_HARBOR}" == "true" ]]; then
+    restart_harbor_workloads
+  fi
+
   if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
     restart_mariadb_workload
   fi
@@ -1420,10 +1424,6 @@ if [[ "${SKIP_ROLLOUT_RESTART}" != "true" ]]; then
 
   if [[ "${RESTART_APP_DEPLOYMENTS}" == "true" ]]; then
     restart_deployments
-  fi
-
-  if [[ "${ROTATE_HARBOR}" == "true" ]]; then
-    restart_harbor_workloads
   fi
 else
   echo "==> Skip rollout restart as requested"
