@@ -56,8 +56,8 @@ controller:
   config:
     use-forwarded-headers: "true"
     compute-full-forwarded-for: "true"
-    forwarded-for-header: "CF-Connecting-IP"
-    proxy-real-ip-cidr: "0.0.0.0/0"
+    real-ip-header: "CF-Connecting-IP"
+    set-real-ip-from: " 0.0.0.0/0"
     limit-req-status-code: "429"
     limit-conn-status-code: "429"
 
