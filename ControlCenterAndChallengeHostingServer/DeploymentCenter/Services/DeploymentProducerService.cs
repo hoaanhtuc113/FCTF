@@ -1,5 +1,5 @@
 ﻿using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.RabbitMQ;
 using System.Text;
@@ -12,15 +12,33 @@ public interface IDeploymentProducerService
     Task EnqueueDeploymentAsync(ChallengeStartStopReqDTO request, int expirySeconds = 300);
 }
 
+public sealed class DeploymentQueueFullException : Exception
+{
+    public DeploymentQueueFullException(string message, Exception? innerException = null)
+        : base(message, innerException)
+    {
+    }
+}
+
+public sealed class DeploymentRoutingFailedException : Exception
+{
+    public DeploymentRoutingFailedException(string message, Exception? innerException = null)
+        : base(message, innerException)
+    {
+    }
+}
+
 public class DeploymentProducerService : IDeploymentProducerService, IAsyncDisposable
 {
     private IConnection? _connection;
     private IChannel? _channel;
     private readonly ConnectionFactory _factory;
     private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly SemaphoreSlim _publishLock = new(1, 1);
 
     private const string ExchangeName = "deployment_exchange";
     private const string RoutingKey = "deploy";
+    private const int PublishTimeoutMs = 5000;
 
     public DeploymentProducerService(
         string host,
@@ -97,49 +115,37 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
 
     public async Task PublishOrThrowAsync(byte[] body, BasicProperties props)
     {
-        var tcs = new TaskCompletionSource<bool>();
-
-        AsyncEventHandler<BasicNackEventArgs> nackHandler = null!;
-        AsyncEventHandler<BasicReturnEventArgs> returnHandler = null!;
-
-        nackHandler = (s, e) =>
+        if (_channel == null || !_channel.IsOpen)
         {
-            tcs.TrySetException(new Exception("QUEUE_FULL"));
-            return Task.CompletedTask;
-        };
+            throw new InvalidOperationException("RabbitMQ channel is not open.");
+        }
 
-        returnHandler = (s, e) =>
-        {
-            tcs.TrySetException(new Exception("ROUTING_FAILED"));
-            return Task.CompletedTask;
-        };
-
-        _channel.BasicNacksAsync += nackHandler;
-        _channel.BasicReturnAsync += returnHandler;
-
+        await _publishLock.WaitAsync();
         try
         {
-            await _channel.BasicPublishAsync(
-                ExchangeName,
-                RoutingKey,
-                mandatory: true,
-                props,
-                body);
-
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(3000));
-
-            if (completed != tcs.Task)
+            try
             {
-                throw new TimeoutException("RabbitMQ publish confirm timeout");
+                // In RabbitMQ.Client 7.x, BasicPublishAsync throws PublishException for nack/basic.return.
+                await _channel.BasicPublishAsync(
+                    ExchangeName,
+                    RoutingKey,
+                    mandatory: true,
+                    props,
+                    body);
             }
+            catch (PublishException ex)
+            {
+                if (ex.IsReturn)
+                {
+                    throw new DeploymentRoutingFailedException("ROUTING_FAILED", ex);
+                }
 
-            if (completed == tcs.Task)
-                await tcs.Task; // sẽ throw
+                throw new DeploymentQueueFullException("QUEUE_FULL", ex);
+            }
         }
         finally
         {
-            _channel.BasicNacksAsync -= nackHandler;
-            _channel.BasicReturnAsync -= returnHandler;
+            _publishLock.Release();
         }
     }
 
