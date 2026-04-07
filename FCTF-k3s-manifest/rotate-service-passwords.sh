@@ -1158,9 +1158,24 @@ set_redis_acl_user_password() {
   local username="$1"
   local password="$2"
 
-  kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-    /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 -a "${REDIS_ROOT_PASSWORD}" \
-    ACL SETUSER "${username}" on ">${password}" >/dev/null
+  # Try non-TLS first, then TLS (common with Bitnami Redis when tls.enabled=true).
+  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+    /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
+    ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+    /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
+    ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Error: failed to rotate Redis ACL password for user '${username}'."
+  echo "Hint: Redis may require TLS-only access; non-TLS and TLS attempts both failed."
+  return 1
 }
 
 set_redis_acl_user_password "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
