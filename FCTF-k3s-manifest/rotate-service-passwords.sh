@@ -7,20 +7,13 @@ PROD_DIR="${SCRIPT_DIR}/prod"
 DB_NAMESPACE="db"
 APP_NAMESPACE="app"
 
-MARIADB_HOST="mariadb-headless.db.svc.cluster.local"
-MARIADB_PORT="3306"
-MARIADB_DATABASE="ctfd"
-
-REDIS_HOST="redis-headless.db.svc.cluster.local"
-REDIS_PORT="6379"
-
 SKIP_ROLLOUT_RESTART="false"
 DEBUG_MODE="false"
 
+NEED_REDIS_ROTATION="true"
+NEED_MARIADB_ROTATION="true"
 ROTATE_RABBITMQ="true"
 ROTATE_HARBOR="true"
-ROTATE_RANCHER="true"
-ROTATE_GRAFANA="true"
 HASH_TOOL_READY="false"
 
 usage() {
@@ -29,19 +22,16 @@ Usage:
   $0 [--skip-rollout-restart] [--debug]
 
 Description:
-  Rotate credentials for app services and infrastructure services.
+  Rotate Redis passwords, RabbitMQ producer/consumer passwords,
+  and MariaDB secret credentials, then restart workloads.
   The script will:
-    1) Auto-generate new passwords/secrets (50 chars, [A-Za-z0-9])
-    2) Auto-read current root credentials where needed
-    3) Rotate MariaDB, Redis, RabbitMQ users
-    4) Rotate Harbor (admin, db, core/job/registry secrets)
-    5) Rotate Rancher bootstrap and Grafana admin secrets
-    6) Patch matching Kubernetes Secrets (excluding ctfd namespace)
-    7) Restart workloads so runtime picks up new secrets
-
-  Note:
-    - When Harbor REGISTRY_HTPASSWD is present, script will auto-install
-      htpasswd/openssl if both are missing.
+    1) Rotate all Redis ACL users + Redis default password
+    2) Rotate RabbitMQ producer/consumer only (no admin rotation)
+    3) Rotate MariaDB secret keys for ctfd-username/root/replication only
+       (secret patch + redeploy, no SQL ALTER USER)
+    4) Patch matching Kubernetes Secrets (excluding ctfd namespace)
+    5) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
+    6) Keep Kubernetes Secret key RABBIT_PASSWORD unchanged (admin credential)
 
 Options:
   --skip-rollout-restart   Do not restart workloads after secret rotation
@@ -156,7 +146,6 @@ generate_random_secret() {
   local status=0
 
   while [[ ${#secret} -lt ${length} ]]; do
-    # Temporarily disable pipefail because tr may exit with SIGPIPE when head closes early.
     set +o pipefail
     chunk="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$((length - ${#secret}))")"
     status=$?
@@ -193,11 +182,6 @@ rawurlencode() {
   done
 
   printf '%s' "${encoded}"
-}
-
-sql_escape() {
-  local input="$1"
-  printf '%s' "${input//\'/\'\'}"
 }
 
 json_escape() {
@@ -250,23 +234,6 @@ get_secret_keys() {
     -o go-template='{{range $k,$v := .data}}{{printf "%s\n" $k}}{{end}}' 2>/dev/null || true
 }
 
-apply_secret_from_literals() {
-  local namespace="$1"
-  local secret_name="$2"
-  shift 2
-
-  local cmd=(kubectl -n "${namespace}" create secret generic "${secret_name}" --dry-run=client -o yaml)
-
-  while [[ $# -gt 1 ]]; do
-    local key="$1"
-    local value="$2"
-    shift 2
-    cmd+=(--from-literal="${key}=${value}")
-  done
-
-  "${cmd[@]}" | kubectl apply -f - >/dev/null
-}
-
 patch_secret_string_key() {
   local namespace="$1"
   local secret_name="$2"
@@ -278,16 +245,298 @@ patch_secret_string_key() {
   kubectl -n "${namespace}" patch secret "${secret_name}" --type merge -p "${payload}" >/dev/null
 }
 
-db_password_for_user() {
+strip_yaml_quotes() {
+  local value="$1"
+  if [[ "${value}" =~ ^\".*\"$ || "${value}" =~ ^\'.*\'$ ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  printf '%s' "${value}"
+}
+
+yaml_read_scalar() {
+  local file="$1"
+  local path="$2"
+
+  [[ -f "${file}" ]] || {
+    printf ''
+    return 0
+  }
+
+  awk -v path="${path}" '
+    function trim(s) {
+      sub(/^[ \t\r\n]+/, "", s)
+      sub(/[ \t\r\n]+$/, "", s)
+      return s
+    }
+    BEGIN {
+      want_count = split(path, want, ".")
+      depth = 0
+    }
+    /^[[:space:]]*#/ { next }
+    {
+      line = $0
+      sub(/[[:space:]]+#.*/, "", line)
+      if (line ~ /^[[:space:]]*$/) next
+
+      indent = match(line, /[^[:space:]]/) - 1
+      if (indent < 0) next
+
+      while (depth > 0 && indents[depth] >= indent) {
+        delete keys[depth]
+        delete indents[depth]
+        depth--
+      }
+
+      if (match(line, /^[[:space:]]*([A-Za-z0-9_.-]+):[[:space:]]*(.*)$/, m)) {
+        depth++
+        keys[depth] = m[1]
+        indents[depth] = indent
+        value = trim(m[2])
+
+        if (depth == want_count) {
+          ok = 1
+          for (i = 1; i <= want_count; i++) {
+            if (keys[i] != want[i]) {
+              ok = 0
+              break
+            }
+          }
+          if (ok) {
+            if (value == "|" || value == ">") {
+              print ""
+              exit
+            }
+            print value
+            exit
+          }
+        }
+      }
+    }
+  ' "${file}" | {
+    IFS= read -r raw || true
+    raw="$(strip_yaml_quotes "$(printf '%s' "${raw}" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')")"
+    printf '%s' "${raw}"
+  }
+}
+
+load_harbor_static_values() {
+  local harbor_values="${PROD_DIR}/helm/registry/harbor-values.yaml"
+
+  HARBOR_ADMIN_PASSWORD="$(yaml_read_scalar "${harbor_values}" "harborAdminPassword")"
+  HARBOR_SECRET_KEY="$(yaml_read_scalar "${harbor_values}" "secretKey")"
+  HARBOR_CORE_SECRET="$(yaml_read_scalar "${harbor_values}" "core.secret")"
+  HARBOR_CSRF_KEY="$(yaml_read_scalar "${harbor_values}" "core.xsrfKey")"
+  HARBOR_JOBSERVICE_SECRET="$(yaml_read_scalar "${harbor_values}" "jobservice.secret")"
+  HARBOR_REGISTRY_HTTP_SECRET="$(yaml_read_scalar "${harbor_values}" "registry.secret")"
+  HARBOR_REGISTRY_USERNAME="$(yaml_read_scalar "${harbor_values}" "registry.credentials.username")"
+  HARBOR_REGISTRY_PASSWORD="$(yaml_read_scalar "${harbor_values}" "registry.credentials.password")"
+  HARBOR_REGISTRY_HTPASSWD="$(yaml_read_scalar "${harbor_values}" "registry.credentials.htpasswdString")"
+
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "existingSecretAdminPassword")" ]]; then
+    HARBOR_ADMIN_PASSWORD=""
+  fi
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "existingSecretSecretKey")" ]]; then
+    HARBOR_SECRET_KEY=""
+  fi
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "core.existingSecret")" ]]; then
+    HARBOR_CORE_SECRET=""
+  fi
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "core.existingXsrfSecret")" ]]; then
+    HARBOR_CSRF_KEY=""
+  fi
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "jobservice.existingSecret")" ]]; then
+    HARBOR_JOBSERVICE_SECRET=""
+  fi
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "registry.existingSecret")" ]]; then
+    HARBOR_REGISTRY_HTTP_SECRET=""
+  fi
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "registry.credentials.existingSecret")" ]]; then
+    HARBOR_REGISTRY_USERNAME=""
+    HARBOR_REGISTRY_PASSWORD=""
+    HARBOR_REGISTRY_HTPASSWD=""
+  fi
+}
+
+generate_registry_htpasswd_entry() {
   local username="$1"
-  case "${username}" in
-    ctfd-username) printf '%s' "${ADMIN_DB_PASSWORD}" ;;
-    contestant_be) printf '%s' "${CONTESTANT_BE_DB_PASSWORD}" ;;
-    deployment_center) printf '%s' "${DEPLOYMENT_CENTER_DB_PASSWORD}" ;;
-    deployment_listener) printf '%s' "${DEPLOYMENT_LISTENER_DB_PASSWORD}" ;;
-    deployment_consumer) printf '%s' "${DEPLOYMENT_CONSUMER_DB_PASSWORD}" ;;
-    *) printf '' ;;
-  esac
+  local password="$2"
+  local entry=""
+
+  if command -v htpasswd >/dev/null 2>&1; then
+    entry="$(htpasswd -nbB "${username}" "${password}" 2>/dev/null || true)"
+    if [[ -n "${entry}" ]]; then
+      printf '%s' "${entry}"
+      return 0
+    fi
+  fi
+
+  if command -v openssl >/dev/null 2>&1; then
+    local hash
+    hash="$(openssl passwd -apr1 "${password}" 2>/dev/null || true)"
+    if [[ -n "${hash}" ]]; then
+      printf '%s:%s' "${username}" "${hash}"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+get_registry_username_from_secret() {
+  local ns="$1"
+  local sec="$2"
+  local user ht_line
+
+  user="$(get_secret_value "${ns}" "${sec}" "REGISTRY_USERNAME" || true)"
+  if [[ -z "${user}" ]]; then
+    user="$(get_secret_value "${ns}" "${sec}" "REGISTRY_USER" || true)"
+  fi
+
+  if [[ -z "${user}" ]]; then
+    ht_line="$(get_secret_value "${ns}" "${sec}" "REGISTRY_HTPASSWD" || true)"
+    if [[ -n "${ht_line}" && "${ht_line}" == *":"* ]]; then
+      user="${ht_line%%:*}"
+    fi
+  fi
+
+  if [[ -z "${user}" ]]; then
+    user="harbor_registry_user"
+  fi
+
+  printf '%s' "${user}"
+}
+
+patch_harbor_secrets() {
+  local patched="0"
+  local harbor_ns="registry"
+  local secret_name current registry_user htpasswd_entry
+
+  while IFS= read -r secret_name; do
+    [[ -n "${secret_name}" ]] || continue
+
+    if [[ "${secret_name}" != *harbor* ]]; then
+      continue
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "HARBOR_ADMIN_PASSWORD" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_ADMIN_PASSWORD}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "HARBOR_ADMIN_PASSWORD" "${HARBOR_ADMIN_PASSWORD}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:HARBOR_ADMIN_PASSWORD"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "secretKey" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_SECRET_KEY}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "secretKey" "${HARBOR_SECRET_KEY}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:secretKey"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "CSRF_KEY" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_CSRF_KEY}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "CSRF_KEY" "${HARBOR_CSRF_KEY}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:CSRF_KEY"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "CORE_SECRET" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_CORE_SECRET}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "CORE_SECRET" "${HARBOR_CORE_SECRET}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:CORE_SECRET"
+    fi
+
+    if [[ "${secret_name}" == *"harbor-core"* ]]; then
+      current="$(get_secret_value "${harbor_ns}" "${secret_name}" "secret" || true)"
+      if [[ -n "${current}" && -n "${HARBOR_CORE_SECRET}" ]]; then
+        patch_secret_string_key "${harbor_ns}" "${secret_name}" "secret" "${HARBOR_CORE_SECRET}"
+        patched=$((patched + 1))
+        echo "    patched ${harbor_ns}/${secret_name}:secret"
+      fi
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "JOBSERVICE_SECRET" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_JOBSERVICE_SECRET}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "JOBSERVICE_SECRET" "${HARBOR_JOBSERVICE_SECRET}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:JOBSERVICE_SECRET"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_HTTP_SECRET" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_HTTP_SECRET}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_HTTP_SECRET" "${HARBOR_REGISTRY_HTTP_SECRET}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_HTTP_SECRET"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD" "${HARBOR_REGISTRY_PASSWORD}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_PASSWD"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" || true)"
+    if [[ -n "${current}" && ( -n "${HARBOR_REGISTRY_HTPASSWD}" || -n "${HARBOR_REGISTRY_PASSWORD}" ) ]]; then
+      if [[ -n "${HARBOR_REGISTRY_HTPASSWD}" ]]; then
+        patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" "${HARBOR_REGISTRY_HTPASSWD}"
+        patched=$((patched + 1))
+        echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_HTPASSWD"
+      else
+        if ! ensure_hash_generation_tool; then
+          echo "Error: ${harbor_ns}/${secret_name} requires REGISTRY_HTPASSWD update but hash tool install failed."
+          exit 1
+        fi
+
+        registry_user="${HARBOR_REGISTRY_USERNAME}"
+        if [[ -z "${registry_user}" ]]; then
+          registry_user="$(get_registry_username_from_secret "${harbor_ns}" "${secret_name}")"
+        fi
+        htpasswd_entry="$(generate_registry_htpasswd_entry "${registry_user}" "${HARBOR_REGISTRY_PASSWORD}" || true)"
+
+        if [[ -n "${htpasswd_entry}" ]]; then
+          patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" "${htpasswd_entry}"
+          patched=$((patched + 1))
+          echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_HTPASSWD"
+        else
+          echo "Error: ${harbor_ns}/${secret_name} requires REGISTRY_HTPASSWD but cannot generate it (install htpasswd or openssl)."
+          exit 1
+        fi
+      fi
+    fi
+  done < <(kubectl -n "${harbor_ns}" get secrets -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+
+  if [[ "${patched}" -eq 0 ]]; then
+    echo "==> Harbor static-value secret patches: 0"
+  else
+    echo "==> Harbor static-value secret patches: ${patched}"
+  fi
+}
+
+restart_harbor_workloads() {
+  local ns="registry"
+  local -a deployments=("harbor-core" "harbor-jobservice" "harbor-portal" "harbor-registry" "harbor-nginx")
+  local -a statefulsets=("harbor-database" "harbor-redis")
+  local name
+
+  echo "==> Restarting Harbor workloads"
+  for name in "${deployments[@]}"; do
+    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" rollout restart "deployment/${name}"
+    fi
+  done
+
+  for name in "${statefulsets[@]}"; do
+    if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" rollout restart "statefulset/${name}"
+    fi
+  done
+
+  for name in "${deployments[@]}"; do
+    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" rollout status "deployment/${name}" --timeout=600s
+    fi
+  done
 }
 
 redis_password_for_user() {
@@ -299,22 +548,6 @@ redis_password_for_user() {
     svc_deployment_center) printf '%s' "${DEPLOYMENT_CENTER_REDIS_PASSWORD}" ;;
     svc_deployment_listener) printf '%s' "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}" ;;
     svc_deployment_consumer) printf '%s' "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}" ;;
-    *) printf '' ;;
-  esac
-}
-
-rabbit_password_for_key() {
-  local key="$1"
-  case "${key}" in
-    rabbitmq-password) printf '%s' "${RABBIT_ADMIN_PASSWORD}" ;;
-    rabbitmq-erlang-cookie|RABBITMQ_ERLANG_COOKIE) printf '%s' "${RABBIT_ERLANG_COOKIE}" ;;
-    RABBIT_PASSWORD)
-      case "${CURRENT_SECRET_NAME}" in
-        deployment-center-secret) printf '%s' "${RABBIT_PRODUCER_PASSWORD}" ;;
-        deployment-consumer-secret) printf '%s' "${RABBIT_CONSUMER_PASSWORD}" ;;
-        *) printf '' ;;
-      esac
-      ;;
     *) printf '' ;;
   esac
 }
@@ -361,7 +594,7 @@ patch_rabbitmq_definition_secret() {
     return 0
   fi
 
-  updated_json="$(replace_rabbitmq_user_password_in_definition "${current_json}" "rabbit-admin" "${RABBIT_ADMIN_PASSWORD}")"
+  updated_json="${current_json}"
   updated_json="$(replace_rabbitmq_user_password_in_definition "${updated_json}" "deployment-producer" "${RABBIT_PRODUCER_PASSWORD}")"
   updated_json="$(replace_rabbitmq_user_password_in_definition "${updated_json}" "deployment-consumer" "${RABBIT_CONSUMER_PASSWORD}")"
 
@@ -369,366 +602,6 @@ patch_rabbitmq_definition_secret() {
     patch_secret_string_key "${DB_NAMESPACE}" "${secret_name}" "${key_name}" "${updated_json}"
     echo "    patched ${DB_NAMESPACE}/${secret_name}:${key_name}"
   fi
-}
-
-patch_harbor_secrets() {
-  local patched="0"
-  local harbor_ns="registry"
-  local secret_name current registry_user htpasswd_entry
-  local seen="0"
-
-  generate_registry_htpasswd_entry() {
-    local username="$1"
-    local password="$2"
-    local entry=""
-
-    if command -v htpasswd >/dev/null 2>&1; then
-      entry="$(htpasswd -nbB "${username}" "${password}" 2>/dev/null || true)"
-      if [[ -n "${entry}" ]]; then
-        printf '%s' "${entry}"
-        return 0
-      fi
-    fi
-
-    if command -v openssl >/dev/null 2>&1; then
-      local hash
-      hash="$(openssl passwd -apr1 "${password}" 2>/dev/null || true)"
-      if [[ -n "${hash}" ]]; then
-        printf '%s:%s' "${username}" "${hash}"
-        return 0
-      fi
-    fi
-
-    return 1
-  }
-
-  get_registry_username_from_secret() {
-    local ns="$1"
-    local sec="$2"
-    local user ht_line
-
-    user="$(get_secret_value "${ns}" "${sec}" "REGISTRY_USERNAME" || true)"
-    if [[ -z "${user}" ]]; then
-      user="$(get_secret_value "${ns}" "${sec}" "REGISTRY_USER" || true)"
-    fi
-
-    if [[ -z "${user}" ]]; then
-      ht_line="$(get_secret_value "${ns}" "${sec}" "REGISTRY_HTPASSWD" || true)"
-      if [[ -n "${ht_line}" && "${ht_line}" == *":"* ]]; then
-        user="${ht_line%%:*}"
-      fi
-    fi
-
-    if [[ -z "${user}" ]]; then
-      user="harbor_registry_user"
-    fi
-
-    printf '%s' "${user}"
-  }
-
-  while IFS= read -r secret_name; do
-    [[ -n "${secret_name}" ]] || continue
-
-    if [[ "${secret_name}" != *harbor* ]]; then
-      continue
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "HARBOR_ADMIN_PASSWORD" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_ADMIN_PASSWORD}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "HARBOR_ADMIN_PASSWORD" "${HARBOR_ADMIN_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:HARBOR_ADMIN_PASSWORD"
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "secretKey" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_SECRET_KEY}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "secretKey" "${HARBOR_SECRET_KEY}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:secretKey"
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "CSRF_KEY" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_CSRF_KEY}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "CSRF_KEY" "${HARBOR_CSRF_KEY}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:CSRF_KEY"
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "CORE_SECRET" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_CORE_SECRET}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "CORE_SECRET" "${HARBOR_CORE_SECRET}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:CORE_SECRET"
-    fi
-
-    if [[ "${secret_name}" == *"harbor-core"* ]]; then
-      current="$(get_secret_value "${harbor_ns}" "${secret_name}" "secret" || true)"
-      if [[ -n "${current}" && -n "${HARBOR_CORE_SECRET}" ]]; then
-        seen=$((seen + 1))
-        patch_secret_string_key "${harbor_ns}" "${secret_name}" "secret" "${HARBOR_CORE_SECRET}"
-        patched=$((patched + 1))
-        echo "    patched ${harbor_ns}/${secret_name}:secret"
-      fi
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "JOBSERVICE_SECRET" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_JOBSERVICE_SECRET}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "JOBSERVICE_SECRET" "${HARBOR_JOBSERVICE_SECRET}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:JOBSERVICE_SECRET"
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_HTTP_SECRET" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_HTTP_SECRET}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_HTTP_SECRET" "${HARBOR_REGISTRY_HTTP_SECRET}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_HTTP_SECRET"
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD" "${HARBOR_REGISTRY_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_PASSWD"
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
-      if ! ensure_hash_generation_tool; then
-        echo "Error: ${harbor_ns}/${secret_name} requires REGISTRY_HTPASSWD update but hash tool install failed."
-        exit 1
-      fi
-
-      seen=$((seen + 1))
-      registry_user="$(get_registry_username_from_secret "${harbor_ns}" "${secret_name}")"
-      htpasswd_entry="$(generate_registry_htpasswd_entry "${registry_user}" "${HARBOR_REGISTRY_PASSWORD}" || true)"
-
-      if [[ -n "${htpasswd_entry}" ]]; then
-        patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" "${htpasswd_entry}"
-        patched=$((patched + 1))
-        echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_HTPASSWD"
-      else
-        echo "Error: ${harbor_ns}/${secret_name} requires REGISTRY_HTPASSWD but cannot generate it (install htpasswd or openssl)."
-        exit 1
-      fi
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "POSTGRES_PASSWORD" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_DB_PASSWORD}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "POSTGRES_PASSWORD" "${HARBOR_DB_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:POSTGRES_PASSWORD"
-    fi
-
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "postgres-password" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_DB_PASSWORD}" ]]; then
-      seen=$((seen + 1))
-      patch_secret_string_key "${harbor_ns}" "${secret_name}" "postgres-password" "${HARBOR_DB_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${harbor_ns}/${secret_name}:postgres-password"
-    fi
-
-    if [[ "${secret_name}" == *"harbor-database"* ]]; then
-      current="$(get_secret_value "${harbor_ns}" "${secret_name}" "password" || true)"
-      if [[ -n "${current}" && -n "${HARBOR_DB_PASSWORD}" ]]; then
-        seen=$((seen + 1))
-        patch_secret_string_key "${harbor_ns}" "${secret_name}" "password" "${HARBOR_DB_PASSWORD}"
-        patched=$((patched + 1))
-        echo "    patched ${harbor_ns}/${secret_name}:password"
-      fi
-    fi
-  done < <(kubectl -n "${harbor_ns}" get secrets -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
-
-  if [[ "${seen}" -eq 0 ]]; then
-    echo "Error: no Harbor secret keys discovered in namespace '${harbor_ns}'."
-    exit 1
-  fi
-
-  echo "==> Harbor secret keys patched: ${patched}"
-}
-
-rotate_harbor_database_password() {
-  local harbor_ns="registry"
-  local current_password=""
-  local sql_file=""
-  local secret_name
-
-  if [[ -z "${HARBOR_DB_POD}" ]]; then
-    echo "Error: Harbor database pod not found."
-    exit 1
-  fi
-
-  current_password="$(kubectl -n "${harbor_ns}" exec "${HARBOR_DB_POD}" -- sh -c 'cat /opt/bitnami/postgresql/secrets/postgres-password 2>/dev/null || cat /bitnami/postgresql/secrets/postgres-password 2>/dev/null || true' 2>/dev/null || true)"
-
-  if [[ -z "${current_password}" ]]; then
-    while IFS= read -r secret_name; do
-      [[ "${secret_name}" == *harbor* ]] || continue
-      current_password="$(get_secret_value "${harbor_ns}" "${secret_name}" "POSTGRES_PASSWORD" || true)"
-      [[ -n "${current_password}" ]] && break
-      current_password="$(get_secret_value "${harbor_ns}" "${secret_name}" "postgres-password" || true)"
-      [[ -n "${current_password}" ]] && break
-      if [[ "${secret_name}" == *"harbor-database"* ]]; then
-        current_password="$(get_secret_value "${harbor_ns}" "${secret_name}" "password" || true)"
-        [[ -n "${current_password}" ]] && break
-      fi
-    done < <(kubectl -n "${harbor_ns}" get secrets -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
-  fi
-
-  if [[ -z "${current_password}" ]]; then
-    echo "Error: cannot read current Harbor DB password from pod/secret."
-    exit 1
-  fi
-
-  sql_file="$(mktemp)"
-  cat > "${sql_file}" <<EOF
-ALTER USER postgres WITH PASSWORD '$(sql_escape "${HARBOR_DB_PASSWORD}")';
-EOF
-
-  if ! kubectl -n "${harbor_ns}" exec -i "${HARBOR_DB_POD}" -- env "PGPASSWORD=${current_password}" psql -U postgres -d postgres < "${sql_file}" >/dev/null 2>&1; then
-    if ! kubectl -n "${harbor_ns}" exec -i "${HARBOR_DB_POD}" -- env "PGPASSWORD=${current_password}" /opt/bitnami/postgresql/bin/psql -U postgres -d postgres < "${sql_file}" >/dev/null 2>&1; then
-      rm -f "${sql_file}"
-      echo "Error: failed to rotate Harbor database password in Postgres."
-      exit 1
-    fi
-  fi
-
-  rm -f "${sql_file}"
-  echo "==> Harbor database password rotated in Postgres"
-}
-
-restart_harbor_workloads() {
-  local ns="registry"
-  local -a deployments=("harbor-core" "harbor-jobservice" "harbor-portal" "harbor-registry" "harbor-nginx")
-  local -a statefulsets=("harbor-database" "harbor-redis")
-  local name
-
-  echo "==> Restarting Harbor workloads"
-  for name in "${deployments[@]}"; do
-    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
-      kubectl -n "${ns}" rollout restart "deployment/${name}"
-    fi
-  done
-
-  for name in "${statefulsets[@]}"; do
-    if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
-      kubectl -n "${ns}" rollout restart "statefulset/${name}"
-    fi
-  done
-
-  for name in "${deployments[@]}"; do
-    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
-      kubectl -n "${ns}" rollout status "deployment/${name}" --timeout=600s
-    fi
-  done
-}
-
-patch_rancher_secrets() {
-  local ns="cattle-system"
-  local secret_name
-  local patched="0"
-
-  while IFS= read -r secret_name; do
-    [[ -n "${secret_name}" ]] || continue
-    if [[ "${secret_name}" != *bootstrap* && "${secret_name}" != *rancher* ]]; then
-      continue
-    fi
-
-    if [[ -n "$(get_secret_value "${ns}" "${secret_name}" "bootstrapPassword" || true)" ]]; then
-      patch_secret_string_key "${ns}" "${secret_name}" "bootstrapPassword" "${RANCHER_BOOTSTRAP_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${ns}/${secret_name}:bootstrapPassword"
-    fi
-
-    if [[ -n "$(get_secret_value "${ns}" "${secret_name}" "RANCHER_BOOTSTRAP_PASSWORD" || true)" ]]; then
-      patch_secret_string_key "${ns}" "${secret_name}" "RANCHER_BOOTSTRAP_PASSWORD" "${RANCHER_BOOTSTRAP_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${ns}/${secret_name}:RANCHER_BOOTSTRAP_PASSWORD"
-    fi
-  done < <(kubectl -n "${ns}" get secrets -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
-
-  if [[ "${patched}" -eq 0 ]]; then
-    echo "Error: Rancher bootstrap secret key not found in namespace '${ns}'."
-    exit 1
-  fi
-
-  echo "==> Rancher secret keys patched: ${patched}"
-}
-
-patch_grafana_secrets() {
-  local ns="monitoring"
-  local secret_name
-  local patched="0"
-
-  while IFS= read -r secret_name; do
-    [[ -n "${secret_name}" ]] || continue
-    if [[ "${secret_name}" != *grafana* ]]; then
-      continue
-    fi
-
-    if [[ -n "$(get_secret_value "${ns}" "${secret_name}" "admin-password" || true)" ]]; then
-      patch_secret_string_key "${ns}" "${secret_name}" "admin-password" "${GRAFANA_ADMIN_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${ns}/${secret_name}:admin-password"
-    fi
-
-    if [[ -n "$(get_secret_value "${ns}" "${secret_name}" "GF_SECURITY_ADMIN_PASSWORD" || true)" ]]; then
-      patch_secret_string_key "${ns}" "${secret_name}" "GF_SECURITY_ADMIN_PASSWORD" "${GRAFANA_ADMIN_PASSWORD}"
-      patched=$((patched + 1))
-      echo "    patched ${ns}/${secret_name}:GF_SECURITY_ADMIN_PASSWORD"
-    fi
-  done < <(kubectl -n "${ns}" get secrets -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
-
-  if [[ "${patched}" -eq 0 ]]; then
-    echo "Error: Grafana admin secret key not found in namespace '${ns}'."
-    exit 1
-  fi
-
-  echo "==> Grafana secret keys patched: ${patched}"
-}
-
-restart_rancher_workload() {
-  local ns="cattle-system"
-  if ! kubectl -n "${ns}" get deployment rancher >/dev/null 2>&1; then
-    echo "Error: rancher deployment not found in namespace '${ns}'."
-    exit 1
-  fi
-
-  kubectl -n "${ns}" rollout restart deployment/rancher
-  kubectl -n "${ns}" rollout status deployment/rancher --timeout=600s
-}
-
-restart_grafana_workloads() {
-  local ns="monitoring"
-  local dep
-  local restarted="0"
-
-  while IFS= read -r dep; do
-    [[ -n "${dep}" ]] || continue
-    if [[ "${dep}" == *grafana* ]]; then
-      kubectl -n "${ns}" rollout restart "deployment/${dep}"
-      restarted=$((restarted + 1))
-    fi
-  done < <(kubectl -n "${ns}" get deployments -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
-
-  if [[ "${restarted}" -eq 0 ]]; then
-    echo "Error: no Grafana deployment found in namespace '${ns}'."
-    exit 1
-  fi
-
-  while IFS= read -r dep; do
-    [[ -n "${dep}" ]] || continue
-    if [[ "${dep}" == *grafana* ]]; then
-      kubectl -n "${ns}" rollout status "deployment/${dep}" --timeout=600s
-    fi
-  done < <(kubectl -n "${ns}" get deployments -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')
 }
 
 replace_url_password_for_user() {
@@ -813,36 +686,58 @@ transform_secret_value() {
   local value="$4"
   local updated user password
 
-  CURRENT_SECRET_NAME="${secret_name}"
-
   updated="${value}"
 
   case "${key}" in
     DATABASE_URL)
-      updated="$(replace_url_password_for_user "${updated}" "ctfd-username" "${ADMIN_DB_PASSWORD}" "true")"
+      if [[ -n "${MARIADB_CTFD_PASSWORD_NEW}" ]]; then
+        updated="$(replace_url_password_for_user "${updated}" "ctfd-username" "${MARIADB_CTFD_PASSWORD_NEW}" "true")"
+      fi
       ;;
     DB_CONNECTION)
-      updated="$(replace_db_connection_password_for_user "${updated}" "ctfd-username" "${ADMIN_DB_PASSWORD}")"
-      updated="$(replace_db_connection_password_for_user "${updated}" "contestant_be" "${CONTESTANT_BE_DB_PASSWORD}")"
-      updated="$(replace_db_connection_password_for_user "${updated}" "deployment_center" "${DEPLOYMENT_CENTER_DB_PASSWORD}")"
-      updated="$(replace_db_connection_password_for_user "${updated}" "deployment_listener" "${DEPLOYMENT_LISTENER_DB_PASSWORD}")"
-      updated="$(replace_db_connection_password_for_user "${updated}" "deployment_consumer" "${DEPLOYMENT_CONSUMER_DB_PASSWORD}")"
+      if [[ -n "${MARIADB_CTFD_PASSWORD_NEW}" ]]; then
+        updated="$(replace_db_connection_password_for_user "${updated}" "ctfd-username" "${MARIADB_CTFD_PASSWORD_NEW}")"
+      fi
       ;;
     REDIS_URL)
-      updated="$(replace_url_password_for_user "${updated}" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}" "true")"
-      updated="$(replace_url_password_for_user "${updated}" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}" "true")"
-      updated="$(replace_url_password_for_user "${updated}" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}" "true")"
-      updated="$(replace_url_password_for_user "${updated}" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}" "true")"
-      updated="$(replace_url_password_for_user "${updated}" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}" "true")"
-      updated="$(replace_url_password_for_user "${updated}" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}" "true")"
+      if [[ -n "${ADMIN_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_url_password_for_user "${updated}" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}" "true")"
+      fi
+      if [[ -n "${GATEWAY_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_url_password_for_user "${updated}" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}" "true")"
+      fi
+      if [[ -n "${CONTESTANT_BE_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_url_password_for_user "${updated}" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}" "true")"
+      fi
+      if [[ -n "${DEPLOYMENT_CENTER_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_url_password_for_user "${updated}" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}" "true")"
+      fi
+      if [[ -n "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_url_password_for_user "${updated}" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}" "true")"
+      fi
+      if [[ -n "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_url_password_for_user "${updated}" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}" "true")"
+      fi
       ;;
     REDIS_CONNECTION)
-      updated="$(replace_redis_connection_password_for_user "${updated}" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}")"
-      updated="$(replace_redis_connection_password_for_user "${updated}" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}")"
-      updated="$(replace_redis_connection_password_for_user "${updated}" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}")"
-      updated="$(replace_redis_connection_password_for_user "${updated}" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}")"
-      updated="$(replace_redis_connection_password_for_user "${updated}" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}")"
-      updated="$(replace_redis_connection_password_for_user "${updated}" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}")"
+      if [[ -n "${ADMIN_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_redis_connection_password_for_user "${updated}" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}")"
+      fi
+      if [[ -n "${GATEWAY_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_redis_connection_password_for_user "${updated}" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}")"
+      fi
+      if [[ -n "${CONTESTANT_BE_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_redis_connection_password_for_user "${updated}" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}")"
+      fi
+      if [[ -n "${DEPLOYMENT_CENTER_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_redis_connection_password_for_user "${updated}" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}")"
+      fi
+      if [[ -n "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_redis_connection_password_for_user "${updated}" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}")"
+      fi
+      if [[ -n "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}" ]]; then
+        updated="$(replace_redis_connection_password_for_user "${updated}" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}")"
+      fi
       ;;
     REDIS_PASS|REDIS_PASSWORD)
       user="$(get_secret_value "${namespace}" "${secret_name}" "REDIS_USER" || true)"
@@ -860,20 +755,9 @@ transform_secret_value() {
         updated="${password}"
       fi
       ;;
-    RABBIT_PASSWORD)
-      if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
-        password="$(rabbit_password_for_key "${key}")"
-        if [[ -n "${password}" ]]; then
-          updated="${password}"
-        fi
-      fi
-      ;;
-    rabbitmq-password|rabbitmq-erlang-cookie|RABBITMQ_ERLANG_COOKIE)
-      if [[ "${ROTATE_RABBITMQ}" == "true" && "${namespace}" == "db" ]]; then
-        password="$(rabbit_password_for_key "${key}")"
-        if [[ -n "${password}" ]]; then
-          updated="${password}"
-        fi
+    redis-password)
+      if [[ -n "${REDIS_ROOT_PASSWORD_NEW}" ]]; then
+        updated="${REDIS_ROOT_PASSWORD_NEW}"
       fi
       ;;
     HARBOR_ADMIN_PASSWORD)
@@ -911,23 +795,20 @@ transform_secret_value() {
         updated="${HARBOR_REGISTRY_PASSWORD}"
       fi
       ;;
-    POSTGRES_PASSWORD|postgres-password)
-      if [[ "${ROTATE_HARBOR}" == "true" && "${namespace}" == "registry" && "${secret_name}" == *harbor* && -n "${HARBOR_DB_PASSWORD}" ]]; then
-        updated="${HARBOR_DB_PASSWORD}"
-      fi
-      ;;
-    bootstrapPassword|RANCHER_BOOTSTRAP_PASSWORD)
-      if [[ "${ROTATE_RANCHER}" == "true" && "${namespace}" == "cattle-system" && -n "${RANCHER_BOOTSTRAP_PASSWORD}" ]]; then
-        updated="${RANCHER_BOOTSTRAP_PASSWORD}"
-      fi
-      ;;
-    admin-password|GF_SECURITY_ADMIN_PASSWORD)
-      if [[ "${ROTATE_GRAFANA}" == "true" && "${namespace}" == "monitoring" && "${secret_name}" == *grafana* && -n "${GRAFANA_ADMIN_PASSWORD}" ]]; then
-        updated="${GRAFANA_ADMIN_PASSWORD}"
-      fi
-      ;;
     mariadb-password)
-      updated="${ADMIN_DB_PASSWORD}"
+      if [[ -n "${MARIADB_CTFD_PASSWORD_NEW}" ]]; then
+        updated="${MARIADB_CTFD_PASSWORD_NEW}"
+      fi
+      ;;
+    mariadb-root-password)
+      if [[ -n "${MARIADB_ROOT_PASSWORD_NEW}" ]]; then
+        updated="${MARIADB_ROOT_PASSWORD_NEW}"
+      fi
+      ;;
+    mariadb-replication-password)
+      if [[ -n "${MARIADB_REPLICATION_PASSWORD_NEW}" ]]; then
+        updated="${MARIADB_REPLICATION_PASSWORD_NEW}"
+      fi
       ;;
   esac
 
@@ -940,12 +821,12 @@ patch_additional_db_redis_secrets() {
   local namespace secret_name key current updated keys_blob
   local -a candidate_keys
   local -A candidate_lookup
+
   candidate_keys=(
     "DATABASE_URL" "DB_CONNECTION" "REDIS_URL" "REDIS_CONNECTION" "REDIS_PASS" "REDIS_PASSWORD"
-    "RABBIT_PASSWORD" "rabbitmq-password" "rabbitmq-erlang-cookie" "RABBITMQ_ERLANG_COOKIE"
-    "HARBOR_ADMIN_PASSWORD" "secretKey" "secret" "CORE_SECRET" "CSRF_KEY" "JOBSERVICE_SECRET" "REGISTRY_HTTP_SECRET" "REGISTRY_PASSWD" "POSTGRES_PASSWORD" "postgres-password"
-    "bootstrapPassword" "RANCHER_BOOTSTRAP_PASSWORD" "admin-password" "GF_SECURITY_ADMIN_PASSWORD"
-    "mariadb-password"
+    "redis-password"
+    "HARBOR_ADMIN_PASSWORD" "secretKey" "secret" "CORE_SECRET" "CSRF_KEY" "JOBSERVICE_SECRET" "REGISTRY_HTTP_SECRET" "REGISTRY_PASSWD"
+    "mariadb-password" "mariadb-root-password" "mariadb-replication-password"
   )
 
   for key in "${candidate_keys[@]}"; do
@@ -965,8 +846,6 @@ patch_additional_db_redis_secrets() {
       continue
     fi
 
-    debug_log "scan ${namespace}/${secret_name}"
-
     keys_blob="$(get_secret_keys "${namespace}" "${secret_name}")"
     [[ -n "${keys_blob}" ]] || continue
 
@@ -977,15 +856,11 @@ patch_additional_db_redis_secrets() {
       current="$(get_secret_value "${namespace}" "${secret_name}" "${key}" || true)"
       [[ -n "${current}" ]] || continue
 
-      debug_log "found key ${namespace}/${secret_name}:${key}"
-
       updated="$(transform_secret_value "${namespace}" "${secret_name}" "${key}" "${current}")"
       if [[ "${updated}" != "${current}" ]]; then
         patch_secret_string_key "${namespace}" "${secret_name}" "${key}" "${updated}"
         patched_count=$((patched_count + 1))
         echo "    patched ${namespace}/${secret_name}:${key}"
-      else
-        debug_log "no-change ${namespace}/${secret_name}:${key}"
       fi
     done <<< "${keys_blob}"
   done < <(kubectl get secrets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"|"}{.metadata.name}{"\n"}{end}')
@@ -1005,9 +880,9 @@ restart_deployments() {
     "deployment-consumer"
     "challenge-gateway"
   )
+  local dep
 
   echo "==> Restarting app deployments to reload env from Secret"
-  local dep
   for dep in "${deployments[@]}"; do
     kubectl -n "${APP_NAMESPACE}" rollout restart "deployment/${dep}"
   done
@@ -1016,6 +891,17 @@ restart_deployments() {
   for dep in "${deployments[@]}"; do
     kubectl -n "${APP_NAMESPACE}" rollout status "deployment/${dep}" --timeout=600s
   done
+}
+
+restart_mariadb_workload() {
+  local ns="db"
+  if ! kubectl -n "${ns}" get statefulset mariadb >/dev/null 2>&1; then
+    echo "Error: mariadb statefulset not found in namespace '${ns}'."
+    exit 1
+  fi
+
+  kubectl -n "${ns}" rollout restart statefulset/mariadb
+  kubectl -n "${ns}" rollout status statefulset/mariadb --timeout=600s
 }
 
 restart_rabbitmq_workload() {
@@ -1029,183 +915,14 @@ restart_rabbitmq_workload() {
   kubectl -n "${ns}" rollout status statefulset/rabbitmq --timeout=600s
 }
 
-require_command kubectl
-require_command base64
-require_command awk
-require_command tr
-require_command head
-
-if [[ ! -d "${PROD_DIR}" ]]; then
-  echo "Error: prod directory not found at ${PROD_DIR}"
-  exit 1
-fi
-
-echo "============================================================"
-echo "Rotate Service + Infrastructure Credentials"
-echo "============================================================"
-echo "Note: root credentials are auto-loaded where possible; you only input new required credentials."
-echo
-
-ADMIN_DB_PASSWORD=""
-CONTESTANT_BE_DB_PASSWORD=""
-DEPLOYMENT_CENTER_DB_PASSWORD=""
-DEPLOYMENT_LISTENER_DB_PASSWORD=""
-DEPLOYMENT_CONSUMER_DB_PASSWORD=""
-
-ADMIN_REDIS_PASSWORD=""
-GATEWAY_REDIS_PASSWORD=""
-CONTESTANT_BE_REDIS_PASSWORD=""
-DEPLOYMENT_CENTER_REDIS_PASSWORD=""
-DEPLOYMENT_LISTENER_REDIS_PASSWORD=""
-DEPLOYMENT_CONSUMER_REDIS_PASSWORD=""
-
-echo "==> Generating NEW credentials (50 chars, [A-Za-z0-9])"
-
-ADMIN_DB_PASSWORD="$(generate_random_secret 50)"
-CONTESTANT_BE_DB_PASSWORD="$(generate_random_secret 50)"
-DEPLOYMENT_CENTER_DB_PASSWORD="$(generate_random_secret 50)"
-DEPLOYMENT_LISTENER_DB_PASSWORD="$(generate_random_secret 50)"
-DEPLOYMENT_CONSUMER_DB_PASSWORD="$(generate_random_secret 50)"
-
-ADMIN_REDIS_PASSWORD="$(generate_random_secret 50)"
-GATEWAY_REDIS_PASSWORD="$(generate_random_secret 50)"
-CONTESTANT_BE_REDIS_PASSWORD="$(generate_random_secret 50)"
-DEPLOYMENT_CENTER_REDIS_PASSWORD="$(generate_random_secret 50)"
-DEPLOYMENT_LISTENER_REDIS_PASSWORD="$(generate_random_secret 50)"
-DEPLOYMENT_CONSUMER_REDIS_PASSWORD="$(generate_random_secret 50)"
-
-RABBIT_ADMIN_PASSWORD=""
-RABBIT_PRODUCER_PASSWORD=""
-RABBIT_CONSUMER_PASSWORD=""
-RABBIT_ERLANG_COOKIE=""
-
-RABBIT_ADMIN_PASSWORD="$(generate_random_secret 50)"
-RABBIT_PRODUCER_PASSWORD="$(generate_random_secret 50)"
-RABBIT_CONSUMER_PASSWORD="$(generate_random_secret 50)"
-RABBIT_ERLANG_COOKIE="$(generate_random_secret 50)"
-
-HARBOR_ADMIN_PASSWORD=""
-HARBOR_REGISTRY_PASSWORD=""
-HARBOR_DB_PASSWORD=""
-HARBOR_SECRET_KEY=""
-HARBOR_CORE_SECRET=""
-HARBOR_CSRF_KEY=""
-HARBOR_JOBSERVICE_SECRET=""
-HARBOR_REGISTRY_HTTP_SECRET=""
-
-HARBOR_ADMIN_PASSWORD="$(generate_random_secret 50)"
-HARBOR_DB_PASSWORD="$(generate_random_secret 50)"
-HARBOR_SECRET_KEY="$(generate_random_secret 50)"
-HARBOR_CORE_SECRET="$(generate_random_secret 50)"
-HARBOR_CSRF_KEY="$(generate_random_secret 50)"
-HARBOR_JOBSERVICE_SECRET="$(generate_random_secret 50)"
-HARBOR_REGISTRY_HTTP_SECRET="$(generate_random_secret 50)"
-HARBOR_REGISTRY_PASSWORD="$(generate_random_secret 50)"
-
-RANCHER_BOOTSTRAP_PASSWORD=""
-RANCHER_BOOTSTRAP_PASSWORD="$(generate_random_secret 50)"
-
-GRAFANA_ADMIN_PASSWORD=""
-GRAFANA_ADMIN_PASSWORD="$(generate_random_secret 50)"
-
-echo "==> All NEW credentials generated successfully"
-
-echo
-echo "==> Discovering DB/Redis pods"
-MARIADB_POD="$(get_pod_name "${DB_NAMESPACE}" "mariadb-0" "app.kubernetes.io/instance=mariadb,app.kubernetes.io/name=mariadb" || true)"
-REDIS_POD="$(get_pod_name "${DB_NAMESPACE}" "redis-master-0" "app.kubernetes.io/instance=redis,app.kubernetes.io/name=redis" || true)"
-RABBITMQ_POD=""
-HARBOR_DB_POD=""
-if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
-  RABBITMQ_POD="$(get_pod_name "${DB_NAMESPACE}" "rabbitmq-0" "app.kubernetes.io/instance=rabbitmq,app.kubernetes.io/name=rabbitmq" || true)"
-fi
-if [[ "${ROTATE_HARBOR}" == "true" ]]; then
-  HARBOR_DB_POD="$(get_pod_name "registry" "harbor-database-0" "app=harbor,component=database" || true)"
-fi
-
-if [[ -z "${MARIADB_POD}" ]]; then
-  echo "Error: cannot find MariaDB pod in namespace '${DB_NAMESPACE}'."
-  exit 1
-fi
-
-if [[ -z "${REDIS_POD}" ]]; then
-  echo "Error: cannot find Redis pod in namespace '${DB_NAMESPACE}'."
-  exit 1
-fi
-
-if [[ "${ROTATE_RABBITMQ}" == "true" && -z "${RABBITMQ_POD}" ]]; then
-  echo "Error: cannot find RabbitMQ pod in namespace '${DB_NAMESPACE}'."
-  exit 1
-fi
-
-if [[ "${ROTATE_HARBOR}" == "true" && -z "${HARBOR_DB_POD}" ]]; then
-  echo "Error: cannot find Harbor database pod in namespace 'registry'."
-  exit 1
-fi
-
-echo "    MariaDB pod: ${MARIADB_POD}"
-echo "    Redis pod:   ${REDIS_POD}"
-if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
-  echo "    RabbitMQ pod:${RABBITMQ_POD}"
-fi
-if [[ "${ROTATE_HARBOR}" == "true" ]]; then
-  echo "    Harbor DB pod:${HARBOR_DB_POD}"
-fi
-
-echo
-echo "==> Auto-loading root credentials"
-MARIADB_ROOT_PASSWORD="$(kubectl -n "${DB_NAMESPACE}" exec "${MARIADB_POD}" -- cat /opt/bitnami/mariadb/secrets/mariadb-root-password 2>/dev/null || true)"
-if [[ -z "${MARIADB_ROOT_PASSWORD}" ]]; then
-  MARIADB_ROOT_PASSWORD="$(get_secret_value "${DB_NAMESPACE}" "mariadb-auth-secret" "mariadb-root-password" || true)"
-fi
-
-if [[ -z "${MARIADB_ROOT_PASSWORD}" ]]; then
-  echo "Error: cannot auto-load MariaDB root password from pod or secret."
-  exit 1
-fi
-
-REDIS_ROOT_PASSWORD="$(kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- cat /opt/bitnami/redis/secrets/redis-password 2>/dev/null || true)"
-if [[ -z "${REDIS_ROOT_PASSWORD}" ]]; then
-  REDIS_ROOT_PASSWORD="$(get_secret_value "${DB_NAMESPACE}" "redis" "redis-password" || true)"
-fi
-
-if [[ -z "${REDIS_ROOT_PASSWORD}" ]]; then
-  echo "Error: cannot auto-load Redis root/default password from pod or secret."
-  exit 1
-fi
-
-echo "==> Updating MariaDB user passwords"
-MARIADB_SQL_FILE="$(mktemp)"
-trap 'rm -f "${MARIADB_SQL_FILE}"' EXIT
-
-cat > "${MARIADB_SQL_FILE}" <<EOF
-CREATE USER IF NOT EXISTS 'ctfd-username'@'%' IDENTIFIED BY '$(sql_escape "${ADMIN_DB_PASSWORD}")';
-ALTER USER 'ctfd-username'@'%' IDENTIFIED BY '$(sql_escape "${ADMIN_DB_PASSWORD}")';
-
-CREATE USER IF NOT EXISTS 'contestant_be'@'%' IDENTIFIED BY '$(sql_escape "${CONTESTANT_BE_DB_PASSWORD}")';
-ALTER USER 'contestant_be'@'%' IDENTIFIED BY '$(sql_escape "${CONTESTANT_BE_DB_PASSWORD}")';
-
-CREATE USER IF NOT EXISTS 'deployment_center'@'%' IDENTIFIED BY '$(sql_escape "${DEPLOYMENT_CENTER_DB_PASSWORD}")';
-ALTER USER 'deployment_center'@'%' IDENTIFIED BY '$(sql_escape "${DEPLOYMENT_CENTER_DB_PASSWORD}")';
-
-CREATE USER IF NOT EXISTS 'deployment_listener'@'%' IDENTIFIED BY '$(sql_escape "${DEPLOYMENT_LISTENER_DB_PASSWORD}")';
-ALTER USER 'deployment_listener'@'%' IDENTIFIED BY '$(sql_escape "${DEPLOYMENT_LISTENER_DB_PASSWORD}")';
-
-CREATE USER IF NOT EXISTS 'deployment_consumer'@'%' IDENTIFIED BY '$(sql_escape "${DEPLOYMENT_CONSUMER_DB_PASSWORD}")';
-ALTER USER 'deployment_consumer'@'%' IDENTIFIED BY '$(sql_escape "${DEPLOYMENT_CONSUMER_DB_PASSWORD}")';
-
-FLUSH PRIVILEGES;
-EOF
-
-kubectl -n "${DB_NAMESPACE}" exec -i "${MARIADB_POD}" -- \
-  /opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot "-p${MARIADB_ROOT_PASSWORD}" < "${MARIADB_SQL_FILE}"
-
-echo "==> Updating Redis ACL user passwords"
 set_redis_acl_user_password() {
   local username="$1"
   local password="$2"
 
-  # Try non-TLS first, then TLS (common with Bitnami Redis when tls.enabled=true).
+  if [[ -z "${password}" ]]; then
+    return 0
+  fi
+
   if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
     env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
     /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
@@ -1225,157 +942,209 @@ set_redis_acl_user_password() {
   return 1
 }
 
-set_redis_acl_user_password "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
-set_redis_acl_user_password "svc_gateway" "${GATEWAY_REDIS_PASSWORD}"
-set_redis_acl_user_password "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}"
-set_redis_acl_user_password "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
-set_redis_acl_user_password "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
-set_redis_acl_user_password "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+set_redis_default_password() {
+  local new_password="$1"
+
+  if [[ -z "${new_password}" ]]; then
+    return 0
+  fi
+
+  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+    /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
+    ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+    /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
+    ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Error: failed to rotate Redis default password."
+  return 1
+}
+
+require_command kubectl
+require_command base64
+require_command awk
+require_command tr
+require_command head
+require_command sed
+
+if [[ ! -d "${PROD_DIR}" ]]; then
+  echo "Error: prod directory not found at ${PROD_DIR}"
+  exit 1
+fi
+
+echo "============================================================"
+echo "Rotate Service + Infrastructure Credentials"
+echo "============================================================"
+echo "Mode: rotate Redis + RabbitMQ producer/consumer + MariaDB secret credentials."
+echo "Note: rabbit-admin/Harbor admin/Rancher/Grafana admins are not rotated."
+echo "Note: Kubernetes secret key RABBIT_PASSWORD (admin) is not rotated."
+echo
+
+MARIADB_CTFD_PASSWORD_NEW=""
+MARIADB_ROOT_PASSWORD_NEW=""
+MARIADB_REPLICATION_PASSWORD_NEW=""
+
+ADMIN_REDIS_PASSWORD=""
+GATEWAY_REDIS_PASSWORD=""
+CONTESTANT_BE_REDIS_PASSWORD=""
+DEPLOYMENT_CENTER_REDIS_PASSWORD=""
+DEPLOYMENT_LISTENER_REDIS_PASSWORD=""
+DEPLOYMENT_CONSUMER_REDIS_PASSWORD=""
+REDIS_ROOT_PASSWORD_NEW=""
+
+RABBIT_PRODUCER_PASSWORD=""
+RABBIT_CONSUMER_PASSWORD=""
+
+HARBOR_ADMIN_PASSWORD=""
+HARBOR_REGISTRY_PASSWORD=""
+HARBOR_REGISTRY_USERNAME=""
+HARBOR_REGISTRY_HTPASSWD=""
+HARBOR_SECRET_KEY=""
+HARBOR_CORE_SECRET=""
+HARBOR_CSRF_KEY=""
+HARBOR_JOBSERVICE_SECRET=""
+HARBOR_REGISTRY_HTTP_SECRET=""
+
+echo "==> Generating new passwords"
+MARIADB_CTFD_PASSWORD_NEW="$(generate_random_secret 50)"
+MARIADB_ROOT_PASSWORD_NEW="$(generate_random_secret 50)"
+MARIADB_REPLICATION_PASSWORD_NEW="$(generate_random_secret 50)"
+
+ADMIN_REDIS_PASSWORD="$(generate_random_secret 50)"
+GATEWAY_REDIS_PASSWORD="$(generate_random_secret 50)"
+CONTESTANT_BE_REDIS_PASSWORD="$(generate_random_secret 50)"
+DEPLOYMENT_CENTER_REDIS_PASSWORD="$(generate_random_secret 50)"
+DEPLOYMENT_LISTENER_REDIS_PASSWORD="$(generate_random_secret 50)"
+DEPLOYMENT_CONSUMER_REDIS_PASSWORD="$(generate_random_secret 50)"
+REDIS_ROOT_PASSWORD_NEW="$(generate_random_secret 50)"
+
+RABBIT_PRODUCER_PASSWORD="$(generate_random_secret 50)"
+RABBIT_CONSUMER_PASSWORD="$(generate_random_secret 50)"
+
+echo "==> Rotation plan"
+echo "    Redis ACL users:             ${NEED_REDIS_ROTATION}"
+echo "    Redis default password:      ${NEED_REDIS_ROTATION}"
+echo "    RabbitMQ producer/consumer:  ${ROTATE_RABBITMQ}"
+echo "    MariaDB secret-only rotate:  ${NEED_MARIADB_ROTATION}"
+echo "    Harbor static secret sync:   ${ROTATE_HARBOR}"
+
+echo
+echo "==> Discovering required pods"
+REDIS_POD=""
+RABBITMQ_POD=""
+
+if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
+  REDIS_POD="$(get_pod_name "${DB_NAMESPACE}" "redis-master-0" "app.kubernetes.io/instance=redis,app.kubernetes.io/name=redis" || true)"
+fi
 
 if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
-  echo "==> Updating RabbitMQ user passwords"
-  kubectl -n "${DB_NAMESPACE}" exec "${RABBITMQ_POD}" -- rabbitmqctl change_password rabbit-admin "${RABBIT_ADMIN_PASSWORD}" >/dev/null
+  RABBITMQ_POD="$(get_pod_name "${DB_NAMESPACE}" "rabbitmq-0" "app.kubernetes.io/instance=rabbitmq,app.kubernetes.io/name=rabbitmq" || true)"
+fi
+
+if [[ "${NEED_REDIS_ROTATION}" == "true" && -z "${REDIS_POD}" ]]; then
+  echo "Error: cannot find Redis pod in namespace '${DB_NAMESPACE}'."
+  exit 1
+fi
+
+if [[ "${ROTATE_RABBITMQ}" == "true" && -z "${RABBITMQ_POD}" ]]; then
+  echo "Error: cannot find RabbitMQ pod in namespace '${DB_NAMESPACE}'."
+  exit 1
+fi
+
+if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
+  echo "    Redis pod:    ${REDIS_POD}"
+fi
+if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
+  echo "    RabbitMQ pod: ${RABBITMQ_POD}"
+fi
+
+if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
+  echo
+  echo "==> Rotating MariaDB secret credentials only (no SQL)"
+  if ! kubectl -n "${DB_NAMESPACE}" get secret mariadb-auth-secret >/dev/null 2>&1; then
+    echo "Error: secret ${DB_NAMESPACE}/mariadb-auth-secret not found."
+    exit 1
+  fi
+
+  patch_secret_string_key "${DB_NAMESPACE}" "mariadb-auth-secret" "mariadb-password" "${MARIADB_CTFD_PASSWORD_NEW}"
+  patch_secret_string_key "${DB_NAMESPACE}" "mariadb-auth-secret" "mariadb-root-password" "${MARIADB_ROOT_PASSWORD_NEW}"
+  patch_secret_string_key "${DB_NAMESPACE}" "mariadb-auth-secret" "mariadb-replication-password" "${MARIADB_REPLICATION_PASSWORD_NEW}"
+  echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-password"
+  echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-root-password"
+  echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-replication-password"
+fi
+
+if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
+  echo
+  echo "==> Auto-loading current Redis default password"
+  REDIS_ROOT_PASSWORD="$(kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- cat /opt/bitnami/redis/secrets/redis-password 2>/dev/null || true)"
+  if [[ -z "${REDIS_ROOT_PASSWORD}" ]]; then
+    REDIS_ROOT_PASSWORD="$(get_secret_value "${DB_NAMESPACE}" "redis" "redis-password" || true)"
+  fi
+
+  if [[ -z "${REDIS_ROOT_PASSWORD}" ]]; then
+    echo "Error: cannot auto-load Redis default password from pod or secret."
+    exit 1
+  fi
+
+  echo "==> Rotating Redis ACL users + default password"
+  set_redis_acl_user_password "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
+  set_redis_acl_user_password "svc_gateway" "${GATEWAY_REDIS_PASSWORD}"
+  set_redis_acl_user_password "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}"
+  set_redis_acl_user_password "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
+  set_redis_acl_user_password "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
+  set_redis_acl_user_password "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+  set_redis_default_password "${REDIS_ROOT_PASSWORD_NEW}"
+
+  if kubectl -n "${DB_NAMESPACE}" get secret redis >/dev/null 2>&1; then
+    patch_secret_string_key "${DB_NAMESPACE}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
+    echo "    patched ${DB_NAMESPACE}/redis:redis-password"
+  fi
+fi
+
+if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
+  echo
+  echo "==> Rotating RabbitMQ producer/consumer passwords"
   kubectl -n "${DB_NAMESPACE}" exec "${RABBITMQ_POD}" -- rabbitmqctl change_password deployment-producer "${RABBIT_PRODUCER_PASSWORD}" >/dev/null
   kubectl -n "${DB_NAMESPACE}" exec "${RABBITMQ_POD}" -- rabbitmqctl change_password deployment-consumer "${RABBIT_CONSUMER_PASSWORD}" >/dev/null
-
-  if kubectl -n "${DB_NAMESPACE}" get secret rabbitmq >/dev/null 2>&1; then
-    patch_secret_string_key "${DB_NAMESPACE}" "rabbitmq" "rabbitmq-password" "${RABBIT_ADMIN_PASSWORD}"
-    patch_secret_string_key "${DB_NAMESPACE}" "rabbitmq" "rabbitmq-erlang-cookie" "${RABBIT_ERLANG_COOKIE}"
-    echo "    patched ${DB_NAMESPACE}/rabbitmq:rabbitmq-password"
-    echo "    patched ${DB_NAMESPACE}/rabbitmq:rabbitmq-erlang-cookie"
-  fi
 
   patch_rabbitmq_definition_secret
 fi
 
-echo "==> Building new connection strings"
-ADMIN_DB_PASSWORD_URLENC="$(rawurlencode "${ADMIN_DB_PASSWORD}")"
-ADMIN_REDIS_PASSWORD_URLENC="$(rawurlencode "${ADMIN_REDIS_PASSWORD}")"
-
-ADMIN_DATABASE_URL="mysql+pymysql://ctfd-username:${ADMIN_DB_PASSWORD_URLENC}@${MARIADB_HOST}:${MARIADB_PORT}/${MARIADB_DATABASE}"
-ADMIN_REDIS_URL="rediss://svc_admin_mvc:${ADMIN_REDIS_PASSWORD_URLENC}@${REDIS_HOST}:${REDIS_PORT}/0?ssl_cert_reqs=none"
-
-CBE_DB_CONNECTION="Server=${MARIADB_HOST};Port=${MARIADB_PORT};Database=${MARIADB_DATABASE};User=contestant_be;Password=${CONTESTANT_BE_DB_PASSWORD};"
-DPC_DB_CONNECTION="Server=${MARIADB_HOST};Port=${MARIADB_PORT};Database=${MARIADB_DATABASE};User=deployment_center;Password=${DEPLOYMENT_CENTER_DB_PASSWORD};"
-DPSL_DB_CONNECTION="Server=${MARIADB_HOST};Port=${MARIADB_PORT};Database=${MARIADB_DATABASE};User=deployment_listener;Password=${DEPLOYMENT_LISTENER_DB_PASSWORD};"
-DPSC_DB_CONNECTION="Server=${MARIADB_HOST};Port=${MARIADB_PORT};Database=${MARIADB_DATABASE};User=deployment_consumer;Password=${DEPLOYMENT_CONSUMER_DB_PASSWORD};"
-
-CBE_REDIS_CONNECTION="${REDIS_HOST}:${REDIS_PORT},user=svc_contestant_be,password=${CONTESTANT_BE_REDIS_PASSWORD},defaultDatabase=0,ssl=true,sslProtocols=Tls12"
-DPC_REDIS_CONNECTION="${REDIS_HOST}:${REDIS_PORT},user=svc_deployment_center,password=${DEPLOYMENT_CENTER_REDIS_PASSWORD},defaultDatabase=0,ssl=true,sslProtocols=Tls12"
-DPSL_REDIS_CONNECTION="${REDIS_HOST}:${REDIS_PORT},user=svc_deployment_listener,password=${DEPLOYMENT_LISTENER_REDIS_PASSWORD},defaultDatabase=0,ssl=true,sslProtocols=Tls12"
-DPSC_REDIS_CONNECTION="${REDIS_HOST}:${REDIS_PORT},user=svc_deployment_consumer,password=${DEPLOYMENT_CONSUMER_REDIS_PASSWORD},defaultDatabase=0,ssl=true,sslProtocols=Tls12"
-
-echo "==> Reading current non-password secret values"
-ADMIN_SECRET_KEY="$(get_secret_value "${APP_NAMESPACE}" "admin-mvc-secret" "SECRET_KEY" || true)"
-ADMIN_REDIS_USER="$(get_secret_value "${APP_NAMESPACE}" "admin-mvc-secret" "REDIS_USER" || true)"
-ADMIN_REDIS_PORT_EXISTING="$(get_secret_value "${APP_NAMESPACE}" "admin-mvc-secret" "REDIS_PORT" || true)"
-if [[ -z "${ADMIN_SECRET_KEY}" ]]; then
-  echo "Error: cannot read SECRET_KEY from secret admin-mvc-secret."
-  exit 1
-fi
-if [[ -z "${ADMIN_REDIS_USER}" ]]; then
-  ADMIN_REDIS_USER="svc_admin_mvc"
-fi
-if [[ -z "${ADMIN_REDIS_PORT_EXISTING}" ]]; then
-  ADMIN_REDIS_PORT_EXISTING="${REDIS_PORT}"
-fi
-
-DPC_RABBIT_PASSWORD="$(get_secret_value "${APP_NAMESPACE}" "deployment-center-secret" "RABBIT_PASSWORD" || true)"
-DPSC_RABBIT_PASSWORD="$(get_secret_value "${APP_NAMESPACE}" "deployment-consumer-secret" "RABBIT_PASSWORD" || true)"
-if [[ -z "${DPC_RABBIT_PASSWORD}" ]]; then
-  echo "Error: cannot read RABBIT_PASSWORD from secret deployment-center-secret."
-  exit 1
-fi
-if [[ -z "${DPSC_RABBIT_PASSWORD}" ]]; then
-  echo "Error: cannot read RABBIT_PASSWORD from secret deployment-consumer-secret."
-  exit 1
-fi
-
-if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
-  DPC_RABBIT_PASSWORD="${RABBIT_PRODUCER_PASSWORD}"
-  DPSC_RABBIT_PASSWORD="${RABBIT_CONSUMER_PASSWORD}"
-fi
-GATEWAY_REDIS_USER="$(get_secret_value "${APP_NAMESPACE}" "challenge-gateway-secret" "REDIS_USERNAME" || true)"
-if [[ -z "${GATEWAY_REDIS_USER}" ]]; then
-  GATEWAY_REDIS_USER="svc_gateway"
-fi
-
-MARIADB_REPLICATION_PASSWORD="$(get_secret_value "${DB_NAMESPACE}" "mariadb-auth-secret" "mariadb-replication-password" || true)"
-if [[ -z "${MARIADB_REPLICATION_PASSWORD}" ]]; then
-  echo "Error: cannot read mariadb-replication-password from secret mariadb-auth-secret."
-  exit 1
-fi
-
-echo "==> Applying updated Kubernetes Secrets"
-apply_secret_from_literals "${APP_NAMESPACE}" "admin-mvc-secret" \
-  "DATABASE_URL" "${ADMIN_DATABASE_URL}" \
-  "SECRET_KEY" "${ADMIN_SECRET_KEY}" \
-  "REDIS_USER" "${ADMIN_REDIS_USER}" \
-  "REDIS_PASS" "${ADMIN_REDIS_PASSWORD}" \
-  "REDIS_PORT" "${ADMIN_REDIS_PORT_EXISTING}" \
-  "REDIS_URL" "${ADMIN_REDIS_URL}"
-
-apply_secret_from_literals "${APP_NAMESPACE}" "contestant-be-secret" \
-  "DB_CONNECTION" "${CBE_DB_CONNECTION}" \
-  "REDIS_CONNECTION" "${CBE_REDIS_CONNECTION}"
-
-apply_secret_from_literals "${APP_NAMESPACE}" "deployment-center-secret" \
-  "DB_CONNECTION" "${DPC_DB_CONNECTION}" \
-  "REDIS_CONNECTION" "${DPC_REDIS_CONNECTION}" \
-  "RABBIT_PASSWORD" "${DPC_RABBIT_PASSWORD}"
-
-apply_secret_from_literals "${APP_NAMESPACE}" "deployment-consumer-secret" \
-  "DB_CONNECTION" "${DPSC_DB_CONNECTION}" \
-  "REDIS_CONNECTION" "${DPSC_REDIS_CONNECTION}" \
-  "RABBIT_PASSWORD" "${DPSC_RABBIT_PASSWORD}"
-
-apply_secret_from_literals "${APP_NAMESPACE}" "deployment-listener-secret" \
-  "DB_CONNECTION" "${DPSL_DB_CONNECTION}" \
-  "REDIS_CONNECTION" "${DPSL_REDIS_CONNECTION}"
-
-apply_secret_from_literals "${APP_NAMESPACE}" "challenge-gateway-secret" \
-  "REDIS_USERNAME" "${GATEWAY_REDIS_USER}" \
-  "REDIS_PASSWORD" "${GATEWAY_REDIS_PASSWORD}"
-
-apply_secret_from_literals "${DB_NAMESPACE}" "mariadb-auth-secret" \
-  "mariadb-root-password" "${MARIADB_ROOT_PASSWORD}" \
-  "mariadb-password" "${ADMIN_DB_PASSWORD}" \
-  "mariadb-replication-password" "${MARIADB_REPLICATION_PASSWORD}"
-
 if [[ "${ROTATE_HARBOR}" == "true" ]]; then
-  echo "==> Rotating Harbor internal database password"
-  rotate_harbor_database_password
-
-  echo "==> Patching Harbor-related secret keys"
+  echo
+  echo "==> Patching Harbor static-value secrets only"
+  load_harbor_static_values
   patch_harbor_secrets
 fi
 
-if [[ "${ROTATE_RANCHER}" == "true" ]]; then
-  echo "==> Patching Rancher-related secret keys"
-  patch_rancher_secrets
-fi
-
-if [[ "${ROTATE_GRAFANA}" == "true" ]]; then
-  echo "==> Patching Grafana-related secret keys"
-  patch_grafana_secrets
-fi
-
+echo
 echo "==> Patching additional related credential keys in all other secrets"
 patch_additional_db_redis_secrets
 
+RESTART_APP_DEPLOYMENTS="false"
+if [[ "${NEED_REDIS_ROTATION}" == "true" || "${NEED_MARIADB_ROTATION}" == "true" || "${ROTATE_RABBITMQ}" == "true" ]]; then
+  RESTART_APP_DEPLOYMENTS="true"
+fi
+
 if [[ "${SKIP_ROLLOUT_RESTART}" != "true" ]]; then
+  if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
+    restart_mariadb_workload
+  fi
+
   if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
     restart_rabbitmq_workload
   fi
 
-  restart_deployments
-
-  if [[ "${ROTATE_RANCHER}" == "true" ]]; then
-    restart_rancher_workload
-  fi
-
-  if [[ "${ROTATE_GRAFANA}" == "true" ]]; then
-    restart_grafana_workloads
+  if [[ "${RESTART_APP_DEPLOYMENTS}" == "true" ]]; then
+    restart_deployments
   fi
 
   if [[ "${ROTATE_HARBOR}" == "true" ]]; then
