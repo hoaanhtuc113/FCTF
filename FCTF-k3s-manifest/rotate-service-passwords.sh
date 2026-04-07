@@ -1194,7 +1194,35 @@ restart_redis_workload() {
     exit 1
   fi
 
-  kubectl -n "${ns}" rollout restart "statefulset/${redis_sts}"
+  if ! kubectl -n "${ns}" get secret redis-auth-secret >/dev/null 2>&1; then
+    echo "Error: secret ${ns}/redis-auth-secret not found."
+    exit 1
+  fi
+
+  if ! kubectl -n "${ns}" get secret redis-acl-users-secret >/dev/null 2>&1; then
+    echo "Error: secret ${ns}/redis-acl-users-secret not found."
+    exit 1
+  fi
+
+  echo "==> Scaling down Redis StatefulSet ${ns}/${redis_sts} to 0"
+  kubectl -n "${ns}" scale "statefulset/${redis_sts}" --replicas=0
+  kubectl -n "${ns}" rollout status "statefulset/${redis_sts}" --timeout=600s
+
+  echo "==> Patching Redis auth/ACL secrets while Redis is scaled down"
+  patch_secret_string_key "${ns}" "redis-auth-secret" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
+  patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
+  patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}"
+  patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}"
+  patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
+  patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
+  patch_secret_string_key "${ns}" "redis-acl-users-secret" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+
+  if kubectl -n "${ns}" get secret redis >/dev/null 2>&1; then
+    patch_secret_string_key "${ns}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
+  fi
+
+  echo "==> Scaling up Redis StatefulSet ${ns}/${redis_sts} to 1"
+  kubectl -n "${ns}" scale "statefulset/${redis_sts}" --replicas=1
   kubectl -n "${ns}" rollout status "statefulset/${redis_sts}" --timeout=600s
 }
 
@@ -1434,20 +1462,20 @@ if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
     exit 1
   fi
 
-  patch_secret_string_key "${DB_NAMESPACE}" "redis-auth-secret" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
-  echo "    patched ${DB_NAMESPACE}/redis-auth-secret:redis-password"
-
-  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
-  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}"
-  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}"
-  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
-  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
-  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
-  echo "    patched ${DB_NAMESPACE}/redis-acl-users-secret:<all acl user keys>"
-
-  if kubectl -n "${DB_NAMESPACE}" get secret redis >/dev/null 2>&1; then
-    patch_secret_string_key "${DB_NAMESPACE}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
-    echo "    patched ${DB_NAMESPACE}/redis:redis-password"
+  if [[ "${SKIP_ROLLOUT_RESTART}" == "true" ]]; then
+    patch_secret_string_key "${DB_NAMESPACE}" "redis-auth-secret" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
+    patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
+    patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}"
+    patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}"
+    patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
+    patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
+    patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+    if kubectl -n "${DB_NAMESPACE}" get secret redis >/dev/null 2>&1; then
+      patch_secret_string_key "${DB_NAMESPACE}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
+    fi
+    echo "    patched Redis secrets (skip rollout restart mode)"
+  else
+    echo "    deferred Redis secret patch to restart step: scale 0 -> patch -> scale 1"
   fi
 fi
 
