@@ -94,38 +94,38 @@ run_privileged() {
 }
 
 install_hash_generation_tools() {
-  if command -v htpasswd >/dev/null 2>&1 || command -v openssl >/dev/null 2>&1; then
+  if command -v htpasswd >/dev/null 2>&1; then
     HASH_TOOL_READY="true"
     return 0
   fi
 
-  echo "==> htpasswd/openssl not found, attempting auto-install"
+  echo "==> htpasswd not found, attempting auto-install"
 
   if command -v apt-get >/dev/null 2>&1; then
     run_privileged apt-get update -y >/dev/null
-    run_privileged apt-get install -y apache2-utils openssl >/dev/null
+    run_privileged apt-get install -y apache2-utils >/dev/null
   elif command -v dnf >/dev/null 2>&1; then
-    run_privileged dnf install -y httpd-tools openssl >/dev/null
+    run_privileged dnf install -y httpd-tools >/dev/null
   elif command -v yum >/dev/null 2>&1; then
-    run_privileged yum install -y httpd-tools openssl >/dev/null
+    run_privileged yum install -y httpd-tools >/dev/null
   elif command -v apk >/dev/null 2>&1; then
-    run_privileged apk add --no-cache apache2-utils openssl >/dev/null
+    run_privileged apk add --no-cache apache2-utils >/dev/null
   elif command -v zypper >/dev/null 2>&1; then
-    run_privileged zypper --non-interactive install apache2-utils openssl >/dev/null
+    run_privileged zypper --non-interactive install apache2-utils >/dev/null
   elif command -v pacman >/dev/null 2>&1; then
-    run_privileged pacman -Sy --noconfirm apache openssl >/dev/null
+    run_privileged pacman -Sy --noconfirm apache >/dev/null
   else
     echo "Error: no supported package manager found for auto-install (apt/dnf/yum/apk/zypper/pacman)."
     return 1
   fi
 
-  if command -v htpasswd >/dev/null 2>&1 || command -v openssl >/dev/null 2>&1; then
+  if command -v htpasswd >/dev/null 2>&1; then
     HASH_TOOL_READY="true"
-    echo "==> Hash-generation tool installed successfully"
+    echo "==> htpasswd installed successfully"
     return 0
   fi
 
-  echo "Error: auto-install completed but htpasswd/openssl is still unavailable."
+  echo "Error: auto-install completed but htpasswd is still unavailable."
   return 1
 }
 
@@ -134,7 +134,7 @@ ensure_hash_generation_tool() {
     return 0
   fi
 
-  if command -v htpasswd >/dev/null 2>&1 || command -v openssl >/dev/null 2>&1; then
+  if command -v htpasswd >/dev/null 2>&1; then
     HASH_TOOL_READY="true"
     return 0
   fi
@@ -424,15 +424,6 @@ generate_registry_htpasswd_entry() {
     fi
   fi
 
-  if command -v openssl >/dev/null 2>&1; then
-    local hash
-    hash="$(openssl passwd -apr1 "${password}" 2>/dev/null || true)"
-    if [[ -n "${hash}" ]]; then
-      printf '%s:%s' "${username}" "${hash}"
-      return 0
-    fi
-  fi
-
   return 1
 }
 
@@ -636,7 +627,7 @@ patch_harbor_secrets() {
           patched=$((patched + 1))
           echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_HTPASSWD"
         else
-          echo "Error: ${harbor_ns}/${secret_name} requires REGISTRY_HTPASSWD but cannot generate it (install htpasswd or openssl)."
+          echo "Error: ${harbor_ns}/${secret_name} requires REGISTRY_HTPASSWD but cannot generate it (install htpasswd with bcrypt support)."
           exit 1
         fi
       fi
@@ -654,11 +645,15 @@ restart_harbor_workloads() {
   local ns="registry"
   local -a deployments=("harbor-core" "harbor-jobservice" "harbor-portal" "harbor-registry" "harbor-nginx")
   local -a statefulsets=("harbor-database" "harbor-redis")
-  local name
+  local name replicas
 
   echo "==> Restarting Harbor workloads"
   for name in "${deployments[@]}"; do
     if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      replicas="$(kubectl -n "${ns}" get deployment "${name}" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")"
+      if [[ "${replicas}" == "0" ]]; then
+        kubectl -n "${ns}" scale "deployment/${name}" --replicas=1 >/dev/null
+      fi
       kubectl -n "${ns}" rollout restart "deployment/${name}"
     fi
   done
@@ -666,6 +661,31 @@ restart_harbor_workloads() {
   for name in "${statefulsets[@]}"; do
     if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
       kubectl -n "${ns}" rollout restart "statefulset/${name}"
+    fi
+  done
+
+  for name in "${deployments[@]}"; do
+    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" rollout status "deployment/${name}" --timeout=600s
+    fi
+  done
+
+  for name in "${statefulsets[@]}"; do
+    if kubectl -n "${ns}" get statefulset "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" rollout status "statefulset/${name}" --timeout=600s
+    fi
+  done
+}
+
+scale_harbor_deployments_down() {
+  local ns="registry"
+  local -a deployments=("harbor-core" "harbor-jobservice" "harbor-portal" "harbor-registry" "harbor-nginx")
+  local name
+
+  echo "==> Scaling Harbor app deployments to 0 before secret patch"
+  for name in "${deployments[@]}"; do
+    if kubectl -n "${ns}" get deployment "${name}" >/dev/null 2>&1; then
+      kubectl -n "${ns}" scale "deployment/${name}" --replicas=0 >/dev/null
     fi
   done
 
@@ -1374,6 +1394,10 @@ if [[ "${ROTATE_HARBOR}" == "true" ]]; then
   echo
   echo "==> Rotating Harbor credentials and patching Harbor secrets"
   load_harbor_static_values
+
+  if [[ "${SKIP_ROLLOUT_RESTART}" != "true" ]]; then
+    scale_harbor_deployments_down
+  fi
 
   if [[ -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
     HARBOR_DATABASE_PASSWORD_OLD="$(discover_harbor_database_current_password || true)"
