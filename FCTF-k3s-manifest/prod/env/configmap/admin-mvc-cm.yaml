@@ -15,4 +15,4 @@ data:
   WORKERS: "3"
   UPLOAD_PROVIDER: "nfs"
   IMAGE_REPO: "fctf"
-  DOCKER_USERNAME: "registry0.fctf.site"
+  DOCKER_USERNAME: "registry.sanchoi.iahn.hanoi.vn"

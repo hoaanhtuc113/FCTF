@@ -1,4 +1,4 @@
-hostname: rancher0.fctf.site
+hostname: rancher.sanchoi.iahn.hanoi.vn
 replicas: 1
 bootstrapPassword: "Ab@123456789"
 tolerations:

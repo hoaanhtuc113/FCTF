@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # ===== CONFIG =====
-HARBOR_URL="https://registry0.fctf.site"
-HARBOR_HOST="registry0.fctf.site"
+HARBOR_URL="https://registry.sanchoi.iahn.hanoi.vn"
+HARBOR_HOST="registry.sanchoi.iahn.hanoi.vn"
 
 PROJECT_NAME="fctf"
 

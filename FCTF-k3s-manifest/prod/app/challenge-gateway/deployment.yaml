@@ -20,7 +20,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: challenge-gateway
-          image: registry0.fctf.site/fctf/challenge-gateway:latest
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/challenge-gateway:latest
           envFrom:
             - configMapRef:
                 name: challenge-gateway-cm

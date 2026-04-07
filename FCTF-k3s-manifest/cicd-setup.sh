@@ -195,7 +195,7 @@ cat <<'EOF'
 #
 #   HARBOR_USERNAME   – Harbor username (NOT email)
 #   HARBOR_TOKEN      – Harbor access token (NOT password)
-#                          Create at: https://registry0.fctf.site/settings/security
+#                          Create at: https://registry.sanchoi.iahn.hanoi.vn/settings/security
 #   KUBE_CONFIG          – base64-encoded kubeconfig cho CI/CD ServiceAccount
 #                          Chạy script trên server K3s để tạo tự động:
 #                            cd FCTF-k3s-manifest

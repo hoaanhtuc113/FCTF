@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: rancher-tls
   dnsNames:
-    - rancher0.fctf.site 
+    - rancher.sanchoi.iahn.hanoi.vn 
   issuerRef:
     name: letsencrypt-dev      
     kind: ClusterIssuer

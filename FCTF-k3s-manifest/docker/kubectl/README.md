@@ -5,7 +5,7 @@ Docker image chứa kubectl CLI để tương tác với Kubernetes.
 ## 1. Login Harbor
 
 ```bash
-docker login registry0.fctf.site
+docker login registry.sanchoi.iahn.hanoi.vn
 ```
 
 ## 2. Build va Push nhanh bang script
@@ -25,22 +25,22 @@ HARBOR_USER='<harbor-user>' HARBOR_PASSWORD='<harbor-password>' ./build-push-kub
 
 ```bash
 # Build image
-docker build -t registry0.fctf.site/fctf/kubectl-cli:latest -f ./dockerfile .
+docker build -t registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest -f ./dockerfile .
 
 # Push image
-docker push registry0.fctf.site/fctf/kubectl-cli:latest
+docker push registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
 ```
 
 ## 4. Su dung
 
 ```bash
 # Pull image
-docker pull registry0.fctf.site/fctf/kubectl-cli:latest
+docker pull registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
 
 # Chay kubectl (can mount kubeconfig)
 docker run --rm \
   -v ~/.kube/config:/root/.kube/config \
-  registry0.fctf.site/fctf/kubectl-cli:latest \
+  registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest \
   kubectl get pods
 ```
 
@@ -48,13 +48,13 @@ docker run --rm \
 ```bash
 docker buildx build \
   --platform linux/amd64 \
-  -t registry0.fctf.site/fctf/kubectl-cli:latest \
+  -t registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest \
   --push \
   .
 ```
 
 ## Thông tin
 
-- **Image**: `registry0.fctf.site/fctf/kubectl-cli:latest`
+- **Image**: `registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest`
 - **Base**: Alpine Linux 3.20
 - **Kubectl**: v1.34.0 

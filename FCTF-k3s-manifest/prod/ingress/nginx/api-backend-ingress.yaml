@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: api0.fctf.site
+    - host: apicontestant.sanchoi.iahn.hanoi.vn 
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 5010
   tls:
     - hosts:
-        - api0.fctf.site
+        - apicontestant.sanchoi.iahn.hanoi.vn 
       secretName: api-backend-tls

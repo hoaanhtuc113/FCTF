@@ -89,7 +89,7 @@ spec:
           fsGroup: 1104
           fsGroupChangePolicy: OnRootMismatch
       container:
-        image: registry0.fctf.site/fctf/kubectl-cli:latest
+        image: registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 1104

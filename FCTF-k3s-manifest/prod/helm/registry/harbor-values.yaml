@@ -3,7 +3,7 @@ expose:
   tls:
     enabled: false   # ingress terminate TLS rồi
 
-externalURL: https://registry0.fctf.site 
+externalURL: https://registry.sanchoi.iahn.hanoi.vn 
 
 # Prefer existing K8s Secret in production. If left empty, Harbor uses inline values below.
 existingSecretAdminPassword: ""

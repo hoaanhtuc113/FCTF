@@ -11,7 +11,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: rancher0.fctf.site
+    - host: rancher.sanchoi.iahn.hanoi.vn
       http:
         paths:
           - path: /
@@ -23,5 +23,5 @@ spec:
                   number: 443
   tls:
     - hosts:
-        - rancher0.fctf.site
+        - rancher.sanchoi.iahn.hanoi.vn
       secretName: rancher-tls
