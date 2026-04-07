@@ -38,7 +38,7 @@ Description:
     6) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
     7) Rotate RABBIT_PASSWORD only for deployment-center/deployment-consumer
      8) Rotate SECRET_KEY and PRIVATE_KEY for secrets in namespace app
-    9) Wait for Redis/RabbitMQ/MariaDB login readiness before failing
+    9) Wait for selected DB pods readiness before applying changes
 
 Options:
   --skip-rollout-restart   Do not restart workloads after secret rotation
@@ -979,6 +979,36 @@ transform_secret_value() {
         updated="${REDIS_ROOT_PASSWORD_NEW}"
       fi
       ;;
+    svc_admin_mvc)
+      if [[ -n "${ADMIN_REDIS_PASSWORD}" ]]; then
+        updated="${ADMIN_REDIS_PASSWORD}"
+      fi
+      ;;
+    svc_gateway)
+      if [[ -n "${GATEWAY_REDIS_PASSWORD}" ]]; then
+        updated="${GATEWAY_REDIS_PASSWORD}"
+      fi
+      ;;
+    svc_contestant_be)
+      if [[ -n "${CONTESTANT_BE_REDIS_PASSWORD}" ]]; then
+        updated="${CONTESTANT_BE_REDIS_PASSWORD}"
+      fi
+      ;;
+    svc_deployment_center)
+      if [[ -n "${DEPLOYMENT_CENTER_REDIS_PASSWORD}" ]]; then
+        updated="${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
+      fi
+      ;;
+    svc_deployment_consumer)
+      if [[ -n "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}" ]]; then
+        updated="${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+      fi
+      ;;
+    svc_deployment_listener)
+      if [[ -n "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}" ]]; then
+        updated="${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
+      fi
+      ;;
     HARBOR_ADMIN_PASSWORD)
       if [[ "${ROTATE_HARBOR}" == "true" && "${namespace}" == "registry" && "${secret_name}" == *harbor* && -n "${HARBOR_ADMIN_PASSWORD}" ]]; then
         updated="${HARBOR_ADMIN_PASSWORD}"
@@ -1060,6 +1090,7 @@ patch_additional_db_redis_secrets() {
     "SECRET_KEY" "PRIVATE_KEY"
     "RABBIT_PASSWORD"
     "redis-password"
+    "svc_admin_mvc" "svc_gateway" "svc_contestant_be" "svc_deployment_center" "svc_deployment_consumer" "svc_deployment_listener"
     "HARBOR_ADMIN_PASSWORD" "secretKey" "secret" "CORE_SECRET" "CSRF_KEY" "JOBSERVICE_SECRET" "REGISTRY_HTTP_SECRET" "REGISTRY_PASSWD"
     "mariadb-password" "mariadb-root-password" "mariadb-replication-password"
   )
@@ -1220,78 +1251,6 @@ apply_mariadb_all_user_password_changes() {
   return 1
 }
 
-set_redis_acl_user_password() {
-  local username="$1"
-  local password="$2"
-  local deadline
-
-  if [[ -z "${password}" ]]; then
-    return 0
-  fi
-
-  deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
-  while true; do
-    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-      /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
-      ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
-      return 0
-    fi
-
-    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-      /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
-      ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
-      return 0
-    fi
-
-    if (( SECONDS >= deadline )); then
-      break
-    fi
-
-    sleep "${WAIT_INTERVAL_SECONDS}"
-  done
-
-  echo "Error: failed to rotate Redis ACL password for user '${username}'."
-  echo "Hint: Redis may require TLS-only access; non-TLS and TLS attempts both failed."
-  return 1
-}
-
-set_redis_default_password() {
-  local new_password="$1"
-  local deadline
-
-  if [[ -z "${new_password}" ]]; then
-    return 0
-  fi
-
-  deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
-  while true; do
-    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-      /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
-      ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
-      return 0
-    fi
-
-    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-      /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
-      ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
-      return 0
-    fi
-
-    if (( SECONDS >= deadline )); then
-      break
-    fi
-
-    sleep "${WAIT_INTERVAL_SECONDS}"
-  done
-
-  echo "Error: failed to rotate Redis default password."
-  return 1
-}
-
 set_rabbitmq_user_password() {
   local username="$1"
   local password="$2"
@@ -1402,13 +1361,8 @@ echo "    Harbor credential rotate:    ${ROTATE_HARBOR}"
 
 echo
 echo "==> Discovering required pods"
-REDIS_POD=""
 RABBITMQ_POD=""
 MARIADB_POD=""
-
-if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
-  REDIS_POD="$(get_pod_name "${DB_NAMESPACE}" "redis-master-0" "app.kubernetes.io/instance=redis,app.kubernetes.io/name=redis" || true)"
-fi
 
 if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
   RABBITMQ_POD="$(get_pod_name "${DB_NAMESPACE}" "rabbitmq-0" "app.kubernetes.io/instance=rabbitmq,app.kubernetes.io/name=rabbitmq" || true)"
@@ -1416,11 +1370,6 @@ fi
 
 if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   MARIADB_POD="$(get_pod_name "${DB_NAMESPACE}" "mariadb-0" "app.kubernetes.io/instance=mariadb,app.kubernetes.io/name=mariadb" || true)"
-fi
-
-if [[ "${NEED_REDIS_ROTATION}" == "true" && -z "${REDIS_POD}" ]]; then
-  echo "Error: cannot find Redis pod in namespace '${DB_NAMESPACE}'."
-  exit 1
 fi
 
 if [[ "${ROTATE_RABBITMQ}" == "true" && -z "${RABBITMQ_POD}" ]]; then
@@ -1433,9 +1382,6 @@ if [[ "${NEED_MARIADB_ROTATION}" == "true" && -z "${MARIADB_POD}" ]]; then
   exit 1
 fi
 
-if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
-  echo "    Redis pod:    ${REDIS_POD}"
-fi
 if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
   echo "    RabbitMQ pod: ${RABBITMQ_POD}"
 fi
@@ -1445,9 +1391,6 @@ fi
 
 echo
 echo "==> Waiting for selected DB pods to become Ready"
-if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
-  wait_for_pod_ready "${DB_NAMESPACE}" "${REDIS_POD}" "${WAIT_TIMEOUT_SECONDS}"
-fi
 if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
   wait_for_pod_ready "${DB_NAMESPACE}" "${RABBITMQ_POD}" "${WAIT_TIMEOUT_SECONDS}"
 fi
@@ -1479,25 +1422,28 @@ fi
 
 if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
   echo
-  echo "==> Auto-loading current Redis default password"
-  REDIS_ROOT_PASSWORD="$(kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- cat /opt/bitnami/redis/secrets/redis-password 2>/dev/null || true)"
-  if [[ -z "${REDIS_ROOT_PASSWORD}" ]]; then
-    REDIS_ROOT_PASSWORD="$(get_secret_value "${DB_NAMESPACE}" "redis" "redis-password" || true)"
-  fi
+  echo "==> Rotating Redis credentials by patching Secrets"
 
-  if [[ -z "${REDIS_ROOT_PASSWORD}" ]]; then
-    echo "Error: cannot auto-load Redis default password from pod or secret."
+  if ! kubectl -n "${DB_NAMESPACE}" get secret redis-auth-secret >/dev/null 2>&1; then
+    echo "Error: secret ${DB_NAMESPACE}/redis-auth-secret not found."
     exit 1
   fi
 
-  echo "==> Rotating Redis ACL users + default password"
-  set_redis_acl_user_password "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
-  set_redis_acl_user_password "svc_gateway" "${GATEWAY_REDIS_PASSWORD}"
-  set_redis_acl_user_password "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}"
-  set_redis_acl_user_password "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
-  set_redis_acl_user_password "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
-  set_redis_acl_user_password "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
-  set_redis_default_password "${REDIS_ROOT_PASSWORD_NEW}"
+  if ! kubectl -n "${DB_NAMESPACE}" get secret redis-acl-users-secret >/dev/null 2>&1; then
+    echo "Error: secret ${DB_NAMESPACE}/redis-acl-users-secret not found."
+    exit 1
+  fi
+
+  patch_secret_string_key "${DB_NAMESPACE}" "redis-auth-secret" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
+  echo "    patched ${DB_NAMESPACE}/redis-auth-secret:redis-password"
+
+  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_admin_mvc" "${ADMIN_REDIS_PASSWORD}"
+  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_gateway" "${GATEWAY_REDIS_PASSWORD}"
+  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_contestant_be" "${CONTESTANT_BE_REDIS_PASSWORD}"
+  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_center" "${DEPLOYMENT_CENTER_REDIS_PASSWORD}"
+  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_listener" "${DEPLOYMENT_LISTENER_REDIS_PASSWORD}"
+  patch_secret_string_key "${DB_NAMESPACE}" "redis-acl-users-secret" "svc_deployment_consumer" "${DEPLOYMENT_CONSUMER_REDIS_PASSWORD}"
+  echo "    patched ${DB_NAMESPACE}/redis-acl-users-secret:<all acl user keys>"
 
   if kubectl -n "${DB_NAMESPACE}" get secret redis >/dev/null 2>&1; then
     patch_secret_string_key "${DB_NAMESPACE}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"

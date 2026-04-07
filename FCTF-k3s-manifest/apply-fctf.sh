@@ -21,8 +21,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROD_DIR="${SCRIPT_DIR}/prod"
 ROTATE_SERVICE_SCRIPT="${SCRIPT_DIR}/rotate-service-passwords.sh"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
+REDIS_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/redis-auth-secret.yaml"
+REDIS_ACL_USERS_SECRET_FILE="${PROD_DIR}/env/secret/redis-acl-users-secret.yaml"
 MARIADB_CREATE_DB_SQL="${PROD_DIR}/helm/db/mariadb/createDB.sql"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
+RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD="Fctf2025@producer"
+RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD="Fctf2025@consumer"
 
 STORAGE_PV_FILES=(
   "${PROD_DIR}/storage/pv/admin-mvc-pv.yaml"
@@ -104,6 +108,63 @@ install_gvisor_production() {
   sudo install -o root -g root -m 0755 "${tmpdir}/containerd-shim-runsc-v1" /usr/local/bin/containerd-shim-runsc-v1
 
   echo "==> gVisor installed: $(/usr/local/bin/runsc --version 2>/dev/null | head -n 1 || echo "unknown version")"
+}
+
+bootstrap_rabbitmq_deploy_users() {
+  local ns="db"
+  local rabbit_pod=""
+  local deadline
+
+  if ! kubectl get namespace "${ns}" >/dev/null 2>&1; then
+    echo "Warning: namespace ${ns} not found; skip RabbitMQ deployment-user bootstrap."
+    return 0
+  fi
+
+  if ! kubectl -n "${ns}" get statefulset rabbitmq >/dev/null 2>&1; then
+    echo "Warning: statefulset ${ns}/rabbitmq not found; skip RabbitMQ deployment-user bootstrap."
+    return 0
+  fi
+
+  echo "==> Waiting for RabbitMQ pod readiness"
+  kubectl -n "${ns}" rollout status statefulset/rabbitmq --timeout=600s
+
+  if kubectl -n "${ns}" get pod rabbitmq-0 >/dev/null 2>&1; then
+    rabbit_pod="rabbitmq-0"
+  else
+    rabbit_pod="$(kubectl -n "${ns}" get pod -l app.kubernetes.io/instance=rabbitmq,app.kubernetes.io/name=rabbitmq -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+  fi
+
+  if [[ -z "${rabbit_pod}" ]]; then
+    echo "Error: cannot find RabbitMQ pod in namespace ${ns} for deployment-user bootstrap."
+    exit 1
+  fi
+
+  echo "==> Bootstrapping RabbitMQ deployment users"
+  deadline=$((SECONDS + 600))
+  while true; do
+    if kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl await_startup >/dev/null 2>&1; then
+      kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_vhost "fctf_deploy" >/dev/null 2>&1 || true
+
+      if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "deployment-producer" "${RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1; then
+        kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "deployment-producer" "${RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1
+      fi
+
+      if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "deployment-consumer" "${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1; then
+        kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "deployment-consumer" "${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1
+      fi
+
+      kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "deployment-producer" "^$" "^(deployment_exchange)$" "^$" >/dev/null 2>&1
+      kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "deployment-consumer" "^$" "^$" "^(deployment_queue)$" >/dev/null 2>&1
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      echo "Error: timeout bootstrapping RabbitMQ deployment users in ${ns}/${rabbit_pod}."
+      exit 1
+    fi
+
+    sleep 5
+  done
 }
 
 usage() {
@@ -223,8 +284,24 @@ if [[ "${APPLY_HELM}" == "true" ]]; then
     exit 1
   fi
 
+  if [[ ! -f "${REDIS_AUTH_SECRET_FILE}" ]]; then
+    echo "Error: Redis auth secret manifest not found at ${REDIS_AUTH_SECRET_FILE}"
+    echo "Please create/update this file before running Helm so Redis auth.existingSecret can be resolved."
+    exit 1
+  fi
+
+  if [[ ! -f "${REDIS_ACL_USERS_SECRET_FILE}" ]]; then
+    echo "Error: Redis ACL users secret manifest not found at ${REDIS_ACL_USERS_SECRET_FILE}"
+    echo "Please create/update this file before running Helm so Redis auth.acl.userSecret can be resolved."
+    exit 1
+  fi
+
   echo "==> Applying MariaDB auth secret before Helm"
   kubectl apply -f "${MARIADB_AUTH_SECRET_FILE}"
+
+  echo "==> Applying Redis auth secrets before Helm"
+  kubectl apply -f "${REDIS_AUTH_SECRET_FILE}"
+  kubectl apply -f "${REDIS_ACL_USERS_SECRET_FILE}"
 
   apply_storage_manifests
 
@@ -318,6 +395,8 @@ if [[ "${APPLY_ARGO_TEMPLATES}" == "true" ]]; then
   kubectl apply -f "${PROD_DIR}/argo-workflows/start-chal-v2/start-chal-v2-template.yaml"
   kubectl apply -f "${PROD_DIR}/argo-workflows/up-challenge/up-challenge-template.yaml"
 fi
+
+bootstrap_rabbitmq_deploy_users
 
 if [[ -f "${MARIADB_CREATE_DB_SQL}" && -f "${MARIADB_POST_INIT_GRANTS_SQL}" ]]; then
   echo "==> Waiting for MariaDB pod readiness"

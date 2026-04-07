@@ -151,15 +151,15 @@ auth:
   ## @param auth.password Redis(R) password
   ## Defaults to a random 10-character alphanumeric string if not set
   ##
-  password: "Fctf2025@"
+  password: ""
   ## @param auth.existingSecret The name of an existing secret with Redis(R) credentials
   ## NOTE: When it's set, the previous `auth.password` parameter is ignored
   ##
-  existingSecret: ""
+  existingSecret: "redis-auth-secret"
   ## @param auth.existingSecretPasswordKey Password key to be retrieved from existing secret
   ## NOTE: ignored unless `auth.existingSecret` parameter is set
   ##
-  existingSecretPasswordKey: ""
+  existingSecretPasswordKey: "redis-password"
   ## @param auth.usePasswordFiles Mount credentials as files instead of using an environment variable
   ##
   usePasswordFiles: true
@@ -189,7 +189,6 @@ auth:
     users:
       # CTFd/Admin MVC: needs cache + deploy flow + optional pubsub.
       - username: "svc_admin_mvc"
-        password: "AdmMvcRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe"
         keys: "~*"
@@ -197,7 +196,6 @@ auth:
 
       # Challenge Gateway: only limiter keyspace + Lua execution.
       - username: "svc_gateway"
-        password: "GwRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha"
         keys: "~fctf:gateway:*"
@@ -205,7 +203,6 @@ auth:
 
       # Contestant backend service + Lua execution.
       - username: "svc_contestant_be"
-        password: "CbeRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat"
         keys: "~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:*"
@@ -213,7 +210,6 @@ auth:
 
       # Deployment center service + Lua execution.
       - username: "svc_deployment_center"
-        password: "DpcRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
         keys: "~deploy_challenge_* ~active_deploys_team_*"
@@ -221,7 +217,6 @@ auth:
 
       # Deployment consumer service + Lua execution.
       - username: "svc_deployment_consumer"
-        password: "DpsCRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
         keys: "~deploy_challenge_* ~active_deploys_team_*"
@@ -229,13 +224,12 @@ auth:
 
       # Deployment listener service + Lua execution.
       - username: "svc_deployment_listener"
-        password: "DpsLRedis2026A"
         enabled: "on"
         commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
         keys: "~deploy_challenge_* ~active_deploys_team_*"
         channels: "&*"
     ## @param auth.acl.userSecret Name of the Secret, containing user credentials for ACL users. Keys must match usernames.
-    userSecret: ""
+    userSecret: "redis-acl-users-secret"
 ## @param commonConfiguration [string] Common configuration to be added into the ConfigMap
 ## ref: https://redis.io/topics/config
 ##

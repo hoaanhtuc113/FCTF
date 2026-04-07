@@ -104,54 +104,8 @@ extraDeploy:
               "name": "fctf_deploy"
             }
           ],
-          "users": [
-            {
-              "name": "rabbit-admin",
-              "password": "Fctf2025@admin",
-              "tags": "administrator"
-            },
-            {
-              "name": "deployment-producer",
-              "password": "Fctf2025@producer",
-              "tags": ""
-            },
-            {
-              "name": "deployment-consumer",
-              "password": "Fctf2025@consumer",
-              "tags": ""
-            }
-          ],
-          "permissions": [
-            {
-              "user": "rabbit-admin",
-              "vhost": "/",
-              "configure": ".*",
-              "write": ".*",
-              "read": ".*"
-            },
-            {
-              "user": "rabbit-admin",
-              "vhost": "fctf_deploy",
-              "configure": ".*",
-              "write": ".*",
-              "read": ".*"
-            },
-
-            {
-              "user": "deployment-producer",
-              "vhost": "fctf_deploy",
-              "configure": "^$",
-              "write": "^(deployment_exchange)$",
-              "read": "^$"
-            },
-            {
-              "user": "deployment-consumer",
-              "vhost": "fctf_deploy",
-              "configure": "^$",
-              "write": "^$",
-              "read": "^(deployment_queue)$"
-            }
-          ],
+          "users": [],
+          "permissions": [],
           "exchanges": [
             {
               "name": "deployment_exchange",
@@ -262,7 +216,7 @@ auth:
   ## @param auth.updatePassword Update RabbitMQ password on secret change
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
-  updatePassword: false
+  updatePassword: true
   ## @param auth.existingPasswordSecret Existing secret with RabbitMQ credentials (existing secret must contain a value for `rabbitmq-password` key or override with setting auth.existingSecretPasswordKey)
   ## e.g:
   ## existingPasswordSecret: name-of-existing-secret
