@@ -237,6 +237,14 @@ get_secret_keys() {
     -o go-template='{{range $k,$v := .data}}{{printf "%s\n" $k}}{{end}}' 2>/dev/null || true
 }
 
+secret_has_key() {
+  local namespace="$1"
+  local secret_name="$2"
+  local key="$3"
+
+  get_secret_keys "${namespace}" "${secret_name}" | grep -Fxq "${key}"
+}
+
 patch_secret_string_key() {
   local namespace="$1"
   local secret_name="$2"
@@ -378,9 +386,29 @@ load_harbor_static_values() {
 }
 
 prepare_harbor_rotation_values() {
-  # Harbor values are treated as the source of truth to avoid auth drift.
-  # No runtime randomization here.
-  :
+  if [[ -n "${HARBOR_SECRET_KEY}" ]]; then
+    HARBOR_SECRET_KEY="$(generate_random_secret 50)"
+  fi
+  if [[ -n "${HARBOR_CORE_SECRET}" ]]; then
+    HARBOR_CORE_SECRET="$(generate_random_secret 40)"
+  fi
+  if [[ -n "${HARBOR_CSRF_KEY}" ]]; then
+    HARBOR_CSRF_KEY="$(generate_random_secret 32)"
+  fi
+  if [[ -n "${HARBOR_JOBSERVICE_SECRET}" ]]; then
+    HARBOR_JOBSERVICE_SECRET="$(generate_random_secret 40)"
+  fi
+  if [[ -n "${HARBOR_REGISTRY_HTTP_SECRET}" ]]; then
+    HARBOR_REGISTRY_HTTP_SECRET="$(generate_random_secret 40)"
+  fi
+  if [[ -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
+    HARBOR_REGISTRY_PASSWORD="$(generate_random_secret 40)"
+    # Regenerate htpasswd from the new password unless chart pins a fixed value.
+    HARBOR_REGISTRY_HTPASSWD=""
+  fi
+  if [[ -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
+    HARBOR_DATABASE_PASSWORD="$(generate_random_secret 40)"
+  fi
 }
 
 generate_registry_htpasswd_entry() {
@@ -560,15 +588,13 @@ patch_harbor_secrets() {
       echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_HTTP_SECRET"
     fi
 
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
+    if [[ -n "${HARBOR_REGISTRY_PASSWORD}" ]] && secret_has_key "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD"; then
       patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD" "${HARBOR_REGISTRY_PASSWORD}"
       patched=$((patched + 1))
       echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_PASSWD"
     fi
 
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_CREDENTIAL_PASSWORD" || true)"
-    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
+    if [[ -n "${HARBOR_REGISTRY_PASSWORD}" ]] && secret_has_key "${harbor_ns}" "${secret_name}" "REGISTRY_CREDENTIAL_PASSWORD"; then
       patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_CREDENTIAL_PASSWORD" "${HARBOR_REGISTRY_PASSWORD}"
       patched=$((patched + 1))
       echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_CREDENTIAL_PASSWORD"
@@ -588,8 +614,7 @@ patch_harbor_secrets() {
       echo "    patched ${harbor_ns}/${secret_name}:tls.key"
     fi
 
-    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" || true)"
-    if [[ -n "${current}" && ( -n "${HARBOR_REGISTRY_HTPASSWD}" || -n "${HARBOR_REGISTRY_PASSWORD}" ) ]]; then
+    if secret_has_key "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" && [[ -n "${HARBOR_REGISTRY_HTPASSWD}" || -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
       if [[ -n "${HARBOR_REGISTRY_HTPASSWD}" ]]; then
         patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" "${HARBOR_REGISTRY_HTPASSWD}"
         patched=$((patched + 1))
@@ -1241,7 +1266,7 @@ echo "    RabbitMQ producer/consumer:  ${ROTATE_RABBITMQ}"
 echo "    App SECRET/PRIVATE keys:     true"
 echo "    MariaDB core SQL + secret:   ${NEED_MARIADB_ROTATION}"
 echo "    MariaDB service SQL rotate:  ${NEED_MARIADB_ROTATION}"
-echo "    Harbor values sync:          ${ROTATE_HARBOR}"
+echo "    Harbor credential rotate:    ${ROTATE_HARBOR}"
 
 echo
 echo "==> Discovering required pods"
@@ -1347,7 +1372,7 @@ fi
 
 if [[ "${ROTATE_HARBOR}" == "true" ]]; then
   echo
-  echo "==> Syncing Harbor secrets from harbor-values"
+  echo "==> Rotating Harbor credentials and patching Harbor secrets"
   load_harbor_static_values
 
   if [[ -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
