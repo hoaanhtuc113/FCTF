@@ -28,7 +28,7 @@ Description:
     1) Rotate all Redis ACL users + Redis default password
     2) Rotate RabbitMQ producer/consumer only (no admin rotation)
      3) Rotate MariaDB passwords for ctfd-username/root/replication
-       (secret patch + redeploy, no SQL ALTER USER)
+       (SQL ALTER USER + secret patch + redeploy)
      4) Rotate MariaDB service-account passwords (contestant_be, deployment_*)
        (SQL ALTER USER + DB_CONNECTION patch)
      5) Patch matching Kubernetes Secrets (excluding ctfd namespace)
@@ -1043,11 +1043,15 @@ restart_rabbitmq_workload() {
   kubectl -n "${ns}" rollout status statefulset/rabbitmq --timeout=600s
 }
 
-apply_mariadb_service_user_password_changes() {
+apply_mariadb_all_user_password_changes() {
   local mysql_cmd="mysql"
   local sql
 
-  sql="ALTER USER IF EXISTS 'contestant_be'@'%' IDENTIFIED BY '${MARIADB_CONTESTANT_BE_PASSWORD_NEW}';"
+  sql="ALTER USER IF EXISTS 'ctfd-username'@'%' IDENTIFIED BY '${MARIADB_CTFD_PASSWORD_NEW}';"
+  sql+=" ALTER USER IF EXISTS 'replicator'@'%' IDENTIFIED BY '${MARIADB_REPLICATION_PASSWORD_NEW}';"
+  sql+=" ALTER USER IF EXISTS 'root'@'%' IDENTIFIED BY '${MARIADB_ROOT_PASSWORD_NEW}';"
+  sql+=" ALTER USER IF EXISTS 'root'@'localhost' IDENTIFIED BY '${MARIADB_ROOT_PASSWORD_NEW}';"
+  sql+=" ALTER USER IF EXISTS 'contestant_be'@'%' IDENTIFIED BY '${MARIADB_CONTESTANT_BE_PASSWORD_NEW}';"
   sql+=" ALTER USER IF EXISTS 'deployment_center'@'%' IDENTIFIED BY '${MARIADB_DEPLOYMENT_CENTER_PASSWORD_NEW}';"
   sql+=" ALTER USER IF EXISTS 'deployment_listener'@'%' IDENTIFIED BY '${MARIADB_DEPLOYMENT_LISTENER_PASSWORD_NEW}';"
   sql+=" ALTER USER IF EXISTS 'deployment_consumer'@'%' IDENTIFIED BY '${MARIADB_DEPLOYMENT_CONSUMER_PASSWORD_NEW}';"
@@ -1058,11 +1062,11 @@ apply_mariadb_service_user_password_changes() {
   fi
 
   if kubectl -n "${DB_NAMESPACE}" exec "${MARIADB_POD}" -- sh -ec "${mysql_cmd} -uroot -p\"${MARIADB_ROOT_PASSWORD_OLD}\" -e \"${sql}\"" >/dev/null 2>&1; then
-    echo "    applied SQL ALTER USER for service DB users in ${DB_NAMESPACE}/${MARIADB_POD}"
+    echo "    applied SQL ALTER USER for core + service DB users in ${DB_NAMESPACE}/${MARIADB_POD}"
     return 0
   fi
 
-  echo "Error: failed to apply MariaDB ALTER USER statements for service DB users with current root password."
+  echo "Error: failed to apply MariaDB ALTER USER statements with current root password."
   echo "Hint: verify ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-root-password matches actual DB root password."
   return 1
 }
@@ -1201,7 +1205,7 @@ echo "    Redis ACL users:             ${NEED_REDIS_ROTATION}"
 echo "    Redis default password:      ${NEED_REDIS_ROTATION}"
 echo "    RabbitMQ producer/consumer:  ${ROTATE_RABBITMQ}"
 echo "    App SECRET/PRIVATE keys:     true"
-echo "    MariaDB core secret rotate:  ${NEED_MARIADB_ROTATION}"
+echo "    MariaDB core SQL + secret:   ${NEED_MARIADB_ROTATION}"
 echo "    MariaDB service SQL rotate:  ${NEED_MARIADB_ROTATION}"
 echo "    Harbor credential rotate:    ${ROTATE_HARBOR}"
 
@@ -1250,7 +1254,7 @@ fi
 
 if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   echo
-  echo "==> Rotating MariaDB core credentials (secret-only) + service DB users (SQL)"
+  echo "==> Rotating MariaDB core credentials + service DB users (SQL + secret)"
   if ! kubectl -n "${DB_NAMESPACE}" get secret mariadb-auth-secret >/dev/null 2>&1; then
     echo "Error: secret ${DB_NAMESPACE}/mariadb-auth-secret not found."
     exit 1
@@ -1269,7 +1273,7 @@ if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-root-password"
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-replication-password"
 
-  apply_mariadb_service_user_password_changes
+  apply_mariadb_all_user_password_changes
 fi
 
 if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
