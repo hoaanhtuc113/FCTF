@@ -16,6 +16,9 @@ ROTATE_RABBITMQ="true"
 ROTATE_HARBOR="true"
 HASH_TOOL_READY="false"
 
+WAIT_TIMEOUT_SECONDS="600"
+WAIT_INTERVAL_SECONDS="5"
+
 usage() {
   cat <<EOF
 Usage:
@@ -35,6 +38,7 @@ Description:
     6) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
     7) Rotate RABBIT_PASSWORD only for deployment-center/deployment-consumer
      8) Rotate SECRET_KEY and PRIVATE_KEY for secrets in namespace app
+    9) Wait for Redis/RabbitMQ/MariaDB login readiness before failing
 
 Options:
   --skip-rollout-restart   Do not restart workloads after secret rotation
@@ -213,6 +217,31 @@ get_pod_name() {
   fi
 
   printf '%s' "${discovered}"
+}
+
+wait_for_pod_ready() {
+  local namespace="$1"
+  local pod_name="$2"
+  local timeout_seconds="${3:-${WAIT_TIMEOUT_SECONDS}}"
+  local ready_status phase start_time elapsed
+
+  start_time="${SECONDS}"
+  while true; do
+    ready_status="$(kubectl -n "${namespace}" get pod "${pod_name}" -o jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status}{end}' 2>/dev/null || true)"
+    phase="$(kubectl -n "${namespace}" get pod "${pod_name}" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+
+    if [[ "${ready_status}" == "True" && "${phase}" == "Running" ]]; then
+      return 0
+    fi
+
+    elapsed=$((SECONDS - start_time))
+    if (( elapsed >= timeout_seconds )); then
+      echo "Error: timeout waiting for pod ${namespace}/${pod_name} to become Ready (waited ${timeout_seconds}s)."
+      return 1
+    fi
+
+    sleep "${WAIT_INTERVAL_SECONDS}"
+  done
 }
 
 get_secret_value() {
@@ -1121,9 +1150,27 @@ restart_rabbitmq_workload() {
   kubectl -n "${ns}" rollout status statefulset/rabbitmq --timeout=600s
 }
 
+restart_redis_workload() {
+  local ns="db"
+  local redis_sts=""
+
+  if kubectl -n "${ns}" get statefulset redis-master >/dev/null 2>&1; then
+    redis_sts="redis-master"
+  elif kubectl -n "${ns}" get statefulset redis >/dev/null 2>&1; then
+    redis_sts="redis"
+  else
+    echo "Error: redis statefulset not found in namespace '${ns}' (expected redis-master or redis)."
+    exit 1
+  fi
+
+  kubectl -n "${ns}" rollout restart "statefulset/${redis_sts}"
+  kubectl -n "${ns}" rollout status "statefulset/${redis_sts}" --timeout=600s
+}
+
 apply_mariadb_all_user_password_changes() {
   local mysql_cmd="mysql"
   local sql
+  local deadline
 
   sql="ALTER USER IF EXISTS 'ctfd-username'@'%' IDENTIFIED BY '${MARIADB_CTFD_PASSWORD_NEW}';"
   sql+=" ALTER USER IF EXISTS 'replicator'@'%' IDENTIFIED BY '${MARIADB_REPLICATION_PASSWORD_NEW}';"
@@ -1139,10 +1186,34 @@ apply_mariadb_all_user_password_changes() {
     mysql_cmd="/opt/bitnami/mariadb/bin/mysql"
   fi
 
-  if kubectl -n "${DB_NAMESPACE}" exec "${MARIADB_POD}" -- sh -ec "${mysql_cmd} -uroot -p\"${MARIADB_ROOT_PASSWORD_OLD}\" -e \"${sql}\"" >/dev/null 2>&1; then
-    echo "    applied SQL ALTER USER for core + service DB users in ${DB_NAMESPACE}/${MARIADB_POD}"
-    return 0
-  fi
+  deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+  while true; do
+    if kubectl -n "${DB_NAMESPACE}" exec "${MARIADB_POD}" -- sh -ec "${mysql_cmd} -uroot -p\"${MARIADB_ROOT_PASSWORD_OLD}\" -e \"SELECT 1;\"" >/dev/null 2>&1; then
+      break
+    fi
+
+    if (( SECONDS >= deadline )); then
+      echo "Error: timeout waiting for MariaDB root login in ${DB_NAMESPACE}/${MARIADB_POD} (waited ${WAIT_TIMEOUT_SECONDS}s)."
+      echo "Hint: verify pod readiness and mariadb-auth-secret root password before rerun."
+      return 1
+    fi
+
+    sleep "${WAIT_INTERVAL_SECONDS}"
+  done
+
+  deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+  while true; do
+    if kubectl -n "${DB_NAMESPACE}" exec "${MARIADB_POD}" -- sh -ec "${mysql_cmd} -uroot -p\"${MARIADB_ROOT_PASSWORD_OLD}\" -e \"${sql}\"" >/dev/null 2>&1; then
+      echo "    applied SQL ALTER USER for core + service DB users in ${DB_NAMESPACE}/${MARIADB_POD}"
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      break
+    fi
+
+    sleep "${WAIT_INTERVAL_SECONDS}"
+  done
 
   echo "Error: failed to apply MariaDB ALTER USER statements with current root password."
   echo "Hint: verify ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-root-password matches actual DB root password."
@@ -1152,24 +1223,34 @@ apply_mariadb_all_user_password_changes() {
 set_redis_acl_user_password() {
   local username="$1"
   local password="$2"
+  local deadline
 
   if [[ -z "${password}" ]]; then
     return 0
   fi
 
-  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-    /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
-    ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
-    return 0
-  fi
+  deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+  while true; do
+    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+      /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
+      ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
+      return 0
+    fi
 
-  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-    /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
-    ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
-    return 0
-  fi
+    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+      /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
+      ACL SETUSER "${username}" on ">${password}" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      break
+    fi
+
+    sleep "${WAIT_INTERVAL_SECONDS}"
+  done
 
   echo "Error: failed to rotate Redis ACL password for user '${username}'."
   echo "Hint: Redis may require TLS-only access; non-TLS and TLS attempts both failed."
@@ -1178,27 +1259,58 @@ set_redis_acl_user_password() {
 
 set_redis_default_password() {
   local new_password="$1"
+  local deadline
 
   if [[ -z "${new_password}" ]]; then
     return 0
   fi
 
-  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-    /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
-    ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
-    return 0
-  fi
+  deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+  while true; do
+    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+      /opt/bitnami/redis/bin/redis-cli --no-auth-warning -h 127.0.0.1 -p 6379 \
+      ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
+      return 0
+    fi
 
-  if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
-    env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
-    /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
-    ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
-    return 0
-  fi
+    if kubectl -n "${DB_NAMESPACE}" exec "${REDIS_POD}" -- \
+      env "REDISCLI_AUTH=${REDIS_ROOT_PASSWORD}" \
+      /opt/bitnami/redis/bin/redis-cli --no-auth-warning --tls --insecure -h 127.0.0.1 -p 6379 \
+      ACL SETUSER default on ">${new_password}" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      break
+    fi
+
+    sleep "${WAIT_INTERVAL_SECONDS}"
+  done
 
   echo "Error: failed to rotate Redis default password."
   return 1
+}
+
+set_rabbitmq_user_password() {
+  local username="$1"
+  local password="$2"
+  local deadline
+
+  deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+  while true; do
+    if kubectl -n "${DB_NAMESPACE}" exec "${RABBITMQ_POD}" -- rabbitmqctl await_startup >/dev/null 2>&1 && \
+      kubectl -n "${DB_NAMESPACE}" exec "${RABBITMQ_POD}" -- rabbitmqctl change_password "${username}" "${password}" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      echo "Error: failed to rotate RabbitMQ password for user '${username}' within ${WAIT_TIMEOUT_SECONDS}s."
+      return 1
+    fi
+
+    sleep "${WAIT_INTERVAL_SECONDS}"
+  done
 }
 
 require_command kubectl
@@ -1331,6 +1443,18 @@ if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   echo "    MariaDB pod:  ${MARIADB_POD}"
 fi
 
+echo
+echo "==> Waiting for selected DB pods to become Ready"
+if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
+  wait_for_pod_ready "${DB_NAMESPACE}" "${REDIS_POD}" "${WAIT_TIMEOUT_SECONDS}"
+fi
+if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
+  wait_for_pod_ready "${DB_NAMESPACE}" "${RABBITMQ_POD}" "${WAIT_TIMEOUT_SECONDS}"
+fi
+if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
+  wait_for_pod_ready "${DB_NAMESPACE}" "${MARIADB_POD}" "${WAIT_TIMEOUT_SECONDS}"
+fi
+
 if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   echo
   echo "==> Rotating MariaDB core credentials + service DB users (SQL + secret)"
@@ -1384,8 +1508,8 @@ fi
 if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
   echo
   echo "==> Rotating RabbitMQ producer/consumer passwords"
-  kubectl -n "${DB_NAMESPACE}" exec "${RABBITMQ_POD}" -- rabbitmqctl change_password deployment-producer "${RABBIT_PRODUCER_PASSWORD}" >/dev/null
-  kubectl -n "${DB_NAMESPACE}" exec "${RABBITMQ_POD}" -- rabbitmqctl change_password deployment-consumer "${RABBIT_CONSUMER_PASSWORD}" >/dev/null
+  set_rabbitmq_user_password "deployment-producer" "${RABBIT_PRODUCER_PASSWORD}"
+  set_rabbitmq_user_password "deployment-consumer" "${RABBIT_CONSUMER_PASSWORD}"
 
   patch_rabbitmq_definition_secret
 fi
@@ -1445,16 +1569,16 @@ if [[ "${SKIP_ROLLOUT_RESTART}" != "true" ]]; then
     restart_harbor_workloads
   fi
 
+  if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
+    restart_redis_workload
+  fi
+
   if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
     restart_mariadb_workload
   fi
 
   if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
     restart_rabbitmq_workload
-  fi
-
-  if [[ "${RESTART_APP_DEPLOYMENTS}" == "true" ]]; then
-    restart_deployments
   fi
 else
   echo "==> Skip rollout restart as requested"

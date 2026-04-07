@@ -19,6 +19,7 @@ INTERACTIVE="true"
 ARG_COUNT=$#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROD_DIR="${SCRIPT_DIR}/prod"
+ROTATE_SERVICE_SCRIPT="${SCRIPT_DIR}/rotate-service-passwords.sh"
 MARIADB_AUTH_SECRET_FILE="${PROD_DIR}/env/secret/mariadb-auth-secret.yaml"
 MARIADB_CREATE_DB_SQL="${PROD_DIR}/helm/db/mariadb/createDB.sql"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
@@ -348,4 +349,14 @@ else
 fi
 
 echo
-echo "DONE"
+echo "DONE: Installation FCTF complete!"
+echo
+echo "==> Running service password rotation"
+if [[ ! -f "${ROTATE_SERVICE_SCRIPT}" ]]; then
+  echo "Error: rotate service script not found at ${ROTATE_SERVICE_SCRIPT}"
+  exit 1
+fi
+
+chmod +x "${ROTATE_SERVICE_SCRIPT}"
+bash "${ROTATE_SERVICE_SCRIPT}"
+
