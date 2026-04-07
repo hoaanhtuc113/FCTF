@@ -84,7 +84,9 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             if (_connection == null || !_connection.IsOpen) _connection = await _factory.CreateConnectionAsync();
             if (_channel == null || !_channel.IsOpen)
             {
-                _channel = await _connection.CreateChannelAsync();
+                _channel = await _connection.CreateChannelAsync(new CreateChannelOptions(
+                    publisherConfirmationsEnabled: true,
+                    publisherConfirmationTrackingEnabled: true));
             }
         }
         finally { _lock.Release(); }
