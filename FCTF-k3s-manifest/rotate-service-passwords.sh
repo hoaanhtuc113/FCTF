@@ -32,7 +32,7 @@ Description:
      4) Rotate MariaDB service-account passwords (contestant_be, deployment_*)
        (SQL ALTER USER + DB_CONNECTION patch)
      5) Patch matching Kubernetes Secrets (excluding ctfd namespace)
-     6) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
+    6) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
     7) Rotate RABBIT_PASSWORD only for deployment-center/deployment-consumer
      8) Rotate SECRET_KEY and PRIVATE_KEY for secrets in namespace app
 
@@ -346,6 +346,8 @@ load_harbor_static_values() {
   if [[ -n "$(yaml_read_scalar "${harbor_values}" "existingSecretAdminPassword")" ]]; then
     HARBOR_ADMIN_PASSWORD=""
   fi
+  # Keep Harbor admin unchanged by policy.
+  HARBOR_ADMIN_PASSWORD=""
   if [[ -n "$(yaml_read_scalar "${harbor_values}" "existingSecretSecretKey")" ]]; then
     HARBOR_SECRET_KEY=""
   fi
@@ -376,29 +378,9 @@ load_harbor_static_values() {
 }
 
 prepare_harbor_rotation_values() {
-  if [[ -n "${HARBOR_SECRET_KEY}" ]]; then
-    HARBOR_SECRET_KEY="$(generate_random_secret 50)"
-  fi
-  if [[ -n "${HARBOR_CORE_SECRET}" ]]; then
-    HARBOR_CORE_SECRET="$(generate_random_secret 40)"
-  fi
-  if [[ -n "${HARBOR_CSRF_KEY}" ]]; then
-    HARBOR_CSRF_KEY="$(generate_random_secret 32)"
-  fi
-  if [[ -n "${HARBOR_JOBSERVICE_SECRET}" ]]; then
-    HARBOR_JOBSERVICE_SECRET="$(generate_random_secret 40)"
-  fi
-  if [[ -n "${HARBOR_REGISTRY_HTTP_SECRET}" ]]; then
-    HARBOR_REGISTRY_HTTP_SECRET="$(generate_random_secret 40)"
-  fi
-  if [[ -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
-    HARBOR_REGISTRY_PASSWORD="$(generate_random_secret 40)"
-    # Regenerate htpasswd from the new password unless chart pins a fixed value.
-    HARBOR_REGISTRY_HTPASSWD=""
-  fi
-  if [[ -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
-    HARBOR_DATABASE_PASSWORD="$(generate_random_secret 40)"
-  fi
+  # Harbor values are treated as the source of truth to avoid auth drift.
+  # No runtime randomization here.
+  :
 }
 
 generate_registry_htpasswd_entry() {
@@ -1259,7 +1241,7 @@ echo "    RabbitMQ producer/consumer:  ${ROTATE_RABBITMQ}"
 echo "    App SECRET/PRIVATE keys:     true"
 echo "    MariaDB core SQL + secret:   ${NEED_MARIADB_ROTATION}"
 echo "    MariaDB service SQL rotate:  ${NEED_MARIADB_ROTATION}"
-echo "    Harbor credential rotate:    ${ROTATE_HARBOR}"
+echo "    Harbor values sync:          ${ROTATE_HARBOR}"
 
 echo
 echo "==> Discovering required pods"
@@ -1365,7 +1347,7 @@ fi
 
 if [[ "${ROTATE_HARBOR}" == "true" ]]; then
   echo
-  echo "==> Rotating Harbor credentials and patching Harbor secrets"
+  echo "==> Syncing Harbor secrets from harbor-values"
   load_harbor_static_values
 
   if [[ -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
