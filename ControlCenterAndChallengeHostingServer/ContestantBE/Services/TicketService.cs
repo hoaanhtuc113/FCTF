@@ -1,4 +1,4 @@
-﻿namespace ContestantBE.Services;
+namespace ContestantBE.Services;
 
 using ContestantBE.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -51,7 +51,7 @@ public class TicketService : ITicketService
             foreach (var ticket in userTickets)
             {
                 double similarity = StringSimilarity(ticket.Description, newTicket.Description);
-                if (similarity >= 0.3)
+                if (similarity >= 0.7)
                     return BaseResponseDTO<TicketResponseDTO>.Fail("You have already sent a similar ticket");
             }
 
