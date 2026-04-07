@@ -13,8 +13,7 @@ spec:
       labels:
         app: challenge-gateway
     spec:
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      priorityClassName: app-normal-preemption
       tolerations:
         - key: "node-role.kubernetes.io/control-plane"
           operator: "Exists"

@@ -14,8 +14,7 @@ spec:
         app: deployment-center
     spec:
       serviceAccountName: deployment-center-sa
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      priorityClassName: app-normal-preemption
       tolerations:
         - key: "node-role.kubernetes.io/control-plane"
           operator: "Exists"

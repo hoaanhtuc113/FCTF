@@ -1,4 +1,5 @@
 ﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.RabbitMQ;
 using System.Text;
@@ -91,12 +92,55 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             MessageId = Guid.NewGuid().ToString()
         };
 
-        await _channel!.BasicPublishAsync(
-            ExchangeName,
-            RoutingKey,
-            false,
-            properties,
-            body);
+        await PublishOrThrowAsync(body, properties);
+    }
+
+    public async Task PublishOrThrowAsync(byte[] body, BasicProperties props)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+
+        AsyncEventHandler<BasicNackEventArgs> nackHandler = null!;
+        AsyncEventHandler<BasicReturnEventArgs> returnHandler = null!;
+
+        nackHandler = (s, e) =>
+        {
+            tcs.TrySetException(new Exception("QUEUE_FULL"));
+            return Task.CompletedTask;
+        };
+
+        returnHandler = (s, e) =>
+        {
+            tcs.TrySetException(new Exception("ROUTING_FAILED"));
+            return Task.CompletedTask;
+        };
+
+        _channel.BasicNacksAsync += nackHandler;
+        _channel.BasicReturnAsync += returnHandler;
+
+        try
+        {
+            await _channel.BasicPublishAsync(
+                ExchangeName,
+                RoutingKey,
+                mandatory: true,
+                props,
+                body);
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(3000));
+
+            if (completed != tcs.Task)
+            {
+                throw new TimeoutException("RabbitMQ publish confirm timeout");
+            }
+
+            if (completed == tcs.Task)
+                await tcs.Task; // sẽ throw
+        }
+        finally
+        {
+            _channel.BasicNacksAsync -= nackHandler;
+            _channel.BasicReturnAsync -= returnHandler;
+        }
     }
 
     public async ValueTask DisposeAsync()

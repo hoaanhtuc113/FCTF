@@ -174,17 +174,13 @@ public class DeployService : IDeployService
                 message = "Deployment service is temporarily unavailable. Please try again shortly."
             };
         }
-        catch (OperationInterruptedException ex)
+        catch (Exception ex)
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
             _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
 
-            var shutdownReason = ex.ShutdownReason?.ReplyText ?? string.Empty;
-            var isQueueFull = shutdownReason.Contains("max length", StringComparison.OrdinalIgnoreCase)
-                || shutdownReason.Contains("reject-publish", StringComparison.OrdinalIgnoreCase)
-                || shutdownReason.Contains("overflow", StringComparison.OrdinalIgnoreCase);
-
+            var isQueueFull = ex.Message.Contains("QUEUE_FULL") || ex.Message.Contains("ROUTING_FAILED");
             if (isQueueFull)
             {
                 return new ChallengeDeployResponeDTO
@@ -195,18 +191,6 @@ public class DeployService : IDeployService
                 };
             }
 
-            return new ChallengeDeployResponeDTO
-            {
-                status = (int)HttpStatusCode.InternalServerError,
-                success = false,
-                message = "Deployment request could not be processed right now. Please try again."
-            };
-        }
-        catch (Exception ex)
-        {
-            await _redisHelper.RemoveCacheAsync(deploymentKey);
-
-            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,

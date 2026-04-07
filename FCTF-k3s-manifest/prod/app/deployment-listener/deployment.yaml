@@ -14,8 +14,7 @@ spec:
         app: deployment-listener
     spec:
       serviceAccountName: deployment-listener-sa
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      priorityClassName: app-normal-preemption
       tolerations:
         - key: "node-role.kubernetes.io/control-plane"
           operator: "Exists"
