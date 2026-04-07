@@ -23,16 +23,18 @@ Usage:
 
 Description:
   Rotate Redis passwords, RabbitMQ producer/consumer passwords,
-  and MariaDB secret credentials, then restart workloads.
+  MariaDB credentials, and Harbor credentials, then restart workloads.
   The script will:
     1) Rotate all Redis ACL users + Redis default password
     2) Rotate RabbitMQ producer/consumer only (no admin rotation)
-    3) Rotate MariaDB secret keys for ctfd-username/root/replication only
+     3) Rotate MariaDB passwords for ctfd-username/root/replication
        (secret patch + redeploy, no SQL ALTER USER)
-    4) Patch matching Kubernetes Secrets (excluding ctfd namespace)
-    5) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
-    6) Keep Kubernetes Secret key RABBIT_PASSWORD unchanged (admin credential)
-    7) Rotate SECRET_KEY and PRIVATE_KEY for secrets in namespace app
+     4) Rotate MariaDB service-account passwords (contestant_be, deployment_*)
+       (SQL ALTER USER + DB_CONNECTION patch)
+     5) Patch matching Kubernetes Secrets (excluding ctfd namespace)
+     6) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
+    7) Rotate RABBIT_PASSWORD only for deployment-center/deployment-consumer
+     8) Rotate SECRET_KEY and PRIVATE_KEY for secrets in namespace app
 
 Options:
   --skip-rollout-restart   Do not restart workloads after secret rotation
@@ -373,6 +375,32 @@ load_harbor_static_values() {
   fi
 }
 
+prepare_harbor_rotation_values() {
+  if [[ -n "${HARBOR_SECRET_KEY}" ]]; then
+    HARBOR_SECRET_KEY="$(generate_random_secret 50)"
+  fi
+  if [[ -n "${HARBOR_CORE_SECRET}" ]]; then
+    HARBOR_CORE_SECRET="$(generate_random_secret 40)"
+  fi
+  if [[ -n "${HARBOR_CSRF_KEY}" ]]; then
+    HARBOR_CSRF_KEY="$(generate_random_secret 32)"
+  fi
+  if [[ -n "${HARBOR_JOBSERVICE_SECRET}" ]]; then
+    HARBOR_JOBSERVICE_SECRET="$(generate_random_secret 40)"
+  fi
+  if [[ -n "${HARBOR_REGISTRY_HTTP_SECRET}" ]]; then
+    HARBOR_REGISTRY_HTTP_SECRET="$(generate_random_secret 40)"
+  fi
+  if [[ -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
+    HARBOR_REGISTRY_PASSWORD="$(generate_random_secret 40)"
+    # Regenerate htpasswd from the new password unless chart pins a fixed value.
+    HARBOR_REGISTRY_HTPASSWD=""
+  fi
+  if [[ -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
+    HARBOR_DATABASE_PASSWORD="$(generate_random_secret 40)"
+  fi
+}
+
 generate_registry_htpasswd_entry() {
   local username="$1"
   local password="$2"
@@ -603,6 +631,17 @@ redis_password_for_user() {
   esac
 }
 
+mariadb_service_password_for_user() {
+  local username="$1"
+  case "${username}" in
+    contestant_be) printf '%s' "${MARIADB_CONTESTANT_BE_PASSWORD_NEW}" ;;
+    deployment_center) printf '%s' "${MARIADB_DEPLOYMENT_CENTER_PASSWORD_NEW}" ;;
+    deployment_listener) printf '%s' "${MARIADB_DEPLOYMENT_LISTENER_PASSWORD_NEW}" ;;
+    deployment_consumer) printf '%s' "${MARIADB_DEPLOYMENT_CONSUMER_PASSWORD_NEW}" ;;
+    *) printf '' ;;
+  esac
+}
+
 replace_rabbitmq_user_password_in_definition() {
   local definition_json="$1"
   local username="$2"
@@ -749,6 +788,18 @@ transform_secret_value() {
       if [[ -n "${MARIADB_CTFD_PASSWORD_NEW}" ]]; then
         updated="$(replace_db_connection_password_for_user "${updated}" "ctfd-username" "${MARIADB_CTFD_PASSWORD_NEW}")"
       fi
+      if [[ -n "${MARIADB_CONTESTANT_BE_PASSWORD_NEW}" ]]; then
+        updated="$(replace_db_connection_password_for_user "${updated}" "contestant_be" "${MARIADB_CONTESTANT_BE_PASSWORD_NEW}")"
+      fi
+      if [[ -n "${MARIADB_DEPLOYMENT_CENTER_PASSWORD_NEW}" ]]; then
+        updated="$(replace_db_connection_password_for_user "${updated}" "deployment_center" "${MARIADB_DEPLOYMENT_CENTER_PASSWORD_NEW}")"
+      fi
+      if [[ -n "${MARIADB_DEPLOYMENT_LISTENER_PASSWORD_NEW}" ]]; then
+        updated="$(replace_db_connection_password_for_user "${updated}" "deployment_listener" "${MARIADB_DEPLOYMENT_LISTENER_PASSWORD_NEW}")"
+      fi
+      if [[ -n "${MARIADB_DEPLOYMENT_CONSUMER_PASSWORD_NEW}" ]]; then
+        updated="$(replace_db_connection_password_for_user "${updated}" "deployment_consumer" "${MARIADB_DEPLOYMENT_CONSUMER_PASSWORD_NEW}")"
+      fi
       ;;
     REDIS_URL)
       if [[ -n "${ADMIN_REDIS_PASSWORD}" ]]; then
@@ -856,6 +907,20 @@ transform_secret_value() {
         updated="${HARBOR_REGISTRY_PASSWORD}"
       fi
       ;;
+    RABBIT_PASSWORD)
+      case "${secret_name}" in
+        deployment-center-secret)
+          if [[ -n "${RABBIT_PRODUCER_PASSWORD}" ]]; then
+            updated="${RABBIT_PRODUCER_PASSWORD}"
+          fi
+          ;;
+        deployment-consumer-secret)
+          if [[ -n "${RABBIT_CONSUMER_PASSWORD}" ]]; then
+            updated="${RABBIT_CONSUMER_PASSWORD}"
+          fi
+          ;;
+      esac
+      ;;
     mariadb-password)
       if [[ -n "${MARIADB_CTFD_PASSWORD_NEW}" ]]; then
         updated="${MARIADB_CTFD_PASSWORD_NEW}"
@@ -886,6 +951,7 @@ patch_additional_db_redis_secrets() {
   candidate_keys=(
     "DATABASE_URL" "DB_CONNECTION" "REDIS_URL" "REDIS_CONNECTION" "REDIS_PASS" "REDIS_PASSWORD"
     "SECRET_KEY" "PRIVATE_KEY"
+    "RABBIT_PASSWORD"
     "redis-password"
     "HARBOR_ADMIN_PASSWORD" "secretKey" "secret" "CORE_SECRET" "CSRF_KEY" "JOBSERVICE_SECRET" "REGISTRY_HTTP_SECRET" "REGISTRY_PASSWD"
     "mariadb-password" "mariadb-root-password" "mariadb-replication-password"
@@ -977,6 +1043,30 @@ restart_rabbitmq_workload() {
   kubectl -n "${ns}" rollout status statefulset/rabbitmq --timeout=600s
 }
 
+apply_mariadb_service_user_password_changes() {
+  local mysql_cmd="mysql"
+  local sql
+
+  sql="ALTER USER IF EXISTS 'contestant_be'@'%' IDENTIFIED BY '${MARIADB_CONTESTANT_BE_PASSWORD_NEW}';"
+  sql+=" ALTER USER IF EXISTS 'deployment_center'@'%' IDENTIFIED BY '${MARIADB_DEPLOYMENT_CENTER_PASSWORD_NEW}';"
+  sql+=" ALTER USER IF EXISTS 'deployment_listener'@'%' IDENTIFIED BY '${MARIADB_DEPLOYMENT_LISTENER_PASSWORD_NEW}';"
+  sql+=" ALTER USER IF EXISTS 'deployment_consumer'@'%' IDENTIFIED BY '${MARIADB_DEPLOYMENT_CONSUMER_PASSWORD_NEW}';"
+  sql+=" FLUSH PRIVILEGES;"
+
+  if ! kubectl -n "${DB_NAMESPACE}" exec "${MARIADB_POD}" -- sh -ec "command -v mysql >/dev/null 2>&1"; then
+    mysql_cmd="/opt/bitnami/mariadb/bin/mysql"
+  fi
+
+  if kubectl -n "${DB_NAMESPACE}" exec "${MARIADB_POD}" -- sh -ec "${mysql_cmd} -uroot -p\"${MARIADB_ROOT_PASSWORD_OLD}\" -e \"${sql}\"" >/dev/null 2>&1; then
+    echo "    applied SQL ALTER USER for service DB users in ${DB_NAMESPACE}/${MARIADB_POD}"
+    return 0
+  fi
+
+  echo "Error: failed to apply MariaDB ALTER USER statements for service DB users with current root password."
+  echo "Hint: verify ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-root-password matches actual DB root password."
+  return 1
+}
+
 set_redis_acl_user_password() {
   local username="$1"
   local password="$2"
@@ -1044,14 +1134,19 @@ fi
 echo "============================================================"
 echo "Rotate Service + Infrastructure Credentials"
 echo "============================================================"
-echo "Mode: rotate Redis + RabbitMQ producer/consumer + MariaDB secret credentials."
+echo "Mode: rotate Redis + RabbitMQ producer/consumer + MariaDB + Harbor credentials."
 echo "Note: rabbit-admin/Harbor admin/Rancher/Grafana admins are not rotated."
-echo "Note: Kubernetes secret key RABBIT_PASSWORD (admin) is not rotated."
+echo "Note: RABBIT_PASSWORD is rotated only for deployment-center-secret/deployment-consumer-secret."
 echo
 
 MARIADB_CTFD_PASSWORD_NEW=""
 MARIADB_ROOT_PASSWORD_NEW=""
 MARIADB_REPLICATION_PASSWORD_NEW=""
+MARIADB_ROOT_PASSWORD_OLD=""
+MARIADB_CONTESTANT_BE_PASSWORD_NEW=""
+MARIADB_DEPLOYMENT_CENTER_PASSWORD_NEW=""
+MARIADB_DEPLOYMENT_LISTENER_PASSWORD_NEW=""
+MARIADB_DEPLOYMENT_CONSUMER_PASSWORD_NEW=""
 
 ADMIN_REDIS_PASSWORD=""
 GATEWAY_REDIS_PASSWORD=""
@@ -1083,6 +1178,10 @@ echo "==> Generating new passwords"
 MARIADB_CTFD_PASSWORD_NEW="$(generate_random_secret 50)"
 MARIADB_ROOT_PASSWORD_NEW="$(generate_random_secret 50)"
 MARIADB_REPLICATION_PASSWORD_NEW="$(generate_random_secret 50)"
+MARIADB_CONTESTANT_BE_PASSWORD_NEW="$(generate_random_secret 50)"
+MARIADB_DEPLOYMENT_CENTER_PASSWORD_NEW="$(generate_random_secret 50)"
+MARIADB_DEPLOYMENT_LISTENER_PASSWORD_NEW="$(generate_random_secret 50)"
+MARIADB_DEPLOYMENT_CONSUMER_PASSWORD_NEW="$(generate_random_secret 50)"
 
 ADMIN_REDIS_PASSWORD="$(generate_random_secret 50)"
 GATEWAY_REDIS_PASSWORD="$(generate_random_secret 50)"
@@ -1102,13 +1201,15 @@ echo "    Redis ACL users:             ${NEED_REDIS_ROTATION}"
 echo "    Redis default password:      ${NEED_REDIS_ROTATION}"
 echo "    RabbitMQ producer/consumer:  ${ROTATE_RABBITMQ}"
 echo "    App SECRET/PRIVATE keys:     true"
-echo "    MariaDB secret-only rotate:  ${NEED_MARIADB_ROTATION}"
-echo "    Harbor static secret sync:   ${ROTATE_HARBOR}"
+echo "    MariaDB core secret rotate:  ${NEED_MARIADB_ROTATION}"
+echo "    MariaDB service SQL rotate:  ${NEED_MARIADB_ROTATION}"
+echo "    Harbor credential rotate:    ${ROTATE_HARBOR}"
 
 echo
 echo "==> Discovering required pods"
 REDIS_POD=""
 RABBITMQ_POD=""
+MARIADB_POD=""
 
 if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
   REDIS_POD="$(get_pod_name "${DB_NAMESPACE}" "redis-master-0" "app.kubernetes.io/instance=redis,app.kubernetes.io/name=redis" || true)"
@@ -1116,6 +1217,10 @@ fi
 
 if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
   RABBITMQ_POD="$(get_pod_name "${DB_NAMESPACE}" "rabbitmq-0" "app.kubernetes.io/instance=rabbitmq,app.kubernetes.io/name=rabbitmq" || true)"
+fi
+
+if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
+  MARIADB_POD="$(get_pod_name "${DB_NAMESPACE}" "mariadb-0" "app.kubernetes.io/instance=mariadb,app.kubernetes.io/name=mariadb" || true)"
 fi
 
 if [[ "${NEED_REDIS_ROTATION}" == "true" && -z "${REDIS_POD}" ]]; then
@@ -1128,18 +1233,32 @@ if [[ "${ROTATE_RABBITMQ}" == "true" && -z "${RABBITMQ_POD}" ]]; then
   exit 1
 fi
 
+if [[ "${NEED_MARIADB_ROTATION}" == "true" && -z "${MARIADB_POD}" ]]; then
+  echo "Error: cannot find MariaDB pod in namespace '${DB_NAMESPACE}'."
+  exit 1
+fi
+
 if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
   echo "    Redis pod:    ${REDIS_POD}"
 fi
 if [[ "${ROTATE_RABBITMQ}" == "true" ]]; then
   echo "    RabbitMQ pod: ${RABBITMQ_POD}"
 fi
+if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
+  echo "    MariaDB pod:  ${MARIADB_POD}"
+fi
 
 if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   echo
-  echo "==> Rotating MariaDB secret credentials only (no SQL)"
+  echo "==> Rotating MariaDB core credentials (secret-only) + service DB users (SQL)"
   if ! kubectl -n "${DB_NAMESPACE}" get secret mariadb-auth-secret >/dev/null 2>&1; then
     echo "Error: secret ${DB_NAMESPACE}/mariadb-auth-secret not found."
+    exit 1
+  fi
+
+  MARIADB_ROOT_PASSWORD_OLD="$(get_secret_value "${DB_NAMESPACE}" "mariadb-auth-secret" "mariadb-root-password" || true)"
+  if [[ -z "${MARIADB_ROOT_PASSWORD_OLD}" ]]; then
+    echo "Error: cannot read current root password from ${DB_NAMESPACE}/mariadb-auth-secret."
     exit 1
   fi
 
@@ -1149,6 +1268,8 @@ if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-password"
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-root-password"
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-replication-password"
+
+  apply_mariadb_service_user_password_changes
 fi
 
 if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
@@ -1190,8 +1311,9 @@ fi
 
 if [[ "${ROTATE_HARBOR}" == "true" ]]; then
   echo
-  echo "==> Patching Harbor static-value secrets only"
+  echo "==> Rotating Harbor credentials and patching Harbor secrets"
   load_harbor_static_values
+  prepare_harbor_rotation_values
   patch_harbor_secrets
 fi
 
