@@ -63,7 +63,7 @@ controller:
       limit_conn_zone $binary_remote_addr zone=global_conn:20m;
 
     server-snippet: |
-      limit_req zone=global_rate burst=200;
+      limit_req zone=global_rate burst=200 nodelay;
       limit_conn global_conn 100;
     
   # -- Annotations to be added to the controller config configuration configmap.
