@@ -450,6 +450,57 @@ get_registry_username_from_secret() {
   printf '%s' "${user}"
 }
 
+discover_harbor_database_current_password() {
+  local harbor_ns="registry"
+  local secret_name current
+
+  while IFS= read -r secret_name; do
+    [[ -n "${secret_name}" ]] || continue
+    [[ "${secret_name}" == *harbor* ]] || continue
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "POSTGRESQL_PASSWORD" || true)"
+    if [[ -n "${current}" ]]; then
+      printf '%s' "${current}"
+      return 0
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "POSTGRES_PASSWORD" || true)"
+    if [[ -n "${current}" ]]; then
+      printf '%s' "${current}"
+      return 0
+    fi
+  done < <(kubectl -n "${harbor_ns}" get secrets -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+
+  return 1
+}
+
+apply_harbor_database_password_change() {
+  local harbor_ns="registry"
+  local harbor_db_pod="harbor-database-0"
+  local escaped_new_password
+
+  if [[ -z "${HARBOR_DATABASE_PASSWORD_OLD}" || -z "${HARBOR_DATABASE_PASSWORD}" ]]; then
+    return 0
+  fi
+
+  if ! kubectl -n "${harbor_ns}" get pod "${harbor_db_pod}" >/dev/null 2>&1; then
+    echo "Error: Harbor database pod ${harbor_ns}/${harbor_db_pod} not found."
+    return 1
+  fi
+
+  escaped_new_password="$(printf '%s' "${HARBOR_DATABASE_PASSWORD}" | sed "s/'/''/g")"
+
+  if kubectl -n "${harbor_ns}" exec "${harbor_db_pod}" -- env "PGPASSWORD=${HARBOR_DATABASE_PASSWORD_OLD}" \
+      psql -h 127.0.0.1 -U postgres -d registry -c "ALTER USER postgres WITH PASSWORD '${escaped_new_password}';" >/dev/null 2>&1; then
+    echo "    applied Harbor Postgres password ALTER USER in ${harbor_ns}/${harbor_db_pod}"
+    return 0
+  fi
+
+  echo "Error: failed to apply Harbor Postgres password ALTER USER."
+  echo "Hint: verify current Harbor DB password in registry secrets before rotation."
+  return 1
+}
+
 patch_harbor_secrets() {
   local patched="0"
   local harbor_ns="registry"
@@ -1175,6 +1226,7 @@ HARBOR_CSRF_KEY=""
 HARBOR_JOBSERVICE_SECRET=""
 HARBOR_REGISTRY_HTTP_SECRET=""
 HARBOR_DATABASE_PASSWORD=""
+HARBOR_DATABASE_PASSWORD_OLD=""
 HARBOR_CORE_TLS_CRT=""
 HARBOR_CORE_TLS_KEY=""
 
@@ -1315,6 +1367,15 @@ if [[ "${ROTATE_HARBOR}" == "true" ]]; then
   echo
   echo "==> Rotating Harbor credentials and patching Harbor secrets"
   load_harbor_static_values
+
+  if [[ -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
+    HARBOR_DATABASE_PASSWORD_OLD="$(discover_harbor_database_current_password || true)"
+    if [[ -z "${HARBOR_DATABASE_PASSWORD_OLD}" ]]; then
+      echo "Error: cannot discover current Harbor Postgres password from registry secrets."
+      exit 1
+    fi
+  fi
+
   prepare_harbor_rotation_values
   patch_harbor_secrets
 fi
@@ -1330,6 +1391,16 @@ if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
 
   if [[ "${SKIP_ROLLOUT_RESTART}" == "true" ]]; then
     echo "Warning: MariaDB SQL passwords changed but rollout restarts are skipped; services may fail auth until restarted."
+  fi
+fi
+
+if [[ "${ROTATE_HARBOR}" == "true" && -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
+  echo
+  echo "==> Applying Harbor Postgres password change (late step before restarts)"
+  apply_harbor_database_password_change
+
+  if [[ "${SKIP_ROLLOUT_RESTART}" == "true" ]]; then
+    echo "Warning: Harbor Postgres password changed but rollout restarts are skipped; Harbor components may fail auth until restarted."
   fi
 fi
 
