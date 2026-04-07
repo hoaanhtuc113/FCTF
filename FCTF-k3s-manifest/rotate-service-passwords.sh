@@ -15,6 +15,7 @@ REDIS_HOST="redis-headless.db.svc.cluster.local"
 REDIS_PORT="6379"
 
 SKIP_ROLLOUT_RESTART="false"
+DEBUG_MODE="false"
 
 ROTATE_RABBITMQ="true"
 ROTATE_HARBOR="true"
@@ -25,7 +26,7 @@ HASH_TOOL_READY="false"
 usage() {
   cat <<EOF
 Usage:
-  $0 [--skip-rollout-restart]
+  $0 [--skip-rollout-restart] [--debug]
 
 Description:
   Rotate credentials for app services and infrastructure services.
@@ -44,6 +45,7 @@ Description:
 
 Options:
   --skip-rollout-restart   Do not restart workloads after secret rotation
+  --debug                  Enable verbose debug/progress logs
   -h, --help               Show help
 EOF
 }
@@ -52,6 +54,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-rollout-restart)
       SKIP_ROLLOUT_RESTART="true"
+      shift
+      ;;
+    --debug)
+      DEBUG_MODE="true"
       shift
       ;;
     -h|--help)
@@ -65,6 +71,12 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+debug_log() {
+  if [[ "${DEBUG_MODE}" == "true" ]]; then
+    echo "[DEBUG] $*"
+  fi
+}
 
 require_command() {
   local cmd="$1"
@@ -222,7 +234,7 @@ get_secret_value() {
   local key="$3"
 
   local raw
-  raw="$(kubectl -n "${namespace}" get secret "${secret_name}" -o "jsonpath={.data['${key}']}" 2>/dev/null || true)"
+  raw="$(kubectl --request-timeout=10s -n "${namespace}" get secret "${secret_name}" -o "jsonpath={.data['${key}']}" 2>/dev/null || true)"
   if [[ -z "${raw}" ]]; then
     return 1
   fi
@@ -916,6 +928,7 @@ transform_secret_value() {
 
 patch_additional_db_redis_secrets() {
   local patched_count="0"
+  local scanned_count="0"
   local namespace secret_name key current updated
   local -a candidate_keys
   candidate_keys=(
@@ -928,24 +941,39 @@ patch_additional_db_redis_secrets() {
 
   while IFS='|' read -r namespace secret_name; do
     [[ -n "${namespace}" && -n "${secret_name}" ]] || continue
+    scanned_count=$((scanned_count + 1))
+
+    if [[ "${DEBUG_MODE}" == "true" && $((scanned_count % 25)) -eq 0 ]]; then
+      echo "    [debug] scanned ${scanned_count} secrets, patched ${patched_count} keys so far"
+    fi
 
     if [[ "${namespace}" == "ctfd" ]]; then
+      debug_log "skip ${namespace}/${secret_name}"
       continue
     fi
+
+    debug_log "scan ${namespace}/${secret_name}"
 
     for key in "${candidate_keys[@]}"; do
       current="$(get_secret_value "${namespace}" "${secret_name}" "${key}" || true)"
       [[ -n "${current}" ]] || continue
+
+      debug_log "found key ${namespace}/${secret_name}:${key}"
 
       updated="$(transform_secret_value "${namespace}" "${secret_name}" "${key}" "${current}")"
       if [[ "${updated}" != "${current}" ]]; then
         patch_secret_string_key "${namespace}" "${secret_name}" "${key}" "${updated}"
         patched_count=$((patched_count + 1))
         echo "    patched ${namespace}/${secret_name}:${key}"
+      else
+        debug_log "no-change ${namespace}/${secret_name}:${key}"
       fi
     done
   done < <(kubectl get secrets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"|"}{.metadata.name}{"\n"}{end}')
 
+  if [[ "${DEBUG_MODE}" == "true" ]]; then
+    echo "    [debug] completed scan of ${scanned_count} secrets"
+  fi
   echo "==> Additional secret keys patched: ${patched_count}"
 }
 
