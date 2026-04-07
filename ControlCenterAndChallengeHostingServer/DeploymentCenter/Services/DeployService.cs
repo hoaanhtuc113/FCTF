@@ -174,22 +174,35 @@ public class DeployService : IDeployService
                 message = "Deployment service is temporarily unavailable. Please try again shortly."
             };
         }
+        catch (DeploymentQueueFullException ex)
+        {
+            await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.TooManyRequests,
+                success = false,
+                message = "Deployment queue is currently full. Please retry in a moment."
+            };
+        }
+        catch (DeploymentRoutingFailedException ex)
+        {
+            await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.InternalServerError,
+                success = false,
+                message = "Deployment routing failed. Please contact support if this persists."
+            };
+        }
         catch (Exception ex)
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
             _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
-
-            var isQueueFull = ex.Message.Contains("QUEUE_FULL") || ex.Message.Contains("ROUTING_FAILED");
-            if (isQueueFull)
-            {
-                return new ChallengeDeployResponeDTO
-                {
-                    status = (int)HttpStatusCode.TooManyRequests,
-                    success = false,
-                    message = "Deployment queue is currently full. Please retry in a moment."
-                };
-            }
 
             return new ChallengeDeployResponeDTO
             {

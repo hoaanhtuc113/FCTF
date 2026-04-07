@@ -481,7 +481,7 @@ public class ChallengeService : IChallengeService
             {
                 status = (int)HttpStatusCode.InternalServerError,
                 success = false,
-                message = "An unexpected error occurred. We are working to fix it."
+                message = "An unexpected error occurred."
             };
         }
     }
