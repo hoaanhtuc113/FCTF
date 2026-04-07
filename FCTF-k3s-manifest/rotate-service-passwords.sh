@@ -242,6 +242,14 @@ get_secret_value() {
   printf '%s' "${raw}" | base64 --decode
 }
 
+get_secret_keys() {
+  local namespace="$1"
+  local secret_name="$2"
+
+  kubectl --request-timeout=10s -n "${namespace}" get secret "${secret_name}" \
+    -o go-template='{{range $k,$v := .data}}{{printf "%s\n" $k}}{{end}}' 2>/dev/null || true
+}
+
 apply_secret_from_literals() {
   local namespace="$1"
   local secret_name="$2"
@@ -929,8 +937,9 @@ transform_secret_value() {
 patch_additional_db_redis_secrets() {
   local patched_count="0"
   local scanned_count="0"
-  local namespace secret_name key current updated
+  local namespace secret_name key current updated keys_blob
   local -a candidate_keys
+  local -A candidate_lookup
   candidate_keys=(
     "DATABASE_URL" "DB_CONNECTION" "REDIS_URL" "REDIS_CONNECTION" "REDIS_PASS" "REDIS_PASSWORD"
     "RABBIT_PASSWORD" "rabbitmq-password" "rabbitmq-erlang-cookie" "RABBITMQ_ERLANG_COOKIE"
@@ -938,6 +947,10 @@ patch_additional_db_redis_secrets() {
     "bootstrapPassword" "RANCHER_BOOTSTRAP_PASSWORD" "admin-password" "GF_SECURITY_ADMIN_PASSWORD"
     "mariadb-password"
   )
+
+  for key in "${candidate_keys[@]}"; do
+    candidate_lookup["${key}"]=1
+  done
 
   while IFS='|' read -r namespace secret_name; do
     [[ -n "${namespace}" && -n "${secret_name}" ]] || continue
@@ -954,7 +967,13 @@ patch_additional_db_redis_secrets() {
 
     debug_log "scan ${namespace}/${secret_name}"
 
-    for key in "${candidate_keys[@]}"; do
+    keys_blob="$(get_secret_keys "${namespace}" "${secret_name}")"
+    [[ -n "${keys_blob}" ]] || continue
+
+    while IFS= read -r key; do
+      [[ -n "${key}" ]] || continue
+      [[ -n "${candidate_lookup[${key}]+x}" ]] || continue
+
       current="$(get_secret_value "${namespace}" "${secret_name}" "${key}" || true)"
       [[ -n "${current}" ]] || continue
 
@@ -968,7 +987,7 @@ patch_additional_db_redis_secrets() {
       else
         debug_log "no-change ${namespace}/${secret_name}:${key}"
       fi
-    done
+    done <<< "${keys_blob}"
   done < <(kubectl get secrets -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"|"}{.metadata.name}{"\n"}{end}')
 
   if [[ "${DEBUG_MODE}" == "true" ]]; then
