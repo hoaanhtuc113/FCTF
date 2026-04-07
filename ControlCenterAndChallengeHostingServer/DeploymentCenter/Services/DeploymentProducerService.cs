@@ -34,11 +34,9 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
     private IChannel? _channel;
     private readonly ConnectionFactory _factory;
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly SemaphoreSlim _publishLock = new(1, 1);
 
     private const string ExchangeName = "deployment_exchange";
     private const string RoutingKey = "deploy";
-    private const int PublishTimeoutMs = 5000;
 
     public DeploymentProducerService(
         string host,
@@ -84,9 +82,7 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             if (_connection == null || !_connection.IsOpen) _connection = await _factory.CreateConnectionAsync();
             if (_channel == null || !_channel.IsOpen)
             {
-                _channel = await _connection.CreateChannelAsync(new CreateChannelOptions(
-                    publisherConfirmationsEnabled: true,
-                    publisherConfirmationTrackingEnabled: true));
+                _channel = await _connection.CreateChannelAsync();
             }
         }
         finally { _lock.Release(); }
@@ -122,32 +118,24 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             throw new InvalidOperationException("RabbitMQ channel is not open.");
         }
 
-        await _publishLock.WaitAsync();
         try
         {
-            try
-            {
-                // In RabbitMQ.Client 7.x, BasicPublishAsync throws PublishException for nack/basic.return.
-                await _channel.BasicPublishAsync(
-                    ExchangeName,
-                    RoutingKey,
-                    mandatory: true,
-                    props,
-                    body);
-            }
-            catch (PublishException ex)
-            {
-                if (ex.IsReturn)
-                {
-                    throw new DeploymentRoutingFailedException("ROUTING_FAILED", ex);
-                }
-
-                throw new DeploymentQueueFullException("QUEUE_FULL", ex);
-            }
+            // In RabbitMQ.Client 7.x, BasicPublishAsync throws PublishException for nack/basic.return.
+            await _channel.BasicPublishAsync(
+                ExchangeName,
+                RoutingKey,
+                mandatory: true,
+                props,
+                body);
         }
-        finally
+        catch (PublishException ex)
         {
-            _publishLock.Release();
+            if (ex.IsReturn)
+            {
+                throw new DeploymentRoutingFailedException("ROUTING_FAILED", ex);
+            }
+
+            throw new DeploymentQueueFullException("QUEUE_FULL", ex);
         }
     }
 
