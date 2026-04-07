@@ -32,6 +32,7 @@ Description:
     4) Patch matching Kubernetes Secrets (excluding ctfd namespace)
     5) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
     6) Keep Kubernetes Secret key RABBIT_PASSWORD unchanged (admin credential)
+    7) Rotate SECRET_KEY and PRIVATE_KEY for secrets in namespace app
 
 Options:
   --skip-rollout-restart   Do not restart workloads after secret rotation
@@ -336,6 +337,9 @@ load_harbor_static_values() {
   HARBOR_REGISTRY_USERNAME="$(yaml_read_scalar "${harbor_values}" "registry.credentials.username")"
   HARBOR_REGISTRY_PASSWORD="$(yaml_read_scalar "${harbor_values}" "registry.credentials.password")"
   HARBOR_REGISTRY_HTPASSWD="$(yaml_read_scalar "${harbor_values}" "registry.credentials.htpasswdString")"
+  HARBOR_DATABASE_PASSWORD="$(yaml_read_scalar "${harbor_values}" "database.internal.password")"
+  HARBOR_CORE_TLS_CRT="$(yaml_read_scalar "${harbor_values}" "core.tokenCert")"
+  HARBOR_CORE_TLS_KEY="$(yaml_read_scalar "${harbor_values}" "core.tokenKey")"
 
   if [[ -n "$(yaml_read_scalar "${harbor_values}" "existingSecretAdminPassword")" ]]; then
     HARBOR_ADMIN_PASSWORD=""
@@ -359,6 +363,13 @@ load_harbor_static_values() {
     HARBOR_REGISTRY_USERNAME=""
     HARBOR_REGISTRY_PASSWORD=""
     HARBOR_REGISTRY_HTPASSWD=""
+  fi
+  if [[ "$(yaml_read_scalar "${harbor_values}" "database.type")" != "internal" ]]; then
+    HARBOR_DATABASE_PASSWORD=""
+  fi
+  if [[ -n "$(yaml_read_scalar "${harbor_values}" "core.secretName")" ]]; then
+    HARBOR_CORE_TLS_CRT=""
+    HARBOR_CORE_TLS_KEY=""
   fi
 }
 
@@ -451,6 +462,20 @@ patch_harbor_secrets() {
       echo "    patched ${harbor_ns}/${secret_name}:CORE_SECRET"
     fi
 
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "POSTGRESQL_PASSWORD" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "POSTGRESQL_PASSWORD" "${HARBOR_DATABASE_PASSWORD}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:POSTGRESQL_PASSWORD"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "POSTGRES_PASSWORD" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_DATABASE_PASSWORD}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "POSTGRES_PASSWORD" "${HARBOR_DATABASE_PASSWORD}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:POSTGRES_PASSWORD"
+    fi
+
     if [[ "${secret_name}" == *"harbor-core"* ]]; then
       current="$(get_secret_value "${harbor_ns}" "${secret_name}" "secret" || true)"
       if [[ -n "${current}" && -n "${HARBOR_CORE_SECRET}" ]]; then
@@ -479,6 +504,27 @@ patch_harbor_secrets() {
       patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_PASSWD" "${HARBOR_REGISTRY_PASSWORD}"
       patched=$((patched + 1))
       echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_PASSWD"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_CREDENTIAL_PASSWORD" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_REGISTRY_PASSWORD}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "REGISTRY_CREDENTIAL_PASSWORD" "${HARBOR_REGISTRY_PASSWORD}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:REGISTRY_CREDENTIAL_PASSWORD"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "tls.crt" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_CORE_TLS_CRT}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "tls.crt" "${HARBOR_CORE_TLS_CRT}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:tls.crt"
+    fi
+
+    current="$(get_secret_value "${harbor_ns}" "${secret_name}" "tls.key" || true)"
+    if [[ -n "${current}" && -n "${HARBOR_CORE_TLS_KEY}" ]]; then
+      patch_secret_string_key "${harbor_ns}" "${secret_name}" "tls.key" "${HARBOR_CORE_TLS_KEY}"
+      patched=$((patched + 1))
+      echo "    patched ${harbor_ns}/${secret_name}:tls.key"
     fi
 
     current="$(get_secret_value "${harbor_ns}" "${secret_name}" "REGISTRY_HTPASSWD" || true)"
@@ -760,6 +806,16 @@ transform_secret_value() {
         updated="${password}"
       fi
       ;;
+    SECRET_KEY)
+      if [[ "${namespace}" == "app" && -n "${APP_SECRET_KEY_NEW}" ]]; then
+        updated="${APP_SECRET_KEY_NEW}"
+      fi
+      ;;
+    PRIVATE_KEY)
+      if [[ "${namespace}" == "app" && -n "${APP_PRIVATE_KEY_NEW}" ]]; then
+        updated="${APP_PRIVATE_KEY_NEW}"
+      fi
+      ;;
     redis-password)
       if [[ -n "${REDIS_ROOT_PASSWORD_NEW}" ]]; then
         updated="${REDIS_ROOT_PASSWORD_NEW}"
@@ -829,6 +885,7 @@ patch_additional_db_redis_secrets() {
 
   candidate_keys=(
     "DATABASE_URL" "DB_CONNECTION" "REDIS_URL" "REDIS_CONNECTION" "REDIS_PASS" "REDIS_PASSWORD"
+    "SECRET_KEY" "PRIVATE_KEY"
     "redis-password"
     "HARBOR_ADMIN_PASSWORD" "secretKey" "secret" "CORE_SECRET" "CSRF_KEY" "JOBSERVICE_SECRET" "REGISTRY_HTTP_SECRET" "REGISTRY_PASSWD"
     "mariadb-password" "mariadb-root-password" "mariadb-replication-password"
@@ -1003,6 +1060,8 @@ DEPLOYMENT_CENTER_REDIS_PASSWORD=""
 DEPLOYMENT_LISTENER_REDIS_PASSWORD=""
 DEPLOYMENT_CONSUMER_REDIS_PASSWORD=""
 REDIS_ROOT_PASSWORD_NEW=""
+APP_SECRET_KEY_NEW=""
+APP_PRIVATE_KEY_NEW=""
 
 RABBIT_PRODUCER_PASSWORD=""
 RABBIT_CONSUMER_PASSWORD=""
@@ -1016,6 +1075,9 @@ HARBOR_CORE_SECRET=""
 HARBOR_CSRF_KEY=""
 HARBOR_JOBSERVICE_SECRET=""
 HARBOR_REGISTRY_HTTP_SECRET=""
+HARBOR_DATABASE_PASSWORD=""
+HARBOR_CORE_TLS_CRT=""
+HARBOR_CORE_TLS_KEY=""
 
 echo "==> Generating new passwords"
 MARIADB_CTFD_PASSWORD_NEW="$(generate_random_secret 50)"
@@ -1029,6 +1091,8 @@ DEPLOYMENT_CENTER_REDIS_PASSWORD="$(generate_random_secret 50)"
 DEPLOYMENT_LISTENER_REDIS_PASSWORD="$(generate_random_secret 50)"
 DEPLOYMENT_CONSUMER_REDIS_PASSWORD="$(generate_random_secret 50)"
 REDIS_ROOT_PASSWORD_NEW="$(generate_random_secret 50)"
+APP_SECRET_KEY_NEW="$(generate_random_secret 50)"
+APP_PRIVATE_KEY_NEW="$(generate_random_secret 64)"
 
 RABBIT_PRODUCER_PASSWORD="$(generate_random_secret 50)"
 RABBIT_CONSUMER_PASSWORD="$(generate_random_secret 50)"
@@ -1037,6 +1101,7 @@ echo "==> Rotation plan"
 echo "    Redis ACL users:             ${NEED_REDIS_ROTATION}"
 echo "    Redis default password:      ${NEED_REDIS_ROTATION}"
 echo "    RabbitMQ producer/consumer:  ${ROTATE_RABBITMQ}"
+echo "    App SECRET/PRIVATE keys:     true"
 echo "    MariaDB secret-only rotate:  ${NEED_MARIADB_ROTATION}"
 echo "    Harbor static secret sync:   ${ROTATE_HARBOR}"
 
