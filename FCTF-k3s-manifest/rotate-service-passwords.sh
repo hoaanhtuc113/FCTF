@@ -287,11 +287,16 @@ yaml_read_scalar() {
         depth--
       }
 
-      if (match(line, /^[[:space:]]*([A-Za-z0-9_.-]+):[[:space:]]*(.*)$/, m)) {
+      if (line ~ /^[[:space:]]*[A-Za-z0-9_.-]+:[[:space:]]*/) {
+        work = line
+        sub(/^[[:space:]]*/, "", work)
+        sep = index(work, ":")
+        if (sep <= 0) next
+
         depth++
-        keys[depth] = m[1]
+        keys[depth] = substr(work, 1, sep - 1)
         indents[depth] = indent
-        value = trim(m[2])
+        value = trim(substr(work, sep + 1))
 
         if (depth == want_count) {
           ok = 1
