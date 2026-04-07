@@ -1272,8 +1272,6 @@ if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-password"
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-root-password"
   echo "    patched ${DB_NAMESPACE}/mariadb-auth-secret:mariadb-replication-password"
-
-  apply_mariadb_all_user_password_changes
 fi
 
 if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
@@ -1324,6 +1322,16 @@ fi
 echo
 echo "==> Patching additional related credential keys in all other secrets"
 patch_additional_db_redis_secrets
+
+if [[ "${NEED_MARIADB_ROTATION}" == "true" ]]; then
+  echo
+  echo "==> Applying MariaDB SQL password changes (late step before restarts)"
+  apply_mariadb_all_user_password_changes
+
+  if [[ "${SKIP_ROLLOUT_RESTART}" == "true" ]]; then
+    echo "Warning: MariaDB SQL passwords changed but rollout restarts are skipped; services may fail auth until restarted."
+  fi
+fi
 
 RESTART_APP_DEPLOYMENTS="false"
 if [[ "${NEED_REDIS_ROTATION}" == "true" || "${NEED_MARIADB_ROTATION}" == "true" || "${ROTATE_RABBITMQ}" == "true" ]]; then
