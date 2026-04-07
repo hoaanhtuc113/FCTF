@@ -8,6 +8,8 @@ Tool để migrate dữ liệu giữa KCTF và CTFd databases.
 ```bash
 python3 -m venv venv
 source venv/bin/activate
+# Windows PowerShell
+# .\\venv\\Scripts\\Activate.ps1
 ```
 
 2. Cài đặt dependencies:
@@ -37,6 +39,8 @@ MAPPING_CTFD_TO_KCTF=./mapping_ctfd_to_fctf.json
 Activate virtual environment và chạy console:
 ```bash
 source venv/bin/activate
+# Windows PowerShell
+# .\\venv\\Scripts\\Activate.ps1
 python main.py
 ```
 
@@ -126,6 +130,8 @@ cd /home/ubuntu/FCTF-Platform-Deploy/database-migration
 # 1. Tạo virtual environment
 python3 -m venv venv
 source venv/bin/activate
+# Windows PowerShell
+# .\\venv\\Scripts\\Activate.ps1
 
 # 2. Cài đặt dependencies
 pip install -r requirements.txt
