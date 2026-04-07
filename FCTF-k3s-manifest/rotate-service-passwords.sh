@@ -1184,6 +1184,7 @@ restart_rabbitmq_workload() {
 restart_redis_workload() {
   local ns="db"
   local redis_sts=""
+  local redis_values="${PROD_DIR}/helm/db/redis/redis-values.yaml"
 
   if kubectl -n "${ns}" get statefulset redis-master >/dev/null 2>&1; then
     redis_sts="redis-master"
@@ -1221,8 +1222,23 @@ restart_redis_workload() {
     patch_secret_string_key "${ns}" "redis" "redis-password" "${REDIS_ROOT_PASSWORD_NEW}"
   fi
 
-  echo "==> Scaling up Redis StatefulSet ${ns}/${redis_sts} to 1"
-  kubectl -n "${ns}" scale "statefulset/${redis_sts}" --replicas=1
+  require_command helm
+  if [[ ! -f "${redis_values}" ]]; then
+    echo "Error: Redis Helm values file not found at ${redis_values}."
+    exit 1
+  fi
+
+  if ! helm repo list 2>/dev/null | awk '{print $1}' | grep -qx "bitnami"; then
+    helm repo add bitnami https://charts.bitnami.com/bitnami >/dev/null
+  fi
+  helm repo update bitnami >/dev/null
+
+  echo "==> Running Helm upgrade for Redis release (this brings replicas back from 0)"
+  helm upgrade --install redis bitnami/redis \
+    --namespace "${ns}" --create-namespace \
+    -f "${redis_values}" \
+    --wait --timeout 10m --debug
+
   kubectl -n "${ns}" rollout status "statefulset/${redis_sts}" --timeout=600s
 }
 
@@ -1475,7 +1491,7 @@ if [[ "${NEED_REDIS_ROTATION}" == "true" ]]; then
     fi
     echo "    patched Redis secrets (skip rollout restart mode)"
   else
-    echo "    deferred Redis secret patch to restart step: scale 0 -> patch -> scale 1"
+    echo "    deferred Redis secret patch to restart step: scale 0 -> patch -> helm upgrade"
   fi
 fi
 
