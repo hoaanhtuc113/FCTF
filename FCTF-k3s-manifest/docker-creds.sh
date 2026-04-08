@@ -1,1 +1,0 @@
-echo -n '{"auths":{"https://index.docker.io/v1/":{"username":"quachuoiscontainer","password":"Admin@123","email":"williamkieu-devops@outlook.com","auth":"'"$(echo -n 'quachuoiscontainer:Admin@123' | base64)"'"}}}' | base64 -w0

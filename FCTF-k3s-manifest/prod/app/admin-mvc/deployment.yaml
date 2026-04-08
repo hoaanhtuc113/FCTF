@@ -13,14 +13,17 @@ spec:
       labels:
         app: admin-mvc
     spec:
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       securityContext:
         fsGroup: 1101
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: admin-mvc
-          image: quachuoiscontainer/fctf:admin-mvc-prod-v4.0.0
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/admin-mvc:latest
           ports:
             - name: http-client
               containerPort: 8000
@@ -34,11 +37,11 @@ spec:
                 name: common-private-key-secret
           resources:
             requests:
-              cpu: 0.2
-              memory: 512Mi
-            limits:
-              cpu: 0.5
+              cpu: 1
               memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 2Gi
           readinessProbe:
             httpGet:
               path: /healthcheck
@@ -51,8 +54,8 @@ spec:
             httpGet:
               path: /healthcheck
               port: 8000
-            initialDelaySeconds: 15
-            periodSeconds: 20
+            initialDelaySeconds: 30
+            periodSeconds: 30
             timeoutSeconds: 2
             failureThreshold: 3
           imagePullPolicy: Always

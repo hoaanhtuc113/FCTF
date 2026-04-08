@@ -35,7 +35,7 @@ public class HintController : BaseController
     }
 
     [HttpGet("{id}")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetHintById(int id, [FromQuery] bool preview = false)
     {
         var userId = UserContext.UserId;
@@ -52,7 +52,7 @@ public class HintController : BaseController
     }
 
     [HttpGet("{id}/all")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetHintByChallengeId(int id)
     {
         var userId = UserContext.UserId;
@@ -71,7 +71,7 @@ public class HintController : BaseController
 
         if (teamId == 0 || userId == 0)
         {
-            return Unauthorized(new { success = false, error = "Permission denied" });
+            return Unauthorized(new { success = false, error = "PermisUnlockHintsion denied" });
         }
         try
         {

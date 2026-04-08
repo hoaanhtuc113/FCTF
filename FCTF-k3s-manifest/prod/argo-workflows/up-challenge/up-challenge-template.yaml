@@ -6,7 +6,7 @@ metadata:
   annotations:
     workflows.argoproj.io/description: "Build and push challenge image from NFS using Kaniko"
 spec:
-  serviceAccountName: argo-sa
+  serviceAccountName: up-challenge-workflow-sa
   entrypoint: main
   ttlStrategy:
     secondsAfterSuccess: 604800     # 7 days
@@ -47,8 +47,8 @@ spec:
           - name: IMAGE_REPO
           - name: IMAGE_TAG
       priorityClassName: lowest
-      preemptionPolicy: Never
       podSpecPatch: |
+        preemptionPolicy: Never
         hostNetwork: true
         dnsPolicy: ClusterFirstWithHostNet
         securityContext:
@@ -70,11 +70,11 @@ spec:
         # Production-safe resources (tested range)
         resources:
           requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
             cpu: "500m"
             memory: "1Gi"
-          limits:
-            cpu: "2"
-            memory: "4Gi"
 
         env:
           - name: DOCKER_CONFIG
@@ -82,7 +82,7 @@ spec:
 
         volumeMounts:
           - name: nfs-shared-data
-            mountPath: /nfs/share/data
+            mountPath: /mnt/nfs/data
             readOnly: true
           - name: docker-config
             mountPath: /kaniko/.docker
@@ -96,13 +96,53 @@ spec:
             echo "=== Building and pushing image with Kaniko ==="
 
             CHALLENGE_PATH_RAW="{{inputs.parameters.CHALLENGE_PATH}}"
-            CHALLENGE_PATH_NORMALIZED="${CHALLENGE_PATH_RAW#challenges/}"
-            CHALLENGE_DIR="/nfs/share/data/${CHALLENGE_PATH_NORMALIZED}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_RAW#./}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#challenges/}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#/}"
 
-            if [ ! -d "$CHALLENGE_DIR" ]; then
-              echo "❌ Challenge directory not found: $CHALLENGE_DIR"
+            CANDIDATE_1="/mnt/nfs/data/${CHALLENGE_PATH_RAW}"
+            CANDIDATE_2="/mnt/nfs/data/${CHALLENGE_PATH_NORM}"
+
+            if [ "${CHALLENGE_PATH_RAW#/}" != "$CHALLENGE_PATH_RAW" ]; then
+              CANDIDATE_3="$CHALLENGE_PATH_RAW"
+            else
+              CANDIDATE_3=""
+            fi
+
+            echo "🔎 CANDIDATE_1: $CANDIDATE_1"
+            echo "🔎 CANDIDATE_2: $CANDIDATE_2"
+            if [ -n "$CANDIDATE_3" ]; then
+              echo "🔎 CANDIDATE_3: $CANDIDATE_3"
+            fi
+
+            CHALLENGE_DIR=""
+            CHALLENGE_DIR_SOURCE=""
+            if [ -d "$CANDIDATE_1" ]; then
+              CHALLENGE_DIR="$CANDIDATE_1"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_1"
+            elif [ -d "$CANDIDATE_2" ]; then
+              CHALLENGE_DIR="$CANDIDATE_2"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_2"
+            elif [ -n "$CANDIDATE_3" ] && [ -d "$CANDIDATE_3" ]; then
+              CHALLENGE_DIR="$CANDIDATE_3"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_3"
+            fi
+
+            if [ -z "$CHALLENGE_DIR" ]; then
+              echo "❌ Challenge directory not found"
+              echo "   - Tried: $CANDIDATE_1"
+              echo "   - Tried: $CANDIDATE_2"
+              if [ -n "$CANDIDATE_3" ]; then
+                echo "   - Tried: $CANDIDATE_3"
+              fi
+              echo "📂 /mnt/nfs/data (top-level):"
+              ls -la /mnt/nfs/data || true
+              echo "📂 /mnt/nfs/data (maxdepth=3):"
+              find /mnt/nfs/data -maxdepth 3 -type d | sort || true
               exit 1
             fi
+
+            echo "✅ Selected ${CHALLENGE_DIR_SOURCE}: $CHALLENGE_DIR"
 
             if [ ! -f "$CHALLENGE_DIR/Dockerfile" ]; then
               echo "❌ Dockerfile not found in $CHALLENGE_DIR"
@@ -118,9 +158,9 @@ spec:
               --custom-platform=linux/amd64 \
               --snapshot-mode=redo \
               --verbosity=info \
-              --destination=quachuoiscontainer/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}
+              --destination=registry.sanchoi.iahn.hanoi.vn/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest
 
-            echo "✅ Image pushed: quachuoiscontainer/{{inputs.parameters.IMAGE_REPO}}:{{inputs.parameters.IMAGE_TAG}}"
+            echo "✅ Image pushed: registry.sanchoi.iahn.hanoi.vn/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest"
 
       volumes:
         - name: nfs-shared-data
@@ -139,10 +179,13 @@ spec:
     # ======================================================
     - name: send-message
       priorityClassName: lowest
-      preemptionPolicy: Never
+      podSpecPatch: |
+        preemptionPolicy: Never
+        imagePullSecrets:
+          - name: global-regcred
 
       container:
-        image: quachuoiscontainer/kubectl-cli:v0.0.3
+        image: registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
         imagePullPolicy: IfNotPresent
 
         # HARDENED (safe – no write needed)

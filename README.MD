@@ -1,123 +1,152 @@
-# FCTF Platform - Tổng Quan & Hướng Dẫn Sử Dụng
+# FCTF Platform
 
-## 1. Giới thiệu các thành phần chính
+FCTF is a microservices-based CTF platform designed to run large-scale competitions with dynamic challenge deployment, isolated runtime environments, and full lifecycle management on container/Kubernetes infrastructure.
 
-### 1. ContestantPlatform
-- **Vị trí:** `ContestantPlatform/`
-- **Chức năng:** Giao diện web dành cho thí sinh tham gia CTF, nơi hiển thị các thử thách, nộp flag, xem bảng điểm, v.v.
-- **Công nghệ:** Frontend sử dụng Vite, TailwindCSS, Node.js.
+The system helps organizers operate competitions reliably at scale while providing contestants with a smooth experience across registration, challenge solving, flag submission, and scoreboard tracking.
 
-### 2. ControlCenterAndChallengeHostingServer
-- **Vị trí:** `ControlCenterAndChallengeHostingServer/`
-- **Chức năng:** 
-  - `ControlCenterServer`: Quản lý trung tâm, điều phối các server challenge, xác thực, quản lý user, v.v.
-  - `ChallengeManagementServer`: Quản lý, deploy, kiểm tra trạng thái các challenge.
-  - `ResourceShared`: Chứa các thư viện, resource dùng chung cho 2 server trên.
-- **Công nghệ:** .NET 8, C#, self-contained Linux build.
+## Features
 
-### 3. ctf-directory
-- **Vị trí:** `ctf-directory/`
-- **Chức năng:** 
-  - Chứa các challenge, cấu hình kCTF, các script và tài nguyên phục vụ cho việc deploy challenge.
-  - Thư mục `kctf/` chứa môi trường và công cụ kCTF (Kubernetes CTF framework).
-  - File `components.yaml` định nghĩa các thành phần của hệ thống.
+- Dynamic challenge deployment per session for stronger isolation and security.
+- Central gateway for request routing, rate limiting, and access control.
+- Modern contestant portal optimized for fast and intuitive competition workflows.
+- Control Center for challenge, user, and system status administration.
+- Deployment listener/consumer components for automated service lifecycle operations.
+- Data migration and synchronization support from legacy CTF platforms.
+- Gateway test suite (quick/all/race/load) for functional and performance validation.
+- Docker and K3s manifest-based infrastructure for easier staging/production deployment.
 
-### 4. FCTF-ManagementPlatform
-- **Vị trí:** `FCTF-ManagementPlatform/`
-- **Chức năng:** 
-  - Quản lý các dịch vụ Docker (Redis, backend, frontend, ...).
-  - Chứa file cấu hình `.env`, `docker-compose.yml` để orchestrate toàn bộ hệ thống.
+## Quick Start
 
----
+Recommended installation flow:
 
-## 2. Hướng dẫn sử dụng `manage.sh`
+1. Run **Setup master** on the master node.
+2. Run **Setup worker** on each worker node to join the cluster (requires master URL and master token).
+3. Return to the master node and run **Install FCTF**.
+4. Run **Setup Harbor** on the master node.
 
-### 2.1. Chuẩn bị môi trường
+### Prerequisites
 
-- Đảm bảo đã cài đặt các công cụ: Docker, Docker Compose, Node.js, .NET 8, Python3, pip3, kubectl.
-- Nếu chưa, có thể chạy:
-  ```sh
-  ./manage.sh dev check-env
-  ```
+- Ubuntu on all nodes (master and workers)
+- `sudo` privileges
+- Repository available on each node
 
-### 2.2. Các lệnh chính
-
-```sh
-./manage.sh <môi trường> <lệnh>
+```bash
+git clone <repo-url> FCTF
+cd FCTF
+chmod +x manage.sh
 ```
-- `<môi trường>`: `dev`, `uat`, hoặc `production`
-- `<lệnh>` gồm:
-  - `up` : Khởi động toàn bộ hệ thống (Docker, ChallengeHosting, ControlCenter)
-  - `down` : Dừng và xóa toàn bộ dịch vụ Docker
-  - `build` : Build và publish ứng dụng .NET (ChallengeHosting và ControlCenter)
-  - `check-env` : Kiểm tra môi trường và cài đặt các công cụ cần thiết nếu chưa có
-  - `restart` : Khởi động lại toàn bộ hệ thống
-  - `logs` : Hiển thị log của các container Docker trong FCTF-ManagementPlatform
-  - `rebuild [no-cache]` : Rebuild Docker image (thêm 'no-cache' để không dùng cache)
-  - `status` : Kiểm tra trạng thái các container, tiến trình .NET và k8s proxy
-  - `clean` : Xóa các file build và container/image Docker
-  - `check-config` : Kiểm tra nội dung file appsettings.json và .env
 
-### 2.3. Quy trình khởi động hệ thống mẫu
+### Step 1: Set up the master node
 
-1. **Kiểm tra/cài đặt môi trường:**
-   ```sh
-   ./manage.sh dev check-env
-   ```
+```bash
+./manage.sh
+```
 
-2. **Build ứng dụng:**
-   ```sh
-   ./manage.sh dev build
-   ```
+Select:
 
-3. **Khởi động hệ thống:**
-   ```sh
-   ./manage.sh dev up
-   ```
+- `1) Setup master`
 
-4. **Xem trạng thái hệ thống:**
-   ```sh
-   ./manage.sh dev status
-   ```
+This installs K3s server and prints the worker join token at the end.
 
-5. **Xem log các container:**
-   ```sh
-   ./manage.sh dev logs
-   ```
+### Step 2: Set up worker nodes and join the cluster
 
-6. **Dừng hệ thống:**
-   ```sh
-   ./manage.sh dev down
-   ```
+On each worker node:
 
-7. **Làm sạch hệ thống (xóa build, container, image):**
-   ```sh
-   ./manage.sh dev clean
-   ```
+```bash
+cd FCTF
+./manage.sh
+```
 
----
+Select:
 
-## 3. Lưu ý
+- `2) Setup worker`
 
-- Khi chạy ở môi trường `production`, script sẽ yêu cầu nhập domain cho ChallengeHosting và ControlCenter.
-- Các file cấu hình chính sẽ được tự động cập nhật khi chạy các lệnh build/up.
-- Đảm bảo quyền truy cập Docker và các port không bị chiếm dụng bởi tiến trình khác.
+When prompted, provide:
 
----
+- Master URL (example: `https://10.x.x.x:6443`)
+- Master token (from Step 1 output)
 
-## 4. Tham khảo thêm
+Repeat for all worker nodes.
 
-- [ContestantPlatform](ContestantPlatform/)
-- [ControlCenterAndChallengeHostingServer](ControlCenterAndChallengeHostingServer/)
-- [ctf-directory](ctf-directory/)
-- [FCTF-ManagementPlatform](FCTF-ManagementPlatform/)
-- [manage.sh](manage.sh) 
+### Step 3: Install FCTF platform components
+
+Back on the master node:
+
+```bash
+cd FCTF
+./manage.sh
+```
+
+Select:
+
+- `3) Install FCTF`
+
+### Step 4: Set up Harbor
+
+On the master node:
+
+```bash
+cd FCTF
+./manage.sh
+```
+
+Select:
+
+- `4) Setup harbor`
+
+### Optional operations
+
+`manage.sh` also provides:
+
+- `5) Setup CI/CD`
+- `6) Get Argo token`
+
+### Environment-specific configuration checklist (Important)
+
+Before running production deployment, review and update the following values based on your target environment:
+
+- **NFS server IP in PV manifests**  
+	Update the NFS server address in PersistentVolume files under the K3s manifests (NFS-backed storage).
+
+- **Nginx domain**  
+	Update ingress/nginx hostnames and related domain references to match your actual public domain.
+
+- **Rancher domain in `rancher-values.yaml`**  
+	Ensure Rancher hostname/domain values are set correctly for your environment.
+
+- **ConfigMaps and Secrets**  
+	Review all application configuration and secret values (URLs, keys, credentials, feature flags, etc.).
+
+- **Helm credentials (accounts/passwords)**  
+	Replace default or placeholder usernames/passwords in Helm values files (database, RabbitMQ, Redis, Harbor, and other components).
+
+> All items above must be adjusted per environment (dev/staging/prod) before installation.
+
+## Uninstall
+
+Use the management menu:
+
+```bash
+./manage.sh
+```
+
+Select:
+
+- `7) Uninstall`
+
+Then choose one of the following:
+
+- `1) Uninstall worker`: remove a worker node
+- `2) Uninstall master`: remove the master node and related resources
+
+Recommended order:
+
+1. Uninstall all worker nodes first.
+2. Uninstall the master node last.
+
+## Architecture
+
+> (To be completed)
 
 
-chuyển chủ sở hữu từ root sang user hiện tại path /etc/nginx/sites-enabled và cấp quyền truy cập cho user hiện tại quyền đọc xóa
 
-cài socat: sudo apt install socat
-cài chạy sudo socat không cần password
-
-Khi config nginx cấp quyền cho index.html và folder cha
-Xin cấp 2 domain

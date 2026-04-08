@@ -50,7 +50,7 @@ func (sr *statusRecorder) WriteHeader(code int) {
 	sr.status = code
 	sr.ResponseWriter.WriteHeader(code)
 }
-
+// ── HTTP gateway ─────────────────────────────────────────────────────────────
 // StartHTTP initialises and starts the HTTP reverse-proxy gateway.
 // It returns the *http.Server so the caller can gracefully shut it down.
 func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
@@ -78,7 +78,7 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			log.Printf("HTTP upstream error: %v", err)
-			http.Error(w, "upstream error", http.StatusBadGateway)
+			http.Error(w, "Cannot connect to challenge", http.StatusBadGateway)
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			enforceNoStoreForHTML(resp)

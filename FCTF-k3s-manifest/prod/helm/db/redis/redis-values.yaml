@@ -151,15 +151,15 @@ auth:
   ## @param auth.password Redis(R) password
   ## Defaults to a random 10-character alphanumeric string if not set
   ##
-  password: "Fctf2025@"
+  password: ""
   ## @param auth.existingSecret The name of an existing secret with Redis(R) credentials
   ## NOTE: When it's set, the previous `auth.password` parameter is ignored
   ##
-  existingSecret: ""
+  existingSecret: "redis-auth-secret"
   ## @param auth.existingSecretPasswordKey Password key to be retrieved from existing secret
   ## NOTE: ignored unless `auth.existingSecret` parameter is set
   ##
-  existingSecretPasswordKey: ""
+  existingSecretPasswordKey: "redis-password"
   ## @param auth.usePasswordFiles Mount credentials as files instead of using an environment variable
   ##
   usePasswordFiles: true
@@ -172,7 +172,7 @@ auth:
   acl:
     ## @param auth.acl.enabled Enables the support of the Redis ACL system
     ##
-    enabled: false
+    enabled: true
     ## @param auth.acl.sentinel Enables the support of the Redis ACL system for Sentinel Nodes
     ##
     sentinel: false
@@ -186,9 +186,50 @@ auth:
     ##     commands: "+@all"
     ##     keys: "~*"
     ##     channels: "&*"
-    users: []
+    users:
+      # CTFd/Admin MVC: needs cache + deploy flow + optional pubsub.
+      - username: "svc_admin_mvc"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +unlink +exists +expire +ttl +pttl +persist +incr +decr +scan +keys +hget +hset +hmget +mget +hmset +hdel +publish +subscribe +psubscribe +unsubscribe +punsubscribe"
+        keys: "~*"
+        channels: "&*"
+
+      # Challenge Gateway: only limiter keyspace + Lua execution.
+      - username: "svc_gateway"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +time +exists +expire +del +incr +decr +hget +hset +hmget +hmset +eval +evalsha"
+        keys: "~fctf:gateway:*"
+        channels: "&*"
+
+      # Contestant backend service + Lua execution.
+      - username: "svc_contestant_be"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +pttl +incr +decr +scan +hmget +mget +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha +incrbyfloat"
+        keys: "~submission_cooldown_* ~attempt_count_* ~deploy_challenge_* ~active_deploys_team_* ~auth:user:* ~challenge:* ~hint:* ~kpm_check_* ~fctf:contestant:*"
+        channels: "&*"
+
+      # Deployment center service + Lua execution.
+      - username: "svc_deployment_center"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        keys: "~deploy_challenge_* ~active_deploys_team_*"
+        channels: "&*"
+
+      # Deployment consumer service + Lua execution.
+      - username: "svc_deployment_consumer"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        keys: "~deploy_challenge_* ~active_deploys_team_*"
+        channels: "&*"
+
+      # Deployment listener service + Lua execution.
+      - username: "svc_deployment_listener"
+        enabled: "on"
+        commands: "+ping +echo +select +get +set +setex +del +exists +expire +ttl +incr +decr +scan +keys +zadd +zrem +zremrangebyscore +zscore +zcard +eval +evalsha"
+        keys: "~deploy_challenge_* ~active_deploys_team_*"
+        channels: "&*"
     ## @param auth.acl.userSecret Name of the Secret, containing user credentials for ACL users. Keys must match usernames.
-    userSecret: ""
+    userSecret: "redis-acl-users-secret"
 ## @param commonConfiguration [string] Common configuration to be added into the ConfigMap
 ## ref: https://redis.io/topics/config
 ##
@@ -197,6 +238,10 @@ commonConfiguration: |-
   appendonly yes
   # Disable RDB persistence, AOF persistence already enabled.
   save ""
+  # Maximum number of connected clients.
+  maxclients 10000
+  # Close idle client connections after N seconds.
+  timeout 300
 ## @param existingConfigmap The name of an existing ConfigMap with your custom configuration for Redis(R) nodes
 ##
 existingConfigmap: ""
@@ -220,6 +265,11 @@ master:
   disableCommands:
     - FLUSHDB
     - FLUSHALL
+    - CONFIG
+    - DEBUG
+    - SHUTDOWN
+    - MODULE
+    - MONITOR
   ## @param master.command Override default container command (useful when using custom images)
   ##
   command: []
@@ -330,8 +380,8 @@ master:
       cpu: 0.5
       memory: 2Gi
     limits:
-      cpu: 0.5
-      memory: 2Gi
+      cpu: 1
+      memory: 4Gi
   ## Configure Pods Security Context
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
   ## @param master.podSecurityContext.enabled Enabled Redis(R) master pods' Security Context
@@ -707,6 +757,11 @@ replica:
   disableCommands:
     - FLUSHDB
     - FLUSHALL
+    - CONFIG
+    - DEBUG
+    - SHUTDOWN
+    - MODULE
+    - MONITOR
   ## @param replica.command Override default container command (useful when using custom images)
   ##
   command: []
@@ -1650,7 +1705,7 @@ networkPolicy:
   ## Redis(R) is listening on. When true, Redis(R) will accept connections from any source
   ## (with the correct destination port).
   ##
-  allowExternal: true
+  allowExternal: false
   ## @param networkPolicy.allowExternalEgress Allow the pod to access any range of port and all destinations.
   ##
   allowExternalEgress: true
@@ -1670,38 +1725,34 @@ networkPolicy:
   ##                 values:
   ##                   - frontend
   ##
-  extraIngress: []
+  extraIngress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
   ## @param networkPolicy.extraEgress Add extra egress rules to the NetworkPolicy
-  ## e.g:
-  ## extraEgress:
-  ##   - ports:
-  ##       - port: 1234
-  ##     to:
-  ##       - podSelector:
-  ##           - matchLabels:
-  ##               - role: frontend
-  ##       - podSelector:
-  ##           - matchExpressions:
-  ##               - key: role
-  ##                 operator: In
-  ##                 values:
-  ##                   - frontend
   ##
   extraEgress: []
   ## @param networkPolicy.ingressNSMatchLabels Labels to match to allow traffic from other namespaces
   ## @param networkPolicy.ingressNSPodMatchLabels Pod labels to match to allow traffic from other namespaces
   ##
-  ingressNSMatchLabels: {}
+  ingressNSMatchLabels:
+    kubernetes.io/metadata.name: app
   ingressNSPodMatchLabels: {}
   metrics:
     ## @param networkPolicy.metrics.allowExternal Don't require client label for connections for metrics endpoint
     ## When set to false, only pods with the correct client label will have network access to the metrics port
     ##
-    allowExternal: true
+    allowExternal: false
     ## @param networkPolicy.metrics.ingressNSMatchLabels Labels to match to allow traffic from other namespaces to metrics endpoint
     ## @param networkPolicy.metrics.ingressNSPodMatchLabels Pod labels to match to allow traffic from other namespaces to metrics endpoint
     ##
-    ingressNSMatchLabels: {}
+    ingressNSMatchLabels:
+      kubernetes.io/metadata.name: app
     ingressNSPodMatchLabels: {}
 ## PodSecurityPolicy configuration
 ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
@@ -1758,13 +1809,13 @@ pdb: {}
 tls:
   ## @param tls.enabled Enable TLS traffic
   ##
-  enabled: false
+  enabled: true
   ## @param tls.authClients Require clients to authenticate
   ##
-  authClients: true
+  authClients: false
   ## @param tls.autoGenerated Enable autogenerated certificates
   ##
-  autoGenerated: false
+  autoGenerated: true
   ## @param tls.existingSecret The name of the existing secret that contains the TLS certificates
   ##
   existingSecret: ""

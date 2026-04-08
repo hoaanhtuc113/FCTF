@@ -13,11 +13,15 @@ spec:
       labels:
         app: deployment-consumer
     spec:
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      serviceAccountName: deployment-consumer-sa
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: deployment-consumer
-          image: quachuoiscontainer/fctf:deployment-consumer-prod-v4.0.0
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/deployment-consumer:latest
           envFrom:
             - configMapRef:
                 name: deployment-consumer-cm
@@ -27,11 +31,11 @@ spec:
                 name: common-private-key-secret
           resources:
             requests:
-              cpu: 0.1
-              memory: 128Mi
-            limits:
-              cpu: 0.2
+              cpu: 0.3
               memory: 256Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
           imagePullPolicy: Always
           securityContext:
             readOnlyRootFilesystem: true

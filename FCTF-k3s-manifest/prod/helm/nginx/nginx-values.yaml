@@ -55,15 +55,17 @@ controller:
   # Ref.: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/
   config:
     use-forwarded-headers: "false"
-    compute-full-forwarded-for: "false"
     limit-req-status-code: "429"
     limit-conn-status-code: "429"
+
     http-snippet: |
-      limit_req_zone $binary_remote_addr zone=global_rate:20m rate=30r/s;
+      limit_req_zone $binary_remote_addr zone=global_rate:20m rate=100r/s;
       limit_conn_zone $binary_remote_addr zone=global_conn:20m;
+
     server-snippet: |
-      limit_req zone=global_rate burst=40 nodelay;
-      limit_conn global_conn 20;
+      limit_req zone=global_rate burst=200 nodelay;
+      limit_conn global_conn 100;
+    
   # -- Annotations to be added to the controller config configuration configmap.
   configAnnotations: {}
   # -- Will add custom headers before sending traffic to backends according to https://github.com/kubernetes/ingress-nginx/tree/main/docs/examples/customization/custom-headers
@@ -87,7 +89,7 @@ controller:
   # -- Optionally change this to ClusterFirstWithHostNet in case you have 'hostNetwork: true'.
   # By default, while using host network, name resolution uses the host's DNS. If you wish nginx-controller
   # to keep resolving names inside the k8s network, use ClusterFirstWithHostNet.
-  dnsPolicy: ClusterFirst
+  dnsPolicy: ClusterFirstWithHostNet
   # -- Instruct the kubelet to use the named RuntimeClass to run the pod
   runtimeClassName: ""
   # -- Bare-metal considerations via the host network https://kubernetes.github.io/ingress-nginx/deploy/baremetal/#via-the-host-network
@@ -233,7 +235,7 @@ controller:
   #         name: secret-resource
 
   # -- Use a `DaemonSet` or `Deployment`
-  kind: DaemonSet
+  kind: Deployment
   # -- Annotations to be added to the controller Deployment or DaemonSet
   ##
   annotations: {}
@@ -247,7 +249,11 @@ controller:
 
   # -- The update strategy to apply to the Deployment or DaemonSet
   ##
-  updateStrategy: {}
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
   #  rollingUpdate:
   #    maxUnavailable: 1
   #  type: RollingUpdate
@@ -273,7 +279,15 @@ controller:
   # -- Affinity and anti-affinity rules for server scheduling to nodes
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   ##
-  affinity: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: controller
+            topologyKey: kubernetes.io/hostname
   # # An example of preferred pod anti-affinity, weight is in the range 1-100
   # podAntiAffinity:
   #   preferredDuringSchedulingIgnoredDuringExecution:
@@ -348,6 +362,7 @@ controller:
   ##
   nodeSelector:
     kubernetes.io/os: linux
+    kubernetes.io/hostname: server-1-master
   ## Liveness and readiness probe values
   ## Ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
   ##
@@ -426,10 +441,26 @@ controller:
     enabled: false
     annotations: {}
     minReplicas: 1
-    maxReplicas: 11
-    targetCPUUtilizationPercentage: 50
-    targetMemoryUtilizationPercentage: 50
-    behavior: {}
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Percent
+            value: 50
+            periodSeconds: 60
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 60
+          - type: Pods
+            value: 2
+            periodSeconds: 60
+        selectPolicy: Max
     # scaleDown:
     #   stabilizationWindowSeconds: 300
     #   policies:
@@ -1096,7 +1127,10 @@ defaultBackend:
   # -- Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   ##
-  tolerations: []
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
   #  - key: "key"
   #    operator: "Equal|Exists"
   #    value: "value"

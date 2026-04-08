@@ -4,14 +4,14 @@ metadata:
   name: rancher-ingress
   namespace: cattle-system
   annotations:
-    kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-dev
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
+  ingressClassName: nginx
   rules:
-    - host: rancher.fctf.site
+    - host: rancher.sanchoi.iahn.hanoi.vn
       http:
         paths:
           - path: /
@@ -23,5 +23,5 @@ spec:
                   number: 443
   tls:
     - hosts:
-        - rancher.fctf.site
+        - rancher.sanchoi.iahn.hanoi.vn
       secretName: rancher-tls

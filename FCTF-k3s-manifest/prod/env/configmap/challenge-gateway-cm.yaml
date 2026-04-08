@@ -31,3 +31,4 @@ data:
   REDIS_POOL_SIZE: "100"
   REDIS_MIN_IDLE: "10"
   REDIS_FAIL_CLOSED: "true"
+  REDIS_TLS: "true"

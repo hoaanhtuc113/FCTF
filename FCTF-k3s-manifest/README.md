@@ -9,6 +9,26 @@ Docker Hub được sử dụng làm kho lưu trữ và phân phối các contai
 
 ## Các bước cài đặt
 
+### Cach nhanh: dung script setup-master.sh
+
+Ban co the dung script de gom cac buoc cai dat master + NFS + helm + deploy app:
+
+```bash
+chmod +x setup-master.sh nfs-setup.sh apply-fctf.sh
+
+# Vi du production: chi cho phep 3 node truy cap NFS
+./setup-master.sh \
+  --tls-san 34.124.131.240 \
+  --calico-network-mode vxlan \
+  --nfs-allowed-subnet "10.13.2.3 10.184.0.6 10.184.0.7" 
+```
+
+Script hien tai da tu dong:
+- Apply `prod/env/secret/mariadb-auth-secret.yaml` truoc Helm
+- Apply day du PV/PVC trong `prod/storage/pv` va `prod/storage/pvc`
+- Apply `prod/app/NetworkPolicy/` khi deploy app
+- Chuyen doi service mode (`clusterip`/`nodeport`) theo dung thu tu xoa mode cu -> apply mode moi
+
 ### 0. Chuẩn bị secret MariaDB (bat buoc truoc khi cai Helm)
 
 MariaDB da duoc cau hinh dung existingSecret trong Helm values, vi vay ban phai cap nhat secret truoc khi chay helm:
@@ -22,19 +42,6 @@ kubectl create namespace db --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f ./prod/env/secret/mariadb-auth-secret.yaml
 ```
 
-Neu ban dung tai khoan admin DB cho ManagementPlatform, cap nhat them:
-
-```bash
-nano ./prod/env/secret/admin-mvc-secret.yaml
-```
-
-Neu DB da du lieu san (PVC cu), file initdbScripts se khong chay lai. Khi do hay chay SQL cap quyen thu cong:
-
-```bash
-# Sua mat khau trong script truoc khi chay
-nano ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
-```
-
 ### 1. Chuẩn bị server
 
 ```bash
@@ -42,7 +49,7 @@ nano ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
 sudo apt update && sudo apt upgrade -y
 
 # Cài đặt các công cụ cần thiết
-sudo apt install -y curl wget git nano vim net-tools nfs-common
+sudo apt install -y curl wget git nano vim net-tools nfs-common acl
 
 # Cấu hình timezone
 sudo timedatectl set-timezone Asia/Ho_Chi_Minh
@@ -63,6 +70,8 @@ EOF
 # Chú ý đổi tls-san thành ip của master 
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
+  --cluster-cidr=10.42.0.0/16 \
+  --service-cidr=10.43.0.0/16 \
   --disable-network-policy \
   --disable traefik \
   --kubelet-arg=config=/etc/rancher/k3s/kubelet.config \
@@ -89,11 +98,27 @@ echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 # Kiểm tra cluster
 kubectl get nodes
 ```
-## install calico
+## install calico (VXLAN overlay)
 ```bash
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/tigera-operator.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/custom-resources.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+
+# align Calico pod CIDR with K3s cluster CIDR
+kubectl -n kube-system set env daemonset/calico-node \
+  CALICO_IPV4POOL_CIDR=10.42.0.0/16 \
+  CALICO_IPV4POOL_VXLAN=Always \
+  CALICO_IPV4POOL_IPIP=Never
+
+kubectl -n kube-system rollout status daemonset/calico-node --timeout=300s
+kubectl -n kube-system rollout status deployment/calico-kube-controllers --timeout=300s
+
+# Verify pod IPs are in 10.42.x.x
+kubectl get pods -A -o wide
+kubectl -n kube-system get pod -l k8s-app=kube-dns -o wide
 ```
+
+Neu CoreDNS/pod IP roi vao 192.168.x.x (hoac trung mang node), can reset cluster va cai lai de tranh state CNI dirty.
+
+Neu can dung non-overlay L2, dung --calico-network-mode l2 khi chay setup-master.sh.
 
 
 # cài k3s worker-node là ip private của server
@@ -200,6 +225,12 @@ sudo setfacl -R -m d:u:1102:rx /srv/nfs/share/file
 # up-challenge-workflow (read-only)
 sudo setfacl -R -m u:1103:rx /srv/nfs/share/challenges
 sudo setfacl -R -m d:u:1103:rx /srv/nfs/share/challenges
+# Kaniko chạy root nhưng NFS đang root_squash -> root bị map thành anon (thường 65534)
+# Cần cấp quyền cho anon user/group để đọc được challenges
+sudo setfacl -R -m u:65534:rx,g:65534:rx /srv/nfs/share/challenges
+sudo setfacl -R -m d:u:65534:rx,d:g:65534:rx /srv/nfs/share/challenges
+
+
 
 # start-chal-v2-workflow (read-only)
 sudo setfacl -R -m u:1104:rx /srv/nfs/share/start-challenge
@@ -211,7 +242,7 @@ sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/challenges /srv/nfs/share/start-c
 
 # Chỉ cho phép đúng IP của 3 node
 # Đổi 3 IP bên dưới theo cluster thực tế
-echo "/srv/nfs/share 10.148.0.2(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.3(rw,sync,no_subtree_check,root_squash,sec=sys) 10.148.0.4(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
+echo "/srv/nfs/share 10.13.2.3(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.6(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.7(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
 
 # Apply cấu hình
 sudo exportfs -ra
@@ -219,6 +250,10 @@ sudo systemctl enable nfs-kernel-server
 sudo systemctl restart nfs-kernel-server
 
 # Kiểm tra
+getfacl /srv/nfs/share
+getfacl /srv/nfs/share/file
+getfacl /srv/nfs/share/challenges
+getfacl /srv/nfs/share/start-challenge
 showmount -e localhost
 sudo exportfs -v
 ```
@@ -288,11 +323,15 @@ kubectl -n kubernetes-dashboard edit svc kubernetes-dashboard-dashboard
 # ports
 #   nodePort: 30800 //số bất kì hoặc để trống đều được
 
-# Apply Service Accounts để lấy được token cho argo và k8s dashboard
+# Apply Service Accounts + RBAC theo least-privilege
 kubectl apply -f prod/sa/argo-workflow/argo-sa.yaml
-kubectl -n argo get secret argo-sa.service-account-token -o jsonpath="{.data.token}" | base64 --decode
-# Token này dùng để authen argo và k8s 
-# Và sửa trong đây để các service có thể sự dụng argo prod\env\secret\common-secret.yaml
+
+# start-chal-v2-workflow-sa đang dùng cluster-admin mặc định để đảm bảo deploy challenge ổn định trên Rancher.
+
+# Không dùng static token secret nữa.
+# DeploymentCenter / DeploymentConsumer sẽ dùng token tự động được mount theo service account trong pod.
+# Nếu cần test thủ công Argo API, dùng short-lived token:
+kubectl create token start-chal-v2-workflow-sa -n argo --duration=1h
 
 ```
 
@@ -330,6 +369,17 @@ kubectl apply -f ./prod/app/deployment-listener/
 kubectl apply -f ./prod/app/challenge-gateway/
 kubectl apply -f ./prod/app/deployment-consumer/
 
+#Network Policy
+kubectl apply -f ./prod/app/NetworkPolicy
+
+# Luu y quan trong cho cai dat moi:
+# - CTFd schema/table thuong duoc tao sau khi `admin-mvc` khoi dong lan dau.
+# - Vi vay `initdbScripts` co the chay truoc khi schema day du, dan den user da tao nhung grant chua day du.
+# Sau khi admin-mvc khoi tao xong CTFd schema, apply lai grant SQL de dam bao quyen user dich vu
+
+kubectl rollout status deployment/admin-mvc -n app --timeout=300s
+kubectl -n db exec -i mariadb-0 -- bash -lc '/opt/bitnami/mariadb/bin/mariadb --ssl=0 -uroot -p"$(cat /opt/bitnami/mariadb/secrets/mariadb-root-password)" ctfd' < ./prod/helm/db/mariadb/least-privilege-service-accounts.sql
+
 # Ở đây có 2 cách bạn có thể chuyển đổi qua lại
 # Apply NodePort services: Nếu Ở môi trường local, ingress domain không hoạt động. sử dụng cách này**
 kubectl delete -f ./prod/app/service-nodeport.yaml
@@ -365,6 +415,38 @@ kubectl apply -f ./prod/ingress/nginx/
   - `deployment-consumer` (chỉ consume từ `deployment_queue`)
 
 Cấu hình nằm trong file [prod/helm/db/rabbitmq/rabbitmq-values.yaml](prod/helm/db/rabbitmq/rabbitmq-values.yaml) (`extraDeploy` + `loadDefinition`).
+
+### Redis ACL setup (không dùng chung `default` toàn quyền)
+#### 1) Bật ACL và khai báo user theo service
+
+Sửa file [prod/helm/db/redis/redis-values.yaml](prod/helm/db/redis/redis-values.yaml):
+- Bật `auth.acl.enabled: true`
+- Dùng secret cho Redis default password: `auth.existingSecret: redis-auth-secret` và `auth.existingSecretPasswordKey: redis-password`
+- Dùng secret cho ACL user passwords: `auth.acl.userSecret: redis-acl-users-secret` (keys trong secret phải trùng username)
+- **Không khai báo `default` trong `auth.acl.users`** (nếu thêm sẽ gây lỗi duplicate user khi Redis start)
+- Để vô hiệu hóa sử dụng thực tế của `default`: không cấp/không phát tán `auth.password`
+- Tạo các user riêng cho từng service, ví dụ:
+  - `svc_admin_mvc`
+  - `svc_gateway`
+  - `svc_contestant_be`
+  - `svc_deployment_center`
+  - `svc_deployment_consumer`
+  - `svc_deployment_listener`
+
+Lưu ý:
+- `svc_gateway` chỉ nên truy cập key prefix `fctf:gateway:*` và quyền cần cho limiter/Lua (`EVAL`, `EVALSHA`, `HGET/HSET`, `INCR/DECR`, `EXPIRE`, ...)
+- Các service deployment chỉ cấp key pattern liên quan deploy như `deploy_challenge_*`, `active_deploys_team_*`, ...
+- `svc_contestant_be` hiện cần key rộng (`~*`) do AspNetCoreRateLimit tạo key động (nếu bó hẹp sẽ dễ phát sinh `NOPERM No permissions to access a key`).
+
+Trước khi chạy Helm, tạo/cập nhật:
+- [prod/env/secret/redis-auth-secret.yaml](prod/env/secret/redis-auth-secret.yaml)
+- [prod/env/secret/redis-acl-users-secret.yaml](prod/env/secret/redis-acl-users-secret.yaml)
+#### 2) Cập nhật secret/env theo từng service
+#### 3) Kiểm tra nhanh
+```bash
+# Kiểm tra user ACL đã có
+kubectl exec -n db sts/redis-master -- redis-cli -a '<redis-admin-password>' ACL LIST
+
 
 
 #### Thông tin đăng nhập

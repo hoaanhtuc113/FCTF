@@ -17,7 +17,7 @@ import {
   ExpandLess,
 } from '@mui/icons-material';
 import { FaDownload } from 'react-icons/fa';
-import Swal from 'sweetalert2';
+import Swal from '../services/safeSwal';
 import { saveAs } from 'file-saver';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -35,7 +35,7 @@ import { challengeTimerService } from '../services/challengeTimerService';
 // Setup PDF worker - mirror legacy behavior using jsDelivr CDN (handles MIME/CORS)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-// Helper function to get team ID from localStorage
+// Helper function to get team ID from localStorage.
 const getTeamId = (): number | null => {
   const team = authService.getTeam();
   return team?.id || null;
@@ -68,6 +68,7 @@ interface Challenge {
   is_captain?: boolean;
   captain_only_start?: boolean;
   captain_only_submit?: boolean;
+  shared_instance?: boolean;
   requirements?: ChallengeRequirements | null;
   pod_status?: string | null;
   difficulty?: number | null;
@@ -76,6 +77,7 @@ interface Challenge {
   // backend now provides the ID and name of the "next" challenge in a sequence
   next_id?: number | null;
   next_name?: string | null;
+  connection_protocol?: 'http' | 'tcp' | string | null;
 }
 
 interface PrerequisiteChallenge {
@@ -1086,6 +1088,15 @@ function ChallengeListItem({
               </div>
 
               <div className="flex flex-wrap gap-2 text-xs font-mono">
+                {challenge.shared_instance && (
+                  <span className={`px-2 py-0.5 rounded ${theme === 'dark'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                    : 'bg-cyan-100 text-cyan-800 border border-cyan-300'
+                    }`}>
+                    [↻] shared instance
+                  </span>
+                )}
+
                 {isLocked && (
                   <span className={`px-2 py-0.5 rounded ${theme === 'dark'
                     ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
@@ -1209,6 +1220,17 @@ function ChallengeListItem({
 
         {/* ROW 2 */}
         <div className="mt-1.5 flex gap-1.5 flex-wrap text-[11px] font-mono">
+          {challenge.shared_instance && (
+            <span
+              className={`px-1.5 py-0.5 rounded border ${theme === 'dark'
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                : 'bg-cyan-100 text-cyan-800 border-cyan-300'}
+              `}
+            >
+              [↻] shared
+            </span>
+          )}
+
           {isLocked && (
             <span
               className={`px-1.5 py-0.5 rounded border
@@ -1315,13 +1337,7 @@ function ChallengeDetailPanel({
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [copiedTcp, setCopiedTcp] = useState(false);
-  const [showGuidelines, setShowGuidelines] = useState(false);
   const [isAccessTokenCollapsed, setIsAccessTokenCollapsed] = useState(false);
-
-  // derive gateway/ports from environment helper so we can display them in the UI
-  const baseGateway = getBaseGateway();
-  const httpPort = getHttpPort();
-  const tcpPort = getTcpPort();
 
   const timerRef = useRef<number | null>(null);
   const cooldownTimerRef = useRef<number | null>(null);
@@ -2076,9 +2092,8 @@ function ChallengeDetailPanel({
         Swal.fire({
           html: `
             <div class="font-mono text-left text-sm">
-              <div class="text-red-400 mb-2">[!] Deploy failed</div>
+              <div class="text-red-400 mb-2">Deploy failed</div>
               <div class="text-gray-400">> ${data.message || data.error || 'Unknown error'}</div>
-              <div class="text-gray-500 mt-2">> Status: ${response.status}</div>
             </div>
           `,
           icon: 'error',
@@ -3616,6 +3631,15 @@ function ChallengeDetailPanel({
                   {challenge.value} pts
                 </span>
               </Tooltip>
+              {challenge.shared_instance && (
+                <Tooltip title="This challenge uses a shared instance for all teams" placement="top" arrow enterDelay={0} enterNextDelay={0}>
+                  <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark'
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                    : 'bg-cyan-100 text-cyan-800 border-cyan-300'}`}>
+                    Shared Instance
+                  </span>
+                </Tooltip>
+              )}
               {challenge.require_deploy && (
                 <Tooltip title={challenge.time_limit === -1 ? 'No time limit' : `Time limit: ${formatTime(challenge.time_limit * 60)} per session`} placement="top" arrow enterDelay={0} enterNextDelay={0}>
                   <span className={`cursor-help px-2 py-1 rounded border ${theme === 'dark' ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'}`}>
@@ -3759,6 +3783,8 @@ function ChallengeDetailPanel({
 
                 {!isAccessTokenCollapsed && (() => {
                   const token = url ? url.trim() : "Deploying... Please wait";
+                  const connectionProtocol = (challenge.connection_protocol ?? 'http').toLowerCase();
+                  const isHttpProtocol = connectionProtocol !== 'tcp';
                   const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}?fctftoken={token}` : `${getBaseGateway()}:${getHttpPort()}?fctftoken=${token}`;
                   const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
                   return (
@@ -3792,49 +3818,51 @@ function ChallengeDetailPanel({
 
                       <div className={`border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}></div>
 
-                      {/* HTTP & TCP */}
+                      {/* Active protocol only (from challenge.connection_protocol) */}
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            HTTP
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                              {httpAddr}
+                        {isHttpProtocol ? (
+                          <div className="flex items-center gap-2">
+                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              HTTP
                             </div>
-                          </div>
-                          <button
-                            onClick={() => handleCopyHttp(httpAddr)}
-                            className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedHttp
-                              ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
-                              : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
-                              }`}
-                            title="Copy HTTP"
-                          >
-                            {copiedHttp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                            TCP
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
-                              {tcpAddr}
+                            <div className="flex-1 min-w-0">
+                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                                {httpAddr}
+                              </div>
                             </div>
+                            <button
+                              onClick={() => handleCopyHttp(httpAddr)}
+                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedHttp
+                                ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
+                                : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                                }`}
+                              title="Copy HTTP"
+                            >
+                              {copiedHttp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
+                            </button>
                           </div>
-                          <button
-                            onClick={() => handleCopyTcp(tcpAddr)}
-                            className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedTcp
-                              ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
-                              : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
-                              }`}
-                            title="Copy TCP"
-                          >
-                            {copiedTcp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className={`text-[10px] font-semibold uppercase tracking-wide w-12 shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                              TCP
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`break-all font-mono text-xs ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                                {tcpAddr}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleCopyTcp(tcpAddr)}
+                              className={`px-1.5 py-1 rounded transition-all shrink-0 flex items-center ${copiedTcp
+                                ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-50 text-green-700'
+                                : theme === 'dark' ? 'bg-gray-700/70 hover:bg-gray-600 text-gray-300' : 'bg-gray-200/70 hover:bg-gray-300 text-gray-600'
+                                }`}
+                              title="Copy TCP"
+                            >
+                              {copiedTcp ? <span className="text-xs">✓</span> : <ContentCopy sx={{ fontSize: 14 }} />}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -3971,7 +3999,7 @@ function ChallengeDetailPanel({
             )}
 
             {/* Start/Stop Buttons */}
-            {challenge.require_deploy && !challenge.solve_by_myteam &&
+            {challenge.require_deploy && !challenge.solve_by_myteam && !challenge.shared_instance &&
               !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
                 <div className="space-y-2">
                   {isHealthChecking || isDeploymentInProgress ? (
@@ -4039,60 +4067,17 @@ function ChallengeDetailPanel({
                 </div>
               )}
 
-            {/* Connection Guidelines Section - Dropdown */}
-            {challenge.require_deploy && (
-              <div className={`rounded border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-300'}`}>
-                <button
-                  onClick={() => setShowGuidelines(!showGuidelines)}
-                  className={`w-full p-3 flex items-center justify-between text-left transition-colors ${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
-                >
-                  <span className={`text-xs font-mono font-bold ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
-                    [CONNECTION GUIDELINES]
-                  </span>
-                  <span className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {showGuidelines ? '▲' : '▼'}
-                  </span>
-                </button>
-
-                {showGuidelines && (
-                  <div className={`px-4 pb-4 space-y-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                    {/* Web Challenges Section */}
-                    <div className="pt-3">
-                      <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        1. Web Challenges (HTTP)
-                      </div>
-                      <div className={`text-xs font-mono leading-relaxed space-y-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <p className="italic">Using for challenges viewed in a web browser.</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Get your Token from [YOUR ACCESS TOKEN]</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Access the challenge with token:</p>
-                        <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          {`http://${baseGateway}:${httpPort}?fctftoken={YOUR_TOKEN}`}
-                        </code>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Gateway will remember you</p>
-                        <p className={`text-[10px] italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>Note: Re-enter token to switch challenges</p>
-                      </div>
-                    </div>
-
-                    {/* TCP Challenges Section */}
-                    <div>
-                      <div className={`text-xs font-mono font-bold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        2. Technical Challenges (TCP)
-                      </div>
-                      <div className={`text-xs font-mono leading-relaxed space-y-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <p className="italic">Using for Pwn, Reverse, or direct connections.</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 1:</span> Open Terminal/PowerShell</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 2:</span> Connect to gateway:</p>
-                        <code className={`block px-2 py-1 mt-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                          {`nc ${baseGateway} ${tcpPort}`}
-                        </code>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 3:</span> Enter your token when prompted</p>
-                        <p><span className={theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}>Step 4:</span> See "Access Granted!" message</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Shared instance notice when admin has not started it yet */}
+            {challenge.require_deploy && !challenge.solve_by_myteam && challenge.shared_instance && !url &&
+              !isHealthChecking && !isDeploymentInProgress &&
+              !(challenge.max_attempts > 0 && (challenge.attemps || 0) >= challenge.max_attempts) && (
+                <div className={`rounded border px-3 py-2 text-center text-xs font-mono ${theme === 'dark'
+                  ? 'bg-amber-900/20 border-amber-700 text-amber-300'
+                  : 'bg-amber-50 border-amber-300 text-amber-700'
+                  }`}>
+                  Wait for admin to start challenge
+                </div>
+              )}
 
             {challenge.next_id && (
               <div className="mt-6 flex items-center gap-3">

@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: admin-tls
   dnsNames:
-    - admin.fctf.site
+    - admin.sanchoi.iahn.hanoi.vn
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

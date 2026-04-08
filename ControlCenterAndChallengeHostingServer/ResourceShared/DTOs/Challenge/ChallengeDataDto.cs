@@ -18,6 +18,7 @@ namespace ResourceShared.DTOs.Challenge
         public string? category { get; set; }
         public int? time_limit { get; set; }
         public bool require_deploy { get; set; }
+        public string connection_protocol { get; set; } = "http";
         public string? type { get; set; }
         public int? next_id { get; set; }
         // name of the challenge referenced by next_id, for UI convenience
@@ -28,5 +29,6 @@ namespace ResourceShared.DTOs.Challenge
         public bool captain_only_start { get; set; }
         public bool captain_only_submit { get; set; }
         public int? difficulty { get; set; }
+        public bool shared_instance { get; set; }
     }
 }

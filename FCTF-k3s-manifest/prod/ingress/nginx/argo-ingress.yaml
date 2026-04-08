@@ -4,12 +4,13 @@ metadata:
   name: argo-ingress
   namespace: argo
   annotations:
-    kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-dev
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
+  ingressClassName: nginx
   rules:
-    - host: argo.fctf.site
+    - host: argo.sanchoi.iahn.hanoi.vn 
       http:
         paths:
           - path: /
@@ -21,5 +22,5 @@ spec:
                   number: 2746
   tls:
     - hosts:
-        - argo.fctf.site
+        - argo.sanchoi.iahn.hanoi.vn 
       secretName: argo-tls

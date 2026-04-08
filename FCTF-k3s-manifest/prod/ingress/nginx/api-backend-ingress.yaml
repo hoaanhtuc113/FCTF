@@ -4,12 +4,12 @@ metadata:
   name: api-backend-ingress
   namespace: app
   annotations:
-    kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-dev
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
+  ingressClassName: nginx
   rules:
-    - host: api.fctf.site
+    - host: apicontestant.sanchoi.iahn.hanoi.vn 
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 5010
   tls:
     - hosts:
-        - api.fctf.site
+        - apicontestant.sanchoi.iahn.hanoi.vn 
       secretName: api-backend-tls

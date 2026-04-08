@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.Models;
 using System.Globalization;
@@ -130,6 +130,13 @@ namespace ResourceShared.Utils
             var date = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var challName = ParseAlphaNumeric(challengeName);
             teamId = teamId == -1 ? 0 : teamId;
+            string srtTeamId = teamId == -2 ? "shared" : null;
+
+            if(!string.IsNullOrEmpty(srtTeamId))
+            {
+                return $"team-{srtTeamId}-{challengeId}-{challName}-{date}".ToLower().Replace(" ", "-");
+            }
+
             return $"team-{teamId}-{challengeId}-{challName}-{date}".ToLower().Replace(" ", "-");
         }
 
@@ -140,8 +147,15 @@ namespace ResourceShared.Utils
             if (parts.Length < 3 || !parts[0].StartsWith("team"))
                 throw new ArgumentException("Invalid app name format", nameof(appName));
 
-            if (!int.TryParse(parts[1], out int teamId))
+            int teamId;
+            if (string.Equals(parts[1], "shared", StringComparison.OrdinalIgnoreCase))
+            {
+                teamId = -2;
+            }
+            else if (!int.TryParse(parts[1], out teamId))
+            {
                 throw new FormatException("Invalid teamId in app name");
+            }
 
             if (!int.TryParse(parts[2], out int challengeId))
                 throw new FormatException("Invalid challengeId in app name");
@@ -239,7 +253,7 @@ namespace ResourceShared.Utils
 
         public static async Task<AttemptDTO> Attempt(AppDbContext db, Challenge challenge, ChallengeAttemptRequest request)
         {
-            var flags = await db.Flags.Where(f => f.ChallengeId == challenge.Id && f.Content.Equals(request.Submission)).ToListAsync();
+            var flags = await db.Flags.Where(f => f.ChallengeId == challenge.Id).ToListAsync();
             foreach (var flag in flags)
             {
                 try

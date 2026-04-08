@@ -14,25 +14,28 @@ spec:
         app: deployment-listener
     spec:
       serviceAccountName: deployment-listener-sa
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: deployment-listener
-          image: quachuoiscontainer/fctf:deployment-listener-prod-v4.0.0
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/deployment-listener:latest
           envFrom:
             - configMapRef:
                 name: deployment-listener-cm
             - secretRef:
-              name: deployment-listener-secret
+                name: deployment-listener-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
-              cpu: 0.1
-              memory: 128Mi
-            limits:
-              cpu: 0.2
+              cpu: 0.3
               memory: 256Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
           imagePullPolicy: Always
           securityContext:
             readOnlyRootFilesystem: true

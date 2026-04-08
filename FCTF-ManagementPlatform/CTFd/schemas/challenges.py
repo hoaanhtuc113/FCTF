@@ -111,8 +111,7 @@ class ChallengeSchema(ma.ModelSchema):
         validate=[
             validate.Range(
                 min=1,
-                max=500,
-                error="CPU limit must be between 1 and 500 (mCPU)",
+                error="CPU limit must be greater than or equal to 1 (mCPU)",
             )
         ],
     )
@@ -124,8 +123,7 @@ class ChallengeSchema(ma.ModelSchema):
         validate=[
             validate.Range(
                 min=1,
-                max=500,
-                error="CPU request must be between 1 and 500 (mCPU)",
+                error="CPU request must be greater than or equal to 1 (mCPU)",
             )
         ],
     )
@@ -137,8 +135,7 @@ class ChallengeSchema(ma.ModelSchema):
         validate=[
             validate.Range(
                 min=1,
-                max=1024,
-                error="Memory limit must be between 1 and 1024 (Mi)",
+                error="Memory limit must be greater than or equal to 1 (Mi)",
             )
         ],
     )
@@ -150,8 +147,7 @@ class ChallengeSchema(ma.ModelSchema):
         validate=[
             validate.Range(
                 min=1,
-                max=1024,
-                error="Memory request must be between 1 and 1024 (Mi)",
+                error="Memory request must be greater than or equal to 1 (Mi)",
             )
         ],
     )

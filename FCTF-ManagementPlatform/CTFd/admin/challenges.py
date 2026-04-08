@@ -174,7 +174,7 @@ def challenges_detail(challenge_id):
         expose_port = object_image.get("exposedPort", "")
         image_link_name = object_image.get("imageLink", "")
         if image_link_name:
-            image_link_display = image_link_name.split(":")[-1]
+            image_link_display = image_link_name
 
     try:
         challenge_class = get_chal_class(challenge.type)
@@ -339,9 +339,14 @@ def challenge_start():
     try:
         data = request.get_json(force=True, silent=True) or {}
         challenge_id = data.get("challenge_id")
+        team_id_raw = data.get("team_id", data.get("teamId", -1))
         if not challenge_id:
             return jsonify({"success": False, "message": "challenge_id is required"}), 400
         challenge_id = int(challenge_id)
+        try:
+            team_id = int(team_id_raw)
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "team_id must be an integer"}), 400
 
         private_key = PRIVATE_KEY
         if not private_key:
@@ -360,13 +365,13 @@ def challenge_start():
             unix_time,
             {
                 "challengeId": challenge_id,
-                "teamId": -1,
+                "teamId": team_id,
                 "userId": user_id,
             },
         )
         payload = {
             "challengeId": challenge_id,
-            "teamId": -1,
+            "teamId": team_id,
             "userId": user_id,
             "unixTime": unix_time,
         }

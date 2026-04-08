@@ -1,5 +1,6 @@
 using AspNetCoreRateLimit;
 using AspNetCoreRateLimit.Redis;
+using ContestantBE.RateLimiting;
 using ContestantBE.Filters;
 using ContestantBE.Interfaces;
 using ContestantBE.Services;
@@ -11,6 +12,7 @@ using ResourceShared;
 using ResourceShared.Middlewares;
 using ResourceShared.Models;
 using ResourceShared.Utils;
+using StackExchange.Redis;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,13 +79,20 @@ new ContestantBEConfigHelper().InitConfig();
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = ContestantBEConfigHelper.REDIS_CONNECTION_STRING;
+    var redisOptions = ConfigurationOptions.Parse(ContestantBEConfigHelper.REDIS_CONNECTION_STRING);
+    var redisTlsInsecureSkipVerify = (Environment.GetEnvironmentVariable("REDIS_TLS_INSECURE_SKIP_VERIFY") ?? "true")
+        .Equals("true", StringComparison.OrdinalIgnoreCase);
+    if (redisOptions.Ssl && redisTlsInsecureSkipVerify)
+    {
+        redisOptions.CertificateValidation += (_, _, _, _) => true;
+    }
+    options.ConfigurationOptions = redisOptions;
 });
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
-builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 builder.Services.AddRedisRateLimiting();
+builder.Services.AddSingleton<IProcessingStrategy, CustomRedisProcessingStrategy>();
 builder.Services.AddScoped<ConfigHelper>();
 builder.Services.AddScoped<CtfTimeHelper>();
 builder.Services.AddScoped<ScoreHelper>();
@@ -114,7 +123,7 @@ builder.Services.AddOutputCache();
 var app = builder.Build();
 
 
-if(app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>

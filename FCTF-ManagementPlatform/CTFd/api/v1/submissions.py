@@ -12,7 +12,7 @@ from CTFd.api.v1.schemas import (
 )
 from CTFd.cache import clear_challenges, clear_standings
 from CTFd.constants import RawEnum
-from CTFd.constants.envvars import REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
+from CTFd.constants.envvars import get_redis_client_kwargs
 from CTFd.models import Challenges, Solves, Submissions, Tokens, Users, db
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.utils.decorators import admins_only
@@ -28,14 +28,7 @@ SubmissionModel = sqlalchemy_to_pydantic(Submissions)
 TransientSubmissionModel = sqlalchemy_to_pydantic(Submissions, exclude=["id"])
 
 # Initialize Redis client
-redis_client = redis.StrictRedis(
-    host=f"{REDIS_HOST}",
-    port=int(REDIS_PORT),
-    password=REDIS_PASS,
-    db=int(REDIS_DB),
-    encoding="utf-8",
-    decode_responses=True
-)
+redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 
 
 class SubmissionDetailedSuccessResponse(APIDetailedSuccessResponse):

@@ -89,7 +89,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("{id}")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetById(int id)
     {
         try
@@ -148,7 +148,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("by-topic")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetByTopic()
     {
         var userId = UserContext.UserId;
@@ -181,7 +181,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("list_challenge/{category_name}")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> ListChallengesByCategoryName([FromRoute] string category_name)
     {
         var userId = UserContext.UserId;
@@ -196,7 +196,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpGet("instances")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeAndAfterOnly]
     public async Task<IActionResult> GetAllInstances()
     {
         try
@@ -703,7 +703,7 @@ public class ChallengeController : BaseController
 
         if (challenge == null) return NotFound(new { error = "Challenge not found" });
         if (!challenge.RequireDeploy) return BadRequest(new { error = "This challenge does not require deploy" });
-        if (challenge.State == ChallengeState.HIDDEN) return BadRequest(new { error = "This challenge is not available for deployment" });
+        if (challenge.State == ChallengeState.HIDDEN || challenge.SharedInstant == true) return BadRequest(new { error = "This challenge is not available for deployment" });
 
         // Check prerequisites from Requirements JSON
         if (!string.IsNullOrEmpty(challenge.Requirements))
@@ -842,12 +842,7 @@ public class ChallengeController : BaseController
                             message = "Challenge is deploying.",
                         });
                     case DeploymentStatus.DELETING:
-                        return Ok(new ChallengeDeployResponeDTO
-                        {
-                            status = (int)HttpStatusCode.OK,
-                            success = true,
-                            message = "Challenge is deleting.",
-                        });
+                        return BadRequest(new { error = "Challenge is being deleted. Please wait a moment before starting again." });
                     case DeploymentStatus.RUNING:
                         int timeLeft = 0;
                         if (deploymentCache.time_finished > 0)
@@ -922,7 +917,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpPost("stop-by-user")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeOnly]
     public async Task<IActionResult> StopChallengeByUser([FromBody] ChallengeStartStopReqDTO challengeStartReq)
     {
         if (challengeStartReq == null || challengeStartReq.challengeId <= 0)
@@ -973,7 +968,7 @@ public class ChallengeController : BaseController
     }
 
     [HttpPost("check-status")]
-    [ViewOrDuringCtfTimeOnly]
+    [DuringCtfTimeOnly]
     public async Task<IActionResult> CheckChallengeStatus([FromBody] ChallengCheckStatusReqDTO statusReq)
     {
         if (statusReq == null || statusReq.challengeId <= 0)
@@ -1013,8 +1008,12 @@ public class ChallengeController : BaseController
             status = (int)HttpStatusCode.BadRequest,
             pod_status = Enums.DeploymentStatusEnum.Failed
         });
-
-        var response = await _challengeServices.CheckChallengeStart(challenge.Id, user.TeamId.Value);
+        int teamId = user.TeamId.Value;
+        if (challenge.SharedInstant)
+        {
+            teamId = -2; // Use -2 to indicate shared instance in cache keys and service logic
+        }
+        var response = await _challengeServices.CheckChallengeStart(challenge.Id, teamId);
         return response.status switch
         {
             (int)HttpStatusCode.OK => Ok(response),

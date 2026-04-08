@@ -9,7 +9,9 @@ spec:
     storage: 20Gi
   accessModes:
     - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Delete
+  mountOptions:
+    - noexec
   nfs:
-    server: 10.148.0.2
+    server: 10.13.2.3
     path: /srv/nfs/share/file

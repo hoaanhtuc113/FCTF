@@ -15,11 +15,14 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: contestant-portal
-          image: quachuoiscontainer/fctf:contestant-portal-prod-v4.0.0
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/contestant-portal:latest
           ports:
             - name: http-client
               containerPort: 8080

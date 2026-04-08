@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: rabbitmq-tls
   dnsNames:
-    - rabbitmq.fctf.site
+    - rabbitmq.sanchoi.iahn.hanoi.vn 
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

@@ -2,57 +2,59 @@
 
 Docker image chứa kubectl CLI để tương tác với Kubernetes.
 
-## 1. Login DockerHub
+## 1. Login Harbor
 
 ```bash
-docker login
-# Nhập username và password DockerHub
+docker login registry.sanchoi.iahn.hanoi.vn
 ```
 
-## 2. Build và Tag Image
+## 2. Build va Push nhanh bang script
+
+```bash
+chmod +x ./build-push-kubectl-cli.sh
+./build-push-kubectl-cli.sh
+```
+
+Neu can truyen credentials truc tiep:
+
+```bash
+HARBOR_USER='<harbor-user>' HARBOR_PASSWORD='<harbor-password>' ./build-push-kubectl-cli.sh
+```
+
+## 3. Build va Push thu cong
 
 ```bash
 # Build image
-docker build -t quachuoiscontainer/kubectl-cli:v0.0.1 .
+docker build -t registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest -f ./dockerfile .
 
-# Tag cho DockerHub (nếu cần)
-docker tag quachuoiscontainer/kubectl-cli:v0.0.1 quachuoiscontainer/kubectl-cli:latest
+# Push image
+docker push registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
 ```
 
-## 3. Push Image
+## 4. Su dung
 
 ```bash
-# Push version cụ thể
-docker push quachuoiscontainer/kubectl-cli:v0.0.1
+# Pull image
+docker pull registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
 
-# Push latest tag
-docker push quachuoiscontainer/kubectl-cli:latest
+# Chay kubectl (can mount kubeconfig)
+docker run --rm \
+  -v ~/.kube/config:/root/.kube/config \
+  registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest \
+  kubectl get pods
 ```
 
-### MacOS (buildx - build và push cùng lúc)
+### MacOS (buildx - build va push cung luc)
 ```bash
 docker buildx build \
   --platform linux/amd64 \
-  -t quachuoiscontainer/kubectl-cli:v0.0.1 \
+  -t registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest \
   --push \
   .
 ```
 
-## 4. Sử dụng
-
-```bash
-# Pull image
-docker pull quachuoiscontainer/kubectl-cli:v0.0.1
-
-# Chạy kubectl (cần mount kubeconfig)
-docker run --rm \
-  -v ~/.kube/config:/root/.kube/config \
-  quachuoiscontainer/kubectl-cli:v0.0.1 \
-  kubectl get pods
-```
-
 ## Thông tin
 
-- **Image**: `quachuoiscontainer/kubectl-cli:v0.0.1`
+- **Image**: `registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest`
 - **Base**: Alpine Linux 3.20
 - **Kubectl**: v1.34.0 

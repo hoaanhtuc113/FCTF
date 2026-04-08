@@ -6,11 +6,11 @@ metadata:
   annotations:
     workflows.argoproj.io/description: "Template to start and deploy challenge pods v2"
 spec:
-  serviceAccountName: argo-sa
+  serviceAccountName: start-chal-v2-workflow-sa
   activeDeadlineSeconds: 120
-  timeout: "120s"
-  podGC:
-    strategy: OnPodCompletion
+  ttlStrategy:
+    secondsAfterSuccess: 604800     # 7 days
+    secondsAfterFailure: 1209600    # 14 days
   entrypoint: main
   arguments:
     parameters:
@@ -79,15 +79,17 @@ spec:
           - name: IS_TEMPORARY
           - name: CHALLENGE_TIMEOUT
       priorityClassName: lowest
-      preemptionPolicy: Never
       activeDeadlineSeconds: 120
       timeout: "120s"
       podSpecPatch: |
+        preemptionPolicy: Never
+        imagePullSecrets:
+          - name: global-regcred
         securityContext:
           fsGroup: 1104
           fsGroupChangePolicy: OnRootMismatch
       container:
-        image: quachuoiscontainer/kubectl-cli:v0.0.3
+        image: registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 1104
@@ -145,9 +147,14 @@ spec:
 
             echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
 
-            if ! kubectl get ns "${CHALLENGE_NAME}" >/dev/null 2>&1; then
-              kubectl create ns "${CHALLENGE_NAME}"
-            fi
+            # Apply Namespace first to avoid cascading "namespace not found" errors.
+            NS_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed -n '1,/^---[[:space:]]*$/p')"
+            REST_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed '1,/^---[[:space:]]*$/d')"
+
+            NS_APPLY_OUTPUT="$(printf '%s\n' "${NS_DOC}" | kubectl apply -f - 2>&1)" || {
+              echo "${NS_APPLY_OUTPUT}"
+              exit 1
+            }
 
             echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
             kubectl get secret global-regcred -n argo -o yaml \
@@ -156,7 +163,8 @@ spec:
               | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
               | kubectl apply -f -
 
-            envsubst < "${NFS_DATA_PATH}" | kubectl apply -f -
+            # Apply namespaced resources after namespace exists.
+            printf '%s\n' "${REST_DOC}" | kubectl apply -f -
 
             echo "✅ Challenge v2 manifest submitted to cluster"
       volumes:

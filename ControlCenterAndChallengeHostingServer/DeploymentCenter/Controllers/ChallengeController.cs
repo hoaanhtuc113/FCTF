@@ -198,7 +198,7 @@ public class ChallengeController : ControllerBase
 
         var headers = new Dictionary<string, string>
         {
-            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}"
+            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
         };
 
         try
@@ -247,7 +247,7 @@ public class ChallengeController : ControllerBase
 
         var headers = new Dictionary<string, string>
         {
-            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.ARGO_WORKFLOWS_TOKEN}"
+            ["Authorization"] = $"Bearer {DeploymentCenterConfigHelper.GetArgoWorkflowsBearerToken()}"
         };
 
         try

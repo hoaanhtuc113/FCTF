@@ -89,7 +89,10 @@ crds:
     ## If specified, the pod's tolerations.
     ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
     ##
-    tolerations: []
+    tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
     # - key: "key"
     #   operator: "Equal"
     #   value: "value"
@@ -1088,7 +1091,10 @@ alertmanager:
     ## If specified, the pod's tolerations.
     ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
     ##
-    tolerations: []
+    tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
     # - key: "key"
     #   operator: "Equal"
     #   value: "value"
@@ -1300,6 +1306,19 @@ grafana:
   adminUser: admin
   adminPassword: Fctf2025@
 
+  grafana.ini:
+    security:
+      # Effective only when Grafana is served via HTTPS.
+      cookie_secure: true
+      cookie_samesite: strict
+      content_security_policy: true
+      content_security_policy_template: "script-src 'self' 'unsafe-eval' 'unsafe-inline' 'strict-dynamic' $NONCE;object-src 'none';font-src 'self';style-src 'self' 'unsafe-inline' blob:;img-src * data:;base-uri 'self';connect-src 'self' grafana.com ws://$ROOT_PATH wss://$ROOT_PATH;manifest-src 'self';media-src 'none';form-action 'self';require-trusted-types-for 'script';"
+    auth:
+      login_cookie_name: __Host-grafana_session
+    auth.anonymous:
+      enabled: false
+      hide_version: true
+
   rbac:
     ## If true, Grafana PSPs will be created
     ##
@@ -1467,8 +1486,7 @@ grafana:
   ## Passed to grafana subchart and used by servicemonitor below
   ##
   service:
-    type: NodePort
-    nodePort: 30082
+    type: ClusterIP
     port: 80
     portName: http-web
     ipFamilies: []
@@ -2873,7 +2891,10 @@ prometheusOperator:
       ## Tolerations for use with node taints
       ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
       ##
-      tolerations: []
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       # - key: "key"
       #   operator: "Equal"
       #   value: "value"
@@ -2943,7 +2964,10 @@ prometheusOperator:
       podAnnotations: {}
       nodeSelector: {}
       affinity: {}
-      tolerations: []
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
 
       ## SecurityContext holds pod-level security attributes and common container settings.
       ## This defaults to non root user with uid 2000 and gid 2000. *v1.PodSecurityContext  false
@@ -3236,7 +3260,10 @@ prometheusOperator:
   ## Tolerations for use with node taints
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   ##
-  tolerations: []
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
   # - key: "key"
   #   operator: "Equal"
   #   value: "value"

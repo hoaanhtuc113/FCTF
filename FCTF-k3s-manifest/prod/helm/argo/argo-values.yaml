@@ -81,13 +81,15 @@ workflow:
     rules: []
 
 controller:
+  # Use emissary as the default workflow executor for better isolation and reduced privileges.
+  containerRuntimeExecutor: emissary
   image:
     # -- Registry to use for the controller
     registry: quay.io
     # -- Registry to use for the controller
     repository: argoproj/workflow-controller
     # -- Image tag for the workflow controller. Defaults to `.Values.images.tag`.
-    tag: "v3.7.3"
+    tag: ""
   # -- parallelism dictates how many workflows can be running at the same time
   parallelism: 30
   # -- Globally limits the rate at which pods are created.
@@ -220,6 +222,10 @@ controller:
       ttlStrategy:
         secondsAfterSuccess: 300 # 5 minutes
         secondsAfterFailure: 10800 # 3 hours
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 8737
+        runAsGroup: 8737
   #   spec:
   #     ttlStrategy:
   #       secondsAfterCompletion: 86400
@@ -239,8 +245,8 @@ controller:
   cronWorkflowWorkers: # 8
   # -- Restricts the Workflows that the controller will process.
   # Only valid for 2.9+
-  workflowRestrictions: {}
-    # templateReferencing: Strict|Secure
+  workflowRestrictions:
+    templateReferencing: Secure
 
   # telemetryConfig controls the path and port for prometheus telemetry. Telemetry is enabled and emitted in the same endpoint
   # as metrics by default, but can be overridden using this config.
@@ -290,7 +296,7 @@ controller:
   # workflows. This controls where the service account and RBAC resources will
   # be created. Only valid when singleNamespace is false.
   workflowNamespaces:
-    - default
+    - argo
 
   instanceID:
     # -- Configures the controller to filter workflow submissions
@@ -413,10 +419,10 @@ controller:
   extraInitContainers: []
 
   # -- Workflow retention by number of workflows
-  retentionPolicy: {}
-  #  completed: 10
-  #  failed: 3
-  #  errored: 3
+  retentionPolicy: 
+    completed: 10
+    failed: 30
+    errored: 30
 
   nodeEvents:
     # -- Enable to emit events on node completion.
@@ -507,7 +513,7 @@ executor:
     # -- Repository to use for the Workflow Executors
     repository: argoproj/argoexec
     # -- Image tag for the workflow executor. Defaults to `.Values.images.tag`.
-    tag: "v3.7.3"
+    tag: ""
     # -- Image PullPolicy to use for the Workflow Executors. Defaults to `.Values.images.pullPolicy`.
     pullPolicy: ""
   # -- Resource limits and requests for the Workflow Executors
@@ -533,7 +539,7 @@ server:
     # -- Repository to use for the server
     repository: argoproj/argocli
     # -- Image tag for the Argo Workflows server. Defaults to `.Values.images.tag`.
-    tag: "v3.7.3"
+    tag: ""
   # -- optional map of annotations to be applied to the ui Deployment
   deploymentAnnotations: {}
   # -- optional map of annotations to be applied to the ui Pods
@@ -556,11 +562,11 @@ server:
   # -- Server name string
   name: server
   # -- Service type for server pods ClusterIP|NodePort
-  serviceType: NodePort
+  serviceType: ClusterIP
   # -- Service port for server
   servicePort: 2746
   # -- Service node port
-  serviceNodePort: 32746
+  serviceNodePort: ~
   # -- Service port name
   servicePortName: "" # http
 
@@ -675,7 +681,8 @@ server:
 
   # -- A list of supported authentication modes. Available values are `server`, `client`, or `sso`. If you provide sso, please configure `.Values.server.sso` as well.
   ## Ref: https://argo-workflows.readthedocs.io/en/stable/argo-server-auth-mode/
-  authModes: []
+  authModes: 
+    - client
 
   # -- Extra arguments to provide to the Argo server binary.
   ## Ref: https://argo-workflows.readthedocs.io/en/stable/argo-server/#options

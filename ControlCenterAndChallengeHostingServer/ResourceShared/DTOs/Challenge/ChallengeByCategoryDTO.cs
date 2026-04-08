@@ -17,11 +17,13 @@ namespace ResourceShared.DTOs.Challenge
         public int? value { get; set; }
         public string? category { get; set; }
         public int? time_limit { get; set; }
+        public string connection_protocol { get; set; } = "http";
         public string? type { get; set; }
         public ChallengeRequirementsDTO? requirements { get; set; }
         public bool solve_by_myteam { get; set; }
         public string? pod_status { get; set; } = null;
         public int? difficulty { get; set; }
+        public bool shared_instance { get; set; }
 
     }
 }

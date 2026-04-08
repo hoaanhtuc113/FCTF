@@ -13,14 +13,17 @@ spec:
       labels:
         app: contestant-be
     spec:
-      priorityClassName: app-normal
-      preemptionPolicy: Never
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
       securityContext:
         fsGroup: 1102
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: contestant-be
-          image: quachuoiscontainer/fctf:contestant-be-prod-v4.0.0
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/contestant-be:latest
           ports:
             - name: http-client
               containerPort: 5010
@@ -29,16 +32,16 @@ spec:
             - configMapRef:
                 name: contestant-be-cm
             - secretRef:
-              name: contestant-be-secret
+                name: contestant-be-secret
             - secretRef:
-              name: common-private-key-secret
+                name: common-private-key-secret
           resources:
             requests:
-              cpu: 0.2
+              cpu: 0.3
               memory: 512Mi
             limits:
               cpu: 1
-              memory: 1.5Gi
+              memory: 2Gi
           readinessProbe:
             httpGet:
               path: /healthz
