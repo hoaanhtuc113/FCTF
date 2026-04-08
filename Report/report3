@@ -49,7 +49,7 @@ I.	Software Requirement Specification
 1. Product Overview
 Upgrade the FPT Capture The Flag System is a project focused on upgrading and overcoming the existing limitations in the FCTF platform - the system serving the annual FPTU Secathon competition for information security students at FPT University. The upgraded version aims to improve the stability, security, performance, and operability of the system. The system provides a centralized environment for contestants to participate in solving security challenges, submitting flags, tracking results, and experiencing practical attack-defense scenarios in a controlled and safe environment.
  
-Figure I 1: Context Diagram
+Figure 1: Context Diagram
 The system includes four roles as described in Figure 1: Admin, Contestant, Jury, and Challenge Writer. Admin is the role with the highest authority, responsible for administering the entire system, including system configuration, creating, updating and managing user accounts, managing contests and challenges, handling tickets, and monitoring statistics and scoreboards. Contestant is the direct participant in the contests, able to view the challenge list, start or stop the contest environment, submit flags, open hints, send support tickets, and track contest results through the scoreboard. Jury acts as an observer to ensure the fairness and transparency of the contest, with the right to monitor team information, users, submissions, scoreboards, and overall system statistics. Challenge Writer is responsible for building, updating, and deploying challenges, while tracking deployment results to ensure the quality and stability of challenges in the system. 
 The system has been deployed in three previous phases; therefore, in Phase 4, the team focuses on describing new functional and non-functional requirements or changes compared to the previous phases. Requirements that have been presented and remain unchanged will not be restated in this report. For a complete overview of the system's existing requirements, readers can refer to the report of the SEP490_G152 - Fall 2025 team.
 2. User Requirements
@@ -64,37 +64,48 @@ As the person responsible for administering and monitoring the platform, includi
 ●	US-06: As an Admin, I want to view the deployment history (instance history) of each challenge by team/user even after the instance has been deleted or its Time to live has expired, to analyze abnormal behaviors and evaluate infrastructure quality after the contest.
 ●	US-07: As an Admin, I want the system to operate stably when handling a large number of start challenge requests simultaneously, avoiding resource deadlocks and downtime throughout the contest.
 ●	US-08: As an Admin, I want to query and aggregate award data based on multiple criteria and export it to Excel/CSV, in order to announce results accurately and transparently without manual operations.
+●	US-09: As an Admin, I want to enforce hardened security standards (such as PSS Restricted level and NSA/CISA guidelines) on all challenge environments, to mitigate risks of container escapes and protect the integrity of the underlying Kubernetes cluster.
+●	US-10: As an Admin, I want to enforce the principle of least privilege across all system components so that if a service is compromised, the blast radius is minimized and the damage is strictly contained.
+●	US-11: As an Admin, I want the system to support a shared-instance challenge type to optimize hardware resource utilization and provide a more streamlined environment for challenges that do not require high isolation.
+●	US-12: As an Admin, I want to strictly enforce access control for challenge file downloads based on user authentication and challenge authorization context, ensuring that internal or secret files are not exposed via path manipulation techniques.
+●	US-13: As an Admin, I want an automated CI/CD pipeline to ensure fast, reliable, and error-free system updates.
+●	US-14: As an Admin, I want the system to handle race conditions during score calculation and hint unlocking to ensure competition integrity.
+●	US-15: As an Admin, I want to manage competition brackets and their respective scoreboard visibility to handle diverse groups of participants.
+●	US-16: As an Admin, I want to query award data based on various conditions to facilitate the result announcement process.
+●	US-17: As an Admin, I want to configure multi-layer rate limiting to protect the system from brute-force attacks and ensure fair resource access.
 2.1.2. Challenge Writer
 As the person responsible for designing, building, and ensuring the quality of information security challenges in the system, I, as a Challenge Writer, want the system to provide the following functions:
-●	US-09: As a Challenge Writer, I want to view, create, edit, and delete challenges in the system, and manage challenge versions so that I can rollback at any time, in order to maintain a high-quality challenge library for the contest.
-●	US-10: As a Challenge Writer, I want to preview and test challenges in an isolated environment before official release, confirming that the connection string is only returned when the service inside the container is truly ready to receive requests, to ensure the quality of the contestant's experience from the first access.
-●	US-11: As a Challenge Writer, I want to view the deployment history and real-time logs of challenge instances, to analyze and troubleshoot configuration issues - especially problems related to slow startup times or connection errors when contestants access them.
+●	US-18: As a Challenge Writer, I want to view, create, edit, and delete challenges in the system, and manage challenge versions so that I can rollback at any time, in order to maintain a high-quality challenge library for the contest.
+●	US-19: As a Challenge Writer, I want to preview and test challenges in an isolated environment before official release, confirming that the connection string is only returned when the service inside the container is truly ready to receive requests, to ensure the quality of the contestant's experience from the first access.
+●	US-20: As a Challenge Writer, I want to view the deployment history and real-time logs of challenge instances, to analyze and troubleshoot configuration issues - especially problems related to slow startup times or connection errors when contestants access them.
+●	US-21: Với tư cách là Challenge Writer, tôi muốn một nơi lưu trữ image riêng tư và an toàn để đảm bảo các challenge image của tôi không bị giả mạo hoặc rò rỉ trước khi cuộc thi bắt đầu.
 2.1.3. Jury
 As the department responsible for monitoring the organization and competition process, ensuring the fairness, transparency, and integrity of the contests, as well as evaluating the results and behavior of contestants when necessary, I, as a Jury, want the system to provide the following functional and non-functional characteristics:
-●	US-12: US-12: As a Jury, I want to view a Dashboard with detailed analytical metrics by each challenge and a real-time scoreboard, to monitor the contest progress and detect early signs of anomalies.
-●	US-13: As a Jury, I want to view detailed information of users, teams, and submission history – filterable by team, user, and time period – to quickly investigate violations or cheating behaviors in the contest.
+●	US-22: US-12: As a Jury, I want to view a Dashboard with detailed analytical metrics by each challenge and a real-time scoreboard, to monitor the contest progress and detect early signs of anomalies.
+●	US-23: As a Jury, I want to view detailed information of users, teams, and submission history - filterable by team, user, and time period - to quickly investigate violations or cheating behaviors in the contest.
 2.1.4. Contestant
 As the direct participants in solving the challenges in the contest and the group interacting with the system most frequently, I, as a Contestant, want the system to provide the following functions:
-●	US-14: As a Contestant, I want to initiate the challenge environment and only receive the connection string when the service inside the container is truly ready to accept connections so as not to encounter Connection Refused errors.
-●	US-15: As a Contestant, I want to submit flags and receive validation results immediately, without encountering errors due to race conditions when multiple team members submit at the same time or send too many requests exceeding the limit, to accurately record points for the team in the contest.
-●	US-16: As a Contestant, I want to view the scoreboard with a data refresh function to update the latest data in a timely manner.
-●	US-17: As a Contestant, I want the system to have an intuitive and user-friendly interface; the test list, buttons, and notifications must be clear and easy to use, so that I don't spend too much time getting used to the system and can spend that time solving tests and achieving higher scores.
+●	US-24: As a Contestant, I want to initiate the challenge environment and only receive the connection string when the service inside the container is truly ready to accept connections so as not to encounter Connection Refused errors.
+●	US-25: As a Contestant, I want to submit flags and receive validation results immediately, without encountering errors due to race conditions when multiple team members submit at the same time or send too many requests exceeding the limit, to accurately record points for the team in the contest.
+●	US-26: As a Contestant, I want to view the scoreboard with a data refresh function to update the latest data in a timely manner.
+●	US-27: As a Contestant, I want the system to have an intuitive and user-friendly interface; the test list, buttons, and notifications must be clear and easy to use, so that I don't spend too much time getting used to the system and can spend that time solving tests and achieving higher scores.
+
 #	Actor	Description
 1	Admin	Admin is responsible for administering the entire system and operating the F-CTF platform. This role performs system configuration at the global level, manages user accounts, assigns access permissions, and monitors resources to ensure stable system operation when hosting multiple contests simultaneously. Admin has the right to create, edit, or delete users, intervene in all resources in the system, handle support tickets, monitor scoreboards, aggregate statistics, and post-contest reports.
 2	Challenge Writer
 	Challenge Writer is responsible for designing, building, and managing challenge content in the system. This role can create, edit, and deploy challenges in the system. Challenge Writer monitors deployment history, checks logs and deploy results to ensure the quality, accuracy, and stability of challenges before they are used in contests.
 3	Jury	Jury is the contest monitoring department to ensure the fairness, transparency, and integrity of the competition process. Jury has the right to view user information, participating teams, submissions, scoreboards, and aggregated statistics of the system. In addition, Jury can monitor logs, handle violation situations, respond to tickets when necessary, and support the evaluation and aggregation of final contest results.
 4	Contestant	Contestants are those who directly participate in contests and solve challenges. They log in with granted accounts, update profile information, and participate in the contest. During the competition, Contestants can view the challenge list, start or stop the challenge environment, submit flags to record scores, track progress and the scoreboard. In addition, Contestants can send support tickets to the organizers and practice individually or as a team depending on the configuration.
-Table I 2: Actor Details
+Table 1: Actor Details
 2.2. Use Cases
 Figure 2 Overall Use Case in System provides an overview of the Use Case Diagram of the FCTF - Version 4 system, showing the main actors and the functions they can interact with in the system. Basic authentication functions such as login and logout are not presented in this diagram, as these are minimal use cases present in almost all systems. The system includes four main roles: Admin, Challenge Writer, Contestant, and Jury. Challenge Writer is responsible for creating, editing, and managing challenges in the system. They can add new, update content, configure, and ensure the quality of challenges. Admin is the role with the highest authority in the system, including all functions of Challenge Writer and Jury, while having extended rights such as user management, team management, and system configuration. Admin is responsible for monitoring all platform activities and ensuring stable system operation. Contestant is the competitor. They can view the challenge list, start or stop the competition environment, submit flags, send support tickets, and track the scoreboard. Jury acts as an observer and evaluator of the contest. Jury has the right to monitor the scoreboard, competition progress, submission information, and respond to support tickets to ensure fairness and transparency. 
 Below are the detailed use cases for each role, with changes and additions highlighted by color:   Green oval for new use cases,  Yellow oval for modified use cases,   Red oval for use cases removed in this version 4.
  
-Figure I 2: Overall Use Case in FCTF System
+Figure 2: Overall Use Case in FCTF System
 2.2.1. Challenge Writer Use Cases
 2.2.1.1. Diagram(s)
  
-Figure I 3: Use Case Diagram for Challenge Writer
+Figure 3: Use Case Diagram for Challenge Writer
 2.2.1.2. Descriptions
 ID	Use Case	Actors	Use Case Description
 UC-01	View Challenges	Challenge Writer	Challenge Writer accesses the Challenges interface to view the list of all created challenges.
@@ -111,11 +122,11 @@ UC-11	View Deployment History	Challenge Writer	Challenge Writer views the deploy
 UC-12	Search Challenge	Challenge Writer	Challenge Writer searches for a challenge.
 UC-13	View Version Detail	Challenge Writer	Challenge Writer views the attributes of all versions of a challenge.
 UC-14	Rollback Version	Challenge Writer	Challenge Writer can revert to an older version of a challenge.
-Table I 3: Use Case Description for Challenge Writer
+Table 2: Use Case Description for Challenge Writer
 2.2.2. Admin Use Cases
 2.2.2.1. Diagram(s)
  
-Figure I 4: Use Case Diagram for Admin
+Figure 4: Use Case Diagram for Admin
 2.2.2.2. Descriptions
 ID	Use Case	Actors	Use Case Description
 UC-15	Configure Contest Time	Admin	Admin configures the start time, end time, and system freeze time.
@@ -189,11 +200,11 @@ UC-82	Delete Custom Field	Admin	Admin deletes a custom field added for a user or
 UC-83	Config Sanitize	Admin	Admin configures the HTML content filtering mode in the system.
 UC-84	Pause Contest	Admin	Admin pauses the contest.
 UC-85	Reset Contest	Admin	Admin resets the contest data.
-Table I 4: Use Case Description for Admin
+Table 3: Use Case Description for Admin
 2.2.3. Contestant Use Cases
 2.2.3.1. Diagram(s)
  
-Figure I 5: Use Case Diagram for Contestant
+Figure 5: Use Case Diagram for Contestant
 2.2.3.2. Descriptions
 
 ID	Use Case	Actors	Use Case Description
@@ -212,11 +223,11 @@ UC-47	View Tickets	Contestant	Contestant views the list of submitted tickets.
 UC-94	View Ticket Detail	Contestant	Contestant views detailed information of a ticket.
 UC-95	View All Instances	Contestant	Contestant views the list of all running challenge instances of themselves/their team in the current contest.
 UC-27	View Action Logs	Contestant	Contestant views logs of their own or their team's actions.
-Table I 5: Use Case Description for Contestant
+Table 4: Use Case Description for Contestant
 2.2.4. Jury Use Cases
 2.2.4.1. Diagram(s)
  
-Figure I 6: Use Case Diagram for Jury
+Figure 6: Use Case Diagram for Jury
 2.2.4.2. Descriptions
 ID	Use Case	Actors	Use Case Description
 UC-23	Query Reward	Jury	Jury can filter the list of awards based on multiple criteria.
@@ -233,7 +244,7 @@ UC-45	Search Submission	Jury	Jury searches for contestant submissions by name, s
 UC-47	View Tickets	Jury 	Jury views the list of system tickets.
 UC-48	Response Ticket	Jury	Jury responds to contestant tickets.
 UC-49	Search Ticket	Jury	Jury searches for contestant tickets.
-Table I 6: Use Case Description for Jury
+Table 5: Use Case Description for Jury
 2.2.5. Use Case Description
 2.2.5.1. UC-01: View Challenges
 UC ID and Name:	UC-01 View Challenges
@@ -251,7 +262,7 @@ Exceptions:	E1: Database connection error, unable to load the list.
 Priority:	High
 Frequency of Use:	High
 Business Rules:	BR-019
-Table I 7: View Challenges Use Case Description
+Table 6: View Challenges Use Case Description
 2.2.5.2. UC-02: View Challenge Detail
 UC ID and Name:	 UC-02 View Challenge Detail
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -270,7 +281,7 @@ Exceptions:	E1: Database connection error, unable to load data.
 Priority:	High
 Frequency of Use:	High
 Business Rules:	BR-013, BR-014, BR-019, BR-030, BR-031
-Table I 8: View Challenge Detail Use Case Description
+Table 7: View Challenge Detail Use Case Description
 2.2.5.3. UC-03: Create Challenge
 UC ID and Name:	UC-03 Create Challenge
 Created By:	TrungTM	Date Created:	 01/02/2026
@@ -309,7 +320,7 @@ Priority:	High
 Frequency of Use:	Medium
 Business Rules:	N/A
 
-Table I 9: Create Challenge Use Case Description
+Table 8: Create Challenge Use Case Description
 2.2.5.4. UC-04: Edit Challenge
 UC ID and Name:	UC-04 Edit Challenge
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -334,7 +345,7 @@ Exceptions:	E1: The user does not have permission to edit the challenge.
 Priority:	High
 Frequency of Use:	Medium
 Business Rules:	BR-002, BR-009
-Table I 10: Edit Challenge Use Case Description
+Table 9: Edit Challenge Use Case Description
 2.2.5.5. UC-06: Preview Challenge
 UC ID and Name:	UC-06 Preview Challenge
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -356,7 +367,7 @@ E2: Timeout error due to insufficient resources.
 Priority:	High
 Frequency of Use:	Medium
 Business Rules:	N/A
-Table I 11: Preview Challenge Use Case Description
+Table 10: Preview Challenge Use Case Description
 2.2.5.6. UC-12: Search Challenge
 UC ID and Name:	UC-12 Search Challenge
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -375,7 +386,7 @@ Priority:	Medium
 Frequency of Use:	Medium
 Business Rules:	N/A
 
-Table I 12: Search Challenge Use Case Description
+Table 11: Search Challenge Use Case Description
 2.2.5.7. UC-13: View Version Detail
 UC ID and Name:	UC-13 View Version Detail
 Created By:	NhatKA	Date Created:	01/02/2026
@@ -394,7 +405,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 13: View Version Detail Use Case Description
+Table 12: View Version Detail Use Case Description
 2.2.5.8. UC-14: Rollback Version
 UC ID and Name:	UC-14 Rollback Version
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -415,7 +426,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 14: Rollback Version Use Case Description
+Table 13: Rollback Version Use Case Description
 2.2.5.9. UC-15: Configure Contest Time
 UC ID and Name:	UC-15 Configure Contest Time
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -436,7 +447,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	BR-008
-Table I 15: Configure Contest Time Use Case Description
+Table 14: Configure Contest Time Use Case Description
 2.2.5.10. UC-16: Change Scoreboard Visibility
 UC ID and Name:	UC-16 Change Scoreboard Visibility
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -458,7 +469,7 @@ Exceptions:	N/A
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	BR-025, BR-026
-Table I 16: Change Scoreboard Visibility Use Case Description
+Table 15: Change Scoreboard Visibility Use Case Description
 2.2.5.11. UC-17: Configure Visibility
 UC ID and Name:	UC-17 Configure Visibility
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -478,7 +489,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 17: Configure Visibility Use Case Description
+Table 16: Configure Visibility Use Case Description
 2.2.5.12. UC-18: Configure General Setting
 UC ID and Name:	UC-18 Configure General Setting
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -498,7 +509,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	BR-001
-Table I 18: Configure General Setting Use Case Description
+Table 17: Configure General Setting Use Case Description
 2.2.5.13. UC-19: Export Contest Data
 UC ID and Name:	UC-19 Export Contest Data
 Created By:	NhatKA	Date Created:	
@@ -517,7 +528,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 19: Export Contest Data Use Case Description
+Table 18: Export Contest Data Use Case Description
 2.2.5.14. UC-20: Import Contest Data
 UC ID and Name:	UC-20 Import Contest Data
 Created By:	NhatKA	Date Created:	
@@ -537,7 +548,7 @@ Exceptions:	E1: Information in the file is not in the correct format.
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 20: Import Contest Data Use Case Description
+Table 19: Import Contest Data Use Case Description
 2.2.5.15. UC-21: Import Account Data
 UC ID and Name:	UC-21 Import Account Data
 Created By:	NhatKA	Date Created:	
@@ -557,7 +568,7 @@ Exceptions:	E1: Information in the file is not in the correct format.
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 21: Download Template Use Case Description
+Table 20: Download Template Use Case Description
 2.2.5.16. UC-22: Download Template
 UC ID and Name:	UC-22 Download Template
 Created By:	NhatKA	Date Created:	
@@ -576,7 +587,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 22: Download Template Use Case Description
+Table 21: Download Template Use Case Description
 2.2.5.17. UC-23: Query Reward
 UC ID and Name:	UC-23 Query Reward
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -595,7 +606,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Medium
 Business Rules:	N/A
-Table I 23: Query Reward Use Case Description
+Table 22: Query Reward Use Case Description
 2.2.5.18. UC-24: Filter History
 UC ID and Name:	UC-24 Filter History
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -614,7 +625,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 24: Filter History Use Case Description
+Table 23: Filter History Use Case Description
 2.2.5.19. UC-25: View Instance History
 UC ID and Name:	UC-25 View Instance History
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -631,7 +642,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Medium
 Business Rules:	N/A
-Table I 25: View Instance History Use Case Description
+Table 24: View Instance History Use Case Description
 2.2.5.20. UC-26: View Audit Logs
 UC ID and Name:	UC-26 View Audit Logs
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -649,7 +660,7 @@ Priority:	Medium
 Frequency of Use:	Medium
 Business Rules:	N/A
 
-Table I 26: View Audit Logs Use Case Description
+Table 25: View Audit Logs Use Case Description
 2.2.5.21. UC-28: View Users
 UC ID and Name:	UC-28 View Users
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -666,7 +677,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Medium
 Business Rules:	N/A
-Table I 27: View Users Use Case Description
+Table 26: View Users Use Case Description
 2.2.5.22. UC-32: Search User
 UC ID and Name:	UC-32 Search User
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -684,7 +695,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 28: Search User Use Case Description
+Table 27: Search User Use Case Description
 2.2.5.23. UC-33: Export User Data
 UC ID and Name:	UC-33 Export User Data
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -703,7 +714,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	BR-007
-Table I 29: Export User Data Use Case Description
+Table 28: Export User Data Use Case Description
 2.2.5.24. UC-36: View Dashboard
 UC ID and Name:	UC-36 View Dashboard
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -720,7 +731,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	High
 Business Rules:	N/A
-Table I 30: View Dashboard Use Case Description
+Table 29: View Dashboard Use Case Description
 2.2.5.25. UC-37: View Teams
 UC ID and Name:	UC-37 View Teams
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -737,7 +748,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Medium
 Business Rules:	N/A
-Table I 31: View Teams Use Case Description
+Table 30: View Teams Use Case Description
 2.2.5.26. UC-42: Search Team
 UC ID and Name:	UC-42 Search Team
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -755,7 +766,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 32 Search Team Use Case Description
+Table 31 Search Team Use Case Description
 2.2.5.27. UC-45: Search Submission
 UC ID and Name:	UC-45 Search Submission
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -775,7 +786,7 @@ Priority:	Medium
 Frequency of Use:	Medium
 Business Rules:	N/A
 
-Table I 33: Search Submission Use Case Description
+Table 32: Search Submission Use Case Description
 2.2.5.28. UC-46: Change Submission Status
 UC ID and Name:	UC-46 Change Submission Status
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -797,7 +808,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 34: Change Submission Status Use Case Description
+Table 33: Change Submission Status Use Case Description
 2.2.5.29. UC-52: Search Instance
 UC ID and Name:	UC-52 Search Instance
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -815,7 +826,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 35: Search Instance Use Case Description
+Table 34: Search Instance Use Case Description
 2.2.5.30. UC-53: View Log Detail
 UC ID and Name:	 UC-53 View Log Detail
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -833,7 +844,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 36: View Log Detail Use Case Description
+Table 35: View Log Detail Use Case Description
 2.2.5.31. UC-54: View Request Log
 UC ID and Name:	 UC-54 View Request Log
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -851,7 +862,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 37: View Request Log Use Case Description
+Table 36: View Request Log Use Case Description
 2.2.5.32. UC-75: View Brackets
 UC ID and Name:	 UC-75 View Brackets
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -869,7 +880,7 @@ Exceptions:	N/A
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 38: View Brackets Use Case Description
+Table 37: View Brackets Use Case Description
 2.2.5.33. UC-76: Create Bracket
 UC ID and Name:	 UC-76 Create Bracket
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -890,7 +901,7 @@ Exceptions:	N/A
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 39: Create Bracket Use Case Description
+Table 38: Create Bracket Use Case Description
 2.2.5.34. UC-77: Update Bracket
 UC ID and Name:	 UC-77 Update Bracket
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -911,7 +922,7 @@ Exceptions:	E1: Bracket name is left blank, the system displays an error message
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 40: Update Bracket Use Case Description
+Table 39: Update Bracket Use Case Description
 2.2.5.35. UC-78: Delete Bracket
 UC ID and Name:	 UC-78 Delete Bracket
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -933,7 +944,7 @@ Exceptions:	N/A
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 41: Delete Bracket Use Case Description
+Table 40: Delete Bracket Use Case Description
 2.2.5.36. UC-79: View Custom Fields
 UC ID and Name:	 UC-79 View Custom Fields
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -952,7 +963,7 @@ Exceptions:	N/A
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 42: View Custom Fields Use Case Description
+Table 41: View Custom Fields Use Case Description
 2.2.5.37. UC-80: Create Custom Field
 UC ID and Name:	 UC-80 Create Custom Field
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -973,7 +984,7 @@ Exceptions:	N/A
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 43: Create Custom Field Use Case Description
+Table 42: Create Custom Field Use Case Description
 2.2.5.38. UC-81: Update Custom Field
 UC ID and Name:	 UC-81 Update Custom Field
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -993,7 +1004,7 @@ Exceptions:	Field name is left blank, the system displays an error message.
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 44: Update Custom Field Use Case Description
+Table 43: Update Custom Field Use Case Description
 2.2.5.39. UC-82: Delete Custom Field
 UC ID and Name:	 UC-82 Delete Custom Field
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -1015,7 +1026,7 @@ Exceptions:	N/A
 Priority:	Low
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 45: Delete Custom Field Use Case Description
+Table 44: Delete Custom Field Use Case Description
 2.2.5.40. UC-85: Reset Contest
 UC ID and Name:	 UC-85 Reset Contest
 Created By:	NhatKA	Date Created:	 04/02/2026
@@ -1037,7 +1048,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	Low
 Business Rules:	N/A
-Table I 46: Reset Contest Use Case Description
+Table 45: Reset Contest Use Case Description
 2.2.5.41. UC-86: Start Challenge
 UC ID and Name:	UC-86 Start Challenge
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -1060,7 +1071,7 @@ E2: Deployment error from the server.
 Priority:	High
 Frequency of Use:	High
 Business Rules:	BR-001, BR-003, BR-004, BR-006, BR-016, BR-017,BR-018, BR-020, BR-031
-Table I 47: Start Challenge Use Case Description
+Table 46: Start Challenge Use Case Description
 2.2.5.42. UC-87: Stop Challenge
 UC ID and Name:	UC-87 Stop Challenge
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -1082,7 +1093,7 @@ Exceptions:	N/A
 Priority:	High
 Frequency of Use:	High
 Business Rules:	BR-006
-Table I 48: Stop Challenge Use Case Description
+Table 47: Stop Challenge Use Case Description
 2.2.5.43. UC-88: Submit Flag
 UC ID and Name:	UC-88 Submit Flag
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -1102,8 +1113,8 @@ Alternative Flows:	N/A
 Exceptions:	E1: Cannot submit flag due to not being the team captain.
 Priority:	High
 Frequency of Use:	High
-Business Rules:	BR-001, BR-016, BR-017, BR-021, BR-022, BR-031
-Table I 49: Submit Flag Use Case Description
+Business Rules:	BR-001, BR-016, BR-017, BR-021, BR-022, BR-031, BR-33
+Table 48: Submit Flag Use Case Description
 2.2.5.44. UC-89: Unlock Hint
 UC ID and Name:	UC-89 Unlock Hint
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -1124,7 +1135,7 @@ Exceptions:	E1: Not enough points to unlock hint.
 Priority:	High
 Frequency of Use:	Medium
 Business Rules:	BR-016, BR-019
-Table I 50: Unlock Hint Use Case Description
+Table 49: Unlock Hint Use Case Description
 2.2.5.45. UC-92: Search Scoreboard
 UC ID and Name:	UC-92 Search Scoreboard
 Created By:	NhatKA	Date Created:	04/02/2026
@@ -1141,7 +1152,7 @@ Exceptions:	N/A
 Priority:	Medium
 Frequency of Use:	Low
 Business Rules:	BR-025, BR-026, BR-032
-Table I 51: Search Scoreboard Use Case Description
+Table 50: Search Scoreboard Use Case Description
 3. Functional Requirements
 3.1. System Functional Overview
 3.1.1. Screens Flow
@@ -1154,7 +1165,7 @@ This is the main screen or main interface in the system. This is where users per
 The rounded rectangle represents a pop-up window or secondary screen that appears when the user performs a specific action, such as viewing details, entering additional data, or confirming an operation. The rounded rectangle helps distinguish these temporarily displayed elements from the main screen.
 
 The arrows indicate the screen flow, showing which screen connects to which screen and which pop-up window will appear from which screen. Details of the screen flow are displayed below.
-Table I 52: Description symbol
+Table 51: Description symbol
  
 Figure 8: Screen Flow of Contestant
 Figure 8 illustrates the entire navigation flow for the contestant in the FCTF system. After verifying account information on the login page, the user will be redirected to the home page, which serves as the hub to access all functions related to the contest. From this home page, contestants can access the list of challenge categories, explore existing challenges, view challenge details, and submit answers through the integrated submission interface.
@@ -1164,7 +1175,7 @@ Besides solving challenges, contestants can regularly track their results throug
 To increase proactivity for users, the home page provides access to the personal profile management function, allowing contestants to safely update information and change passwords through a separate interface. 
 Overall, the navigation flow in the FCTF system is organized in a clear, intuitive, and scientific manner, helping users to easily operate and minimize errors, while ensuring a safe, efficient, and seamless experience when contestants participate and interact throughout the competition
  
-Figure I 7
+Figure 7
 Figure 9: Screen Flow of Management System
 Figure 9 describes the FCTF management system, which is designed with a central interface being the Admin Dashboard, allowing administrators (admin), juries, and challenge writers to effectively manage, monitor, and operate all system activities. Through this interface, administrators can quickly access important functions such as Dashboard, Challenges, Users, Action Logs, Tickets, Teams, Scoreboard, Submissions, Dynamic Reward Query, Config, Monitoring, Instances History, and Audit Log.
 The Dashboard page provides an overview of the system's operational status, including statistics related to the number of users, participating teams, challenges, submissions, and necessary reporting information. The Challenges function supports managing the entire lifecycle of challenges, from creating new ones, editing content, and configuring difficulty, to tracking deployment status and activity history. Through the Users and Teams sections, administrators can manage account information, assign permissions, track user activity status, as well as organize and coordinate participating teams.
@@ -1223,7 +1234,7 @@ Overall, the FCTF management system is organized in a clear, scientific, and int
 46	View Team Action Log 	Actions Log List	Page displaying recorded actions with the system belonging to all members in the contestant's team
 47	View User Profile	Profile	Page displaying detailed information of the contestant including personal information, score, team rank, and members' score information
 48	Change Password	Change Password Popup	Popup screen allowing to change the contestant's password
-Table I 53: Screen Descriptions
+Table 52: Screen Descriptions
 3.1.3. Screen Authorization
 #	Screen Name	Contestant	Jury	Challenge Writer	Admin
 1	Admin Login		X	X	X
@@ -1274,13 +1285,13 @@ Table I 53: Screen Descriptions
 46	Actions Log List	X			
 47	Profile	X			
 48	Change Password Popup	X			
-Table I 54: Screen Authorization
+Table 53: Screen Authorization
 3.1.4. Non-Screen Functions
 #	Feature	System Function	Description
 1	Resource Cleanup	CronJob Cleanup	A CronJob running periodically (every minute) to check and terminate challenge instance pods/namespaces whose TTL has expired.
 2	Monitoring	Health Check	A contestant portal service for challenge instances to poll the challenge pod status from the backend.
 3	Monitoring	Deployment Listener	An event listener service running continuously in the background to update the challenge Pod status, sending it to the DB/loading it into the Redis cache.
-Table I 55: Non-Screen Functions Description
+Table 54: Non-Screen Functions Description
 3.1.5. Entity Relationship Diagram
  Figure 10 Entity Relationship Diagram
 Entities Description
@@ -1304,7 +1315,7 @@ Entities Description
 17	Dynamic Challenge	Specific settings for a challenge with dynamic scoring, which changes based on the number of solvers.
 18	Multiple Choice Challenge	Represents a multiple-choice format challenge, suitable for classroom teaching purposes.
 19	Challenge Version	Stores the configuration versions of a challenge including the deploy file, cpu limit, etc.
-Table I 56: Entities Description
+Table 55: Entities Description
 3.1.6. Main Business Flow of The System.
 3.1.6.1. Start Challenge
  
@@ -1317,115 +1328,6 @@ Figure 17 shows the deployment state of a challenge over time when a contestant 
  
 Figure 15: Activity Diagram for Submit Flag
 The Activity Diagram for Submit Flag describes the processing workflow when a contestant submits a flag for a challenge in the system. The process begins when the contestant performs the Submit Flag action. Then, the system validates the flag by checking if the flag submitted by the contestant matches the value in the database. If the flag is correct, the system records the submission information, updates the score and scoreboard in the database, then stops the challenge and sends a notification to the contestant about the successful submission result. The process ends after the contestant receives the notification. Conversely, if the flag is incorrect, the system increments the contestant's number of attempts and updates it in Redis, while simultaneously recording the submission into the database. After that, the system sends a notification to the contestant about the incorrect flag and terminates the process.
-3.1.6.3. Hướng dẫn thao tác cho thí sinh: Làm bài, xem instance và Ticket CRUD
-Mục này mô tả luồng thao tác end-to-end dành cho thí sinh khi tham gia cuộc thi trên Contestant Portal, bao gồm: đăng nhập, chọn challenge, deploy instance, truy cập challenge bằng token, nộp flag, theo dõi instance đang chạy, và quản lý ticket hỗ trợ.
-
-Điều kiện tiên quyết:
-- Thí sinh đã có tài khoản hợp lệ (username/password).
-- Tài khoản thuộc team hợp lệ, không bị hidden/banned.
-- Cuộc thi đang ở trạng thái cho phép thao tác tương ứng (xem challenge, start challenge, submit flag).
-
-A. Hướng dẫn làm challenge deploy
-Bước 1: Đăng nhập vào Contestant Portal
-- Truy cập trang đăng nhập Contestant Portal.
-- Nhập thông tin vào các ô [username] và [PASSWORD].
-- Nhấn nút [LOGIN]. Nếu hợp lệ, hệ thống điều hướng vào trang [CHALLENGES].
-
-Figure 1: Contestant Portal login screen
-
-Bước 2: Chọn category và challenge cần làm
-- Tại trang [CHALLENGES], hệ thống hiển thị danh sách category dạng collapsible.
-- Chọn 1 category để mở danh sách challenge bên trong.
-- Chọn challenge muốn làm để mở panel [CHALLENGE INFO].
-
-Figure 2: Challenges List for Contestant screen
-
-Bước 3: Deploy challenge instance (đối với challenge require_deploy)
-- Trong màn hình chi tiết challenge, nhấn nút [+] Start Challenge.
-- Hệ thống chuyển trạng thái qua Checking/Pending, sau đó Running khi pod sẵn sàng.
-- Khi deploy thành công, hệ thống hiển thị khối [YOUR ACCESS TOKEN] gồm Token, HTTP endpoint, TCP endpoint.
-
-Figure 3: Challenge Detail for Contestant screen
-
-Các thông tin challenge trên panel chi tiết:
-Block 1 (thông tin nhanh, từ trái sang phải):
-- pts: Điểm của challenge.
-- Time: Thời gian giới hạn cho 1 phiên deploy. Bộ đếm bắt đầu khi instance chạy.
-- Attempts: Số lượt submit flag tối đa (0 = không giới hạn).
-- Deploys: Số lần deploy đã dùng/tổng số lần được phép (vd: 0/1).
-Block 2:
-- [ATTACHMENTS]: Danh sách file đính kèm. Thí sinh click từng file để tải về.
-
-Bước 4: Truy cập challenge với token được cấp
-a) Truy cập bằng HTTP (web challenge):
-- Lấy token trong khối [YOUR ACCESS TOKEN].
-- Truy cập URL theo format:
-http://<gateway-host>:<http-port>?fctftoken=<YOUR_TOKEN>
-- Sau khi gateway xác thực token, thí sinh làm bài trên giao diện web của challenge.
-
-b) Truy cập bằng TCP (pwn/reverse):
-- Dùng terminal để kết nối gateway TCP:
-nc <gateway-host> <tcp-port>
-- Hệ thống sẽ yêu cầu nhập token, thí sinh paste token để xác thực.
-- Sau khi thấy thông báo access granted, bắt đầu tương tác dịch vụ challenge.
-
-Lưu ý cho máy Windows:
-- Có thể dùng WSL2 + Ubuntu để chạy lệnh nc.
-- Hoặc dùng netcat/ncat tương đương nếu đã cài trên Windows.
-
-Bước 5: Submit flag
-- Nhập flag vào vùng [SUBMIT FLAG] theo định dạng challenge yêu cầu (ví dụ: flag{...}).
-- Nhấn nút [SUBMIT].
-- Kết quả hệ thống có thể trả về:
-	+ Correct: cộng điểm, cập nhật scoreboard; với challenge deploy có thể tự stop instance theo cấu hình.
-	+ Incorrect: trừ lượt attempts còn lại, có thể phát sinh cooldown.
-	+ Rate limited / Paused / Invalid: hiển thị thông báo lỗi tương ứng.
-
-Lưu ý vận hành quan trọng:
-- Nếu bật captain_only_start/captain_only_submit, chỉ captain được start challenge hoặc submit flag.
-- Nếu đạt max attempts, hệ thống khóa submit cho challenge đó.
-- Khi hết thời gian instance (TTL/time limit), instance có thể bị stop tự động.
-
-B. Hướng dẫn xem và quản lý instance của team
-- Truy cập menu [Instances] trên thanh điều hướng.
-- Màn hình hiển thị các cột: ID, Challenge, Cat, Status, Your Access Token, Age, Actions.
-- Ý nghĩa thao tác chính:
-	+ [REFRESH]: làm mới danh sách instance.
-	+ [GO]: quay lại challenge tương ứng.
-	+ [STOP]: dừng instance đang Running.
-- Trạng thái thường gặp: Pending, Running, Failed, Succeeded.
-
-Figure 4: View Team Instances screen
-
-C. Hướng dẫn Ticket CRUD cho thí sinh
-1. Create (C) - Tạo ticket
-- Vào menu [Tickets].
-- Nhấn [NEW TICKET].
-- Nhập các trường bắt buộc: Title, Type (Question/Error/Inform), Description.
-- Nhấn [CREATE TICKET] để gửi yêu cầu hỗ trợ.
-
-Figure 5: Create Ticket Form Popup
-
-2. Read (R) - Xem ticket
-- Trên trang [Tickets], thí sinh xem danh sách ticket đã gửi, lọc theo trạng thái, tìm kiếm theo từ khóa.
-- Nhấn vào dòng ticket để mở màn hình chi tiết [TICKET_DETAIL], theo dõi phản hồi từ admin/jury.
-
-Figure 6: View Contestant Tickets screen
-Figure 7: Ticket Detail screen
-
-3. Update (U) - Cập nhật ticket
-- Hệ thống hiện tại KHÔNG hỗ trợ thí sinh chỉnh sửa trực tiếp ticket đã tạo (không có endpoint update từ contestant).
-- Khi cần bổ sung nội dung, thí sinh nên tạo ticket mới với thông tin rõ ràng hơn.
-
-4. Delete (D) - Xóa ticket
-- Thí sinh được xóa ticket của chính mình khi ticket còn open và chưa có phản hồi.
-- Trên danh sách ticket, chọn biểu tượng xóa, xác nhận thao tác ở hộp thoại cảnh báo.
-- Ticket đã có phản hồi hoặc đã đóng sẽ không thể xóa.
-
-Khuyến nghị khi dùng ticket:
-- Tiêu đề ngắn gọn, mô tả đầy đủ bước tái hiện lỗi.
-- Đính kèm thông tin challenge/category và thời điểm xảy ra sự cố để ban tổ chức xử lý nhanh hơn.
-
 3.2. Manage Feature
 3.2.1. FR-01: Challenge Gateway for Start Challenge
  
@@ -1520,7 +1422,7 @@ Adding these statistics provides Admins/Juries with a clear quantitative basis t
 Figure 52: View Submissions Screen
 The Submission management screen of the previous system did not fully support important operational tools such as filtering by team, user, or time; exporting data based on correct/incorrect conditions; as well as adjusting scores for dynamic challenges when necessary. These limitations reduced the efficiency of incident handling and harbored potential error risks during administration. Therefore, the system comprehensively upgrades the View Submissions function, including extended filters, submission administrative operations, and a score resynchronization mechanism for dynamic challenges.
 Admins/Juries access the function via the [Submissions] menu on the contest management page. The interface provides a search form with a filter field selection dropdown and a keyword input box, along with operations such as Flagging, resetting dynamic challenge values, [Delete], and [Export]. The submission list is displayed in a tabular format with columns: ID, User, Team, Challenge, Type, Provided (submitted flag), Date, and checkboxes to select multiple records. During operation, administrators can view submission history, update correct/incorrect statuses according to system procedures, delete submissions when necessary, and export data for statistical purposes. If there is no data, the system displays the message "No submissions yet".
-Additionally, the system adds the Resync Dynamic Challenge Value function to ensure score consistency. When an Admin selects the resync operation, the system displays a confirmation dialog with the content "Are you sure to recalculate all dynamic challenge values?" and two options [No] / [Yes]. Upon confirmation, the system will restore dynamic challenge scores to their initial values, recalculate scores according to the configured algorithm, and update the scoreboard for all teams/users.
+Additionally, the system adds the Resync Dynamic Challenge Value function to ensure score consistency. When an Admin selects the resync operation, the system displays a confirmation dialog with the content "Are you sure to recalculate all dynamic challenge values?" and two options [No] / [Yes]. Upon confirmation, will restore dynamic challenge scores to their initial values, recalculate scores according to the configured algorithm, and update the scoreboard for all teams/users. Because dynamic challenge values are shared globally per challenge, all teams/users who solved that challenge are reflected with the latest recalculated value. This operation is especially necessary after an Admin deletes a submission or changes a submission status (correct/incorrect) for a dynamic challenge, because those actions alter solve records without automatically recalculating the challenge's dynamic value.
 3.2.18. FR-18: Search Instance for Monitoring
  
 Figure 27: Search Instance for Monitoring Screen
@@ -1530,6 +1432,9 @@ Admins access the [Monitoring] menu on the contest management page to monitor al
  
 Figure 27: Download challenge file for Contestant Portal screen
 The challenge file download feature in the legacy system could be accessed outside the contest context due to insufficient control at the business logic layer. Therefore, the system introduces FR-019 to enforce that file downloads must pass through contest and challenge validation before granting read access. The system strictly permits file downloads only when the contest is in an active state. Any file download request must be rejected if the contest has not yet started, has ended, or is currently configured to deny access. Additionally, if a challenge is in a hidden state, the system must deny the request from the contestant. Furthermore, the system must verify the challenge's prerequisite conditions for the current team before serving the file. If the team has not fully completed the prerequisites or if the prerequisite data is invalid, the system must deny the request following the deny-by-default principle. This requirement ensures that contestants cannot gain unauthorized access to challenge files by bypassing the business logic of the competition.
+3.2.20. FR-20: Shared Instance Challenge
+In the previous system, all deployed challenges were forced to run in Dedicated Instance mode (where each team receives an isolated challenge environment). This approach consumed a significant amount of infrastructure resources and was unsuitable for challenge types that require shared, competitive environments. To resolve this limitation, the system introduces a new "Shared Instance" deployment type option within the Challenge Configuration module.
+When an Administrator or Challenge Writer configures a challenge with the "Shared Instance" option, the system shall instantiate only a single, globally shared environment for the entire contest. The Challenge Gateway must be responsible for routing and distributing incoming traffic from all participating teams into this unified environment. Furthermore, contestants shall not have permission to manually start or stop a shared challenge instance. The entire lifecycle and persistent state of the shared instance must be exclusively operated and controlled by the administrators.
 4. Threat Modeling
 4.1. System Overview
 This document provides a comprehensive security assessment for the F-CTF Platform (Version 4.0.0). The platform is a cloud-native Capture The Flag (CTF) orchestration system built on a microservices architecture, leveraging Kubernetes (K3s) for dynamic challenge deployment.
@@ -1549,8 +1454,8 @@ Impact reflects the consequences if the attack occurs and is analyzed from two p
 •	Technical Impact: effects on Confidentiality, Integrity, Availability, and Accountability.
 •	Business Impact: financial loss, reputational damage, regulatory non-compliance, and privacy violations.
  When sufficient information is available, Business Impact is typically prioritized as it better represents organizational risk.
-Both Likelihood and Impact are categorized into three levels: Low (0–<3), Medium (3–<6), and High (6–9). These values are then combined in a risk matrix to determine the Overall Risk Severity (ranging from Low to Critical), enabling clear prioritization of risks.
-Key principles include evaluating based on worst-case scenarios, prioritizing High and Critical risks, and considering cost–benefit trade-offs. The model is flexible and can be customized to align with an organization’s specific context and risk tolerance.
+Both Likelihood and Impact are categorized into three levels: Low (0-<3), Medium (3-<6), and High (6-9). These values are then combined in a risk matrix to determine the Overall Risk Severity (ranging from Low to Critical), enabling clear prioritization of risks.
+Key principles include evaluating based on worst-case scenarios, prioritizing High and Critical risks, and considering cost-benefit trade-offs. The model is flexible and can be customized to align with an organization’s specific context and risk tolerance.
 4.2. Architecture & Deep Dataflow Analysis
 4.2.1 DFDs for System Architecture Overview
 The F-CTF system is designed using a microservices architecture running on a Kubernetes (K8s) platform. Its primary goal is to automate the packaging, deployment, and management of security challenges in isolated environments while providing comprehensive monitoring capabilities for administrators.
@@ -1558,8 +1463,7 @@ The system is divided into two main domains:
 •	Core Flow (Figure 1): Responsible for all competition business logic. 
 •	Monitoring & Management (Figure 2): Responsible for availability, observability, and infrastructure administration.
  
-Figure 1: Data Flow Diagram for Core System Flow
-
+Figure 8: Data Flow Diagram for Core System Flow
 Trust Boundaries (DFD 1 - Data Flow Diagram for Core System Flow)
 ID	Source	Destination	Name	Detailed Description
 TB-01	Admin	Admin MVC	External-to-Admin Boundary	HTTPS requests from privileged users into the admin system.
@@ -1594,10 +1498,10 @@ TB-29	Challenge Gateway	Redis	Gateway-to-Redis Boundary	Rate limiting.
 TB-30	Challenge Gateway	Challenge Pod	Gateway-to-Runtime Boundary	Exploit traffic forwarded directly to challenge pods.
 TB-31	Challenge Pod	Challenge Pod	Challenge Boundary	Challenge Pod sandbox isolated from all services in the cluster except the Gateway.
 TB-32	Start/Build Process	Harbor Registry	Workflow-to-Registry Boundary	The challenge start/up workflows pull/push container images from the Harbor Registry.
-
+Table 56: Trust Boudary (Main Data Flow)
 
  
-Figure 2: Data Flow Diagram for Ops & Monitoring
+Figure 9: Data Flow Diagram for Ops & Monitoring
 ID	Source	Destination	Trust Boundary	Detailed Description
 TB-33	Admin	Rancher	Admin - Cluster Boundary	Administrators send management requests to the Rancher interface to operate the cluster.
 TB-34	Admin	Grafana	Admin - Cluster Boundary	Administrators access Grafana to view system monitoring dashboards.
@@ -1606,14 +1510,16 @@ TB-36	Grafana	Prometheus	Monitoring Access Boundary	Grafana sends PromQL queries
 TB-37	Grafana	Loki	Monitoring Access Boundary	Grafana sends LogQL queries to retrieve logs from Loki.
 TB-38	Kube-State-Metrics	Kubernetes API Server	Cluster Control Plane Boundary	Kube-State-Metrics watches/lists K8s objects to convert their state into metrics.
 TB-39	Kubernetes API Server	Promtail	Cluster Control Plane Boundary	API Server provides Pod metadata (labels, namespaces) for Promtail to tag logs.
-
+Table 57: Data Flow Diagram for Ops & Monitoring
 4.2.2 Entry Point
 ID	Interface	Protocol	Component	Notes
-CL-EP-1	Web UI	HTTPS	Contestant Portal (SPA)	Ingress TLS termination
-CL-EP-2	Admin UI	HTTPS	Admin MVC (CTFd)	Highly privileged management surface
+CL-EP-1	Web UI	HTTPS	Contestant Portal 	Ingress TLS termination
+CL-EP-2	Admin UI	HTTPS	Admin MVC	Highly privileged management surface
 CL-EP-3	Infrastructure UI	HTTPS	Rancher	Full cluster control
 CL-EP-4	Challenge Native	TCP/HTTP	Challenge Gateway	Raw TCP stream / HTTP proxy to Sandbox
 CL-EP-5	Observability	HTTPS	Grafana 	Logs, metrics may expose internal state & secrets
+CL-EP-6	Infrastructure UI	HTTPS	Argo UI	UI for monitoring workflows’ status
+Table 58: Entry Points Table
 4.2.3 External Dependencies
 ID	Dependency	Where	Notes
 ED-1	K3s / Kubernetes API	kube-system / host	Cluster control plane; high impact if compromised
@@ -1630,6 +1536,7 @@ ED-11	Container registries	external	Pull/push images (supply chain)
 ED-12	Observability stack	monitoring	Prometheus/Grafana/Loki/Tempo
 ED-13	Node OS / kernel	host nodes	container breakout leads to node compromise
 ED-14	DNS resolution	kube-system	service discovery; poisoning affects service routing
+Table 59: External Dependencies
 4.2.4 Asset Inventory
 ID	Name	Asset Type	Scope	Description
 CLU - Cluster / Shared
@@ -1691,6 +1598,7 @@ ORC-A-02	Workflow templates and parameters	Control Data	Orchestration	Workflow t
 ORC-A-03	Build secrets (registry creds, tokens)	Secret	Orchestration	Secrets used during image build/push; exposure may compromise supply chain.
 ORC-A-04	Image integrity (tags/digests/provenance)	Supply Chain	Orchestration	Integrity of built/pushed/pulled images. Loss of integrity affects all challenge runtimes.
 ORC-A-05	Build sandbox isolation	Isolation	Orchestration	Isolation level of Kaniko/build pods from host/control-plane. Weak isolation may lead to privilege escalation.
+Table 60: Asset Inventory
 4.2.5 Vulnerabilities
 ID	Vulnerability	CWE Ref	OWASP Top 10 (2021)
 VUL-01	RBAC Over-privileged	CWE-269	A01: Broken Access Control
@@ -1716,6 +1624,7 @@ VUL-20	Missing Liveness / Readiness Probes	CWE-770	A04: Insecure Design
 VUL-21	Sensitive Data in ConfigMaps	CWE-312	A02: Cryptographic Failures
 VUL-22	Unencrypted etcd Storage (At-Rest)	CWE-311	A02: Cryptographic Failures
 VUL-23	Missing TLS / Encryption	CWE-319 / CWE-311	A02: Cryptographic Failures
+Table 61: Vulnerabilities
 4.3. Components & Trust Boundary Analysis
 4.3.1. MariaDB
 4.3.1.1. Threats Analysis:
@@ -1727,43 +1636,41 @@ T-MARIA-02	E	Attacker exploits FILE or SUPER privileges to escape DB scope and r
 T-MARIA-03	S	Unauthorized DB access via anonymous accounts or default test databases with no password.	M × H	DAT-A-01	VUL-05, VUL-08 	Breach of the system through misconfigured "backdoors."
 T-MARIA-04	E	MariaDB runs with root/privileged security context. Hacker exploits service flaws to control K3s Control Plane.	L × C	DAT-A-01, CLU-A-02, CLU-A-03, CLU-A-05
 	VUL-04 	Breakout of Pod isolation, threatening the entire Cluster integrity.
-T-MARIA-05	E	Exploiting CVEs (e.g., RCE) in outdated MariaDB Images or vulnerable Base Images.	M × H	DAT-A-01, CLU-A-08, ORC-A-04
-	VUL-15	System compromise or DoS via publicly known security vulnerabilities.
-
+Table 62: Threat Analysis MariaDB 1
 TB-09, TB-15, TB-20, TB-28: Contestant BE, Deployment Center, Deployment Listener, Deployment Consumer ⇔ MariaDB
 For each service - Contestant BE, Deployment Center, Deployment Listener, and Deployment Consumer, connecting to MariaDB, they operate on a separate data domain specific to their respective business purposes.
 Threats:
 ID	STRIDE	Scenario	L×I	Assets	VUL	Business Risk
-T-MARIA-06	T	SQL Injection on the Contestant Backend to unauthorizedly modify flags or solves tables.	M × H	CBE-A-03, DAT-A-01	VUL-10	Compromises competition fairness and integrity of results.
-T-MARIA-07	I	Exploiting SQLi or query logic flaws to extract PII (Personally Identifiable Information) from users tables.	M × H	CBE-A-04, DAT-A-01	VUL-10, VUL-11	Leakage of personal user data and challenge solutions/answers.
-T-MARIA-08	E	Compromising the service to execute destructive commands (DROP/TRUNCATE) due to over-privileged DB accounts.	M × H	DAT-A-01, DAT-A-04	VUL-01, VUL-14 	Total destruction of the competition's data infrastructure.
-T-MARIA-9	D	Flooding the system with requests/messages to exhaust the MariaDB Connection Pool.	M × M	CLU-A-08, DAT-A-01	VUL-13	Service disruption; contestants are unable to submit flags.
-T-MARIA-10	R	Deleting or modifying action_logs sent from Frontend to the API to erase attack traces.	M × M	CLU-A-07, CHA-A-05	VUL-07, VUL-09	Loss of forensic capability and inability to investigate post-incident.
-T-MARIA-11	I	Sniffing unencrypted traffic between Pods (Backend, Consumer, DB) within the Cluster.	L × H	DLIST-A-03, DAT-A-05	VUL-03, VUL-12 	Exposure of authentication credentials or sensitive challenge data.
+T-MARIA-05	T	SQL Injection on the Contestant Backend to unauthorizedly modify flags or solves tables.	M × H	CBE-A-03, DAT-A-01	VUL-10	Compromises competition fairness and integrity of results.
+T-MARIA-06	I	Exploiting SQLi or query logic flaws to extract PII (Personally Identifiable Information) from users tables.	M × H	CBE-A-04, DAT-A-01	VUL-10, VUL-11	Leakage of personal user data and challenge solutions/answers.
+T-MARIA-07	E	Compromising the service to execute destructive commands (DROP/TRUNCATE) due to over-privileged DB accounts.	M × H	DAT-A-01, DAT-A-04	VUL-01, VUL-14 	Total destruction of the competition's data infrastructure.
+T-MARIA-8	D	Flooding the system with requests/messages to exhaust the MariaDB Connection Pool.	M × M	CLU-A-08, DAT-A-01	VUL-13	Service disruption; contestants are unable to submit flags.
+T-MARIA-9	R	Deleting or modifying action_logs sent from Frontend to the API to erase attack traces.	M × M	CLU-A-07, CHA-A-05	VUL-07, VUL-09	Loss of forensic capability and inability to investigate post-incident.
+T-MARIA-10	I	Sniffing unencrypted traffic between Pods (Backend, Consumer, DB) within the Cluster.	L × H	DLIST-A-03, DAT-A-05	VUL-03, VUL-12 	Exposure of authentication credentials or sensitive challenge data.
+Table 63: Threat Analysis MariaDB 2
 TB-05: Admin MVC ↔ MariaDB
 AdminMVC has full privileges to manipulate the data stored in MariaDB.
 Threat:
 ID	STRIDE	Scenario	L×I	Affected Assets	Vulnerability 	Business Risk / Impact
-T-DB-12	S	Attacker compromises Admin Credentials via Phishing or Brute-force to impersonate an Administrator.	M × H	ADM-A-01, DAT-A-01	VUL-05, VUL-08 	Full control over the competition data via the "front door."
-T-DB-13	T	SQL Injection in the Admin Dashboard. Even if the Admin has full rights, an attacker uses SQLi to automate tampering with the solves table.	M × H	CBE-A-03, DAT-A-01	VUL-10 	Destroys competition integrity and ruins the leaderboard rankings.
-T-DB-14	I	Flaw in the "Export Data" logic allows downloading the entire users table containing PII without proper multi-factor approval.	M × H	CBE-A-04, DAT-A-01	VUL-01 	Massive leak of personal contestant data and challenge solutions.
+T-MARIA -11	S	Attacker compromises Admin Credentials via Phishing or Brute-force to impersonate an Administrator.	M × H	ADM-A-01, DAT-A-01	VUL-05, VUL-08 	Full control over the competition data via the "front door."
+T-MARIA -12	T	SQL Injection in the Admin Dashboard. Even if the Admin has full rights, an attacker uses SQLi to automate tampering with the solves table.	M × H	CBE-A-03, DAT-A-01	VUL-10 	Destroys competition integrity and ruins the leaderboard rankings.
+T-MARIA -13	I	Flaw in the "Export Data" logic allows downloading the entire users table containing PII without proper multi-factor approval.	M × H	CBE-A-04, DAT-A-01	VUL-01 	Massive leak of personal contestant data and challenge solutions.
+Table 64: Threat Analysis MariaDB 3
 4.3.1.2. Mitigations
 Mitigation ID	Secure Design Pattern	Threat Mapping	Control Measure	Implementation Details & Objectives
-MIT-GEN-01	Complete Mediation	T-MARIA-11, T-DB-11	NetworkPolicy Isolation	Implementation: Enforce L4 isolation using K8s NetworkPolicies. Allow ingress to Port 3306 only from specific labels (app: admin-mvc, app: contestant-be, app: deployment-center). Block all traffic from contestant sandboxes.
-MIT-GEN-02	Secure Design	T-MARIA-06, T-MARIA-07, T-DB-13	Parameterized Queries (ORM)	Implementation: Mandatory use of EF Core (LINQ) or FromSqlInterpolated. Code reviews to prohibit string concatenation in SQL commands.
-MIT-GEN-03	Secure by Default	T-MARIA-03, T-MARIA-08, T-DB-12	Hardening & Secrets Management	Implementation: Use Init-Containers for SQL hardening (remove test DB, anonymous users). Inject credentials via K8s Secrets (Environment Variables/Volumes).
+MIT-GEN-01	Complete Mediation	T-MARIA-10	NetworkPolicy Isolation	Implementation: Enforce L4 isolation using K8s NetworkPolicies. Allow ingress to Port 3306 only from specific labels (app: admin-mvc, app: contestant-be, app: deployment-center). Block all traffic from contestant sandboxes.
+MIT-GEN-02	Secure Design	T-MARIA-05, T-MARIA-06, T-MARIA-12	Parameterized Queries (ORM)	Implementation: Mandatory use of EF Core (LINQ) or FromSqlInterpolated. Code reviews to prohibit string concatenation in SQL commands.
+MIT-GEN-03	Secure by Default	T-MARIA-03, T-MARIA-11	Hardening & Secrets Management	Implementation: Use Init-Containers for SQL hardening (remove test DB, anonymous users). Inject credentials via K8s Secrets (Environment Variables/Volumes).
 MIT-GEN-04	Accept Responsibility	T-MARIA-01, T-MARIA-10, T-DB-07	Centralized Audit Logging	Implementation: Enable MARIADB_AUDIT_PLUGIN. Stream logs via Fluent Bit/Loki to a remote ELK stack. Log CONNECT, QUERY, and TABLE events.
-MIT-GEN-05	Least Privilege	T-MARIA-02, T-MARIA-04, T-MARIA-08	Runtime Sandboxing (K8s)	Implementation: Set securityContext: runAsUser: 999, readOnlyRootFilesystem: true, allowPrivilegeEscalation: false.
-MIT-GEN-06	Least Privilege	T-MARIA-08, T-DB-07, T-DB-13	Granular DB RBAC	Implementation: Create distinct DB users for each service. Grant minimum required permissions (e.g., SELECT, INSERT only). Strictly DENY DROP, TRUNCATE, ALTER.
-MIT-GEN-07	Defense in Depth	T-MARIA-09	Connections Limit	Implementation: Set MariaDB MAX_USER_CONNECTIONS.
-MIT-GEN-08	Complete Mediation	T-MARIA-11, T-DB-07, T-DB-12	Zero Trust Networking (mTLS)	Implementation: Enable mTLS for all inter-service communication to ensure every connection is authenticated and encrypted.
-MIT-GEN-09	Least Information	T-MARIA-02, T-MARIA-07, T-DB-14	Data Minimization & Infile Block	Implementation: Set local-infile = 0. Implement strict data filters in the Admin MVC export logic to exclude sensitive hashes/secrets.
-MIT-GEN-10	Accept Responsibility	T-MARIA-05	Image Lifecycle Management	Implementation: Use hardened base images (e.g., Bitnami).
-
+MIT-GEN-05	Least Privilege	T-MARIA-02, T-MARIA-04	Runtime Sandboxing (K8s)	Implementation: Set securityContext: runAsUser: 999, readOnlyRootFilesystem: true, allowPrivilegeEscalation: false.
+MIT-GEN-06	Least Privilege	T-MARIA-01, T-MARIA-05, T-MARIA-07, T-MARIA-09	Granular DB RBAC	Implementation: Create distinct DB users for each service. Grant minimum required permissions (e.g., SELECT, INSERT only). Strictly DENY DROP, TRUNCATE, ALTER.
+MIT-GEN-07	Defense in Depth	T-MARIA-08	Connections Limit	Implementation: Set MariaDB MAX_USER_CONNECTIONS.
+MIT-GEN-08	Complete Mediation	T-MARIA-10	Zero Trust Networking (mTLS)	Implementation: Enable mTLS for all inter-service communication to ensure every connection is authenticated and encrypted.
+MIT-GEN-09	Least Information	T-MARIA-02, T-MARIA-06, T-MARIA-13	Data Minimization & Infile Block	Implementation: Set local-infile = 0. Implement strict data filters in the Admin MVC export logic to exclude sensitive hashes/secrets.
+Table 65: Mitigations MariaDB
 4.3.2. NFS Analysis
 4.3.2.1. Threats:
-Component-Level Threats 
-These threats target the inherent weaknesses of the NFS protocol and server-side misconfigurations, regardless of which service is connecting.
+Component-Level Threats:
 ID	STRIDE	Scenario	L×I	Assets	VUL	Business Risk
 T-NFS-01	E	Insecure Root Squashing: Configuring no_root_squash allows a user with root access on a client Pod to gain root privileges on the physical NFS Host.	L × C	CLU-A-05, CLU-A-10	VUL-04, VUL-06	Complete compromise of the storage host and potential escape to the underlying Node.
 T-NFS-02	I	Unencrypted Traffic: NFS (v3/v4) traffic is cleartext by default. An attacker performing internal sniffing can read sensitive challenge files during transit.	M × H	ADM-A-02, DAT-A-05	VUL-03, VUL-23	Leakage of flags, source code, and administrative artifacts before the contest starts.
@@ -1928,7 +1835,7 @@ TB-14, TB-21, TB-25: Deployment Groups (Center/Consumer/Listener) ↔ Redis
 ID	STRIDE	Scenario	L × I	Assets	VUL	Business Impact / System Risk
 T-RED-08	Tampering	State Hijacking: Attacker gains access to Redis and modifies data in ZSET (active_deploys). For example, altering scores (timestamps) to extend Pod lifetime indefinitely.	L × H	ORC-A-02, CHA-A-02, DAT-A-02	VUL-03, VUL-21	Resource Leak: Causes severe resource leaks (Zombie Pods), potentially freezing the Cluster or deleting active contestant deployments.
 T-RED-09	Elevation	Workflow Manipulation: Attacker modifies state keys such as challenge_up_workflow_*. They inject “fake completed” or “error” statuses to interfere with the build/deploy process of challenges.	L × H	ORC-A-01, ORC-A-02, DAT-A-02	VUL-03, VUL-21	Infrastructure Takeover: Gains control over orchestration flow; can block the initialization of opponents’ challenges or disrupt the entire contest.
-TB-07: Admin MVC  Redis
+TB-07: Admin MVC ó Redis
 ID	STRIDE	Scenario	L × I	Assets	VUL	Business Impact / System Risk
 T-RED-10	DoS	Cache Purging Abuse: Attacker gains Admin access or exploits an SSRF flaw to perform FLUSHDB or broad SCAN/DEL operations.	L × H	DAT-A-01, ADM-A-01, CHA-A-02, CLU-A-08	VUL-01, VUL-21	Management Paralysis: Wipes cache configuration data, causing Redis to hang and severely slowing or stopping the CTFd admin system.
 T-RED-11	Elevation	Unauthorized State Access: Admin account is compromised; attacker uses SCAN or KEYS to enumerate sensitive Deployment keys (challenge_up_workflow_*) outside the intended contest management scope.	L × C	DAT-A-02, ORC-A-02, ORC-A-01, ADM-A-01	VUL-01, VUL-21	Infrastructure Takeover: By accessing build states, attacker can interfere with or overwrite challenge deployment flows, gaining control over orchestration infrastructure.
@@ -2014,7 +1921,7 @@ MIT-ST-05	Complete Mediation	T-ST-04	Max-Challenge Quota (Redis-backed)	Implemen
 MIT-ST-06	Open Design / Audit	T-ST-05	Centralized Event Logging	Implementation: Forward action logs (Action, UserID, TeamID) to Loki for real-time monitoring. Objective: Support post-incident review and forensic investigations.
 MIT-ST-07	Exposure Minimization	T-ST-06	Metadata Sanitization	Implementation: Only return necessary token information. Fully hide details about physical caNode/Pod. Objective: Minimize information exposure to avoid leaking sensitive infrastructure details.
 MIT-ST-08	Complete Mediation	T-ST-09	Deployment Center Request Validation	Implementation: Backend services send Start/Stop requests with a unique SecretKey (per-service, per-request). Deployment Center verifies the SecretKey before accepting the request. Objective: Prevent unauthorized orchestration and ensure only valid backend services can trigger Start/Stop operations.
-MIT-ST-09	Least Privilege	T-ST-09, T-ST-07	Harbor Pull-Only Robot Account	Implementation: Create a dedicated Harbor robot account with pull-only permission for challenge runtime images. Store its token in a Kubernetes Secret and reference it via imagePullSecrets in the challenge Pod template. Objective: Ensure challenge containers can only pull approved images and cannot push or modify registry contents, preventing unauthorized image tampering or supply chain manipulation.
+MIT-ST-09	Least Privilege	T-ST-09, T-ST-07	Harbor Pull-Only Robot Account	Implementation: Create a dedicated Harbor robot account with pull/push only permission for challenge runtime images. 
 4.4.2. Flow 2: Admin Create Challenge
 4.4.2.1. Threats Analysis:
 ID	STRIDE	Scenario	L×I	Asset 	VUL 	Impact & Risk
@@ -2031,7 +1938,7 @@ MIT-CR-01	Input Validation	T-CR-03, T-CR-05	Safe Unzip & Hadolint	Implementation
 MIT-CR-02	Complete Mediation	T-CR-02, T-CR-07	Request Validation	Implementation: Requests to the Deployment Center include a unique SecretKey. Objective: Prevent replay attacks and tampering with challenge state.
 MIT-CR-03	Least Privilege	T-CR-04, T-CR-06	Scoped RBAC & Service Account	Implementation: Deployment Center Service Account has limited permissions with Argo Objective: Limit the blast radius.
 MIT-CR-04	Fail-Safe Defaults	T-CR-01, T-CR-05	Resource Quota 	Implementation: Enforce strict ResourceQuota for CPU/RAM/Storage. Objective: Prevent misconfigurations and reduce risk of Admin account compromise.
-MIT-CR-05	Least Privilege	T-CR-01, T-CR-06	Harbor Push-Only Robot Account	Implementation: Configure a dedicated robot account in Harbor with push-only permission for the challenge build pipeline. Store its credentials in a Kubernetes Secret used by the Deployment Worker during image build. Objective: Ensure the build system can only upload newly built images but cannot pull or modify other repository images, reducing the risk of registry tampering if the Worker environment is compromised.
+MIT-CR-05	Least Privilege	T-CR-01, T-CR-06	Harbor Push-Only Robot Account	Implementation: Configure a dedicated robot account in Harbor with pull/push-only permission for the challenge build pipeline. 
 
 4.4.3. Flow 3: Submit Flag
 4.4.3.1. Threats Analysis:
@@ -2071,65 +1978,65 @@ Hệ thống triển khai một Challenge Gateway đóng vai trò là cổng tru
 5.2. Quality Attributes
 5.2.1. Reliability
 NFR-01: Challenge Readiness State Reliability
-Hệ thống phải đảm bảo rằng trạng thái của challenge instance chỉ được hiển thị là Ready và URL kết nối chỉ được trả về cho thí sinh khi ứng dụng bên trong container đã thực sự sẵn sàng tiếp nhận traffic. Việc xác định trạng thái sẵn sàng phải dựa trên cơ chế readiness check của container, đảm bảo ứng dụng đã khởi động hoàn chỉnh và cổng dịch vụ có thể chấp nhận kết nối.
-Hệ thống phải ngăn chặn hoàn toàn tình trạng trả về trạng thái Ready trong khi dịch vụ bên trong container chưa sẵn sàng. Trong mọi trường hợp, URL truy cập chỉ được cung cấp sau khi readiness check thành công. Tỷ lệ lỗi kết nối (Connection Refused) sau khi hệ thống trả về trạng thái Ready phải bằng 0% trong các kịch bản kiểm thử tích hợp và kiểm thử tải.
+Hệ thống chỉ được phép hiển thị trạng thái Ready và cung cấp URL truy cập cho thí sinh khi instance challenge đã thực sự có khả năng tiếp nhận kết nối. Hệ thống phải đảm bảo không xảy ra trường hợp trả về trạng thái Ready khi dịch vụ chưa sẵn sàng. Tỷ lệ lỗi kết nối (Connection Refused) sau khi hệ thống trả về trạng thái Ready phải bằng 0% trong các kịch bản kiểm thử tích hợp và kiểm thử tải.
 NFR-02: System Stability and Recovery Under High Load
 Hệ thống phải bảo đảm duy trì khả năng vận hành ổn định khi xử lý số lượng lớn yêu cầu khởi tạo challenge, đồng thời hạn chế tối đa tình trạng tồn đọng workflow, cạn kiệt tài nguyên và suy giảm hiệu năng control plane.
 Mọi request khởi tạo môi trường challenge phải được giám sát về trạng thái thực thi và thời gian xử lý. Các workflow hoặc tiến trình triển khai bị treo, không thể tiếp tục do thiếu tài nguyên hoặc lỗi lập lịch, phải được tự động phát hiện và chấm dứt khi vượt quá thời gian cho phép. Thời gian thực thi tối đa của một request khởi tạo challenge không được vượt quá 6 phút, bao gồm cả giai đoạn chờ lập lịch và triển khai pod. Hệ thống phải triển khai đầy đủ cơ chế timeout, garbage collection và thu hồi tài nguyên nhằm ngăn chặn việc duy trì lâu dài các workflow ở trạng thái Running hoặc Pending. Các workflow không còn khả năng hoàn thành phải được kết thúc theo chính sách đã định nghĩa, tránh gây tích tụ tài nguyên và làm nghẽn hệ thống.
-Trong các tình huống quá tải cực đoan, khi cluster rơi vào trạng thái thiếu hụt CPU, bộ nhớ hoặc không gian lưu trữ, hệ thống phải đảm bảo khả năng phục hồi thông qua việc tự động giải phóng tài nguyên bị chiếm giữ không hợp lệ. Thời gian cần thiết để hệ thống quay trở lại trạng thái ổn định và có thể tiếp nhận yêu cầu mới không được vượt quá 30 phút. Các tác vụ dọn dẹp tài nguyên, bao gồm cleanup workflow, xóa challenge pod cũ và thu hồi volume tạm thời, phải được cấu hình với mức độ ưu tiên cao nhất trong hệ thống lập lịch. Các tác vụ này phải có khả năng được thực thi ngay cả khi cluster đã đạt ngưỡng sử dụng tối đa, nhằm tránh tình trạng deadlock trong đó tài nguyên không thể được thu hồi. Hệ thống phải đảm bảo rằng các workload phục vụ vận hành và bảo trì, đặc biệt là các cleanup jobs, không bị chặn bởi các workload nghiệp vụ thông thường.
+Trong các tình huống quá tải cực đoan, khi cluster rơi vào trạng thái thiếu hụt CPU, bộ nhớ hoặc không gian lưu trữ, hệ thống phải đảm bảo khả năng phục hồi thông qua việc tự động giải phóng tài nguyên bị chiếm giữ không hợp lệ. Các tác vụ dọn dẹp tài nguyên, bao gồm cleanup workflow, xóa challenge pod cũ và thu hồi volume tạm thời, phải được cấu hình với mức độ ưu tiên cao nhất trong hệ thống lập lịch. Các tác vụ này phải có khả năng được thực thi ngay cả khi cluster đã đạt ngưỡng sử dụng tối đa, nhằm tránh tình trạng deadlock trong đó tài nguyên không thể được thu hồi. Hệ thống phải đảm bảo rằng các workload phục vụ vận hành và bảo trì, đặc biệt là các cleanup jobs, không bị chặn bởi các workload nghiệp vụ thông thường.
 5.2.2. Security
 NFR-03: Compliance with Pod Security Standards (Restricted Level)
 Hệ thống phải triển khai toàn bộ các challenge pod theo mức bảo mật Restricted của Pod Security Standards do Kubernetes định nghĩa. Các pod phải được cấu hình chạy với non-root user, vô hiệu hóa privilege escalation, sử dụng root filesystem ở chế độ chỉ đọc, loại bỏ toàn bộ Linux capabilities và áp dụng cơ chế kiểm soát syscall an toàn.
 Yêu cầu này nhằm đảm bảo các challenge pod không chỉ bị hạn chế về đặc quyền ở cấp container, mà còn bị giới hạn khả năng tương tác với kernel của node host, qua đó giảm thiểu nguy cơ khai thác lỗ hổng kernel, container escape và leo thang đặc quyền.
 Kết quả mong đợi là các challenge pod được vận hành trong môi trường có mức độ cô lập cao ở cả cấp tiến trình và kernel, không thể lợi dụng quyền hệ điều hành hoặc syscall nguy hiểm để tấn công sang host và các workload khác, từ đó nâng cao mức độ an toàn và ổn định của toàn bộ hệ thống.
-NFR-04: Network Isolation
-Hệ thống phải áp dụng Network Policies theo mô hình Zero-trust: Mặc định chặn tất cả traffic (Default Deny-All). Chỉ cho phép traffic Ingress từ Challenge Gateway và Egress tới DNS (port 53). Ngăn chặn tuyệt đối việc truy cập ngang hàng giữa các pod challenge hoặc truy cập vào Database/NFS. Hệ thống phải ngăn chặn tuyệt đối các hình thức truy cập trái phép, bao gồm:
-●	Giao tiếp ngang hàng (lateral movement) giữa các pod challenge.
-●	Truy cập trực tiếp từ pod challenge tới Database, NFS hoặc các dịch vụ hạ tầng nội bộ.
-●	Kết nối trái phép giữa các namespace hoặc môi trường khác nhau.
-●	Các luồng mạng không được định nghĩa trong chính sách bảo mật.
-NFR-05: Network Port Exposure Control (No NodePort Exposure)
-Hệ thống phải cấm tuyệt đối việc sử dụng NodePort để expose trực tiếp các challenge ra Internet. Toàn bộ lưu lượng truy cập từ bên ngoài phải được định tuyến thông qua Challenge Gateway như một điểm kiểm soát tập trung, thay vì kết nối trực tiếp tới các pod hoặc service nội bộ trong cluster.
+NFR-04: Network Port Exposure Control (No NodePort Exposure)
+The system shall prevent direct external access to internal services and enforce all external traffic through a centralized gateway. Toàn bộ lưu lượng truy cập từ bên ngoài phải được định tuyến thông qua Challenge Gateway như một điểm kiểm soát tập trung, thay vì kết nối trực tiếp tới các pod hoặc service nội bộ trong cluster.
 Các challenge backend chỉ được tồn tại trong mạng nội bộ của cluster Kubernetes, không được công khai cổng dịch vụ ra bên ngoài. Việc truy cập từ người chơi phải đi qua gateway trung gian, nơi thực hiện xác thực bằng token, ghi nhận log truy cập, giới hạn tài nguyên và định tuyến động tới đúng instance challenge.
 Gateway đóng vai trò là lớp bảo vệ đầu vào, đảm bảo:
 ●	Mọi kết nối đều được xác thực danh tính thông qua token hợp lệ.
 ●	Ngăn chặn truy cập trái phép, truy cập chéo giữa các challenge và truy cập ngoài phạm vi được cấp quyền.
 ●	Hạn chế việc lộ trực tiếp port của hệ thống.
 ●	Cho phép áp dụng các cơ chế giới hạn truy cập, tập trung quản lý truy cập, tăng khả năng giám sát và kiểm soát hành vi người dùng.
-NFR-06: Compliance with NSA/CISA Security Framework
-Hệ thống phải đạt mức tuân thủ 100% đối với các tiêu chí kiểm soát ở mức Critical/High theo khung Kubernetes Hardening do National Security Agency và Cybersecurity and Infrastructure Security Agency ban hành.
+NFR-05: Compliance with NSA/CISA Security Framework
+Hệ thống phải tuân thủ các tiêu chí kiểm soát ở mức Critical/High theo khung Kubernetes Hardening do National Security Agency và Cybersecurity and Infrastructure Security Agency ban hành.
 Yêu cầu này nhằm đảm bảo hệ thống được cấu hình an toàn theo chuẩn quốc tế, giảm thiểu tối đa rủi ro liên quan đến lỗ hổng bảo mật, cấu hình sai, phân quyền không phù hợp và các nguy cơ tấn công từ bên ngoài. Toàn bộ các phát hiện ở mức Critical/High phải được khắc phục triệt để hoặc có biện pháp giảm thiểu được phê duyệt trước khi triển khai vào môi trường production.
 Thông qua việc tuân thủ khung bảo mật NSA/CISA, hệ thống hướng tới mục tiêu phòng ngừa các hình thức tấn công phổ biến như privilege escalation, container escape, unauthorized access và tấn công vào control plane; đồng thời bảo vệ dữ liệu nhạy cảm, secrets, chứng chỉ và thông tin người dùng khỏi nguy cơ rò rỉ hoặc truy cập trái phép.
-NFR-07: Rate Limit
-Hệ thống phải triển khai cơ chế rate limiting tại các tầng reverse proxy (Nginx), Challenge Gateway và Contestant Service nhằm giới hạn số lượng kết nối và yêu cầu từ mỗi thực thể định danh (ví dụ: user, team, token hoặc IP) trong một khoảng thời gian xác định. Cụ thể, mỗi thực thể chỉ được phép duy trì tối đa một số lượng kết nối đồng thời và gửi không quá một số lượng yêu cầu mỗi giây, trong đó các ngưỡng giới hạn này được cấu hình thông qua các biến môi trường của hệ thống. Các giá trị cấu hình này có thể được điều chỉnh tùy theo quy mô cuộc thi và năng lực hạ tầng nhằm đảm bảo hệ thống hoạt động ổn định khi có nhiều thí sinh truy cập đồng thời, đồng thời giảm thiểu nguy cơ lạm dụng tài nguyên hoặc tấn công từ chối dịch vụ.
-NFR-08: Least-Privilege File Access Control
+NFR-06: Rate Limit
+Hệ thống triển khai cơ chế rate limiting đa lớp tại các tầng Reverse Proxy (Nginx), Challenge Gateway và Contestant Service để giới hạn số lượng yêu cầu và kết nối từ mỗi thực thể định danh (user, team, token hoặc IP). Các ngưỡng giới hạn được cấu hình linh hoạt qua biến môi trường của hệ thống, cụ thể:
+•	Tầng Reverse Proxy (Nginx): Mỗi địa chỉ IP được giới hạn tối đa 100 yêu cầu/giây (burst 200) và duy trì không quá 50 kết nối đồng thời.
+•	Tầng Challenge Gateway: 
+o	Giới hạn theo Token: Tối đa 100 yêu cầu/giây (burst 200) và 15 kết nối đồng thời.
+o	Giới hạn bảo vệ theo IP: Tối đa 500 yêu cầu/giây và 1.000 kết nối đồng thời để hỗ trợ tối ưu cho các môi trường NAT/LAN (nơi nhiều thí sinh dùng chung một IP công cộng).
+•	Tầng Contestant Service (API Backend): Mỗi IP được giới hạn 30 yêu cầu/giây và 1.000 yêu cầu/phút.
+Cơ chế này đảm bảo hệ thống hoạt động ổn định dưới tải cao, ngăn chặn các hình thức brute-force, và giảm thiểu nguy cơ tấn công từ chối dịch vụ. Các giá trị cấu hình này có thể được điều chỉnh tùy theo quy mô cuộc thi và năng lực hạ tầng nhằm đảm bảo hệ thống hoạt động ổn định khi có nhiều thí sinh truy cập đồng thời.
+NFR-07: Least-Privilege File Access Control
 Hệ thống phải đảm bảo chức năng tải file challenge không thể bị khai thác path manipulation/path traversal. Người dùng chỉ được tải xuống file khi token hợp lệ và đường dẫn yêu cầu khớp chính xác với bản ghi file đã được đăng ký trong cơ sở dữ liệu.
 Mọi đường dẫn đầu vào phải được chuẩn hóa (canonicalize) và xác thực nằm trong phạm vi thư mục được cấp quyền; hệ thống phải từ chối mọi đường dẫn có dấu hiệu vượt thư mục (ví dụ: ../, encoded traversal, path tuyệt đối hoặc biến thể tương đương).
 Ở tầng hạ tầng, hệ thống chỉ được mount đúng thư mục con phục vụ tải file vào backend (không mount toàn bộ NFS root) và bắt buộc ở chế độ read-only. Cơ chế này đảm bảo tiến trình ứng dụng không thể đọc hoặc ghi dữ liệu ngoài phạm vi được cấp quyền ngay cả khi logic ứng dụng xảy ra lỗi.
-NFR-09: Cross-Site Request Forgery (CSRF) Protection
+NFR-08: Cross-Site Request Forgery (CSRF) Protection
 The system shall implement CSRF protection for all state-changing requests by generating and validating a unique CSRF token per user session, rejecting any request with missing or invalid tokens with HTTP 403, enforcing SameSite=Strict for session cookies, and ensuring no endpoint bypasses CSRF validation to prevent unauthorized request execution from external sources.
-NFR-10: Tuân thủ nguyên tắc phân quyền tối thiểu (Least Privilege) toàn diện
-Hệ thống phải thiết lập cơ chế kiểm soát truy cập nghiêm ngặt ở cả tầng mạng và tầng dịch vụ theo nguyên tắc phân quyền tối thiểu (Least Privilege). Thứ nhất, ở tầng mạng, toàn bộ namespace phải được áp dụng NetworkPolicy với cơ chế Default-Deny-All, chỉ mở các luồng kết nối Ingress/Egress thực sự cần thiết theo nghiệp vụ. Thứ hai, đối với cơ sở dữ liệu MariaDB, phân quyền giao tiếp phải độc lập cho từng service trên chính xác các bảng liên quan, loại bỏ các tài khoản dùng chung mang quyền "ALL PRIVILEGES" và vô hiệu hóa truy cập từ xa cho user root. Thứ ba, cấu hình bộ đệm Redis phải được kích hoạt tính năng Access Control List (ACL) để gán tài khoản truy cập cấu hình riêng cho từng thành phần (Gateway, Backend, Admin) trên các không gian Key logic tương ứng, đồng thời ngăn chặn hoàn toàn việc sử dụng những lệnh hệ thống nguy hiểm (CONFIG, FLUSHALL). Cuối cùng, tầng lưu trữ chia sẻ (NFS) phải được cấu hình tùy chọn mount an toàn (như noexec) và phân tách quyền truy cập thư mục theo dịch vụ tương ứng. Việc tuân thủ toàn diện các biện pháp này nhằm giới hạn vùng ảnh hưởng (blast radius), chặn đứng nguy cơ di chuyển ngang (lateral movement) hoặc thao túng dữ liệu trái phép nếu có lỗ hổng bảo mật bị khai thác.
-NFR-11: Self-Hosted Private Image Registry and Supply Chain Security
-Hệ thống phải sử dụng Harbor làm private image registry self-hosted cho toàn bộ challenge images, service images và build artifacts thay cho Docker Hub trong môi trường production. Registry phải hỗ trợ TLS, xác thực người dùng, phân quyền theo project, audit logging, vulnerability scanning và chính sách retention để bảo vệ chuỗi cung ứng phần mềm và kiểm soát toàn bộ vòng đời image.
-Mọi luồng build và deploy production không được phụ thuộc vào Docker Hub hoặc registry public bên ngoài cho việc lưu trữ hay phân phối image. Hệ thống phải đảm bảo việc kéo image luôn diễn ra từ registry nội bộ do tổ chức kiểm soát, qua đó loại bỏ giới hạn dung lượng private repository miễn phí của Docker Hub và giảm rủi ro gián đoạn khi dịch vụ bên ngoài gặp sự cố.
+NFR-09: Comprehensive adherence to the Principle of Least Privilege.
+Hệ thống phải thiết lập cơ chế kiểm soát truy cập nghiêm ngặt ở cả tầng mạng và tầng dịch vụ theo nguyên tắc phân quyền tối thiểu (Least Privilege). Thứ nhất, ở tầng mạng, toàn bộ namespace phải được áp dụng NetworkPolicy với cơ chế Default-Deny-All, chỉ mở các luồng kết nối Ingress/Egress thực sự cần thiết theo nghiệp vụ. Thứ hai, đối với cơ sở dữ liệu MariaDB, phân quyền giao tiếp phải độc lập cho từng service trên chính xác các bảng liên quan, loại bỏ các tài khoản dùng chung mang quyền "ALL PRIVILEGES" và vô hiệu hóa truy cập từ xa cho user root. Thứ ba, cấu hình bộ đệm Redis phải được kích hoạt tính năng Access Control List (ACL) để gán tài khoản truy cập cấu hình riêng cho từng thành phần (Gateway, Backend, Admin) trên các không gian Key logic tương ứng, đồng thời ngăn chặn hoàn toàn việc sử dụng những lệnh hệ thống nguy hiểm (CONFIG, FLUSHALL). Thứ tư, tầng lưu trữ chia sẻ (NFS) phải được cấu hình tùy chọn mount an toàn (như noexec) và phân tách quyền truy cập thư mục theo dịch vụ tương ứng. Việc tuân thủ toàn diện các biện pháp này nhằm giới hạn vùng ảnh hưởng (blast radius), chặn đứng nguy cơ di chuyển ngang (lateral movement) hoặc thao túng dữ liệu trái phép nếu có lỗ hổng bảo mật bị khai thác. Cuối cùng, vô hiệu hóa các quyền chỉnh sửa không cần thiết trên giao diện của các công cụ quản trị và giám sát (như Grafana, Argo Workflows) nhằm bảo vệ tính toàn vẹn của dữ liệu vận hành.
+NFR-10: Self-Hosted Private Image Registry
+Hệ thống phải sử dụng một container image registry riêng biệt và được kiểm soát chặt chẽ nhằm đảm bảo an toàn thông tin và tính ổn định trong quá trình vận hành. Toàn bộ quy trình từ xây dựng đến phân phối hình ảnh (image) trong luồng CI/CD phải được thực hiện hoàn toàn qua registry được cấp quyền truy cập riêng, nhằm hạn chế các rủi ro về an toàn thông tin và đảm bảo tính ổn định trong quá trình vận hành. Nền tảng này duy trì quyền kiểm soát toàn diện thông qua việc bắt buộc sử dụng giao thức TLS, xác thực truy cập tập trung, phân quyền đa dự án, đồng thời tích hợp ghi nhật ký kiểm toán và tự động quét lỗ hổng bảo mật cho mọi thành phần hình ảnh được lưu trữ.
 5.2.3. Performance
 Hệ thống FCTF được triển khai trên máy chủ với cấu hình 12 bộ xử lý vCPUs và 48GB RAM. Với cấu hình này, hệ thống cần đáp ứng các yêu cầu hiệu năng sau để duy trì tính khả dụng, khả năng mở rộng và trải nghiệm người dùng mượt mà.
-NFR-12: Concurrency Capacity
-Hệ thống quản lý triển khai (Deployment Center) phải có khả năng tiếp nhận và xếp hàng (queue) ít nhất 1000 yêu cầu khởi tạo đồng thời (burst requests) mà không làm sập Control Plane. Số lượng workflow triển khai chạy song song phải được giới hạn ở mức ổn định để bảo vệ tài nguyên Cluster, các yêu cầu còn lại phải được xếp hàng chờ xử lý tuần tự và sẽ được timeout nếu quá thời gian xử lý là <= 6m.
-NFR-13: TCP Connection Handling Capacity
-Gateway phải có khả năng xử lý đồng thời tối thiểu 1.000 sockets đang hoạt động mà không gây treo hệ thống. Hệ thống phải duy trì sự ổn định ngay cả khi lưu lượng TCP tăng đột biến lên mức 3.5 - 4.0 MiB/s.
-NFR-14: HTTP Response Time Performance
-Hệ thống phải đảm bảo độ trễ trung bình khi truyền tải gói tin qua Gateway không vượt quá 100 ms trong điều kiện tải tiêu chuẩn(100 requests đồng thời).  Độ trễ phải được duy trì dưới mức 120ms ngay cả khi hệ thống chịu tải cao (500 requests đồng thời).
-NFR-15: Database Query Performance
-Hệ thống phải đảm bảo các truy vấn cơ sở dữ liệu quan trọng, bao gồm truy vấn bảng xếp hạng (leaderboard), lịch sử submissions, truy xuất thông tin challenge và cập nhật điểm số, duy trì hiệu năng ổn định trong điều kiện tải cao và khi dữ liệu tăng theo thời gian. Thời gian phản hồi trung bình của các truy vấn không được vượt quá 200 ms trong điều kiện tải tiêu chuẩn (≤100 request đồng thời) và không vượt quá 500 ms trong điều kiện tải cao (≤500 request đồng thời). Yêu cầu này phải được kiểm chứng thông qua các bài kiểm thử tải mô phỏng tối thiểu 500 đội thi hoạt động đồng thời với các hành vi như submit, truy vấn và cập nhật dữ liệu.
+NFR-11: Concurrency Capacity
+The Deployment Center shall be capable of accepting and queueing at least 1000 concurrent burst requests for deployment initiation without degrading Control Plane availability. Requests exceeding immediate processing capacity shall be queued and automatically timed out if the total waiting and processing time exceeds 6 minutes.
+NFR-12: TCP Connection Handling Capacity
+Gateway phải có khả năng xử lý đồng thời tối thiểu 1.000 sockets đang hoạt động mà không gây treo hệ thống. Hệ thống phải duy trì sự ổn định ngay cả khi lưu lượng TCP tăng đột biến lên mức 3.5 - 4.0 MiB/s.[NK1.1]
+NFR-13: HTTP Response Time Performance
+Hệ thống phải đảm bảo độ trễ trung bình khi truyền tải gói tin qua Gateway không vượt quá 100 ms trong điều kiện tải tiêu chuẩn(100 request đồng thời). Độ trễ phải được duy trì dưới mức 120ms ngay cả khi hệ thống chịu tải cao (500 request đồng thời).
+NFR-14: Database Query Performance
+Hệ thống phải đảm bảo các truy vấn cơ sở dữ liệu quan trọng, bao gồm truy vấn bảng xếp hạng (leaderboard), lịch sử submissions, truy xuất thông tin challenge và cập nhật điểm số, duy trì hiệu năng ổn định trong điều kiện tải cao và khi dữ liệu tăng theo thời gian. Thời gian phản hồi trung bình của các truy vấn không được vượt quá 200 ms trong điều kiện tải tiêu chuẩn (≤100 request đồng thời) và không vượt quá 500 ms trong điều kiện tải cao (≤500 request đồng thời). Yêu cầu này phải được kiểm chứng thông qua các bài kiểm thử tải mô phỏng tối thiểu 500 đội thi hoạt động đồng thời với các hành vi như submit, truy vấn và cập nhật dữ liệu.[NK2.1]
+NFR-15: Asynchronous Event Processing Throughput
+Thành phần Deployment Listener phải được thiết kế với khả năng xử lý bất đồng bộ (asynchronous processing) và mô hình sharding theo worker. Quá trình đồng bộ trạng thái vòng đời của pod từ Kubernetes lên Redis và MariaDB không bị nghẽn (backlog) khi có sự kiện hàng loạt. Thời gian trễ (latency) khi cập nhật trạng thái không được vượt quá tối đa 2 giây, nhằm đảm bảo Frontend và Admin nhận được dữ liệu giám sát nhanh nhất.
 5.2.4. Verifiability
 NFR-16: Automated Testing
-Hệ thống phải triển khai cơ chế kiểm thử tự động cho các quy trình cốt lõi nhằm đảm bảo các chức năng quan trọng luôn được xác minh trong suốt quá trình phát triển và vận hành. Các kịch bản kiểm thử phải bao phủ các luồng nghiệp vụ chính của hệ thống, bao gồm System Test, đảm bảo kiểm tra đầy đủ đến toàn bộ hệ thống. Tỷ lệ bao phủ kiểm thử (test coverage) đối với các thành phần nghiệp vụ chính phải đạt tối thiểu 90%, và tất cả các kịch bản kiểm thử bắt buộc phải đạt tỷ lệ pass 100% trước khi cho phép triển khai lên môi trường production.
+Hệ thống phải có bộ kiểm thử tự động cho các quy trình cốt lõi nhằm đảm bảo các chức năng quan trọng luôn được xác minh trong suốt quá trình phát triển và vận hành. Các kịch bản kiểm thử phải bao phủ các luồng nghiệp vụ chính của hệ thống, bao gồm System Test, đảm bảo kiểm tra đầy đủ đến toàn bộ hệ thống. Tất cả các kịch bản kiểm thử bắt buộc phải đạt tỷ lệ pass 100% trước khi cho phép triển khai lên môi trường production.
 5.2.5. Scalability
 NFR-17: Horizontal Auto Scaling
 Hệ thống phải hỗ trợ cơ chế horizontal auto scaling cho các service chính nhằm đảm bảo khả năng xử lý khi tải tăng cao. Các service bao gồm challenge-gateway, contestant-be, contestant-portal, deployment-center phải được cấu hình để tự động tăng hoặc giảm số lượng replicas dựa trên mức sử dụng tài nguyên.
-Khi mức sử dụng CPU hoặc Memory vượt quá 90%, hệ thống sẽ tự động tăng số lượng replicas của service để phân tán tải và duy trì hiệu năng xử lý. Ngược lại, khi mức sử dụng tài nguyên giảm xuống dưới ngưỡng quy định và duy trì ổn định trong một khoảng thời gian, hệ thống sẽ tự động giảm số lượng replicas nhằm tối ưu tài nguyên.
+Khi mức sử dụng CPU hoặc Memory vượt quá ngưỡng cố định, hệ thống sẽ tự động tăng số lượng replicas của service để phân tán tải và duy trì hiệu năng xử lý. Ngược lại, khi mức sử dụng tài nguyên giảm xuống dưới ngưỡng quy định và duy trì ổn định trong một khoảng thời gian, hệ thống sẽ tự động giảm số lượng replicas nhằm tối ưu tài nguyên.
 Quá trình mở rộng và thu hẹp replicas phải diễn ra tự động, không làm gián đoạn dịch vụ. Cơ chế mở rộng theo chiều ngang giúp hệ thống tăng khả năng mở rộng (scalability), đảm bảo hiệu năng khi tải tăng đột biến và duy trì tính sẵn sàng cao (high availability).
 5.2.6. Modifiability
 NFR-18: CI/CD Pipeline Automation
@@ -2164,7 +2071,7 @@ BR-017	When the contest is paused, flag submissions by contestants will be block
 BR-018	A challenge that has been solved cannot be started again.
 BR-019	Contestants can only see challenges configured to be publicly visible; when a challenge is hidden, only admins and challenge writers can see it.
 BR-020	Contestants cannot start a challenge when the configured maximum number of attempts for the challenge has been exhausted.
-BR-021	When a deploy-type challenge is solved, the system will automatically stop the running instance.
+BR-021	When a deploy-type challenge is solved, the system will automatically stop the running instance. This behavior does not apply to shared-instance challenges, where instances are started and stopped manually by administrators.
 BR-022	When a team exhausts its attempts for a challenge, contestants will not be able to restart or submit flags for that challenge.
 BR-023	Bonus points from awards are directly added to the team's total score on the scoreboard.
 BR-024	Achievements and badges are processed through a separate mechanism and do not directly affect the score.
@@ -2176,6 +2083,7 @@ BR-029	Usernames and team names must be unique.
 BR-030	Contestants cannot see the difficulty information of a challenge unless permitted by the admin.
 BR-031	A challenge can only be viewed, started, or attempted when the player has solved all of the previously configured prerequisite challenges.
 BR-032	Contestants can only view the scoreboard information of the bracket they belong to and cannot view the scores and brackets of other teams if the admin configuration does not allow it.
+BR-033	For dynamic challenges, the awarded score is the current global value of that challenge; when the value changes, both earlier and later solvers are reflected with the same latest value on the scoreboard.
 Table 106: Business Rules Description
 6.2. Common Requirements
 ID	Rule Definition
@@ -2187,28 +2095,28 @@ CR-05	Error messages must be clear and user-friendly.
 Table 107: Common Requirements Description
 6.3. Requirement-to-Issue Mapping Summary
 For ease of cross-referencing between Report 1 and Report 3, the table below summarizes the mapping between key NFRs/FRs and their corresponding Issue IDs.
-Requirement	Related IssueID(s)	Notes
-NFR-01	IS-1	Challenge ready state and connection string readiness
-NFR-02	IS-5, IS-14	Stability and recovery under high deployment load
-NFR-03	IS-6, IS-4	Pod security hardening and restricted runtime
-NFR-04	IS-6, IS-4	Network isolation and deny-all policy
-NFR-05	IS-3	No direct port exposure via NodePort
-NFR-06	IS-6	NSA/CISA hardening compliance
-NFR-07	IS-5	System-wide rate limiting for all request bursts
-NFR-08	IS-12.2	Least-privilege file access and path traversal prevention
-NFR-09	IS-10	CSRF Protection
-NFR-10	IS-5	Concurrent deployment capacity
-NFR-11	IS-3	TCP gateway capacity and stability
-NFR-12	IS-3	HTTP Response Latency through Gateway
-NFR-13	IS-7, IS-8, IS-9	Query performance, Redis blocking
-NFR-14	N/A	Automation Testing
-NFR-15	IS-5	Horizontal scaling
-NFR-16	IS-25	CI/CD automation
-NFR-17	IS-2	Backend action logging
-NFR-18	IS-13	Race condition control for challenge lifecycle and submit flow
-NFR-19	IS-32	Least privilege and infrastructure hardening
-NFR-20	IS-33	Self-hosted Harbor registry and image supply chain security
-FR-01	IS-3	Challenge Gateway for direct challenge access
+Requirement	Related Issue(s)	Notes
+NFR-01	IS-2	Challenge ready state and connection string readiness
+NFR-02	IS-6	Stability and recovery under high deployment load
+NFR-03	IS-5, IS-7	Pod security hardening and restricted runtime
+NFR-04	IS-4	No direct port exposure via NodePort
+NFR-05	IS-7	NSA/CISA hardening compliance
+NFR-06	IS-6	System-wide rate limiting for all request bursts
+NFR-07	IS-12.2	Least-privilege file access and path traversal prevention
+NFR-08	IS-11	CSRF Protection
+NFR-09	IS-1	Least privilege and infrastructure hardening
+NFR-10	IS-32	Self-hosted Harbor registry and image supply chain security
+NFR-11	IS-6	Concurrent deployment capacity
+NFR-12	IS-4	TCP gateway capacity and stability
+NFR-13	IS-4	HTTP Response Latency through Gateway
+NFR-14	IS-8, IS-9, IS-10	Query performance, Redis blocking
+NFR-15	IS-14	Asynchronous Event Processing Throughput
+NFR-16	N/A	Automation Testing
+NFR-17	IS-6	Horizontal scaling
+NFR-18	IS-25	CI/CD automation
+NFR-19	IS-3	Backend action logging
+NFR-20	IS-13	Race condition control for challenge lifecycle and submit flow
+FR-01	IS-4	Challenge Gateway for direct challenge access
 FR-02	IS-26	Challenge listing and search improvements
 FR-03	IS-27	Challenge deployment configuration
 FR-04	IS-28	Dynamic challenge editing and scoring
@@ -2226,8 +2134,8 @@ FR-15	IS-24	Bracket feature and scoreboard for contestant
 FR-16	IS-16	Challenge analytics for dashboard
 FR-17	IS-19	View submissions
 FR-18	IS-15	Search instance for monitoring
-FR-18	IS-12.1	Access control for challenge file download
-FR-19	IS-32	Least Privilege and Network Policy compliance
+FR-19	IS-12.1	Access control for challenge file download
+FR-20	IS-31	Shared Instance challenge type
 Table 108: Mapping between NFR/FR and Issue IDs
 6.4. Application Messages List
 

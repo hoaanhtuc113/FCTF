@@ -60,31 +60,17 @@ Date	A, M, D*	In charge	Change Description
 08/01	A	NhatKA	4. Business Opportunity
 08/01	A	NhatKA	5. Software Product Vision
 10/01	M	NhatKA	6. Project Scope & Limitations
-31/01	M	DucDM	3.5
+31/01	M	DucDM	3.5. System features
 31/01	M	TrungTM	3.1, 3.2, 3.3, 3.4, 3.6
-31/01	M	NhatKA	2, 4, 5, 6
 *A - Added M - Modified D - Deleted
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-II. Project Introduction
+ 
+II.	 Project Introduction
 1. Overview
 The project “Upgrade the FPT Capture The Flag System - The annual FPTU Seckathon competition platform for cybersecurity engineers at FPT University” is the fourth development phase of the F-CTF platform, focusing on a comprehensive upgrade of the existing system to ensure stability, security, and scalability for the large-scale Secathon competition at FPT University.
 The project focuses on addressing limitations in performance, security, and user experience to deliver a fair and professional playground for the cybersecurity community at FPT University. The goal is to build a stable and sustainable CTF platform that best serves the annual large-scale competition, creating a solid foundation for developing cybersecurity human resources at FPT University through high-quality and professional competitions.
 1.1. Project Information
 - Project name: Upgrade the FPT Capture The Flag System - The annual FPTU Seckathon competition platform for cybersecurity engineers at FPT University
-- Project code: F-CTF
+- Project code: UPFCTF
 - Group name: SEP490-G80
 - Software type: Web application
 1.2. Project Team
@@ -98,12 +84,12 @@ Full Name	Role	Email	  Mobile
  Nguyễn Xuân Quý	 Member	quynxhe186459@fpt.edu.vn	0862003064
  Khuất Anh Nhật	 Member	nhatkahe181763@fpt.edu.vn	0972968271
  Hoàng Tuấn Kiên	 Member	kienhthe182255@fpt.edu.vn	0359899004
-Table 1: Project Team
+Table II 1: Project Team
 2. Product Background
 2.1. Introduction to CTF
 2.1.1. About the CTF competition
-Capture the Flag (CTF) is a specialized competition format in the field of information security, where participants solve security challenges to collect special character strings called “flags”. The competition organizers design systems and applications containing vulnerabilities of varying difficulty levels, requiring contestants to analyze, exploit weaknesses, and obtain the flag – a distinctive character string used as proof of successfully solving the challenge.
-CTF competitions serve many purposes: creating a competitive environment for individuals and teams, building a practical learning platform to accumulate real-world experience, enhancing information security capabilities, simulating real attack scenarios in a safe environment, and developing critical thinking and problem-solving skills. Many cybersecurity experts acknowledge that the mindset and methods of CTF nurture creativity, persistence, adaptability, and a continuous learning spirit – factors that have direct value in professional work.
+Capture the Flag (CTF) is a specialized competition format in the field of information security, where participants solve security challenges to collect special character strings called “flags”. The competition organizers design systems and applications containing vulnerabilities of varying difficulty levels, requiring contestants to analyze, exploit weaknesses, and obtain the flag - a distinctive character string used as proof of successfully solving the challenge.
+CTF competitions serve many purposes: creating a competitive environment for individuals and teams, building a practical learning platform to accumulate real-world experience, enhancing information security capabilities, simulating real attack scenarios in a safe environment, and developing critical thinking and problem-solving skills. Many cybersecurity experts acknowledge that the mindset and methods of CTF nurture creativity, persistence, adaptability, and a continuous learning spirit - factors that have direct value in professional work.
 2.1.2. Type of CTF Competitions
 2.1.2.1. Jeopardy-style CTF
 This format includes various challenges divided into multiple categories such as: Web Security, Forensics, Cryptography, and Binary Exploitation. Each topic will have challenges of different difficulty levels corresponding to different point values. During the competition, scores are continuously updated, and the team with the highest score at the end of the round wins; if two teams have equal scores, the time of flag submission is compared to determine the winning team. The challenge categories in this format include the following groups:
@@ -163,7 +149,7 @@ Cryptography in CTF focuses on encryption and decryption problems, from classic 
 ●	Classical Ciphers: These are historical encryption methods such as Caesar, Vigenère, Substitution, Hill, Playfair. These cipher systems are usually based on substituting or permuting characters in the original text. Breaking classical cipher systems is usually based on frequency analysis of characters, guessing key length or trying all possible possibilities.
 ●	Hash Functions: Hashing functions are one-way functions used to convert any data (string, file…) into a fixed value, called hash or digest. This algorithm always produces output of fixed length, regardless of how large or small the original input is.
 Example of Hash Functions:
-The attacker can use a Rainbow table – a pre-computed table of original passwords → corresponding hashes. For example:
+The attacker can use a Rainbow table - a pre-computed table of original passwords → corresponding hashes. For example:
 password   → 5f4dcc3b5aa765d61d8327deb882cf99
 123456     → e10adc3949ba59abbe56e057f20f883e
 admin      → 21232f297a57a5a743894a0e4a801fc3
@@ -174,11 +160,11 @@ Suppose a system uses a stream cipher and reuses the same keystream K to encrypt
 Digital Forensics
 Digital Forensics in Capture The Flag (CTF) competitions focuses on collecting, analyzing, and recovering digital data to find hidden evidence or reconstruct events that occurred in the system. Challenges in this field usually simulate real investigation situations, in which contestants must analyze digital artifacts such as system files, memory, network traffic, logs or deleted data to trace user or attacker behavior.
 ●	File Forensics: Focuses on analyzing files to find hidden, concealed or altered data. Contestants must examine file structure, metadata, format signatures or embedded content in files such as images, audio, video, PDF or compressed files.
-Example of File Forensics: When opening a file with a hex editor, the first bytes are seen: “FF D8 FF E0 00 10 4A 46 49 46 00”, in ASCII form, this string corresponds to: “ÿØÿà JFIF”. Looking up in the file signature database shows this is a JPEG/JFIF image file. The attacker can check on Linux with the command: “file file-a.jpg” and obtain the result “JPEG image data, JFIF standard 1.01, 1024x576, baseline”. Once the file format is identified, the attacker can use image processing tools to exploit metadata – which may contain hidden flag data.
+Example of File Forensics: When opening a file with a hex editor, the first bytes are seen: “FF D8 FF E0 00 10 4A 46 49 46 00”, in ASCII form, this string corresponds to: “ÿØÿà JFIF”. Looking up in the file signature database shows this is a JPEG/JFIF image file. The attacker can check on Linux with the command: “file file-a.jpg” and obtain the result “JPEG image data, JFIF standard 1.01, 1024x576, baseline”. Once the file format is identified, the attacker can use image processing tools to exploit metadata - which may contain hidden flag data.
 ●	Memory Forensics: This is a challenge type that requires analysis of a running system’s memory snapshot (memory dump). Through surveying data in RAM, contestants can find running processes, sensitive data, network connections or artifacts that do not exist on disk. Memory dumps are usually large in size but can be analyzed effectively using popular tools today: Volatility Framework.
 A basic execution process will include the following steps: First, extract strings to find quick clues. Next, identify the operating system profile of the memory dump. The third step is to extract processes and search for suspicious processes (for example: powershell.exe, notepad.exe). After identifying the suspicious process, extract data from those processes and open it with the appropriate tool such as Word for .docx files or Notepad for .txt files. For example, notepad.exe dump: “python vol.py -f image.raw --profile=Win7SP0x64 memdump -p 2019 -D dump/”, the result is a .dmp file containing the entire RAM data of the process which may include: unsaved data, plaintext flag.
-●	Network Forensics: Network Forensics is the process of analyzing network traffic to collect, investigate and reconstruct activities that have taken place on the system. Network forensics usually focuses on analyzing PCAP (Packet Capture) files, which are recordings of all packets transmitted over the network at a certain time. PCAP files allow analysts to observe each packet in detail, including protocol information, source/destination IP addresses, network ports and especially payload data – where sensitive information or flags are often contained in plaintext.
-Example of exploiting Packet Capture in Network Forensics: Suppose an attacker has gained access to a machine in the internal network (for example via SSH). The attacker uses tcpdump to collect network traffic on the eth0 interface – a network interface on the Linux/Unix operating system, to monitor data transmitted over the network: “sudo tcpdump -i eth0 -w traffic.pcap”. During this process, the attacker detects unencrypted HTTP packets. Then, the traffic.pcap file is opened with Wireshark to analyze the payload of HTTP request/response packets in detail. Here, the attacker can obtain login information, session cookies or flags transmitted in plaintext.
+●	Network Forensics: Network Forensics is the process of analyzing network traffic to collect, investigate and reconstruct activities that have taken place on the system. Network forensics usually focuses on analyzing PCAP (Packet Capture) files, which are recordings of all packets transmitted over the network at a certain time. PCAP files allow analysts to observe each packet in detail, including protocol information, source/destination IP addresses, network ports and especially payload data - where sensitive information or flags are often contained in plaintext.
+Example of exploiting Packet Capture in Network Forensics: Suppose an attacker has gained access to a machine in the internal network (for example via SSH). The attacker uses tcpdump to collect network traffic on the eth0 interface - a network interface on the Linux/Unix operating system, to monitor data transmitted over the network: “sudo tcpdump -i eth0 -w traffic.pcap”. During this process, the attacker detects unencrypted HTTP packets. Then, the traffic.pcap file is opened with Wireshark to analyze the payload of HTTP request/response packets in detail. Here, the attacker can obtain login information, session cookies or flags transmitted in plaintext.
 ●	Steganography: The technique of hiding information is a method of hiding information in various media, such as images, audio, text, or video. Hiding information is usually achieved by embedding secret data into existing data in a way that is difficult to detect. Steganography topics include:
 ○	Text steganography: Messages can be hidden by changing the size of spaces, or in text without diacritics.
 ○	Audio steganography: In audio files, information can be hidden by modifying inaudible frequency bands or adding to any area in the audio without affecting quality.
@@ -195,13 +181,13 @@ A typical OSINT challenge (shared in write-up) requires contestants to determine
 1.	Contestants observe the provided image - for example, seeing a building with distinctive colours (orange, blue, white).
 2.	The solver pastes the photo into Google/Yandex to find a website or similar image to find an article with a similar building image.
 3.	Find detailed address from reference source: The page found describes the building and its location - belonging to this area and being one of Google’s offices.
-4.	Search in Google Maps: With the area name and building, the contestant switches to Google Maps, searches for “Tottenham Court Road” → opens satellite map → guesses the photo location.
+4.	Search in Google Maps: With the area name and building, the contestant switches to Google Maps, searches for “Tottenham Court Road” → opens satellite map → guesses the photo location
 ⇒ GPS coordinates identified: 51.51730173654459, -0.12462196379354945
 Miscellaneous
 Miscellaneous (Misc) in CTF is a combined category that includes challenges that do not belong to any single technical field such as Web, Pwn or Reverse. Misc challenges are usually related to OSINT, Encoding, Steganography, basic Forensics and logic puzzle challenges. This is a category suitable for beginners, helping to get familiar with analytical thinking, information search skills and creativity in information security.
 2.1.2.2. Attack-Defense Format
-This competition format follows the original classic CTF rules and is more difficult than other formats due to higher requirements. In addition to skills in finding security vulnerabilities and exploiting those vulnerabilities, players also need the ability to fix weaknesses, vulnerabilities, and protect their own systems against attacks from other teams. Another difference is the way points are calculated for competing teams. Points in this format are calculated based on different criteria such as: Attack points, defense points, bonus points, …
-After the competition ends, the team with the highest score wins. This is the competition format closest to the real network security situation. Attackers perform attacks on the system while network administrators and security specialists have the task of resisting attacks from outside, while still ensuring the system’s operation…. The most famous competition about this format is DEF CON CTF.
+This competition format follows the original classic CTF rules and is more difficult than other formats due to higher requirements. In addition to skills in finding security vulnerabilities and exploiting those vulnerabilities, players also need the ability to fix weaknesses, vulnerabilities, and protect their own systems against attacks from other teams. Another difference is the way points are calculated for competing teams. Points in this format are calculated based on different criteria such as: Attack points, defense points, bonus points, etc.
+After the competition ends, the team with the highest score wins. This is the competition format closest to the real network security situation. Attackers perform attacks on the system while network administrators and security specialists have the task of resisting attacks from outside, while still ensuring the system’s operation. The most famous competition about this format is DEF CON CTF.
 This format can be hosted either online or locally on a shared LAN. As the name 'Attack & Defense' suggests, each participating team is assigned a server (known as a Team Box) that runs various services. All Team Boxes contain the same undisclosed security vulnerabilities. The goal of each team is to maintain the existing Services throughout the competition. Each team’s task is to find and patch the server’s vulnerabilities, while utilizing their knowledge of the vulnerabilities they have found to attack and affect other teams’ Services, bypassing the Services’ security mechanisms to capture the flag of each Service.
 2.1.2.3. Hybrid Format
 This is a combination of the two formats above, for example combining the attack-only format with different types of challenges. In this format, teams do not have their own servers, but instead teams will attack existing servers in the system; these servers also have vulnerabilities, and teams use their skills to find those vulnerabilities and use them to complete the tasks and challenges set by the organizers. Hybrid Format allows comprehensive assessment of participants’ capabilities, from analytical thinking, skill in solving challenges in each field, to the ability to operate, secure and respond to real attacks.
@@ -211,7 +197,7 @@ At the internal club level, CTF competitions are mainly organized with the goal 
 At a larger level, FPTU SecAthon is a specialized information security competition organized by FPT University, aimed at students from universities, academies and colleges nationwide. The competition is built according to the CTF Jeopardy model (Capture The Flag), a popular competition format in the international security community. In this model, teams must solve independent challenges in many different areas of information security knowledge, including cryptography, reverse engineering, web application vulnerability exploitation, digital investigation, binary exploitation and miscellaneous problems. Through directly analyzing systems, exploiting vulnerabilities and collecting “flags”, contestants are trained in attack-defense thinking as well as the ability to apply theoretical knowledge to real situations.
 The motivation for contestants to participate in SecAthon lies not only in the prize factor but also in reputation, professional level and competition among schools. The target audience of the competition is students passionate about the field of information security, regardless of training school or year of study. FPT University maintains organizing school-level CTF competitions with an average frequency of once per year, while the EHC club organizes internal competitions about twice a year. This high organization frequency shows that the demand for using the CTF platform in training and competition at the school is very large and continuous.
 The competition time for CTF competitions at the school usually lasts about 5 hours for focused competitions. In recent years, especially in 2025, the scale and scope of organization of SecAthon has been expanded from internal competitions at FPT University campuses to a format allowing students from universities, academies and colleges nationwide to participate. This expansion has significantly increased the number of competing teams, system access traffic and the complexity of competition infrastructure operation.
-Along with competition activities, the organizers and club also set the desire to build a dedicated CTF system for the school. This system not only serves competitions but also acts as a repository of exam questions over the years, and can be integrated into specialized subjects to build practical lab exercises for students. In reality, current CTF platforms mainly serve short-term competition purposes and have not been effectively exploited in the role of supporting long-term teaching and training.
+Along with competition activities, the organizers and club also set the desire to build a dedicated CTF system for the school. This system not only serves competitions but also acts as a repository of exam questions over the years and can be integrated into specialized subjects to build practical lab exercises for students. Current CTF platforms mainly serve short-term competition purposes and have not been effectively exploited in the role of supporting long-term teaching and training.
 From the actual competition organization needs, an important requirement for the CTF system is the ability to open multiple challenge instances simultaneously for competing teams. Each team needs the ability to open multiple challenges at the same time, allowing team members to solve different challenges in parallel, thereby ensuring progress and competition experience. This is especially important for competitions with long duration and large numbers of challenges.
 The long-term goal of CTF competitions at FPT University is not only to organize competitions but also to detect and train talents in the cybersecurity field. Through CTF, the school and club can select outstanding students for in-depth training, participate in future research and development projects, as well as build teams to participate in domestic and international cybersecurity competitions. These activities contribute to enhancing the reputation of FPT University in information security training and open up many career opportunities for contestants at large corporations and cybersecurity companies.
 Currently, CTF competitions in the EHC club mainly use popular platforms such as CTFd, GZCTF or some commercial products originating from China. These platforms generally meet well in terms of user experience and basic functions; however, they often require relatively large copyright fees and are limited in the number of instances that can be deployed simultaneously. Previously, the club used a customized CTFd version, but to meet specific needs, members still had to self-develop many supporting plugins, increasing maintenance costs and system complexity.
@@ -243,26 +229,26 @@ In general, CTFd and kCTF play the role of reference platforms and starting foun
 Although CTFd and kCTF provide important foundational functions for organizing and deploying Capture The Flag competitions, when applied in real-world environments with large scale, large numbers of users and complex operation requirements, these two systems still reveal certain limitations. On that basis, during the process of building F-CTF through the previous 3 versions, the development team has gradually performed customizations and expansions to more closely connect the competition management system and the container deployment platform. From the early versions, F-CTF added intermediate mechanisms to synchronize user data, challenge status and competition environment information, helping to reduce dependence on the original independent tools.
 Through each version, the system was gradually adjusted to better suit real operation needs. In versions 1 and 2, improvements mainly focused on perfecting basic functions, optimizing performance and adding initial resource control mechanisms. These changes helped the system operate more stably, however they still did not fully meet requirements when the number of users increased.
 By version 3, F-CTF had a clear improvement in architecture to enhance load capacity, increase stability and optimize resource usage. The system was standardized on the Kubernetes platform, gradually moving to a service separation model, while adding automation mechanisms in challenge environment deployment and recovery. Concurrent control, resource management and data synchronization were also perfected more, contributing to limiting incidents during the competition. Along with infrastructure changes, contestant interfaces and operation support tools were also adjusted and expanded through each version. In version 3, the system formed a separated frontend-backend model, making function expansion and maintenance more flexible. In addition, monitoring and system status tracking mechanisms were also tightly integrated, supporting the organizers in timely detection and handling of incidents.
-In general, the improvements of F-CTF through the versions not only aimed to overcome the limitations of the original CTFd and kCTF but also changed to suit practical requirements in the training and information security competition organization environment. Especially, version 3 had major changes in architecture and operation, helping the system significantly enhance load capacity, resource management and stability, while creating a foundation for continued development in subsequent stages.
+In general, the improvements of F-CTF through the versions not only aimed at overcoming the limitations of the original CTFd and kCTF but also changed to suit practical requirements in the training and information security competition organization environment. Especially, version 3 had major changes in architecture and operation, helping the system significantly enhance load capacity, resource management and stability, while creating a foundation for continued development in subsequent stages.
 3.5. System features
 3.5.1. Use case
 The F-CTF system is designed to target four main user groups: Admin, Contestant, Jury, Challenge Writer. Each group has a clear role in the F-CTF system.
-    
-  Figure 2: Use case Diagram for Admin
-Admin (Figure 2) is the user group with the highest privilege level, responsible for administering and operating the entire F-CTF system. This group performs user and team management through functions to create, update, delete, authenticate and lock/unlock accounts, further including features such as assigning captain rights to users in Team mode, creating rewards, viewing analysis information, IP addresses. Admins have the ability to send notifications to contestants, receive and handle technical support requests, and perform import/export of user data in CSV files as well as distribute login information via email. Admins have the right to delete invalid or rule-violating submissions or export data to files for storage or analysis.
+ 
+Figure I 1: Use case Diagram for Admin
+Admin (Figure 2) is the user group with the highest privilege level, responsible for administering and operating the entire F-CTF system. This group performs user and team management through functions to create, update, delete, authenticate and lock/unlock accounts, further including features such as assigning captain rights to users in Team mode, creating rewards, viewing analysis information, IP addresses. Admins could send notifications to contestants, receive and handle technical support requests, and perform import/export of user data in CSV files as well as distribute login information via email. Admins have the right to delete invalid or rule-violating submissions or export data to files for storage or analysis.
 In addition, Admins are responsible for configuring competition parameters such as start time, end time and scoreboard freeze period, and can adjust system settings when necessary. This group has full rights over all challenges, including creating, editing, deleting and deploying competition environments. In addition, Admins also monitor system status and operation logs to serve monitoring and incident handling. When needing to organize a new competition, Admins can delete all old competition data to prepare for the new competition.
 Admins can also transfer and synchronize data between F-CTF and the original CTFd system to ensure backup, recovery and continuity in operation.
  
-Figure 3: Use case Diagram for Contestant
+Figure I 2: Use case Diagram for Contestant
 Contestant (Figure 3) is the central user group, directly participating in solving challenges in the competition. Contestants can log into the system, access the challenge list and view detailed content of each challenge, including description documents in PDF format and related attached files and other parameters about points or time.
 For challenges that require a separate deployed environment, contestants can initialize and stop isolated competition environments of challenges for their team through the system. During the competition, contestants perform flag submission to record scores, can unlock hints at the cost of corresponding points, track the scoreboard and receive notifications from the organizers.
 When encountering technical incidents or difficulties in solving, contestants can send support requests through the ticket system and track processing history. In addition, users in this group can also manage personal information, view their own or team action logs, update profiles and change passwords to ensure account safety.
  
-Figure 4: Use case Diagram for Jury
+Figure I 3: Use case Diagram for Jury
 Jury (Figure 4) is the user group responsible for supervising and ensuring fairness and transparency throughout the competition process. This group monitors contestants’ progress through submitted flags, scoreboard information, thereby promptly detecting abnormal signs.
 Jury has access to monitoring accounts, tracks progress and competition results of contestants to serve checking, reconciliation and detection of rule violations. In addition, Jury supports receiving, verifying and resolving complaints related to competition rules and fairness. This group also directly handles tickets reflecting on rules, results and competition behaviors that may be sent from Contestants.
  
-Figure 5: Use case Diagram for Challenge Writer
+Figure I 4: Use case Diagram for Challenge Writer
 Challenge Writer (Figure 5) is the user group responsible for designing, building and ensuring the quality of challenge content in the F-CTF system. This group has the right to create, edit and manage all information related to the challenges they are responsible for, including challenge name, description, score, challenge type, attached files, classification tags, hints, flags, challenge opening time, as well as prerequisite conditions for completing other challenges before access is possible.
 During operation, Challenge Writers can flexibly update challenge attributes to suit the actual situation of the competition, while tracking the operating status and edit history of each challenge.
 Challenge Writers are mainly responsible for creating challenges, needing to prepare full source code and Dockerfile according to standards for the challenge, upload the challenge zip file, the system will automatically build the image, store it on Docker Hub and be ready for environment initialization when contestants request. Challenges can be previewed and tested by Challenge Writers in an independent environment before official announcement, thereby limiting technical errors and issues arising during the competition.
@@ -280,7 +266,8 @@ Challenge Writers are mainly responsible for creating challenges, needing to pre
 3.5.3. Architecture
 3.5.3.1. Component Diagram Overview
 3.5.3.1.1. FCTF System
- Figure 6: Overall Component Diagram
+ 
+Figure I 5: Overall Component Diagram
 The architecture of the F-CTF system (Figure 6) is designed based on the core business chain of a CTF competition platform. This architecture is organized according to a distributed (Microservice) model, in which each service performs an independent functional role and communicates with each other through standardized interfaces using JSON data format.
 The architecture of the current system includes the following components:
 ●	Contestant Portal is the user interface component, responsible for displaying data and receiving operations from contestants, acting as an intermediary between users and server-side services.
@@ -294,106 +281,92 @@ The architecture of the current system includes the following components:
 ●	Deployment Listener is the component that receives and processes events from Kubernetes, tasked with synchronizing deployment status to Redis and the database, thereby providing real-time data for business services.
 3.5.3.1.2. Migration System
  
-Figure 7: Migration Component Diagram
+Figure I 6: Migration Component Diagram
 The Migration system was built to serve data conversion and backup between the F-CTF platform and the original CTFd system. Through this intermediate module, F-CTF data can be extracted, processed and synchronized to the CTFd database in a controlled manner.
 Specifically, data from F-CTF is retrieved through interfaces RI1, PI1 and put into the Migration system to perform mapping and structure conversion. Then, the processed data will be transferred to the CTFd database through interfaces RI2, PI2. This mechanism helps ensure that competition data can be restored or transferred back to the CTFd system when necessary.
 Thanks to the Migration system, F-CTF maintains compatibility with the original platform, while supporting data backup and recovery, contributing to ensuring continuity and safety for the competition organization process.
 3.5.3.2. Deployment Diagram Overview
  
-Figure 8: FCTF Deployment Diagram
+Figure I 7: FCTF Deployment Diagram
 Figure 8 illustrates the deployment diagram of the F-CTF system deployed on Kubernetes infrastructure with components clearly partitioned to meet the different non-functional requirements (NFR) of the system.
 Orange area - NFR-4 and FR-6: Parallel deployment and isolation by team. This area shows how the system supports multiple competing teams deploying Challenges simultaneously while still ensuring isolation. Each Challenge is deployed in a separate pod, attached to an independent execution space. This organization allows multiple teams to initialize Challenges simultaneously without affecting each other. At the same time, isolation by Pod and Namespace helps ensure resources, data and status of each team are completely separated.
 Red area - NFR-10: Anti-DDoS mechanism and abnormal traffic control. This is the outer protection layer of the system. All requests from users’ browsers must go through the Cloudflare service acting as the first line of defense, helping to detect and prevent DDoS attacks as well as abnormal accesses.
 Blue area - NFR-6: Concurrent processing capability, representing core services operating inside the Kubernetes Cluster, including portals, services and workflow engine. These components are deployed in Pod form and can be replicated into multiple Replicas. Thanks to Kubernetes’ orchestration mechanism, the system has the ability to process a large number of requests from many competing teams simultaneously. When load increases, Pods can be scaled horizontally to share the workload, helping to maintain stable performance during peak times of the competition.
 Green area - NFR-7: Resource recovery and release mechanism. This area illustrates the components responsible for managing the resource lifecycle, including CronJobs and cleanup processes. These tasks are triggered according to a preset schedule to check Challenges that have expired or unused resources. When unnecessary resources are detected, the system will automatically reclaim and release them, helping to avoid resource waste.
 3.6. Security & Architecture Analysis
-3.6.1. NetworkPolicy và nguyên tắc phân quyền tối thiểu (Least Privilege) (IS-1)
-Trong trạng thái trước khi được hardening, hệ thống tồn tại một vấn đề mang tính nền tảng liên quan đến việc thiếu cơ chế kiểm soát truy cập ở cả tầng mạng và tầng dịch vụ. Cụ thể, namespace chứa các workload ứng dụng không được áp dụng NetworkPolicy mặc định, dẫn đến việc toàn bộ cluster vận hành theo mô hình mạng mở. Trong mô hình này, mọi pod có thể giao tiếp với nhau một cách tự do trên mọi port mà không bị ràng buộc bởi bất kỳ chính sách kiểm soát nào. Việc không có cơ chế default-deny khiến tất cả traffic ingress và egress đều được cho phép theo mặc định, vi phạm nguyên tắc zero-trust trong thiết kế hệ thống phân tán.
-Từ góc độ kiến trúc, việc thiếu kiểm soát ở tầng mạng kéo theo hệ quả là nguyên tắc phân quyền tối thiểu không được áp dụng một cách nhất quán ở các thành phần phía trên. Các pod ứng dụng có thể truy cập trực tiếp đến các dịch vụ nhạy cảm như database và Redis mà không bị giới hạn theo phạm vi chức năng. Khi một pod bị xâm nhập, kẻ tấn công có thể lợi dụng quyền truy cập mạng để kết nối đến các service khác trong cluster, từ đó thực hiện lateral movement và mở rộng phạm vi tấn công. Đồng thời, việc không kiểm soát egress cho phép các workload thiết lập kết nối ra Internet, tạo điều kiện cho việc exfiltrate dữ liệu hoặc tải mã độc mà không bị phát hiện.
-Vấn đề này càng trở nên nghiêm trọng hơn khi kết hợp với các cấu hình phân quyền chưa chặt chẽ ở tầng dịch vụ. Trong database, việc sử dụng chung credential cho nhiều service khiến mọi service đều có mức quyền tương đương, làm mất khả năng cô lập khi xảy ra sự cố. Nếu một service bị compromise, toàn bộ dữ liệu trong database có thể bị truy cập hoặc thao túng mà không có rào cản nào. Ngoài ra, việc user root vẫn có thể truy cập từ xa càng làm gia tăng nguy cơ privilege escalation. Hệ thống cũng không có audit logging và chưa áp dụng mã hóa kết nối, khiến việc truy vết và bảo vệ dữ liệu trong quá trình truyền tải trở nên khó khăn.
-Tương tự, Redis trong trạng thái ban đầu không sử dụng cơ chế ACL và cho phép tất cả service truy cập bằng cùng một credential. Toàn bộ keyspace và command set đều được mở, không có sự phân tách theo vai trò hoặc chức năng. Điều này khiến Redis trở thành một điểm yếu nghiêm trọng trong hệ thống, đặc biệt trong bối cảnh CTF nơi dữ liệu như điểm số, trạng thái challenge và session có ý nghĩa quan trọng đối với tính công bằng. Khi một service bị xâm nhập, kẻ tấn công có thể thao túng toàn bộ trạng thái hệ thống thông qua Redis, bao gồm việc thay đổi điểm số, xóa dữ liệu hoặc theo dõi hoạt động của các service khác thông qua các command nguy hiểm.
-Ở tầng lưu trữ, cấu hình NFS cũng phản ánh cùng một vấn đề về thiếu kiểm soát truy cập. Các PersistentVolume không được cấu hình mount option an toàn như noexec, cho phép thực thi binary trực tiếp từ shared storage. Đồng thời, việc không có cơ chế ACL theo service khiến các service có thể truy cập chéo dữ liệu của nhau, làm mất tính cô lập giữa các thành phần. Trong môi trường có workflow xử lý file, điều này tạo ra nguy cơ cao bị khai thác, khi kẻ tấn công có thể chèn mã độc vào storage và thực thi trực tiếp trong hệ thống.
-Ngoài ra, hạ tầng orchestration và giám sát cũng chịu ảnh hưởng từ việc thiếu áp dụng nguyên tắc least privilege. Argo Workflows sử dụng giao thức HTTP cho giao tiếp nội bộ, khiến dữ liệu và token xác thực được truyền dưới dạng plaintext. Việc không giới hạn loại workflow được phép thực thi cho phép kẻ tấn công lạm dụng hệ thống orchestration để chạy các workflow độc hại. Trong khi đó, Grafana cho phép chỉnh sửa dashboard mặc định, tạo nguy cơ bị thay đổi hoặc che giấu thông tin giám sát. Đặc biệt, việc thiếu mã hóa cho traffic nội bộ giữa các pod khiến dữ liệu có thể bị đọc lén nếu kẻ tấn công có khả năng truy cập vào tầng mạng.
-Tổng thể, các điểm yếu này cho thấy hệ thống trước đây chưa áp dụng nguyên tắc least privilege một cách nhất quán, không chỉ ở tầng truy cập tài nguyên mà còn ở tầng mạng và giao tiếp giữa các service. Sự thiếu đồng bộ này làm gia tăng đáng kể blast radius khi xảy ra sự cố, đồng thời làm suy yếu khả năng phòng thủ nhiều lớp của hệ thống.
+3.6.1. NetworkPolicy and the Principle of Least Privilege (IS-1)
+The existing system has a fundamental issue regarding the lack of access control mechanisms at both the network and service layers. Specifically, the namespace containing application workloads does not have a default NetworkPolicy applied, leading the entire cluster to operate on an open network model. In this model, all pods can communicate with each other freely on any port without being restricted by any control policies. The absence of a default-deny mechanism means all ingress and egress traffic is allowed by default, violating the zero-trust principle in distributed system design.
+From an architectural perspective, the lack of control at the network layer results in the principle of least privilege not being consistently applied to the upper components. Application pods can directly access sensitive services like databases and Redis without being limited by their functional scope. When a pod is compromised, an attacker can leverage network access to connect to other services within the cluster, thereby performing lateral movement and expanding the attack surface. Simultaneously, the lack of egress control allows workloads to establish outbound connections to the Internet, facilitating data exfiltration or malware downloads without detection.
+This issue becomes even more severe when combined with loose permission configurations at the service layer. In the database, sharing credentials across multiple services grants all services equivalent privileges, eliminating isolation capabilities during an incident. If one service is compromised, all data within the database can be accessed or manipulated without any barriers. Furthermore, the fact that the root user can still access the database remotely increases the risk of privilege escalation. The system also lacks audit logging and connection encryption, making it difficult to trace activities and protect data in transit.
+Similarly, Redis in its initial state does not utilize ACL mechanisms and allows all services to access it using the same credential. The entire keyspace and command set are open, without any role-based or functional segregation. This makes Redis a critical vulnerability in the system, especially in a CTF context where data such as scores, challenge statuses, and sessions are crucial for fairness. If a service is compromised, an attacker can manipulate the entire system state via Redis, including altering scores, deleting data, or monitoring the activities of other services through dangerous commands.
+At the storage layer, the NFS configuration reflects the same issue of lacking access control. PersistentVolumes are not configured with secure mount options like noexec, allowing the direct execution of binaries from shared storage. Additionally, the lack of service-specific ACL mechanisms enables services to cross-access each other's data, compromising isolation between components. In an environment with file processing workflows, this creates a high risk of exploitation, as an attacker could inject malware into the storage and execute it directly within the system.
+Furthermore, the orchestration and monitoring infrastructure is compromised by the failure to enforce least privilege principles. Argo Workflows utilizes the HTTP protocol for internal service communication, causing data and authentication tokens to be transmitted in plaintext within the cluster. The lack of restrictions on permitted workflow types allows attackers to abuse the orchestration system to execute malicious workflows. Meanwhile, Grafana has not been configured to disable dashboard editing via the UI (allowUiUpdates), creating a risk of unauthorized modification or the masking of monitoring data.
+Overall, these vulnerabilities indicate that the previous system failed to apply the principle of least privilege consistently, not only at the resource access layer but also at the network layer and in inter-service communication. This lack of synchronization significantly increases the blast radius during an incident and weakens the system's defense-in-depth capabilities.
 3.6.2. Interface & Permission Audit
-Phần này cụ thể hóa các điểm yếu đã trình bày ở 3.6.1 bằng cách phân tích từng interface tài khoản - tức là mỗi kết nối giữa một service với một thành phần hạ tầng (MariaDB hoặc Redis) - xem xét tài khoản đang được sử dụng, tập quyền thực tế, phần quyền dư thừa vượt quá nhu cầu nghiệp vụ, và đánh giá mức độ rủi ro tương ứng.
-a. Đánh giá Phân quyền Database (MariaDB)
-Hiện tại, tài khoản ctfd-username đang được dùng chung cho tất cả các service với quyền ALL PRIVILEGES trên toàn bộ cơ sở dữ liệu ctfd. Điều này vi phạm nguyên tắc cách ly nghiệp vụ. Bên cạnh đó, tài khoản root@% được cấp quyền GRANT ALL PRIVILEGES WITH GRANT OPTION, tạo rủi ro leo thang đặc quyền từ xa vô cùng nguy hiểm.
-Bảng phân tích quyền dư thừa theo Service (MariaDB):
-Giao diện (Service → DB)
-Quyền tối thiểu theo nghiệp vụ	Quyền dư thừa hiện tại & Rủi ro
-contestant-be	SELECT/UPDATE trên bảng users; SELECT trên challenges, hints, flags, files; SELECT/INSERT trên submissions, solves, awards, unlocks, action_logs, tokens, tracking.	Có quyền DROP, ALTER, CREATE, toàn quyền INSERT/DELETE trên bảng admin (config, tokens của service khác). Vi phạm ranh giới dữ liệu.
-deployment-center	SELECT trên users, challenges; INSERT trên deploy_histories, challenge_start_tracking; UPDATE trên challenges.	Có toàn quyền trên submissions, solves, hints, flags, tokens. Nguy cơ giả mạo dữ liệu thi đấu (data tampering).
-deployment-listener	SELECT/INSERT/UPDATE trên challenge_start_tracking; SELECT trên challenges.	Có toàn quyền trên mọi bảng trong database. Mức độ ảnh hưởng cực lớn nếu bị xâm nhập.
-deployment-consumer	SELECT trên challenges (Chỉ cần 1 quyền duy nhất).	Nghiêm trọng nhất: Service có scope nhỏ nhất nhưng đang sở hữu ALL PRIVILEGES. Tỷ lệ dư thừa quyền cao nhất hệ thống.
-
-b, Đánh giá Phân quyền Cache & State (Redis)
-Hệ thống đang sử dụng tài khoản default (Cấu hình: auth.acl.enabled = false, mật khẩu dùng chung) với quyền truy cập không giới hạn (~*) trên mọi keyspace và toàn bộ tập lệnh (bao gồm các lệnh nguy hiểm như CONFIG, FLUSHALL, SHUTDOWN).
-Bảng phân tích quyền dư thừa theo Service (Redis):
-Giao diện (Service → Redis)
-Keyspace/Command tối thiểu theo nghiệp vụ	Quyền dư thừa hiện tại & Rủi ro
-admin-mvc	Key liên quan session admin, cache cấu hình; Các lệnh cơ bản: get/set/del/expire/scan.	Đọc/ghi toàn bộ ~* (điểm số, challenge state, deploy state). Có thể lộ dữ liệu nhạy cảm của service khác.
-contestant-be	~deploy_challenge_*, ~active_deploys_team_*, ~auth:user:*, ~challenge:*, ~hint:*, v.v. Cùng subset lệnh tương ứng.	Đang có keyspace ~* (đọc/ghi key deploy của đội khác, key admin). Các lệnh CONFIG/DEBUG có thể bị lạm dụng phá vỡ hệ thống.
-deployment-center	~deploy_challenge_*, ~active_deploys_team_*; Lệnh get/set/del/expire/zadd/zrem.	Có thể đọc key auth, hint, challenge. Lệnh MONITOR có thể bị dùng để theo dõi (spy) traffic toàn hệ thống.
-deployment-consumer	~deploy_challenge_*, ~active_deploys_team_*; Lệnh get/exists/ttl (Chỉ đọc).	Dư thừa nghiêm trọng: Consumer chỉ cần quyền đọc nhưng đang có quyền ghi và xóa toàn bộ keyspace.
-deployment-listener	~deploy_challenge_*, ~active_deploys_team_*; Lệnh get/set/del/expire/zadd/zrem.	Lệnh FLUSHALL đang khả dụng, rủi ro bị xóa trắng toàn bộ dữ liệu thi đấu nếu service bị chiếm quyền.
-challenge-gateway	~fctf:gateway:* (chỉ rate-limiting); Lệnh incr/decr/hget/hset/eval.	Đang có keyspace ~*. Kẻ tấn công qua gateway có thể đọc toàn bộ auth/deploy key. Lệnh SHUTDOWN có thể làm sập hệ thống.
-[default user]	Không cần tồn tại.	User dự phòng không được kiểm soát. Bất kỳ kết nối nào có mật khẩu đều được cấp toàn quyền.
-c, Đánh giá Phân quyền Lưu trữ Chia sẻ (NFS)
-Hiện có 5 PersistentVolume đang mount NFS mà không có các tùy chọn bảo mật cần thiết, tạo ra nguy cơ thực thi mã độc từ shared storage.
-Bảng phân tích điểm yếu phân quyền NFS:
-Interface (Pod → NFS)	Yêu cầu tối thiểu theo nghiệp vụ	Quyền dư thừa hiện tại & Rủi ro
-start-challenge-workflow	Đọc Dockerfile & source code để build; không cần quyền thực thi.	Thiếu noexec. Nguy cơ thực thi malware bị chèn vào NFS dưới quyền container trong pipeline CI/CD.
-up-challenge-workflow	Đọc/ghi artifact build; không cần quyền thực thi.	Thiếu noexec. Nguy cơ thực thi binary độc hại trong quá trình push challenge image.
-contestant-be	Đọc/ghi file attachment; chỉ cần truy cập thư mục /uploads.	Thiếu ACL. Có thể truy cập trái phép thư mục /challenges chứa Dockerfile/flag chưa được công khai.
-admin-mvc	Quản lý file attachment qua /uploads.	Thiếu ACL. Truy cập chéo được thư mục /workflow và /challenges của các service khác.
-filebrowser	Quản lý file trong phạm vi cấp phép; không cần quyền thực thi.	Thiếu noexec và ACL. File tải lên có thể bị thực thi trái phép.
-Bất kỳ Pod nào (UID 0)	Không áp dụng.	Thiếu root_squash. Container chạy quyền root có thể thay đổi ownership/permission file của service khác.
-
-d, Đánh giá Bảo mật Orchestration (Argo Workflows & Monitoring)
-Bảng phân tích điểm yếu hạ tầng vận hành:
-Mức độ	Giao diện liên quan	Tóm tắt Vấn đề Trọng tâm
-Nghiêm trọng	Tất cả service → MariaDB	Dùng chung tài khoản ctfd-username với ALL PRIVILEGES. Xâm nhập 1 service = chiếm toàn bộ database.
-Nghiêm trọng	root@% → MariaDB
-	Mở truy cập remote superuser. Rủi ro leo thang đặc quyền toàn bộ hệ thống từ bất kỳ pod nào.
-Cao	Tất cả service → Redis
-ACL bị tắt, keyspace ~*, full command. Xâm nhập 1 service = chiếm toàn bộ state, điểm số của giải đấu.
-Cao	deployment-consumer → DB & Redis
-Service có nhu cầu quyền hạn nhỏ nhất hệ thống nhưng đang mang mức đặc quyền cao nhất (dư thừa nghiêm trọng).
-Cao	Workflow pod → NFS
-Thiếu tùy chọn noexec. Nguy cơ upload và thực thi malware len lỏi vào CI/CD pipeline.
-Cao	Service → Argo Server
-Dữ liệu và Token truyền tải dạng plaintext qua HTTP. Dễ bị sniffing đánh cắp quyền control plane.
-Trung bình	challenge-gateway → Redis
-Nhu cầu chỉ là rate-limit nhưng đang đọc được toàn bộ auth key và deploy key của hệ thống.
-Trung bình	contestant-be → NFS
-Vắng bóng ACL, tạo điều kiện đọc được thư mục chứa flag và Dockerfile chưa được công khai.
-Trung bình	Argo Controller	Cấu hình cho phép mọi template chạy tự do. Nếu lộ token, có thể thực thi tùy ý.
-
+This section details the weaknesses outlined in Section 3.6.1 by auditing each service-to-infrastructure interface — that is, each connection between an application service and a backend component (MariaDB, Redis, or NFS). For every interface, the audit examines the credential in use, the actual privilege set granted, the excess privileges that exceed the service's business requirements, and the corresponding risk assessment.
+a. Database Privilege Assessment (MariaDB)
+Services authenticate to MariaDB via a shared account (ctfd-username) with ALL PRIVILEGES on the database, violating business-domain isolation. Additionally, the root@% superuser is remotely accessible, creating a critical privilege escalation vector exploitable across the cluster.
+Interface (Service to Database)	Minimum Required Privileges	Current Excess Privileges and Associated Risks
+contestant-be	SELECT and UPDATE on the users table; SELECT on challenges, hints, flags, and files; SELECT and INSERT on submissions, solves, awards, unlocks, action_logs, tokens, and tracking.	Holds DROP, ALTER, and CREATE privileges. Has full INSERT and DELETE access to administrative tables such as config and tokens belonging to other services. This violates data boundary isolation between services.
+deployment-center	SELECT on users and challenges; INSERT on deploy_histories and challenge_start_tracking; UPDATE on challenges.	Holds full privileges on submissions, solves, hints, flags, and tokens. This creates a data tampering risk, where competition scoring data could be falsified if this service is compromised.
+deployment-listener	SELECT, INSERT, and UPDATE on challenge_start_tracking; SELECT on challenges.	Holds full privileges on all tables. The blast radius upon compromise is extremely large, as the attacker gains access to the entire database schema.
+deployment-consumer	SELECT on the challenges table only.	Most critical over-privilege: this service has the smallest functional scope in the system yet holds ALL PRIVILEGES.
+Table I 2: Excess Privilege Analysis per Service (MariaDB)
+b, Cache and State Store Privilege Assessment (Redis)
+Redis uses a shared default account with ACLs disabled. Services have unrestricted access to the entire keyspace and command set. While FLUSHDB/FLUSHALL are disabled, dangerous commands like CONFIG, DEBUG, SHUTDOWN, and MONITOR remain globally accessible.
+Interface (Service to Redis)	Minimum Required Keyspace and Commands	Current Excess Privileges and Associated Risks
+contestant-be	Keyspaces: deploy_challenge_*, active_deploys_team_*, auth:user:*, challenge:*, hint:*, and related patterns. Corresponding subset of data manipulation commands.	Has unrestricted keyspace access, enabling read and write operations on deployment keys of other teams and administrative keys. The CONFIG and DEBUG commands can be abused to alter server behavior or extract runtime information.
+deployment-center	Keyspaces: deploy_challenge_* and active_deploys_team_*. Commands: GET, SET, DEL, EXPIRE, ZADD, and ZREM.	Can read authentication, hint, and challenge keys outside its functional scope. The MONITOR command can be used to passively observe all commands processed by the Redis server in real time, enabling traffic surveillance across the entire system.
+deployment-consumer	Keyspaces: deploy_challenge_* and active_deploys_team_*. Commands: GET, EXISTS, and TTL (read-only access).	Severe over-privilege: this service only requires read access but currently holds full write and delete permissions across all keyspaces.
+deployment-listener	Keyspaces: deploy_challenge_* and active_deploys_team_*. Commands: GET, SET, DEL, EXPIRE, ZADD, and ZREM.	The CONFIG and SHUTDOWN commands remain accessible. If this service is compromised, an attacker could reconfigure the Redis server at runtime or shut it down entirely, causing a complete loss of in-memory state for the competition.
+challenge-gateway	Keyspace: fctf:gateway:* (rate-limiting only). Commands: INCR, DECR, HGET, HSET, and EVAL.	Has unrestricted keyspace access. An attacker exploiting the gateway could read all authentication and deployment keys across the system. The SHUTDOWN command could be used to crash the Redis instance.
+Table I 3: Excess Privilege Analysis per Service (Redis)
+c, Shared Storage Privilege Assessment (NFS)
+Four PersistentVolumes currently mount NFS shares without essential security mount options, creating a risk of arbitrary code execution from shared storage. 
+Interface (Pod to NFS)	Minimum Required Access	Current Excess Privileges and Associated Risks
+start-challenge-workflow	Read access to Dockerfiles and source code for image building. No execution privileges are required.	The noexec mount option is absent. Malware injected into the NFS share could be executed under the container's user context within the CI/CD pipeline.
+up-challenge-workflow	Read and write access to build artifacts. No execution privileges are required.	The noexec mount option is absent. Malicious binaries could be executed during the challenge image push process.
+contestant-be	Read and write access to file attachments, limited to the /uploads directory.	No filesystem ACL is configured. This service can access the /challenges directory, which contains unpublished Dockerfiles and flag values.
+filebrowser	File management within its authorized scope. No execution privileges are required.	Both the noexec mount option and filesystem ACL are absent. Uploaded files could be executed directly on the storage backend.
+Any container running as root (UID 0)	Not applicable.	The root_squash NFS export option is not configured. Containers running as root can modify the ownership and permissions of files belonging to other services.
+Table I 4: NFS Misconfiguration Analysis
+d, Orchestration and Monitoring Security Assessment (Argo Workflows and Grafana)
+Severity	Affected Interface	Description of Core Weakness
+Critical	All services to MariaDB	All services share the ctfd-username account with ALL PRIVILEGES. Compromising any single service grants the attacker full control over the entire database.
+Critical	root@% to MariaDB 	Remote superuser access is enabled. This creates a privilege escalation path to the entire system from any pod that can reach the MariaDB service.
+High	All services to Redis	ACL is disabled; all keyspaces and commands are accessible. Compromising any single service grants the attacker full control over all in-memory state, including competition scores and session data.
+High	deployment-consumer to MariaDB and Redis	This service has the smallest functional scope in the system yet carries the highest privilege level, representing the most severe instance of privilege excess.
+High	Workflow pods to NFS	The noexec mount option is absent. An attacker could upload and execute malicious binaries through the CI/CD pipeline's shared storage.
+High	Services to Argo Server	Data and authentication tokens are transmitted in plaintext over HTTP. This traffic is vulnerable to interception and credential theft on the internal network.
+Medium	challenge-gateway to Redis	This service only requires rate-limiting functionality but has unrestricted read access to all authentication and deployment keys across the system.
+Medium	contestant-be to NFS	No filesystem ACL is configured, allowing unauthorized read access to directories containing unpublished flags and challenge Dockerfiles.
+Medium	Argo Workflow Controller	The controller permits execution of any workflow template without restriction. If a service account token is leaked, arbitrary workflows can be submitted and executed.
+Table I 5: Consolidated Risk Assessment of Infrastructure Weaknesses
 3.7. Remaining weaknesses of the FCTF system
-Although previous versions of the FCTF system have met part of the requirements for organizing and operating information security competitions, and achieved some positive results in practical deployment at Secathon 2025, the overall assessment process from Version 1 to Version 3 shows that the system still has some limitations in architecture, performance, security, scalability and stability. Fully identifying these weaknesses is an important basis for the research, design and completion process of the system in Version 4.
+Although previous versions of the FCTF system have met part of the requirements for organizing and operating information security competitions and achieved some positive results in practical deployment at Secathon 2025, the overall assessment process from Version 1 to Version 3 shows that the system still has some limitations in architecture, performance, security, scalability and stability. Fully identifying these weaknesses is an important basis for the research, design and completion process of the system in Version 4.
 3.7.1. Application Logic & Data Integrity Issues
 3.7.1.1. Weakness in the Health Check mechanism during challenge deployment (IS-2)
-In the current F-CTF system, the challenge environment initialization process is coordinated through Argo Workflows. When contestants perform the start challenge operation, the workflow will proceed with deployment steps such as creating pods, configuring services and returning the connection string (URL or host:port) to contestants immediately after the workflow ends with Succeeded status. However, the current success status of the workflow only reflects that the infrastructure-level deployment steps have been completed, but does not ensure that the application inside the pod is ready to serve real access.
+In the current F-CTF system, the challenge environment initialization process is coordinated through Argo Workflows. When contestants perform the start challenge operation, the workflow will proceed with deployment steps such as creating pods, configuring services and returning the connection string (URL or host:port) to contestants immediately after the workflow ends with Succeeded status. However, the current success status of the workflow only reflects that the infrastructure-level deployment steps have been completed but does not ensure that the application inside the pod is ready to serve real access.
 To illustrate more clearly the deployment flow and the health check issue, the Sequence Diagram below describes in detail the process from when the contestant presses the "Start Challenge" button until the contestant can access the challenge environment, including interactions between Contestant Portal, Contestant BE, Deployment Center, Argo Controller, K8s API Server and Challenge Pod. The diagram highlights the core weakness: the system returns "Challenge Ready" to the contestant when the container is Running, but the application inside has not completed the initialization process, leading to Connection Refused status when the contestant tries to access immediately.
- Figure 9: Sequence diagram for Health Check Mechanism
+ 
+Figure I 8: Sequence diagram for Health Check Mechanism
 By default, Kubernetes considers a pod running when the container inside has started and does not crash immediately. If there is no health check mechanism, Kubernetes cannot determine whether the container is truly ready to receive requests or not. This issue can be seen more clearly in applications that require long startup time where processing can only be performed after initialization is complete.
 In addition, the current watcher code only relies on container-level status ("ContainerStatuses[].Ready") to determine that the pod is ready, instead of checking pod-level status ("PodCondition Ready=True"). According to Kubernetes Pod Lifecycle, a pod is only considered Ready when all containers inside are ready and readiness probes (if any) all return success. Checking only container status while ignoring pod condition makes the system possibly confuse between the container having started and the application being ready to serve.
-Due to the lack of health check mechanism and inaccurate watcher logic, the system may return the connection string to contestants while the pod is still in internal startup status (initializing). The consequence is that when contestants access the provided address immediately, the web service has not responded or returns an error, and only after a certain time the web page can be accessed normally. From the user’s perspective, this creates a feeling that the system is operating unstably or has errors, although technically the deployment process is still proceeding correctly.
+Due to the lack of health check mechanism and inaccurate watcher logic, the system may return the connection string to contestants while the pod is still in internal startup status (initializing). The consequence is that when contestants access the provided address immediately, the web service has not responded or returns an error, and only after a certain time can the web page be accessed normally. From the user’s perspective, this creates a feeling that the system is operating unstably or has errors, although technically the deployment process is still proceeding correctly.
 The table below illustrates the asynchrony between states in the pod startup process and the impact on user experience:
 State	Symptom	Impact
 Pod version = Running	Container has started	UI shows "Running"
 ContainerStatuses[].Ready = true	Container reports ready	Watcher emits RUNNING
 PodCondition Ready = false	Pod not yet ready	Service does not accept traffic
 Contestant connects immediately	Request fail/timeout	User perceives a system error
-Table 2: Effect of not having health check
+Table I 6: Effect of not having health check
 The core cause of this issue lies in the current system not applying Kubernetes readiness probe mechanism to determine the real readiness status of the application. Implementing these probes requires the application in the container to provide a health check endpoint (for example /health or /ready) for Kubernetes to check. However, in the context of the system allowing many challenges developed by different authors, requiring all Challenge Writers to self-build and maintain health check endpoints significantly increases complexity and burden for question setters.
 Therefore, the current system is inferring the service readiness status based on the completion status of infrastructure-level deployment steps, specifically the pod/container being successfully created and not falling into error status during startup. However, in Kubernetes, this status only reflects that the process in the container has been started, but does not guarantee that the application inside has completed the internal initialization process and is capable of receiving requests. Equating these two statuses creates a weakness in correctness in the deployment process, leading to asynchrony between the system’s “challenge ready” notification and the actual service accessibility. Although this limitation does not directly cause serious security risks, it significantly affects contestant experience and operation efficiency, especially in competitions with many simultaneous environment initialization requirements.
 3.7.1.2. Recording contestant behavior logs depends on the client side (IS-3)
 The system implements an Action Log mechanism to record important contestant behaviors during competition participation, such as opening challenges, opening hints, starting challenges or performing operations related to the challenge. These records are stored in the database and can be used for monitoring activities, analyzing user behavior or serving investigation when incidents occur.
 However, the current logging mechanism depends on the frontend, in which the client actively sends a saveLog API request to the backend to save activity events. Since the frontend is outside the direct control scope of the system, users can modify client code, block requests or spoof log content. This makes log data not guarantee integrity and reliability, putting the system at risk of missing, inaccurate or manipulated actual contestant behaviors.
  
-Figure 10: Sequence diagram for Saving log
+Figure I 9: Sequence diagram for Saving log
 3.7.2. Infrastructure & Configuration Weaknesses
 3.7.2.1. Security risk from exposing challenge ports directly (IS-4)
 Although F-CTF version 3 has switched to exposing challenges through Ingress and domain to enhance security in standard configuration, the current system still has a serious network security weakness in certain deployment scenarios, especially for challenges with special characteristics such as pwn challenges. In these cases, the challenge pod is forced to be exposed directly to the outside through the physical network ports of the node (for example NodePort or HostPort), instead of going through the centralized coordination and access control layer.
@@ -438,7 +411,7 @@ Network Policy	No NetworkPolicy, pods have unrestricted network access	Violates 
 Host Ports Exposure	Service type NodePort exposes challenge via node ports	Violates least privilege principle in network exposure. Although not directly violating Baseline policy on hostPort field, exposing via NodePort bypasses ingress controls and allows direct access from external networks without authentication/authorization layers
 Runtime Class	Uses default runtime (runc), no sandbox isolation	Does not comply with Pod Placement best practice on sandboxed runtimes for untrusted workloads. Containers run directly on host kernel with kernel-sharing, increasing risk of kernel exploits affecting host and other containers on the same node
 Pod Security Admission		Namespace has no labels	Does not enforce Pod Security Standards at namespace level. Lacks automated admission control to validate and reject pods violating security policies, completely dependent on manual review and operator discipline
-Table 3: Table Evaluating Violations of Pod Security Standards of Old Template
+Table I 7: Table Evaluating Violations of Pod Security Standards of Old Template
 When evaluating overall according to the Pod Security Standards Framework, the old challenge deployment template shows uneven compliance between policy levels, with some controls implemented correctly but still having many serious shortcomings.
 On the positive side, the template has complied with some important controls of Baseline policy. Specifically, the template does not use dangerous privileged features such as Host Namespaces Sharing (hostNetwork, hostPID, hostIPC are all not enabled), does not allow Privileged Containers (privileged: false), and does not mount HostPath Volumes to access the host filesystem. The template also partially complies with Restricted policy requirements through disabling Privilege Escalation (allowPrivilegeEscalation: false) and dropping all Linux Capabilities (drop: ["ALL"]). In addition, disabling automountServiceAccountToken prevents containers from accessing the Kubernetes API server, minimizing the risk of privilege escalation through service account tokens.
 However, although there are some basic compliance points, the template still does not achieve full compliance with any policy level of Pod Security Standards due to the following serious violations:
@@ -454,7 +427,7 @@ Besides violating Pod Security Standards, the template also does not comply with
 ●	Host Ports Exposure via NodePort bypasses ingress controls and authentication layers
 ●	Runtime Class uses default runtime (runc) instead of sandboxed runtime for untrusted workloads
 These unapplied security configurations, such as allowing containers to run with root privileges, not restricting system calls, and not controlling network access between pods, have significantly increased the attack surface of the system. In case a challenge pod is compromised, the attacker can take advantage of root privileges to perform dangerous behaviors, exploit operating system vulnerabilities, or move to other pods and services in the cluster. When many important protection layers are not established, the system’s multi-layer defense capability is reduced, thereby increasing the risk of serious attacks occurring.
-3.7.2.3. Argo Workflow becomes unresponsive when submitting a large number of deploy requests exceeding k3s cluster resources (IS-6)
+3.7.2.3. Argo Workflow becomes unresponsive when submitting many deploy requests exceeding k3s cluster resources (IS-6)
 a, Problem Description
 During the operation of the F-CTF system, the K3s cluster and Argo Workflows encountered serious hanging (hung/deadlock) status when under high load, affecting the processing capability and stability of the entire system.
 b, Kubernetes Security Checklist Reference
@@ -466,7 +439,7 @@ Pod Placement
 
 	Sensitive applications are running isolated on nodes or with specific sandboxed runtimes.	Control plane isolated from workload
 Admission Controllers	ResourceQuotaEnforces resource quotas to prevent over-usage of resources.	Limit resource usage
-Table 4: Kubernetes Security Checklist Reference
+Table I 8: Kubernetes Security Checklist Reference
 c, Test Cases
 The incident was reproduced with the following system information:
 ●	Operating system (OS): Ubuntu 22.04.5 LTS (Kernel: 6.8.0-1045-gcp)
@@ -480,22 +453,20 @@ The system encountered the following abnormal manifestations, appearing simultan
 d.1. Argo Workflows Stuck:
 During testing, the number of workflows in "Running" status did not complete for a long time, although the system currently allows a maximum of 30 workflows running simultaneously. New workflows were submitted but did not start execution, falling into indefinite pending status because old workflows were still in running status and there was no timeout mechanism to automatically end them. The Argo UI interface displayed workflows in "deadlock" status with infinitely long running time, while the system had no ability to self-recover by terminating or deleting these deadlock workflows. The final result of the test showed only 1 workflow succeeded (SUCCEEDED), 30 workflows still running (RUNNING), and the remaining 969 workflows in waiting status (PENDING) out of a total of 1000 submitted workflows.
  
-Figure 11: Argo workflow Running after ~9m
-
+Figure I 10: Argo workflow Running after ~9m
  
-Figure 12: Argo workflow Running after ~30m
-
+Figure I 11: Argo workflow Running after ~30m
  
-Figure 13: Argo workflow Running after ~1h
-
+Figure I 12: Argo workflow Running after ~1h
  
-Figure 14: Argo workflow Pending infinitely with 469/1000 Pending
+Figure I 13: Argo workflow Pending infinitely with 469/1000 Pending
 d.2. Cleanup Operations Failure:
 The cleanup CronJob, designed to automatically clean up resources periodically, did not run according to the configured schedule, with the number of missed schedules increasing over time. When the CronJob attempted to create cleanup jobs, the created pods all fell into Pending status and could not execute due to lack of available resources in the cluster. As a result, old challenge pods were not cleaned up and continued to accumulate in the cluster, leading to resource quotas being exceeded, preventing the creation of any new pods in the system.
  
-Figure 15: CronJob cleaning cannot run
+Figure I 14: CronJob cleaning cannot run
 d.3. Business impact:
- Figure 16: Health check timeout for Contestant challenge
+ 
+Figure I 15: Health check timeout for Contestant challenge
 From the end-user perspective, contestants still had the ability to send new start challenge requests, however they continuously received timeout notifications. In reality, these requests were still sent to Argo for processing, while a series of other workflows were still in pending status, waiting to be executed. Running challenges were negatively affected and at risk of unwanted termination. Argo continued to wait for running workflows to run indefinitely, leading to subsequent requests not being processed. The entire workflow automation process was completely interrupted, requiring manual intervention and cluster restart, causing significant downtime and seriously affecting user experience as well as system reliability.
 e, Root Cause Analysis
 The incident originated from the combination of five main issues related to resource scheduling, workflow configuration, and resource priority & preemption mechanism in the K3s environment.
@@ -505,7 +476,8 @@ Unlike standard Kubernetes, K3s uses the term "server node" instead of "master n
 Current status description:
 The current cluster is operating with K3s default configuration, allowing regular application workloads, including both challenge pods and workflow pods, to be scheduled and executed directly on the server node. The server node is running core components in a single k3s server process, including kube-apiserver playing the role of the cluster’s main API server, kube-scheduler performing pod scheduling function, kube-controller-manager managing controllers, SQLite or embedded etcd taking the role of cluster state datastore, along with supporting components such as CoreDNS, metrics-server and service load balancer. In particular, Kubernetes by default allows Pods to consume nearly the entire node capacity, unless the administrator proactively reserves resources for system components (Reserve Compute Resources for System Daemons3).
 To illustrate more clearly the mechanism of the incident when the system receives 1000 simultaneous requests, the Sequence Diagram below describes in detail the processing flow from when the contestant sends burst requests, through the Argo Server and Argo Workflow Controller processing, K8s API Server and Scheduler attempting to allocate resources, until the system falls into deadlock status. The diagram highlights four important stages: Burst Requests (1000 concurrent requests), Resource Exhaustion (workflows deadlock waiting for pods), System Stuck & Deadlock (cleanup job cannot run), and Contestant Impact (users waiting indefinitely). The diagram also clearly shows the core weaknesses including workflow pods with zero resource requests always accepted by the scheduler, challenge pods unable to be scheduled due to the cluster having exhausted resources, and cleanup mechanism being deadlocked due to no priority class to preempt lower priority pods.
- Figure 17: Argo Workflow Stuck When Exceeding Resources Sequence diagram 
+ 
+Figure I 16: Argo Workflow Stuck When Exceeding Resources Sequence diagram
 Incident occurrence mechanism: Because K3s consolidates all control plane components in a single process, when system load increases and application workloads consume resources on the server node, a chain of events occurs in the following order. First, resource contention occurs on the server node, in which challenge pods and workflow pods compete for CPU and memory resources with the k3s server process. Because the k3s server process has no separate resource guarantees, all components in this process are affected simultaneously. Next, the control plane begins performance degradation, with kube-scheduler lacking CPU to handle pod placement decisions, kube-controller-manager experiencing delays in reconciliation loops, and API server responding slowly or timing out. Finally, cascading failures occur, in which the scheduler cannot schedule new pods, existing pods are not reconciled correctly, failures in the resource cleanup process lead to resource leaks, and the entire cluster falls into unresponsive or partially functional status.
 (2) Start-challenge Workflow does not declare Resource Request and Timeout
 Resource scheduling characteristics in K3s: K3s uses the standard kube-scheduler of Kubernetes, therefore the behavior of scheduling pods with zero resource requests is completely the same as standard K8s. Pods with resources.requests equal to 0 are always considered suitable to be created on any node, while the scheduler does not reserve resources for these pods. This leads to the node being able to be seriously over-committed with many zero-request pods, and there is no mechanism to prevent pod creation when the cluster is overloaded.
@@ -544,7 +516,7 @@ Pod Placement	Check node isolation, taint/toleration, runtime class
 Secrets	Check encryption at rest, secret injection
 Images	Check image security, unprivileged user
 Admission Controllers	Check admission webhook, policy enforcement
-Table 5: Kubernetes security check categories
+Table I 9: Kubernetes security check categories
 To ensure comprehensive security effectiveness, we believe it is necessary to combine with automated evaluation tools that have been developed to strictly comply with safety criteria from security experts.
 Regarding popular Kubernetes security standards:
 ●	CIS Kubernetes Benchmark: A standard set issued by the Center for Internet Security, providing safe configuration guidelines for components in the Kubernetes system. This standard is widely used in compliance assessment and security audit activities. The content focuses on protecting the control plane, nodes, RBAC mechanisms, audit logging and secret management, thereby helping to minimize risks arising from configuration errors.
@@ -573,7 +545,7 @@ In summary, the F-CTF system is operating with "open" default configuration, lac
 A weakness in the system’s database query design was found to be the N+1 query problem. The N+1 problem occurs when the system performs 1 initial query to retrieve data, but then for each element performs N additional queries, causing the number of queries to increase suddenly according to input data, leading to serious performance degradation and increased API latency.
 The image below describes this process more clearly:
  
-Figure 18: Sequence diagram N+1 query problem
+Figure I 17: : Sequence diagram N+1 query problem
 3.7.3.2. Dependency Injection Lifetime not suitable (IS-9)
 In the old version, K8sService was registered with Scoped lifetime, causing each request to create a new service instance. When many contestants simultaneously start challenges, the system will generate many parallel connections to the Kubernetes API Server, easily causing overload and increasing memory usage, with potential risk of out-of-memory in long competitions.
 In addition, the ScoreHelper class self-initializes DbContext in each method by injecting DbContextOptions and calling new AppDbContext(). This leads to creating many unnecessary DbContexts and database connections, putting pressure on the connection pool when the system processes many simultaneous requests. Although using is used, this design is still considered an anti-pattern in Entity Framework for high-load systems such as CTF.
@@ -584,78 +556,78 @@ This implementation causes many problems: the Redis server can be blocked for hu
 In the current version of the F-CTF system, source code analysis shows that forms performing state-changing operations, especially administration and system configuration forms, have not implemented Cross-Site Request Forgery (CSRF) protection mechanism. Specifically, requests sent from client to server via POST method do not include CSRF token or request origin authentication mechanism, causing the server to be unable to verify the validity of the request.
 The main cause of this issue stems from the request processing mechanism design depending entirely on session authentication based on cookies, while lacking the step to check request integrity on the server side. Because the browser automatically attaches the session cookie in every request to the same domain, the system by default considers requests with valid sessions as legitimate without checking whether that request was actually initiated from the system interface or from an external source.
 In addition, in some endpoints, the CSRF checking mechanism is disabled or bypassed through bypass configurations during previous development to serve compatibility with old APIs or simplify the integration process. The existence of endpoints that do not apply CSRF protection has weakened the overall defense layer of the system and expanded the attack surface.
-3.7.3.5. Polling-based Deployment Monitoring & Code Quality Issues (IS-12)
-In the old version, the system monitored the deployment status of challenge instances through a periodic polling mechanism, implemented by the GetPodsJob class. Instead of listening to state change events from Kubernetes, this service continuously sends requests to the Kubernetes API Server at fixed intervals to check the status of Pods. This mechanism leads to many serious problems: creating a large amount of redundant requests to the API Server even when no changes occur, increasing event detection latency due to dependence on the poll cycle, and causing unnecessary pressure on Kubernetes infrastructure in competitions with many contestants simultaneously starting challenges.
-In addition, source code analysis also detected many other code quality issues. The system has service classes with inconsistent naming, causing difficulties in maintenance and expansion. Some controllers take on too many responsibilities, violating the Single Responsibility principle. In addition, the lack of a centralized GlobalExceptionFilter causes error handling to be scattered and inconsistent between endpoints, with potential risk of leaking internal error information to the outside.
-3.7.3.6. Contest-state and prerequisite logic gaps in challenge file download (IS-13.1)
+3.7.3.5. Contest-state and prerequisite logic gaps in challenge file download (IS-12.1)
 In version 3 design, the challenge file download flow focused mainly on token validity and did not enforce contest-state and challenge-state checks as a strict mandatory gate in the same request path. This created a logic weakness where file access could be served outside the intended competition context.
 Specifically, the download flow lacked consistent denial rules for cases such as contest not started, contest ended, challenge hidden, or prerequisite dependency not satisfied by the current team. In some scenarios, if prerequisite data was malformed or validation failed unexpectedly, the logic did not always fail closed.
 As a result, this issue is not a pure path traversal issue, but a business authorization weakness: contestants could gain file access in conditions that should have been blocked by contest and challenge rules.
-3.7.3.7. Path traversal risk in challenge file download due to path handling and NFS mount scope (IS-13.2)
+3.7.3.6. Path traversal risk in challenge file download due to path handling and NFS mount scope (IS-12.2)
 In version 3 design, the function to download attached files of challenges only performed contestant token validation before returning file content, while path handling remained exposed to manipulation.
 After receiving a valid token, a contestant could intercept the download request and modify the path parameter. If backend path checks were not strict enough, the request could be redirected to other files in the same storage area.
 The root cause was the combination of two factors: path input not being tightly constrained to a canonical allowlisted location, and backend container mounting an overly broad NFS directory scope. When the service read files directly from user-influenced paths, contestants who inferred directory structures (for example: challenges/<challenge_name>/flag.txt, description.md, or other resources) could attempt unauthorized file reads.
 This leads to Path Manipulation / Path Traversal risk, where file access is no longer constrained to the exact file scope intended by the system.
-3.7.3.8. Race condition in flag submit flow, unlock hint and challenge lifecycle (IS-14)
+3.7.3.7. Race condition in flag submit flow, unlock hint and challenge lifecycle (IS-13)
 During source code analysis of the old system, the team noticed some issues related to handling multiple simultaneous requests appearing in the ContestantBE, ResourceShared and DeploymentListener components. These issues are not only in a specific endpoint but affect consistency between Redis and database, the status of challenges running on Kubernetes infrastructure, as well as the fairness of the competition when many contestants perform operations at the same time.
 In the unlock hint function, the old version used a locking mechanism to protect data write operations when opening hints. However, the steps to check prerequisite conditions, check current points and check hint status were performed before the lock was applied. This creates a short time window in which multiple requests can pass the check step before the system begins writing data. When two unlock requests are sent almost simultaneously from the same user or team on different backends, both requests can pass the check step and then sequentially write data. As a result, the system may open the same hint multiple times or deduct points inaccurately if the data status changes in the time interval between the check step and the write step.
 For dynamic challenges, the challenge’s score will change based on the number of teams that have solved the challenge. In the old version, recalculating the point value was not controlled when multiple requests ran simultaneously. When many correct submit requests occurred almost at the same time, the processing threads could read the same value of the number of teams that had solved before performing the calculation and recording the new point value. This could cause the final challenge point value to be overwritten by the later processed request, leading to the score not reflecting the correct number of teams that had solved at that time.
 In the challenge lifecycle management process, an issue can occur when the user stops the challenge and then starts it again in a very short time. When the stop request is sent, the system updates the challenge status in Redis to DELETING to mark that the resources on Kubernetes are being reclaimed. However, deleting the pod and deployment on Kubernetes does not happen immediately but requires a period of time to complete. If during this time the user sends a start challenge request, the system will begin the process of creating a new deployment and update the corresponding status to Redis. However, when Kubernetes completes deleting the old lifecycle resources, the component listening to events from Kubernetes will update the Redis status to STOPPED. Because these two operations occur close in time and there is no mechanism to ensure update order, the STOPPED status from the previous stop process may overwrite the new status of the start process. This causes Redis to store incorrect status compared to reality and leads to the challenge not being able to start successfully even though the user has performed a valid start operation.
-3.7.3.9. DeploymentListener sequential processing causes event backlog under high load (IS-15)
+3.7.3.8. DeploymentListener sequential processing causes event backlog under high load (IS-14)
 In the old version, the DeploymentListener component was not optimally designed for cases where many Kubernetes events occurred simultaneously. Status change events of pods were processed almost sequentially in a main thread. When the number of pod changes was large in a short time, these events could be piled up in the processing queue. This increased latency when updating RUNNING, STOPPED or DELETING status to Redis and database, thereby increasing the possibility of asynchrony between the system status and the actual status of resources on Kubernetes.
 3.7.4. Operational Efficiency & UX
-3.7.4.1. Limitations in user experience on the Monitoring page and log viewing (IS-16)
+3.7.4.1. Limitations in user experience on the Monitoring page and log viewing (IS-15)
 a, Monitoring page
  
-Figure 19: Admin Monitoring Page
+Figure I 18: Admin Monitoring Page
 Although the system’s Monitoring page provides the ability to observe the status of active challenges, the current interface still has some significant limitations in user experience. Specifically, the Monitoring page does not fully support filtering functions according to important criteria such as user, environment status or challenge type. When the number of challenge instances increases, administrators or supervisors must scroll and search manually, causing difficulty in quickly tracking incidents or abnormal environments during competition operation.
 b,  Log viewing page 
  
-Figure 20: Pod Challenge Log page
+Figure I 19: Pod Challenge Log page
 In addition, the challenge pod log viewing page does not have a mechanism to support proactive data refresh. Log content is only loaded at the time of page access, and when the pod status changes or new logs are generated, the user is forced to reload the entire page to view updated information. The lack of a refresh button or automatic log update mechanism interrupts the monitoring process and causes inconvenience in situations requiring quick response, for example when debugging deployment errors or handling incidents during the competition.
 These limitations do not directly affect the correctness or security of the system, but reduce operation efficiency and real-time monitoring capability of Admin and Jury, especially in contests with many challenge instances running simultaneously. These are UX issues that need to be improved in subsequent versions to enhance the convenience and observability of the system.
 c,  Request log tracking limitation
 The current system does not provide a function to track logs of requests that contestants send to challenge instances, causing limitations in monitoring and evaluating participant behavior. The lack of this mechanism may affect the transparency of the competition as well as the ability to detect abnormal or cheating behaviors.
-3.7.4.2. Limitations in analysis information on the Dashboard page (IS-17)
+3.7.4.2. Limitations in analysis information on the Dashboard page (IS-16)
  
-Figure 21: Dashboard screen
-The current Dashboard page provides overview information about the competition, however the displayed metrics are still quite basic and do not bring much value for in-depth analysis. The system does not support important information per challenge such as success solve rate (%), average solve time, number of incorrect attempts or number of hint usages. The lack of these metrics makes it difficult for organizers to evaluate the difficulty level of challenges and detect abnormalities during the competition.
-3.7.4.3. Lack of mechanism to support querying and aggregating award data (IS-18)
+Figure I- 20: Dashboard screen
+The current Dashboard page provides overview information about the competition; however the displayed metrics are still quite basic and do not bring much value for in-depth analysis. The system does not support important information per challenge such as success solve rate (%), average solve time, number of incorrect attempts or number of hint usages. The lack of these metrics makes it difficult for organizers to evaluate the difficulty level of challenges and detect abnormalities during the competition.
+3.7.4.3. Lack of mechanism to support querying and aggregating award data (IS-17)
 Currently the CTF system does not have a mechanism to support Admin querying, aggregating and exporting data to serve the award process in a flexible way. Determining teams or players who win prizes must be performed manually based on the overall scoreboard, with no ability to filter by multiple criteria or specific conditions such as: top team with highest points, top user, fastest solver. This increases processing time, easily causes errors in aggregating results and affects accuracy and transparency when organizing and announcing awards.
-3.7.4.4. Limitations in User and Team management (IS-19)
- Figure 22: Manage User screen
- Figure 23: Manage Team screen
+3.7.4.4. Limitations in User and Team management (IS-18)
+ 
+Figure I 21: Manage User screen
+ 
+Figure I 22: Manage Team screen
 The User and Team management function in the current system still has many limitations. For Users, the information displayed in the management table is not complete, does not provide Admin with a clear view of whether the user has joined which team or not, and lacks filtering mechanisms according to conditions such as hidden, banned, country or other statuses. This causes difficulty in controlling and processing data when the number of users is large.
 For the Team management function, the system also does not provide sufficient important information such as current number of members, team captain, and does not support filtering functions according to multiple criteria. These limitations reduce administration efficiency and cause Admin to spend a lot of time on manual operations during the competition organization process.
-3.7.4.5. Limitations in managing Contestant Submissions (IS-20)
- Figure 24: Manage Submission screen
-The Submission screen in the current system still has many limitations, directly affecting the ability of Admin to monitor and process submissions during the CTF organization process. The system does not support a mechanism to filter submissions by team, user or specific time period, causing difficulty when needing to trace abnormal behavior or check results of a certain group of subjects. For dynamic challenges, there is no function to reset score when adjustment or incident handling is needed, reducing flexibility in competition operation. In addition, the data export function still has errors when exporting files according to correct/incorrect submission status, specifically the system exports all submissions when admin wants to export correct submissions, this affects the accuracy of reports. The system also does not allow Admin to proactively mark submissions as correct or incorrect in special cases requiring manual intervention, leading to limitations in handling complaints or arising situations.
-3.7.4.6. Lack of mechanism to store and trace Challenge Instance history (IS-21)
+3.7.4.5. Limitations in managing Contestant Submissions (IS-19)
+ 
+Figure I 23: Manage Submission screen
+The Submission screen in the current system still has many limitations, directly affecting the ability of Admin to monitor and process submissions during the CTF organization process. The system does not support a mechanism to filter submissions by team, user or specific time period, causing difficulty when needing to trace abnormal behavior or check results of a certain group of subjects. For dynamic challenges, there is no function to resync score when adjustment or incident handling is needed, reducing flexibility in competition operation. In addition, the data export function still has errors when exporting files according to correct/incorrect submission status, specifically the system exports all submissions when admin wants to export correct submissions, this affects the accuracy of reports. The system also does not allow Admin to proactively mark submissions as correct or incorrect in special cases requiring manual intervention, leading to limitations in handling complaints or arising situations.
+3.7.4.6. Lack of mechanism to store and trace Challenge Instance history (IS-20)
 Currently the monitoring function in the system only tracks the status of Challenge Instances when they are in running status in the Kubernetes cluster. The system is lacking a persistent storage mechanism to record the actual lifecycle history of Pods containing challenges. The current action log records only stop at recording the operation of pressing the "Start/Stop" button on the contestant interface, but do not accurately reflect the initialization and end events of the Pod itself at the K8s infrastructure layer. As soon as an instance is stopped, all its log information will not be stored again. This lack leads to admin being unable to compare between user operations and the actual infrastructure status, for example unable to know whether an instance could not be deployed due to the user actively operating or infrastructure error, in addition in post-competition work, the organizers have no historical data to evaluate the stability of challenges (which challenge is most often deploy-error), reducing the ability to optimize the system for future CTF seasons.
-3.7.4.7. Lack of Audit Log mechanism and system change tracing (IS-22)
+3.7.4.7. Lack of Audit Log mechanism and system change tracing (IS-21)
 Currently the system does not have an Audit Log mechanism to record and store the history of important operations performed by Admin, Jury or Challenge Writer. Changes related to user, team, challenge, system configuration or marking correct/incorrect submissions are not recorded in a centralized and systematic way. This leads to lack of tracing capability when incidents, disputes occur or when it is necessary to re-check the operation process of the organizers. The lack of search, filter and review history change mechanisms also reduces transparency, internal control capability and safety level in operating the CTF system.
-3.7.4.8. Lack of mechanism to view Action Log for administrators (IS-23)
+3.7.4.8. Lack of mechanism to view Action Log for administrators (IS-22)
 In the current system, the Action Log viewing function only allows Contestants to track their own actions and team members, while the competition Admin does not have a centralized access mechanism to monitor all user activities, leading to limitations in tracing incidents, detecting cheating and handling complaints. Important actions such as start challenge, stop challenge, correct or incorrect flag submission, unlock hint have not been centralized to serve checking and audit work.
-3.7.4.9. Limitations in import & export function (IS-24)
-The Import/Export function in admin config has not been working, affecting Admin’s data management efficiency. Specifically, the user, team, contest data export and import feature has not operated stably, generating errors during data processing, interrupting batch configuration operations. In addition, the system has not recorded and displayed detailed behaviors arising during import, for example cases of skipping (skip) existing users or teams, making it difficult for Admin to track processing results and compare data after performing operations. These limitations reduce transparency, increase data deviation risk and affect operation experience when organizing CTF competitions.
-3.7.4.10. Limitations in bracket management and scoreboard display (IS-25)
+3.7.4.9. Limitations in import & export function (IS-23)
+The Import/Export function in admin config has not been working, affecting Admin’s data management efficiency. Specifically, the user, team export and import features have not operated stably, generating errors during data processing, interrupting batch configuration operations. In addition, the system has not recorded and displayed detailed behaviors arising during import, for example cases of skipping (skip) existing users or teams, making it difficult for Admin to track processing results and compare data after performing operations. These limitations reduce transparency, increase data deviation risk and affect operation experience when organizing CTF competitions.
+3.7.4.10. Limitations in bracket management and scoreboard display (IS-24)
 The current system has allowed Admin to create and name brackets, however this function has not really demonstrated its value in actual competition operation. Specifically, although Admin can create brackets and assign contestants or teams to each bracket, the Contestant Portal does not integrate bracket data into the scoreboard interface at all. When viewing the ranking table, contestants only see the entire general list without the ability to filter or group according to the bracket they belong to. This makes the bracket feature meaningless in the context of competitions with many different segments, for example grouping by school, by school year, or by experience level. In addition, the system also does not have a configuration mechanism for Admin to control whether contestants are allowed to view results of other brackets or not, leading to a lack of flexibility in organizing competitions that require classifying competition subjects.
-3.7.4.11. Lack of automated CI/CD process for system deployment (IS-26)
+3.7.4.11. Lack of automated CI/CD process for system deployment (IS-25)
 In previous versions, the F-CTF system did not have any automated continuous integration and deployment (CI/CD) process. When there were source code changes that needed to be put into the production environment, the operation team had to perform the entire manual process: determine which service needed rebuilding, run docker build command on local machine or directly on server, push image to Docker Hub, then SSH into server to run kubectl set image and kubectl rollout restart commands for each corresponding deployment. This process required the performer to clearly understand the entire system structure, remember the exact deployment name of each service, and perform the steps in the correct order without automatic checking. With a system consisting of many microservices such as ContestantPortal, ContestantBE, DeploymentCenter and AdminMVC, each time only one service needed updating still required a lot of time to perform manually and had high potential for errors, especially in the final preparation stage before the competition when many changes occurred simultaneously. The lack of CI/CD process significantly increased operation risks caused the development team to spend a lot of effort on repetitive tasks and reduced the frequency of being able to release patches without causing downtime or affecting system stability.
 3.7.4.12. Challenge Management Weaknesses
-a, Limitations in View Challenges and Search Challenges screen (IS-27)
+3.7.4.12.1 Limitations in View Challenges and Search Challenges screen (IS-26)
 In the current system, the challenge list does not provide sufficient important information to serve administration and competition operation, such as difficulty, creator, tags, deploy status and state. When the number of challenges increases, viewing only the basic list makes it difficult for Admin and Challenge Writer to quickly evaluate the characteristics of each challenge, difficult to detect hidden challenges, challenges that have been deployed or challenges with many related tags. In addition, the challenge search and filter function does not support combining multiple criteria such as category, type, name field, keyword, tags, difficulty, state and prerequisite, leading to administrators having to filter manually or switch through many different screens. This increases operation time, reduces administration efficiency and easily causes errors when having to process many challenges in the same contest.
-b, Limitations in challenge deployment configuration (IS-28)
+3.7.4.12.2 Limitations in challenge deployment configuration (IS-27)
 In the old version, the challenge deployment configuration screen only supported basic information such as expose port and deploy file, did not allow adjustment of important parameters related to resources and safety level of the running environment. The system did not support configuring CPU request/limit, memory request/limit, or limiting the maximum number of deploys for each challenge. Therefore, Challenge Writers had difficulty controlling the resource usage level of the pod and difficulty preventing cases where contestants continuously created instances beyond actual needs. When the competition had many challenges running simultaneously, this lack increased the risk of resource overload, affecting the stability of the cluster and consistency in the deployment process.
-c, Lack of support for dynamic challenges and gradual point reduction mechanism (IS-29)
+3.7.4.12.3 Lack of support for dynamic challenges and gradual point reduction mechanism (IS-28)
 The current system does not fully support dynamic challenge type, in which the challenge value changes according to the number of correct submissions. Because there are no specialized interface and logic for dynamic challenges, Challenge Writers cannot customize attributes such as current value, initial value, decay function, decay value and minimum value. This makes the system only suitable for static challenges, while challenges that need a point reduction mechanism over time or according to the number of solvers cannot be correctly represented. The lack of dynamic scoring reduces the flexibility of the platform, limits the ability to design high-competition exam questions and does not correctly reflect the requirements of modern CTF competitions.
-d, Lack of challenge version management mechanism (IS-30)
+3.7.4.12.4 Lack of challenge version management mechanism (IS-29)
 When Challenge Writers edit challenges, changes to Dockerfile, flag, description content, resources or deployment configuration can be applied directly without being saved as separate versions. This leads to the system not having version history to compare when it is necessary to check changes or find the cause of incidents arising after updates. If a new edit causes the challenge to have build or deploy errors, Challenge Writers cannot quickly review the previous stable version to compare configurations. The lack of version history mechanism reduces change tracing capability, causes difficulty in challenge maintenance process and increases the risk of interruption while the competition is running.
-e, Lack of safe challenge version rollback process (IS-31)
+3.7.4.12.5 Lack of safe challenge version rollback process (IS-30)
 Even when Challenge Writers realize that a new challenge version is causing errors, the old system still does not provide a clear and consistent rollback flow to quickly restore to stable status. Restoration usually must be performed manually by editing configuration files again, updating image tags or redeploying the challenge, so it is highly susceptible to errors and time-consuming under running contest conditions. In addition, because there is no rollback confirmation mechanism and synchronous redeployment, operators may accidentally return to a configuration that is not compatible with current data. This reduces the reliability of the system and makes challenge incidents handling slow and riskier than necessary.
-f, Lack of Shared Instance challenge type support (IS-32)
+3.7.4.12.6 Lack of Shared Instance challenge type support (IS-31)
 The current system only supports a per-team instance model and lacks a mechanism for shared environmental challenges. This forces organizers to handle such cases manually or leads to resource waste. Therefore, a “Shared Instance” model should be introduced to support these scenarios.
-3.7.4.13. Dependency on Docker Hub for service and challenge image registry (IS-33)
+3.7.4.13. Dependency on Docker Hub for service and challenge image registry (IS-32)
 The current CI/CD build and deployment flow still relies on Docker Hub as the main registry for not only challenge images but also all core system service images (such as Contestant Portal, Admin MVC, Deployment Center, Gateway, etc.). This creates two practical limitations. First, Docker Hub's free private repository quota is limited to 20 GB, which is not sufficient for long-term operation when the system stores many challenge images, system service builds, versioned artifacts, and backups. Second, depending on a third-party public registry for core infrastructure components adds an external supply-chain dependency to a platform that needs strict control over image storage, access, and auditability. Any registry outage, rate limit, or credential exposure can delay both challenge deployment and system updates, weakening the overall security posture and stability of the competition platform. For these reasons, the image registry layer for the entire platform needs to be moved to a self-hosted solution.
 3.8. Potential solutions
 3.8.1. Application Logic & Data Integrity Issues
@@ -677,6 +649,7 @@ Time to return URL	Fastest (Immediately after workflow completes)	Slower (After 
 Eliminates CONNECTION_REFUSED	None	Yes	Yes
 Eliminates 503/500/timeout	None	None	Yes
 Accuracy	Low	Medium	High
+Table I 10: Comparison table of Health Check mechanisms for Challenge Deployment
 Table 6: Comparison table of Health Check mechanisms for Challenge Deployment
 Comparison between the system before and after applying the solution:
 Aspect	Before	After
@@ -684,7 +657,7 @@ Dependency checking	Only based on container status	Based on readiness probe + Po
 Time user receives connection	Early, causing connection errors	Only when service is truly ready
 User experience	System looks unstable	Smooth, system reliable
 Watcher accuracy	Easy to confuse status	Correct according to Kubernetes contract
-Table 7: Comparison table of system before and after applying health check mechanism
+Table I 11: Comparison table of system before and after applying health check mechanism
 Based on the above analysis, TCP socket check is evaluated as the most suitable solution for F-CTF in the current stage. This method provides significant improvement compared to having no health check, eliminates basic connection errors that contestants may encounter immediately after receiving the connection string, and does not require any changes from the question setter side.
 Applying TCP socket check as the default health check mechanism, combined with updating pod watcher logic to check "PodCondition Ready", helps improve the correctness of the system without increasing burden for question setters, while enhancing the overall experience of contestants during competition participation. This solution ensures the system complies correctly with Kubernetes Pod Lifecycle and eliminates the asynchrony between status notification and actual service accessibility.
 3.8.1.2. Address the issue of contestant behavior log recording depending on the client side (SOL-3)
@@ -694,7 +667,7 @@ In addition, the logging process needs to be placed in a try-catch block to ensu
 3.8.2.1. Reducing security risks when exposing challenge ports directly through network ports (SOL-4)
 To solve the above problem, the system proposes choosing an intermediate gateway model, in which all connections from players must go through a single control point. The gateway allows performing authentication, recording contestant action logs, limiting access, and dynamic routing to the correct challenge instance, while backends only exist in the internal network of the cluster.
  
-Figure 25: ChallengeGateway Architecture Overview
+Figure I 24: ChallengeGateway Architecture Overview
 ChallengeGateway is deployed as an intermediary service that handles both TCP and HTTP traffic. The gateway is the only entry point from the Internet, while challenge backends do not need to be exposed directly to the outside. When deployed on Kubernetes, the gateway can be exposed via NodePort or LoadBalancer, while challenge pods are only accessed from within the cluster.
 For TCP connections, the gateway receives connections from players, applies basic access limitation mechanisms and requires providing an authentication token. After the token is verified as valid, the gateway opens an internal TCP connection to the corresponding backend and forwards two-way data at pure byte-stream level. During this process, the gateway does not analyze or edit data content, ensuring pwn challenges operate correctly when connecting directly.
 For web-type challenges, the gateway operates as a reverse proxy, authenticates the token and routes HTTP requests to the corresponding backend. The token can be managed through URL or cookie to ensure user experience and reduce the risk of leaking access information.
@@ -706,7 +679,7 @@ However, the gateway does not aim to completely hide the network infrastructure 
 Solution	Main features	Advantage	Limit	Overall assessment
 Cloud-based TCP Proxy (e.g. Cloudflare Spectrum)	TCP proxy, hide backend IP, filter access, anti-DDoS	High protection level, stable infrastructure, reduced network attack risk	High cost, charged by port/traffic, difficult to expand with many challenges	Good technique but not feasible in cost for large-scale CTF
 ChallengeGateway	TCP/HTTP gateway, token authentication, dynamic routing, byte-stream proxy	Centralized access control, complete byte-stream preservation, low cost, flexible for CTF	Does not completely hide IP, no large anti-DDoS, has TCP authentication phase	Balanced solution, most suitable for multi-user CTF
-Table 8: Comparison of Gateway-Based Solutions for Secure Challenge Exposure in CTF Platforms
+Table I 12: Comparison of Gateway-Based Solutions for Secure Challenge Exposure in CTF Platforms
 ChallengeGateway solves a core problem in the CTF system which is controlling access and dynamic routing to the correct challenge instance for each player, especially for pwn challenges using pure TCP. By focusing on the intermediate gateway model, token authentication and byte-stream proxy, the system achieves a balance between security, performance, and feasibility in operation. Although not a comprehensive security solution, ChallengeGateway provides a suitable and practical platform to ensure fairness and control in the Capture The Flag competition environment.
 3.8.2.2. Improving the isolation and privilege mechanism of challenges (SOL-5)
 To overcome the Pod Security Standards violations stated, the challenge deployment template is redesigned to achieve compliance with Restricted policy level - the highest security level recommended for untrusted workloads. Improvements are implemented according to a defense-in-depth strategy, in which each independent protection layer has the ability to limit the impact scope (blast radius) of the challenge in case of exploitation, ensuring no impact on important components of the F-CTF system.
@@ -722,7 +695,7 @@ Kernel Sharing	Containers share host kernel directly	Each container has its own 
 System Calls	Syscalls transmitted directly down to host kernel	Syscalls are intercepted and handled by sandbox; only safe syscalls are forwarded
 Security Boundary	Host Linux kernel; vulnerability can lead to host compromise	Sandbox boundary; need to exploit both sandbox layer and host kernel
 Attack Surface	Large - container interacts directly with complex kernel	Significantly reduced due to intercepting and emulating syscalls
-Table 9: Comparison of Container Runtime - runc vs Sandboxed Runtime
+Table I 13: Comparison of Container Runtime - runc vs Sandboxed Runtime
 Although sandboxed runtime has performance overhead due to syscall interception and emulation mechanism, this is a completely acceptable trade-off in the CTF system context. Challenges have short lifecycles (from a few minutes to a few hours), low resource requirements, and workloads are mainly I/O bound rather than CPU intensive. More importantly, in a CTF environment where challenges are intentionally designed to contain vulnerabilities for contestants to exploit, tight isolation at the kernel level becomes a mandatory requirement to protect the system’s infrastructure.
 Along with that, the new template strictly enforces the principle of least privilege. Challenges are forced to run under non-root user with clearly specified UID, while eliminating the possibility of privilege escalation. The root filesystem is set to read-only mode, ensuring the process inside the container cannot change system files or install persistence mechanisms. Removing all Linux capabilities continues to narrow the set of rights the challenge can use.
 To reduce the attack surface at the kernel level, the new template applies Kubernetes’ default seccomp profile to limit the set of syscalls allowed to be called. This mechanism helps eliminate unnecessary syscalls for the challenge logic, thereby reducing the ability to exploit potential kernel vulnerabilities without affecting the normal function of the challenge.
@@ -746,7 +719,7 @@ Pod-level Security Context	None	Has pod-level securityContext	Enforces security 
 Pod Security Admission	Not enforced	Enforce restricted level	Automatically rejects pods violating policy
 AppArmor Profile	Not configured	RuntimeDefault	Adds mandatory access control
 Volume Types	No limit	Only allow safe volumes	Prevents hostPath access
-Table 10: Comparison and evaluation table of challenge template
+Table I 14: Comparison and evaluation table of challenge template
 Improving the challenge deployment template helps the F-CTF system enhance the ability to protect internal components, especially the database and platform services, against impacts arising from the challenge operation process. Through adding a runtime isolation layer, tightly controlling process privileges and applying clear network policies, challenges are strictly limited within the scope of the challenge’s function.
 This approach ensures that challenges only can access necessary resources, while minimizing the risk of affecting the integrity, security and stability of the entire F-CTF system during operation.
 3.8.2.3. Load control and workflow stability by resource allocation and priority mechanism
@@ -774,18 +747,18 @@ Problem solved: Control the speed of submitting workflows to Argo to avoid overl
 Problem context: In the initial stress test, although workflow timeout was configured for two minutes, workflows took up to twenty minutes to timeout. The cause was when one thousand workflows were submitted at the same time, etcd and Argo controller were seriously overloaded. Argo timeout is not a real-time timer but is enforced through the controller reconciliation loop - when the controller is congested, workflows that have expired must wait until the controller is free to be processed.
 Solution: Build a message queue (RabbitMQ) placed between DeploymentCenter API and Argo Workflows, acting as a buffer and concurrency regulator. Instead of accepting all requests and submitting directly to Argo, the system puts requests into the queue and uses workers to process with tightly controlled concurrency.
 Concurrency Control Mechanism:
-Worker implements hybrid control strategy including two protection layers:
-●	Primary: Concurrency-based control
+Workers implement hybrid control strategy including four protection layers:
+●	Concurrency-based control
 a.	Worker queries the number of Running workflows in Argo before each submission
 b.	Only submits when current_running < 30
 c.	Ensures Argo is never overloaded, workqueue always at stable level
-●	Secondary: Rate limiting protection
-a.	Worker does not submit more than 10 workflows/second even if there are empty slots
+●	Rate limiting protection
+a.	Worker does not submit more than 10 workflows per second even if there are available slots
 b.	Prevents etcd write spike if many workflows complete simultaneously
+●	Message Prefetch Limit: The RabbitMQ consumer is configured with a QoS Prefetch limit of 40. This ensures that at most 40 deployment messages are being actively processed by the consumer at any given time
 ●	Circuit breaker protection:
 a.	If Argo query fails 3 consecutive times, worker pauses submissions for 60 seconds
 b.	Allows Argo controller recovery after batch cleanup events
-c.	Explanation of 20-minute downtime observed in Test 2
 Comparison before and after: Before having the queue, one thousand workflow CRDs created simultaneously caused etcd write spike, informer lag, and controller backlog, leading to timeout being processed late by tens of minutes. After having the queue with rate limiting, workflows were submitted at controlled speed, etcd write stable, controller reconciled on time, and timeout mechanisms operated accurately according to configuration.
 Additional benefits: Besides ensuring timeout operates accurately, the queue also brings better observability - queue depth, processing rate can be observed, and throughput adjusted according to real-time metrics. The system also has graceful degradation capability - handling burst traffic without paralyzing the control plane. The queue can also implement retry logic with exponential backoff when Argo returns resource quota exceeded error.
 Expected effectiveness: Argo controller and etcd operate within design limits, not overloaded. Timeout mechanisms such as activeDeadlineSeconds and podGC are enforced at the configured time. The system could handle burst traffic in a stable way without affecting the accuracy of workflow lifecycle management mechanisms.
@@ -814,136 +787,186 @@ For Redis KEYS Command Blocking, the system needs to completely replace the use 
 3.8.3.4. Implementing CSRF protection mechanism (SOL-11)
 First, the system needs to add a CSRF token mechanism for all forms using the POST method. Each user session is assigned a unique token generated by the server and embedded in the form as a hidden field. The server will authenticate the token when receiving the request and reject invalid requests with HTTP 403 error code, ensuring only valid requests from the system interface are processed.
 In addition, endpoints using the CSRF bypass mechanism need to be reviewed and removed to reduce the attack surface and ensure consistency in security policy. The system also needs to configure the SameSite=Strict attribute for session cookies to prevent the browser from sending cookies in requests from external domains, thereby minimizing the risk of CSRF exploitation. At the same time, legacy APIs that are no longer used need to be removed or access limited through session control mechanism and endpoint whitelist to enhance access control and system protection.
-3.8.3.5. Event-Driven Monitoring and Code Quality Standardization (SOL-12)
-To overcome the inefficiency of periodic polling, a feasible method is to switch to an event-driven watching model by using the Kubernetes Informer/Watcher API - a mechanism that allows the service to register to listen to Pod status change events directly from Kubernetes instead of proactively sending requests at fixed intervals. This approach helps the system only consume resources when real events occur, significantly reducing the number of unnecessary requests to the API Server, while shortening status detection latency compared to polling which is limited by the fixed cycle.
-To overcome code quality issues, a feasible method is to strictly apply SOLID principles and standardize naming convention according to a unified agreement throughout the project. Specifically, separating responsibilities between classes through the Single Responsibility Principle helps each service only handle one group of business, making it easier to test and maintain. In addition, adding a centralized GlobalExceptionFilter helps unify error handling and return across the entire system, avoiding the situation where each controller handles errors in its own way which easily leads to leaking internal information. Compared to the old design, this approach makes the codebase easier to read, easier for new members to onboard, and minimizes the risk of potential bugs arising due to duplicated or scattered logic.
-3.8.3.6. Enforcing contest-state and prerequisite checks in file download flow (SOL-13)
+3.8.3.5. Enforcing contest-state and prerequisite checks in file download flow (SOL-12.1)
 To address IS-12.1, the file download endpoint needs a strict business authorization gate before any file read operation is executed. The system must reject requests when the contest has not started, has ended, or is in a non-access state by policy.
 For challenge files, the endpoint must also block access if challenge visibility is hidden for contestants or if prerequisite challenges have not been completed by the requesting team. If prerequisite metadata is malformed, missing, or fails validation, the endpoint must apply fail-closed behavior (deny-by-default) instead of continuing the request.
 With this approach, file delivery becomes bound to the real competition context, eliminating logic bypass cases where valid token alone could still lead to invalid file access.
-3.8.3.7. Implementing multi-layer path control in the file download function (SOL-13.2)
+3.8.3.6. Implementing multi-layer path control in the file download function (SOL-12.2)
 To overcome the path manipulation vulnerability in the challenge file download function, the system can implement three independent control layers for the file download request processing method, in which each layer acts as a separate defense barrier, ensuring that even if one layer is bypassed, the remaining layers still maintain the safety of the system.
 The first layer is path prefix checking: immediately after token authentication, the system checks whether the path parameter starts with the string "file/" or not (case-insensitive comparison). Any path that does not satisfy this condition is immediately rejected, thereby limiting the entire access scope to only the specified subdirectory inside the NFS mount, excluding all paths pointing to other storage areas that may contain more sensitive data.
 The second layer is database-based path authentication or database whitelist: the token is expanded to carry additional file_id, and the database query is designed to require both conditions f.Location == path and f.Id == fileToken.file_id to be satisfied simultaneously. This mechanism has core security meaning: only paths that have been pre-registered in the Files table and match the file for which the token was issued can be allowed access; any arbitrary path created by the contestant themselves cannot pass this step even if syntactically valid.
 The third layer is business-based access control: for files belonging to challenge type, the system performs two additional logical checks. First, reject if the corresponding challenge is in hidden status. Next, verify whether the contestant’s team has completed enough prerequisite challenges or not based on the team’s solved list in the database. If the challenge’s requirements JSON string has syntax error, the system defaults to deny-safe, avoiding error analysis leading to granting unintended rights. Overall these three control layers ensure that contestants can only download the exact file for which their token was issued, in the correct competition context and only when business conditions have been fully satisfied.
 The fourth layer is infrastructure isolation at Kubernetes volume level: the deployment configuration of the contestant-be service is adjusted to no longer mount the entire root NFS directory into the container, instead only mounting the exact subdirectory that the application is allowed to access via subPath: file (corresponding to mountPath: /mnt/nfs/data/file), while setting the volume in readOnly: true mode. This protection layer operates completely independently of application source code and is at the kernel/OS layer: even if the application is exploited or misconfigured, the process inside the container physically cannot see any content outside the file/ directory of NFS and also cannot overwrite any file on NFS. This is the most important defense-in-depth protection layer because it eliminates the attack surface at the infrastructure layer instead of only relying on checks in code. Overall, these four control layers ensure that contestants can only download the exact file for which their token was issued, in the correct competition context, only when business conditions have been fully satisfied, and even in the scenario where the application is compromised, the container cannot go beyond the physical limits established by the infrastructure.
-3.8.3.8. Overcoming race condition in challenge lifecycle by distributed locks, status control and parallel processing (SOL-14)
+3.8.3.7. Overcoming race condition in challenge lifecycle by distributed locks, status control and parallel processing (SOL-13)
 To overcome the above issues, changes in the system not only focus on fixing errors in individual endpoints but also adjust the way the system processes the entire lifecycle of challenges. Improvements focus on three main directions: increasing safety level for important operations, tighter control of deployment lifecycle, and improving concurrent processing capability of infrastructure status monitoring components.
 For the unlock hint function, a feasible solution is to expand the scope of the existing Redis lock to cover both the prerequisite condition checking step and hint status before writing data. When a request starts processing the unlock operation, the system can hold the lock corresponding to the user or team throughout the process of checking and updating data. Other requests must wait until the lock is released. This approach helps ensure that prerequisite checks, hint status and player points are performed on the latest data, avoiding situations where multiple requests pass the check step and write data almost simultaneously.
 For dynamic challenges, recalculating the point value can be protected by a distributed lock according to challengeId. Before reading the number of teams that have solved the challenge and updating the point value again, the system can temporarily hold the lock corresponding to that challenge. This helps ensure that at any one time only one process performs the point calculation, thereby avoiding cases where multiple requests read old data and then overwrite each other’s results.
 In the challenge stopping flow, another solution is to apply a distributed lock according to the team-challenge pair to ensure each deployment has only one stop process performed at a time. Before sending the stop request to Deployment Center, the backend can check again the existence of the deployment cache in Redis to confirm the challenge is active. This mechanism helps limit duplicate stop operations or late requests continuing to affect the already-stopped deployment. In addition, instead of updating STOPPED status with short existence time when receiving Deleted event from Kubernetes, another approach is to completely delete the deployment cache entry in Redis. This method helps avoid the listener overwriting previous statuses and reduces the possibility of deviation between cache status and the actual status of resources on Kubernetes.
 In general, the solutions proposed above help significantly reduce the possibility of race condition occurring in important operations of the system. Sensitive operations are protected by distributed locking mechanisms, deployment status is controlled more tightly through clear intermediate steps, and events from Kubernetes are processed in a parallel model but still ensure the necessary order. Thereby the system can achieve better data consistency, higher concurrent processing capability and ensure fairness in the competition process.
-3.8.3.9. Upgrading DeploymentListener according to sharding + multi-worker model (SOL-15)
+3.8.3.8. Upgrading DeploymentListener according to sharding + multi-worker model (SOL-14)
 For the DeploymentListener component, an improvement direction is to process more efficiently when many Kubernetes events occur at the same time by classifying events according to each Pod UID and allocating them to multiple parallel processing workers. Events related to the same pod are sent to the same worker to ensure processing order within each shard, while other workers can process other pods simultaneously. This design helps reduce event backlog when infrastructure load increases, shortens latency in synchronizing RUNNING, STOPPED or DELETING status to Redis and database, while still preserving the sequentiality necessary for each pod.
 3.8.4. Operational Efficiency & UX
 3.8.4.1. Improving user experience on Monitoring page and Pod Log
-a, Improving Monitoring and Pod Log filter set (SOL-16.1)
+a, Improving Monitoring and Pod Log filter set (SOL-15.1)
 To solve the limitation in observability on Monitoring and log page, the system needs to add flexible filters and quick operations for active challenge instances. Expanding displayed data helps Admin and Jury recognize status, challenge type and related subjects faster when the system has many simultaneous instances.
 This solution aims to reduce dependence on manual operations, while shortening search and incident handling time during competition operation.
-b, Adding auto-refresh for Pod Log (SOL-16.2)
+b, Adding auto-refresh for Pod Log (SOL-15.2)
 For the pod log viewing page, the system needs to implement a real-time update mechanism or at least a quick refresh function without having to reload the entire page. When logs are continuously synchronized, Admin and Jury can monitor the progress of the pod during deployment or debugging without interruption.
 Supporting auto-refresh log helps enhance continuous event monitoring capability and improves operation experience in contests with many challenge instances running simultaneously.
-c, Building mechanism to track request logs from challenge instance (SOL-16.3)
+c, Building mechanism to track request logs from challenge instance (SOL-15.3)
 To solve the limitation when the system does not provide logs of requests that contestants send to challenge instances, the backend needs to be expanded to record important requests right at the business processing layer instead of depending on the client. This approach helps logs accurately reflect real user behavior and reduces the risk of spoofing or missing data.
 Besides storing logs per request, the system needs to add a request log lookup interface for Admin and Jury with filters by team, user, challenge, request status and time period. When request logs are stored centrally and can be queried quickly, organizers will easily detect abnormal behavior, support incident investigation and increase transparency in the competition operation process.
-3.8.4.2. Upgrading analysis capability on Dashboard (SOL-17)
+3.8.4.2. Upgrading analysis capability on Dashboard (SOL-16)
 The current Dashboard mainly provides overview information, does not support in-depth analysis metrics to serve challenge quality evaluation and player behavior. To solve this limitation, the system needs to add analysis metrics such as solve rate of each challenge, average solve time, number of incorrect submissions, number of hint usages and point distribution over time. In addition, the dashboard should also provide statistics on the most solved challenges, the least solved and number of solves by category. Adding these metrics helps the Dashboard become an effective data analysis tool, supporting organizers in evaluating exam difficulty and making appropriate adjustments for future competitions.
-3.8.4.3. Building Reward Query function to serve awards (SOL-18)
+3.8.4.3. Building Reward Query function to serve awards (SOL-17)
 To overcome the problem of having to perform manual operations to query data to determine award categories, the system needs to build a Reward Query module allowing Admin to query and aggregate data according to multiple criteria such as Top N teams, minimum points, first blood, category or time period. At the same time, the system should support exporting data to Excel or CSV. This function helps speed up result aggregation, reduce errors due to manual operations and ensure transparency when announcing awards.
-3.8.4.4. Enhancing User and Team management capability (SOL-19)
+3.8.4.4. Enhancing User and Team management capability (SOL-18)
 To improve user and team management capability, the system needs to expand information in the User table by adding fields such as team name, role, verified status, hidden, or banned, and support corresponding filters. For Team, the system needs to display additional information about captain, number of members and allow filtering by status or country. These improvements help Admin easily track and manage participant data, especially in large-scale competitions.
-3.8.4.5. Completing Submission management function (SOL-20)
-The current Submission management function still lacks necessary data filtering tools and has some errors in the data export process. To solve this problem, the system needs to add filters by team, user and time in the Submission screen. At the same time, the export error needs to be fixed to ensure data is exported accurately according to correct or incorrect status. In addition, the system should also support the score reset function for dynamic challenges and allow Admin to adjust submission status in special cases. These improvements help the submission processing process become more flexible and ensure accuracy when operating competitions.
-3.8.4.6. Building Instance History and long-term log storage mechanism (SOL-21)
+3.8.4.5. Completing Submission management function (SOL-19)
+The current Submission management function still lacks necessary data filtering tools and has some errors in the data export process. To solve this problem, the system needs to add filters by team, user and time in the Submission screen. At the same time, the export error needs to be fixed to ensure data is exported accurately according to correct or incorrect status. In addition, the system should also support the score resync function for dynamic challenges and allow Admin to adjust submission status in special cases. These improvements help the submission processing process become more flexible and ensure accuracy when operating competitions.
+3.8.4.6. Building Instance History and long-term log storage mechanism (SOL-20)
 Currently the system does not have a mechanism allowing review of the entire lifecycle history of challenge instances, causing difficulty when needing to trace or report after the competition. To solve this problem, the system needs to build an Instance History module for Admin. This module stores essential information such as creation time, instance stop time, corresponding user and team. Data is stored persistently in the database and supports search, filtering by multiple criteria as well as exporting data to CSV file. Adding this function helps increase event tracing capability, supports reporting and post-competition analysis.
-3.8.4.7. Implementing system-wide Audit Log mechanism (SOL-22)
+3.8.4.7. Implementing system-wide Audit Log mechanism (SOL-21)
 The current system does not have a mechanism to fully record administration operations, making tracing difficult when incidents or disputes occur. To solve this problem, an Audit Log mechanism needs to be implemented to record important actions of Admin, Jury and Challenge Writer such as editing challenges, changing configuration, handling submissions or updating user and team information. Log data needs to be designed in read-only mode to ensure it cannot be edited or deleted. This mechanism helps increase tracing capability, supports internal checking and ensures transparency in the CTF system operation process.
-3.8.4.8. Implementing mechanism to view Action Log for administrators (SOL-23)
+3.8.4.8. Implementing mechanism to view Action Log for administrators (SOL-22)
 Besides recording logs, the system also needs to provide an intuitive interface so that administrators can look up and analyze activities that have occurred. To meet this need, an Action Log screen needs to be built in the Admin Interface allowing filtering by contest, user, team, action type, challenge and time period. The system also needs to support search, pagination and data export for reporting. In addition, the permission mechanism needs to be designed clearly to ensure each role can only access the appropriate log scope. This function helps enhance system monitoring capability, support cheating tracing and increase transparency in the competition organization process.
-3.8.4.9. Improving Import/Export function (SOL-24)
+3.8.4.9. Improving Import/Export function (SOL-23)
 The current import/export function still has some errors and does not provide detailed feedback information after processing batch data. To overcome this problem, the system needs to complete the import/export mechanism to ensure data is processed stably with CSV files or configuration templates. At the same time, it needs to add import result reports, including number of successful records, failures and skipped cases (for example: username already exists). These improvements help Admin easily control the data entry process, reduce errors and increase reliability when operating with large numbers of records.
-3.8.4.10. Improving bracket division function and scoreboard data display (SOL-25)
+3.8.4.10. Improving bracket division function and scoreboard data display (SOL-24)
 To overcome the current limitations of the bracket function, the system needs to add some improvements in both Contestant Portal and Admin Interface.
 On the Contestant Portal, the Scoreboard page needs to support filtering by bracket, allowing contestants to choose to view the ranking table of the entire competition or only within the scope of their bracket. This feature helps contestants easily track their position in the corresponding classification group.
 On Admin Interface, the system needs to complete the bracket management function, allowing administrators to assign users or teams to each bracket and view the member list in each group. At the same time, the Visibility configuration section needs to add options to allow or restrict displaying scoreboard between brackets.
 These improvements help increase flexibility when organizing competitions with many groups of participants, while improving the ranking table tracking experience for contestants.
-3.8.4.11. Building automated CI/CD process for system deployment (SOL-26)
+3.8.4.11. Building automated CI/CD process for system deployment (SOL-25)
 To overcome the weakness of the manual deployment process, a feasible solution is for the system to be supplemented with an automated CI/CD pipeline based on GitHub Actions, triggered when changes are pushed to the main branch. The pipeline performs build and deployment of services to the cluster automatically, while only rebuilding services affected by source code changes to optimize processing time.
 The deployment process is controlled through rollout status checking steps to ensure updates are applied successfully before completing the pipeline. In addition, concurrency management mechanism is also integrated to avoid multiple pipelines deploying to the production environment at the same time causing conflicts. Thanks to this mechanism, the deployment process that previously required many manual operations is simplified to one git push operation, helping to reduce human errors, ensure the production environment is always synchronized with the latest source code and allow faster release of updates or security patches.
 3.8.4.12. Challenge Management Improvements
-a, Upgrading View Challenges and Search Challenges (SOL-27)
+3.8.4.12.1 Upgrading View Challenges and Search Challenges (SOL-26)
 To solve the limitation in observability and data retrieval of challenges, the system needs to be improved towards increasing transparency and information filtering capability. Expanding displayed information and supporting flexible filtering mechanisms helps users quickly grasp the status and characteristics of each challenge in the system.
 This solution aims to reduce dependence on manual operations, while improving administration efficiency when the number of challenges increases. When search and classification capability is optimized, administrators can make decisions faster and minimize errors in the contest operation process.
-b, Adding full deployment configuration for challenges (SOL-28)
+3.8.4.12.2 Adding full deployment configuration for challenges (SOL-27)
 An important weakness of the current system is the limited ability to control deployment configuration, especially related to resources and isolation level. Therefore, a tighter configuration management approach needs to be applied to ensure each challenge is deployed in a controlled environment.
 Adding resource configuration parameters and validity checking mechanism before deployment helps minimize the risk of system overload and configuration errors. At the same time, enhancing this control capability also contributes to improving the stability of the entire infrastructure, especially in the context of many challenges being deployed simultaneously.
-c, Full support for dynamic challenges (SOL-29)
+3.8.4.12.3 Full support for dynamic challenges (SOL-28)
 To support challenges with point reduction mechanism according to the number of correct submissions, the system needs to add dynamic challenge type with separate configuration fields such as current value, initial value, decay function, decay value and minimum value. The administration interface needs to allow Challenge Writers to choose the appropriate point reduction function type, for example Linear or Logarithmic, and clearly display the current point value for easy tracking during the competition.
 At the business processing layer, the backend needs to recalculate the challenge points based on the number of teams or players who have solved correctly and update this value consistently after each valid submission. This design helps the system correctly reflect the competitive behavior of the contest, increase flexibility for question setters and better suit modern CTF models.
-d, Building challenge version management mechanism (SOL-30)
-To solve the problem of challenge changes being overwritten directly, the system needs to save each challenge edit as a separate version. Each version should include information about creation time, Docker configuration, flag, resource settings and description content at that time. The Version History interface needs to support viewing the version list in chronological order, and also allow viewing details of each version to compare configurations.
+3.8.4.12.4 Building challenge version management mechanism (SOL-29)
+To solve the problem of challenge changes being overwritten directly, the system needs to save each challenge edit as a separate version. Each version should include information about creation time, Docker configuration, flag, resource settings and description content at that time. The Version History interface needs to support viewing the version list in chronological order and also allow viewing details of each version to compare configurations.
 Storing version history helps Challenge Writers and Admins easily trace changes, quickly detect which update caused build/deploy errors, and maintain challenge quality control over time. This is an important foundation to reduce risks when operating long-running contests.
-e, Establishing safe challenge version rollback process (SOL-31)
+3.8.4.12.4 Establishing safe challenge version rollback process (SOL-30)
 In real operation environment, the ability to quickly restore to stable status is an important factor. Therefore, the system needs to support a controlled rollback mechanism, allowing return to previous versions in a consistent way.
 This solution helps significantly reduce recovery time when challenges have built or deploy errors, while avoiding manual editing that is easy to cause errors. When rollback is attached to version history and automatic redeployment process, the system can return to stable status quickly and under control.
-f, Adding Shared Instance challenge type (SOL-32)
+3.8.4.12.5 Adding Shared Instance challenge type (SOL-31)
 To address this limitation, the system introduces a “Shared Instance” option for challenges. When enabled, a single shared environment is deployed and accessed by all teams. Changes are applied at both the data and backend layers to support this mode and ensure a consistent state across all teams. The solution remains fully backward compatible: existing challenges behave as before, while only those with “Shared Instance” enabled use the new model.
-3.8.4.13. Transitioning service and challenge image registry (SOL-33)
+3.8.4.13. Transitioning service and challenge image registry (SOL-32)
 To address the dependency on Docker Hub, the system should use Harbor as the unified self-hosted image registry for all F-CTF core services as well as challenge images. The CI/CD build pipeline will push all system component images (Contestant Portal, Admin MVC, Backend services, etc.) and challenge artifacts directly to Harbor, and deployment workflows will pull images exclusively from Harbor, keeping the full image supply chain under organizational control. Harbor provides project-level access control, TLS, audit logs, vulnerability scanning, and image retention policies, which makes it highly suitable for a competition platform that manages both sensitive challenge images and critical system services. Moving to Harbor removes the 20 GB free private-repository limit of Docker Hub, centralizes image management, and eliminates the operational risk of relying on an external third-party registry for production deployments and platform updates.
 3.8.5. Solution Group for Architecture and Security (SOL-1)
-Based on the analyzed vulnerabilities and risks, the remediation process will focus on re-establishing a secure architecture following the principles of least privilege and defense-in-depth across all system layers. The core objective is to isolate components, minimize the blast radius in the event of an incident, and eliminate redundant privileges that are unnecessary for business operations.
-At the network layer, the system must immediately implement NetworkPolicies with a default-deny principle for both ingress and egress traffic. Instead of the current open network model, internal communication flows between pods will only be permitted when explicitly declared based on actual needs. Simultaneously, to counter the risk of data theft through internal packet sniffing, all communication traffic between services must be encrypted through the deployment of mTLS, ensuring the confidentiality of sensitive information such as tokens and challenge flags.
-For the MariaDB database, restructuring authorization is an extremely urgent task. Administrators must immediately disable remote access capabilities for the superuser account, only allowing this account to connect from the local environment. The current shared account with full privileges must be removed and replaced with independent database accounts for each separate service. Each of these accounts will be strictly configured to limit access rights, only allowing query, insert, or update operations on the exact data tables that the service requires to process its business logic, absolutely preventing cross-data interference.
-The security hardening process for Redis will begin by enabling the Access Control List (ACL) mechanism and completely disabling the uncontrolled default user. The system will create separate Redis users for each component, such as the admin interface, gateway, or deployment services. These accounts will be strictly limited to operating only on data key prefixes within their scope and will only be allowed to use a minimized command set. Specifically, destructive or system-monitoring commands such as configuration changes, full data flushes, server shutdowns, or traffic monitoring must be completely blocked or renamed to prevent the risk of abuse.
-Regarding shared storage, the PersistentVolumes connected to NFS must be immediately updated with secure mount options (such as noexec) to prohibit the execution of any binary files from this storage space. Data boundary fragmentation will be enforced through directory-level access control lists, ensuring each service or CI/CD workflow only has read and write permissions on its exact designated directory. The NFS server configuration also needs to be adjusted to prevent containers running with the highest administrative privileges from modifying the file ownership of other services on the shared partition.
-Finally, for the orchestration and monitoring infrastructure, all connections to the Argo Workflows server must be transitioned to the HTTPS encrypted protocol to protect authentication tokens. The orchestration system must be supplemented with restriction rules so that only approved workflow templates are capable of execution. Container groups without the need to communicate with the cluster management system will have their automatic service account token mounting feature disabled. Concurrently, the Grafana monitoring platform will be configured using an infrastructure-as-code approach to lock the editing functionality of default dashboards, ensuring the integrity of observability data under any attack scenario.
+Based on the analyzed vulnerabilities, the remediation focuses on re-establishing a secure architecture using the principles of least privilege and defense-in-depth to isolate components and minimize the blast radius. At the network layer, the system enforces NetworkPolicy with a default-deny principle, strictly whitelisting internal pod-to-pod communication based on explicit functional requirements to prevent lateral movement.
+For data and storage persistence, the shared full-privilege database account is replaced with independent, service-specific MariaDB accounts strictly scoped to necessary tables, alongside disabling remote superuser access. Furthermore, native TLS encryption is enabled to secure connections, and the MariaDB Audit Plugin is activated to log critical queries (DDL/DML) for centralized tracing. Similarly, the caching layer utilizes Redis Access Control Lists (ACL) to assign dedicated users restricted to required key prefixes, entirely blocking destructive commands such as CONFIG and FLUSHALL. At the shared storage layer, secure mount options (noexec) are applied to PersistentVolumes to prevent arbitrary binary execution, while directory-level ACLs and proper user mapping ensure strict data boundary fragmentation between CI/CD workflows and applications.
+Finally, regarding the orchestration and monitoring infrastructure, the Argo Workflows API is secured by protecting external access with a TLS-terminated Ingress. The system strictly enforces workflowRestrictions to prohibit unapproved templates, transitions to client-based authentication, and disables automatic service account token mounting for non-essential pods. Concurrently, the Grafana monitoring platform locks default dashboard editing from the UI (allowUiUpdates: false) to mandate an Infrastructure-as-Code approach, further hardening access by disabling anonymous authentication, enforcing Content Security Policy (CSP), and utilizing secure cookies.
 3.9. Summary of Issue-Solution Mapping
 To support tracking and cross-referencing between weaknesses in section 3.7 and potential solutions in section 3.8, the table below summarizes 1-1 mapping between each issue and corresponding solution. For solutions with multiple sub-actions, the table uses solution family code to maintain consistency in lookup.
 Issue ID	Solution ID	Weakness summary
-IS-1	SOL-1	Lack of Network Policy and Least Privilege implementation
+IS-1
+SOL-1
+Lack of Network Policy and Least Privilege implementation
 IS-2
-SOL-2.1, SOL-2.2	Health check in challenge deployment
+SOL-2.1, SOL-2.2
+Health check in challenge deployment
 IS-3
-SOL-3	Action log depends on client side
+SOL-3
+Action log depends on client side
 IS-4
-SOL-4	Expose challenge port directly
+SOL-4
+Expose challenge port directly
 IS-5
-SOL-5	Challenge pod isolation and privilege shortcomings
+SOL-5
+Challenge pod isolation and privilege shortcomings
 IS-6
-SOL-6.1, SOL-6.2, SOL-6.3, SOL-6.4	Argo workflow become unresponsive when lacking resources
+SOL-6.1, SOL-6.2, SOL-6.3, SOL-6.4
+Argo workflow becomes unresponsive when lacking resources
 IS-7
-SOL-7	Security configuration vulnerabilities
+SOL-7
+Security configuration vulnerabilities
 IS-8
-SOL-8	N+1 query problem
+SOL-8
+N+1 query problem
 IS-9
-SOL-9	DI lifetime not suitable
+SOL-9
+DI lifetime not suitable
 IS-10
-SOL-10	Redis KEYS blocking
-IS-11	SOL-11	Lack of CSRF protection
-IS-12	SOL-12	Polling-based monitoring and code quality
-IS-13.1	SOL-13.1	Contest-state and prerequisite logic gaps in challenge file download
-IS-13.2	SOL-13.2	Path traversal risk in challenge file download
-IS-14	SOL-14	Race condition in challenge lifecycle and submit flow
-IS-15	SOL-15	Deployment Listener sequential processing causes backlog
-IS-16	SOL-16.1, SOL-16.2, SOL-16.3	UX limitations in Monitoring and Log
-IS-17	SOL-17	Dashboard lacks in-depth analysis
-IS-18	SOL-18	Lack of Reward Query
-IS-19	SOL-19	User and Team management limitations
-IS-20	SOL-20	Submission management limitations
-IS-21	SOL-21	Lack of Instance History
-IS-22	SOL-22	Lack of Audit Log
-IS-23	SOL-23	Lack of Action Log for administrators
-IS-24	SOL-24	Import/Export not stable
-IS-25	SOL-25	Bracket and scoreboard not synchronized
-IS-26	SOL-26	Lack of automated CI/CD
-IS-27	SOL-27	View/Search Challenges limited
-IS-28	SOL-28	Lacking challenge deployment configuration
-IS-29	SOL-29	Lack of dynamic challenge support
-IS-30	SOL-30	Lack of version history for challenge
-IS-31	SOL-31	Lack of safe rollback for challenge
-IS-32	SOL-32	Lack of Shared Instance challenge type
-IS-33	SOL-33	Dependency on Docker Hub for image registry
-Table 11: Issue-Solution Mapping Summary
+SOL-10
+Redis KEYS blocking
+IS-11
+SOL-11
+Lack of CSRF protection
+IS-12.1
+SOL-12.1
+Contest-state and prerequisite logic gaps in challenge file download
+IS-12.2
+SOL-12.2
+Path traversal risk in challenge file download
+IS-13
+SOL-13
+Race condition in challenge lifecycle and submit flow
+IS-14
+SOL-14
+Deployment Listener sequential processing causes backlog
+IS-15
+SOL-15.1, SOL-15.2, SOL-15.3
+UX limitations in Monitoring and Log
+IS-16
+SOL-16
+Dashboard lacks in-depth analysis
+IS-17
+SOL-17
+Lack of Reward Query
+IS-18
+SOL-18
+User and Team management limitations
+IS-19
+SOL-19
+Submission management limitations
+IS-20
+SOL-20
+Lack of Instance History
+IS-21
+SOL-21
+Lack of Audit Log
+IS-22
+SOL-22
+Lack of Action Log for administrators
+IS-23
+SOL-23
+Import/Export not stable
+IS-24
+SOL-24
+Bracket and scoreboard not synchronized
+IS-25
+SOL-25
+Lack of automated CI/CD
+IS-26
+SOL-26
+View/Search Challenges limited
+IS-27
+SOL-27
+Lacking challenge deployment configuration
+IS-28
+SOL-28
+Lack of dynamic challenge support
+IS-29
+SOL-29
+Lack of version history for challenge
+IS-30
+SOL-30
+Lack of safe rollback for challenge
+IS-31
+SOL-31
+Lack of Shared Instance challenge type
+IS-32
+SOL-32
+Dependency on Docker Hub for image registry
+Table I 15: Issue-Solution Mapping Summary
 4. Business Opportunity
 4.1. Market demand
 The strong development of CTF (Capture The Flag) in the cybersecurity field has created large demand for platforms to organize CTF competitions in a stable, secure and scalable way. CTF has now become an important tool in evaluating, researching and developing cybersecurity personnel at educational institutions. For participants, CTF competitions serve as an excellent foundational step for pursuing a career in cybersecurity and information safety field (According to the CỔNG THÔNG TIN ĐIỆN TỬ HỌC VIỆN ANND4. At FPT University, the annual FPTU SecAthon - large-scale CTF event - is setting increasingly high requirements for technical infrastructure serving competitions. With long competition time, increasing number of teams and contestants, as well as the complexity of challenges, the CTF competition platform needs to be comprehensively upgraded to fully meet the organizers’ requirements on stability, security and high load handling. This urgent demand stems from the reality that the current system still has weaknesses in architecture, security and user experience, which need to be overcome to ensure the competition takes place successfully and professionally.
@@ -989,7 +1012,7 @@ The F-CTF project focuses on overcoming limitations and weaknesses in the archit
 ●	Building automated CI/CD process for system deployment: Deploying a complete CI/CD pipeline based on GitHub Actions organized into four stages of change detection, parallel build, automatic deployment and result checking, helping to shorten the deployment process from many manual steps down to one git push operation.
 6.2. Out of Scope
 Due to the specific characteristics of each challenge type, the Dynamic Flag mechanism cannot be applied to the entire system and is outside the general implementation scope of this version.
-III. References
+7. References
 ¹ Kubernetes Security Checklist. Available at: 
 https://kubernetes.io/docs/concepts/security/security-checklist/ [Accessed 22 Jan. 2026]. 
 ² Pod Security Standards. Available at: 

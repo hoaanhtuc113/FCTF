@@ -1,0 +1,176 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - link "F-CTF" [ref=e3] [cursor=pointer]:
+      - /url: /?route=%2F
+      - img "F-CTF" [ref=e4]
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link " Dashboard" [ref=e8] [cursor=pointer]:
+          - /url: /admin/statistics
+          - generic [ref=e9]: 
+          - text: Dashboard
+      - listitem [ref=e10]:
+        - link " Challenges" [ref=e11] [cursor=pointer]:
+          - /url: /admin/challenges
+          - generic [ref=e12]: 
+          - text: Challenges
+      - listitem [ref=e13]:
+        - link " Users" [ref=e14] [cursor=pointer]:
+          - /url: /admin/users
+          - generic [ref=e15]: 
+          - text: Users
+      - listitem [ref=e16]:
+        - link " Action Logs" [ref=e17] [cursor=pointer]:
+          - /url: /admin/action_logs
+          - generic [ref=e18]: 
+          - text: Action Logs
+      - listitem [ref=e19]:
+        - link " Instances History" [ref=e20] [cursor=pointer]:
+          - /url: /admin/instances_history
+          - generic [ref=e21]: 
+          - text: Instances History
+      - listitem [ref=e22]:
+        - link " Audit Logs" [ref=e23] [cursor=pointer]:
+          - /url: /admin/admin_audit
+          - generic [ref=e24]: 
+          - text: Audit Logs
+      - listitem [ref=e25]:
+        - link " Tickets" [ref=e26] [cursor=pointer]:
+          - /url: /admin/viewticket
+          - generic [ref=e27]: 
+          - text: Tickets
+      - listitem [ref=e28]:
+        - link " Teams" [ref=e29] [cursor=pointer]:
+          - /url: /admin/teams
+          - generic [ref=e30]: 
+          - text: Teams
+      - listitem [ref=e31]:
+        - link " Scoreboard" [ref=e32] [cursor=pointer]:
+          - /url: /admin/scoreboard
+          - generic [ref=e33]: 
+          - text: Scoreboard
+      - listitem [ref=e34]:
+        - generic [ref=e35] [cursor=pointer]:
+          - generic [ref=e36]: 
+          - text: Submissions
+          - generic [ref=e37]: 
+      - listitem [ref=e38]:
+        - link " Dynamic Reward Query" [ref=e39] [cursor=pointer]:
+          - /url: /admin/rewards
+          - generic [ref=e40]: 
+          - text: Dynamic Reward Query
+      - listitem [ref=e41]:
+        - link " Config" [ref=e42] [cursor=pointer]:
+          - /url: /admin/config
+          - generic [ref=e43]: 
+          - text: Config
+      - listitem [ref=e44]:
+        - link " Monitoring" [ref=e45] [cursor=pointer]:
+          - /url: /admin/monitoring
+          - generic [ref=e46]: 
+          - text: Monitoring
+    - link " Logout" [ref=e48] [cursor=pointer]:
+      - /url: /logout
+      - generic [ref=e49]: 
+      - text: Logout
+  - main [ref=e51]:
+    - generic [ref=e52]:
+      - heading " Configuration" [level=1] [ref=e55]:
+        - generic [ref=e56]: 
+        - text: Configuration
+      - generic [ref=e58]:
+        - list [ref=e60]:
+          - listitem [ref=e61]:
+            - tab " General" [ref=e62] [cursor=pointer]:
+              - generic [ref=e63]: 
+              - text: General
+          - generic [ref=e64]: Appearance
+          - listitem [ref=e65]:
+            - tab " Logo" [ref=e66] [cursor=pointer]:
+              - generic [ref=e67]: 
+              - text: Logo
+          - generic [ref=e68]: Access
+          - listitem [ref=e69]:
+            - tab " Visibility" [ref=e70] [cursor=pointer]:
+              - generic [ref=e71]: 
+              - text: Visibility
+          - listitem [ref=e72]:
+            - tab " Start and End Time" [ref=e73] [cursor=pointer]:
+              - generic [ref=e74]: 
+              - text: Start and End Time
+          - listitem [ref=e75]:
+            - tab " Pause" [ref=e76] [cursor=pointer]:
+              - generic [ref=e77]: 
+              - text: Pause
+          - generic [ref=e78]: Users
+          - listitem [ref=e79]:
+            - tab " Scoreboard Brackets" [ref=e80] [cursor=pointer]:
+              - generic [ref=e81]: 
+              - text: Scoreboard Brackets
+          - listitem [ref=e82]:
+            - tab " Custom Fields" [ref=e83] [cursor=pointer]:
+              - generic [ref=e84]: 
+              - text: Custom Fields
+          - generic [ref=e85]: Backup
+          - listitem [ref=e86]:
+            - tab " Import & Export" [ref=e87] [cursor=pointer]:
+              - generic [ref=e88]: 
+              - text: Import & Export
+          - generic [ref=e89]: Security
+          - listitem [ref=e90]:
+            - tab " Sanitize" [ref=e91] [cursor=pointer]:
+              - generic [ref=e92]: 
+              - text: Sanitize
+          - generic [ref=e93]: Danger zone
+          - listitem [ref=e94]:
+            - tab " Reset" [ref=e95] [cursor=pointer]:
+              - generic [ref=e96]: 
+              - text: Reset
+        - generic [ref=e98]:
+          - tabpanel [ref=e99]:
+            - generic [ref=e100]:
+              - generic [ref=e101]:
+                - generic [ref=e102]:
+                  - text: Event Name
+                  - generic [ref=e103]: When no logo is specified, the CTF's name is used instead.
+                - textbox "Event Name When no logo is specified, the CTF's name is used instead." [ref=e104]:
+                  - /placeholder: CTF Name
+                  - text: FCTF
+              - generic [ref=e105]:
+                - generic [ref=e106]:
+                  - text: Event Description
+                  - generic [ref=e107]:
+                    - text: Description of your CTF. Available for use on your custom pages and emails as
+                    - code [ref=e108]: "{ctf_description}"
+                    - text: .
+                - textbox [ref=e109]: Batch description 2026-04-06T10:27:33.320Z
+              - generic [ref=e110]:
+                - generic [ref=e111]:
+                  - text: Captain Only Start Challenge
+                  - generic [ref=e112]: When enabled, only team captains can start challenges that require deployment. Other team members will see a message indicating they need captain permission.
+                - combobox "Captain Only Start Challenge When enabled, only team captains can start challenges that require deployment. Other team members will see a message indicating they need captain permission." [ref=e113]:
+                  - option "Enabled"
+                  - option "Disabled" [selected]
+              - generic [ref=e114]:
+                - generic [ref=e115]:
+                  - text: Captain Only Submit Challenge
+                  - generic [ref=e116]: When enabled, only team captains can submit flags for challenges. Other team members will not be able to submit answers.
+                - combobox "Captain Only Submit Challenge When enabled, only team captains can submit flags for challenges. Other team members will not be able to submit answers." [ref=e117]:
+                  - option "Enabled"
+                  - option "Disabled" [selected]
+              - generic [ref=e118]:
+                - generic [ref=e119]:
+                  - text: Limit Challenges
+                  - generic [ref=e120]: Maximum number of challenges that can be started simultaneously by a team. Must be at least 1.
+                - spinbutton "Limit Challenges Maximum number of challenges that can be started simultaneously by a team. Must be at least 1." [ref=e121]: "3"
+              - generic [ref=e122]:
+                - generic [ref=e123]:
+                  - text: Incorrect Submissions per Minute
+                  - generic [ref=e124]: "Number of submissions allowed per minute for flag bruteforce protection (default: 10)"
+                - 'spinbutton "Incorrect Submissions per Minute Number of submissions allowed per minute for flag bruteforce protection (default: 10)" [ref=e125]'
+              - button "Update" [ref=e126] [cursor=pointer]
+          - text: "! ! "
+```
