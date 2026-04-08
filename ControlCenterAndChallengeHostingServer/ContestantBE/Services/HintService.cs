@@ -1,5 +1,6 @@
 ﻿using ContestantBE.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.Hint;
 using ResourceShared.Logger;
 using ResourceShared.Models;
@@ -54,6 +55,76 @@ public class HintService : IHintService
         }
         catch { }
         return result;
+    }
+
+    private async Task EnsureChallengePrerequisitesUnlockedAsync(Challenge challenge, User user)
+    {
+        if (string.IsNullOrWhiteSpace(challenge.Requirements))
+        {
+            return;
+        }
+
+        try
+        {
+            var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
+            var prerequisites = requirementsObj?.prerequisites;
+
+            if (prerequisites == null || prerequisites.Count == 0)
+            {
+                return;
+            }
+
+            var allChallengeIds = (await _context.Challenges
+                    .AsNoTracking()
+                    .Select(c => c.Id)
+                    .ToListAsync())
+                .ToHashSet();
+
+            var validPrerequisites = prerequisites
+                .Where(allChallengeIds.Contains)
+                .ToHashSet();
+
+            if (validPrerequisites.Count == 0)
+            {
+                return;
+            }
+
+            IQueryable<Solf> solvesQuery = _context.Solves
+                .AsNoTracking()
+                .Where(s => s.ChallengeId.HasValue);
+
+            if (_configHelper.IsTeamsMode())
+            {
+                if (user.TeamId == null)
+                {
+                    throw new InvalidOperationException("User team not found");
+                }
+
+                solvesQuery = solvesQuery.Where(s => s.TeamId == user.TeamId);
+            }
+            else
+            {
+                solvesQuery = solvesQuery.Where(s => s.UserId == user.Id);
+            }
+
+            var solvedChallengeIds = (await solvesQuery
+                    .Select(s => s.ChallengeId!.Value)
+                    .ToListAsync())
+                .ToHashSet();
+
+            if (!validPrerequisites.IsSubsetOf(solvedChallengeIds))
+            {
+                throw new InvalidOperationException("You don't have the permission to unlock hints for this challenge. Complete the required challenges first.");
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, user.Id, user.TeamId, new { challengeId = challenge.Id, requirements = challenge.Requirements });
+        }
     }
 
     public async Task<HintResponseDTO?> GetHintById(int id, int? userId, bool preview)
@@ -252,6 +323,8 @@ public class HintService : IHintService
 
             try
             {
+                await EnsureChallengePrerequisitesUnlockedAsync(target.Challenge, user);
+
                 // Re-check prerequisites inside lock to avoid TOCTOU
                 var prerequisites = GetPrerequisites(target.Requirements);
                 if (prerequisites.Count > 0)

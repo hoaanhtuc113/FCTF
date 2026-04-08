@@ -46,6 +46,9 @@ class BaseChallenge(object):
         if "harden_container" in data:
             if isinstance(data["harden_container"], str):
                 data["harden_container"] = data["harden_container"].lower() in ("true", "1", "yes", "on")
+        if "shared_instant" in data:
+            if isinstance(data["shared_instant"], str):
+                data["shared_instant"] = data["shared_instant"].lower() in ("true", "1", "yes", "on")
         # Handle difficulty: convert empty string to None, valid string to int
         if "difficulty" in data:
             diff_val = data["difficulty"]
@@ -86,6 +89,7 @@ class BaseChallenge(object):
             "type": challenge.type,
             "require_deploy": challenge.require_deploy,
             "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
             "type_data": {
                 "id": cls.id,
                 "name": cls.name,
@@ -120,6 +124,9 @@ class BaseChallenge(object):
         if "harden_container" in data:
             if isinstance(data["harden_container"], str):
                 data["harden_container"] = data["harden_container"].lower() in ("true", "1", "yes", "on")
+        if "shared_instant" in data:
+            if isinstance(data["shared_instant"], str):
+                data["shared_instant"] = data["shared_instant"].lower() in ("true", "1", "yes", "on")
         # Handle difficulty: convert empty string to None, valid string to int
         if "difficulty" in data:
             diff_val = data["difficulty"]

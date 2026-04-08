@@ -4,9 +4,9 @@ import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
 import { Typography, CircularProgress, Box } from '@mui/material';
-import { 
-  CheckCircle, 
-  Cancel, 
+import {
+  CheckCircle,
+  Cancel,
   HourglassEmpty,
   Search,
   Add,
@@ -14,7 +14,7 @@ import {
   Delete,
   Visibility,
 } from '@mui/icons-material';
-import Swal from 'sweetalert2';
+import Swal from '../services/safeSwal';
 import { formatUTCToLocaleString } from '../utils/timezone';
 
 interface Ticket {
@@ -50,7 +50,7 @@ export function Tickets() {
       setLoading(true);
       const response = await fetchWithAuth(API_ENDPOINTS.TICKET.LIST);
       const data = await response.json();
-      
+
       if (data && data.tickets) {
         setTickets(data.tickets);
       }
@@ -66,7 +66,7 @@ export function Tickets() {
     const prefix = icon === 'success' ? '[+]' : icon === 'error' ? '[!]' : '[i]';
     const color = icon === 'success' ? 'text-green-400' : icon === 'error' ? 'text-red-400' : 'text-orange-400';
     const borderColor = icon === 'success' ? 'border-green-500/30' : icon === 'error' ? 'border-red-500/30' : 'border-orange-500/30';
-    
+
     Swal.fire({
       html: `
         <div class="font-mono text-left text-sm">
@@ -125,7 +125,7 @@ export function Tickets() {
 
   const handleDeleteTicket = async (ticketId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click event
-    
+
     const result = await Swal.fire({
       html: `
         <div class="font-mono text-left text-sm">
@@ -205,18 +205,16 @@ export function Tickets() {
     <div className="min-h-[70vh]">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className={`text-2xl font-bold font-mono ${
-          theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-        }`}>
+        <h1 className={`text-2xl font-bold font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+          }`}>
           [SUPPORT_TICKETS]
         </h1>
         <button
           onClick={() => setShowModal(true)}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-bold font-mono transition-all border ${
-            theme === 'dark'
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 font-bold font-mono transition-all border ${theme === 'dark'
               ? 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
               : 'bg-orange-600 hover:bg-orange-700 text-white border-orange-500'
-          }`}
+            }`}
         >
           <Add fontSize="small" />
           NEW TICKET
@@ -224,9 +222,8 @@ export function Tickets() {
       </div>
 
       {/* Filters */}
-      <div className={`mb-6 rounded-lg border p-4 ${
-        theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <div className={`mb-6 rounded-lg border p-4 ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="relative flex-1">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -237,27 +234,24 @@ export function Tickets() {
               placeholder="Search tickets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded-lg border pl-10 pr-4 py-2 font-mono focus:outline-none focus:ring-2 transition-colors ${
-                theme === 'dark'
+              className={`w-full rounded-lg border pl-10 pr-4 py-2 font-mono focus:outline-none focus:ring-2 transition-colors ${theme === 'dark'
                   ? 'bg-gray-800 border-gray-700 text-white focus:ring-orange-500'
                   : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-orange-500'
-              }`}
+                }`}
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className={`text-sm font-bold font-mono ${
-              theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-bold font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               STATUS:
             </label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className={`rounded-lg border py-2 px-4 font-mono focus:outline-none focus:ring-2 transition-colors ${
-                theme === 'dark'
+              className={`rounded-lg border py-2 px-4 font-mono focus:outline-none focus:ring-2 transition-colors ${theme === 'dark'
                   ? 'bg-gray-800 border-gray-700 text-white focus:ring-orange-500'
                   : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-orange-500'
-              }`}
+                }`}
             >
               <option value="all">All</option>
               <option value="open">Open</option>
@@ -269,40 +263,33 @@ export function Tickets() {
       </div>
 
       {/* Tickets Table */}
-      <div className={`overflow-x-auto rounded-lg border ${
-        theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <div className={`overflow-x-auto rounded-lg border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
         <table className="min-w-full">
           <thead className={theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}>
             <tr>
-              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-              }`}>
+              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
                 ID
               </th>
-              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-              }`}>
+              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
                 TITLE
               </th>
-              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-              }`}>
+              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
                 TYPE
               </th>
-              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-              }`}>
+              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
                 STATUS
               </th>
-              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-              }`}>
+              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
                 DATE
               </th>
-              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${
-                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-              }`}>
+              <th className={`px-4 py-3 text-left text-xs font-bold font-mono uppercase ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
                 ACTION
               </th>
             </tr>
@@ -311,9 +298,8 @@ export function Tickets() {
             {filteredTickets.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center">
-                  <Typography className={`font-mono ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <Typography className={`font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     [i] No tickets found
                   </Typography>
                 </td>
@@ -322,41 +308,35 @@ export function Tickets() {
               filteredTickets.map((ticket) => (
                 <tr
                   key={ticket.id}
-                  className={`border-t cursor-pointer transition-colors ${
-                    theme === 'dark'
+                  className={`border-t cursor-pointer transition-colors ${theme === 'dark'
                       ? 'border-gray-800 hover:bg-gray-800/50'
                       : 'border-gray-100 hover:bg-gray-50'
-                  }`}
+                    }`}
                   onClick={() => handleTicketClick(ticket.id)}
                 >
-                  <td className={`px-4 py-3 font-mono font-bold ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <td className={`px-4 py-3 font-mono font-bold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     #{ticket.id}
                   </td>
-                  <td className={`px-4 py-3 font-mono font-semibold ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>
+                  <td className={`px-4 py-3 font-mono font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                    }`}>
                     {ticket.title}
                   </td>
-                  <td className={`px-4 py-3 font-mono ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <td className={`px-4 py-3 font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     {ticket.type}
                   </td>
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-2 font-mono">
                       {getStatusIcon(ticket.status)}
-                      <span className={`capitalize ${
-                        theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <span className={`capitalize ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                         {ticket.status.replace('_', ' ')}
                       </span>
                     </span>
                   </td>
-                  <td className={`px-4 py-3 font-mono ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <td className={`px-4 py-3 font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     {formatUTCToLocaleString(ticket.date, {
                       year: 'numeric',
                       month: 'short',
@@ -372,11 +352,10 @@ export function Tickets() {
                           e.stopPropagation();
                           handleTicketClick(ticket.id);
                         }}
-                        className={`px-3 py-1 rounded border font-bold font-mono text-xs transition flex items-center gap-1 ${
-                          theme === 'dark'
+                        className={`px-3 py-1 rounded border font-bold font-mono text-xs transition flex items-center gap-1 ${theme === 'dark'
                             ? 'border-orange-700 text-orange-400 hover:bg-orange-900/30'
                             : 'border-orange-300 text-orange-600 hover:bg-orange-50'
-                        }`}
+                          }`}
                         title="View ticket details"
                       >
                         <Visibility fontSize="small" />
@@ -386,11 +365,10 @@ export function Tickets() {
                       {ticket.status.toLowerCase() === 'open' && !ticket.replier_message && (
                         <button
                           onClick={(e) => handleDeleteTicket(ticket.id, e)}
-                          className={`p-2 rounded transition ${
-                            theme === 'dark'
+                          className={`p-2 rounded transition ${theme === 'dark'
                               ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300'
                               : 'text-red-600 hover:bg-red-50 hover:text-red-700'
-                          }`}
+                            }`}
                           title="Delete ticket"
                         >
                           <Delete fontSize="small" />
@@ -409,25 +387,22 @@ export function Tickets() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div
-            className={`w-full max-w-md rounded-lg border p-6 ${
-              theme === 'dark'
+            className={`w-full max-w-md rounded-lg border p-6 ${theme === 'dark'
                 ? 'bg-gray-900 border-gray-700'
                 : 'bg-white border-gray-200'
-            }`}
+              }`}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className={`text-xl font-bold font-mono ${
-                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
-              }`}>
+              <h2 className={`text-xl font-bold font-mono ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+                }`}>
                 [CREATE_TICKET]
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className={`p-2 rounded transition-colors ${
-                  theme === 'dark'
+                className={`p-2 rounded transition-colors ${theme === 'dark'
                     ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
                     : 'hover:bg-gray-100 text-gray-600 hover:text-gray-800'
-                }`}
+                  }`}
                 disabled={submitting}
               >
                 <Close />
@@ -437,9 +412,8 @@ export function Tickets() {
               <div className="mb-4">
                 <label
                   htmlFor="title"
-                  className={`mb-2 block text-sm font-bold font-mono ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}
+                  className={`mb-2 block text-sm font-bold font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}
                 >
                   TITLE
                 </label>
@@ -447,11 +421,10 @@ export function Tickets() {
                   type="text"
                   id="title"
                   name="title"
-                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${
-                    theme === 'dark'
+                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${theme === 'dark'
                       ? 'bg-gray-800 text-white border-gray-700'
                       : 'bg-white text-gray-900 border-gray-300'
-                  }`}
+                    }`}
                   required
                   disabled={submitting}
                 />
@@ -459,20 +432,18 @@ export function Tickets() {
               <div className="mb-4">
                 <label
                   htmlFor="type"
-                  className={`mb-2 block text-sm font-bold font-mono ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}
+                  className={`mb-2 block text-sm font-bold font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}
                 >
                   TYPE
                 </label>
                 <select
                   id="type"
                   name="type"
-                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${
-                    theme === 'dark'
+                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${theme === 'dark'
                       ? 'bg-gray-800 text-white border-gray-700'
                       : 'bg-white text-gray-900 border-gray-300'
-                  }`}
+                    }`}
                   required
                   disabled={submitting}
                 >
@@ -487,20 +458,18 @@ export function Tickets() {
               <div className="mb-6">
                 <label
                   htmlFor="description"
-                  className={`mb-2 block text-sm font-bold font-mono ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}
+                  className={`mb-2 block text-sm font-bold font-mono ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}
                 >
                   DESCRIPTION
                 </label>
                 <textarea
                   id="description"
                   name="description"
-                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${
-                    theme === 'dark'
+                  className={`w-full rounded-lg border p-3 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${theme === 'dark'
                       ? 'bg-gray-800 text-white border-gray-700'
                       : 'bg-white text-gray-900 border-gray-300'
-                  }`}
+                    }`}
                   rows={4}
                   required
                   disabled={submitting}

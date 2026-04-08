@@ -83,6 +83,8 @@ class Challenges(db.Model):
     harden_container = db.Column(db.Boolean, nullable=True, default=True)
     max_deploy_count = db.Column(db.Integer, default=0, nullable=True)
     difficulty = db.Column(db.Integer, nullable=True, default=None)
+    shared_instant = db.Column(db.Boolean, nullable=False, default=False)
+    connection_protocol = db.Column(db.String(10), nullable=False, default="http")
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")

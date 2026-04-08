@@ -1,4 +1,5 @@
 ﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 using ResourceShared.DTOs.Challenge;
 using ResourceShared.DTOs.RabbitMQ;
 using System.Text;
@@ -9,6 +10,22 @@ namespace DeploymentCenter.Services;
 public interface IDeploymentProducerService
 {
     Task EnqueueDeploymentAsync(ChallengeStartStopReqDTO request, int expirySeconds = 300);
+}
+
+public sealed class DeploymentQueueFullException : Exception
+{
+    public DeploymentQueueFullException(string message, Exception? innerException = null)
+        : base(message, innerException)
+    {
+    }
+}
+
+public sealed class DeploymentRoutingFailedException : Exception
+{
+    public DeploymentRoutingFailedException(string message, Exception? innerException = null)
+        : base(message, innerException)
+    {
+    }
 }
 
 public class DeploymentProducerService : IDeploymentProducerService, IAsyncDisposable
@@ -26,7 +43,9 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
         string username,
         string password,
         int port,
-        string vhost = "/")
+        string vhost = "/",
+        bool useTls = false,
+        string? sslServerName = null)
     {
         _factory = new ConnectionFactory
         {
@@ -35,8 +54,21 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             Password = password,
             Port = port,
             VirtualHost = string.IsNullOrWhiteSpace(vhost) ? "/" : vhost,
-            AutomaticRecoveryEnabled = true
+            AutomaticRecoveryEnabled = true,
+            Ssl = new SslOption
+            {
+                Enabled = useTls,
+                ServerName = string.IsNullOrWhiteSpace(sslServerName) ? host : sslServerName,
+                Version = System.Security.Authentication.SslProtocols.Tls12,
+                AcceptablePolicyErrors = useTls ? System.Net.Security.SslPolicyErrors.None : System.Net.Security.SslPolicyErrors.RemoteCertificateNotAvailable
+            }
         };
+
+        if (useTls)
+        {
+            _factory.Ssl.Enabled = true;
+            _factory.Ssl.AcceptablePolicyErrors = System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch | System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors;
+        }
     }
 
 
@@ -76,12 +108,35 @@ public class DeploymentProducerService : IDeploymentProducerService, IAsyncDispo
             MessageId = Guid.NewGuid().ToString()
         };
 
-        await _channel!.BasicPublishAsync(
-            ExchangeName,
-            RoutingKey,
-            false,
-            properties,
-            body);
+        await PublishOrThrowAsync(body, properties);
+    }
+
+    public async Task PublishOrThrowAsync(byte[] body, BasicProperties props)
+    {
+        if (_channel == null || !_channel.IsOpen)
+        {
+            throw new InvalidOperationException("RabbitMQ channel is not open.");
+        }
+
+        try
+        {
+            // In RabbitMQ.Client 7.x, BasicPublishAsync throws PublishException for nack/basic.return.
+            await _channel.BasicPublishAsync(
+                ExchangeName,
+                RoutingKey,
+                mandatory: true,
+                props,
+                body);
+        }
+        catch (PublishException ex)
+        {
+            if (ex.IsReturn)
+            {
+                throw new DeploymentRoutingFailedException("ROUTING_FAILED", ex);
+            }
+
+            throw new DeploymentQueueFullException("QUEUE_FULL", ex);
+        }
     }
 
     public async ValueTask DisposeAsync()

@@ -25,8 +25,28 @@ class AuthService {
     return data;
   }
 
-  logout(): void {
-    // Clear all localStorage data on logout
+  async logout(): Promise<void> {
+    const token = this.getToken();
+
+    try {
+      if (token) {
+        await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    } finally {
+      this.clearSession();
+    }
+  }
+
+  clearSession(): void {
+    // Keep existing behavior: clear auth data from local storage.
     localStorage.clear();
   }
 

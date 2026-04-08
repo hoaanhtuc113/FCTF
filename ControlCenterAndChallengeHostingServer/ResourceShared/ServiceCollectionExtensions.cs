@@ -28,6 +28,14 @@ namespace ResourceShared
                 options.KeepAlive = 60;
                 options.ReconnectRetryPolicy = new ExponentialRetry(5000);
 
+                // Redis TLS in k8s commonly uses auto-generated certs; allow opt-in skip verify to avoid bootstrap failures.
+                var redisTlsInsecureSkipVerify = (Environment.GetEnvironmentVariable("REDIS_TLS_INSECURE_SKIP_VERIFY") ?? "true")
+                    .Equals("true", StringComparison.OrdinalIgnoreCase);
+                if (options.Ssl && redisTlsInsecureSkipVerify)
+                {
+                    options.CertificateValidation += (_, _, _, _) => true;
+                }
+
                 var multiplexer = ConnectionMultiplexer.Connect(options);
 
                 try

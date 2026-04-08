@@ -18,7 +18,7 @@ import {
   Email
 } from '@mui/icons-material';
 import { FaTrophy } from 'react-icons/fa';
-import Swal from 'sweetalert2';
+import Swal from '../services/safeSwal';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
@@ -143,8 +143,11 @@ export function Profile() {
       const data = await response.json();
       if (data.data) {
         setTeamPointInfo(data.data);
-        const percent = (data.data.score / data.data.challengeTotalScore) * 100;
-        setFinishPercent(Math.min(100, Math.max(0, percent)));
+        const score = Number(data.data.score) || 0;
+        const total = Number(data.data.challengeTotalScore) || 0;
+        const rawPercent = total > 0 ? (score / total) * 100 : 0;
+        const safePercent = Number.isFinite(rawPercent) ? rawPercent : 0;
+        setFinishPercent(Math.min(100, Math.max(0, safePercent)));
       }
     } catch (error) {
       console.error('Error fetching team points:', error);
@@ -193,6 +196,11 @@ export function Profile() {
 
     if (newPassword !== confirmPassword) {
       showAlert('New password and confirm password do not match!', 'error');
+      return;
+    }
+
+    if (oldPassword === newPassword) {
+      showAlert('New password must be different from current password.', 'error');
       return;
     }
 
@@ -296,8 +304,8 @@ export function Profile() {
         {/* LEFT: Profile Card */}
         <div className="lg:col-span-1">
           <div className={`rounded-lg border p-8 flex flex-col items-center ${theme === 'dark'
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-200'
+            ? 'bg-gray-900 border-gray-700'
+            : 'bg-white border-gray-200'
             }`}>
             <div className="w-full flex flex-col items-center">
               {/* Avatar */}
@@ -345,8 +353,8 @@ export function Profile() {
               <button
                 onClick={() => setShowPasswordModal(true)}
                 className={`w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-bold font-mono transition-all ${theme === 'dark'
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'
                   }`}
               >
                 <Lock />
@@ -363,8 +371,8 @@ export function Profile() {
             {/* Team Ranking */}
             <div
               className={`rounded-lg border p-6 ${theme === 'dark'
-                  ? 'bg-gray-900 border-gray-700'
-                  : 'bg-white border-gray-200'
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-white border-gray-200'
                 }`}
             >
               <div>
@@ -378,8 +386,8 @@ export function Profile() {
 
                 <div className="flex items-baseline gap-2 mb-4">
                   <div className={`text-6xl font-extrabold font-mono ${teamPointInfo.place === 1 ? 'text-yellow-500' :
-                      teamPointInfo.place === 2 ? 'text-gray-400' :
-                        teamPointInfo.place === 3 ? 'text-orange-700' : 'text-orange-500'
+                    teamPointInfo.place === 2 ? 'text-gray-400' :
+                      teamPointInfo.place === 3 ? 'text-orange-700' : 'text-orange-500'
                     }`}>
                     #{teamPointInfo.place}
                   </div>
@@ -401,8 +409,8 @@ export function Profile() {
             {/* Team Score */}
             <div
               className={`rounded-lg border p-6 ${theme === 'dark'
-                  ? 'bg-gray-900 border-gray-700'
-                  : 'bg-white border-gray-200'
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-white border-gray-200'
                 }`}
             >
               <div>
@@ -438,8 +446,8 @@ export function Profile() {
           {/* Team Members */}
           <div
             className={`rounded-lg border p-6 ${theme === 'dark'
-                ? 'bg-gray-900 border-gray-700'
-                : 'bg-white border-gray-200'
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-200'
               }`}
           >
             <div className="flex items-center gap-2 mb-4">
@@ -466,8 +474,8 @@ export function Profile() {
                     <tr
                       key={index}
                       className={`border-b font-mono transition-colors ${theme === 'dark'
-                          ? 'border-gray-800 hover:bg-gray-800/50'
-                          : 'border-gray-100 hover:bg-gray-50'
+                        ? 'border-gray-800 hover:bg-gray-800/50'
+                        : 'border-gray-100 hover:bg-gray-50'
                         }`}
                     >
                       <td className="p-3">
@@ -502,8 +510,8 @@ export function Profile() {
           {/* Recent Activity */}
           <div
             className={`rounded-lg border p-6 ${theme === 'dark'
-                ? 'bg-gray-900 border-gray-700'
-                : 'bg-white border-gray-200'
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-200'
               }`}
           >
             <div className="flex items-center gap-2 mb-4">
@@ -519,12 +527,12 @@ export function Profile() {
                 <div
                   key={index}
                   className={`p-4 rounded-lg border transition-all ${activity.type === 'correct'
-                      ? theme === 'dark'
-                        ? 'bg-green-900/20 border-green-500/30 hover:border-green-500/50'
-                        : 'bg-green-50 border-green-200 hover:border-green-400'
-                      : theme === 'dark'
-                        ? 'bg-red-900/20 border-red-500/30 hover:border-red-500/50'
-                        : 'bg-red-50 border-red-200 hover:border-red-400'
+                    ? theme === 'dark'
+                      ? 'bg-green-900/20 border-green-500/30 hover:border-green-500/50'
+                      : 'bg-green-50 border-green-200 hover:border-green-400'
+                    : theme === 'dark'
+                      ? 'bg-red-900/20 border-red-500/30 hover:border-red-500/50'
+                      : 'bg-red-50 border-red-200 hover:border-red-400'
                     }`}
                 >
                   <div className="flex items-center justify-between">
@@ -546,8 +554,8 @@ export function Profile() {
                       </div>
                     </div>
                     <span className={`px-2 py-1 rounded border text-xs font-bold ${activity.type === 'correct'
-                        ? theme === 'dark' ? 'border-green-700 text-green-400' : 'border-green-300 text-green-600'
-                        : theme === 'dark' ? 'border-red-700 text-red-400' : 'border-red-300 text-red-600'
+                      ? theme === 'dark' ? 'border-green-700 text-green-400' : 'border-green-300 text-green-600'
+                      : theme === 'dark' ? 'border-red-700 text-red-400' : 'border-red-300 text-red-600'
                       }`}>
                       {activity.type.toUpperCase()}
                     </span>
@@ -568,15 +576,15 @@ export function Profile() {
           <div
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-md rounded-lg border p-8 relative ${theme === 'dark'
-                ? 'bg-gray-900 border-gray-700'
-                : 'bg-white border-gray-200'
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-200'
               }`}
           >
             <button
               onClick={() => !isChangingPassword && setShowPasswordModal(false)}
               className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${theme === 'dark'
-                  ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-800'
+                ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-800'
                 }`}
               disabled={isChangingPassword}
             >
@@ -602,8 +610,8 @@ export function Profile() {
                   <input
                     type={showOldPassword ? 'text' : 'password'}
                     className={`w-full rounded-lg border p-3 pr-12 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${theme === 'dark'
-                        ? 'bg-gray-900 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-900 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       }`}
                     value={passwordData.oldPassword}
                     onChange={(e) => handlePasswordInputChange('oldPassword', e.target.value)}
@@ -631,8 +639,8 @@ export function Profile() {
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     className={`w-full rounded-lg border p-3 pr-12 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${theme === 'dark'
-                        ? 'bg-gray-900 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-900 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       }`}
                     value={passwordData.newPassword}
                     onChange={(e) => handlePasswordInputChange('newPassword', e.target.value)}
@@ -658,7 +666,7 @@ export function Profile() {
                         Password Strength:
                       </span>
                       <span className={`text-xs font-bold font-mono ${passwordStrength.color === 'success' ? 'text-green-500' :
-                          passwordStrength.color === 'warning' ? 'text-yellow-500' : 'text-red-500'
+                        passwordStrength.color === 'warning' ? 'text-yellow-500' : 'text-red-500'
                         }`}>
                         {passwordStrength.label}
                       </span>
@@ -666,7 +674,7 @@ export function Profile() {
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color === 'success' ? 'bg-green-500' :
-                            passwordStrength.color === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
+                          passwordStrength.color === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
                           }`}
                         style={{ width: `${passwordStrength.value}%` }}
                       />
@@ -684,8 +692,8 @@ export function Profile() {
                         <div
                           key={criterion.key}
                           className={`flex items-center gap-2 text-xs font-mono ${passwordCriteria[criterion.key as keyof PasswordCriteria]
-                              ? 'text-green-500'
-                              : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                            ? 'text-green-500'
+                            : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
                             }`}
                         >
                           {passwordCriteria[criterion.key as keyof PasswordCriteria] ? (
@@ -711,8 +719,8 @@ export function Profile() {
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     className={`w-full rounded-lg border p-3 pr-12 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all ${theme === 'dark'
-                        ? 'bg-gray-900 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-900 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       }`}
                     value={passwordData.confirmPassword}
                     onChange={(e) => handlePasswordInputChange('confirmPassword', e.target.value)}
@@ -742,8 +750,8 @@ export function Profile() {
                   onClick={() => !isChangingPassword && setShowPasswordModal(false)}
                   disabled={isChangingPassword}
                   className={`flex-1 py-3 px-4 rounded-lg font-bold font-mono transition-all ${theme === 'dark'
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   CANCEL

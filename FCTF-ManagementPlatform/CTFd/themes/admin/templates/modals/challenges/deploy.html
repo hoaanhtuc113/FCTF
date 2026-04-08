@@ -16,11 +16,21 @@
     </div>
     <div class="form-group deploy-resource-field">
       <label class="clean-label">
+        Connection Protocol <br>
+        <small class="form-text text-muted">Protocol used by contestants to connect to this challenge instance.</small>
+      </label>
+      <select class="form-control clean-form-control" name="connection_protocol" id="connection_protocol" required>
+        <option value="http" {% if challenge.connection_protocol != 'tcp' %}selected{% endif %}>HTTP</option>
+        <option value="tcp" {% if challenge.connection_protocol == 'tcp' %}selected{% endif %}>TCP</option>
+      </select>
+    </div>
+    <div class="form-group deploy-resource-field">
+      <label class="clean-label">
         CPU Limit (mCPU) <br>
           <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
       </label>
         <input type="number" class="form-control clean-form-control" name="cpu_limit" id="cpu_limit"
-        min="1" max="500" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 100 }}" required>
+        min="1" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 100 }}" required>
     </div>
 
      <div class="form-group deploy-resource-field">
@@ -29,7 +39,7 @@
         <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="cpu_request" id="cpu_request"
-        min="1" max="500" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 10 }}" required>
+        min="1" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 10 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -38,7 +48,7 @@
         <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_limit" id="memory_limit"
-        min="1" max="1024" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 128 }}" required>
+        min="1" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 128 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -47,7 +57,7 @@
         <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
       </label>
       <input type="number" class="form-control clean-form-control" name="memory_request" id="memory_request"
-        min="1" max="1024" value="{{ challenge.memory_request if challenge.memory_request is not none else 32 }}" required>
+        min="1" value="{{ challenge.memory_request if challenge.memory_request is not none else 32 }}" required>
     </div>
 
     <div class="form-group deploy-resource-field">
@@ -74,6 +84,13 @@
         <span class="ml-2">Harden Container</span>
       </label>
       <small class="form-text text-muted" style="margin-top: 0.25rem;">Apply security hardening to the container: restricted Pod Security Standards, read-only root filesystem, drop all capabilities, run as non-root user (UID 1000), and mount /tmp as an in-memory volume.</small>
+    </div>
+    <div class="form-group deploy-resource-field">
+      <label class="clean-checkbox-label">
+        <input type="checkbox" name="shared_instant" id="shared_instant" {% if challenge.shared_instant %}checked{% endif %}>
+        <span class="ml-2">Shared Instance</span>
+      </label>
+      <small class="form-text text-muted" style="margin-top: 0.25rem;">Use one shared deployed instance for all contestants instead of per-user instances.</small>
     </div>
     <label class="clean-label">
       {% if image_link_display %}
@@ -261,8 +278,10 @@
     const memoryLimitInput = document.getElementById("memory_limit");
     const memoryRequestInput = document.getElementById("memory_request");
     const useGvisorInput = document.getElementById("use_gvisor");
+    const connectionProtocolInput = document.getElementById("connection_protocol");
     const maxDeployCountInput = document.getElementById("max_deploy_count");
     const hardenContainerCheckbox = document.getElementById("harden_container");
+    const sharedInstantCheckbox = document.getElementById("shared_instant");
     const defaultCpuLimit = 100;
     const defaultCpuRequest = 10;
     const defaultMemoryLimit = 128;
@@ -305,6 +324,9 @@
         if (hardenContainerCheckbox) {
           hardenContainerCheckbox.required = false;
         }
+        if (sharedInstantCheckbox) {
+          sharedInstantCheckbox.required = false;
+        }
         if (cpuLimitInput && !cpuLimitInput.value) cpuLimitInput.value = String(defaultCpuLimit);
         if (cpuRequestInput && !cpuRequestInput.value) cpuRequestInput.value = String(defaultCpuRequest);
         if (memoryLimitInput && !memoryLimitInput.value) memoryLimitInput.value = String(defaultMemoryLimit);
@@ -323,6 +345,7 @@
         if (cpuRequestInput) cpuRequestInput.value = '';
         if (memoryLimitInput) memoryLimitInput.value = '';
         if (memoryRequestInput) memoryRequestInput.value = '';
+        if (sharedInstantCheckbox) sharedInstantCheckbox.checked = false;
       }
       // File input always enabled, no required attribute
       fileInput.disabled = false;
@@ -396,19 +419,19 @@
         memoryRequest = parseInt(memoryRequestInput?.value || "0", 10);
         useGvisor = (useGvisorInput?.value || "true") === "true";
 
-        if (cpuLimit < 1 || cpuLimit > 500 || cpuRequest < 1 || cpuRequest > 500) {
+        if (cpuLimit < 1 || cpuRequest < 1) {
           ezAlert({
             title: "Validation Error",
-            body: "CPU limit/request must be between 1 and 500 (mCPU).",
+            body: "CPU limit/request must be greater than or equal to 1 (mCPU).",
             button: "OK"
           });
           return;
         }
 
-        if (memoryLimit < 1 || memoryLimit > 1024 || memoryRequest < 1 || memoryRequest > 1024) {
+        if (memoryLimit < 1 || memoryRequest < 1) {
           ezAlert({
             title: "Validation Error",
-            body: "Memory limit/request must be between 1 and 1024 (Mi).",
+            body: "Memory limit/request must be greater than or equal to 1 (Mi).",
             button: "OK"
           });
           return;
@@ -427,6 +450,8 @@
               memory_request: setupDockerCheckbox.checked ? memoryRequest : null,
               use_gvisor: setupDockerCheckbox.checked ? useGvisor : null,
               harden_container: setupDockerCheckbox.checked ? hardenContainerCheckbox.checked : null,
+              shared_instant: setupDockerCheckbox.checked ? (sharedInstantCheckbox ? sharedInstantCheckbox.checked : false) : false,
+              connection_protocol: (connectionProtocolInput?.value || "http"),
               expose_port: setupDockerCheckbox.checked
                 ? parseInt(exposePortInput?.value || "0", 10)
                 : null,

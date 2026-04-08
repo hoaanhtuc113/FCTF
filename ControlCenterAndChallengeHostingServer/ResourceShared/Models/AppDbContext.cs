@@ -346,6 +346,10 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.ConnectionInfo)
                 .HasColumnType("text")
                 .HasColumnName("connection_info");
+            entity.Property(e => e.ConnectionProtocol)
+                .HasMaxLength(10)
+                .HasDefaultValueSql("'http'")
+                .HasColumnName("connection_protocol");
             entity.Property(e => e.DeployStatus)
                 .HasColumnType("text")
                 .HasColumnName("deploy_status");
@@ -411,6 +415,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.MaxDeployCount)
                 .HasColumnType("int(11)")
                 .HasColumnName("max_deploy_count");
+            entity.Property(e => e.SharedInstant)
+                .HasColumnName("shared_instant")
+                .HasDefaultValue(false);
 
             entity.HasOne(d => d.Next).WithMany(p => p.InverseNext)
                 .HasForeignKey(d => d.NextId)

@@ -18,10 +18,7 @@ from CTFd.constants.envvars import (
     HOST_CACHE,
     PRIVATE_KEY,
     DATABASE_PORT,
-    REDIS_HOST,
-    REDIS_PORT,
-    REDIS_PASS,
-    REDIS_DB,
+    get_redis_client_kwargs,
     NFS_MOUNT_PATH,
     IMAGE_REPO,
     DOCKER_USERNAME,
@@ -29,12 +26,7 @@ from CTFd.constants.envvars import (
 import random 
     
 redis_client = redis.StrictRedis(
-    host=f"{REDIS_HOST}",
-    port=int(REDIS_PORT),
-    password=REDIS_PASS,
-    db=int(REDIS_DB),
-    encoding="utf-8",
-    decode_responses=True
+    **get_redis_client_kwargs()
 )
 from CTFd.models import (
     ChallengeFiles,
@@ -381,8 +373,8 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
         if challenge.deploy_status is None or challenge.deploy_status != "PENDING_DEPLOY":
             try:
                 unix_time = str(int(time.time()))
-                image_tag = f"challenge-{challenge.id}-{safe_folder_name}-{unix_time}"
-                image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}:{image_tag}"
+                image_tag = f"challenge-{challenge.id}-{safe_folder_name.lower()}-{unix_time}"
+                image_link = f"{DOCKER_USERNAME}/{IMAGE_REPO}/{image_tag}:latest"
 
                 object_image = {
                     "imageLink": image_link,

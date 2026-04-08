@@ -32,7 +32,7 @@ export function getEnvVar(key: keyof WindowEnv, fallback?: string): string | und
   return v !== undefined ? v : fallback;
 }
 
-const DEFAULT_GATEWAY = 'challenge.fctf.site';
+const DEFAULT_GATEWAY = 'gateway.sanchoi.iahn.hanoi.vn';
 const DEFAULT_HTTP_PORT = '30038';
 const DEFAULT_TCP_PORT = '30037';
 

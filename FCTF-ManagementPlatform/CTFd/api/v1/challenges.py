@@ -9,7 +9,7 @@ from flask import abort, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
-from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB
+from CTFd.constants.envvars import API_URL_CONTROLSERVER, HOST_CACHE, PRIVATE_KEY, get_redis_client_kwargs
 from sqlalchemy.sql import and_
 
 from CTFd.api.v1.helpers.request import validate_args
@@ -109,14 +109,7 @@ challenges_namespace.schema_model(
     "ChallengeListSuccessResponse", ChallengeListSuccessResponse.apidoc()
 )
 
-redis_client = redis.StrictRedis(
-    host=f"{REDIS_HOST}",
-    port=int(REDIS_PORT),
-    password=REDIS_PASS,
-    db=int(REDIS_DB),
-    encoding="utf-8",
-    decode_responses=True
-)
+redis_client = redis.StrictRedis(**get_redis_client_kwargs())
 
 
 @challenges_namespace.route("")
@@ -340,6 +333,7 @@ class ChallengeList(Resource):
                 "use_gvisor": challenge.use_gvisor,
                 "harden_container": challenge.harden_container,
                 "max_deploy_count": challenge.max_deploy_count,
+                "shared_instant": challenge.shared_instant,
             }
         )
 
@@ -609,6 +603,7 @@ class Challenge(Resource):
             "use_gvisor": challenge.use_gvisor,
             "harden_container": challenge.harden_container,
             "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
         }
 
         if user.type == "admin":
@@ -698,6 +693,7 @@ class Challenge(Resource):
                 "use_gvisor": challenge.use_gvisor,
                 "harden_container": challenge.harden_container,
                 "max_deploy_count": challenge.max_deploy_count,
+                "shared_instant": challenge.shared_instant,
             },
             data={"challenge_id": challenge_id, "name": challenge.name}
         )
@@ -750,6 +746,7 @@ class Challenge(Resource):
             "use_gvisor": challenge.use_gvisor,
             "harden_container": challenge.harden_container,
             "max_deploy_count": challenge.max_deploy_count,
+            "shared_instant": challenge.shared_instant,
         }
 
         if challenge.require_deploy:
@@ -1275,6 +1272,11 @@ class ChallengeDeploy(Resource):
             if workflow_phase == "Succeeded":
                 challenge.deploy_status = "DEPLOY_SUCCESS"
                 challenge.state = "visible"
+                db.session.commit()
+
+            elif workflow_phase in ("Failed", "Error"):
+                challenge.deploy_status = "DEPLOY_FAILED"
+                challenge.state = "hidden"
                 db.session.commit()
 
             return {

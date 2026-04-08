@@ -81,7 +81,7 @@ public class DeployService : IDeployService
                     {
                         status = (int)HttpStatusCode.OK,
                         success = true,
-                        message = "Challenge is deploying.",
+                        message = "Your challenge is being prepared. This usually takes a few moments.",
                     };
                 case DeploymentStatus.RUNING:
 
@@ -93,7 +93,7 @@ public class DeployService : IDeployService
                         {
                             status = (int)HttpStatusCode.OK,
                             success = true,
-                            message = "Challenge is deploying.",
+                            message = "Your challenge is starting. Please wait while we finish setup.",
                         };
                     }
 
@@ -111,7 +111,7 @@ public class DeployService : IDeployService
                     {
                         status = (int)HttpStatusCode.OK,
                         success = true,
-                        message = "Challenge is running.",
+                        message = "Your challenge is ready.",
                         challenge_url = deploymentCache.challenge_url,
                         time_limit = timeLeft,
                     };
@@ -120,7 +120,7 @@ public class DeployService : IDeployService
                     {
                         status = (int)HttpStatusCode.Conflict,
                         success = false,
-                        message = "Challenge is currently being deleted. Please wait a moment before starting again.",
+                        message = "A previous session is being stopped. Please try again in a few seconds.",
                     };
                 case DeploymentStatus.STOPPED:
                     // Clean up old STOPPED cache and allow new deployment
@@ -159,7 +159,7 @@ public class DeployService : IDeployService
             {
                 status = (int)HttpStatusCode.OK,
                 success = true,
-                message = "Send to request to deploy successfully. Please wait a moment.",
+                message = "Request received. Your challenge has been queued for deployment.",
             };
         }
         catch (BrokerUnreachableException ex)
@@ -171,10 +171,22 @@ public class DeployService : IDeployService
             {
                 status = (int)HttpStatusCode.InternalServerError,
                 success = false,
-                message = $"RabbitMQ unreachable: {ex.Message}"
+                message = "Deployment service is temporarily unavailable. Please try again shortly."
             };
         }
-        catch (OperationInterruptedException ex)
+        catch (DeploymentQueueFullException ex)
+        {
+            await _redisHelper.RemoveCacheAsync(deploymentKey);
+
+            _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+            return new ChallengeDeployResponeDTO
+            {
+                status = (int)HttpStatusCode.TooManyRequests,
+                success = false,
+                message = "Deployment queue is currently full. Please retry in a moment."
+            };
+        }
+        catch (DeploymentRoutingFailedException ex)
         {
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
@@ -183,7 +195,7 @@ public class DeployService : IDeployService
             {
                 status = (int)HttpStatusCode.InternalServerError,
                 success = false,
-                message = $"RabbitMQ rejected connection/channel: {ex.Message}"
+                message = "Deployment routing failed. Please contact support if this persists."
             };
         }
         catch (Exception ex)
@@ -191,11 +203,12 @@ public class DeployService : IDeployService
             await _redisHelper.RemoveCacheAsync(deploymentKey);
 
             _logger.LogError(ex, null, startReq.teamId, new { startReq.challengeId });
+
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
                 success = false,
-                message = "Unexpected error occurred."
+                message = "Something went wrong while starting the challenge. Please try again."
             };
         }
     }
