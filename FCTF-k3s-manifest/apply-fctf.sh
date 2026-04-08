@@ -27,6 +27,7 @@ MARIADB_CREATE_DB_SQL="${PROD_DIR}/helm/db/mariadb/createDB.sql"
 MARIADB_POST_INIT_GRANTS_SQL="${PROD_DIR}/helm/db/mariadb/least-privilege-service-accounts.sql"
 RABBIT_DEPLOY_PRODUCER_BOOTSTRAP_PASSWORD="Fctf2025@producer"
 RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD="Fctf2025@consumer"
+RABBIT_ADMIN_BOOTSTRAP_PASSWORD="Fctf2025@admin"
 
 STORAGE_PV_FILES=(
   "${PROD_DIR}/storage/pv/admin-mvc-pv.yaml"
@@ -153,8 +154,15 @@ bootstrap_rabbitmq_deploy_users() {
         kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "deployment-consumer" "${RABBIT_DEPLOY_CONSUMER_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1
       fi
 
+      if ! kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl change_password "rabbit-admin" "${RABBIT_ADMIN_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1; then
+        kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl add_user "rabbit-admin" "${RABBIT_ADMIN_BOOTSTRAP_PASSWORD}" >/dev/null 2>&1
+      fi
+
+      kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_user_tags "rabbit-admin" "administrator" >/dev/null 2>&1
+
       kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "deployment-producer" "^$" "^(deployment_exchange)$" "^$" >/dev/null 2>&1
       kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "deployment-consumer" "^$" "^$" "^(deployment_queue)$" >/dev/null 2>&1
+      kubectl -n "${ns}" exec "${rabbit_pod}" -- rabbitmqctl set_permissions -p "fctf_deploy" "rabbit-admin" ".*" ".*" ".*" >/dev/null 2>&1
       return 0
     fi
 
