@@ -1,0 +1,864 @@
+
+ 
+
+
+
+
+
+
+
+CAPSTONE PROJECT REPORT
+Report 6 - Software User Guides
+
+
+
+
+
+
+
+
+
+- Hanoi, April 2026 -
+Table of Contents
+I. Record of Changes	3
+II. Release Package & User Guides	4
+1. Deliverable Package	4
+2. Installation Guides	4
+2.1 System Requirements	4
+2.2 Installation Instruction	5
+3. User Manual	5
+3.1 Overview	5
+3.2 Core Workflows	5
+3.3 Guideline for writing Challenge	5
+
+ 
+I. Record of Changes
+Date	A*
+M, D	In charge	Change Description
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+*A - Added M - Modified D - Deleted
+ 
+II. Release Package & User Guides
+1. Deliverable Package
+[The section will list all source programs, scripts, documents with version number in this release. You can see the example following table for reference, can customize or delete if not using belong to each project characteristics]
+No.	Deliverable Item	Description
+1	Project Schedule/Tracking	
+2	Project Backlog	
+3	Source Codes	 
+4	Database Script(s)	 
+5	Final Report Document	 
+6	Test Cases Document	 
+7	Defects List	 
+8	Issues List	
+9	Slide	
+
+2. Installation Guides
+2.1 System Requirements
+[Define any system requirements necessary to support the application, including the software and relevant configurations]
+2.1.1. Hardware Requirement:
+The deployment environment requires two virtual machines forming a lightweight Kubernetes cluster using K3s. The cluster is composed of a control plane node responsible for cluster orchestration and a worker node dedicated to running application workloads.
+VM1 - Control Plane Node:
+•	Role: K3s Server (Control Plane) 
+•	CPU: 6 cores 
+•	RAM: 32 GB 
+•	Operating System: Ubuntu 22.04 LTS 
+•	Disk Capacity: ≥ 200 GiB (SSD) 
+•	Required Open Ports (Inbound):
+o	80 - HTTP 
+o	443 - HTTPS 
+o	6443 - Kubernetes API Server 
+o	30037, 30038 - NodePort services (may vary depending on deployment configuration) 
+VM2 - Worker Node:
+•	Role: K3s Agent (Worker Node) 
+•	CPU: 10 cores 
+•	RAM: 96 GB 
+•	Operating System: Ubuntu 22.04 LTS 
+•	Disk Capacity: ≥ 200 GiB (SSD)
+2.1.2. Network Requirement:
+Both virtual machines must:
+•	Be located within the same subnet (private network) 
+•	Have private IP addresses and be able to communicate directly with each other 
+•	Be able to ping each other (ICMP) and maintain stable TCP connectivity 
+Mandatory requirements for network range (network isolation):
+•	The private IP range of the VMs must not overlap with: 
+o	Pod CIDR (default K3s: 10.42.0.0/16) 
+o	Service CIDR (default K3s: 10.43.0.0/16) 
+•	Recommendation: 
+o	Use a dedicated infrastructure range, for example: 192.168.x.x or 172.16.x.x 
+•	If the 10.x.x.x range must be used: 
+o	The Pod CIDR and Service CIDR must be reconfigured during cluster initialization to avoid conflicts 
+The network environment must also satisfy the following conditions:
+•	Low latency between cluster nodes. 
+•	Stable internal bandwidth to support container communication. 
+•	No NAT or firewall rules should block internal traffic between cluster nodes.
+
+2.2 Installation Instruction
+[Includes installation instructions and configuration guidelines]
+3. User Manual
+3.1 Overview
+F-CTF is a Capture The Flag platform that supports the full lifecycle of challenge operation, from challenge authoring and secure deployment to contestant solving and support tickets.
+The platform includes two main portals:
+- Control Center (Admin and Challenge Writer): create and configure challenges, deploy challenge runtime environments, monitor instances, and maintain challenge metadata.
+- Contestant Portal (Players): browse challenges, start challenge instances, access services using challenge tokens, submit flags, manage running instances, and create support tickets.
+
+Section 3 documents the two operational workflows used most frequently in production:
+- Workflow A: Admin and Challenge Writer challenge management lifecycle.
+- Workflow B: Contestant challenge participation and support lifecycle.
+
+3.2 Core Workflows
+3.2.1 Workflow A - Admin and Challenge Writer: Challenge Management Lifecycle
+Purpose:
+- Guide Admin/Challenge Writer through challenge creation, deployment setup, testing, release operation, and monitoring.
+
+High-level flow:
+Manage Challenges -> Create Challenge -> Configure Options/Deploy -> Verify Deployment -> Manage Metadata -> View Deploy History -> Preview -> Start Shared Instance (if enabled) -> Monitor/Stop Instances
+
+Step-by-step guide:
+Step 1 - Create a new challenge
+- Open Manage Challenges and click [+ Create Challenge].
+- Select challenge type:
+    - Standard: fixed score.
+    - Dynamic: score decays based on solve count.
+    - Multiple choice: one correct option from predefined choices.
+- Fill required fields: Name, Category, Value.
+- Fill optional fields as needed: Difficulty, Files, Description, Time Limit, Max Attempts, Submission Cooldown.
+- For Dynamic challenges, provide Initial Value, Decay Function, Decay, and Minimum Value.
+- For Multiple choice challenges, enter choices in list format and define the correct answer.
+
+Step 2 - Configure challenge options
+- Click [Create] to open the options dialog.
+- Configure:
+    - Flags (case-sensitive or case-insensitive as required).
+    - Setup Deploy (enable if runtime environment is required).
+    - Challenge attachments for contestants.
+    - Visibility (Visible or Hidden).
+- Click [Finish] to save the challenge.
+
+Step 3 - Configure deployment (for deployable challenges)
+- Provide deployment parameters:
+    - Expose Port (required).
+    - Connection Protocol (HTTP/TCP or as designed).
+    - CPU Limit/Request and Memory Limit/Request.
+    - gVisor runtime option.
+    - Harden Container option for restricted security posture.
+    - Max Deploy Count (0 = unlimited).
+    - Shared Instance mode (one shared runtime for all contestants).
+    - Deploy File (required ZIP source package).
+
+Step 4 - Verify deployment and configure challenge metadata
+- On Challenge Detail, verify deployment status and latest deployment timestamp.
+- Configure additional tabs:
+    - Challenge Files: downloadable files.
+    - Flags: static/regex flags.
+    - Topics and Tags: challenge classification.
+    - Hints: optional hints with point cost and dependencies.
+    - Requirements: prerequisite challenge and lock behavior (Hidden/Anonymized).
+    - Deploy: deployment configuration updates.
+    - Versions: active/old image versions and rollback.
+    - Next: next challenge recommendation after solve.
+
+Step 5 - Review deploy history and logs
+- In Manage Challenges, open [Actions] -> [History].
+- Use [View Details] to inspect workflow logs for each deployment.
+
+Step 6 - Run preview mode for validation
+- In Manage Challenges, open [Actions] -> [Preview].
+- Wait for preview deployment completion and retrieve preview token.
+- Access the challenge as a contestant using the issued token.
+
+Step 7 - Operate shared instance and monitor running instances
+- For Shared Instance challenges, Admin must manually start the shared runtime with [Actions] -> [Start].
+- Use Monitoring screen to track instance ownership, category, status, token, and end time.
+- Admin actions in Monitoring: Pod Logs, Request Logs, Stop Instance.
+
+3.2.2 Workflow B - Contestant: Challenge Participation and Support Lifecycle
+Purpose:
+- Guide contestants from login to challenge solving, instance management, and support ticket handling.
+
+High-level flow:
+Login -> Browse Challenges -> Open Challenge -> Start Instance -> Access Service with Token -> Submit Flag -> Manage Instances -> Create/Track Tickets
+
+Step-by-step guide:
+Step 1 - Log in
+- Open Contestant Portal.
+- Sign in using the provided username and password.
+
+Step 2 - Browse and select a challenge
+- Open Challenges page and choose a category (for example: PWN, Web, Crypto).
+- Open the target challenge detail.
+
+Step 3 - Start challenge instance (for deployable challenges)
+- Click [+ Start Challenge] to request instance deployment.
+- Review challenge card data:
+    - Points.
+    - Time limit (countdown after successful deployment).
+    - Attempt limit.
+    - Deploy count (current/maximum).
+    - Attachments for download.
+
+Step 4 - Access challenge service
+- After deployment, obtain access token and connection details.
+- HTTP mode:
+    - Open URL: http://<gateway-host>:<http-port>?fctftoken=<YOUR_TOKEN>
+- TCP mode:
+    - Connect: nc <gateway-host> <tcp-port>
+    - Enter token when prompted.
+
+Step 5 - Submit flag
+- Enter discovered flag in the submission field.
+- Click [SUBMIT].
+- If correct, the system records solve status and awards points.
+
+Step 6 - Manage running instances
+- Open [Instances] from the menu.
+- Review challenge name, category, token, status, and finish time.
+- Available actions:
+    - [GO]: return to challenge detail.
+    - [STOP]: terminate instance with confirmation.
+    - [REFRESH]: reload latest status.
+
+Step 7 - Create and manage support tickets
+- Open [Tickets] to view ticket list (ID, Title, Type, Date, Status).
+- Click [+ NEW TICKET] to create a ticket with Title, Type, and Description.
+- Use [VIEW] to read ticket details and organizer responses.
+- Delete rule: only Open tickets can be deleted; Closed tickets are protected from deletion.
+
+3.3 Guideline for writing Challenge 
+3.3.1 Challenge Folder Structure
+Each challenge must be packaged in a separate folder containing all the source code and resources required to build and run the challenge. Inside this folder, a Dockerfile must be placed at the root directory. The system will use this Dockerfile to build the container image for the challenge.
+All other files and directories within the challenge folder can be defined by the challenge author. These may include source code, libraries, configuration files, or any additional resources required for the challenge to function properly. The entire folder will be used as the build context when building the container image.
+Example folder structure:
+challenge-name/
+├── Dockerfile
+└── (other files and folders defined by the challenge author)
+ 
+Figure 0 1: Challenge Folder Structure
+After preparing the challenge folder, compress it into a .zip file so it can be uploaded to the F-CTF system following the Create Challenge guideline.
+3.3.2 Dockerfile Guideline
+If the Harden Container option is not enabled, the Dockerfile only needs to ensure that the challenge runs correctly inside the container, and there are no additional security requirements. However, enabling the Harden Container option is recommended to improve the security of the challenge environment.
+The following section provides recommended Dockerfile practices for challenges using the Harden Container option, helping authors design containers that comply with these security constraints while maintaining proper functionality.
+3.3.2.1 Mandatory Requirements
+All challenge Dockerfiles must strictly comply with the following constraints.
+Violation of any requirement may cause the container to be rejected or crash when deployed in the Kubernetes environment.
+Requirement	Description
+USER 1000	The container must run with UID = 1000. The Dockerfile must end with USER 1000.
+Read-only root filesystem	The root filesystem is mounted read-only at runtime. The application must not require write access to the root filesystem.
+Write only to /tmp	The container must not write outside /tmp. Writing to /data, /var, /etc, /home, or other directories is not allowed. All temporary storage must use /tmp (mounted as tmpfs).
+Logs → stdout/stderr	File-based logging is not allowed. All logs must be written to stdout or stderr so that Kubernetes can collect them.
+Single port only	The container must expose and listen on exactly one port, as defined in the challenge specification.
+No Linux capabilities	The container must not require additional Linux capabilities. Do not use setcap, privileged mode, or add extra capabilities.
+Mandatory runtime test	The container must successfully run with the following command before submission: docker run --read-only --tmpfs /tmp --user 1000 <image>
+Table 0 1: Mandatory Requirements for Dockerfile
+3.3.2.2 Dockerfile Design Strategy
+•	Keep the runtime immutable: everything in the root filesystem must be read-only.
+•	Use /tmp symlinks for all runtime files that require write access (logs, temp files, working directories).
+•	Standardize the runtime user by either using a base image with UID 1000 or explicitly creating a user with adduser -u 1000.
+•	Separate build-time and runtime tasks whenever possible. For example, extract artifacts (WAR/JAR) during the build stage.
+•	Ensure all necessary files and directories are owned by UID 1000 before switching to the runtime user.
+Step	Action
+1	Choose a suitable base image (Alpine is preferred due to its small size).
+2	Create or configure a user with UID 1000.
+3	Install required dependencies during the build stage.
+4	Copy the source code or application artifact into the image.
+5	Create symlinks to /tmp for any directories that require write access at runtime.
+6	Set ownership for the application directory: chown -R 1000:1000.
+7	Switch to the runtime user using USER 1000.
+8	Define the startup command, typically: CMD mkdir -p /tmp/... && exec <server>
+Table 0 2: Steps to write a Dockerfile
+Note: A key design pattern is that symlinks must be created during the build stage, when the filesystem is still writable. At runtime, the container should only need to create directories under /tmp, typically using: `mkdir -p /tmp/<target>` inside the CMD or entrypoint before starting the application.
+3.3.2.3 Detailed Templates by Workload Type
+Each workload type below provides a ready-to-use Dockerfile template. The templates use placeholders in the format <>, simply replace them with your actual values (application name, paths, ports, etc.) before using them. Each template is followed by a fully filled example to illustrate how it should be applied in practice.
+How to Use the Templates: All fields written as <> are placeholders. Replace them with your actual values before building the image.
+Example:
+<PORT> => 8080
+<APP_USER> => appuser
+<SRC_DIR> => ./html
+3.3.2.3.1 Static Server - Nginx
+By default, Nginx writes logs and PID files outside /tmp, which violates the hardened container constraints. Therefore, the template uses sed to directly modify the existing nginx.conf inside the image, eliminating the need to provide a custom configuration file.
+TEMPLATE
+FROM nginx:alpine
+
+# [CUSTOMIZABLE] 1. Declare User and Port (can also be overridden via --build-arg)
+ARG APP_USER=appuser
+ARG PORT=8080
+
+RUN adduser -D -u 1000 $APP_USER
+
+# 2. Remove default configuration
+RUN rm -rf /etc/nginx/conf.d/default.conf
+
+# [CUSTOMIZABLE] 3. Create new server configuration
+# You may change the root directory or index file here if necessary
+RUN echo "server { \
+    listen ${PORT}; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html; \
+        try_files \$uri \$uri/ =404; \
+    } \
+}" > /etc/nginx/conf.d/default.conf
+
+# 4. Force Nginx to use /tmp for ALL writable paths
+RUN sed -i 's|pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+    && sed -i 's|access_log .*|access_log /dev/stdout;|' /etc/nginx/nginx.conf \
+    && sed -i 's|error_log .*|error_log /dev/stderr;|' /etc/nginx/nginx.conf \
+    && sed -i "/http {/a \    client_body_temp_path /tmp/client_temp;\n    proxy_temp_path /tmp/proxy_temp;\n    fastcgi_temp_path /tmp/fastcgi_temp;\n    uwsgi_temp_path /tmp/uwsgi_temp;\n    scgi_temp_path /tmp/scgi_temp;" /etc/nginx/nginx.conf \
+    && sed -i 's/^user/#user/' /etc/nginx/nginx.conf
+
+# [CUSTOMIZABLE] 5. Copy Source Code into the Image
+# Replace <SRC_DIR> with your source directory (e.g., ./dist, ./html, ./public)
+COPY <SRC_DIR> /usr/share/nginx/html
+
+# 6. Fix permissions (important: avoid chown /var/run to prevent Kaniko/K8s issues)
+RUN chown -R 1000:1000 /usr/share/nginx/html /etc/nginx /var/cache/nginx
+
+USER 1000
+EXPOSE ${PORT}
+
+# 7. Startup: create temporary directories inside /tmp
+CMD ["sh", "-c", "mkdir -p /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp && exec nginx -g 'daemon off;'"]
+
+EXAMPLE - Static HTML, Port 8080
+FROM nginx:alpine
+
+# 1. Create a non-root user (UID 1000)
+RUN adduser -D -u 1000 appuser
+
+# 2. Remove the default Nginx configuration
+RUN rm -rf /etc/nginx/conf.d/default.conf
+
+# 3. Create a new server configuration
+RUN echo 'server { \
+    listen 8080; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+# 4. Modify the main Nginx configuration to force all writable paths into /tmp
+# Add uwsgi and scgi temporary paths as well
+RUN sed -i 's|pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+    && sed -i 's|access_log .*|access_log /dev/stdout;|' /etc/nginx/nginx.conf \
+    && sed -i 's|error_log .*|error_log /dev/stderr;|' /etc/nginx/nginx.conf \
+    && sed -i '/http {/a \    client_body_temp_path /tmp/client_temp;\n    proxy_temp_path /tmp/proxy_temp;\n    fastcgi_temp_path /tmp/fastcgi_temp;\n    uwsgi_temp_path /tmp/uwsgi_temp;\n    scgi_temp_path /tmp/scgi_temp;' /etc/nginx/nginx.conf \
+    && sed -i 's/^user/#user/' /etc/nginx/nginx.conf
+
+# 5. Copy application files
+COPY ./html /usr/share/nginx/html
+
+# 6. Set permissions (avoid touching /var/run to prevent Kaniko/K8s issues)
+RUN chown -R 1000:1000 /usr/share/nginx/html /etc/nginx /var/cache/nginx
+
+# Run container as non-root user
+USER 1000
+
+# Expose the application port
+EXPOSE 8080
+
+# 7. Startup command:
+# Create all required temporary directories in /tmp before launching Nginx
+CMD ["sh", "-c", "mkdir -p /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp && exec nginx -g 'daemon off;'"]
+
+3.3.2.3.2 Node.js Backend
+TEMPLATE
+# Debian slim supports building native modules (e.g., sqlite3)
+# <NODE_VER> example: 18
+FROM node:<NODE_VER>-bullseye-slim
+
+WORKDIR /app
+
+# Optional build dependencies
+RUN apt-get update && \
+    apt-get install -y python3 build-essential --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install production dependencies
+COPY package*.json ./
+RUN npm install --production
+
+COPY . .
+
+# Redirect writable paths to /tmp
+RUN rm -rf <WRITE_PATH_1> && ln -s /tmp/<TMP_NAME_1> <WRITE_PATH_1> || true
+RUN rm -rf <WRITE_PATH_2> && ln -s /tmp/<TMP_NAME_2> <WRITE_PATH_2> || true
+RUN rm -f <DB_FILE>      && ln -s /tmp/<DB_FILE>      <DB_FILE>      || true
+
+# Create user 1000
+RUN groupadd -g 1000 appgroup || true && \
+    useradd -r -u 1000 -g appgroup -m -d /home/<APP_USER> -s /usr/sbin/nologin <APP_USER> || true
+
+RUN mkdir -p /tmp/<TMP_NAME_1> /tmp/<TMP_NAME_2> && \
+    chown -R 1000:1000 /tmp /app
+
+ENV PORT=<PORT>
+ENV TMPDIR=/tmp
+ENV NODE_ENV=production
+
+EXPOSE <PORT>
+
+USER 1000
+
+CMD ["sh","-c","mkdir -p /tmp/<TMP_NAME_1> /tmp/<TMP_NAME_2> && exec node <ENTRY_FILE>"]
+
+EXAMPLE - Express API, logs and uploads
+FROM node:18-bullseye-slim
+WORKDIR /app
+RUN apt-get update && \
+    apt-get install -y python3 build-essential --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm install --production
+COPY . .
+RUN rm -rf /app/uploads && ln -s /tmp/uploads /app/uploads || true
+RUN rm -f /app/data.db  && ln -s /tmp/data.db  /app/data.db  || true
+
+RUN groupadd -g 1000 appgroup || true && \
+    useradd -r -u 1000 -g appgroup -m -d /home/appuser -s /usr/sbin/nologin appuser || true
+RUN mkdir -p /tmp/uploads && \
+    chown -R 1000:1000 /tmp /app
+
+ENV PORT=3000
+ENV TMPDIR=/tmp
+ENV NODE_ENV=production
+EXPOSE 3000
+USER 1000
+CMD ["sh","-c","mkdir -p /tmp/uploads && exec node server.js"]
+
+3.3.2.3.3 Python - Flask & FastAPI
+PYTHONUNBUFFERED=1 is mandatory so logs are immediately flushed to stdout/stderr. Gunicorn and Uvicorn already support stdout logging through CLI flags, so the application code does not need modification.
+TEMPLATE - Flask + Gunicorn
+FROM python:<PYTHON_VER>-alpine
+
+RUN adduser -D -u 1000 <APP_USER>
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN rm -f /app/<DB_FILE>    && ln -s /tmp/<DB_FILE>    /app/<DB_FILE>    || true
+RUN rm -rf /app/<WRITE_PATH> && ln -s /tmp/<TMP_NAME> /app/<WRITE_PATH> || true
+
+RUN chown -R 1000:1000 /app
+
+USER 1000
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV TMPDIR=/tmp
+
+EXPOSE <PORT>
+
+CMD ["sh","-c","mkdir -p /tmp/<TMP_NAME> && exec gunicorn <MODULE>:<APP_OBJ> --bind 0.0.0.0:<PORT> --workers 2 --access-logfile -"]
+
+TEMPLATE - FastAPI + Uvicorn
+FROM python:<PYTHON_VER>-alpine
+
+RUN adduser -D -u 1000 <APP_USER>
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN rm -f /app/<DB_FILE>     && ln -s /tmp/<DB_FILE>     /app/<DB_FILE>     || true
+RUN rm -rf /app/<WRITE_PATH> && ln -s /tmp/<TMP_NAME> /app/<WRITE_PATH> || true
+
+RUN chown -R 1000:1000 /app
+
+USER 1000
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV TMPDIR=/tmp
+
+EXPOSE <PORT>
+
+CMD ["sh","-c","mkdir -p /tmp/<TMP_NAME> && exec uvicorn <MODULE>:<APP_OBJ> --host 0.0.0.0 --port <PORT> --log-level info"]
+
+Example – Flask with Gunicorn, File Uploads and SQLite (Port 5000)
+FROM python:3.11-alpine
+
+# Create non-root user (UID 1000)
+RUN adduser -D -u 1000 appuser
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application source code
+COPY . .
+
+# Redirect writable paths to /tmp
+RUN rm -f /app/data.db  && ln -s /tmp/data.db  /app/data.db
+RUN rm -rf /app/uploads && ln -s /tmp/uploads /app/uploads
+
+# Ensure application files are owned by user 1000
+RUN chown -R 1000:1000 /app
+
+USER 1000
+
+# Environment configuration
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV TMPDIR=/tmp
+
+EXPOSE 5000
+
+# Create runtime directories and start the application
+CMD ["sh","-c","mkdir -p /tmp/uploads && exec gunicorn app:app --bind 0.0.0.0:5000 --workers 2 --access-logfile -"]
+
+3.3.2.3.4 Java
+a, Java Tomcat
+TEMPLATE
+Tomcat requires three writable directories: logs, work, temp. These directories must be symlinked to /tmp. WAR files should also be extracted during build time to avoid runtime writes.
+# <TOMCAT_VER> example: 10.1.40   |   <JDK_VER> example: 17
+FROM tomcat:<TOMCAT_VER>-jdk<JDK_VER>
+
+# Redirect Tomcat writable directories to /tmp
+RUN rm -rf /usr/local/tomcat/logs && ln -s /tmp/tomcat-logs /usr/local/tomcat/logs && \
+    rm -rf /usr/local/tomcat/work && ln -s /tmp/tomcat-work /usr/local/tomcat/work && \
+    rm -rf /usr/local/tomcat/temp && ln -s /tmp/tomcat-temp /usr/local/tomcat/temp
+
+# Remove default applications
+RUN rm -rf /usr/local/tomcat/webapps/*
+
+# Copy and extract WAR during build time
+COPY <APP_NAME>.war /tmp/app.war
+RUN mkdir -p /usr/local/tomcat/webapps/<CONTEXT> && \
+    cd /usr/local/tomcat/webapps/<CONTEXT> && \
+    jar xf /tmp/app.war && \
+    rm /tmp/app.war
+
+# Change the server port
+RUN sed -i 's/port="8080"/port="<PORT>"/' /usr/local/tomcat/conf/server.xml
+
+ENV CATALINA_OUT=/dev/stdout
+ENV CATALINA_TMPDIR=/tmp/tomcat-temp
+
+RUN chown -R 1000:1000 /usr/local/tomcat
+
+USER 1000
+
+EXPOSE <PORT>
+
+CMD ["sh","-c","mkdir -p /tmp/tomcat-logs /tmp/tomcat-work /tmp/tomcat-temp && exec catalina.sh run -Djava.io.tmpdir=/tmp/tomcat-temp -Dcatalina.base=/usr/local/tomcat"]
+
+EXAMPLE - myapp.war, context /myapp, port 8081
+FROM tomcat:10.1.40-jdk17
+
+RUN rm -rf /usr/local/tomcat/logs && ln -s /tmp/tomcat-logs /usr/local/tomcat/logs && \
+    rm -rf /usr/local/tomcat/work && ln -s /tmp/tomcat-work /usr/local/tomcat/work && \
+    rm -rf /usr/local/tomcat/temp && ln -s /tmp/tomcat-temp /usr/local/tomcat/temp
+RUN rm -rf /usr/local/tomcat/webapps/*
+
+COPY BuyThingsToAlice-1.0-SNAPSHOT.war /tmp/app.war
+RUN mkdir -p /usr/local/tomcat/webapps/BuyThingsToAlice-1.0-SNAPSHOT && \
+    cd /usr/local/tomcat/webapps/BuyThingsToAlice-1.0-SNAPSHOT && \
+    jar xf /tmp/app.war && \
+    rm /tmp/app.war
+
+COPY server.xml /usr/local/tomcat/conf/server.xml
+
+ENV CATALINA_TMPDIR=/tmp/tomcat-temp
+ENV CATALINA_OUT=/dev/stdout
+
+RUN chown -R 1000:1000 /usr/local/tomcat
+
+USER 1000
+
+EXPOSE 8081
+
+CMD ["sh", "-c", "mkdir -p /tmp/tomcat-temp /tmp/tomcat-work /tmp/tomcat-logs && catalina.sh run -Djava.io.tmpdir=/tmp/tomcat-temp -Dcatalina.base=/usr/local/tomcat"]
+
+b, Spring Boot
+Spring Boot applications should use a multi-stage build:
+•	Build stage: Use Maven to compile the application.
+•	Runtime stage: Use a lightweight JRE image to run the application.
+If the application depends on native libraries (e.g., SQLite JDBC), these libraries should be extracted from the JAR during the build stage and placed into /usr/lib.
+This ensures the JVM can load them without needing to write files to the root filesystem at runtime.
+TEMPLATE
+# ── Build stage ──────────────────────────────────────────
+FROM maven:3.9-eclipse-temurin-<JDK_VER> AS build
+WORKDIR /build
+COPY pom.xml .
+COPY src ./src
+RUN mvn -q -DskipTests package
+
+# (Optional) Extract native libraries to avoid runtime writes to /tmp
+# Example for sqlite-jdbc - adjust version to match pom.xml
+RUN mkdir -p /native && \
+    jar xf target/*.jar BOOT-INF/lib/<NATIVE_LIB>.jar && \
+    jar xf BOOT-INF/lib/<NATIVE_LIB>.jar org/sqlite/native/Linux/x86_64/libsqlitejdbc.so && \
+    mv org/sqlite/native/Linux/x86_64/libsqlitejdbc.so /native/libsqlitejdbc.so
+
+# ── Runtime stage ────────────────────────────────────────
+# Use Debian-based JRE to avoid musl libc issues with native libraries
+FROM eclipse-temurin:<JDK_VER>-jre
+
+WORKDIR /app
+
+# Copy native libraries (optional)
+COPY --from=build /native/libsqlitejdbc.so /usr/lib/libsqlitejdbc.so
+
+COPY --from=build /build/target/*.jar /app/app.jar
+
+USER 1000
+
+ENV JAVA_TOOL_OPTIONS="\
+    -Djava.io.tmpdir=/tmp \
+    -Dorg.sqlite.lib.path=/usr/lib \
+    -Dorg.sqlite.lib.name=libsqlitejdbc.so"
+
+EXPOSE <PORT>
+
+CMD ["java", "-jar", "/app/app.jar", "--server.port=<PORT>"]
+
+EXAMPLE - Spring Boot + SQLite, port 8080
+# ── Build stage ──────────────────────────────────────────
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /build
+COPY pom.xml .
+COPY src ./src
+RUN mvn -q -DskipTests package
+
+RUN mkdir -p /native && \
+    jar xf target/*.jar BOOT-INF/lib/sqlite-jdbc-3.49.1.0.jar && \
+    jar xf BOOT-INF/lib/sqlite-jdbc-3.49.1.0.jar org/sqlite/native/Linux/x86_64/libsqlitejdbc.so && \
+    mv org/sqlite/native/Linux/x86_64/libsqlitejdbc.so /native/libsqlitejdbc.so
+
+# ── Runtime stage ────────────────────────────────────────
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+COPY --from=build /native/libsqlitejdbc.so /usr/lib/libsqlitejdbc.so
+COPY --from=build /build/target/*.jar /app/app.jar
+
+USER 1000
+
+ENV JAVA_TOOL_OPTIONS="\
+    -Djava.io.tmpdir=/tmp \
+    -Dorg.sqlite.lib.path=/usr/lib \
+    -Dorg.sqlite.lib.name=libsqlitejdbc.so"
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "/app/app.jar", "--server.port=8080"]
+
+3.3.2.3.5 .NET (ASP.NET Core)
+ASP.NET Core applications should use a multi-stage build:
+•	Build stage: Use the .NET SDK image to compile and publish the application. 
+•	Runtime stage: Use the lightweight ASP.NET runtime image to run the application. 
+If the application uses sessions, cookies, or authentication, the DataProtection key storage must be configured to use a writable location (e.g., /tmp), since the root filesystem is read-only in the challenge environment.
+TEMPLATE
+# ── Stage 1: Build ──────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/sdk:<DOTNET_VER>-alpine AS build
+WORKDIR /src
+
+COPY *.csproj ./
+RUN dotnet restore
+
+COPY . .
+RUN dotnet publish -c Release -o /app/publish \
+    --self-contained false /p:UseAppHost=false
+
+# ── Stage 2: Runtime ─────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/aspnet:<DOTNET_VER>-alpine AS runtime
+
+RUN adduser -D -u 1000 <APP_USER>
+
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# Redirect writable paths to /tmp
+RUN rm -rf <WRITE_PATH_DATA>    && ln -s /tmp/<TMP_DATA>    <WRITE_PATH_DATA>
+RUN rm -rf <WRITE_PATH_UPLOADS> && ln -s /tmp/<TMP_UPLOADS> <WRITE_PATH_UPLOADS> || true
+RUN rm -f /app/app.db           && ln -s /tmp/app.db        /app/app.db          || true
+
+RUN mkdir -p /tmp/<TMP_DATA> /tmp/<TMP_UPLOADS> /tmp/dp-keys
+
+RUN chown -R 1000:1000 /app
+
+USER 1000
+
+ENV ASPNETCORE_URLS=http://+:<PORT>
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV TMPDIR=/tmp
+ENV ASPNETCORE_DataProtection__KeyRingPath=/tmp/dp-keys
+
+EXPOSE <PORT>
+
+ENTRYPOINT ["dotnet","<DLL_NAME>.dll"]
+
+EXAMPLE - ASP.NET 8, SQLite → /app/data, port 5000
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+WORKDIR /src
+
+COPY *.csproj ./
+RUN dotnet restore
+
+COPY . .
+RUN dotnet publish -c Release -o /app/publish \
+    --self-contained false /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+
+RUN adduser -D -u 1000 dotnetuser
+
+WORKDIR /app
+COPY --from=build /app/publish .
+
+RUN rm -rf /app/data    && ln -s /tmp/app-data    /app/data
+RUN rm -rf /app/uploads && ln -s /tmp/app-uploads /app/uploads
+RUN rm -f /app/app.db   && ln -s /tmp/app.db      /app/app.db
+
+RUN mkdir -p /tmp/app-data /tmp/app-uploads /tmp/dp-keys
+
+RUN chown -R 1000:1000 /app
+USER 1000
+
+ENV ASPNETCORE_URLS=http://+:5000
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV TMPDIR=/tmp
+ENV ASPNETCORE_DataProtection__KeyRingPath=/tmp/dp-keys
+
+EXPOSE 5000
+
+ENTRYPOINT ["dotnet","WebApplication2.dll"]
+
+3.3.2.3.6	PHP (Apache)
+It is mandatory to modify both: `ports.conf`, `000-default.conf` to use a port greater than 1024 (for example 8080).
+This prevents Permission Denied errors when Apache runs as non-root user (UID 1000) in Kubernetes. Adding ServerName localhost also ensures the container starts faster and with cleaner logs.
+TEMPLATE
+# 1. Base Image: Choose an appropriate PHP version
+# <PHP_VER> examples: 8.2, 8.1, 7.4
+FROM php:<PHP_VER>-apache
+
+# 2. Install System Packages (Optional)
+# Add any libraries required for the challenge (SQLite, GD, Zip, etc.)
+RUN apt-get update && apt-get install -y \
+    libsqlite3-dev sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 3. Install PHP Extensions (Optional)
+# <EXTENSIONS> examples: pdo_sqlite, pdo_mysql, gd
+RUN docker-php-ext-install <EXTENSIONS>
+
+# 4. Configure Port & ServerName (Hardening)
+# Replace <PORT> with the desired port (usually 8080 to allow non-root execution)
+RUN sed -i 's/Listen 80/Listen <PORT>/' /etc/apache2/ports.conf \
+    && sed -i 's/:80/:<PORT>/' /etc/apache2/sites-available/000-default.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# 5. Force Apache to use /tmp for runtime writable paths (via environment variables)
+ENV APACHE_RUN_DIR=/tmp/apache-run \
+    APACHE_PID_FILE=/tmp/apache-run/apache2.pid \
+    APACHE_LOCK_DIR=/tmp/apache-lock \
+    APACHE_LOG_DIR=/tmp/apache-logs
+
+# 6. Create a non-root user (UID 1000)
+RUN groupadd -g 1000 appgroup || true && \
+    useradd -r -u 1000 -g appgroup -m -d /home/appuser -s /usr/sbin/nologin appuser || true
+
+# 7. Set permissions for Apache directories
+# Allow user 1000 to read configs and write temporary logs
+RUN chown -R 1000:1000 /var/www/html /etc/apache2 /var/lib/apache2 /var/log/apache2
+
+WORKDIR /var/www/html
+
+# 8. Copy source code
+# <SRC_DIR> examples: ./src or .
+COPY <SRC_DIR> .
+
+# 9. Ensure all application files belong to user 1000
+RUN chown -R 1000:1000 /var/www/html
+
+USER 1000
+EXPOSE <PORT>
+
+# 10. Startup command: create required temporary directories under /tmp
+# [Optional] Add database initialization if using SQLite
+CMD ["sh", "-c", "mkdir -p $APACHE_RUN_DIR $APACHE_LOCK_DIR $APACHE_LOG_DIR /tmp/uploads && touch /tmp/data.db && exec apache2-foreground"]
+
+EXAMPLE - PHP 8.2 + SQLite, Port 8080
+FROM php:8.2-apache
+
+# 1. Install dependencies
+RUN apt-get update && apt-get install -y \
+    libsqlite3-dev sqlite3 && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-install pdo_sqlite
+
+# 2. Configure Port & ServerName
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+    && sed -i 's/:80/:8080/' /etc/apache2/sites-available/000-default.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# 3. Apache runtime environment variables
+ENV APACHE_RUN_DIR=/tmp/apache-run \
+    APACHE_PID_FILE=/tmp/apache-run/apache2.pid \
+    APACHE_LOCK_DIR=/tmp/apache-lock \
+    APACHE_LOG_DIR=/tmp/apache-logs
+
+# 4. Create non-root user
+RUN groupadd -g 1000 appgroup || true && \
+    useradd -r -u 1000 -g appgroup -m -d /home/appuser -s /usr/sbin/nologin appuser || true
+
+# 5. Set permissions (removed /var/lib/php since it does not exist)
+RUN chown -R 1000:1000 /var/www/html /etc/apache2 /var/lib/apache2 /var/log/apache2
+
+WORKDIR /var/www/html
+COPY . .
+
+# Ensure all web files belong to user 1000
+RUN chown -R 1000:1000 /var/www/html
+
+USER 1000
+EXPOSE 8080
+
+# 6. Startup command
+CMD ["sh","-c", "mkdir -p $APACHE_RUN_DIR $APACHE_LOCK_DIR $APACHE_LOG_DIR /tmp/uploads && touch /tmp/data.db && exec apache2-foreground"]
+
+3.3.2.4 Anti-Patterns & Debugging
+Common Anti-Patterns
+Anti-Pattern	Correct Approach
+Writing files to /app during runtime	Redirect writable paths to /tmp
+Running container as root	Use USER 1000
+Creating symlinks in CMD	Create them during build (RUN ln -s)
+Logging to files	Use stdout or stderr
+Using ports <1024	Use ports such as 8080, 5000, 3000
+Table 0 3: Anti-Pattern for Hardern Dockerfile
+Debugging
+If the container crashes immediately after startup, check the logs:
+docker logs <container_id>
+Common causes include missing /tmp directories or permission issues.
+For debugging, run the container interactively:
+docker run -it --read-only --tmpfs /tmp --user 1000 <image> sh
+
+Quick Local Test
+Before uploading a challenge, test the container locally.
+docker build -t challenge-x .
+docker run --read-only --tmpfs /tmp --user 1000 -p <PORT>:<PORT> challenge-x
+Note that passing this test does not guarantee compatibility with the F-CTF platform. The container should also be verified using the Preview feature before submission.
+
+

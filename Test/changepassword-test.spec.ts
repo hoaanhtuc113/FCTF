@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, Browser } from '@playwright/test';
 
 // =============================================================================
 // PHẦN 1: TYPE DEFINITIONS & BỘ DỮ LIỆU TEST CASES
@@ -135,14 +135,238 @@ const allTestData: ChangePassTestData[] = [
 // =============================================================================
 
 const BASE_URL = 'https://contestant0.fctf.site';
+const CONTESTANT_API_URL = 'https://api0.fctf.site/api';
+const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = '1';
+
+async function loginContestantViaApi(page: Page, username: string, password: string): Promise<boolean> {
+    const result = await page.evaluate(async ({ username, password, defaultApiBase }) => {
+        const runtimeApi = (window as { __ENV__?: { VITE_API_URL?: string } }).__ENV__?.VITE_API_URL;
+        const candidates = Array.from(new Set(
+            [runtimeApi, defaultApiBase]
+                .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+                .map((item) => item.replace(/\/+$/, ''))
+        ));
+        const loginPaths = ['/auth/login-contestant', '/Auth/login-contestant'];
+        const errors: string[] = [];
+
+        for (const apiBase of candidates) {
+            for (const loginPath of loginPaths) {
+                try {
+                    const response = await fetch(`${apiBase}${loginPath}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                        body: JSON.stringify({ username, password }),
+                    });
+                    const rawText = await response.text();
+                    let body: {
+                        generatedToken?: string;
+                        token?: string;
+                        user?: unknown;
+                        data?: { token?: string; generatedToken?: string; user?: unknown };
+                    } | null = null;
+                    try {
+                        body = JSON.parse(rawText);
+                    } catch {
+                        body = null;
+                    }
+
+                    const token = body?.generatedToken ?? body?.data?.generatedToken ?? body?.data?.token ?? body?.token ?? null;
+                    const userInfo = body?.user ?? body?.data?.user ?? null;
+
+                    if (response.ok && token) {
+                        localStorage.setItem('auth_token', token);
+                        if (userInfo) {
+                            localStorage.setItem('user_info', JSON.stringify(userInfo));
+                        }
+                        return { ok: true, apiBase, loginPath, status: response.status, errors };
+                    }
+
+                    errors.push(`base=${apiBase} path=${loginPath} status=${response.status} raw=${rawText.slice(0, 200)}`);
+                } catch (error) {
+                    errors.push(`base=${apiBase} path=${loginPath} error=${String(error)}`);
+                }
+            }
+        }
+
+        return { ok: false, errors };
+    }, { username, password, defaultApiBase: CONTESTANT_API_URL });
+
+    if (result?.ok !== true) {
+        const errorPreview = Array.isArray(result?.errors) ? result.errors.slice(0, 3).join(' | ') : 'unknown API login error';
+        console.log(`⚠️ API login failed for ${username}: ${errorPreview}`);
+    }
+
+    return result?.ok === true;
+}
+
+async function loginAdminForSetup(page: Page, retries = 3): Promise<void> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await page.goto(`${ADMIN_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+            if (/\/admin(\/|$)/.test(new URL(page.url()).pathname)) {
+                return;
+            }
+
+            const usernameInput = page.locator('#name, input[name="name"]').first();
+            const passwordInput = page.locator('#password, input[name="password"]').first();
+            const submitButton = page.locator('#_submit, button[type="submit"], input[type="submit"]').first();
+
+            await usernameInput.waitFor({ state: 'visible', timeout: 15000 });
+            await usernameInput.fill(ADMIN_USERNAME);
+            await passwordInput.fill(ADMIN_PASSWORD);
+
+            await Promise.all([
+                page.waitForURL((url) => /\/admin(\/|$)/.test(url.pathname), { timeout: 30000 }),
+                submitButton.click(),
+            ]);
+
+            return;
+        } catch (e) {
+            if (i === retries - 1) {
+                throw e;
+            }
+            await page.waitForTimeout(1500 * (i + 1));
+        }
+    }
+}
+
+async function resolveContestantUserIdFromAdminApi(page: Page, username: string): Promise<number> {
+    const normalized = username.trim().toLowerCase();
+    const candidates = [
+        `${ADMIN_URL}/api/v1/users?field=name&q=${encodeURIComponent(username)}&page=1&per_page=100`,
+        `${ADMIN_URL}/api/v1/users?page=1&per_page=500`,
+    ];
+
+    for (const endpoint of candidates) {
+        try {
+            const response = await page.request.get(endpoint);
+            if (!response.ok()) {
+                continue;
+            }
+
+            const body = await response.json().catch(() => null) as { data?: Array<{ id?: number; name?: string }> } | null;
+            const users = Array.isArray(body?.data) ? body.data : [];
+
+            const found = users.find((u) => typeof u?.id === 'number' && typeof u?.name === 'string' && u.name.toLowerCase() === normalized);
+            if (found?.id) {
+                return found.id;
+            }
+        } catch {
+            // Try next candidate endpoint
+        }
+    }
+
+    throw new Error(`Cannot resolve user id for ${username} via admin API.`);
+}
+
+async function patchContestantPasswordViaAdmin(page: Page, userId: number, nextPassword: string): Promise<void> {
+    await page.goto(`${ADMIN_URL}/admin/users/${userId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    const result = await page.evaluate(async ({ userId, nextPassword, adminBaseUrl }) => {
+        const csrfToken = (window as { init?: { csrfNonce?: string } }).init?.csrfNonce || '';
+        const response = await fetch(`${adminBaseUrl}/api/v1/users/${userId}`, {
+            method: 'PATCH',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'CSRF-Token': csrfToken,
+            },
+            body: JSON.stringify({ password: nextPassword }),
+        });
+
+        const rawText = await response.text();
+        let body: { success?: boolean; message?: string } | null = null;
+        try {
+            body = JSON.parse(rawText);
+        } catch {
+            body = null;
+        }
+
+        return {
+            status: response.status,
+            body,
+            rawText: rawText.slice(0, 300),
+        };
+    }, { userId, nextPassword, adminBaseUrl: ADMIN_URL });
+
+    if (result.status !== 200 || !result.body?.success) {
+        throw new Error(`PATCH /api/v1/users/${userId} failed: status=${result.status}, raw=${result.rawText}`);
+    }
+}
+
+async function ensureContestantPasswordBaseline(browser: Browser, username: string, baselinePassword: string): Promise<boolean> {
+    const adminPage = await browser.newPage();
+
+    try {
+        await loginAdminForSetup(adminPage);
+        const userId = await resolveContestantUserIdFromAdminApi(adminPage, username);
+        await patchContestantPasswordViaAdmin(adminPage, userId, baselinePassword);
+        console.log(`✅ Baseline password reset via admin for ${username}`);
+        return true;
+    } catch (e) {
+        console.log(`⚠️ Baseline reset via admin failed: ${(e as Error).message}`);
+        return false;
+    } finally {
+        await adminPage.close();
+    }
+}
 
 // Helper: Login
 async function login(page: Page, user: string, pass: string) {
-    await page.goto(`${BASE_URL}/login`);
-    await page.locator("input[placeholder='input username...']").fill(user);
-    await page.locator("input[placeholder='enter_password']").fill(pass);
-    await page.locator("button[type='submit']").click();
-    await page.waitForURL(/\/dashboard|challenges|tickets/);
+    const usernameCandidates = [user];
+
+    // Step 1: Go to login page
+    await page.goto(`${BASE_URL}/login`, { timeout: 60000 });
+
+    // Step 2: Try UI form login first
+    try {
+        await page.locator("input[placeholder='input username...']").waitFor({ state: 'visible', timeout: 15000 });
+        await page.locator("input[placeholder='input username...']").fill(user);
+        await page.locator("input[placeholder='enter_password']").fill(pass);
+        await page.locator("button[type='submit']").click();
+        await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 });
+        console.log(`✅ Contestant logged in as ${user}: ${page.url()}`);
+        return;
+    } catch (e) {
+        console.log(`⚠️ UI login failed for ${user}: ${(e as Error).message.substring(0, 100)}`);
+    }
+
+    // Step 3: API login fallback (sets localStorage token + page.reload)
+    console.log('🔄 Trying API-based login as fallback...');
+    await page.goto(`${BASE_URL}/login`, { timeout: 60000 });
+
+    for (const username of usernameCandidates) {
+        const ok = await loginContestantViaApi(page, username, pass);
+        if (ok) {
+            console.log(`✅ API login succeeded for ${username}, navigating to dashboard...`);
+            await page.goto(`${BASE_URL}/dashboard`, { timeout: 30000 });
+            if (page.url().includes('/login')) {
+                console.log(`⚠️ API login token not accepted for ${username}, trying next...`);
+                continue;
+            }
+            return;
+        }
+    }
+
+    console.log('🔄 Falling back to UI form login with original username...');
+    for (let i = 0; i < 2; i++) {
+        try {
+            await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await page.locator("input[placeholder='input username...']").waitFor({ state: 'visible', timeout: 15000 });
+            await page.locator("input[placeholder='input username...']").fill(user);
+            await page.locator("input[placeholder='enter_password']").fill(pass);
+            await page.locator("button[type='submit']").click();
+            await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 });
+            console.log(`✅ UI form login succeeded: ${page.url()}`);
+            return;
+        } catch (e) {
+            if (i === 1) throw e;
+            await page.waitForTimeout(5000);
+        }
+    }
 }
 
 // Helper: Đi tới Profile
@@ -243,12 +467,98 @@ async function checkSwalAlert(page: Page, expectedMessage: string): Promise<bool
 
 // Chúng ta dùng serial để các TC đổi password có thể kế thừa mật khẩu mới từ TC trước
 test.describe.serial('Chức năng: Thay đổi mật khẩu (Change Password)', () => {
+    test.setTimeout(180000); // 180 seconds timeout for the tests
     let page: Page;
 
     test.beforeAll(async ({ browser }) => {
+        test.setTimeout(180000); // Explicitly increase timeout for the hook itself
         page = await browser.newPage();
-        // Login tài khoản user1 (Mật khẩu ban đầu: 1)
-        await login(page, 'user1', '1');
+
+        // Must navigate to the site first so that page.evaluate fetch avoids cross-origin CORS errors from about:blank
+        await page.goto(`${BASE_URL}/login`, { timeout: 60000 });
+
+        const baselinePassword = '1';
+        const baselineResetOk = await ensureContestantPasswordBaseline(browser, 'user2', baselinePassword);
+
+        let currentPass = '';
+        let loggedIn = false;
+
+        if (baselineResetOk) {
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                console.log(`🔄 Pre-flight: Verifying baseline password via API (attempt ${attempt}/3)`);
+                const ok = await loginContestantViaApi(page, 'user2', baselinePassword);
+                if (ok) {
+                    currentPass = baselinePassword;
+                    loggedIn = true;
+                    console.log(`✅ Pre-flight baseline login successful with password: ${baselinePassword}`);
+                    break;
+                }
+                await page.waitForTimeout(1000);
+            }
+        }
+
+        if (!loggedIn) {
+            const knownPasswords = ['1', 'User@111', 'User@123éàô', 'User@123', 'User11111'];
+            for (const p of knownPasswords) {
+                console.log(`🔄 Pre-flight fallback: Trying API login with pass: ${p}`);
+                const ok = await loginContestantViaApi(page, 'user2', p);
+                if (ok) {
+                    currentPass = p;
+                    loggedIn = true;
+                    console.log(`✅ Pre-flight fallback successful! Current DB password is: ${p}`);
+                    break;
+                }
+            }
+        }
+
+        if (!loggedIn) {
+            // Last fallback: try UI login with baseline password in case API login endpoint is unhealthy.
+            try {
+                await login(page, 'user2', baselinePassword);
+                currentPass = baselinePassword;
+                loggedIn = true;
+                console.log(`✅ Pre-flight UI fallback successful with baseline password.`);
+            } catch {
+                // Keep final error below for full context
+            }
+        }
+
+        if (!loggedIn) {
+            throw new Error(`Failed to login with any known password even after admin baseline reset. DB/auth service may be in an unknown state.`);
+        }
+
+        // Ensure token is present on this shared page, even if login succeeded via UI fallback.
+        if (!(await loginContestantViaApi(page, 'user2', currentPass))) {
+            await login(page, 'user2', currentPass);
+        }
+
+        // Navigate to dashboard using the token/session set by API/UI login
+        await page.goto(`${BASE_URL}/dashboard`, { timeout: 30000 });
+        if (page.url().includes('/login')) {
+            // Fallback to UI login if API token wasn't persisted
+            await login(page, 'user2', currentPass);
+        }
+
+        // If the password is ALREADY 'User@111', TC-CP001 will fail because it expects to change it TO 'User@111'.
+        // We must change it to something else (e.g., 'User@123éàô') so TC-CP001 can successfully change it.
+        if (currentPass === 'User@111') {
+            console.log("⚠️ Current password is User@111, resetting to User@123éàô via UI so TC-CP001 can run properly.");
+            await navigateToProfile(page);
+            await openChangePasswordModal(page);
+            await fillChangePassForm(page, currentPass, 'User@123éàô', 'User@123éàô');
+            await submitChangePass(page);
+            await page.waitForTimeout(1000);
+            const closeBtn = page.locator('button:has-text("OK")');
+            if (await closeBtn.isVisible().catch(() => false)) {
+                await closeBtn.click();
+            }
+            await page.waitForTimeout(1000); // wait for modal to close fully
+            currentPass = 'User@123éàô';
+            await page.goto(`${BASE_URL}/dashboard`);
+        }
+
+        // Dynamically update the first test's oldPass so it works with the actual DB state
+        allTestData[0].oldPass = currentPass;
     });
 
     test.afterAll(async () => {

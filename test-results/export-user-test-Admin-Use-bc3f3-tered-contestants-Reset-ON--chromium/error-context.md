@@ -1,0 +1,181 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - link "F-CTF" [ref=e3] [cursor=pointer]:
+      - /url: /?route=%2F
+      - img "F-CTF" [ref=e4]
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link " Dashboard" [ref=e8] [cursor=pointer]:
+          - /url: /admin/statistics
+          - generic [ref=e9]: 
+          - text: Dashboard
+      - listitem [ref=e10]:
+        - link " Challenges" [ref=e11] [cursor=pointer]:
+          - /url: /admin/challenges
+          - generic [ref=e12]: 
+          - text: Challenges
+      - listitem [ref=e13]:
+        - link " Users" [ref=e14] [cursor=pointer]:
+          - /url: /admin/users
+          - generic [ref=e15]: 
+          - text: Users
+      - listitem [ref=e16]:
+        - link " Action Logs" [ref=e17] [cursor=pointer]:
+          - /url: /admin/action_logs
+          - generic [ref=e18]: 
+          - text: Action Logs
+      - listitem [ref=e19]:
+        - link " Instances History" [ref=e20] [cursor=pointer]:
+          - /url: /admin/instances_history
+          - generic [ref=e21]: 
+          - text: Instances History
+      - listitem [ref=e22]:
+        - link " Audit Logs" [ref=e23] [cursor=pointer]:
+          - /url: /admin/admin_audit
+          - generic [ref=e24]: 
+          - text: Audit Logs
+      - listitem [ref=e25]:
+        - link " Tickets" [ref=e26] [cursor=pointer]:
+          - /url: /admin/viewticket
+          - generic [ref=e27]: 
+          - text: Tickets
+      - listitem [ref=e28]:
+        - link " Teams" [ref=e29] [cursor=pointer]:
+          - /url: /admin/teams
+          - generic [ref=e30]: 
+          - text: Teams
+      - listitem [ref=e31]:
+        - link " Scoreboard" [ref=e32] [cursor=pointer]:
+          - /url: /admin/scoreboard
+          - generic [ref=e33]: 
+          - text: Scoreboard
+      - listitem [ref=e34]:
+        - generic [ref=e35] [cursor=pointer]:
+          - generic [ref=e36]: 
+          - text: Submissions
+          - generic [ref=e37]: 
+      - listitem [ref=e38]:
+        - link " Dynamic Reward Query" [ref=e39] [cursor=pointer]:
+          - /url: /admin/rewards
+          - generic [ref=e40]: 
+          - text: Dynamic Reward Query
+      - listitem [ref=e41]:
+        - link " Config" [ref=e42] [cursor=pointer]:
+          - /url: /admin/config
+          - generic [ref=e43]: 
+          - text: Config
+      - listitem [ref=e44]:
+        - link " Monitoring" [ref=e45] [cursor=pointer]:
+          - /url: /admin/monitoring
+          - generic [ref=e46]: 
+          - text: Monitoring
+    - link " Logout" [ref=e48] [cursor=pointer]:
+      - /url: /logout
+      - generic [ref=e49]: 
+      - text: Logout
+  - main [ref=e51]:
+    - heading " Users" [level=1] [ref=e54]:
+      - generic [ref=e55]: 
+      - text: Users
+    - generic [ref=e56]:
+      - generic [ref=e58]: Searching name matching export_filter_test_1775472065408 — 1 results
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]: Role
+            - textbox "All Roles" [ref=e65]
+          - generic [ref=e66]:
+            - generic [ref=e67]: Verified
+            - textbox "All" [ref=e69]
+          - generic [ref=e70]:
+            - generic [ref=e71]: Hidden
+            - textbox "All" [ref=e73]
+          - generic [ref=e74]:
+            - generic [ref=e75]: Banned
+            - textbox "All" [ref=e77]
+          - generic [ref=e78]:
+            - generic [ref=e79]: Search Field
+            - textbox "Name" [ref=e81]
+          - generic [ref=e82]:
+            - generic [ref=e83]: Search Text
+            - textbox "Search users..." [ref=e84]: export_filter_test_1775472065408
+        - generic [ref=e86]:
+          - button " Search" [ref=e87] [cursor=pointer]:
+            - generic [ref=e88]: 
+            - text: Search
+          - button "" [ref=e89] [cursor=pointer]:
+            - generic [ref=e90]: 
+      - generic [ref=e91]:
+        - link "+ Create User" [ref=e93] [cursor=pointer]:
+          - /url: /admin/users/new
+          - generic [ref=e94]: +
+          - text: Create User
+        - generic [ref=e95]:
+          - group [ref=e96]:
+            - button " Edit" [ref=e97] [cursor=pointer]:
+              - generic [ref=e98]: 
+              - text: Edit
+            - button " Delete" [ref=e99] [cursor=pointer]:
+              - generic [ref=e100]: 
+              - text: Delete
+          - generic [ref=e101]:
+            - button "Export CSV" [ref=e102] [cursor=pointer]
+            - generic "Export CSV" [ref=e103]:
+              - generic [ref=e104]:
+                - checkbox "Include Passwords (Reset)" [checked] [ref=e105] [cursor=pointer]
+                - generic [ref=e106]: Include Passwords (Reset)
+                - generic [ref=e107]: Reset and export passwords for all users
+              - text: 
+              - button "Export" [ref=e108] [cursor=pointer]
+      - table [ref=e110]:
+        - rowgroup [ref=e111]:
+          - row "ID  User  Team  Role  Verified  Hidden  Banned " [ref=e112]:
+            - columnheader [ref=e113]:
+              - checkbox [ref=e114] [cursor=pointer]
+            - columnheader "ID " [ref=e115] [cursor=pointer]:
+              - text: ID
+              - generic [ref=e116]: 
+            - columnheader "User " [ref=e117] [cursor=pointer]:
+              - text: User
+              - generic [ref=e118]: 
+            - columnheader "Team " [ref=e119] [cursor=pointer]:
+              - text: Team
+              - generic [ref=e120]: 
+            - columnheader "Role " [ref=e121] [cursor=pointer]:
+              - text: Role
+              - generic [ref=e122]: 
+            - columnheader "Verified " [ref=e123] [cursor=pointer]:
+              - text: Verified
+              - generic [ref=e124]: 
+            - columnheader "Hidden " [ref=e125] [cursor=pointer]:
+              - text: Hidden
+              - generic [ref=e126]: 
+            - columnheader "Banned " [ref=e127] [cursor=pointer]:
+              - text: Banned
+              - generic [ref=e128]: 
+        - rowgroup [ref=e129]:
+          - row "1581 export_filter_test_1775472065408 - User verified" [ref=e130] [cursor=pointer]:
+            - cell [ref=e131]:
+              - checkbox [ref=e132]
+            - cell "1581" [ref=e133]
+            - cell "export_filter_test_1775472065408" [ref=e134]:
+              - link "export_filter_test_1775472065408" [ref=e135]:
+                - /url: /admin/users/1581
+            - cell "-" [ref=e136]
+            - cell "User" [ref=e137]
+            - cell "verified" [ref=e138]
+            - cell [ref=e139]
+            - cell [ref=e140]
+      - status [ref=e142]: Page 1 of 1 • 1 total
+    - dialog [active] [ref=e143]:
+      - document:
+        - generic [ref=e144]:
+          - generic [ref=e145]:
+            - heading "Warning" [level=5] [ref=e146]
+            - button "Close" [ref=e147] [cursor=pointer]: ×
+          - paragraph [ref=e149]: All contestant passwords will be reset and displayed in the file.
+          - button "OK" [ref=e151] [cursor=pointer]
+```

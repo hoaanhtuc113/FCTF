@@ -1,0 +1,231 @@
+Hướng Dẫn Quản Lý Challenge (Dành cho Admin & Challenge Writer)
+Tài liệu này cung cấp hướng dẫn chi tiết về các nghiệp vụ quản lý, cấu hình và kiểm thử Challenge trên hệ thống bao gồm: Khởi tạo, Cấu hình Deployment, Quản lý Metadata, Theo dõi Monitoring và sử dụng tính năng Preview.
+Phần 1: Khởi Tạo Challenge Mới (Create Challenge)
+Bước 1: Nhấn nút [+ Create Challenge] tại trang Manage Challenges
+
+
+Figure 1: Manage Challenges Screen
+Bước 2: Giao diện Create Challenge hiển thị. Người dùng chọn loại challenge và điền các thông tin tương ứng.
+
+
+Figure 2: Create Challenges Screen
+Các loại challenge bao gồm:
+Standard: Điểm số là cố định.
+Dynamic: Điểm số giảm dần theo số lượng đội đã giải được challenge. Càng nhiều đội giải, điểm nhận được càng thấp.
+Multiple choice: Câu hỏi trắc nghiệm, thí sinh chọn một đáp án đúng từ danh sách.
+Các thông tin chung của challenge:
+Name (bắt buộc): Tên challenge.
+Category (bắt buộc): Phân loại challenge.
+Difficulty: Độ khó (1–5 sao hoặc để trống).
+Files: File đề bài (PDF, tối đa 5MB).
+Description: Mô tả challenge.
+Time Limit (minutes): Thời gian tối đa để giải challenge (áp dụng cho challenge có deploy). Khi hết thời gian, instance sẽ tự động dừng.
+Max Attempts: Số lần submit tối đa (0 = không giới hạn).
+Submission cooldown (seconds): Thời gian tối thiểu giữa hai lần submit (0 = không giới hạn).
+Value (bắt buộc): Điểm số của challenge.
+Các thông tin riêng cho loại challenge Dynamic và Multiple choice:
+
+
+Figure 3: Information tab for Dynamic Challenge screen
+Dynamic challenge:  
+Initial Value: Điểm số ban đầu của challenge.
+Decay Function: Cách giảm điểm, hệ thống hỗ trợ 2 loại function:
+Linear function: Giảm đều mỗi lần solve.
+Logarithmic: Giảm ít lúc đầu, giảm mạnh về sau.
+Decay: Giá trị giảm sử dụng trong Decay function.
+Minimum Value: Điểm số tối thiểu của challenge.
+
+
+Figure 4: Choices input for Multiple choice challenge
+Multiple choice challenge:  
+Người dùng nhập các lựa chọn theo cú pháp: 
+* () Choice 1
+* () Choice 2
+* () Choice 3
+Trong đó: `* ` đại diện cho 1 dòng, người dùng có thể copy “Choice 1” hoặc “Choice 2” để làm flag cho challenge.
+Bước 3: Sau khi đã điền các thông tin cho challenge, nhấn nút [Create] tại trang Create Challenge
+
+Figure 5: Create Challenge Screen
+Bước 4: Sau khi hoàn thành bước 3, dialog để cài đặt option cho challenge hiện ra, người dùng điền các thông tin cần thiết.
+
+Figure 5: Challenge options dialog
+Box 1: Nhập flag và chọn có phân biệt chữ hoa/thường hay không (mặc định: static flag).
+Box 2: Bật nếu challenge cần deploy môi trường runtime.
+Box 3: File đính kèm challenge, thí sinh có thể tải xuống.
+Box 4: Trạng thái visibility của challenge:
+Visible để hiển thị cho thí sinh.
+Hidden để ẩn đối với thí sinh.
+Nút [Finish]: Nhấn nút finish để hoàn tất tạo challenge.
+* Cài đặt deployment cho challenge khi tick checkbox [Setup Deploy]:
+
+
+Figure 6: Inputs for Deploy Challenge in options dialog
+Các thông tin cần thiết cho deploy challenge:
+Expose port (Bắt buộc): Cổng public mà instance challenge sẽ expose ra ngoài.
+Connection Protocol: Protocol thí sinh sẽ sử dụng để kết nối tới challenge instance.
+CPU Limit (mCPU): Mức CPU tối đa challenge pod được phép dùng.
+CPU Request (mCPU): Mức CPU tối thiểu để scheduler cân nhắc đặt pod.
+Memory Limit (Mi): Mức RAM tối đa challenge pod có thể dùng.
+Memory Request (Mi): Mức RAM tối thiểu để scheduler đặt pod.
+Use gVisor: Dropdown chọn dùng runtime sandbox gVisor để tăng cách ly kernel cho challenge container.
+Harden Container: Checkbox để kích hoạt việc áp dụng các biện pháp tăng cường bảo mật cho container: sử dụng Pod Security Standards ở mức restricted, đặt root filesystem ở chế độ chỉ đọc, loại bỏ tất cả các capabilities, chạy container dưới người dùng không phải root (UID 1000), và mount thư mục /tmp dưới dạng bộ nhớ tạm.
+Max Deploy Count: Giới hạn số lần người chơi được start instance cho challenge này (đặt = 0 để không giới hạn).
+Shared Instance: Checkbox kích hoạt chế độ sử dụng một instance đã deploy dùng chung cho tất cả thí sinh thay vì tạo instance riêng cho từng người dùng.
+Deploy File (bắt buộc): File zip chứa source để build/deploy challenge instance.
+Bước 5: Sau khi hoàn thành bước 4, hệ thống chuyển hướng đến trang Challenge Detail
+
+Figure 7: Challenge Detail screen
+Deployment status: Hiển thị tiến trình deploy và trạng thái hiện tại. Sau khi hoàn tất, hiển thị thời gian deploy gần nhất.
+
+Figure 8: Deploy status in Challenge Detail screen
+Sau khi quá trình deploy kết thúc, người dùng có thể quan sát trạng thái deploy và thời gian lần deploy gần nhất ngay tại trang Challenge Detail.
+Các tab cài đặt challenge khác:
+Challenge files: Quản lý các file public thí sinh có thể tải về cho challenge.
+
+Figure 8: Manage Flag tab in Challenge Detail screen
+Flags: Tab quản lý flag của challenge, mỗi challenge có thể có nhiều flag và thí sinh sẽ được tính điểm khi flag khớp với bất kỳ flag nào trong danh sách, hệ thống hỗ trợ 2 loại flag: 
+Static flag: So khớp theo kiểu so sánh ký tự.
+Regex flag:  Biểu thức chính quy dùng để xác định format của flag hợp lệ. Ví dụ: flag{(\d+)}: chỉ chấp nhận flag chứa số; Thí sinh nhập flag khớp với regex sẽ được tính điểm, ví dụ: flag{5}.
+
+Figure 9: Manage Topics tab in Challenge Detail screen
+Topics: Tab quản lý gắn topic cho challenge, 1 challenge có thể thuộc nhiều topic.
+
+Figure 10: Manage Tags tab in Challenge Detail screen
+Tags: Quản lý tag cho challenge, 1 challenge có thể có nhiều tag để phân loại.
+
+Figure 10: Manage Tags tab in Challenge Detail screen
+Hints: Tạo, sửa, xóa gợi ý cho challenge, mỗi gợi ý có cài đặt Cost (số điểm thí sinh bị trừ khi mở hint) và cài đặt điều kiện 1 hoặc nhiều hint phải được mở trước khi mở hint này.
+
+Figure 10: Manage Requirements tab in Challenge Detail screen
+Requirements: Tab cấu hình challenge tiên quyết và hành vi khi chưa unlock (Hidden hoặc Anonymized). Hidden sẽ ẩn challenge khỏi UI, thí sinh không thấy challenge tồn tại. Anonymized cho phép challenge hiển thị cho thí sinh khi challenge tiên quyết chưa được giải, nhưng khóa challenge, thí sinh không thể xem chi tiết challenge này.
+Deploy: Tab cấu hình deployment của challenge, đã cấu hình ở bước 4 khi chọn option deploy challenge.
+
+Figure 11: Manage Versions tab in Challenge Detail screen
+Versions: Lịch sử image version tự tạo mỗi lần deploy thành công. Image có trạng thái [ACTIVE] đại diện cho phiên bản image đang sử dụng. Người dùng có thể chọn 1 image có trạng thái [OLD] và nhấn nút [Roll back] như hình dưới để sử dụng phiên bản image đó.
+
+Figure 12: Image version detail screen
+Next: Cấu hình challenge gợi ý tiếp theo sau khi solve challenge hiện tại. Chọn option (- -) để bỏ qua.
+Phần 2: Lịch Sử & Nhật Ký Hệ Thống (Deploy History)
+Bước 1: Chọn challenge vừa tạo từ danh sách challenges để kiểm tra lịch sử deployment của challenge. Nhấn nút [Actions] sau đó nhấn nút [History].
+
+Figure 13: Manage Challenges screen
+Bước 2: Danh sách lịch sử deploy của challenge xuất hiện, nhấn [View Details] để xem logs chi tiết của workflow deployment.
+
+Figure 14: Deploy History Screen
+
+Figure 15: Deploy logs Screen
+Phần 3: Tính Năng Kiểm Thử (Preview Challenge)
+Preview Challenge là tiện ích sinh ra nhằm giúp Admin / Challenge Writer tự mình thử nghiệm thực tế tính chính xác của đề bài hoặc cách hệ thống build instance, mà không cần sử dụng account thí sinh ảo để làm thay đổi bảng xếp hạng hay giới hạn tài nguyên của các User đang thi thật.
+Bước 1: Truy cập trang Manage Challenges, nhấn nút [Actions] sau đó nhấn nút [Preview].
+
+Figure 16: Contestant Challenge Detail screen
+Bước 2: Truy cập challenge instance
+
+Figure 17: Contestant Challenge Detail screen
+Dialog xuất hiện giữa màn hình thể hiện trạng thái deploy, quá trình xử lý hoàn tất sẽ hiển thị thông báo thành công cùng với token truy cập challenge.
+Admin truy cập challenge instance như contestant bình thường với token được cung cấp. Admin có thể xem lại token của instance này tại trang monitoring.
+Phần 4: Khởi Động Shared Instance & Monitoring
+a, Đối với những challenge bật tùy chọn `Shared Instance`. Thí sinh sẽ không thể tự start challenge. Thay vào đó Admin phải kích hoạt bằng tay. Nếu Admin muốn khởi tạo shared instance challenge cho thí sinh thì thực hiện thao tác dưới đây:
+Chọn challenge có enable tùy chọn Shared Instance ở bước 4 vừa tạo từ danh sách challenges để kiểm tra lịch sử deployment của challenge. Nhấn nút [Actions] sau đó nhấn nút [Start].
+
+Figure 18: Manage Challenges Screen
+Sau khi challenge instance khởi tạo thành công, thí sinh khi truy cập challenge sẽ thấy thông tin truy cập vào challenge như hình dưới:
+
+Figure 19: Contestant Challenge Detail screen
+b, Màn Hình Monitoring:
+
+Figure 20: Monitoring screen
+Bảng Monitoring cung cấp một danh sách chi tiết các trường thông tin cơ bản:
+Challenge Name: 
+Team Name: Đội hiện đang sở hữu instance này (hiển thị `Unknown Team` nếu là Shared Instance challenge, hiển thị `Preview Mode` nếu do admin preview challenge).
+Category: Thể loại của bài thi
+Status: Trạng thái hiện tại của Instance (Running, Deleting, etc).
+Challenge Token: Mã token dùng để xác thực và truy cập vào bài thi.
+Time finished: Thời gian challenge instance tự động bị đóng.
+Admin có thể thực hiện các thao tác quản lý challenge instance tại trang Monitoring. Các lựa chọn quản lý challenge instance:
+Pod Logs: Xem log trực tiếp của Pod (container instance) đang chạy challenge.
+Request Logs: Log theo dõi hệ thống Proxy Request mà thí sinh trao đổi với challenge.
+Stop: Dừng ngay lập tức instance challenge của thí sinh đang chạy.
+
+Hướng Dẫn Sử Dụng Hệ Thống Dành Cho Thí Sinh (Contestant Guideline)
+Tài liệu này hướng dẫn thí sinh các thao tác cơ bản trên hệ thống Contestant Portal, bao gồm cách làm bài thi, quản lý các challenge instances đang chạy và tạo ticket cầu nối với Ban Tổ Chức khi cần thiết.
+Phần 1: Hướng dẫn làm bài (Challenge Workflow)
+Bước 1: Đăng nhập
+- Truy cập vào hệ thống Contestant Portal.
+- Đăng nhập với tài khoản (username) và mật khẩu (password) đã được cung cấp.
+
+
+Figure 1: Contestant Portal login screen
+Bước 2: Chọn Challenge
+- Tại trang chủ hoặc danh mục (Challenges), hệ thống hiển thị danh sách các phân loại challenge (ví dụ: PWN, Web, Crypto,...).
+- Chọn 1 category từ danh sách sau đó chọn 1 challenge thí sinh muốn làm để xem chi tiết.
+
+Figure 2: Challenges List for Contestant screen
+Bước 3: Khởi tạo (Deploy) Challenge Instance.
+- Đối với các challenge yêu cầu môi trường riêng (deploy challenge), nhấn nút [+Start Challenge] để hệ thống cấp phát instance.
+
+Figure 3: Challenge Detail for Contestant screen
+Các thông tin quan trọng hiển thị trên thẻ challenge:
+Block 1 chứa các thông tin theo thứ tự từ trái sang phải:
+pts: Số điểm của challenge.
+Time: Thời gian giới hạn để giải challenge (đếm ngược từ lúc challenge instance được tạo thành công).
+Attempts: Số lượt nộp flag (submit) tối đa cho challenge.
+Deploys: Biểu thị số lần deploy challenge hiện tại/số lần deploy tối đa. 
+Ví dụ: 0/1 biểu thị thí sinh chưa deploy challenge này và có tối đa 1 lần được deploy.
+Block 2 [Attachments] chứa danh sách các file đính kèm thí sinh có thể click chọn 1 file và tải về máy của mình.
+Bước 4: Truy cập vào môi trường thi
+Sau khi deploy thành công, hệ thống sẽ trả về link hoặc thông tin truy cập kèm một token để thí sinh truy cập challenge instance.
+a, Truy cập bằng HTTP: 
+
+Figure 4: Access challenge instance by HTTP
+- Lấy token trong khối [YOUR ACCESS TOKEN].
+- Truy cập URL theo format: http://<gateway-host>:<http-port>?fctftoken=<YOUR_TOKEN>
+- Sau khi gateway xác thực token, thí sinh làm bài trên giao diện web của challenge.
+b, Truy cập bằng TCP:
+- Dùng terminal để kết nối gateway TCP: nc <gateway-host> <tcp-port>
+
+Figure 5: Access challenge instance by TCP
+- Hệ thống sẽ yêu cầu nhập token, thí sinh sử dụng token được cung cấp để xác thực.
+
+Figure 6: Enter token for challenge instance
+- Sau khi thấy thông báo access granted, bắt đầu tương tác challenge instance.
+
+Figure 7: Access instance by TCP successfully
+Bước 5: Submit Flag
+- Sau khi tìm ra được flag, nhập chính xác chuỗi flag đó vào ô Submission.
+- Nhấn nút [SUBMIT] để hệ thống ghi nhận. Nếu chính xác, thí sinh sẽ nhận được thông báo thành công và cộng điểm.
+Phần 2: Quản lý Instances
+
+Figure 8: Challenge Instances screen
+- Cách truy cập: Trên thanh menu/sidebar, nhấn vào mục [Instances]. Màn hình sẽ hiển thị bảng danh sách các instance hiện đang hoạt động (Running), đang trong quá trình deploy (Pending) hoặc xóa (Deleting).
+- Bảng cung cấp các thông tin: Tên Challenge, Category, Token truy cập, Trạng thái hiện tại và Thời gian thu hồi challenge instance.
+- Thực hiện thao tác với Instance: 
+Đi đến Challenge: Nhấn nút [GO] hoặc icon Open Challenge, hệ thống sẽ điều hướng bạn thẳng về màn hình chi tiết bài dự thi đó để tiến hành submit flag.
+Dừng Instance: Nếu giải xong hoặc muốn huỷ instance hiện tại để thi bài khác, nhấn nút [STOP]. Hệ thống sẽ hiển thị một cửa sổ xác nhận trước khi chính thức xóa instance.
+Làm mới dữ liệu: Trong trường hợp mạng chậm hoặc muốn cập nhật trạng thái mới nhất từ server, hãy nhấn nút [REFRESH] ở góc màn hình.
+Phần 3: Quản lý Hỗ trợ (CRUD Tickets)
+Bước 1: Xem Danh Sách Tickets
+- Chọn mục Tickets ở thanh menu. 
+- Tìm hiểu các vấn đề thí sinh đã báo cáo thông qua bảng danh sách bao gồm: ID, Tiêu đề (TITLE), Phân loại (TYPE), Thời gian tạo (DATE), Trạng thái (STATUS) là `Open` (Đang xử lý) hoặc `Closed` (Đã đóng).
+
+Figure 9: Tickets List screen
+Bước 2: Tạo Ticket Mới (Create)
+- Để gửi một yêu cầu hỗ trợ mới, nhấn nút [+ NEW TICKET].
+
+Figure 10: Create new Ticket screen
+Điền các thông tin vào form: 
+Title: Đặt tiêu đề ngắn gọn phản ánh đúng trọng tâm vấn đề.
+Type: Chọn phân loại ticket (Ví dụ: `Question` - Câu hỏi thắc mắc, `Error` - Báo lỗi server/kỹ thuật, `Inform` - Thông báo tình trạng khẩn cấp).
+Description: Cung cấp thông tin chi tiết.
+Bước 3: Xem Chi Tiết Ticket / Theo Dõi Phản Hồi (View Details)
+- Trên bảng danh sách tickets, nhấn nút [VIEW] cạnh ticket quan tâm.
+- Ở trang chi tiết (Ticket Detail), bạn có thể xem lại toàn bộ nội dung (Title, Description) và phản hồi từ Ban Tổ Chức (nếu có).
+
+Figure 11: Ticket Details screen
+
+Bước 4: Xoá Ticket
+- Thí sinh chỉ có thể xóa những ticket đang ở trạng thái `Open`. Hãy nhấn vào nút biểu tượng Thùng rác (Delete) tại dòng ticket đó và nhấn Confirm (Xác nhận) tại pop-up.
+- Quy tắc an toàn: Thí sinh không thể xóa các ticket đã được admin phản hồi và chuyển sang trạng thái `Closed`.
+
+Figure 12: Delete Ticket
+
