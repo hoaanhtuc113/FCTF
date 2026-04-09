@@ -3,60 +3,134 @@ const fs = require('fs');
 const path = require('path');
 
 const TEST_DIR = path.join(__dirname, 'Test');
-const SYSTEM_TEST_NHAT_DIR = path.join(TEST_DIR, 'SystemTest-First', 'tests');
-const SYSTEM_TEST_NHAT_CONFIG = path.join(TEST_DIR, 'SystemTest-First', 'playwright.config.ts');
+const SYSTEM_TEST_NHAT_DIR = path.join(TEST_DIR, 'SystemTest-Nhat', 'tests');
+const SYSTEM_TEST_NHAT_CONFIG = path.join(TEST_DIR, 'SystemTest-Nhat', 'playwright.config.ts');
 
-// 1. Get tests in SystemTest-First/tests
+// Group 0: SystemTest-Nhat (Dynamic)
 let systemTests = [];
 if (fs.existsSync(SYSTEM_TEST_NHAT_DIR)) {
     systemTests = fs.readdirSync(SYSTEM_TEST_NHAT_DIR)
         .filter(f => f.endsWith('.spec.ts'))
-        .map(f => `Test/SystemTest-First/tests/${f}`);
+        .map(f => `Test/SystemTest-Nhat/tests/${f}`);
 }
 
-// 2. Get top-level tests in Test/
-const SPECIAL_LAST_TESTS = ['import-export-csv-test.spec.ts', 'admin-reset-test.spec.ts'];
-const topLevelTests = fs.readdirSync(TEST_DIR)
-    .filter(f => f.endsWith('.spec.ts'))
-    .filter(f => !SPECIAL_LAST_TESTS.includes(f))
-    .map(f => `Test/${f}`);
-
-// 3. Final special tests
-const finalSpecialTests = SPECIAL_LAST_TESTS.map(f => `Test/${f}`);
+// Groups 1-5: Static order as requested by the user
+const groups = [
+    {
+        name: "Nhóm 1: Xác thực tài khoản & User/Contestant",
+        tests: [
+            "login-test.spec.ts",
+            "changepassword-test.spec.ts",
+            "user-profile-test.spec.ts",
+            "ticket-test.spec.ts",
+            "challenges-test.spec.ts",
+            "hint-test.spec.ts"
+        ]
+    },
+    {
+        name: "Nhóm 2: Challenge Framework & Flags",
+        tests: [
+            "start-challenge-test.spec.ts",
+            "stop-challenge-test.spec.ts",
+            "preview-challenge-test.spec.ts",
+            "monitor-instance-test.spec.ts",
+            "instances-test.spec.ts",
+            "submission-status-test.spec.ts",
+            "submission-search-test.spec.ts",
+            "submit-flag-test.spec.ts",
+            "challenge-version-test.spec.ts"
+        ]
+    },
+    {
+        name: "Nhóm 3: Quản Lý, Lọc, và System History trên Admin",
+        tests: [
+            "admin-ticket-test.spec.ts",
+            "admin-ticket-respond-test.spec.ts",
+            "admin-user-filter-test.spec.ts",
+            "admin-create-user-team-test.spec.ts",
+            "filter-admin-challenges.spec.ts",
+            "deployment-history-test.spec.ts",
+            "action-logs-test.spec.ts",
+            "admin-action-logs-test.spec.ts",
+            "instance-request-logs-test.spec.ts",
+            "audit-log-test.spec.ts",
+            "scoreboard-search-test.spec.ts",
+            "scoreboard-test.spec.ts",
+            "admin-scoreboard-test.spec.ts"
+        ]
+    },
+    {
+        name: "Nhóm 4: Cấu hình hệ thống (Global State)",
+        tests: [
+            "admin-challenge-hint-test.spec.ts",
+            "admin-config-general-test.spec.ts",
+            "admin-config-logo-test.spec.ts",
+            "admin-config-visibility-test.spec.ts",
+            "admin-config-time-test.spec.ts"
+        ]
+    },
+    {
+        name: "Nhóm 5: Tác vụ Export, Cleanup & Reset",
+        tests: [
+            "export-user-test.spec.ts",
+            "import-export-csv-test.spec.ts",
+            "admin-reset-test.spec.ts"
+        ]
+    }
+];
 
 console.log('--- Order of Execution ---');
-systemTests.forEach((t, i) => console.log(`${i + 1}. [SystemTest-First] ${t}`));
-topLevelTests.forEach((t, i) => console.log(`${systemTests.length + i + 1}. [Top-Level] ${t}`));
-finalSpecialTests.forEach((t, i) => console.log(`${systemTests.length + topLevelTests.length + i + 1}. [Final] ${t}`));
-console.log('--------------------------');
+let count = 1;
+
+// Log Group 0
+if (systemTests.length > 0) {
+    console.log(`\n[\x1b[36mNhóm 0: SystemTest-Nhat\x1b[0m]`);
+    systemTests.forEach(test => {
+        console.log(`${count++}. ${test}`);
+    });
+}
+
+// Log Groups 1-5
+groups.forEach(group => {
+    console.log(`\n[\x1b[35m${group.name}\x1b[0m]`);
+    group.tests.forEach(test => {
+        console.log(`${count++}. Test/${test}`);
+    });
+});
+console.log('\n--------------------------');
 
 if (process.argv.includes('--dry-run')) {
     process.exit(0);
 }
 
-// Execution
-// Category 1: SystemTest-First (using its own config if it exists)
-const systemConfigFlag = fs.existsSync(SYSTEM_TEST_NHAT_CONFIG) ? `--config="${SYSTEM_TEST_NHAT_CONFIG}"` : '';
-for (const testFile of systemTests) {
-    runTest(testFile, systemConfigFlag);
+// Execution - Category 0: SystemTest-Nhat
+if (systemTests.length > 0) {
+    console.log(`\n\x1b[36m>>> Starting Nhóm 0: SystemTest-Nhat <<<\x1b[0m`);
+    const systemConfigFlag = fs.existsSync(SYSTEM_TEST_NHAT_CONFIG) ? `--config="${SYSTEM_TEST_NHAT_CONFIG}"` : '';
+    for (const testFile of systemTests) {
+        runTest(testFile, systemConfigFlag);
+    }
 }
 
-// Category 2: Top-Level Tests (using root config)
-for (const testFile of topLevelTests) {
-    runTest(testFile, '');
+// Execution - Categories 1-5
+for (const group of groups) {
+    console.log(`\n\x1b[33m>>> Starting ${group.name} <<<\x1b[0m`);
+    for (const testFile of group.tests) {
+        runTest(`Test/${testFile}`, '');
+    }
 }
 
-// Category 3: Special Last Tests
-for (const testFile of finalSpecialTests) {
-    runTest(testFile, '');
-}
+function runTest(testPath, configFlag) {
+    if (!fs.existsSync(testPath)) {
+        console.error(`[\x1b[31mSKIPPED\x1b[0m] File not found: ${testPath}`);
+        return;
+    }
 
-function runTest(testFile, configFlag) {
-    console.log(`\n[\x1b[34mRUNNING\x1b[0m] ${testFile}...`);
+    console.log(`\n[\x1b[34mRUNNING\x1b[0m] ${testPath}...`);
     try {
         // Run sequentially with --headed and --workers=1 to ensure strict ordering
-        execSync(`npx playwright test "${testFile}" ${configFlag} --headed --workers=1`, { stdio: 'inherit' });
+        execSync(`npx playwright test "${testPath}" ${configFlag} --headed --workers=1`, { stdio: 'inherit' });
     } catch (error) {
-        console.error(`[\x1b[31mFAILED\x1b[0m] ${testFile}`);
+        console.error(`[\x1b[31mFAILED\x1b[0m] ${testPath}`);
     }
 }
