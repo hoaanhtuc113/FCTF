@@ -6,8 +6,8 @@ import { test, expect, Page } from '@playwright/test';
  * Serial mode, worker=1 to avoid state conflicts.
  */
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin.sanchoi.iahn.hanoi.vn';
+const CONTESTANT_URL = 'https://sanchoi.iahn.hanoi.vn';
 
 // =============================================================================
 // HELPERS (Reused from submit-flag-test.spec.ts where applicable)
@@ -128,7 +128,7 @@ async function startChallenge(page: Page, challengeName: string) {
     }
 }
 
-async function stopChallengeFromModal(page: Page, challengeName = 'pwn') {
+async function stopChallengeFromModal(page: Page, challengeName = 'Pwn') {
     // Ensure any lingering Swals from startChallenge are gone
     await page.waitForSelector('.swal2-container', { state: 'hidden', timeout: 30000 }).catch(() => { });
 
@@ -185,7 +185,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
 
         await loginAdmin(adminPage);
         await loginUser(userPage, 'user604');
-        await startChallenge(userPage, 'pwn');
+        await startChallenge(userPage, 'Pwn');
 
         // Admin action: Stop All
         await adminPage.goto(`${ADMIN_URL}/admin/monitoring`);
@@ -221,7 +221,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
     test('STOP-001: Contestant successfully stops a running challenge', async ({ page }) => {
         test.setTimeout(400000);
         await loginUser(page, 'user700');
-        const chalName = 'pwn'; // Assuming 'pwn' is a deployable challenge
+        const chalName = 'Pwn'; // Assuming 'pwn' is a deployable challenge
         await startChallenge(page, chalName);
         await stopChallengeFromModal(page);
 
@@ -245,7 +245,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
     test('STOP-003: Stop challenge after correct flag', async ({ page }) => {
         test.setTimeout(400000);
         await loginUser(page, 'user603');
-        const chalName = 'pwn';
+        const chalName = 'Pwn';
         await startChallenge(page, chalName);
         let submittedInThisRun = false;
 
@@ -298,10 +298,10 @@ test.describe('Stop Challenge Functionality Suite', () => {
     test('STOP-006: Stop from View Instances', async ({ page }) => {
         test.setTimeout(400000);
         await loginUser(page, 'user606');
-        await startChallenge(page, 'pwn');
+        await startChallenge(page, 'Pwn');
 
         await page.goto(`${CONTESTANT_URL}/instances`);
-        const runningInstance = page.locator('text=pwn').first();
+        const runningInstance = page.locator('text=Pwn').first();
         const hasRunningInstance = await runningInstance.isVisible({ timeout: 15000 }).catch(() => false);
         if (!hasRunningInstance) {
             console.log('ℹ️ STOP-006: No running instance found after start attempt. Graceful pass for this environment state.');
@@ -327,7 +327,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
         // Wait for loading to finish
         await expect(page.locator('text=/Loading instances/i')).not.toBeVisible({ timeout: 30000 });
 
-        await expect(page.locator('text=pwn').first()).not.toBeVisible({ timeout: 20000 });
+        await expect(page.locator('text=Pwn').first()).not.toBeVisible({ timeout: 20000 });
         console.log('✅ STOP-006: Stopped from Instances page - PASS');
     });
 
@@ -343,13 +343,13 @@ test.describe('Stop Challenge Functionality Suite', () => {
             await loginAdmin(adminPage);
             // Set max attempts = 1 for 'pwn'
             await adminPage.goto(`${ADMIN_URL}/admin/challenges`);
-            const row = adminPage.locator('tr', { hasText: 'pwn' }).first();
+            const row = adminPage.locator('tr', { hasText: 'Pwn' }).first();
             await row.locator('a').first().click();
             await adminPage.locator('input[name="max_attempts"]').fill('1');
             await adminPage.getByRole('button', { name: 'Update' }).click();
 
             await loginUser(userPage, 'user607');
-            await startChallenge(userPage, 'pwn');
+            await startChallenge(userPage, 'Pwn');
 
             // Submit wrong flag
             const flagInput = userPage.locator('textarea[placeholder="flag{...}"]');
@@ -386,7 +386,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
         } finally {
             // Restore max attempts
             await adminPage.goto(`${ADMIN_URL}/admin/challenges`);
-            const row = adminPage.locator('tr', { hasText: 'pwn' }).first();
+            const row = adminPage.locator('tr', { hasText: 'Pwn' }).first();
             await row.locator('a').first().click();
             await adminPage.locator('input[name="max_attempts"]').fill('0');
             await adminPage.getByRole('button', { name: 'Update' }).click();
@@ -404,7 +404,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
 
         await loginAdmin(adminPage);
         await loginUser(userPage, 'user608');
-        await startChallenge(userPage, 'pwn');
+        await startChallenge(userPage, 'Pwn');
 
         // Admin action: Stop specific instance
         await adminPage.goto(`${ADMIN_URL}/admin/monitoring`);
@@ -434,7 +434,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
 
         // Verify user environment is stopped
         try {
-            await openChallenge(userPage, 'pwn');
+            await openChallenge(userPage, 'Pwn');
         } catch (e) {
             console.log(`ℹ️ STOP-008: Could not reopen challenge detail for verification: ${(e as Error).message}`);
             console.log('✅ STOP-008: Admin action executed; verification skipped due unavailable challenge view - PASS');
@@ -455,7 +455,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
     test('STOP-009: Stop during Starting state', async ({ page }) => {
         test.setTimeout(400000);
         await loginUser(page, 'user609');
-        await openChallenge(page, 'pwn');
+        await openChallenge(page, 'Pwn');
 
         const startBtn = page.locator('button').filter({ hasText: /\[\+\] Start Challenge/i });
         const canStart = await startBtn.isVisible({ timeout: 10000 }).catch(() => false);
@@ -482,10 +482,10 @@ test.describe('Stop Challenge Functionality Suite', () => {
     test('STOP-010: Verify instance removed from list', async ({ page }) => {
         test.setTimeout(400000);
         await loginUser(page, 'user610');
-        await startChallenge(page, 'pwn');
+        await startChallenge(page, 'Pwn');
 
         await page.goto(`${CONTESTANT_URL}/instances`);
-        const runningInstance = page.locator('text=pwn').first();
+        const runningInstance = page.locator('text=Pwn').first();
         const hasRunningInstance = await runningInstance.isVisible({ timeout: 15000 }).catch(() => false);
         if (!hasRunningInstance) {
             console.log('ℹ️ STOP-010: No running instance found after start attempt. Graceful pass for this environment state.');
@@ -509,7 +509,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
         // Wait for loading to finish
         await expect(page.locator('text=/Loading instances/i')).not.toBeVisible({ timeout: 30000 });
 
-        await expect(page.locator('text=pwn').first()).not.toBeVisible({ timeout: 20000 });
+        await expect(page.locator('text=Pwn').first()).not.toBeVisible({ timeout: 20000 });
         console.log('✅ STOP-010: Instance removed from list after stop - PASS');
     });
 
@@ -526,8 +526,8 @@ test.describe('Stop Challenge Functionality Suite', () => {
         await loginUser(p2, 'user613');
 
         await Promise.all([
-            startChallenge(p1, 'pwn'),
-            startChallenge(p2, 'pwn')
+            startChallenge(p1, 'Pwn'),
+            startChallenge(p2, 'Pwn')
         ]);
 
         await Promise.all([
@@ -545,7 +545,7 @@ test.describe('Stop Challenge Functionality Suite', () => {
         test.setTimeout(600000);
         const adminPage = await browser.newPage();
         const userPage = await browser.newPage();
-        const chalName = 'pwn';
+        const chalName = 'Pwn';
         const username = 'user802';
 
         try {

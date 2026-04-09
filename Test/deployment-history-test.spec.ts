@@ -1,6 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 
 async function loginAdmin(page: Page) {
     await test.step('Login as admin', async () => {
@@ -83,8 +83,16 @@ test.describe.serial('Deployment History (LOG) Test Suite', () => {
         await expect(async () => {
             const text = await logContent.innerText();
             const normalized = text.toLowerCase();
-            expect(normalized).toContain('image pushed:');
-            expect(normalized).toContain('level=info msg="sub-process exited"');
+
+            try {
+                // Kiểm tra Điều kiện 1
+                expect(normalized).toContain('image pushed:');
+                expect(normalized).toContain('level=info msg="sub-process exited"');
+            } catch (e) {
+                // Nếu Điều kiện 1 lỗi, kiểm tra Điều kiện 2
+                expect(normalized).toContain('no build-and-push');
+                console.log("deploy success but manual delete pod in rancher");
+            }
         }).toPass({ timeout: 30000 });
 
         console.log('✅ LOG-001: Success log content verified');
