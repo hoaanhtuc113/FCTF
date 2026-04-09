@@ -4,7 +4,7 @@ import { test, expect, Page, request as playwrightRequest } from '@playwright/te
 // CONFIGURATION
 // =============================================================================
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -142,13 +142,13 @@ async function submitCreateTeam(
         if (data.country !== undefined) {
             await form.locator('select[name="country"]').selectOption(data.country, { timeout: 2000 });
         }
-    } catch {}
-    
+    } catch { }
+
     try {
         // Mặc định chọn bracket đầu tiên nếu không truyền vào, vì bracket là bắt buộc
         const bracketVal = data.bracket_id !== undefined ? data.bracket_id : { index: 1 };
         await form.locator('select#bracket_id, select[name="bracket_id"], select').last().selectOption(bracketVal as any, { timeout: 2000 });
-    } catch {}
+    } catch { }
     if (data.hidden !== undefined) {
         const cb = form.locator('input[name="hidden"]');
         const checked = await cb.isChecked();
