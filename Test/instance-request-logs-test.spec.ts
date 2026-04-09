@@ -1,105 +1,169 @@
 import { test, expect, type Page } from '@playwright/test';
+import { spawn } from 'child_process';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
-
-async function loginAdmin(page: Page) {
-    await page.goto(`${ADMIN_URL}/login`);
-    await page.locator('input#name, input[name="name"]').first().fill('admin');
-    await page.locator('input#password, input[name="password"]').first().fill('1');
-    await page.locator('button[type="submit"], input#_submit').first().click();
-    await expect(page).toHaveURL(/.*admin/);
-}
+const ADMIN_URL = 'https://admin3.fctf.site';
+const CONTESTANT_URL = 'https://contestant3.fctf.site';
 
 async function loginContestant(page: Page) {
     await page.goto(`${CONTESTANT_URL}/login`);
-    await page.locator("input[placeholder*='username' i]").fill('user22');
-    await page.locator("input[placeholder*='password' i]").fill('1');
-    await page.locator("button[type='submit']").click();
+    await page.getByRole('textbox', { name: 'input username...' }).fill('user22');
+    await page.getByRole('textbox', { name: 'enter_password' }).fill('1');
+    await page.getByRole('button', { name: '[LOGIN]' }).click();
     await expect(page).toHaveURL(/.*challenges/, { timeout: 30000 });
 }
 
-/**
- * Expand category if needed and click the challenge
- */
-async function openChallenge(page: Page, category: string, name: string) {
-    console.log(`Searching for challenge "${name}" in category "${category}"...`);
-    
-    // 1. Expand the category if it appears collapsed
-    // Category headers often have the category name (e.g. "Web") and a count
-    const catHeader = page.locator('button, div').filter({ hasText: new RegExp(`^${category}`, 'i') }).first();
-    await catHeader.click().catch(() => console.log(`Could not click category header for ${category}`));
-    await page.waitForTimeout(1500); // Wait for transition
-
-    // 2. Find the challenge item
-    // Use a more robust selector that covers common CTF title patterns
-    const challengeItem = page.locator('h3, h4, h5, .font-mono').filter({ hasText: new RegExp(name, 'i') }).first();
-    await challengeItem.waitFor({ state: 'visible', timeout: 20000 });
-    await challengeItem.click();
-    
-    // 3. Wait for the challenge details view (Start Challenge button or similar)
-    await expect(page.locator('button').filter({ hasText: /challenge/i }).first()).toBeVisible({ timeout: 20000 });
+async function loginAdmin(page: Page) {
+    await page.goto(`${ADMIN_URL}/login`);
+    await page.waitForTimeout(1000);
+    const userField = page.getByRole('textbox', { name: 'User Name or Email' });
+    if (await userField.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await userField.fill('admin');
+        await page.getByRole('textbox', { name: 'Password' }).fill('1');
+        await page.getByRole('button', { name: 'Submit' }).click();
+        await page.waitForURL(/admin3\.fctf\.site\/(admin|dashboard)/, { timeout: 30000 });
+        await page.waitForTimeout(2000);
+    }
 }
 
-/**
- * Start the challenge and extract the access URL (including fctftoken)
- */
-async function startAndGetUrl(page: Page): Promise<string> {
-    const startBtn = page.locator('button').filter({ hasText: /Start Challenge/i });
+
+async function openChallenge(page: Page, category: string, challengeName: string) {
+    console.log(`Searching for challenge "${challengeName}" in category "${category}"...`);
+    await page.goto(`${CONTESTANT_URL}/challenges`);
+    await page.waitForTimeout(2000);
+
+    // Mở category nếu cần (TCP thường đã mở sẵn)
+    const catBtn = page.getByRole('button', { name: new RegExp(`${category}.*challenges`, 'i') }).first();
+    const catBtnVisible = await catBtn.isVisible().catch(() => false);
+    if (catBtnVisible) {
+        const cls = await catBtn.getAttribute('class') || '';
+        if (!cls.includes('bg-orange-50')) {
+            console.log(`Expanding category "${category}"...`);
+            await catBtn.click();
+            await page.waitForTimeout(1500);
+        } else {
+            console.log(`Category "${category}" already open.`);
+        }
+    }
+    
+    // Click vào challenge item qua h3 heading
+    const heading = page.getByRole('heading', { name: challengeName });
+    await heading.waitFor({ state: 'visible', timeout: 15000 });
+    await heading.click();
+
+    // Chờ panel challenge mở — có thể là Start hoặc Stop (nếu đang chạy sẵn)
+    await page.waitForTimeout(2000);
+}
+
+async function startAndGetHttpUrl(page: Page): Promise<string> {
+    const startBtn = page.getByRole('button', { name: '[+] Start Challenge' });
     if (await startBtn.isVisible()) {
-        console.log("Found Start Challenge button. Clicking...");
         await startBtn.click();
-        // Wait for deployment. A SweetAlert2 modal "Challenge Ready!" usually appears.
-        await page.locator('.swal2-popup button').filter({ hasText: /OK|Close/i }).first()
-            .click({ timeout: 120000 })
-            .catch(() => console.log("Deployment modal didn't appear or already closed."));
+        await page.locator('.swal2-popup button').filter({ hasText: /OK|Close|Got it/i }).first()
+            .click({ timeout: 180000 })
+            .catch(() => {});
     }
-
-    // Wait for the instance URL to be displayed
-    // The URL div usually has 'text-blue-600' class whereas the token div might be different.
     const urlLoc = page.locator('div.break-all.text-blue-600, div.break-all:has-text("fctftoken")').first();
-    await urlLoc.waitFor({ state: 'visible', timeout: 60000 });
-    
-    let rawUrl = await urlLoc.innerText();
-    rawUrl = rawUrl.trim();
-    
-    console.log(`Raw URL extracted: ${rawUrl}`);
-    
-    // Sometimes the div contains the label "HTTP " or "URL ", let's clean it up if needed
-    if (rawUrl.includes('\n')) {
-        rawUrl = rawUrl.split('\n').pop()?.trim() || rawUrl;
-    }
-
-    if (rawUrl.startsWith('challenge') || !rawUrl.includes('://')) {
-        return `http://${rawUrl}`;
-    }
+    await urlLoc.waitFor({ state: 'visible', timeout: 90000 });
+    let rawUrl = (await urlLoc.innerText()).trim();
+    if (rawUrl.includes('\n')) rawUrl = rawUrl.split('\n').pop()?.trim() || rawUrl;
+    if (!rawUrl.includes('://')) rawUrl = `http://${rawUrl}`;
     return rawUrl;
 }
 
-test.describe('Instance Request Logs Verification (INST-LOG)', () => {
-    test.setTimeout(360000);
+async function startAndGetTcpToken(page: Page): Promise<string> {
+    const startBtn = page.locator('button').filter({ hasText: /start/i }).first();
+    if (await startBtn.isVisible()) {
+        await startBtn.click();
+        await page.locator('.swal2-popup button').filter({ hasText: /OK|Close|Got it/i }).first()
+            .click({ timeout: 180000 })
+            .catch(() => {});
+    }
+    const tokenLoc = page.locator('div.break-all.text-orange-600, div.font-mono.text-orange-600, div.break-all:not(.text-blue-600)').first();
+    await tokenLoc.waitFor({ state: 'visible', timeout: 90000 });
+    let token = (await tokenLoc.innerText()).trim();
+    if (token.includes('\n')) token = token.split('\n').pop()?.trim() || token;
+    return token;
+}
 
-    test('INST-LOG-001: Verification of challenge instance access (WEB challenge)', async ({ page, browser }) => {
+function connectViaNcat(host: string, port: number, token: string, payload: string) {
+    return new Promise((resolve) => {
+        const proc = spawn('ncat', [host, String(port)], { stdio: ['pipe', 'pipe', 'pipe'] });
+        
+        proc.stdout.on('data', (data: any) => {
+            const output = data.toString();
+            if (output.length > 0) {
+                try { proc.stdin.write(token + '\n'); } catch (_) {}
+                setTimeout(() => {
+                    try { proc.stdin.write(payload + '\n'); } catch (_) {}
+                    setTimeout(() => { proc.kill(); resolve(true); }, 2000);
+                }, 1000);
+            }
+        });
+
+        setTimeout(() => {
+            proc.kill();
+            resolve(false);
+        }, 15000);
+    });
+}
+
+async function verifyLogOnAdmin(page: Page, challengeName: string, expectedText: string) {
+    await loginAdmin(page);
+    // Điều hướng thẳng đến trang Monitoring bằng URL
+    await page.goto(`${ADMIN_URL}/admin/monitoring`);
+    await page.waitForTimeout(2000);
+    
+    // Tìm đúng dòng của challenge và click Actions
+    const row = page.locator('tr').filter({ hasText: new RegExp(challengeName, 'i') }).first();
+    await row.waitFor({ state: 'visible', timeout: 20000 });
+    await row.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('link', { name: ' Request Logs' }).click();
+    
+    // Kiểm tra log có chứa text mong muốn không
+    await expect(page.locator('body')).toContainText(expectedText, { timeout: 30000 });
+}
+
+test.describe('Instance Request Logs Verification', () => {
+    test.setTimeout(300000);
+
+    test('INST-LOG-001: Web Challenge Request Logs', async ({ browser }) => {
         const contestantPage = await browser.newPage();
         await loginContestant(contestantPage);
-        
         await openChallenge(contestantPage, 'Web', 'EZ Web 1');
-        const challengeUrl = await startAndGetUrl(contestantPage);
-        console.log(`Navigating to Challenge URL: ${challengeUrl}`);
-
-        // Step 1: Access the challenge instance
-        const challengePage = await browser.newPage();
-        await challengePage.goto(challengeUrl, { timeout: 60000 });
+        const challengeUrl = await startAndGetHttpUrl(contestantPage);
         
-        // Basic check to ensure we are on the challenge page (e.g., check for common CTF elements or no error)
-        await expect(challengePage).not.toHaveTitle(/404|Error|Forbidden/i);
-        console.log("Successfully navigated to challenge instance.");
-
+        // Gửi request tới challenge
+        const challengePage = await browser.newPage();
+        await challengePage.goto(challengeUrl);
+        const testId = `user_${Date.now()}`;
+        await challengePage.getByRole('textbox', { name: /username/i }).fill(testId);
+        await challengePage.getByRole('textbox', { name: /password/i }).fill('1');
+        await challengePage.getByRole('button', { name: /login/i }).click().catch(() => {});
+        
+        // Kiểm tra log trong Admin
+        const adminPage = await browser.newPage();
+        await verifyLogOnAdmin(adminPage, 'EZ Web 1', testId);
+        
+        await adminPage.close();
         await challengePage.close();
         await contestantPage.close();
     });
 
-    // INST-LOG-002 for TCP/PWN was removed as it requires ncat and custom token input which is outside the current scope.
+
+    test('INST-LOG-002: TCP Challenge Request Logs', async ({ browser }) => {
+        const contestantPage = await browser.newPage();
+        await loginContestant(contestantPage);
+        await openChallenge(contestantPage, 'TCP', 'Pwn');
+        const token = await startAndGetTcpToken(contestantPage);
+        
+        const testPayload = `payload_${Date.now()}`;
+        await connectViaNcat('challenge3.fctf.site', 30037, token, testPayload);
+        
+        // Kiểm tra log trong Admin
+        const adminPage = await browser.newPage();
+        await verifyLogOnAdmin(adminPage, 'Pwn', testPayload);
+        
+        await adminPage.close();
+        await contestantPage.close();
+    });
 });
-
-

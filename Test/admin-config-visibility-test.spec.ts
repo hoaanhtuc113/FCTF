@@ -1,13 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
+const CONTESTANT_URL = 'https://contestant3.fctf.site';
 
 async function loginAdmin(page: Page) {
     await page.goto(`${ADMIN_URL}/login`);
-    await page.locator('input#name, input[name="name"]').fill('admin');
-    await page.locator('input#password, input[name="password"]').fill('1');
-    await page.locator('input#_submit, button[type="submit"]').click();
+    await page.getByRole('textbox', { name: 'User Name or Email' }).fill('admin');
+    await page.getByRole('textbox', { name: 'Password' }).fill('1');
+    await page.getByRole('button', { name: 'Submit' }).click();
     await page.waitForURL(/.*admin.*/, { timeout: 15000 });
 }
 
@@ -19,7 +19,7 @@ async function loginContestant(page: Page) {
 
     await page.fill('input[placeholder="input username..."]', 'user2');
     await page.fill('input[placeholder="enter_password"]', '1');
-    await page.click('button[type="submit"]');
+    await page.click('button:has-text("[LOGIN]")');
 
     // Wait for redirect, handles both /challenges and /dashboard
     await page.waitForURL(/.*(challenges|dashboard).*/, { timeout: 30000 });
@@ -32,7 +32,7 @@ async function goToVisibilityTab(page: Page) {
     await expect(page.locator('#visibility')).toBeVisible({ timeout: 15000 });
 }
 
-async function setScoreVisibility(page: Page, visibility: 'public' | 'private' | 'hidden' | 'admins') {
+async function setScoreVisibility(page: Page, visibility: 'public' | 'private' | 'hidden') {
     await goToVisibilityTab(page);
     await page.selectOption('select[name="score_visibility"]', visibility);
     await Promise.all([
@@ -72,8 +72,8 @@ test.describe('Admin Config Visibility Tests (CONF-VIS)', () => {
         await newPage.reload();
 
         // Wait for scores to load - PublicScoreboard uses LEADERBOARD and SCORE_EVOLUTION title text
-        await expect(page.getByText(/LEADERBOARD/i).first()).toBeVisible({ timeout: 20000 });
-        await expect(page.getByText(/SCORE_EVOLUTION/i).first()).toBeVisible({ timeout: 20000 });
+        await expect(newPage.getByText(/LEADERBOARD/i).first()).toBeVisible({ timeout: 20000 });
+        await expect(newPage.getByText(/SCORE_EVOLUTION/i).first()).toBeVisible({ timeout: 20000 });
         await newPage.close();
     });
 
@@ -125,17 +125,6 @@ test.describe('Admin Config Visibility Tests (CONF-VIS)', () => {
         await expect(page.locator('text=Scores are currently hidden.').first()).toBeVisible();
     });
 
-    test('CONF-VIS-005: Score Visibility - Admins Only', async ({ page }) => {
-        await loginAdmin(page);
-        await setScoreVisibility(page, 'admins');
-
-        // Login as contestant
-        await loginContestant(page);
-        await page.goto(`${CONTESTANT_URL}/scoreboard`);
-
-        await expect(page.locator('text=SCOREBOARD HIDDEN').first()).toBeVisible();
-        await expect(page.locator('text=Scores are currently hidden.').first()).toBeVisible();
-    });
 
     test('CONF-VIS-006: Challenge Difficulty - Enabled', async ({ page }) => {
         await loginAdmin(page);

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
+const CONTESTANT_URL = 'https://contestant3.fctf.site';
 
 /**
  * Admin Ticket Respond Test Suite
@@ -35,10 +35,10 @@ async function loginContestant(page: Page) {
             try {
                 await page.locator('input[placeholder*="username" i]').first().fill(user);
                 await page.locator('input[placeholder*="password" i]').first().fill('1');
-                
+
                 // CRITICAL FIX: Ensure we click LOGIN and not CLEAR
                 await page.locator('button[type="submit"], button:text-is("LOGIN"), button:text-is("[LOGIN]")').first().click();
-                
+
                 await page.waitForURL(/\/(dashboard|challenges|tickets|scoreboard)/, { timeout: 10000 });
                 console.log(`Log in successful with ${user}`);
                 success = true;
@@ -126,7 +126,7 @@ test.describe('Admin Ticket Respond Functional Tests (RES)', () => {
         // Find an open ticket and go to details
         const firstRow = page.locator('tbody tr').filter({ hasText: 'Open' }).first();
         if (!(await firstRow.isVisible({ timeout: 3000 }))) return;
-        
+
         await firstRow.locator('.btn-view-detail').click();
 
         await expect(page).toHaveURL(/.*\/admin\/ticket-details\/\d+/);
@@ -216,7 +216,7 @@ test.describe('Admin Ticket Respond Functional Tests (RES)', () => {
         // Use the HappyPath ticket which is already Closed
         const row = page.locator('tbody tr').filter({ has: page.locator('td').nth(1).filter({ hasText: new RegExp(`^${ticketIdForHappyPath}$`) }) });
         if (!(await row.isVisible({ timeout: 3000 }))) return;
-        
+
         await row.locator('.btn-view-detail').click();
 
         // Verify "Admin Response" header exists instead of "Write Your Response"
