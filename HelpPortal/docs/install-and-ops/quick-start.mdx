@@ -1,49 +1,99 @@
 ---
-sidebar_position: 1
-title: Install & Operations Quick Start
+sidebar_position: 2
+title: Quick Start
 ---
 
 # Install & Operations Quick Start
 
-This guide helps you stand up and validate the FCTF stack quickly.
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- Node.js 20+ for frontend docs and portal tooling
-- Access to repository secrets/configuration used by backend services
+- Xem đầy đủ tại [Prerequisites](./prerequisites)
 
-## 1. Start Core Services
+## Quick Start
 
-From repository root:
+### 1) Cài Master Node
 
-```bash
-./manage.sh up
-```
-
-If your environment uses direct compose scripts:
+Trên master, chạy:
 
 ```bash
-docker compose up -d
+./manage.sh
 ```
 
-## 2. Validate Gateway Fast
+Chọn: `1) Setup master`
 
-Run the quick gateway checks:
+Khi được hỏi, nhập:
+
+1. `master TLS SAN` (public IP hoặc domain của master)
+2. `NFS allowed IP` (CIDR hoặc `*`)
+
+Sau khi hoàn tất, lưu lại **worker join token**.
+
+### 2) Cài Worker Node
+
+Trên worker, chạy:
+
+```bash
+./manage.sh
+```
+
+Chọn: `2) Setup worker`
+
+Nhập token lấy từ bước setup master để join cluster.
+
+### 3) Cài toàn bộ FCTF
+
+Trên master, chạy:
+
+```bash
+./manage.sh
+```
+
+Chọn: `3) Install FCTF`
+
+Sau khi hoàn tất, kiểm tra các endpoint chính theo domain đã cấu hình.
+
+### 4) Setup Harbor sau cài đặt
+
+Trên master:
+
+```bash
+./manage.sh
+```
+
+Chọn: `4) Setup harbor`
+
+Thực hiện trên Harbor UI:
+
+1. Đăng nhập Harbor
+2. Tạo project tên **`fctf`**
+3. Tạo Robot Account cho project này
+4. Cấp quyền `pull` + `push`
+5. Lấy robot username/password và nhập lại vào terminal theo hướng dẫn script
+
+### 5) Default credentials (đổi ngay sau khi cài)
+
+| Service | Username | Password |
+| --- | --- | --- |
+| Harbor Registry | admin | FCTF@2025 |
+| Rancher | admin | Ab@123456789 |
+| Grafana | admin | Fctf2025@ |
+| RabbitMQ | rabbit-admin | Fctf2025@admin |
+
+### 6) Kiểm tra sau cài đặt
+
+- Tất cả pod ở namespace hệ thống/chính chạy ổn định (`Running`/`Completed`).
+- Truy cập được các domain: admin, api, contestant, harbor, rancher, grafana, rabbitmq.
+- Push/pull image test qua Harbor robot account thành công.
+- Tạo challenge mẫu và chạy preview để xác nhận luồng deploy/gateway hoạt động.
+
+### 7) Vận hành nhanh (Gateway)
+
+Sau khi hệ thống chạy ổn định, thực hiện test nhanh Gateway:
 
 ```bash
 cd Test/Gateway
 ./run-gateway-tests.sh --type quick
 ```
 
-## 3. Review Health and Logs
-
-- Confirm challenge routing succeeds through gateway
-- Verify control services expose healthy status
-- Check action logs for unexpected auth or rate-limit spikes
-
-## 4. Before Production
-
-- Run broader gateway test suite with long-running scenarios as needed
-- Confirm prerequisite and anonymization behavior in backend responses
-- Ensure docs and runbooks match the deployed version
+Trước khi production, chạy thêm full suite (bao gồm/không bao gồm long-running) theo kế hoạch vận hành.
