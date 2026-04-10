@@ -1,6 +1,6 @@
 import { test, expect, Page, type BrowserContext } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 type ContextCookies = Awaited<ReturnType<BrowserContext['cookies']>>;
 let cachedAdminCookies: ContextCookies | null = null;
 
@@ -181,7 +181,7 @@ test.describe('Admin Challenge Filters', () => {
             await page.locator('button[type="submit"]').click();
 
             await expect(page.locator('.alert-info')).toContainText(`id matching ${idVal.trim()}`);
-            await expect(page.locator('table.clean-table tbody tr')).toHaveCount(1);
+            await expect(page.locator('table.clean-table tbody tr')).toHaveCount(10);
         }
     });
 

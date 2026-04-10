@@ -1,13 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
+const CONTESTANT_URL = 'https://contestant3.fctf.site';
 
 async function loginAdmin(page: Page) {
     await test.step('Login as admin', async () => {
         await page.goto(`${ADMIN_URL}/login`);
-        await page.getByRole('textbox', { name: 'User Name or Email' }).fill('admin');
-        await page.getByRole('textbox', { name: 'Password' }).fill('1');
+        await page.locator('#name').fill('admin');
+        await page.locator('#password').fill('1');
         await page.getByRole('button', { name: 'Submit' }).click();
         await expect(page).toHaveURL(/.*admin/);
     });
@@ -16,12 +16,11 @@ async function loginAdmin(page: Page) {
 async function loginContestant(page: Page) {
     await test.step('Login as contestant', async () => {
         await page.goto(`${CONTESTANT_URL}/login`);
-        await page.locator("input[placeholder='input username...']").fill('user2');
-        await page.locator("input[placeholder='enter_password']").fill('1');
-        await page.locator("button[type='submit']").click();
-        // Wait for redirect away from login page (to dashboard, challenges, etc.)
-        // Do NOT include 'login' in this regex or it resolves immediately
-        await page.waitForURL(/\/(dashboard|challenges|tickets)/, { timeout: 15000 }).catch(() => {
+        await page.getByPlaceholder('input username...').fill('user2');
+        await page.getByPlaceholder('enter_password').fill('1');
+        await page.getByRole('button', { name: 'LOGIN' }).click();
+        // Wait for redirect away from login page
+        await page.waitForURL(/\/(dashboard|challenges|tickets|scoreboard)/, { timeout: 15000 }).catch(() => {
             console.log(`loginContestant: still on ${page.url()} after 15s`);
         });
     });
@@ -170,7 +169,7 @@ test.describe('Admin Config Start/End Time Tests (CONF-TIME)', () => {
         console.log(`Body content snippet (002): ${bodyContent?.substring(0, 400)}`);
 
         // Check for contest not active message
-        await expect(contestantPage.locator('body')).toContainText('CONTEST NOT ACTIVE', { ignoreCase: true });
+        await expect(contestantPage.locator('body')).toContainText('CTF HAS NOT STARTED YET', { ignoreCase: true });
         await contestantPage.close();
     });
 
@@ -216,7 +215,7 @@ test.describe('Admin Config Start/End Time Tests (CONF-TIME)', () => {
         console.log(`Body content snippet (003): ${bodyContent?.substring(0, 400)}`);
 
         // Check for contest not active message
-        await expect(contestantPage.locator('body')).toContainText('CONTEST NOT ACTIVE', { ignoreCase: true });
+        await expect(contestantPage.locator('body')).toContainText('CTF HAS ENDED', { ignoreCase: true });
         await contestantPage.close();
     });
 

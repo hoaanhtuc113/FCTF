@@ -18,7 +18,7 @@ import { test, expect, Page } from '@playwright/test';
 
 const ENV = ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env) || {};
 
-const ADMIN_URL = ENV.ADMIN_URL || 'https://admin0.fctf.site';
+const ADMIN_URL = ENV.ADMIN_URL || 'https://admin.sanchoi.iahn.hanoi.vn';
 const ADMIN_USERNAME = ENV.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = ENV.ADMIN_PASSWORD || '1';
 
@@ -143,13 +143,13 @@ async function collectPreviewChallengeRows(page: Page, maxPages = 25): Promise<P
     const seen = new Set<number>();
 
     await page.goto(`${ADMIN_URL}/admin/challenges?page=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForSelector('#challenges tbody', { timeout: 20000 }).catch(() => {});
+    await page.waitForSelector('#challenges tbody', { timeout: 20000 }).catch(() => { });
     const totalPages = Math.min(await getChallengePageCount(page), maxPages);
 
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
         if (currentPage > 1) {
             await page.goto(`${ADMIN_URL}/admin/challenges?page=${currentPage}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-            await page.waitForSelector('#challenges tbody', { timeout: 20000 }).catch(() => {});
+            await page.waitForSelector('#challenges tbody', { timeout: 20000 }).catch(() => { });
         }
 
         // Extract all row data in a single evaluate call instead of per-row locator ops
