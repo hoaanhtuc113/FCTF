@@ -1,0 +1,51 @@
+---
+title: Live Runtime Control
+description: Operational controls for active environment management, monitoring, and incident evidence.
+---
+
+# Live Runtime Control
+
+This section focuses on maintaining runtime reliability during active competition windows.
+
+## Instance Lifecycle Control
+
+**Business objective:** Keep challenge environments stable while minimizing contestant disruption.
+
+**Operational steps**
+
+1. Review active instance list by challenge, team, and runtime age.
+2. Classify issue scope (single instance, multi-instance, platform-wide).
+3. Apply minimal-impact action first (targeted stop before bulk stop).
+4. Use global stop only for critical containment scenarios.
+5. Communicate impact and ETA to support and jury channels.
+6. Record incident timeline and corrective actions.
+
+**Expected result:** Runtime incidents are isolated and resolved quickly.
+
+## Runtime Monitoring and Health Visibility
+
+**Business objective:** Detect service degradation early and improve response speed.
+
+**Operational steps**
+
+1. Maintain live health dashboard throughout event windows.
+2. Track startup latency, failure spikes, and active runtime trends.
+3. Drill down from global level to challenge and team context.
+4. Prioritize and escalate high-severity incidents first.
+5. Export snapshots for post-event reliability review.
+
+**Expected result:** Reliability issues are surfaced and handled earlier.
+
+## Deployment and Request Logs
+
+**Business objective:** Ensure every deployment and runtime incident is traceable.
+
+**Operational steps**
+
+1. Open deployment/request logs for impacted time range.
+2. Correlate release action with observed user-facing behavior.
+3. Build evidence-based root-cause timeline.
+4. Apply mitigation (retry, rollback, or targeted repair).
+5. Publish internal incident summary and follow-up actions.
+
+**Expected result:** Troubleshooting becomes faster and more defensible.

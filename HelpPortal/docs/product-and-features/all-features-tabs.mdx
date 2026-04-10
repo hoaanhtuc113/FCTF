@@ -1,0 +1,263 @@
+---
+sidebar_position: 2
+title: All Features - Tab View
+description: Tab tong hop tat ca tinh nang theo vai tro Admin va Contestant.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Tab Tong Tinh Nang
+
+Trang nay tap trung mo ta toan bo tinh nang da trien khai theo 2 nhom vai tro.
+
+- Tang 1: tab theo vai tro (Admin, Contestant)
+- Tang 2: moi tinh nang chinh la 1 tab rieng
+- Moi tab co the chen anh minh hoa, video, gif, hoac screenshot khi can
+
+<Tabs groupId="feature-role" defaultValue="admin">
+<TabItem value="admin" label="Admin">
+
+![Admin Overview](/img/fctf-logo.png)
+
+<Tabs groupId="admin-main-features" defaultValue="admin-system">
+<TabItem value="admin-system" label="1) He thong & Cau hinh">
+
+<ul>
+  <li>Cong quan tri va dashboard thong ke.</li>
+  <li>Cau hinh plugin, cau hinh he thong, custom fields.</li>
+  <li>Bao ve config key nhay cam.</li>
+  <li>Reset he thong theo scope: challenges, accounts, submissions, logs.</li>
+  <li>Clear cache va session tu dong sau thay doi quan trong.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-import-export" label="2) Import/Export">
+
+<ul>
+  <li>Export full backup zip va import backup nen.</li>
+  <li>Import CSV users, teams, users+teams co template va bao loi theo dong.</li>
+  <li>Export CSV theo bang va export users theo filter.</li>
+  <li>Ho tro reset password hang loat khi export users.</li>
+  <li>Export Excel cho scoreboard va submissions.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-users" label="3) Quan tri Users">
+
+<ul>
+  <li>List users voi bo loc role, verified, hidden, banned, IP, query.</li>
+  <li>Tao, sua, xoa user; gui email thong bao.</li>
+  <li>Chan admin tu ban hoac tu xoa chinh minh.</li>
+  <li>Xem chi tiet user: solves, fails, awards, IP history, score, place.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-teams" label="4) Quan tri Teams">
+
+<ul>
+  <li>List teams voi bo loc hidden, banned, bracket, query.</li>
+  <li>Tao, sua, xoa team; quan tri thanh vien team.</li>
+  <li>Sinh invite code; xem team detail day du.</li>
+  <li>CRUD bracket va quan ly ranking theo bracket.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-challenges" label="5) Challenge Authoring">
+
+![Challenge Authoring](/img/docusaurus.png)
+
+<ul>
+  <li>List challenge voi filter nang cao: type, state, difficulty, prereq, tags.</li>
+  <li>Tao, sua, xoa challenge va toan bo metadata.</li>
+  <li>Ho tro chuyen doi standard to dynamic challenge va nguoc lai.</li>
+  <li>Quan tri thanh phan challenge: flags, hints, tags, topics, files.</li>
+  <li>Preview challenge theo template hien thi thuc te.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-deploy-version" label="6) Deploy & Versioning">
+
+<ul>
+  <li>Upload goi deploy challenge, trigger workflow deploy.</li>
+  <li>Theo doi phase va remaining time qua deploy-duration.</li>
+  <li>Tu dong tao version challenge khi deploy.</li>
+  <li>Xem version list va version detail.</li>
+  <li>Rollback ve version cu voi quyen admin.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-runtime" label="7) Runtime Instance Ops">
+
+<ul>
+  <li>Stop instance theo challenge va team.</li>
+  <li>Stop bulk nhieu instance.</li>
+  <li>Stop all instance co gate admin o deployment layer.</li>
+  <li>Lay all-instance voi filter, sort, pagination.</li>
+  <li>Trang quan ly instance cho van hanh nhanh.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-observability" label="8) Logs & Audit">
+
+<ul>
+  <li>Deploy history, deploy detail, workflow logs.</li>
+  <li>Pod logs va request logs, gom HTML view va API refresh.</li>
+  <li>Action logs, export CSV va XLSX.</li>
+  <li>Admin audit trail with before/after state, actor, IP, CSV export.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-submissions" label="9) Cham bai & Submissions">
+
+<ul>
+  <li>Moderation submissions theo filter day du.</li>
+  <li>API submissions CRUD cho admin.</li>
+  <li>Chuyen trang thai incorrect/correct theo workflow quan tri.</li>
+  <li>Xoa submission va cap nhat cache/attempt state.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-scoreboard" label="10) Scoreboard & Statistics">
+
+<ul>
+  <li>Admin scoreboard theo bracket.</li>
+  <li>Top submitter, top solves, first blood, challenge masters.</li>
+  <li>Team clear theo topic.</li>
+  <li>Statistics tong quan va analytics nang cao.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-rewards" label="11) Rewards Engine">
+
+<ul>
+  <li>Query reward rules engine.</li>
+  <li>Reward templates va preview.</li>
+  <li>Multi-criteria presets va combine methods.</li>
+  <li>Drill-down details theo entity va template.</li>
+</ul>
+
+</TabItem>
+<TabItem value="admin-ticket" label="12) Ticket Support">
+
+<ul>
+  <li>Xem list ticket voi filter va search.</li>
+  <li>Xem chi tiet, phan hoi, dong ticket.</li>
+  <li>Xoa nhieu ticket bang bulk delete.</li>
+</ul>
+
+</TabItem>
+</Tabs>
+
+
+</TabItem>
+
+<TabItem value="contestant" label="Contestant">
+
+![Contestant Overview](/img/undraw_docusaurus_tree.svg)
+
+<Tabs groupId="contestant-main-features" defaultValue="contestant-auth">
+<TabItem value="contestant-auth" label="1) Auth & Session">
+
+<ul>
+  <li>Login/logout theo session UUID.</li>
+  <li>Validate token va account state: verified, hidden, banned.</li>
+  <li>Team membership gating theo mode.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-discovery" label="2) Challenge Discovery">
+
+<ul>
+  <li>Duyet topic, category, challenge list.</li>
+  <li>Challenge requirements gom prerequisites va anonymize.</li>
+  <li>Hien thi challenge theo state va visibility rules.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-runtime" label="3) Start/Stop Runtime">
+
+![Runtime Flow](/img/undraw_docusaurus_mountain.svg)
+
+<ul>
+  <li>Start challenge runtime theo require_deploy flow.</li>
+  <li>Poll check-status de nhan challenge URL.</li>
+  <li>Stop challenge by user.</li>
+  <li>Theo doi active instance list.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-submit" label="4) Submission Flow">
+
+<ul>
+  <li>Submit flag: correct, incorrect, already solved.</li>
+  <li>Cooldown va rate-limit de tranh abuse.</li>
+  <li>Max attempts va guard race-condition.</li>
+  <li>Auto stop runtime sau cac trang thai ket thuc.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-hints" label="5) Hint Economy">
+
+<ul>
+  <li>Xem hint theo challenge.</li>
+  <li>Unlock hint co cost va prerequisite.</li>
+  <li>Tru diem bang award am sau khi unlock.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-scoreboard" label="6) Scoreboard Experience">
+
+<ul>
+  <li>Private scoreboard sau login.</li>
+  <li>Public scoreboard theo config visibility.</li>
+  <li>Ho tro bracket filter va freeze handling.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-team-profile" label="7) Team & Profile">
+
+<ul>
+  <li>Xem profile user va team.</li>
+  <li>Theo doi rank, score, thanh vien.</li>
+  <li>Doi mat khau theo policy.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-ticket" label="8) Ticket">
+
+<ul>
+  <li>Tao ticket ho tro.</li>
+  <li>Xem danh sach va chi tiet ticket cua minh.</li>
+  <li>Xoa ticket theo dieu kien nghiep vu.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-action-logs" label="9) Team Activity Logs">
+
+<ul>
+  <li>Xem action logs cua team.</li>
+  <li>Filter, search, pagination theo event.</li>
+  <li>Theo doi event start, submit, unlock hint.</li>
+</ul>
+
+</TabItem>
+<TabItem value="contestant-files" label="10) Secure File Access">
+
+<ul>
+  <li>Download challenge file qua signed token.</li>
+  <li>Kiem tra ACL theo user, team, challenge, file.</li>
+  <li>Chan path traversal va truy cap trai phep.</li>
+</ul>
+
+</TabItem>
+</Tabs>
+
+</TabItem>
+</Tabs>
+
+## Tai lieu lien quan
+
+- [Admin Feature Inventory](./adminfeature)
+- [FCTF Real Feature Systematization](./fctf-real-feature-systematization)
+- [Challenge Lifecycle](./challenge-lifecycle)
