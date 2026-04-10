@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: grafana-tls
   dnsNames:
-    - monitor.sanchoi.iahn.hanoi.vn
+    - <GRAFANA_DOMAIN>
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

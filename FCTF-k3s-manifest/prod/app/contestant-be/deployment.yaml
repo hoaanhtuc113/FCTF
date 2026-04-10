@@ -23,7 +23,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: contestant-be
-          image: registry.sanchoi.iahn.hanoi.vn/fctf/contestant-be:latest
+          image: <REGISTRY_DOMAIN>/fctf/contestant-be:latest
           ports:
             - name: http-client
               containerPort: 5010

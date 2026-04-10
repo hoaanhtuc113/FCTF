@@ -21,7 +21,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: deployment-center
-          image: registry.sanchoi.iahn.hanoi.vn/fctf/deployment-center:latest
+          image: <REGISTRY_DOMAIN>/fctf/deployment-center:latest
           ports:
             - name: http-client
               containerPort: 5020

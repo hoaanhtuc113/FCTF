@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: contestant-tls
   dnsNames:
-    - sanchoi.iahn.hanoi.vn
+    - <CONTESTANT_DOMAIN>
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

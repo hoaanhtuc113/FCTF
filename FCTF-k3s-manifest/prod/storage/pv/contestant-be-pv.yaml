@@ -13,5 +13,5 @@ spec:
   mountOptions:
     - noexec
   nfs:
-    server: 10.13.2.3
+    server: <MASTER_NODE_PRIVATE_IP>
     path: /srv/nfs/share/file

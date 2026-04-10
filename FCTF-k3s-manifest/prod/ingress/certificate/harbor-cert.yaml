@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: harbor-tls
   dnsNames:
-    - registry.sanchoi.iahn.hanoi.vn
+    - <REGISTRY_DOMAIN>
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

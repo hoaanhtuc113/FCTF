@@ -1,4 +1,4 @@
-hostname: rancher.sanchoi.iahn.hanoi.vn
+hostname: <RANCHER_DOMAIN>
 replicas: 1
 bootstrapPassword: "Ab@123456789"
 tolerations:

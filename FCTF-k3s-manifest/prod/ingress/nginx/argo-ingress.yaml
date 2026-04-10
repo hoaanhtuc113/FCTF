@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: argo.sanchoi.iahn.hanoi.vn 
+    - host: <ARGO_DOMAIN>
       http:
         paths:
           - path: /
@@ -22,5 +22,5 @@ spec:
                   number: 2746
   tls:
     - hosts:
-        - argo.sanchoi.iahn.hanoi.vn 
+        - <ARGO_DOMAIN>
       secretName: argo-tls

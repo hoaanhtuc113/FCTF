@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: argo-tls
   dnsNames:
-    - argo.sanchoi.iahn.hanoi.vn 
+    - <ARGO_DOMAIN>
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

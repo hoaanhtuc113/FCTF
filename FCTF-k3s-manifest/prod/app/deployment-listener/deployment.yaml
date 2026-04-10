@@ -21,7 +21,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: deployment-listener
-          image: registry.sanchoi.iahn.hanoi.vn/fctf/deployment-listener:latest
+          image: <REGISTRY_DOMAIN>/fctf/deployment-listener:latest
           envFrom:
             - configMapRef:
                 name: deployment-listener-cm

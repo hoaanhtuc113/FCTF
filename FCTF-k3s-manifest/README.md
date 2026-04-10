@@ -20,7 +20,7 @@ chmod +x setup-master.sh nfs-setup.sh apply-fctf.sh
 ./setup-master.sh \
   --tls-san 34.124.131.240 \
   --calico-network-mode vxlan \
-  --nfs-allowed-subnet "10.13.2.3 10.184.0.6 10.184.0.7" 
+  --nfs-allowed-subnet "<MASTER_NODE_PRIVATE_IP> 10.184.0.6 10.184.0.7" 
 ```
 
 Script hien tai da tu dong:
@@ -242,7 +242,7 @@ sudo setfacl -R -m d:u:1105:rwx /srv/nfs/share/challenges /srv/nfs/share/start-c
 
 # Chỉ cho phép đúng IP của 3 node
 # Đổi 3 IP bên dưới theo cluster thực tế
-echo "/srv/nfs/share 10.13.2.3(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.6(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.7(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
+echo "/srv/nfs/share <MASTER_NODE_PRIVATE_IP>(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.6(rw,sync,no_subtree_check,root_squash,sec=sys) 10.184.0.7(rw,sync,no_subtree_check,root_squash,sec=sys)" | sudo tee -a /etc/exports
 
 # Apply cấu hình
 sudo exportfs -ra

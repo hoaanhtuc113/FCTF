@@ -21,7 +21,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: deployment-consumer
-          image: registry.sanchoi.iahn.hanoi.vn/fctf/deployment-consumer:latest
+          image: <REGISTRY_DOMAIN>/fctf/deployment-consumer:latest
           envFrom:
             - configMapRef:
                 name: deployment-consumer-cm

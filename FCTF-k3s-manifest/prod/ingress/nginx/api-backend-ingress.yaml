@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: apicontestant.sanchoi.iahn.hanoi.vn 
+    - host: <CONTESTANT_API_DOMAIN> 
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 5010
   tls:
     - hosts:
-        - apicontestant.sanchoi.iahn.hanoi.vn 
+        - <CONTESTANT_API_DOMAIN> 
       secretName: api-backend-tls

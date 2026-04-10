@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: admin-tls
   dnsNames:
-    - admin.sanchoi.iahn.hanoi.vn
+    - <ADMIN_DOMAIN>
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

@@ -4,7 +4,7 @@ set -euo pipefail
 TIMEZONE="Asia/Ho_Chi_Minh"
 MAX_PODS="400"
 # inputable
-MASTER_URL="https://10.13.2.3:6443"
+MASTER_URL="https://<MASTER_NODE_PRIVATE_IP>:6443"
 # inputable
 NODE_TOKEN=""
 INSTALL_GVISOR="true"

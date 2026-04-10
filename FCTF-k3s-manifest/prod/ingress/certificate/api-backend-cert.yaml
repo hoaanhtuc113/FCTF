@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: api-backend-tls
   dnsNames:
-    - apicontestant.sanchoi.iahn.hanoi.vn 
+    - <CONTESTANT_API_DOMAIN> 
   issuerRef:
     name: letsencrypt-dev
     kind: ClusterIssuer

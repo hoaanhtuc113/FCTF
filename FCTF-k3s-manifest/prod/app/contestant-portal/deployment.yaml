@@ -22,7 +22,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: contestant-portal
-          image: registry.sanchoi.iahn.hanoi.vn/fctf/contestant-portal:latest
+          image: <REGISTRY_DOMAIN>/fctf/contestant-portal:latest
           ports:
             - name: http-client
               containerPort: 8080

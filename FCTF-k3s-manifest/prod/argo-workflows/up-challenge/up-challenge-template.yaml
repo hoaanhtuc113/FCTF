@@ -158,9 +158,9 @@ spec:
               --custom-platform=linux/amd64 \
               --snapshot-mode=redo \
               --verbosity=info \
-              --destination=registry.sanchoi.iahn.hanoi.vn/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest
+              --destination=<REGISTRY_DOMAIN>/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest
 
-            echo "✅ Image pushed: registry.sanchoi.iahn.hanoi.vn/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest"
+            echo "✅ Image pushed: <REGISTRY_DOMAIN>/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest"
 
       volumes:
         - name: nfs-shared-data
@@ -185,7 +185,7 @@ spec:
           - name: global-regcred
 
       container:
-        image: registry.sanchoi.iahn.hanoi.vn/fctf/kubectl-cli:latest
+        image: <REGISTRY_DOMAIN>/fctf/kubectl-cli:latest
         imagePullPolicy: IfNotPresent
 
         # HARDENED (safe – no write needed)

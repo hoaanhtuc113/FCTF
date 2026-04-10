@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: admin.sanchoi.iahn.hanoi.vn
+    - host: <ADMIN_DOMAIN>
       http:
         paths:
           - path: /
@@ -21,5 +21,5 @@ spec:
                   number: 8000
   tls:
     - hosts:
-        - admin.sanchoi.iahn.hanoi.vn
+        - <ADMIN_DOMAIN>
       secretName: admin-tls
