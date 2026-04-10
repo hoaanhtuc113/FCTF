@@ -59,18 +59,3 @@ spec:
     app: deployment-center
   type: ClusterIP
 ---
-# Con này không cần expose ra ngoài vì event-listener chỉ cần internal access từ các service khác trong cluster
-apiVersion: v1
-kind: Service
-metadata:
-  name: event-listener-svc
-  namespace: app
-spec:
-  ports:
-    - protocol: TCP
-      port: 5030
-      targetPort: 5030
-  selector:
-    app: event-listener
-  type: ClusterIP
----
