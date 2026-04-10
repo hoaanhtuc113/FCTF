@@ -1,0 +1,75 @@
+.features {
+  padding: 1.5rem 0 4rem;
+  width: 100%;
+}
+
+.sectionHeader {
+  margin-bottom: 1.5rem;
+}
+
+.sectionTag {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+}
+
+.sectionTitle {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.65rem, 4vw, 2.25rem);
+}
+
+.featureCard {
+  height: 100%;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(214, 96, 24, 0.24);
+  background: var(--ifm-background-surface-color);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.featureCard:hover {
+  border-color: rgba(214, 96, 24, 0.55);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+:global([data-theme='dark']) .featureCard {
+  box-shadow: 0 2px 10px rgba(2, 6, 23, 0.3);
+}
+
+.featureTag {
+  margin: 0;
+  color: var(--ifm-color-primary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.featureTitle {
+  margin: 0.45rem 0 0.5rem;
+  font-size: 1.35rem;
+}
+
+.featureDescription {
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.94;
+}
+
+.featureList {
+  margin: 0.9rem 0 0;
+  padding-left: 1rem;
+}
+
+.featureList li {
+  margin: 0.35rem 0;
+  line-height: 1.45;
+}
+
+.featureList li::marker {
+  color: var(--ifm-color-primary);
+}

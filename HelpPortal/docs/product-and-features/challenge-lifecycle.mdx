@@ -1,0 +1,30 @@
+---
+sidebar_position: 2
+title: Challenge Lifecycle
+---
+
+# Challenge Lifecycle
+
+Challenges move through states based on availability, prerequisites, and policy flags.
+
+## Visibility Rules
+
+- Visible and unlocked: challenge appears normally with full detail.
+- Hidden by prerequisites: challenge is excluded from normal listing.
+- Anonymized by policy: challenge remains listed with obfuscated data.
+
+## Prerequisite Semantics
+
+A prerequisite chain controls when downstream challenges can be solved.
+
+1. Team solves required upstream challenge(s).
+2. Backend recalculates eligibility.
+3. Newly unlocked challenges become visible or de-anonymized.
+
+## Why This Matters
+
+- Prevents accidental progression skipping
+- Preserves intended game pacing
+- Keeps scoring integrity under concurrent solves
+
+For implementation boundaries, read [Architecture Overview](../architecture/overview).

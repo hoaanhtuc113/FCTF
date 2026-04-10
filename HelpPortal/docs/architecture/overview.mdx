@@ -1,0 +1,32 @@
+---
+sidebar_position: 1
+title: Architecture Overview
+---
+
+# Architecture Overview
+
+FCTF architecture separates concerns across frontend, edge routing, and control services.
+
+## High-Level Components
+
+| Layer | Service | Responsibility |
+| --- | --- | --- |
+| Experience | ContestantPortal | User interaction for challenges, profile, tickets, and scoreboards |
+| Edge | ChallengeGateway | Request routing, token checks, and rate limiting |
+| Control Plane | ControlCenterAndChallengeHostingServer | Deployment orchestration and challenge hosting management |
+| Operations | DeploymentCenter / listeners | Provisioning workflows and lifecycle events |
+
+## Traffic Pattern
+
+1. Contestant requests enter through ChallengeGateway.
+2. Gateway validates request constraints and forwards safely.
+3. Backend services process challenge and scoring logic.
+4. Portal consumes API responses and updates user-facing state.
+
+## Reliability Focus
+
+- Isolate failure domains between edge and control plane.
+- Keep challenge hosting automation observable.
+- Validate critical flows with gateway quick tests before releases.
+
+Next: [Install & Operations Quick Start](../install-and-ops/quick-start).
