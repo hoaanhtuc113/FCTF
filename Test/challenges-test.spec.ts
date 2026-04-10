@@ -157,20 +157,44 @@ test.describe('Challenges Functionality Suite', () => {
         await loginUser(page);
         await navigateToChallenges(page);
 
-        // Find a locked challenge (has Lock icon and [!] locked text)
-        const lockedChallenge = page.locator('div').filter({ hasText: '[!] locked' }).first();
+        // Expand all categories that are currently collapsed
+        const categories = page.locator('.space-y-2 > div.rounded-lg.border');
+        const count = await categories.count();
+        for (let i = 0; i < count; i++) {
+            const cat = categories.nth(i);
+            // Check if it's already expanded (ExpandLess is visible)
+            const isExpanded = await cat.locator('svg[data-testid="ExpandLessIcon"]').isVisible().catch(() => false);
+            if (!isExpanded) {
+                await cat.locator('button').first().click();
+                await page.waitForTimeout(500); // Wait for animation
+            }
+        }
+
+        // Use a more robust locator and wait for it to be visible
+        const lockedChallenge = page.locator('span:has-text("[!] locked")').first();
+        
+        // Wait for at least one locked challenge to be visible (up to 10s)
+        try {
+            await lockedChallenge.waitFor({ state: 'visible', timeout: 10000 });
+        } catch (e) {
+            console.log('⚠️ No locked challenges visible after waiting, check if user20 has prerequisites.');
+        }
 
         if (await lockedChallenge.isVisible()) {
             await lockedChallenge.click();
 
             // Verify Warning Popup
-            await expect(page.locator('.swal2-popup')).toBeVisible();
-            await expect(page.locator('.swal2-html-container', { hasText: '[!] Challenge Locked' }).first()).toBeVisible();
-            await expect(page.locator('.swal2-html-container', { hasText: '> Prerequisites required:' }).first()).toBeVisible();
+            await expect(page.locator('.swal2-popup')).toBeVisible({ timeout: 10000 });
+            // Use regex for case-insensitivity and to match "[!] Challenge Locked"
+            await expect(page.locator('.swal2-html-container').filter({ hasText: /\[!\] (Challenge )?locked/i }).first()).toBeVisible();
+            await expect(page.locator('.swal2-html-container').filter({ hasText: /Prerequisites required/i }).first()).toBeVisible();
 
             await page.locator('button', { hasText: 'Close' }).click();
         } else {
-            console.log('⚠️ No locked challenges found for user20, skipping TC-C003 partially.');
+            // Log what we found for debugging
+            const allText = await page.innerText('body');
+            console.log('Body text sample:', allText.substring(0, 500));
+            throw new Error('❌ Test Failed: Expected a locked challenge but none was found.');
         }
     });
 

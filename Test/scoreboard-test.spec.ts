@@ -81,7 +81,7 @@ const allTestData: ScoreboardTestData[] = [
 // PHẦN 2: HELPER FUNCTIONS
 // =============================================================================
 
-const BASE_URL = 'https://contestant0.fctf.site';
+const BASE_URL = 'https://contestant3.fctf.site';
 
 // Helper: Login
 async function login(page: Page, user: string, pass: string) {
@@ -448,35 +448,37 @@ test.describe('Test Suite: Scoreboard - Bảng Xếp Hạng', () => {
         test.setTimeout(60000);
 
         await test.step('Kiểm tra team hidden không có trong danh sách', async () => {
-            // Precondition: Có tài khoản/team bị hidden trong hệ thống
-            // Team hidden sẽ không xuất hiện trong API /scoreboard/top/200
-            // Đổi items per page lên 50 để xem nhiều team hơn
-            const perPageSelect = page.locator('select');
-            await perPageSelect.selectOption('50');
-            await page.waitForTimeout(500);
+            // Đảm bảo xem nhiều team nhất có thể (chọn cái đầu tiên nếu có nhiều select)
+            const perPageSelect = page.locator('select').first();
+            if (await perPageSelect.isVisible().catch(() => false)) {
+                await perPageSelect.selectOption('50');
+                await page.waitForTimeout(1000);
+            }
 
-            const teamNames = await getTeamNames(page);
-
-            // Tìm kiếm team hidden (nếu biết tên)
-            // Ví dụ: "hidden_team" không nên xuất hiện
             const searchInput = page.locator('input[placeholder="Search teams..."]');
-            await searchInput.fill('hidden_user');
+            const hiddenTeamName = 'hidden_user';
+            
+            await searchInput.fill(hiddenTeamName);
             await page.locator('button').filter({ hasText: 'GO' }).click();
-            await page.waitForTimeout(500);
+            
+            // Chờ kết quả search (bảng sẽ load lại)
+            await page.waitForTimeout(2000);
 
-            // Kiểm tra: hoặc "No teams found" hoặc không có team nào tên "hidden_user"
-            const noTeamsMsg = page.getByText('No teams found');
-            const isNoTeams = await noTeamsMsg.isVisible().catch(() => false);
+            // Kiểm tra: hoặc hiển thị thông báo "No teams found"
+            // Dùng Regex để khớp cả "> No teams found" hoặc các biến thể
+            const noTeamsMsg = page.locator('td, div').filter({ hasText: /No teams found/i }).first();
+            const isNoTeamsVisible = await noTeamsMsg.isVisible();
 
-            if (isNoTeams) {
-                console.log(`✅ TC-SB009: Team hidden không hiển thị trên Scoreboard - PASS`);
+            if (isNoTeamsVisible) {
+                await expect(noTeamsMsg).toBeVisible();
+                console.log(`✅ TC-SB009: Hiển thị thông báo không tìm thấy team hidden - PASS`);
             } else {
+                // Nếu không thấy thông báo, kiểm tra danh sách team trả về có chứa hidden_user không
                 const resultNames = await getTeamNames(page);
-                // Kiểm tra không chứa team hidden
                 for (const name of resultNames) {
-                    expect(name.toLowerCase()).not.toContain('hidden_user');
+                    expect(name.toLowerCase()).not.toContain(hiddenTeamName.toLowerCase());
                 }
-                console.log(`✅ TC-SB009: Không tìm thấy team hidden trong kết quả - PASS`);
+                console.log(`✅ TC-SB009: Danh sách kết quả không chứa team hidden - PASS`);
             }
         });
     });
@@ -514,7 +516,7 @@ test.describe('Test Suite: Scoreboard - Bảng Xếp Hạng', () => {
 // PHẦN 4: SCOREBOARD FREEZE TEST (Cross-role: Admin UI + Contestant)
 // =============================================================================
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 
 // Helper: Login Admin portal
 async function loginAdmin(page: Page) {
