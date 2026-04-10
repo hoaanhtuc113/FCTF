@@ -1,0 +1,106 @@
+---
+sidebar_position: 1
+title: Prerequisites
+---
+
+#Prerequisites
+
+Tài liệu này tổng hợp các điều kiện bắt buộc trước khi chạy Quick Start.
+
+## 1) Chuẩn bị môi trường
+
+- Truy cập SSH vào 2 VM Ubuntu 22.04 LTS
+- Quyền `sudo` trên cả 2 node
+- Kết nối internet outbound để tải image/package
+- Clone mã nguồn FCTF
+
+```bash
+git clone <repo-url> FCTF
+cd FCTF
+chmod +x manage.sh
+```
+
+## 2) System Requirements
+
+### VM1 — Control Plane (Master)
+
+- Vai trò: K3s Server (Control Plane)
+- CPU: >= 8 cores
+- RAM: >= 16 GB
+- Disk: >= 200 GiB (SSD)
+- OS: Ubuntu 22.04 LTS
+- Inbound ports tối thiểu:
+  - `80`, `443`
+  - `6443` (Kubernetes API)
+  - `30037`, `30038` (NodePort, có thể thay đổi)
+
+### VM2 — Worker
+
+- Vai trò: K3s Agent
+- CPU: >= 8 cores
+- RAM: >= 32 GB
+- Disk: >= 200 GiB (SSD)
+- OS: Ubuntu 22.04 LTS
+
+## 3) Network Requirements
+
+- 2 VM phải cùng subnet private, ping được nhau, TCP ổn định.
+- IP private phải cố định (không đổi sau khi khởi tạo cluster).
+- Dải IP hạ tầng **không được trùng**:
+  - Pod CIDR mặc định: `10.42.0.0/16`
+  - Service CIDR mặc định: `10.43.0.0/16`
+- Khuyến nghị dùng dải `192.168.x.x` hoặc `172.16.x.x`.
+- Mở thêm cho Calico VXLAN:
+  - UDP `4789` giữa các node
+  - MTU >= 1450
+- Bật IP forwarding, tắt swap, đảm bảo kernel modules sẵn sàng: `overlay`, `br_netfilter`, `vxlan`, `ip_tables`, `ip_set`.
+
+### Internal ports cần mở giữa các node
+
+| Protocol | Ports |
+| --- | --- |
+| TCP | 111, 179, 2049, 2379, 2380, 5001, 5473, 6443, 10250 |
+| UDP | 111, 2049, 4789, 8472, 51820, 51821 |
+
+## 4) Bắt buộc: Cập nhật Domain/IP trước khi cài
+
+Khi triển khai môi trường mới, phải thay toàn bộ domain mẫu:
+
+- `registry0.fctf.site`
+- `admin0.fctf.site`
+- `api0.fctf.site`
+- `argo0.fctf.site`
+- `contestant0.fctf.site`
+- `grafana0.fctf.site`
+- `rabbitmq0.fctf.site`
+- `rancher0.fctf.site`
+- `challenge0.fctf.site`
+
+Đồng thời thay IP hạ tầng mẫu (ví dụ `10.148.0.2`) thành IP private thực tế của NFS / K3s master.
+
+### Các vị trí cần cập nhật
+
+- Ingress host + TLS SAN:
+  - `FCTF-k3s-manifest/prod/ingress/nginx/*.yaml`
+  - `FCTF-k3s-manifest/prod/ingress/certificate/*.yaml`
+- Registry references:
+  - `FCTF-k3s-manifest/prod/app/*/deployment.yaml`
+  - `FCTF-k3s-manifest/prod/argo-workflows/**`
+  - `FCTF-k3s-manifest/prod/env/configmap/*.yaml`
+  - `FCTF-k3s-manifest/prod/env/secret/docker-secret.yaml`
+- Helm values:
+  - `FCTF-k3s-manifest/prod/helm/registry/harbor-values.yaml`
+  - `FCTF-k3s-manifest/prod/helm/rancher/rancher-values.yaml`
+- NFS storage:
+  - `FCTF-k3s-manifest/prod/storage/pv/*.yaml`
+- Setup scripts:
+  - `FCTF-k3s-manifest/setup-worker.sh`
+  - `FCTF-k3s-manifest/setup-harbor.sh`
+  - `FCTF-k3s-manifest/cicd-setup.sh`
+
+### Pre-deployment checklist
+
+- Không còn chuỗi domain mẫu `*.fctf.site` cũ.
+- Không còn IP cũ/outdated.
+- Ingress host khớp chứng chỉ TLS.
+- Registry domain thống nhất ở Harbor values, docker secrets và image paths.

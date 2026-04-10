@@ -61,7 +61,11 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Install & Operations',
-      items: ['install-and-ops/quick-start'],
+      items: [
+        'install-and-ops/prerequisites',
+        'install-and-ops/quick-start'
+
+      ],
     },
   ],
 };
