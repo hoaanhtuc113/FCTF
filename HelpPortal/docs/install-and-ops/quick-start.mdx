@@ -1,0 +1,49 @@
+---
+sidebar_position: 1
+title: Install & Operations Quick Start
+---
+
+# Install & Operations Quick Start
+
+This guide helps you stand up and validate the FCTF stack quickly.
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Node.js 20+ for frontend docs and portal tooling
+- Access to repository secrets/configuration used by backend services
+
+## 1. Start Core Services
+
+From repository root:
+
+```bash
+./manage.sh up
+```
+
+If your environment uses direct compose scripts:
+
+```bash
+docker compose up -d
+```
+
+## 2. Validate Gateway Fast
+
+Run the quick gateway checks:
+
+```bash
+cd Test/Gateway
+./run-gateway-tests.sh --type quick
+```
+
+## 3. Review Health and Logs
+
+- Confirm challenge routing succeeds through gateway
+- Verify control services expose healthy status
+- Check action logs for unexpected auth or rate-limit spikes
+
+## 4. Before Production
+
+- Run broader gateway test suite with long-running scenarios as needed
+- Confirm prerequisite and anonymization behavior in backend responses
+- Ensure docs and runbooks match the deployed version
