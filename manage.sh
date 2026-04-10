@@ -10,6 +10,7 @@ APPLY_FCTF_SH="${K3S_DIR}/apply-fctf.sh"
 SETUP_HARBOR_SH="${K3S_DIR}/setup-harbor.sh"
 CICD_SETUP_SH="${K3S_DIR}/cicd-setup.sh"
 GET_ARGO_TOKEN_SH="${K3S_DIR}/prod/sa/argo-workflow/get-token.sh"
+CONFIGURE_DOMAINS_SH="${K3S_DIR}/configure-domains.sh"
 UNINSTALL_MASTER_SH="${K3S_DIR}/uninstall/uninstall.sh"
 UNINSTALL_WORKER_SH="${K3S_DIR}/uninstall/uninstall-worker.sh"
 
@@ -39,6 +40,7 @@ show_menu() {
 	echo "6) Get Argo token"
 	echo "7) Get master token"
 	echo "8) Uninstall"
+	echo "9) Configure service domains/IP"
 	echo "0) Exit"
 	echo "============================================="
 }
@@ -123,12 +125,16 @@ while true; do
 				esac
 			done
 			;;
+		9)
+			echo "==> Running configure-domains.sh"
+			run_script "${CONFIGURE_DOMAINS_SH}"
+			;;
 		0)
 			echo "Bye."
 			exit 0
 			;;
 		*)
-			echo "Invalid option. Please choose 0-8."
+			echo "Invalid option. Please choose 0-9."
 			;;
 	esac
 done
