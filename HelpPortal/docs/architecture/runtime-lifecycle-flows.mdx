@@ -1,0 +1,81 @@
+---
+title: Category C - Runtime and Lifecycle Flows
+description: End-to-end request, deployment, runtime access, and execution model across DeploymentCenter, RabbitMQ, DeploymentConsumer, Argo, and Kubernetes.
+---
+
+# Category C: Runtime and Lifecycle Flows
+
+## 4. Data Flow (Key Paths)
+
+### 4.1 User Flow
+
+1. User reaches ingress-nginx.
+2. Request is routed to contestant-portal or admin-mvc.
+3. Frontend calls contestant-be APIs.
+4. contestant-be validates auth/session and serves challenge, team, and scoreboard operations.
+
+### 4.2 Deployment Flow
+
+1. contestant-be or admin-mvc requests challenge start/stop via deployment-center.
+2. deployment-center validates request signature and writes initial cache state.
+3. deployment-center publishes job to RabbitMQ deployment_exchange -> deployment_queue.
+4. deployment-consumer dequeues, checks workflow concurrency budget, and submits an Argo workflow.
+5. Argo applies challenge manifests and creates namespace/service/job.
+6. deployment-listener observes pod readiness/deletion and finalizes lifecycle state.
+
+### 4.3 Runtime Access Flow
+
+1. User receives signed challenge token URL.
+2. User accesses challenge-gateway with token.
+3. Gateway verifies token signature and expiry.
+4. Gateway routes HTTP/TCP traffic to internal challenge service endpoint.
+5. Gateway enforces token/IP rate limits and connection caps.
+
+### 4.4 State Sync Flow
+
+1. deployment-listener watches Kubernetes pod events with sharded workers.
+2. Event handlers map namespace names back to team/challenge IDs.
+3. Listener updates Redis deployment state and MariaDB tracking rows.
+4. On inconsistencies (ghost pod, stuck pod, orphan DB tracking), listener performs cleanup/reconciliation.
+
+## 5. Deployment and Execution Model (Argo + Kubernetes)
+
+### 5.1 Build path
+
+- Challenge package is stored on NFS.
+- up-challenge-template runs Kaniko to build and push image to Harbor/internal registry.
+- Registry credentials are distributed through `global-regcred` for downstream image pulls.
+- Workflow exit hook posts status back to deployment-center.
+
+Trade-off:
+
+- NFS + Kaniko simplifies self-hosted build context handling.
+- Kaniko step uses elevated privileges and host networking in current template, which improves compatibility but increases hardening requirements.
+
+### 5.2 Start runtime path
+
+- deployment-consumer computes deployment parameters from challenge metadata (CPU/memory, `USE_GVISOR`, harden flag, timeout).
+- start-chal-v2-template applies namespace first, then namespaced resources.
+- When `USE_GVISOR=true`, the template injects `runtimeClassName: gvisor` so challenge pods run under runsc sandbox.
+- The workflow copies image pull secret into target namespace before workload creation.
+
+### 5.3 Runtime resource model
+
+Each deployment namespace includes:
+
+- Namespace labels for challenge lifecycle metadata.
+- ClusterIP service exposing challenge internal port as service port 3333.
+- Network policies (deny-all baseline + explicit allows).
+- Job for challenge container with resource limits and probe settings.
+
+### 5.4 Lifecycle and TTL
+
+- Queue message expiry and Redis provisional TTL guard against stale deploy intents.
+- Challenge job has ttlSecondsAfterFinished for workload object cleanup.
+- Argo workflow templates define TTL strategy for workflow object retention.
+- Additional cron cleanup removes expired temporary challenge namespaces by label.
+
+## Next Reading
+
+- [Category D: State Reconciliation](./state-reconciliation)
+- [Back to Architecture Overview](./overview)

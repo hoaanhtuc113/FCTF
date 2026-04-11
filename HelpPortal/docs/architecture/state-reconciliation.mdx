@@ -1,0 +1,78 @@
+---
+title: Category D - State Reconciliation
+description: Deployment-listener architecture, watch semantics, drift recovery, and eventual consistency guarantees.
+---
+
+# Category D: State Reconciliation
+
+## 6. State Reconciliation Model (Deployment Listener)
+
+This is a core reliability subsystem in FCTF.
+
+### 6.1 Why it exists
+
+Asynchronous deploy systems can drift when:
+
+- watch streams disconnect,
+- pods crash or restart unexpectedly,
+- namespaces are deleted out-of-band,
+- cache and real cluster state diverge.
+
+deployment-listener converges observed Kubernetes state back to the runtime state used by APIs.
+
+### 6.2 Watch architecture
+
+- Watches pods across all namespaces filtered by ctf/kind=challenge.
+- Uses Kubernetes resourceVersion streaming with reconnect/resync logic.
+- Handles 410 Gone and stale resourceVersion by forced relist.
+- Uses shard channels by pod UID hash to parallelize processing while preserving per-shard ordering.
+- Default worker count is configurable (CHALLENGE_WATCHER_WORKER_COUNT, default 20).
+
+### 6.3 Event handling semantics
+
+#### Deleted event
+
+- Removes deployment reservation from Redis ZSET.
+- Marks status as STOPPED via status callback path.
+- Updates challenge_start_tracking.StoppedAt for matching namespace label.
+
+#### Pod restart detection
+
+- Detects pod UID change and updates cached pod_id.
+- Extends cache TTL based on remaining runtime window.
+
+#### Stuck pod detection
+
+Evaluates pod/container status and reason, including:
+
+- ImagePullBackOff / ErrImagePull / InvalidImageName.
+- CrashLoopBackOff / OOMKilled with restart threshold.
+- Long ContainerCreating timeout.
+- Running but not ready beyond threshold.
+
+When classified as stuck, listener can delete namespace and cleanup state.
+
+#### Ghost resource cleanup
+
+If pod exists but corresponding deployment cache is missing:
+
+- Namespace is treated as ghost.
+- Listener attempts cleanup and removes any residual deployment reservation.
+
+### 6.4 Reconciliation on startup/reconnect
+
+- On initial list, listener compares active pod namespaces with challenge_start_tracking rows where StoppedAt is null.
+- Rows with missing pods are marked stopped (orphan reconciliation).
+
+Result:
+
+- Prevents long-lived false "running" records after missed watch events.
+
+### 6.5 Operational outcome
+
+The listener turns event-driven best-effort orchestration into eventually consistent runtime truth, reducing manual recovery during CTF peaks.
+
+## Next Reading
+
+- [Category E: Security](./security)
+- [Back to Architecture Overview](./overview)
