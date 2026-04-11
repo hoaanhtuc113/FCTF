@@ -11,37 +11,37 @@ This page expands Section 3 from [Architecture Overview](./overview).
 
 ### Entry Layer
 
-#### ingress-nginx
+#### Ingress NGINX
 
 - Terminates incoming HTTP(S) traffic.
-- Routes organizer, contestant portal, API backend, and observability UIs by host.
+- Routes organizer, Contestant Portal, API backend, and observability UIs by host.
 - Uses cert-manager annotations for certificate automation.
 
 ### Frontend Layer
 
-#### admin-mvc
+#### Admin Portal
 
 - CTFd-based organizer/admin UI and management backend.
 - Handles challenge authoring, event configuration, and admin workflows.
 - Reads/writes challenge files via NFS-backed PVCs.
-- Calls deployment-center for runtime operations.
+- Calls Deployment Center for runtime operations.
 
-#### contestant-portal
+#### Contestant Portal
 
 - Player-facing frontend (React + Vite).
-- Talks to contestant-be for competition operations.
-- Uses challenge-gateway domain/ports for runtime challenge access.
+- Talks to Contestant Service for competition operations.
+- Uses Challenge Gateway domain/ports for runtime challenge access.
 
 ### Core Backend
 
-#### contestant-be
+#### Contestant Service
 
 Primary competition API for:
 
 - Auth and token session checks.
 - Teams, challenge discovery, prerequisites, files, hints, submissions.
 - Scoreboard and ticket APIs.
-- Challenge lifecycle user actions (start/stop/status) through deployment-center.
+- Challenge lifecycle user actions (start/stop/status) through Deployment Center.
 
 Notable behavior:
 
@@ -50,7 +50,7 @@ Notable behavior:
 - Redis Lua + lock-based race protection for submissions and deployment quotas.
 - Shared-instance mode supported via special team ID handling.
 
-#### deployment-center
+#### Deployment Center
 
 Control API for deployment orchestration:
 
@@ -60,7 +60,7 @@ Control API for deployment orchestration:
 - Calls Kubernetes and Argo APIs (status, logs, namespace operations).
 - Exposes callback endpoint for workflow status messages.
 
-#### challenge-gateway
+#### Challenge Gateway
 
 Runtime access gateway for deployed challenge instances:
 
@@ -83,7 +83,7 @@ Deploy queue topology:
 - Binding: routing key deploy.
 - Queue policy includes x-max-length=300 with reject-publish overflow behavior.
 
-#### deployment-consumer
+#### Deployment Consumer
 
 Worker process that:
 
@@ -102,7 +102,7 @@ Two primary templates:
 - up-challenge-template:
   - Builds/pushes challenge images from NFS context using Kaniko.
   - Pushes images to Harbor/internal registry and relies on registry pull secrets for runtime workloads.
-  - Calls deployment-center callback on exit with workflow status.
+  - Calls Deployment Center callback on exit with workflow status.
 - start-chal-v2-template:
   - Applies challenge namespace/service/network policy/job manifests from NFS templates.
   - Chooses hardened vs plain challenge manifest.
@@ -119,7 +119,7 @@ For each deployment instance:
 
 ### State Reconciliation
 
-#### deployment-listener
+#### Deployment Listener
 
 Watches pod events for label ctf/kind=challenge and reconciles system state:
 

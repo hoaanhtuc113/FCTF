@@ -34,9 +34,13 @@ It is organized around how teams actually build and operate the system:
 
 | Component | Purpose |
 | --- | --- |
-| ContestantPortal | Frontend for contestants |
-| ChallengeGateway | Secure routing and edge controls |
-| ControlCenterAndChallengeHostingServer | Deployment and challenge management APIs |
+| Contestant Portal | Frontend for contestants |
+| Contestant Service | Competition APIs and contestant-facing business logic |
+| Admin Portal | Organizer/admin experience and management workflows |
+| Deployment Center | Deployment orchestration and runtime control APIs |
+| Deployment Consumer | Async deployment queue worker |
+| Deployment Listener | Runtime state reconciliation worker |
+| Challenge Gateway | Secure routing and edge controls |
 | Test/Gateway | Gateway verification scripts and reports |
 
 Use this documentation as the source of truth before changing production behavior.

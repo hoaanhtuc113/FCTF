@@ -141,8 +141,8 @@ const config: Config = {
               href: 'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/ChallengeGateway',
             },
             {
-              label: 'Control Center',
-              href: 'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/ControlCenterAndChallengeHostingServer',
+              label: 'Admin Portal',
+              href: 'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/FCTF-ManagementPlatform',
             },
           ],
         },
