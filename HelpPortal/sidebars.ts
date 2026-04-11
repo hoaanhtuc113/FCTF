@@ -17,6 +17,15 @@ const sidebars: SidebarsConfig = {
     'intro',
     {
       type: 'category',
+      label: 'Install & Operations',
+      items: [
+        'install-and-ops/prerequisites',
+        'install-and-ops/quick-start'
+
+      ],
+    },
+    {
+      type: 'category',
       label: 'Product & Features',
       items: [
         'product-and-features/overview',
@@ -81,15 +90,7 @@ const sidebars: SidebarsConfig = {
         },
       ],
     },
-    {
-      type: 'category',
-      label: 'Install & Operations',
-      items: [
-        'install-and-ops/prerequisites',
-        'install-and-ops/quick-start'
-
-      ],
-    },
+    
   ],
 };
 
