@@ -276,11 +276,11 @@ export default function Home(): ReactNode {
         {/* ─── INSTALL BAND ─── */}
         <section className={styles.installBand}>
           <div className={styles.installInner}>
-            <p className={styles.installHint}>Deploy your first challenge</p>
+            <p className={styles.installHint}>Launch Setup Wizard</p>
             <div className={styles.installCode}>
               <code>
                 <span className={styles.codePrompt}>$</span>{' '}
-                <span className={styles.codeText}>fctf deploy --challenge web-sqli --teams 12</span>
+                <span className={styles.codeText}>git clone https://github.com/hoaanhtuc113/FCTF.git && cd FCTF && ./manage.sh</span>
               </code>
             </div>
           </div>
@@ -335,19 +335,21 @@ export default function Home(): ReactNode {
                 <span className={styles.termDot} data-c="r" />
                 <span className={styles.termDot} data-c="y" />
                 <span className={styles.termDot} data-c="g" />
-                <span className={styles.termLabel}>fctf-control</span>
+                <span className={styles.termLabel}>argo-worker-node</span>
               </div>
               <div className={styles.termBody}>
-                <div className={styles.tl}><span className={styles.tp}>$</span> <span className={styles.tc}>./deploy --challenge web-sqli --teams 12</span></div>
-                <div className={styles.tl}><span className={styles.to}>  building image (kaniko → harbor)...</span></div>
-                <div className={styles.tl}><span className={styles.to}>  provisioning 12 namespaces via argo</span></div>
-                <div className={styles.tl}><span className={styles.to}>  applying networkpolicy: deny-all + gw-only</span></div>
-                <div className={styles.tl}><span className={styles.ts}>  [OK] all 12 instances live</span></div>
+                <div className={styles.tl}><span className={styles.tp}>fctf@argo:~$</span> <span className={styles.tc}>kubectl logs job/start-chal-v2-web-sqli</span></div>
+                <div className={styles.tl}><span className={styles.to}>=== Deploying Challenge v2 with parameters ===</span></div>
+                <div className={styles.tl}><span className={styles.to}>&gt; CHALLENGE_NAME: ch-web-sqli-5bf1</span></div>
+                <div className={styles.tl}><span className={styles.ts}>[info]</span> <span className={styles.to}>RUNTIME_CLASS_NAME: gvisor</span></div>
+                <div className={styles.tl}><span className={styles.to}>📁 Found template at /mnt/nfs/data/challenge-hardened.yaml</span></div>
+                <div className={styles.tl}><span className={styles.th}>namespace/ch-web-sqli-5bf1 created</span></div>
+                <div className={styles.tl}><span className={styles.to}>🔐 Copying imagePullSecret global-regcred...</span></div>
+                <div className={styles.tl}><span className={styles.th}>networkpolicy.networking.k8s.io/deny-all created</span></div>
+                <div className={styles.tl}><span className={styles.th}>deployment.apps/ch-web-sqli-5bf1 created</span></div>
                 <div style={{ height: '0.5rem' }} />
-                <div className={styles.tl}><span className={styles.tp}>$</span> <span className={styles.tc}>./status</span></div>
-                <div className={styles.tl}><span className={styles.th}>  challenges: 24  teams: 12  gw: ok</span></div>
-                <div className={styles.tl}><span className={styles.th}>  cpu: 23%  mem: 1.8G/8G  up: 02:14:30</span></div>
-                <div className={styles.tl}><span className={styles.tp}>$</span> <span className={styles.cursor} /></div>
+                <div className={styles.tl}><span className={styles.ts}>✅ Challenge v2 manifest submitted to cluster</span></div>
+                <div className={styles.tl}><span className={styles.tp}>fctf@argo:~$</span> <span className={styles.cursor} /></div>
               </div>
             </div>
           </div>
@@ -359,42 +361,66 @@ export default function Home(): ReactNode {
           <div className={styles.pipelineSteps}>
             <div className={styles.pipeStep}>
               <span className={styles.pipeNum}>01</span>
-              <span className={styles.pipeName}>package</span>
-              <p>Containerize as OCI image</p>
+              <span className={styles.pipeName}>upload</span>
+              <p>Admins prepare and upload challenge templates</p>
             </div>
             <span className={styles.pipeArrow}>→</span>
             <div className={styles.pipeStep}>
               <span className={styles.pipeNum}>02</span>
-              <span className={styles.pipeName}>deploy</span>
-              <p>Argo provisions namespaces</p>
+              <span className={styles.pipeName}>start</span>
+              <p>Contestants request isolated challenge sessions</p>
             </div>
             <span className={styles.pipeArrow}>→</span>
             <div className={styles.pipeStep}>
               <span className={styles.pipeNum}>03</span>
-              <span className={styles.pipeName}>access</span>
-              <p>Token gateway routes traffic</p>
+              <span className={styles.pipeName}>deploy</span>
+              <p>Argo spins up dynamic gVisor secure sandboxes</p>
             </div>
             <span className={styles.pipeArrow}>→</span>
             <div className={styles.pipeStep}>
               <span className={styles.pipeNum}>04</span>
-              <span className={styles.pipeName}>reconcile</span>
-              <p>Listener corrects drift</p>
+              <span className={styles.pipeName}>access</span>
+              <p>Gateway securely routes traffic via tokens</p>
             </div>
           </div>
         </section>
 
-        {/* ─── TECH STRIP ─── */}
+        {/* ─── TECH STRIP MARQUEE ─── */}
         <section className={styles.techStrip}>
-          <span>k3s</span>
-          <span>argo workflows</span>
-          <span>kaniko</span>
-          <span>harbor</span>
-          <span>redis</span>
-          <span>rabbitmq</span>
-          <span>gvisor</span>
-          <span>prometheus</span>
-          <span>grafana</span>
-          <span>loki</span>
+          <div className={styles.techMarquee}>
+            <div className={styles.techTrack}>
+              {/* Duplicate the items to create a seamless infinite scroll loop */}
+              {[1, 2].map((group) => (
+                <div key={group} className={styles.techGroup}>
+                  {[
+                    { name: 'K3s', src: 'https://cdn.simpleicons.org/k3s' },
+                    { name: 'Kubernetes', src: 'https://cdn.simpleicons.org/kubernetes' },
+                    { name: 'Rancher', src: 'https://cdn.simpleicons.org/rancher' },
+                    { name: 'Argo', src: 'https://cdn.simpleicons.org/argo' },
+                    { name: 'Harbor', src: 'https://icon.horse/icon/goharbor.io' },
+                    { name: 'Kaniko', src: 'https://cdn.simpleicons.org/docker' },
+                    { name: 'gVisor', src: 'https://icon.horse/icon/gvisor.dev' },
+                    { name: 'Redis', src: 'https://cdn.simpleicons.org/redis' },
+                    { name: 'RabbitMQ', src: 'https://cdn.simpleicons.org/rabbitmq' },
+                    { name: 'Prometheus', src: 'https://cdn.simpleicons.org/prometheus' },
+                    { name: 'Grafana', src: 'https://cdn.simpleicons.org/grafana' },
+                    { name: 'Loki', src: 'https://grafana.com/static/img/logos/logo-loki.svg' },
+                    { name: 'Let\'s Encrypt', src: 'https://cdn.simpleicons.org/letsencrypt' },
+                    { name: 'CTFd', src: 'https://icon.horse/icon/ctfd.io' }
+                  ].map((tech) => (
+                    <div key={tech.name} className={styles.techItem}>
+                      <img 
+                        src={tech.src} 
+                        alt="" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+                      <span>{tech.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         {/* ─── CTA ─── */}
