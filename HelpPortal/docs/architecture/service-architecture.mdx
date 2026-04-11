@@ -9,7 +9,7 @@ This page expands Section 3 from [Architecture Overview](./overview).
 
 ## Component Breakdown
 
-### 3.1 Entry Layer
+### Entry Layer
 
 #### ingress-nginx
 
@@ -17,7 +17,7 @@ This page expands Section 3 from [Architecture Overview](./overview).
 - Routes organizer, contestant portal, API backend, and observability UIs by host.
 - Uses cert-manager annotations for certificate automation.
 
-### 3.2 Frontend Layer
+### Frontend Layer
 
 #### admin-mvc
 
@@ -32,7 +32,7 @@ This page expands Section 3 from [Architecture Overview](./overview).
 - Talks to contestant-be for competition operations.
 - Uses challenge-gateway domain/ports for runtime challenge access.
 
-### 3.3 Core Backend
+### Core Backend
 
 #### contestant-be
 
@@ -71,7 +71,7 @@ Runtime access gateway for deployed challenge instances:
   - token + IP request limits.
   - per-IP, per-token, and global TCP connection caps.
 
-### 3.4 Async Layer
+### Async Layer
 
 #### RabbitMQ
 
@@ -93,7 +93,7 @@ Worker process that:
 - Submits start workflow templates to Argo.
 - Updates deployment cache state and TTL.
 
-### 3.5 Execution Layer
+### Execution Layer
 
 #### Argo Workflows
 
@@ -117,7 +117,7 @@ For each deployment instance:
 - Challenge workload runs as a Job with TTL cleanup.
 - NetworkPolicies enforce default-deny ingress and gateway-only access.
 
-### 3.6 State Reconciliation
+### State Reconciliation
 
 #### deployment-listener
 
@@ -128,7 +128,7 @@ Watches pod events for label ctf/kind=challenge and reconciles system state:
 - Updates stopped tracking records when workloads terminate.
 - Reconciles orphaned DB entries after watch stream disruptions.
 
-### 3.7 Shared Infrastructure Library
+### Shared Infrastructure Library
 
 #### ResourceShared
 
