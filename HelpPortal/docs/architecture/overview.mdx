@@ -50,10 +50,10 @@ FCTF is a self-hosted CTF platform for on-premise k3s clusters. The system separ
 
 | Plane | Role | Main components |
 | --- | --- | --- |
-| Access | User entry and challenge runtime ingress | ingress-nginx, admin-mvc, contestant-portal, challenge-gateway |
-| Control | Competition and deployment control APIs | contestant-be, deployment-center |
-| Execution | Queue and workflow execution | RabbitMQ, deployment-consumer, Argo, dynamic challenge namespaces |
-| Reconciliation | Drift detection and correction | deployment-listener |
+| Access | User entry and challenge runtime ingress | Ingress NGINX, Admin Portal, Contestant Portal, Challenge Gateway |
+| Control | Competition and deployment control APIs | Contestant Service, Deployment Center |
+| Execution | Queue and workflow execution | RabbitMQ, Deployment Consumer, Argo, dynamic challenge namespaces |
+| Reconciliation | Drift detection and correction | Deployment Listener |
 
 Why this split exists:
 
@@ -67,7 +67,7 @@ Why this split exists:
 | --- | --- | --- |
 | Platform | Self-managed on-prem k3s | No cloud-managed dependency assumptions. |
 | Networking baseline | flannel disabled, Traefik disabled, Calico installed explicitly | Predictable CNI behavior and policy control. |
-| Ingress | ingress-nginx via Helm | Consistent routing for app and runtime access boundary. |
+| Ingress | Ingress NGINX via Helm | Consistent routing for app and runtime access boundary. |
 | Runtime sandbox | Optional RuntimeClass `gvisor` via `USE_GVISOR` | Additional isolation option for untrusted challenge workloads. |
 | Service exposure | ClusterIP + Ingress (primary), NodePort (fallback) | Works in constrained lab DNS/ingress environments. |
 
@@ -79,11 +79,11 @@ Canonical details: [Infrastructure](./platform-foundation).
 
 | Service boundary | Primary responsibility |
 | --- | --- |
-| contestant-be | Competition domain APIs and race-safe quota logic |
-| deployment-center | Deployment intent, orchestration coordination, workflow/pod status surfaces |
-| challenge-gateway | Only runtime ingress boundary (HTTP/TCP token-based access) |
-| deployment-consumer + Argo | Async deploy/build execution pipeline |
-| deployment-listener | Reconcile Redis/MariaDB lifecycle truth against Kubernetes events |
+| Contestant Service | Competition domain APIs and race-safe quota logic |
+| Deployment Center | Deployment intent, orchestration coordination, workflow/pod status surfaces |
+| Challenge Gateway | Only runtime ingress boundary (HTTP/TCP token-based access) |
+| Deployment Consumer + Argo | Async deploy/build execution pipeline |
+| Deployment Listener | Reconcile Redis/MariaDB lifecycle truth against Kubernetes events |
 
 Canonical details: [Service Architecture](./service-architecture).
 
@@ -91,9 +91,9 @@ Canonical details: [Service Architecture](./service-architecture).
 
 | Flow | Path |
 | --- | --- |
-| User request | ingress -> frontend -> contestant-be |
-| Deployment | deployment-center -> RabbitMQ -> deployment-consumer -> Argo -> Kubernetes |
-| Runtime access | signed token -> challenge-gateway -> internal challenge service |
+| User request | ingress -> frontend -> Contestant Service |
+| Deployment | Deployment Center -> RabbitMQ -> Deployment Consumer -> Argo -> Kubernetes |
+| Runtime access | signed token -> Challenge Gateway -> internal challenge service |
 | Stop/cleanup | control intent -> runtime termination -> reconciled `STOPPED` state |
 
 Canonical details: [Runtime and Lifecycle Flows](./runtime-lifecycle-flows).
@@ -106,7 +106,7 @@ Canonical details: [Runtime and Lifecycle Flows](./runtime-lifecycle-flows).
 | Actual state | Kubernetes namespaces/pods/readiness/restarts |
 | Control loop | desired -> execute -> observe -> reconcile |
 | Drift sources | watch disconnect, stale `resourceVersion`, out-of-band deletes, partial workflow completion |
-| Reconciler | deployment-listener shards pod events and applies cleanup/state correction |
+| Reconciler | Deployment Listener shards pod events and applies cleanup/state correction |
 
 Canonical details: [State Reconciliation](./state-reconciliation).
 
@@ -153,7 +153,7 @@ Canonical details: [Scalability](./scalability).
 | Metrics | Prometheus |
 | Visualization | Grafana |
 | Log aggregation | Loki |
-| Runtime diagnostics | deployment-center workflow/pod/log query endpoints |
+| Runtime diagnostics | Deployment Center workflow/pod/log query endpoints |
 | Cluster operations | Scripted bootstrap/install path for on-prem environments |
 
 Canonical details: [Observability and Operations](./observability-and-operations).

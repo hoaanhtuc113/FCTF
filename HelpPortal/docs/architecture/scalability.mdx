@@ -13,19 +13,19 @@ This page expands Section 8 from [Architecture Overview](./overview).
 
 Current baseline replicas in app namespace:
 
-- contestant-be: 3
-- deployment-center: 3
-- challenge-gateway: 2
-- deployment-consumer: 1
-- deployment-listener: 1
-- contestant-portal/admin-mvc: 1 each
+- Contestant Service: 3
+- Deployment Center: 3
+- Challenge Gateway: 2
+- Deployment Consumer: 1
+- Deployment Listener: 1
+- Contestant Portal/Admin Portal: 1 each
 
 HPA (`autoscaling/v2`) is configured in the default app manifests for selected services:
 
-- contestant-be: min 3, max 6.
-- deployment-center: min 2, max 5.
-- challenge-gateway: min 2, max 5.
-- contestant-portal: min 3, max 6.
+- Contestant Service: min 3, max 6.
+- Deployment Center: min 2, max 5.
+- Challenge Gateway: min 2, max 5.
+- Contestant Portal: min 3, max 6.
 
 These HPAs currently use CPU and memory utilization targets (`averageUtilization: 90`).
 
@@ -34,8 +34,8 @@ This supports horizontal API scaling while keeping worker/reconciler semantics c
 ### Async throughput controls
 
 - deployment_queue max length: 300.
-- deployment-consumer prefetch: 40.
-- deployment-consumer batch size: 20.
+- Deployment Consumer prefetch: 40.
+- Deployment Consumer batch size: 20.
 - max running workflows gate: 30.
 - worker polling interval: 2 seconds.
 
@@ -43,7 +43,7 @@ These controls provide bounded admission to avoid workflow storms and cluster sa
 
 ### Runtime access scaling
 
-challenge-gateway capacity controls include:
+Challenge Gateway capacity controls include:
 
 - global TCP max connections,
 - per-IP TCP connections,
@@ -60,4 +60,4 @@ These controls protect challenge infrastructure from abuse and accidental overlo
 ### Current scaling trade-offs
 
 - Scaling is hybrid: HPA is enabled for selected stateless services, while worker/reconciler components remain manually scaled for predictable orchestration and reconciliation behavior.
-- Single deployment-consumer simplifies ordering and control but can become throughput bottleneck if event size grows sharply.
+- Single Deployment Consumer simplifies ordering and control but can become throughput bottleneck if event size grows sharply.

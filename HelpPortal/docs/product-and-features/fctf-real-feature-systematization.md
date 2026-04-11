@@ -12,7 +12,7 @@ Tai lieu nay gom he thong hoa cac tinh nang **da co dau vet trien khai trong sou
 Tai lieu uu tien:
 
 - Tinh nang dang chay thuc te (co route, service, flow ro rang).
-- Moi lien ket giua cac module (Portal, ContestantBE, DeploymentCenter, Consumer, Listener, Gateway, CTFd core).
+- Moi lien ket giua cac module (Contestant Portal, Contestant Service, Deployment Center, Deployment Consumer, Deployment Listener, Challenge Gateway, CTFd core).
 - Quy tac nghiep vu va config key anh huong hanh vi he thong.
 
 Tai lieu khong nham thay the tai lieu marketing/roadmap.
@@ -21,14 +21,14 @@ Tai lieu khong nham thay the tai lieu marketing/roadmap.
 
 Khao sat duoc thuc hien tren cac khoi sau:
 
-- Contestant frontend: `ContestantPortal/src/*`
-- Contestant API va nghiep vu: `ControlCenterAndChallengeHostingServer/ContestantBE/*`
-- Deploy orchestration API: `ControlCenterAndChallengeHostingServer/DeploymentCenter/*`
+- Contestant Portal frontend: `ContestantPortal/src/*`
+- Contestant Service API va nghiep vu: `ControlCenterAndChallengeHostingServer/ContestantBE/*`
+- Deployment Center orchestration API: `ControlCenterAndChallengeHostingServer/DeploymentCenter/*`
 - Deploy worker va watcher:
-  - `ControlCenterAndChallengeHostingServer/DeploymentConsumer/*`
-  - `ControlCenterAndChallengeHostingServer/DeploymentListener/*`
+  - Deployment Consumer: `ControlCenterAndChallengeHostingServer/DeploymentConsumer/*`
+  - Deployment Listener: `ControlCenterAndChallengeHostingServer/DeploymentListener/*`
 - Shared domain/service utilities: `ControlCenterAndChallengeHostingServer/ResourceShared/*`
-- Gateway truy cap challenge: `ChallengeGateway/*`
+- Challenge Gateway truy cap challenge: `ChallengeGateway/*`
 - Quan tri CTFd da tuy bien: `FCTF-ManagementPlatform/CTFd/*`
 - Testing va van hanh:
   - `Test/*`
@@ -41,12 +41,12 @@ Khao sat duoc thuc hien tren cac khoi sau:
 | Module                                | Vai tro                                                             | Dau vao / Dau ra chinh                                                   |
 | ------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | FCTF-ManagementPlatform (CTFd custom) | Backoffice/quan tri su kien, challenge metadata, config competition | Luu DB challenge/config; cung cap nen tang quan tri                      |
-| ContestantPortal                      | Giao dien thi cho contestant                                        | Goi ContestantBE API, hien thi challenge/score/ticket/profile/log        |
-| ContestantBE                          | API cho contestant va logic nghiep vu chinh                         | Xac thuc, challenge flow, submit, hint, ticket, scoreboard, file         |
-| DeploymentCenter                      | API dieu phoi deploy/start/stop challenge runtime                   | Nhan request tu ContestantBE; day queue RabbitMQ; thao tac Argo/K8s/Loki |
-| DeploymentConsumer                    | Worker xu ly queue deploy                                           | Dequeue, tao workflow Argo, cap nhat Redis state                         |
-| DeploymentListener                    | Watcher pod/workflow state                                          | Theo doi pod K8s, cap nhat stop/start lifecycle, cleanup ghost/orphan    |
-| ChallengeGateway                      | Cua vao challenge runtime (HTTP/TCP)                                | Verify token, reverse proxy, rate limit, connection control              |
+| Contestant Portal                     | Giao dien thi cho contestant                                        | Goi Contestant Service API, hien thi challenge/score/ticket/profile/log  |
+| Contestant Service                    | API cho contestant va logic nghiep vu chinh                         | Xac thuc, challenge flow, submit, hint, ticket, scoreboard, file         |
+| Deployment Center                     | API dieu phoi deploy/start/stop challenge runtime                   | Nhan request tu Contestant Service; day queue RabbitMQ; thao tac Argo/K8s/Loki |
+| Deployment Consumer                   | Worker xu ly queue deploy                                           | Dequeue, tao workflow Argo, cap nhat Redis state                         |
+| Deployment Listener                   | Watcher pod/workflow state                                          | Theo doi pod K8s, cap nhat stop/start lifecycle, cleanup ghost/orphan    |
+| Challenge Gateway                     | Cua vao challenge runtime (HTTP/TCP)                                | Verify token, reverse proxy, rate limit, connection control              |
 | ResourceShared                        | Utility dung chung                                                  | Redis scripts, token/signature helper, K8s service, dynamic score logic  |
 | Test suite                            | Xac thuc tinh dung va tai/dua tranh chap                            | Race/Gateway/Stress scenarios                                            |
 | K3s manifest + scripts                | Trien khai va van hanh                                              | Setup cluster, NFS, Helm, app deployment, uninstall                      |
@@ -84,16 +84,16 @@ Y nghia:
    - da solve hay chua,
    - limit concurrent challenge per team (`limit_challenges`).
 3. Redis script atomic dat cho + ZSET reservation de tranh race va qua gioi han.
-4. ContestantBE goi DeploymentCenter voi `SecretKey` ky tu payload + unixTime.
-5. DeploymentCenter enqueue RabbitMQ (`deployment_exchange` -> `deployment_queue`).
-6. DeploymentConsumer lay queue, submit Argo workflow, cap nhat cache status PENDING.
-7. DeploymentListener watch pod; khi ready, tao challenge token URL, cap TTL, ghi tracking start.
+4. Contestant Service goi Deployment Center voi `SecretKey` ky tu payload + unixTime.
+5. Deployment Center enqueue RabbitMQ (`deployment_exchange` -> `deployment_queue`).
+6. Deployment Consumer lay queue, submit Argo workflow, cap nhat cache status PENDING.
+7. Deployment Listener watch pod; khi ready, tao challenge token URL, cap TTL, ghi tracking start.
 8. Frontend poll `challenge/check-status` de nhan URL truy cap runtime.
 
 ### 4.4 Stop challenge runtime
 
 - User stop qua `POST /challenge/stop-by-user`.
-- DeploymentCenter dat trang thai DELETING, xoa namespace K8s.
+- Deployment Center dat trang thai DELETING, xoa namespace K8s.
 - Listener nhan Deleted/terminating event, remove ZSET/cache, update `StoppedAt` tracking.
 - Auto-stop cung duoc kich hoat khi het thoi gian challenge (frontend timer + backend logic khi can).
 
@@ -251,16 +251,16 @@ Danh sach key tac dong truc tiep hanh vi nghiep vu (khong day du tuyet doi):
 
 ## 8. Cac diem can theo doi (technical debt / governance)
 
-1. Endpoint `DeploymentCenter/api/StatusCheck/message` duoc ghi chu la chua authen; can xac nhan chinh sach bao ve.
-2. Frontend co `ACTION_LOGS.POST` trong service, nhung ContestantBE controller hien tai chi thay endpoint get logs team; can dong bo API contract.
+1. Endpoint callback cua Deployment Center (`DeploymentCenter/api/StatusCheck/message`) duoc ghi chu la chua authen; can xac nhan chinh sach bao ve.
+2. Frontend co `ACTION_LOGS.POST` trong service, nhung Contestant Service controller hien tai chi thay endpoint get logs team; can dong bo API contract.
 3. `authService.clearSession()` dang `localStorage.clear()` toan bo; co the xoa ca du lieu khong lien quan auth.
-4. CORS `AllowAll` dang bat tren ContestantBE va DeploymentCenter; can ra soat policy theo moi truong production.
+4. CORS `AllowAll` dang bat tren Contestant Service va Deployment Center; can ra soat policy theo moi truong production.
 
 ## 9. Ket luan
 
 FCTF hien tai khong chi la ban CTFd thuong, ma la he thong da bo sung day du cac khoi:
 
-- Contestant flow rieng (Portal + ContestantBE).
+- Contestant flow rieng (Contestant Portal + Contestant Service).
 - Runtime challenge deployment theo queue/workflow/watcher.
 - Gateway tokenized cho HTTP/TCP.
 - Co che chong race/chong abuse/chong vuot quota bang Redis scripts va locks.

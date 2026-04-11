@@ -11,21 +11,21 @@ This page expands Section 2 from [Architecture Overview](./overview).
 
 FCTF is a microservice CTF platform organized into four runtime planes:
 
-- Access plane: ingress-nginx + frontend apps + challenge gateway.
-- Control plane: contestant-be and deployment-center APIs.
-- Execution plane: RabbitMQ, deployment-consumer, Argo Workflows, Kubernetes challenge namespaces.
-- Reconciliation plane: deployment-listener watching Kubernetes and correcting state.
+- Access plane: Ingress NGINX + frontend apps + Challenge Gateway.
+- Control plane: Contestant Service and Deployment Center APIs.
+- Execution plane: RabbitMQ, Deployment Consumer, Argo Workflows, Kubernetes challenge namespaces.
+- Reconciliation plane: Deployment Listener watching Kubernetes and correcting state.
 
 ### Design goals
 
 - Keep core competition APIs responsive under load by offloading heavy deployment work to async workers.
 - Isolate challenge runtime per deployment namespace instead of exposing challenge pods directly.
-- Enforce a controlled runtime access boundary via challenge-gateway for both HTTP and TCP challenges.
+- Enforce a controlled runtime access boundary via Challenge Gateway for both HTTP and TCP challenges.
 - Maintain eventual consistency between requested state and actual Kubernetes state via listener reconciliation.
 
 ### Namespace topology
 
-- app: user-facing and control services (admin-mvc, contestant-be, contestant-portal, deployment-center, deployment-consumer, deployment-listener, challenge-gateway).
+- app: user-facing and control services (Admin Portal, Contestant Service, Contestant Portal, Deployment Center, Deployment Consumer, Deployment Listener, Challenge Gateway).
 - argo: workflow engine, workflow templates, workflow PVCs.
 - db: MariaDB, Redis, RabbitMQ.
 - monitoring: Prometheus stack, Grafana, Loki.
@@ -42,7 +42,7 @@ FCTF targets self-managed, non-cloud-managed environments.
 
 - k3s server is installed with flannel disabled and Traefik disabled.
 - Calico is installed explicitly and aligned to k3s pod CIDR.
-- Ingress is provided by ingress-nginx Helm chart.
+- Ingress is provided by Ingress NGINX Helm chart.
 - No service mesh is installed by default in the current manifests.
 - Optional gVisor (runsc) runtime is installed and exposed as RuntimeClass gvisor.
 - RuntimeClass is applied from `prod/runtime-class.yaml` and consumed by challenge workflows through `USE_GVISOR`.

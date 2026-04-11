@@ -1,6 +1,6 @@
 ---
 title: Runtime and Lifecycle Flows
-description: Section 4 details for request, deployment, runtime access, and execution across DeploymentCenter, RabbitMQ, DeploymentConsumer, Argo, and Kubernetes.
+description: Section 4 details for request, deployment, runtime access, and execution across Deployment Center, RabbitMQ, Deployment Consumer, Argo, and Kubernetes.
 ---
 
 # Runtime and Lifecycle Flows
@@ -11,31 +11,31 @@ This page expands Section 4 from [Architecture Overview](./overview).
 
 ### User Flow
 
-1. User reaches ingress-nginx.
-2. Request is routed to contestant-portal or admin-mvc.
-3. Frontend calls contestant-be APIs.
-4. contestant-be validates auth/session and serves challenge, team, and scoreboard operations.
+1. User reaches Ingress NGINX.
+2. Request is routed to Contestant Portal or Admin Portal.
+3. Frontend calls Contestant Service APIs.
+4. Contestant Service validates auth/session and serves challenge, team, and scoreboard operations.
 
 ### Deployment Flow
 
-1. contestant-be or admin-mvc requests challenge start/stop via deployment-center.
-2. deployment-center validates request signature and writes initial cache state.
-3. deployment-center publishes job to RabbitMQ deployment_exchange -> deployment_queue.
-4. deployment-consumer dequeues, checks workflow concurrency budget, and submits an Argo workflow.
+1. Contestant Service or Admin Portal requests challenge start/stop via Deployment Center.
+2. Deployment Center validates request signature and writes initial cache state.
+3. Deployment Center publishes job to RabbitMQ deployment_exchange -> deployment_queue.
+4. Deployment Consumer dequeues, checks workflow concurrency budget, and submits an Argo workflow.
 5. Argo applies challenge manifests and creates namespace/service/job.
-6. deployment-listener observes pod readiness/deletion and finalizes lifecycle state.
+6. Deployment Listener observes pod readiness/deletion and finalizes lifecycle state.
 
 ### Runtime Access Flow
 
 1. User receives signed challenge token URL.
-2. User accesses challenge-gateway with token.
+2. User accesses Challenge Gateway with token.
 3. Gateway verifies token signature and expiry.
 4. Gateway routes HTTP/TCP traffic to internal challenge service endpoint.
 5. Gateway enforces token/IP rate limits and connection caps.
 
 ### State Sync Flow
 
-1. deployment-listener watches Kubernetes pod events with sharded workers.
+1. Deployment Listener watches Kubernetes pod events with sharded workers.
 2. Event handlers map namespace names back to team/challenge IDs.
 3. Listener updates Redis deployment state and MariaDB tracking rows.
 4. On inconsistencies (ghost pod, stuck pod, orphan DB tracking), listener performs cleanup/reconciliation.
@@ -47,7 +47,7 @@ This page expands Section 4 from [Architecture Overview](./overview).
 - Challenge package is stored on NFS.
 - up-challenge-template runs Kaniko to build and push image to Harbor/internal registry.
 - Registry credentials are distributed through `global-regcred` for downstream image pulls.
-- Workflow exit hook posts status back to deployment-center.
+- Workflow exit hook posts status back to Deployment Center.
 
 Trade-off:
 
@@ -56,7 +56,7 @@ Trade-off:
 
 ### Start runtime path
 
-- deployment-consumer computes deployment parameters from challenge metadata (CPU/memory, `USE_GVISOR`, harden flag, timeout).
+- Deployment Consumer computes deployment parameters from challenge metadata (CPU/memory, `USE_GVISOR`, harden flag, timeout).
 - start-chal-v2-template applies namespace first, then namespaced resources.
 - When `USE_GVISOR=true`, the template injects `runtimeClassName: gvisor` so challenge pods run under runsc sandbox.
 - The workflow copies image pull secret into target namespace before workload creation.

@@ -39,7 +39,7 @@ const FeatureList: FeatureItem[] = [
     description:
       'Coordinate challenge deployment, environment setup, and service health checks for event-day reliability.',
     bullets: [
-      'DeploymentCenter and listeners',
+      'Deployment Center and Deployment Listener',
       'k3s and container orchestration notes',
       'Runbooks for incident response',
     ],
