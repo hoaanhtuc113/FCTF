@@ -11,7 +11,7 @@ This page expands Section 5 from [Architecture Overview](./overview).
 
 This is a core reliability subsystem in FCTF.
 
-### 6.1 Why it exists
+### Why it exists
 
 Asynchronous deploy systems can drift when:
 
@@ -22,7 +22,7 @@ Asynchronous deploy systems can drift when:
 
 deployment-listener converges observed Kubernetes state back to the runtime state used by APIs.
 
-### 6.2 Watch architecture
+### Watch architecture
 
 - Watches pods across all namespaces filtered by ctf/kind=challenge.
 - Uses Kubernetes resourceVersion streaming with reconnect/resync logic.
@@ -30,7 +30,7 @@ deployment-listener converges observed Kubernetes state back to the runtime stat
 - Uses shard channels by pod UID hash to parallelize processing while preserving per-shard ordering.
 - Default worker count is configurable (CHALLENGE_WATCHER_WORKER_COUNT, default 20).
 
-### 6.3 Event handling semantics
+### Event handling semantics
 
 #### Deleted event
 
@@ -61,7 +61,7 @@ If pod exists but corresponding deployment cache is missing:
 - Namespace is treated as ghost.
 - Listener attempts cleanup and removes any residual deployment reservation.
 
-### 6.4 Reconciliation on startup/reconnect
+### Reconciliation on startup/reconnect
 
 - On initial list, listener compares active pod namespaces with challenge_start_tracking rows where StoppedAt is null.
 - Rows with missing pods are marked stopped (orphan reconciliation).
@@ -70,6 +70,6 @@ Result:
 
 - Prevents long-lived false "running" records after missed watch events.
 
-### 6.5 Operational outcome
+### Operational outcome
 
 The listener turns event-driven best-effort orchestration into eventually consistent runtime truth, reducing manual recovery during CTF peaks.

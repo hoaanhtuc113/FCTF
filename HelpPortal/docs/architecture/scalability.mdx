@@ -9,7 +9,7 @@ This page expands Section 8 from [Architecture Overview](./overview).
 
 ## Scalability Model
 
-### 9.1 Horizontal service scaling
+### Horizontal service scaling
 
 Current baseline replicas in app namespace:
 
@@ -22,7 +22,7 @@ Current baseline replicas in app namespace:
 
 This supports horizontal API scaling while keeping worker/reconciler semantics controlled.
 
-### 9.2 Async throughput controls
+### Async throughput controls
 
 - deployment_queue max length: 300.
 - deployment-consumer prefetch: 40.
@@ -32,7 +32,7 @@ This supports horizontal API scaling while keeping worker/reconciler semantics c
 
 These controls provide bounded admission to avoid workflow storms and cluster saturation.
 
-### 9.3 Runtime access scaling
+### Runtime access scaling
 
 challenge-gateway capacity controls include:
 
@@ -43,12 +43,12 @@ challenge-gateway capacity controls include:
 
 These controls protect challenge infrastructure from abuse and accidental overload.
 
-### 9.4 Team-level fairness controls
+### Team-level fairness controls
 
 - Concurrent challenge cap per team is enforced atomically in Redis ZSET.
 - Max deploy count and max attempts are checked per challenge/team.
 
-### 9.5 Current scaling trade-offs
+### Current scaling trade-offs
 
 - No HPA-based autoscaling in the default manifests; scaling is mostly manual replica and config tuning.
 - Single deployment-consumer simplifies ordering and control but can become throughput bottleneck if event size grows sharply.
