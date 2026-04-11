@@ -1,13 +1,15 @@
 ---
-title: Category G - Scalability
-description: Replica model, queue controls, gateway limits, and throughput trade-offs under contest load.
+title: Scalability
+description: Section 8 details for replica model, queue controls, gateway limits, and throughput trade-offs under contest load.
 ---
 
-# Category G: Scalability
+# Scalability
 
-## 9. Scalability Model
+This page expands Section 8 from [Architecture Overview](./overview).
 
-### 9.1 Horizontal service scaling
+## Scalability Model
+
+### Horizontal service scaling
 
 Current baseline replicas in app namespace:
 
@@ -18,9 +20,18 @@ Current baseline replicas in app namespace:
 - deployment-listener: 1
 - contestant-portal/admin-mvc: 1 each
 
+HPA (`autoscaling/v2`) is configured in the default app manifests for selected services:
+
+- contestant-be: min 3, max 6.
+- deployment-center: min 2, max 5.
+- challenge-gateway: min 2, max 5.
+- contestant-portal: min 3, max 6.
+
+These HPAs currently use CPU and memory utilization targets (`averageUtilization: 90`).
+
 This supports horizontal API scaling while keeping worker/reconciler semantics controlled.
 
-### 9.2 Async throughput controls
+### Async throughput controls
 
 - deployment_queue max length: 300.
 - deployment-consumer prefetch: 40.
@@ -30,7 +41,7 @@ This supports horizontal API scaling while keeping worker/reconciler semantics c
 
 These controls provide bounded admission to avoid workflow storms and cluster saturation.
 
-### 9.3 Runtime access scaling
+### Runtime access scaling
 
 challenge-gateway capacity controls include:
 
@@ -41,17 +52,12 @@ challenge-gateway capacity controls include:
 
 These controls protect challenge infrastructure from abuse and accidental overload.
 
-### 9.4 Team-level fairness controls
+### Team-level fairness controls
 
 - Concurrent challenge cap per team is enforced atomically in Redis ZSET.
 - Max deploy count and max attempts are checked per challenge/team.
 
-### 9.5 Current scaling trade-offs
+### Current scaling trade-offs
 
-- No HPA-based autoscaling in the default manifests; scaling is mostly manual replica and config tuning.
+- Scaling is hybrid: HPA is enabled for selected stateless services, while worker/reconciler components remain manually scaled for predictable orchestration and reconciliation behavior.
 - Single deployment-consumer simplifies ordering and control but can become throughput bottleneck if event size grows sharply.
-
-## Next Reading
-
-- [Category H: Observability and Operations](./observability-and-operations)
-- [Back to Architecture Overview](./overview)
