@@ -1,11 +1,13 @@
 ---
-title: Category E - Security
-description: Isolation boundaries, network policy, token model, ACL strategy, RBAC, and hardening trade-offs.
+title: Security
+description: Section 6 details for isolation boundaries, network policy, token model, ACL strategy, RBAC, and hardening trade-offs.
 ---
 
-# Category E: Security
+# Security
 
-## 7. Security Model (Practical)
+This page expands Section 6 from [Architecture Overview](./overview).
+
+## Security Model (Practical)
 
 ### 7.1 Isolation and exposure boundaries
 
@@ -65,8 +67,3 @@ Challenge namespace policies enforce:
 - gVisor sandboxing (`runtimeClassName: gvisor`) reduces kernel attack surface for untrusted challenge code, but may require per-challenge compatibility/performance tuning.
 - Some internal TLS verification is relaxed for internal services (for example, Argo/self-signed scenarios) to reduce bootstrap friction; production hardening should revisit this trust model.
 - deployment-center callback endpoint for workflow message handling should be reviewed to ensure strict authentication in all environments.
-
-## Next Reading
-
-- [Category F: Storage and Data](./storage-and-data)
-- [Back to Architecture Overview](./overview)

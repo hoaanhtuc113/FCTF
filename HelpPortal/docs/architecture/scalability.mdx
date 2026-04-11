@@ -1,11 +1,13 @@
 ---
-title: Category G - Scalability
-description: Replica model, queue controls, gateway limits, and throughput trade-offs under contest load.
+title: Scalability
+description: Section 8 details for replica model, queue controls, gateway limits, and throughput trade-offs under contest load.
 ---
 
-# Category G: Scalability
+# Scalability
 
-## 9. Scalability Model
+This page expands Section 8 from [Architecture Overview](./overview).
+
+## Scalability Model
 
 ### 9.1 Horizontal service scaling
 
@@ -50,8 +52,3 @@ These controls protect challenge infrastructure from abuse and accidental overlo
 
 - No HPA-based autoscaling in the default manifests; scaling is mostly manual replica and config tuning.
 - Single deployment-consumer simplifies ordering and control but can become throughput bottleneck if event size grows sharply.
-
-## Next Reading
-
-- [Category H: Observability and Operations](./observability-and-operations)
-- [Back to Architecture Overview](./overview)

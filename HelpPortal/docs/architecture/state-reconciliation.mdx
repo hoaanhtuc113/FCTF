@@ -1,11 +1,13 @@
 ---
-title: Category D - State Reconciliation
-description: Deployment-listener architecture, watch semantics, drift recovery, and eventual consistency guarantees.
+title: State Reconciliation
+description: Section 5 details for deployment-listener architecture, watch semantics, drift recovery, and eventual consistency guarantees.
 ---
 
-# Category D: State Reconciliation
+# State Reconciliation
 
-## 6. State Reconciliation Model (Deployment Listener)
+This page expands Section 5 from [Architecture Overview](./overview).
+
+## State Reconciliation Model (Deployment Listener)
 
 This is a core reliability subsystem in FCTF.
 
@@ -71,8 +73,3 @@ Result:
 ### 6.5 Operational outcome
 
 The listener turns event-driven best-effort orchestration into eventually consistent runtime truth, reducing manual recovery during CTF peaks.
-
-## Next Reading
-
-- [Category E: Security](./security)
-- [Back to Architecture Overview](./overview)

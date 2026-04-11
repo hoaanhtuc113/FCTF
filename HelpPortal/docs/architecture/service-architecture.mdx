@@ -1,11 +1,13 @@
 ---
-title: Category B - Service Architecture
-description: Component map for ingress, frontend, backend, async workers, workflows, and shared libraries.
+title: Service Architecture
+description: Section 3 details for ingress, frontend, backend, async workers, workflows, and shared libraries.
 ---
 
-# Category B: Service Architecture
+# Service Architecture
 
-## 3. Component Breakdown
+This page expands Section 3 from [Architecture Overview](./overview).
+
+## Component Breakdown
 
 ### 3.1 Entry Layer
 
@@ -136,8 +138,3 @@ Shared cross-service implementation includes:
 - Kubernetes service wrapper for workflow status/logs, namespace operations, and pod health checks.
 - Token and challenge naming helpers.
 - MultiServiceConnector for service-to-service HTTP calls.
-
-## Next Reading
-
-- [Category C: Runtime and Lifecycle Flows](./runtime-lifecycle-flows)
-- [Back to Architecture Overview](./overview)

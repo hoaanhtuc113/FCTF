@@ -1,11 +1,13 @@
 ---
-title: Category C - Runtime and Lifecycle Flows
-description: End-to-end request, deployment, runtime access, and execution model across DeploymentCenter, RabbitMQ, DeploymentConsumer, Argo, and Kubernetes.
+title: Runtime and Lifecycle Flows
+description: Section 4 details for request, deployment, runtime access, and execution across DeploymentCenter, RabbitMQ, DeploymentConsumer, Argo, and Kubernetes.
 ---
 
-# Category C: Runtime and Lifecycle Flows
+# Runtime and Lifecycle Flows
 
-## 4. Data Flow (Key Paths)
+This page expands Section 4 from [Architecture Overview](./overview).
+
+## Data Flow (Key Paths)
 
 ### 4.1 User Flow
 
@@ -74,8 +76,3 @@ Each deployment namespace includes:
 - Challenge job has ttlSecondsAfterFinished for workload object cleanup.
 - Argo workflow templates define TTL strategy for workflow object retention.
 - Additional cron cleanup removes expired temporary challenge namespaces by label.
-
-## Next Reading
-
-- [Category D: State Reconciliation](./state-reconciliation)
-- [Back to Architecture Overview](./overview)
