@@ -1,19 +1,21 @@
 ---
-title: Category H - Observability and Operations
-description: Monitoring stack, diagnostics, logging, installation workflow, and test coverage assets.
+title: Observability and Operations
+description: Section 9 details for monitoring stack, diagnostics, logging, installation workflow, and test coverage assets.
 ---
 
-# Category H: Observability and Operations
+# Observability and Operations
 
-## 10. Observability and Operations
+This page expands Section 9 from [Architecture Overview](./overview).
 
-### 10.1 Monitoring stack
+## Observability and Operations
+
+### Monitoring stack
 
 - Prometheus (kube-prometheus-stack) for metrics.
 - Grafana dashboards for visualization.
 - Loki stack for log aggregation.
 
-### 10.2 Health and diagnostics
+### Health and diagnostics
 
 - Services expose /healthz and/or /healthcheck endpoints.
 - deployment-center provides:
@@ -21,33 +23,28 @@ description: Monitoring stack, diagnostics, logging, installation workflow, and 
   - pod logs retrieval,
   - Loki request log query by team/challenge/ns dimensions.
 
-### 10.3 Logging strategy
+### Logging strategy
 
 - Gateway logs include protocol, route, team/challenge extraction, status, and connection metadata.
 - Deployment services log queue processing and orchestration outcomes.
 - Listener logs reconciliation and cleanup decisions.
 
-### 10.4 Install/ops workflow
+### Install/ops workflow
 
 - setup-master.sh / setup-worker.sh for cluster bootstrap.
 - helm.sh for platform stack installation.
 - apply app manifests + network policies + workflow templates.
 - optional service mode switch between ClusterIP and NodePort.
 
-### 10.5 Cluster operations tooling
+### Cluster operations tooling
 
 - Rancher (namespace `cattle-system`) is deployed in the default Helm stack for cluster administration.
 - It is an operator-facing management surface, not part of the challenge runtime request path.
 
-### 10.6 Test coverage assets
+### Test coverage assets
 
 Repository provides dedicated suites for:
 
 - Gateway functional/performance/race scenarios.
 - Race condition tests for business flows.
 - Stress tests for API and runtime orchestration paths.
-
-## Next Reading
-
-- [Category I: Design Principles](./design-principles)
-- [Back to Architecture Overview](./overview)
