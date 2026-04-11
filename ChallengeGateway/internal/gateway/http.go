@@ -329,17 +329,22 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			postSuffix = fmt.Sprintf(" body=%q", body)
 		}
 
+		loggedPath := r.URL.Path
+		if r.Method == http.MethodGet && r.URL.RawQuery != "" {
+			loggedPath = fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+
 		if targetHost != "-" {
 			if teamID, challengeID, ok := ParseTeamChallengeFromRoute(targetHost); ok {
 					log.Printf("HTTP %s %s %d team=\"%d\" challenge=\"%d\" ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s",
-						r.Method, r.URL.Path, rec.status, teamID, challengeID, nsName, r.Method, rec.status, targetHost, postSuffix)
+						r.Method, loggedPath, rec.status, teamID, challengeID, nsName, r.Method, rec.status, targetHost, postSuffix)
 				return
 			}
 		}
 		if nsName != "" {
-			log.Printf("HTTP %s %s %d ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, rec.status, nsName, r.Method, rec.status, targetHost, postSuffix)
+			log.Printf("HTTP %s %s %d ns=\"%s\" method=\"%s\" status=\"%d\" -> %s%s", r.Method, loggedPath, rec.status, nsName, r.Method, rec.status, targetHost, postSuffix)
 		} else {
-			log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, r.URL.Path, rec.status, r.Method, rec.status, targetHost, postSuffix)
+			log.Printf("HTTP %s %s %d method=\"%s\" status=\"%d\" -> %s%s", r.Method, loggedPath, rec.status, r.Method, rec.status, targetHost, postSuffix)
 		}
 	})
 }
