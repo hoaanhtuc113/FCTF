@@ -8,70 +8,92 @@ title: Quick Start
 
 ## Prerequisites
 
-- Xem đầy đủ tại [Prerequisites](./prerequisites)
+- See full requirements at [Prerequisites](./prerequisites)
 
 ## Quick Start
 
-### 1) Cài Master Node
+### 1) Update Domain/IP for your target environment
 
-Trên master, chạy:
-
-```bash
-./manage.sh
-```
-
-Chọn: `1) Setup master`
-
-Khi được hỏi, nhập:
-
-1. `master TLS SAN` (public IP hoặc domain của master)
-2. `NFS allowed IP` (CIDR hoặc `*`)
-
-Sau khi hoàn tất, lưu lại **worker join token**.
-
-### 2) Cài Worker Node
-
-Trên worker, chạy:
+On the **master** node, run:
 
 ```bash
 ./manage.sh
 ```
 
-Chọn: `2) Setup worker`
+Select: `9) Update domains & IPs` (or the equivalent option in your current menu).
 
-Nhập token lấy từ bước setup master để join cluster.
+Then update all domains/IPs to match your real environment (admin, api, contestant, harbor, rancher, grafana, rabbitmq, challenge, registry).
 
-### 3) Cài toàn bộ FCTF
+:::important
+Complete this step before `Setup master` and `Install FCTF` to avoid wrong ingress/registry/NFS settings.
+:::
 
-Trên master, chạy:
+### 2) Set up the Master node
 
-```bash
-./manage.sh
-```
-
-Chọn: `3) Install FCTF`
-
-Sau khi hoàn tất, kiểm tra các endpoint chính theo domain đã cấu hình.
-
-### 4) Setup Harbor sau cài đặt
-
-Trên master:
+On the master node, run:
 
 ```bash
 ./manage.sh
 ```
 
-Chọn: `4) Setup harbor`
+Select: `1) Setup master`
 
-Thực hiện trên Harbor UI:
+When prompted, enter:
 
-1. Đăng nhập Harbor
-2. Tạo project tên **`fctf`**
-3. Tạo Robot Account cho project này
-4. Cấp quyền `pull` + `push`
-5. Lấy robot username/password và nhập lại vào terminal theo hướng dẫn script
+1. `master TLS SAN` (master public IP or domain)
+2. `NFS allowed IP` (CIDR or `*`)
 
-### 5) Default credentials (đổi ngay sau khi cài)
+After setup completes, save the **worker join token**.
+
+### 3) Set up Worker node(s)
+
+On each worker node, run:
+
+```bash
+./manage.sh
+```
+
+Select: `2) Setup worker`
+
+Enter the token from the master setup step to join the cluster.
+
+### 4) Install the full FCTF platform
+
+On the master node, run:
+
+```bash
+./manage.sh
+```
+
+Select: `3) Install FCTF`
+
+After installation, verify all main endpoints using your configured domains.
+
+The system creates default admin credentials for Harbor, Rancher, Grafana, and RabbitMQ (see table below).
+
+### 5) Set up Harbor after installation
+
+On the master node:
+
+```bash
+./manage.sh
+```
+
+Select: `4) Setup harbor`
+
+Complete these steps in Harbor UI:
+
+1. Log in to Harbor
+2. Create a project named **`fctf`**
+3. Create a Robot Account for that project
+4. Grant `pull` + `push` permissions
+5. Copy robot username/password and input them in terminal as requested by the script
+
+:::tip
+The Harbor project name must be **fctf** to match the build/push pipeline.
+:::
+
+### 6) Default credentials (change immediately)
 
 | Service | Username | Password |
 | --- | --- | --- |
@@ -80,20 +102,16 @@ Thực hiện trên Harbor UI:
 | Grafana | admin | Fctf2025@ |
 | RabbitMQ | rabbit-admin | Fctf2025@admin |
 
-### 6) Kiểm tra sau cài đặt
+### 7) Post-install validation
 
-- Tất cả pod ở namespace hệ thống/chính chạy ổn định (`Running`/`Completed`).
-- Truy cập được các domain: admin, api, contestant, harbor, rancher, grafana, rabbitmq.
-- Push/pull image test qua Harbor robot account thành công.
-- Tạo challenge mẫu và chạy preview để xác nhận luồng deploy/gateway hoạt động.
+- All pods in main/system namespaces are stable (`Running`/`Completed`).
+- All domains are reachable: admin, api, contestant, harbor, rancher, grafana, rabbitmq.
+- Harbor robot account can successfully push/pull images.
+- A sample challenge can be created and previewed to validate deploy/gateway flow.
 
-### 7) Vận hành nhanh (Gateway)
+Also verify:
 
-Sau khi hệ thống chạy ổn định, thực hiện test nhanh Gateway:
+- Worker nodes joined successfully (`Ready`).
+- Main namespaces (`app`, `db`, `argo`, `monitoring`) show expected workload status.
 
-```bash
-cd Test/Gateway
-./run-gateway-tests.sh --type quick
-```
-
-Trước khi production, chạy thêm full suite (bao gồm/không bao gồm long-running) theo kế hoạch vận hành.
+Before production, run the full test suites (with or without long-running tests) based on your operations plan.
