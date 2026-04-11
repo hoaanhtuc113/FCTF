@@ -1,11 +1,13 @@
 ---
-title: Category A - Platform Foundation
-description: Architecture intent, runtime planes, namespace topology, and on-prem k3s constraints.
+title: Infrastructure
+description: Section 2 details for runtime planes, namespace topology, and on-prem k3s constraints.
 ---
 
-# Category A: Platform Foundation
+# Infrastructure
 
-## 1. Architecture Overview
+This page expands Section 2 from [Architecture Overview](./overview).
+
+## Architecture Overview
 
 FCTF is a microservice CTF platform organized into four runtime planes:
 
@@ -60,8 +62,3 @@ FCTF targets self-managed, non-cloud-managed environments.
 - Operators manage node lifecycle, NFS ACLs, registry credentials, and DNS outside the platform.
 - Capacity planning is explicit (replica counts, queue length, workflow concurrency, gateway limits).
 - Cluster networking correctness is critical (e.g., pod CIDR overlap can break CoreDNS and pod networking).
-
-## Next Reading
-
-- [Category B: Service Architecture](./service-architecture)
-- [Back to Architecture Overview](./overview)
