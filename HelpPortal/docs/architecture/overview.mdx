@@ -142,7 +142,7 @@ Canonical details: [Storage and Data](./storage-and-data).
 | Worker throughput | Prefetch/batch controls and workflow concurrency gate |
 | Runtime entry load | Gateway connection and rate limits (global, per-IP, per-token) |
 | Fairness | Team-level concurrent and per-challenge limits via Redis |
-| Scaling style | Explicit/manual tuning, not autoscaling-first by default |
+| Scaling style | Hybrid: HPA for selected stateless services, manual tuning for worker/reconciler components |
 
 Canonical details: [Scalability](./scalability).
 
