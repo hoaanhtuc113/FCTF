@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
@@ -8,542 +8,412 @@ import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
 
-type Feature = {
-  title: string;
-  detail: string;
-};
-
-type RoadmapStep = {
-  phase: string;
-  label: string;
-};
-
-type SignalTrack = {
-  label: string;
-  words: string[];
-};
-
-type SceneSnippet = {
-  tag: string;
-  lines: string[];
-};
-
-const partnerNames = ['FPT University', 'Security Club', 'Dev Team', 'Event Ops', 'Research Lab'];
-
-const features: Feature[] = [
-  {
-    title: 'Automated Deployment',
-    detail: 'Challenges are packaged as containers and deployed automatically on Kubernetes.',
-  },
-  {
-    title: 'Isolated Team Instances',
-    detail: 'Each team gets an independent runtime environment for fair and stable gameplay.',
-  },
-  {
-    title: 'Resource Lifecycle Control',
-    detail: 'CPU, RAM, uptime, and cleanup are controlled to keep infrastructure efficient.',
-  },
-  {
-    title: 'Real-time Monitoring',
-    detail: 'Organizers can track service health, logs, and challenge events during competitions.',
-  },
-];
-
-const roadmap: RoadmapStep[] = [
-  {
-    phase: 'Phase 1',
-    label: 'Prepare and package challenge runtime',
-  },
-  {
-    phase: 'Phase 2',
-    label: 'Deploy per-team environments automatically',
-  },
-  {
-    phase: 'Phase 3',
-    label: 'Monitor, scale, and recover resources',
-  },
-  {
-    phase: 'Phase 4',
-    label: 'Reuse challenge archives for long-term training',
-  },
-];
-
-const signalTracks: SignalTrack[] = [
-  {
-    label: 'mode',
-    words: ['crypto', 'web', 'pwn', 'reverse', 'forensics'],
-  },
-  {
-    label: 'task',
-    words: ['decode', 'analyze', 'exploit', 'trace', 'patch'],
-  },
-  {
-    label: 'target',
-    words: ['jwt', 'sqli', 'xss', 'buffer', 'pcap'],
-  },
-  {
-    label: 'status',
-    words: ['scanning', 'coding', 'testing', 'solving', 'owned'],
-  },
-];
-
-const sceneSnippets: SceneSnippet[] = [
-  {
-    tag: 'crypto',
-    lines: ['$ crack --cipher aes-ctr', 'nonce reused: true', 'keystream recovered...'],
-  },
-  {
-    tag: 'web',
-    lines: ['GET /challenge?id=7', 'payload => "\' OR 1=1 --"', 'sqli fingerprint detected'],
-  },
-  {
-    tag: 'pwn',
-    lines: ['gef> checksec vuln', 'canary: disabled', 'ret2libc chain prepared'],
-  },
-  {
-    tag: 'reverse',
-    lines: ['ghidra: fn_4012a0()', 'xor key = 0x2f', 'flag buffer decoded'],
-  },
-  {
-    tag: 'forensics',
-    lines: ['pcap stream #14', 'dns tunnel pattern found', 'artifact exported to /tmp'],
-  },
-  {
-    tag: 'ops',
-    lines: ['kubectl get pods -A', 'challenge namespace healthy', 'cleanup watcher active'],
-  },
-];
-
-function HomepageHeader(): ReactNode {
-  const logoUrl = useBaseUrl('/img/fctf-logo.png');
+/* ═══ EMBER FIELD — mouse-interactive particle system ═══ */
+function EmberField(): ReactNode {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [signalTick, setSignalTick] = useState(0);
-  const mousePosRef = useRef({ x: -1000, y: -1000 });
 
-  useEffect(() => {
-    const timer = globalThis.setInterval(() => {
-      setSignalTick((value) => value + 1);
-    }, 1700);
-
-    return () => {
-      globalThis.clearInterval(timer);
-    };
-  }, []);
-
-  // Hacker Byte Stream Rain - Continuous vertical strands
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const hexChars = '01'.split('');
-    const bitChars = '0189ABCDEF<>{}[]!@#$&*'.split('');
-    const fontSize = 14;
-    const columnSpacing = 18;
-    const streamLength = 35; // Longer streams for code matrix look
+    let W = 0;
+    let H = 0;
+    let dpr = 1;
+    let mouseX = -9999;
+    let mouseY = -9999;
+    let mouseActive = false;
 
-    type Stream = {
-      x: number;
-      y: number;
-      chars: string[];
-      speed: number;
-      opacity: number;
+    type Ember = {
+      x: number; y: number;
+      baseVx: number; baseVy: number;
+      vx: number; vy: number;
+      size: number;
+      life: number;
+      maxLife: number;
+      drift: number;
     };
 
-    let streams: Stream[] = [];
-    let columns = 0;
+    let embers: Ember[] = [];
 
-    const initCanvas = (): void => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-      columns = Math.floor(canvas.width / columnSpacing);
-
-      // Initialize streams for each column
-      streams = [];
-      for (let i = 0; i < columns; i++) {
-        const streamChars: string[] = [];
-        for (let j = 0; j < streamLength + Math.random() * 20; j++) {
-          streamChars.push(hexChars[Math.floor(Math.random() * hexChars.length)]);
-        }
-
-        streams.push({
-          x: i * columnSpacing + 5,
-          y: Math.random() * canvas.height,
-          chars: streamChars,
-          speed: 1 + Math.random() * 2,
-          opacity: 0.4 + Math.random() * 0.5,
-        });
-      }
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.offsetWidth;
+      H = canvas.offsetHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    initCanvas();
-    globalThis.addEventListener('resize', initCanvas);
-
-    const fctfAscii = [
-      "   FFFFFFFFFFF    CCCCCCCCCCC   TTTTTTTTTTTTT  FFFFFFFFFFF   ",
-      "   FFFFFFFFFFF  CCCCCCCCCCCCCCC TTTTTTTTTTTTT  FFFFFFFFFFF   ",
-      "   FFF          CCC         CCC      TTT       FFF           ",
-      "   FFF          CCC                  TTT       FFF           ",
-      "   FFFFFFFF     CCC                  TTT       FFFFFFFF      ",
-      "   FFFFFFFF     CCC                  TTT       FFFFFFFF      ",
-      "   FFF          CCC                  TTT       FFF           ",
-      "   FFF          CCC         CCC      TTT       FFF           ",
-      "   FFF          CCCCCCCCCCCCCCC      TTT       FFF           ",
-      "   FFF            CCCCCCCCCCC        TTT       FFF           "
-    ];
-
-    const drawFCTFBackground = (tick: number): void => {
-      ctx.save();
-      const scaleX = Math.min(14, canvas.width / 65);
-      const scaleY = Math.min(16, (canvas.height * 0.6) / 10);
-      ctx.font = `bold ${Math.floor(scaleX * 0.9)}px 'Courier New', monospace`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-
-      const artWidth = fctfAscii[0].length * scaleX;
-      const artHeight = fctfAscii.length * scaleY;
-      const startX = canvas.width / 2 - artWidth / 2;
-      const startY = canvas.height / 2 - artHeight / 2;
-
-      ctx.globalAlpha = 0.15 + (Math.sin(tick * 0.1) * 0.05); // Pulsing alpha
-
-      for (let r = 0; r < fctfAscii.length; r++) {
-        for (let c = 0; c < fctfAscii[r].length; c++) {
-          if (fctfAscii[r][c] !== ' ') {
-            const isLightMode = document.documentElement.getAttribute('data-theme') === 'light';
-            ctx.fillStyle = isLightMode ? 'rgba(153, 34, 0, 0.15)' : '#d66018';
-            // Draw entirely with dynamic bit characters
-            const charToDraw = bitChars[Math.floor((r * c * 3 + tick * 0.5) % bitChars.length)];
-            ctx.fillText(charToDraw, startX + c * scaleX, startY + r * scaleY);
-          }
-        }
-      }
-
-      ctx.restore();
+    const spawnEmber = (): Ember => {
+      const bvx = (Math.random() - 0.5) * 0.3;
+      const bvy = -(0.3 + Math.random() * 0.6); // Slow upwards velocity like original
+      return {
+        x: Math.random() * W,
+        y: H + 10,
+        baseVx: bvx, baseVy: bvy,
+        vx: bvx, vy: bvy,
+        size: 1.2 + Math.random() * 2.5,
+        life: 0,
+        maxLife: 600 + Math.random() * 600, // Very long life to reach mid-screen slowly
+        drift: (Math.random() - 0.5) * 0.008,
+      };
     };
 
-    const calculateCharOpacity = (charY: number, streamOpacity: number): number => {
-      const distFromTop = charY;
-      const distFromBottom = canvas.height - charY;
-      let opacity = streamOpacity;
-      if (distFromTop < fontSize * 4) {
-        opacity *= distFromTop / (fontSize * 4);
-      }
-      if (distFromBottom < fontSize * 3) {
-        opacity *= Math.max(0, distFromBottom / (fontSize * 3));
-      }
-      return opacity;
+    resize();
+    window.addEventListener('resize', resize);
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = ev.clientX - rect.left;
+      mouseY = ev.clientY - rect.top;
+      mouseActive = true;
     };
+    const handleMouseLeave = () => { mouseActive = false; };
 
-    const getCharacterAppearance = (opacityIn: number, index: number, totalLen: number, isHovered: boolean, isLight: boolean): { charColor: string; renderOpacity: number; blur: number; glowColor: string } => {
-      let charColor = isLight ? '#992200' : '#cc5500';
-      let renderOpacity;
-      let blur = 0;
-      let glowColor = 'transparent';
+    window.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
 
-      if (isHovered) {
-        charColor = isLight ? '#000000' : '#ffffff';
-        renderOpacity = 1;
-        blur = isLight ? 0 : 8;
-        glowColor = isLight ? 'transparent' : '#ff9900';
-      } else if (index === totalLen - 1) {
-        charColor = isLight ? '#660000' : '#ffcc88';
-        renderOpacity = Math.max(opacityIn, 0.9);
-        blur = isLight ? 0 : 6;
-        glowColor = isLight ? 'transparent' : '#ff9900';
-      } else if (index >= totalLen - 5) {
-        charColor = isLight ? '#991111' : '#ffaa00';
-        renderOpacity = Math.max(opacityIn, 0.7);
-      } else {
-        renderOpacity = opacityIn * (index / totalLen);
-      }
+    // Initial batch
+    for (let i = 0; i < 50; i++) {
+      const e = spawnEmber();
+      e.y = Math.random() * H;
+      e.life = Math.random() * e.maxLife;
+      embers.push(e);
+    }
 
-      return { charColor, renderOpacity, blur, glowColor };
-    };
+    const MOUSE_RADIUS = 250;
+    const ATTRACT_FORCE = 0.03;
+    const CONNECT_DIST = 140;
+    const MOUSE_CONNECT_DIST = 250;
 
-    const drawStreams = (isLight: boolean): void => {
-      ctx.font = `normal ${fontSize}px 'Courier New', monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-
-      const mouseX = mousePosRef.current.x;
-      const mouseY = mousePosRef.current.y;
-
-      for (const stream of streams) {
-        stream.y += stream.speed;
-
-        if (stream.y > canvas.height + fontSize * stream.chars.length) {
-          stream.y = -fontSize * Math.random() * stream.chars.length;
-          for (let j = 0; j < stream.chars.length; j++) {
-            stream.chars[j] = hexChars[Math.floor(Math.random() * hexChars.length)];
-          }
-        }
-
-        for (let i = 0; i < stream.chars.length; i++) {
-          let charY = stream.y + i * fontSize;
-          let charX = stream.x;
-
-          const dx = charX - mouseX;
-          const dy = charY - mouseY;
-          const dist = Math.hypot(dx, dy);
-
-          // Magnet/Decrypt repulsion effect
-          let isHovered = false;
-          if (dist < 100) {
-            const force = Math.pow((100 - dist) / 100, 2) * 35;
-            const angle = Math.atan2(dy, dx);
-            charX += Math.cos(angle) * force;
-            charY += Math.sin(angle) * force;
-            isHovered = true;
-          }
-
-          const { charColor, renderOpacity, blur, glowColor } = getCharacterAppearance(calculateCharOpacity(charY, stream.opacity), i, stream.chars.length, isHovered, isLight);
-
-          let char = stream.chars[i];
-          if (isHovered) {
-            char = bitChars[Math.floor(Math.random() * bitChars.length)];
-            if (Math.random() > 0.8) stream.chars[i] = char; // Corrupt character
-          } else if (Math.random() > 0.98) {
-            stream.chars[i] = hexChars[Math.floor(Math.random() * hexChars.length)];
-          }
-
-          ctx.shadowBlur = blur;
-          ctx.shadowColor = glowColor;
-          ctx.fillStyle = charColor;
-          ctx.globalAlpha = Math.max(0, Math.min(1, renderOpacity));
-          ctx.fillText(char, charX, charY);
-        }
-      }
-
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-    };
-
-    let animFrameId: number;
-    let ticks = 0;
-
-    const draw = (): void => {
-      ticks++;
+    let animId = 0;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const r = isLight ? 234 : 251;
+      const g = isLight ? 88 : 146;
+      const b = isLight ? 12 : 60;
 
-      // Let the CSS theme background show through using clearRect instead of solid fill!
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Scanlines - tech green
-      ctx.strokeStyle = isLight ? 'rgba(153, 34, 0, 0.06)' : 'rgba(214, 96, 24, 0.08)';
-      ctx.lineWidth = 1;
-      for (let y = 0; y < canvas.height; y += 3) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
+      // Spawn new embers
+      if (embers.length < 80 && Math.random() > 0.8) {
+        embers.push(spawnEmber());
       }
 
-      // Grid lines
-      ctx.strokeStyle = isLight ? 'rgba(153, 34, 0, 0.04)' : 'rgba(214, 96, 24, 0.05)';
-      for (let x = 0; x < canvas.width; x += columnSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
+      // Mouse light pool (soft radial glow following cursor) - BRIGHTENED
+      if (mouseActive) {
+        const grad = ctx.createRadialGradient(
+          mouseX, mouseY, 0,
+          mouseX, mouseY, MOUSE_RADIUS
+        );
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.25)`);
+        grad.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.1)`);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(mouseX - MOUSE_RADIUS, mouseY - MOUSE_RADIUS, MOUSE_RADIUS * 2, MOUSE_RADIUS * 2);
       }
 
-      drawFCTFBackground(ticks);
-      drawStreams(isLight);
+      // Update & draw embers
+      embers = embers.filter((e) => {
+        e.life++;
+        if (e.life > e.maxLife || e.y < -30) return false;
 
-      animFrameId = globalThis.requestAnimationFrame(draw);
+        // Mouse attraction
+        if (mouseActive) {
+          const dx = mouseX - e.x;
+          const dy = mouseY - e.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < MOUSE_RADIUS && dist > 5) {
+            const force = ATTRACT_FORCE * (1 - dist / MOUSE_RADIUS);
+            e.vx += (dx / dist) * force;
+            e.vy += (dy / dist) * force;
+          }
+        }
+
+        // Apply drift & damping
+        e.vx += e.drift;
+        e.vx *= 0.98;
+        e.vy *= 0.98;
+        e.vx = e.vx * 0.9 + e.baseVx * 0.1;
+        e.vy = e.vy * 0.9 + e.baseVy * 0.1;
+        e.x += e.vx;
+        e.y += e.vy;
+
+        const progress = e.life / e.maxLife;
+        let alpha = progress < 0.1
+          ? progress / 0.1
+          : progress > 0.7
+            ? (1 - progress) / 0.3
+            : 1;
+
+        // Brighten near mouse - MUCH BRIGHTER
+        if (mouseActive) {
+          const dMouse = Math.hypot(mouseX - e.x, mouseY - e.y);
+          if (dMouse < MOUSE_RADIUS) {
+            alpha = Math.min(2.5, alpha * (1 + 4.0 * (1 - dMouse / MOUSE_RADIUS)));
+          }
+        }
+
+        // Outer glow
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size * 4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.04})`;
+        ctx.fill();
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.6})`;
+        ctx.fill();
+
+        // Bright center pixel
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        ctx.fill();
+
+        return true;
+      });
+
+      // Connection lines between nearby embers
+      for (let i = 0; i < embers.length; i++) {
+        for (let j = i + 1; j < embers.length; j++) {
+          const dx = embers[i].x - embers[j].x;
+          const dy = embers[i].y - embers[j].y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < CONNECT_DIST) {
+            const lineAlpha = (1 - dist / CONNECT_DIST) * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(embers[i].x, embers[i].y);
+            ctx.lineTo(embers[j].x, embers[j].y);
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${lineAlpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Mouse → ember connection lines (radial web from cursor)
+      if (mouseActive) {
+        for (const e of embers) {
+          const dx = mouseX - e.x;
+          const dy = mouseY - e.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < MOUSE_CONNECT_DIST) {
+            const lineAlpha = (1 - dist / MOUSE_CONNECT_DIST) * 0.4;
+            ctx.beginPath();
+            ctx.moveTo(mouseX, mouseY);
+            ctx.lineTo(e.x, e.y);
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${lineAlpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(draw);
     };
 
-    animFrameId = globalThis.requestAnimationFrame(draw);
-
+    animId = requestAnimationFrame(draw);
     return () => {
-      globalThis.removeEventListener('resize', initCanvas);
-      globalThis.cancelAnimationFrame(animFrameId);
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
 
-  const handleSceneMove = (event: MouseEvent<HTMLCanvasElement>): void => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    mousePosRef.current = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  };
-
-  const handleSceneLeave = (): void => {
-    mousePosRef.current = { x: -1000, y: -1000 };
-  };
-
-  return (
-    <header className={clsx('hero', styles.heroBanner)}>
-      <div className="container">
-        <article className={styles.heroFrame}>
-          <div className={styles.frameTopBar}>
-            <div className={styles.frameBrand}>
-              <img src={logoUrl} alt="FCTF logo" className={styles.frameLogo} />
-              <span>FCTF Platform</span>
-            </div>
-            <p className={styles.frameVersion}>Version 4.0.0</p>
-          </div>
-
-          <div className={styles.heroScene}>
-            <canvas
-              ref={canvasRef}
-              className={styles.sceneCanvas}
-              onMouseMove={handleSceneMove}
-              onMouseLeave={handleSceneLeave}
-              aria-label="Live CTF data stream visualization"
-            />
-            <div className={styles.sceneDecor} aria-hidden="true">
-              <span className={styles.sceneBeam} />
-              <span className={styles.sceneNodeA} />
-              <span className={styles.sceneNodeB} />
-              <span className={styles.sceneNodeC} />
-              <span className={styles.sceneNodeD} />
-            </div>
-            <p className={styles.sceneHint}>Data Stream • Hover to amplify signal</p>
-          </div>
-
-          <div className={styles.heroContent}>
-            <div className={styles.signalGrid}>
-              {signalTracks.map((track, index) => {
-                const word = track.words[(signalTick + index * 2) % track.words.length];
-
-                return (
-                  <article key={track.label} className={styles.signalCell}>
-                    <p className={styles.signalLabel}>{track.label}</p>
-                    <p key={`${track.label}-${word}`} className={styles.signalValue}>
-                      {word}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-            <Heading as="h1" className={styles.heroTitle}>
-              CTF Trading Ground For Every Team
-            </Heading>
-            <p className={styles.heroSubtitle}>
-              FCTF is an open-source Jeopardy-style platform for competitions, cybersecurity
-              training, and research. It is built to be stable, easy to operate, and scalable from
-              campus events to large university contests.
-            </p>
-            <div className={styles.heroActions}>
-              <Link className="button button--primary button--lg" to="/docs/intro">
-                Start With Docs
-              </Link>
-              <Link className="button button--secondary button--lg" to="/docs/install-and-ops/quick-start">
-                Quick Start
-              </Link>
-              <Link className="button button--secondary button--lg" to="https://github.com/hoaanhtuc113/FCTF">
-                Source Code
-              </Link>
-            </div>
-          </div>
-
-          <div className={styles.partnerStrip}>
-            <p>Core contributors</p>
-            <ul>
-              {partnerNames.map((name) => (
-                <li key={name}>{name}</li>
-              ))}
-            </ul>
-          </div>
-        </article>
-      </div>
-    </header>
-  );
+  return <canvas ref={canvasRef} className={styles.emberCanvas} />;
 }
+
+/* ═══ PAGE ═══ */
 
 export default function Home(): ReactNode {
   const { siteConfig } = useDocusaurusContext();
+  const logoUrl = useBaseUrl('/img/fctf-logo.png');
 
   return (
     <Layout
       title={`${siteConfig.title} | Home`}
-      description="FCTF is an open-source CTF platform for scalable challenge operations, training, and cybersecurity competitions.">
-      <HomepageHeader />
-      <main className={styles.pageMain}>
-        <section className={styles.sectionBlock}>
-          <div className="container">
-            <div className={styles.aboutShell}>
-              <Heading as="h2" className={styles.blockTitle}>
-                What Is FCTF?
-              </Heading>
-              <p>
-                FCTF was developed at FPT University from real CTF operation experience. The
-                platform manages the full competition lifecycle: users, challenges, environment
-                orchestration, and results.
-              </p>
-              <p>
-                Challenge domains include cryptography, reverse engineering, web security, digital
-                forensics, binary exploitation, and miscellaneous practice tracks.
-              </p>
-            </div>
-          </div>
-        </section>
+      description="FCTF — open-source CTF platform for Kubernetes-native challenge deployment and cybersecurity training."
+    >
+      {/* ─── HERO ─── */}
+      <div className={styles.page}>
+        <EmberField />
 
-        <section className={styles.sectionBlock}>
-          <div className="container">
-            <div className={styles.sectionHeadRow}>
-              <Heading as="h2" className={styles.blockTitle}>
-                Why Use FCTF?
-              </Heading>
-            </div>
-            <div className={styles.featureGrid}>
-              {features.map((feature, index) => (
-                <article key={feature.title} className={styles.featureCard}>
-                  <p className={styles.featureIndex}>{String(index + 1).padStart(2, '0')}</p>
-                  <h3>{feature.title}</h3>
-                  <p>{feature.detail}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+        <header className={styles.hero}>
+          <div className={styles.heroInner}>
+            <img src={logoUrl} alt="FCTF" className={styles.logo} />
 
-        <section className={styles.sectionBlock}>
-          <div className="container">
-            <Heading as="h2" className={styles.blockTitle}>
-              Roadmap
+            <Heading as="h1" className={styles.title}>
+              <span className={styles.titleLine}>FPT</span>
+              <span className={styles.titleLine}>Capture</span>
+              <span className={styles.titleLine}>
+                The <span className={styles.titleAccent}>Flag</span>
+              </span>
             </Heading>
-            <ol className={styles.roadmap}>
-              {roadmap.map((step) => (
-                <li key={step.phase}>
-                  <p className={styles.roadmapPhase}>{step.phase}</p>
-                  <p className={styles.roadmapLabel}>{step.label}</p>
-                </li>
-              ))}
-            </ol>
+
+            <p className={styles.tagline}>
+              Open-source CTF platform. Kubernetes-native.
+              Built at FPT University for real competitions.
+            </p>
+
+            <div className={styles.actions}>
+              <Link className={clsx('button', styles.btnPrimary)} to="/docs/intro">
+                [&gt;] docs
+              </Link>
+              <Link className={clsx('button', styles.btnGhost)} to="/docs/install-and-ops/quick-start">
+                [&gt;] quick_start
+              </Link>
+              <Link className={clsx('button', styles.btnGhost)} to="https://github.com/hoaanhtuc113/FCTF">
+                [&gt;] github
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        {/* ─── INSTALL BAND ─── */}
+        <section className={styles.installBand}>
+          <div className={styles.installInner}>
+            <p className={styles.installHint}>Deploy your first challenge</p>
+            <div className={styles.installCode}>
+              <code>
+                <span className={styles.codePrompt}>$</span>{' '}
+                <span className={styles.codeText}>fctf deploy --challenge web-sqli --teams 12</span>
+              </code>
+            </div>
           </div>
         </section>
 
-        <section className={styles.sectionBlock}>
-          <div className="container">
-            <article className={styles.ctaPanel}>
-              <Heading as="h2" className={styles.ctaTitle}>
-                Build Your Next CTF Event On FCTF
-              </Heading>
-              <p>
-                Use FCTF for live competition operations, long-term lab training, and cybersecurity
-                research workflows.
-              </p>
-              <div className={styles.heroActions}>
-                <Link className="button button--primary button--lg" to="/docs/product-and-features/overview">
-                  Product Features
-                </Link>
-                <Link className="button button--secondary button--lg" to="/docs/architecture/overview">
-                  Architecture
-                </Link>
-                <Link className="button button--secondary button--lg" to="/docs/install-and-ops/quick-start">
-                  Operations Guide
-                </Link>
-              </div>
-            </article>
+        {/* ─── PILLARS ─── */}
+        <section className={styles.pillars}>
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>deploy</span>
+            <p>Containerized challenges deployed automatically on k3s via Argo Workflows. Kaniko builds, Harbor registry, zero manual YAML.</p>
+          </div>
+          <div className={styles.pillarDivider} />
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>isolate</span>
+            <p>Dedicated Kubernetes namespace per team. NetworkPolicies, resource quotas, optional gVisor sandbox. Zero crosstalk.</p>
+          </div>
+          <div className={styles.pillarDivider} />
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>monitor</span>
+            <p>Real-time reconciliation against K8s cluster state. Ghost cleanup, drift correction. Prometheus + Grafana + Loki.</p>
+          </div>
+          <div className={styles.pillarDivider} />
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>train</span>
+            <p>Archive challenges into persistent labs for cybersecurity coursework. Students practice across semesters, not just weekends.</p>
           </div>
         </section>
-      </main>
+
+        {/* ─── SHOWCASE SPLIT ─── */}
+        <section className={styles.showcase}>
+          <div className={styles.showcaseText}>
+            <p className={styles.showcaseLabel}>[about]</p>
+            <h2 className={styles.showcaseTitle}>
+              The full competition lifecycle, automated
+            </h2>
+            <p className={styles.showcaseDesc}>
+              FCTF manages users, challenges, runtime orchestration, and results.
+              Built from years of organizing CTF events at FPT University — from
+              club-level to national contests. Supports cryptography, reverse engineering,
+              web security, forensics, binary exploitation, and more.
+            </p>
+            <p className={styles.showcaseDesc}>
+              Unlike static-file platforms or cloud-locked services,
+              FCTF runs entirely on your own infrastructure with full
+              Kubernetes-native runtime orchestration.
+            </p>
+          </div>
+          <div className={styles.showcaseTerminal}>
+            <div className={styles.termWin}>
+              <div className={styles.termScanline} />
+              <div className={styles.termBar}>
+                <span className={styles.termDot} data-c="r" />
+                <span className={styles.termDot} data-c="y" />
+                <span className={styles.termDot} data-c="g" />
+                <span className={styles.termLabel}>fctf-control</span>
+              </div>
+              <div className={styles.termBody}>
+                <div className={styles.tl}><span className={styles.tp}>$</span> <span className={styles.tc}>./deploy --challenge web-sqli --teams 12</span></div>
+                <div className={styles.tl}><span className={styles.to}>  building image (kaniko → harbor)...</span></div>
+                <div className={styles.tl}><span className={styles.to}>  provisioning 12 namespaces via argo</span></div>
+                <div className={styles.tl}><span className={styles.to}>  applying networkpolicy: deny-all + gw-only</span></div>
+                <div className={styles.tl}><span className={styles.ts}>  [OK] all 12 instances live</span></div>
+                <div style={{ height: '0.5rem' }} />
+                <div className={styles.tl}><span className={styles.tp}>$</span> <span className={styles.tc}>./status</span></div>
+                <div className={styles.tl}><span className={styles.th}>  challenges: 24  teams: 12  gw: ok</span></div>
+                <div className={styles.tl}><span className={styles.th}>  cpu: 23%  mem: 1.8G/8G  up: 02:14:30</span></div>
+                <div className={styles.tl}><span className={styles.tp}>$</span> <span className={styles.cursor} /></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── PIPELINE ─── */}
+        <section className={styles.pipeline}>
+          <p className={styles.pipelineLabel}>how it works</p>
+          <div className={styles.pipelineSteps}>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>01</span>
+              <span className={styles.pipeName}>package</span>
+              <p>Containerize as OCI image</p>
+            </div>
+            <span className={styles.pipeArrow}>→</span>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>02</span>
+              <span className={styles.pipeName}>deploy</span>
+              <p>Argo provisions namespaces</p>
+            </div>
+            <span className={styles.pipeArrow}>→</span>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>03</span>
+              <span className={styles.pipeName}>access</span>
+              <p>Token gateway routes traffic</p>
+            </div>
+            <span className={styles.pipeArrow}>→</span>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>04</span>
+              <span className={styles.pipeName}>reconcile</span>
+              <p>Listener corrects drift</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── TECH STRIP ─── */}
+        <section className={styles.techStrip}>
+          <span>k3s</span>
+          <span>argo workflows</span>
+          <span>kaniko</span>
+          <span>harbor</span>
+          <span>redis</span>
+          <span>rabbitmq</span>
+          <span>gvisor</span>
+          <span>prometheus</span>
+          <span>grafana</span>
+          <span>loki</span>
+        </section>
+
+        {/* ─── CTA ─── */}
+        <section className={styles.cta}>
+          <h2 className={styles.ctaTitle}>ready to deploy?</h2>
+          <p className={styles.ctaSub}>Free. Open-source. Battle-tested at FPT University.</p>
+          <div className={styles.ctaBtns}>
+            <Link className={clsx('button', styles.btnPrimary)} to="/docs/product-and-features/overview">
+              [&gt;] features
+            </Link>
+            <Link className={clsx('button', styles.btnGhost)} to="/docs/architecture/overview">
+              [&gt;] architecture
+            </Link>
+            <Link className={clsx('button', styles.btnGhost)} to="/docs/install-and-ops/quick-start">
+              [&gt;] operations
+            </Link>
+          </div>
+        </section>
+      </div>
     </Layout>
   );
 }
