@@ -56,7 +56,36 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Architecture',
-      items: ['architecture/overview'],
+      items: [
+        'architecture/overview',
+        {
+          type: 'category',
+          label: 'Platform and Services',
+          items: [
+            'architecture/platform-foundation',
+            'architecture/service-architecture',
+            'architecture/runtime-lifecycle-flows',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Reliability and Security',
+          items: [
+            'architecture/state-reconciliation',
+            'architecture/security',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Data, Scale, and Operations',
+          items: [
+            'architecture/storage-and-data',
+            'architecture/scalability',
+            'architecture/observability-and-operations',
+            'architecture/design-principles',
+          ],
+        },
+      ],
     },
     {
       type: 'category',

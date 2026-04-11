@@ -1,0 +1,57 @@
+---
+title: Category G - Scalability
+description: Replica model, queue controls, gateway limits, and throughput trade-offs under contest load.
+---
+
+# Category G: Scalability
+
+## 9. Scalability Model
+
+### 9.1 Horizontal service scaling
+
+Current baseline replicas in app namespace:
+
+- contestant-be: 3
+- deployment-center: 3
+- challenge-gateway: 2
+- deployment-consumer: 1
+- deployment-listener: 1
+- contestant-portal/admin-mvc: 1 each
+
+This supports horizontal API scaling while keeping worker/reconciler semantics controlled.
+
+### 9.2 Async throughput controls
+
+- deployment_queue max length: 300.
+- deployment-consumer prefetch: 40.
+- deployment-consumer batch size: 20.
+- max running workflows gate: 30.
+- worker polling interval: 2 seconds.
+
+These controls provide bounded admission to avoid workflow storms and cluster saturation.
+
+### 9.3 Runtime access scaling
+
+challenge-gateway capacity controls include:
+
+- global TCP max connections,
+- per-IP TCP connections,
+- per-token TCP connections,
+- HTTP per-token/IP and per-IP rate limiting.
+
+These controls protect challenge infrastructure from abuse and accidental overload.
+
+### 9.4 Team-level fairness controls
+
+- Concurrent challenge cap per team is enforced atomically in Redis ZSET.
+- Max deploy count and max attempts are checked per challenge/team.
+
+### 9.5 Current scaling trade-offs
+
+- No HPA-based autoscaling in the default manifests; scaling is mostly manual replica and config tuning.
+- Single deployment-consumer simplifies ordering and control but can become throughput bottleneck if event size grows sharply.
+
+## Next Reading
+
+- [Category H: Observability and Operations](./observability-and-operations)
+- [Back to Architecture Overview](./overview)

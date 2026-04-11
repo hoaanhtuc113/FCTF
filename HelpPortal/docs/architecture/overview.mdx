@@ -1,32 +1,77 @@
 ---
-sidebar_position: 1
-title: Architecture Overview
+title: Overview
+description: Production-grade architecture documentation for the self-hosted FCTF platform on k3s.
 ---
 
-# Architecture Overview
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
-FCTF architecture separates concerns across frontend, edge routing, and control services.
+# Overview
 
-## High-Level Components
+## Document Scope
 
-| Layer | Service | Responsibility |
+This document describes the implemented architecture of the FCTF platform as a self-hosted, on-premise CTF system running on k3s.
+
+It focuses on:
+
+- Real service boundaries and runtime behavior in this repository.
+- How challenge environments are built, deployed, accessed, and reconciled.
+- Security, storage, scaling, and operations decisions with trade-offs.
+
+It does not attempt to be a generic Kubernetes guide.
+
+---
+
+## High-level Architecture Diagram
+
+<img
+  src="/img/HighLevelArchitecture.svg"
+  alt="FCTF High-level architecture"
+  style={{
+    width: '100%',
+    maxWidth: '100%',
+    display: 'block',
+    height: 'auto',
+  }}
+/>
+
+<Tabs groupId="architecture-overview">
+  <TabItem value="foundation" label="Foundation" default>
+    <ul>
+      <li>On-premise, self-hosted k3s deployment.</li>
+      <li>Services are split into access, control, execution, and reconciliation planes.</li>
+      <li>Challenge runtime is governed by explicit network, storage, and lifecycle controls.</li>
+    </ul>
+  </TabItem>
+  <TabItem value="runtime" label="Runtime Lifecycle">
+    <ul>
+      <li>Challenge start is asynchronous: DeploymentCenter -&gt; RabbitMQ -&gt; DeploymentConsumer -&gt; Argo.</li>
+      <li>Challenge instances are isolated per namespace with restrictive NetworkPolicies.</li>
+      <li>Runtime sandboxing is available via gVisor (`runtimeClassName: gvisor`) per deployment policy.</li>
+      <li>ChallengeGateway provides controlled HTTP/TCP access using signed tokens.</li>
+    </ul>
+  </TabItem>
+  <TabItem value="ops" label="Ops and Reliability">
+    <ul>
+      <li>DeploymentListener continuously reconciles cluster state with platform state.</li>
+      <li>Redis Lua scripts enforce quota, TTL, and race-safe state transitions.</li>
+      <li>Prometheus, Grafana, and Loki provide health, metrics, and log traceability.</li>
+    </ul>
+  </TabItem>
+</Tabs>
+
+---
+
+## Category Focus Matrix
+
+| Category | Focus | Document |
 | --- | --- | --- |
-| Experience | ContestantPortal | User interaction for challenges, profile, tickets, and scoreboards |
-| Edge | ChallengeGateway | Request routing, token checks, and rate limiting |
-| Control Plane | ControlCenterAndChallengeHostingServer | Deployment orchestration and challenge hosting management |
-| Operations | DeploymentCenter / listeners | Provisioning workflows and lifecycle events |
-
-## Traffic Pattern
-
-1. Contestant requests enter through ChallengeGateway.
-2. Gateway validates request constraints and forwards safely.
-3. Backend services process challenge and scoring logic.
-4. Portal consumes API responses and updates user-facing state.
-
-## Reliability Focus
-
-- Isolate failure domains between edge and control plane.
-- Keep challenge hosting automation observable.
-- Validate critical flows with gateway quick tests before releases.
-
-Next: [Install & Operations Quick Start](../install-and-ops/quick-start).
+| A | Platform intent, planes, namespaces, k3s baseline | [Platform Foundation](./platform-foundation) |
+| B | Service responsibilities and cross-service boundaries | [Service Architecture](./service-architecture) |
+| C | Request, deploy, access, and lifecycle flows | [Runtime and Lifecycle Flows](./runtime-lifecycle-flows) |
+| D | Watch/reconcile model and drift correction | [State Reconciliation](./state-reconciliation) |
+| E | Security boundaries, ACL/RBAC, and trade-offs | [Security](./security) |
+| F | MariaDB, Redis, RabbitMQ, NFS, and Harbor image registry roles | [Storage and Data](./storage-and-data) |
+| G | Throughput controls, fairness, and scaling limits | [Scalability](./scalability) |
+| H | Monitoring, logs, diagnostics, and operator workflow (including Rancher) | [Observability and Operations](./observability-and-operations) |
+| I | Design rationale and architectural principles | [Design Principles](./design-principles) |

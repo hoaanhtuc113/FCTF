@@ -1,0 +1,53 @@
+---
+title: Category I - Design Principles
+description: Architectural rationale for async control paths, isolation defaults, reconciliation, and on-prem operability.
+---
+
+# Category I: Design Principles
+
+## 11. Design Principles and Rationale
+
+### 11.1 Async-first control path
+
+Heavy deployment work is intentionally asynchronous:
+
+- better user-facing latency,
+- controlled retries/backpressure,
+- safer behavior during contest spikes.
+
+### 11.2 Isolation by default
+
+Per-deployment namespaces + gateway-only ingress are central to fairness and containment.
+
+### 11.3 Explicit lifecycle state machine
+
+Redis + DB tracking model lifecycle as INITIAL -> PENDING_DEPLOY -> PENDING -> RUNNING -> DELETING -> STOPPED, with failure and timeout handling.
+
+### 11.4 Reconciliation over assumption
+
+The system does not trust request intent alone; deployment-listener converges from observed cluster state.
+
+### 11.5 Defense-in-depth
+
+- Layered controls: request auth, token integrity, ACL, network policy, RBAC, non-root containers.
+- Practical compromises are documented with hardening paths.
+
+### 11.6 On-prem operability
+
+The platform favors explicit, scriptable, self-managed operations over cloud-specific abstractions.
+
+## Summary
+
+FCTF implements a production-style self-hosted CTF architecture where:
+
+- User operations stay responsive,
+- Runtime challenge environments are isolated and short-lived,
+- Deployments are controlled through queue + workflow orchestration,
+- State is actively reconciled against Kubernetes reality,
+- Security controls are applied across API, network, data, and runtime layers.
+
+This makes the platform suitable for university clubs and organizations that need transparent, extensible, and operator-controlled CTF infrastructure on-premise.
+
+## Next Reading
+
+- [Back to Architecture Overview](./overview)
