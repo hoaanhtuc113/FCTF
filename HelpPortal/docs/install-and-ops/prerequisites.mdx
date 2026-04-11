@@ -3,16 +3,16 @@ sidebar_position: 1
 title: Prerequisites
 ---
 
-#Prerequisites
+# Prerequisites
 
-Tài liệu này tổng hợp các điều kiện bắt buộc trước khi chạy Quick Start.
+This page summarizes the mandatory requirements before running Quick Start.
 
-## 1) Chuẩn bị môi trường
+## 1) Environment setup
 
-- Truy cập SSH vào 2 VM Ubuntu 22.04 LTS
-- Quyền `sudo` trên cả 2 node
-- Kết nối internet outbound để tải image/package
-- Clone mã nguồn FCTF
+- SSH access to 2 Ubuntu 22.04 LTS VMs
+- `sudo` privileges on both nodes
+- Outbound internet access to download images/packages
+- Clone the FCTF source code
 
 ```bash
 git clone <repo-url> FCTF
@@ -24,19 +24,19 @@ chmod +x manage.sh
 
 ### VM1 — Control Plane (Master)
 
-- Vai trò: K3s Server (Control Plane)
+- Role: K3s Server (Control Plane)
 - CPU: >= 8 cores
 - RAM: >= 16 GB
 - Disk: >= 200 GiB (SSD)
 - OS: Ubuntu 22.04 LTS
-- Inbound ports tối thiểu:
+- Minimum inbound ports:
   - `80`, `443`
   - `6443` (Kubernetes API)
-  - `30037`, `30038` (NodePort, có thể thay đổi)
+  - `30037`, `30038` (NodePort, may vary by deployment)
 
 ### VM2 — Worker
 
-- Vai trò: K3s Agent
+- Role: K3s Agent
 - CPU: >= 8 cores
 - RAM: >= 32 GB
 - Disk: >= 200 GiB (SSD)
@@ -44,63 +44,25 @@ chmod +x manage.sh
 
 ## 3) Network Requirements
 
-- 2 VM phải cùng subnet private, ping được nhau, TCP ổn định.
-- IP private phải cố định (không đổi sau khi khởi tạo cluster).
-- Dải IP hạ tầng **không được trùng**:
-  - Pod CIDR mặc định: `10.42.0.0/16`
-  - Service CIDR mặc định: `10.43.0.0/16`
-- Khuyến nghị dùng dải `192.168.x.x` hoặc `172.16.x.x`.
-- Mở thêm cho Calico VXLAN:
-  - UDP `4789` giữa các node
+- Both VMs must be in the same private subnet, reachable by ping, and have stable TCP connectivity.
+- Private IPs must be static (must not change after cluster initialization).
+- Full-mesh internal connectivity is required (every node can reach every other node).
+- Infrastructure IP range **must not overlap** with:
+  - Default Pod CIDR: `10.42.0.0/16`
+  - Default Service CIDR: `10.43.0.0/16`
+- Recommended ranges: `192.168.x.x` or `172.16.x.x`.
+- If `10.x.x.x` is required, change Pod CIDR/Service CIDR during cluster initialization to avoid conflicts.
+- Additional requirements for Calico VXLAN:
+  - UDP `4789` open between nodes
   - MTU >= 1450
-- Bật IP forwarding, tắt swap, đảm bảo kernel modules sẵn sàng: `overlay`, `br_netfilter`, `vxlan`, `ip_tables`, `ip_set`.
+- Enable IP forwarding, disable swap, and ensure required kernel modules are available: `overlay`, `br_netfilter`, `vxlan`, `ip_tables`, `ip_set`.
+- Do not block/filter encapsulated internal UDP traffic (VXLAN).
+- Set reverse path filtering to permissive mode on all nodes.
 
-### Internal ports cần mở giữa các node
+### Internal ports required between nodes
 
 | Protocol | Ports |
 | --- | --- |
 | TCP | 111, 179, 2049, 2379, 2380, 5001, 5473, 6443, 10250 |
 | UDP | 111, 2049, 4789, 8472, 51820, 51821 |
 
-## 4) Bắt buộc: Cập nhật Domain/IP trước khi cài
-
-Khi triển khai môi trường mới, phải thay toàn bộ domain mẫu:
-
-- `registry0.fctf.site`
-- `admin0.fctf.site`
-- `api0.fctf.site`
-- `argo0.fctf.site`
-- `contestant0.fctf.site`
-- `grafana0.fctf.site`
-- `rabbitmq0.fctf.site`
-- `rancher0.fctf.site`
-- `challenge0.fctf.site`
-
-Đồng thời thay IP hạ tầng mẫu (ví dụ `10.148.0.2`) thành IP private thực tế của NFS / K3s master.
-
-### Các vị trí cần cập nhật
-
-- Ingress host + TLS SAN:
-  - `FCTF-k3s-manifest/prod/ingress/nginx/*.yaml`
-  - `FCTF-k3s-manifest/prod/ingress/certificate/*.yaml`
-- Registry references:
-  - `FCTF-k3s-manifest/prod/app/*/deployment.yaml`
-  - `FCTF-k3s-manifest/prod/argo-workflows/**`
-  - `FCTF-k3s-manifest/prod/env/configmap/*.yaml`
-  - `FCTF-k3s-manifest/prod/env/secret/docker-secret.yaml`
-- Helm values:
-  - `FCTF-k3s-manifest/prod/helm/registry/harbor-values.yaml`
-  - `FCTF-k3s-manifest/prod/helm/rancher/rancher-values.yaml`
-- NFS storage:
-  - `FCTF-k3s-manifest/prod/storage/pv/*.yaml`
-- Setup scripts:
-  - `FCTF-k3s-manifest/setup-worker.sh`
-  - `FCTF-k3s-manifest/setup-harbor.sh`
-  - `FCTF-k3s-manifest/cicd-setup.sh`
-
-### Pre-deployment checklist
-
-- Không còn chuỗi domain mẫu `*.fctf.site` cũ.
-- Không còn IP cũ/outdated.
-- Ingress host khớp chứng chỉ TLS.
-- Registry domain thống nhất ở Harbor values, docker secrets và image paths.
