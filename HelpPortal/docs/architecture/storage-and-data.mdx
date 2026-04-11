@@ -1,11 +1,13 @@
 ---
-title: Category F - Storage and Data
-description: Persistent SQL state, Redis coordination keys, queue buffering, NFS artifacts, and Harbor registry roles.
+title: Storage and Data
+description: Section 7 details for SQL state, Redis coordination keys, queue buffering, NFS artifacts, and Harbor registry roles.
 ---
 
-# Category F: Storage and Data
+# Storage and Data
 
-## 8. Storage and Data Design
+This page expands Section 7 from [Architecture Overview](./overview).
+
+## Storage and Data Design
 
 ### 8.1 MariaDB (persistent domain state)
 
@@ -54,8 +56,3 @@ Trade-off:
 - Harbor (namespace `registry`) stores challenge images produced by Kaniko workflows.
 - Argo workflows copy `global-regcred` so challenge namespaces can pull private images.
 - Registry credentials are an explicit operational dependency (rotation, scope, and secret distribution).
-
-## Next Reading
-
-- [Category G: Scalability](./scalability)
-- [Back to Architecture Overview](./overview)
