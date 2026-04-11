@@ -5,7 +5,7 @@ description: High-level architecture map for the self-hosted FCTF platform on k3
 
 # Overview
 
-This page is the architecture entry point for contributors. It provides a fast system map and links to the canonical detailed pages.
+This page is the contributor entry point. It gives a fast system map and links to canonical detail pages.
 
 ## Architecture Diagram
 
@@ -55,11 +55,11 @@ FCTF is a self-hosted CTF platform for on-premise k3s clusters. The system separ
 | Execution | Queue and workflow execution | RabbitMQ, Deployment Consumer, Argo, dynamic challenge namespaces |
 | Reconciliation | Drift detection and correction | Deployment Listener |
 
-Why this split exists:
+**Why this split exists:**
 
-- API paths stay responsive during contest spikes.
-- Deploy/build failures are isolated in async pipeline stages.
-- Runtime truth is corrected from observed cluster state, not request intent only.
+- **API paths stay responsive** during contest spikes.
+- **Deploy/build failures are isolated** in async pipeline stages.
+- **Runtime truth is corrected from observed cluster state**, not request intent only.
 
 ## 2. Infrastructure
 
@@ -71,9 +71,9 @@ Why this split exists:
 | Runtime sandbox | Optional RuntimeClass `gvisor` via `USE_GVISOR` | Additional isolation option for untrusted challenge workloads. |
 | Service exposure | ClusterIP + Ingress (primary), NodePort (fallback) | Works in constrained lab DNS/ingress environments. |
 
-Key namespaces: `app`, `argo`, `db`, `monitoring`, `registry`, `cattle-system`, `challenge` (dynamic labeled namespaces), `storage`.
+**Key namespaces:** `app`, `argo`, `db`, `monitoring`, `registry`, `cattle-system`, `challenge` (dynamic labeled namespaces), `storage`.
 
-Canonical details: [Infrastructure](./platform-foundation).
+**Canonical details:** [Infrastructure](./platform-foundation).
 
 ## 3. Service Architecture
 
@@ -85,7 +85,9 @@ Canonical details: [Infrastructure](./platform-foundation).
 | Deployment Consumer + Argo | Async deploy/build execution pipeline |
 | Deployment Listener | Reconcile Redis/MariaDB lifecycle truth against Kubernetes events |
 
-Canonical details: [Service Architecture](./service-architecture).
+**Boundary reminder:** Challenge Gateway is the only runtime ingress boundary for challenge traffic.
+
+**Canonical details:** [Service Architecture](./service-architecture).
 
 ## 4. Runtime and Lifecycle Flows
 
@@ -96,7 +98,7 @@ Canonical details: [Service Architecture](./service-architecture).
 | Runtime access | signed token -> Challenge Gateway -> internal challenge service |
 | Stop/cleanup | control intent -> runtime termination -> reconciled `STOPPED` state |
 
-Canonical details: [Runtime and Lifecycle Flows](./runtime-lifecycle-flows).
+**Canonical details:** [Runtime and Lifecycle Flows](./runtime-lifecycle-flows).
 
 ## 5. State Reconciliation
 
@@ -108,7 +110,7 @@ Canonical details: [Runtime and Lifecycle Flows](./runtime-lifecycle-flows).
 | Drift sources | watch disconnect, stale `resourceVersion`, out-of-band deletes, partial workflow completion |
 | Reconciler | Deployment Listener shards pod events and applies cleanup/state correction |
 
-Canonical details: [State Reconciliation](./state-reconciliation).
+**Canonical details:** [State Reconciliation](./state-reconciliation).
 
 ## 6. Security
 
@@ -120,7 +122,7 @@ Canonical details: [State Reconciliation](./state-reconciliation).
 | Data-plane authz | Redis ACL, MariaDB least privilege, scoped RabbitMQ topology |
 | Runtime hardening | Optional gVisor; RBAC scoped by service role |
 
-Canonical details: [Security](./security).
+**Canonical details:** [Security](./security).
 
 ## 7. Storage and Data
 
@@ -132,7 +134,7 @@ Canonical details: [Security](./security).
 | NFS | Shared challenge assets and workflow build contexts |
 | Harbor | Private image distribution for challenge runtime namespaces |
 
-Canonical details: [Storage and Data](./storage-and-data).
+**Canonical details:** [Storage and Data](./storage-and-data).
 
 ## 8. Scalability
 
@@ -144,7 +146,7 @@ Canonical details: [Storage and Data](./storage-and-data).
 | Fairness | Team-level concurrent and per-challenge limits via Redis |
 | Scaling style | Hybrid: HPA for selected stateless services, manual tuning for worker/reconciler components |
 
-Canonical details: [Scalability](./scalability).
+**Canonical details:** [Scalability](./scalability).
 
 ## 9. Observability and Operations
 
@@ -156,7 +158,7 @@ Canonical details: [Scalability](./scalability).
 | Runtime diagnostics | Deployment Center workflow/pod/log query endpoints |
 | Cluster operations | Scripted bootstrap/install path for on-prem environments |
 
-Canonical details: [Observability and Operations](./observability-and-operations).
+**Canonical details:** [Observability and Operations](./observability-and-operations).
 
 ## 10. Design Principles
 
@@ -169,4 +171,4 @@ Canonical details: [Observability and Operations](./observability-and-operations
 | On-premise-first operability | Works without managed cloud dependencies |
 | Contributor-first boundaries | Keeps service, flow, and consistency concerns separate |
 
-Canonical details: [Design Principles](./design-principles).
+**Canonical details:** [Design Principles](./design-principles).

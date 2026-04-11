@@ -36,23 +36,27 @@ This page expands Section 3 from [Architecture Overview](./overview).
 
 #### Contestant Service
 
-Primary competition API for:
+**Primary competition API for:**
 
 - Auth and token session checks.
 - Teams, challenge discovery, prerequisites, files, hints, submissions.
 - Scoreboard and ticket APIs.
 - Challenge lifecycle user actions (start/stop/status) through Deployment Center.
 
-Notable behavior:
+**Notable behavior:**
 
 - Rate limiting via AspNetCoreRateLimit using Redis.
 - Token integrity checks with tokenUuid against DB/cache.
 - Redis Lua + lock-based race protection for submissions and deployment quotas.
 - Shared-instance mode supported via special team ID handling.
 
+:::tip Runtime Boundary Highlight
+Challenge Gateway is the only intended external entry boundary for challenge runtime traffic.
+:::
+
 #### Deployment Center
 
-Control API for deployment orchestration:
+**Control API for deployment orchestration:**
 
 - Handles start/stop/status/log requests.
 - Publishes deploy jobs to RabbitMQ exchange deployment_exchange with routing key deploy.
@@ -62,7 +66,7 @@ Control API for deployment orchestration:
 
 #### Challenge Gateway
 
-Runtime access gateway for deployed challenge instances:
+**Runtime access gateway for deployed challenge instances:**
 
 - HTTP gateway on port 8080 (reverse proxy with token-cookie flow).
 - TCP gateway on port 1337 (token-authenticated stream proxy).
@@ -75,7 +79,7 @@ Runtime access gateway for deployed challenge instances:
 
 #### RabbitMQ
 
-Deploy queue topology:
+**Deploy queue topology:**
 
 - Vhost: fctf_deploy.
 - Exchange: deployment_exchange (direct).
@@ -85,7 +89,7 @@ Deploy queue topology:
 
 #### Deployment Consumer
 
-Worker process that:
+**Worker process that:**
 
 - Consumes deployment_queue with manual ack/nack semantics.
 - Applies prefetch QoS (40) and batch processing.
@@ -97,7 +101,7 @@ Worker process that:
 
 #### Argo Workflows
 
-Two primary templates:
+**Two primary templates:**
 
 - up-challenge-template:
   - Builds/pushes challenge images from NFS context using Kaniko.
@@ -110,7 +114,7 @@ Two primary templates:
 
 #### Kubernetes Challenge Runtime
 
-For each deployment instance:
+**For each deployment instance:**
 
 - Creates a dedicated namespace (derived from team/challenge naming).
 - Service is internal ClusterIP (`${CHALLENGE_NAME}-svc`).
@@ -121,7 +125,7 @@ For each deployment instance:
 
 #### Deployment Listener
 
-Watches pod events for label ctf/kind=challenge and reconciles system state:
+**Watches pod events** for label ctf/kind=challenge and reconciles system state:
 
 - Detects pod deletions, restarts, and stuck states.
 - Cleans ghost resources (pods/namespaces without valid cache state).
@@ -132,7 +136,7 @@ Watches pod events for label ctf/kind=challenge and reconciles system state:
 
 #### ResourceShared
 
-Shared cross-service implementation includes:
+**Shared cross-service implementation includes:**
 
 - Redis helper with atomic Lua scripts for deployment quota and lifecycle state.
 - Kubernetes service wrapper for workflow status/logs, namespace operations, and pod health checks.

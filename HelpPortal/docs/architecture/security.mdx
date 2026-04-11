@@ -11,19 +11,19 @@ This page expands Section 6 from [Architecture Overview](./overview).
 
 ### Isolation and exposure boundaries
 
-- Challenge pods are not exposed directly to users.
-- Access boundary is Challenge Gateway only.
-- Per-challenge namespace segmentation limits blast radius.
+- **Challenge pods are not exposed directly to users.**
+- **Access boundary is Challenge Gateway only.**
+- **Per-challenge namespace segmentation limits blast radius.**
 
 ### Network policy enforcement
 
-Application namespace policies restrict ingress/egress by service role:
+**Application namespace policies restrict ingress/egress by service role:**
 
 - Contestant Service can reach DB + Redis + Deployment Center.
 - deployment services can reach DB + Redis + Argo + RabbitMQ.
 - Challenge Gateway egress is restricted to challenge namespaces, Redis, DNS.
 
-Challenge namespace policies enforce:
+**Challenge namespace policies enforce:**
 
 - default deny ingress,
 - allow ingress only from Challenge Gateway,
@@ -31,8 +31,8 @@ Challenge namespace policies enforce:
 
 ### Runtime token security
 
-- Challenge access token payload contains route + expiry.
-- Token is HMAC-SHA256 signed with PRIVATE_KEY.
+- **Challenge access token payload contains route + expiry.**
+- **Token is HMAC-SHA256 signed with PRIVATE_KEY.**
 - HTTP flow rotates token from URL to HttpOnly cookie.
 - TCP flow performs explicit token authentication before proxying.
 - Sessions are closed when token expiry is reached.
@@ -63,7 +63,7 @@ Challenge namespace policies enforce:
 
 ### Known security trade-offs
 
-- start-chal-v2 workflow currently uses cluster-admin binding for reliability in complex namespace provisioning; this is operationally simple but broad in privilege.
-- gVisor sandboxing (`runtimeClassName: gvisor`) reduces kernel attack surface for untrusted challenge code, but may require per-challenge compatibility/performance tuning.
-- Some internal TLS verification is relaxed for internal services (for example, Argo/self-signed scenarios) to reduce bootstrap friction; production hardening should revisit this trust model.
-- Deployment Center callback endpoint for workflow message handling should be reviewed to ensure strict authentication in all environments.
+- **start-chal-v2 currently uses cluster-admin binding** for reliability in complex namespace provisioning; this is operationally simple but broad in privilege.
+- **gVisor sandboxing (`runtimeClassName: gvisor`) reduces kernel attack surface** for untrusted challenge code, but may require per-challenge compatibility/performance tuning.
+- **Some internal TLS verification is relaxed** for internal services (for example, Argo/self-signed scenarios) to reduce bootstrap friction; production hardening should revisit this trust model.
+- **Deployment Center callback endpoint authentication should be reviewed** to ensure strict verification in all environments.

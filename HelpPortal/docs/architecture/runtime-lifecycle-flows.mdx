@@ -16,6 +16,8 @@ This page expands Section 4 from [Architecture Overview](./overview).
 3. Frontend calls Contestant Service APIs.
 4. Contestant Service validates auth/session and serves challenge, team, and scoreboard operations.
 
+**Outcome:** user operations stay on the low-latency request path.
+
 ### Deployment Flow
 
 1. Contestant Service or Admin Portal requests challenge start/stop via Deployment Center.
@@ -25,6 +27,8 @@ This page expands Section 4 from [Architecture Overview](./overview).
 5. Argo applies challenge manifests and creates namespace/service/job.
 6. Deployment Listener observes pod readiness/deletion and finalizes lifecycle state.
 
+**Outcome:** deployment work is queue-mediated and isolated from frontend latency.
+
 ### Runtime Access Flow
 
 1. User receives signed challenge token URL.
@@ -33,12 +37,16 @@ This page expands Section 4 from [Architecture Overview](./overview).
 4. Gateway routes HTTP/TCP traffic to internal challenge service endpoint.
 5. Gateway enforces token/IP rate limits and connection caps.
 
+**Outcome:** runtime traffic is token-validated at the gateway boundary.
+
 ### State Sync Flow
 
 1. Deployment Listener watches Kubernetes pod events with sharded workers.
 2. Event handlers map namespace names back to team/challenge IDs.
 3. Listener updates Redis deployment state and MariaDB tracking rows.
 4. On inconsistencies (ghost pod, stuck pod, orphan DB tracking), listener performs cleanup/reconciliation.
+
+**Outcome:** observed cluster state continuously corrects cache and tracking truth.
 
 ## Deployment and Execution Model (Argo + Kubernetes)
 
@@ -49,10 +57,7 @@ This page expands Section 4 from [Architecture Overview](./overview).
 - Registry credentials are distributed through `global-regcred` for downstream image pulls.
 - Workflow exit hook posts status back to Deployment Center.
 
-Trade-off:
-
-- NFS + Kaniko simplifies self-hosted build context handling.
-- Kaniko step uses elevated privileges and host networking in current template, which improves compatibility but increases hardening requirements.
+> **Trade-off:** NFS + Kaniko simplifies self-hosted build context handling, but elevated privileges and host networking in the current template increase hardening requirements.
 
 ### Start runtime path
 
@@ -72,7 +77,7 @@ Each deployment namespace includes:
 
 ### Lifecycle and TTL
 
-- Queue message expiry and Redis provisional TTL guard against stale deploy intents.
+- **Queue message expiry and Redis provisional TTL** guard against stale deploy intents.
 - Challenge job has ttlSecondsAfterFinished for workload object cleanup.
 - Argo workflow templates define TTL strategy for workflow object retention.
 - Additional cron cleanup removes expired temporary challenge namespaces by label.

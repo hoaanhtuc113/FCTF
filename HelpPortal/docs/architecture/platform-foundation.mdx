@@ -16,12 +16,14 @@ FCTF is a microservice CTF platform organized into four runtime planes:
 - Execution plane: RabbitMQ, Deployment Consumer, Argo Workflows, Kubernetes challenge namespaces.
 - Reconciliation plane: Deployment Listener watching Kubernetes and correcting state.
 
+> **Reading cue:** The plane split is the foundation for scaling and failure isolation decisions throughout the platform.
+
 ### Design goals
 
-- Keep core competition APIs responsive under load by offloading heavy deployment work to async workers.
-- Isolate challenge runtime per deployment namespace instead of exposing challenge pods directly.
-- Enforce a controlled runtime access boundary via Challenge Gateway for both HTTP and TCP challenges.
-- Maintain eventual consistency between requested state and actual Kubernetes state via listener reconciliation.
+- **Keep core competition APIs responsive** under load by offloading heavy deployment work to async workers.
+- **Isolate challenge runtime per deployment namespace** instead of exposing challenge pods directly.
+- **Enforce a controlled runtime access boundary via Challenge Gateway** for both HTTP and TCP challenges.
+- **Maintain eventual consistency** between requested state and actual Kubernetes state via listener reconciliation.
 
 ### Namespace topology
 
@@ -36,14 +38,14 @@ FCTF is a microservice CTF platform organized into four runtime planes:
 
 ## Infrastructure Context (k3s, On-Prem)
 
-FCTF targets self-managed, non-cloud-managed environments.
+**FCTF targets self-managed, non-cloud environments.**
 
 ### k3s baseline
 
 - k3s server is installed with flannel disabled and Traefik disabled.
 - Calico is installed explicitly and aligned to k3s pod CIDR.
 - Ingress is provided by Ingress NGINX Helm chart.
-- No service mesh is installed by default in the current manifests.
+- No service mesh is enabled by default in current manifests.
 - Optional gVisor (runsc) runtime is installed and exposed as RuntimeClass gvisor.
 - RuntimeClass is applied from `prod/runtime-class.yaml` and consumed by challenge workflows through `USE_GVISOR`.
 
@@ -51,14 +53,14 @@ FCTF targets self-managed, non-cloud-managed environments.
 
 - No dependency on managed cloud load balancers.
 - Two service exposure modes are supported:
-  - ClusterIP + Ingress (typical production domain-based setup).
-  - NodePort fallback (local/dev or no working ingress DNS).
+  - **ClusterIP + Ingress** (typical production domain-based setup).
+  - **NodePort fallback** (local/dev or no working ingress DNS).
 - Helm stack includes Harbor for private image distribution and Rancher for cluster administration.
 - NFS is used for shared challenge assets and workflow templates because object storage may not be available in on-prem labs.
 - Cert-manager is used for TLS certificates when domain and DNS are available.
 
 ### Operational implications
 
-- Operators manage node lifecycle, NFS ACLs, registry credentials, and DNS outside the platform.
-- Capacity planning is explicit (replica counts, queue length, workflow concurrency, gateway limits).
-- Cluster networking correctness is critical (e.g., pod CIDR overlap can break CoreDNS and pod networking).
+- **Operators own node lifecycle, NFS ACLs, registry credentials, and DNS outside the platform.**
+- **Capacity planning is explicit** (replica counts, queue length, workflow concurrency, gateway limits).
+- **Cluster networking correctness is critical** (for example, pod CIDR overlap can break CoreDNS and pod networking).

@@ -9,18 +9,18 @@ This page expands Section 5 from [Architecture Overview](./overview).
 
 ## State Reconciliation Model (Deployment Listener)
 
-This is a core reliability subsystem in FCTF.
+> **Core reliability subsystem:** Deployment Listener keeps API-visible runtime state aligned with real cluster state.
 
 ### Why it exists
 
-Asynchronous deploy systems can drift when:
+**Asynchronous deploy systems drift when:**
 
 - watch streams disconnect,
 - pods crash or restart unexpectedly,
 - namespaces are deleted out-of-band,
 - cache and real cluster state diverge.
 
-Deployment Listener converges observed Kubernetes state back to the runtime state used by APIs.
+**Deployment Listener converges observed Kubernetes state back to the runtime state used by APIs.**
 
 ### Watch architecture
 
@@ -66,10 +66,10 @@ If pod exists but corresponding deployment cache is missing:
 - On initial list, listener compares active pod namespaces with challenge_start_tracking rows where StoppedAt is null.
 - Rows with missing pods are marked stopped (orphan reconciliation).
 
-Result:
+**Result:**
 
 - Prevents long-lived false "running" records after missed watch events.
 
 ### Operational outcome
 
-The listener turns event-driven best-effort orchestration into eventually consistent runtime truth, reducing manual recovery during CTF peaks.
+**Operational outcome:** event-driven best-effort orchestration remains eventually consistent, with less manual recovery during CTF peaks.

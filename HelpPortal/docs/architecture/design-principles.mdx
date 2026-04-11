@@ -13,21 +13,21 @@ This page expands Section 10 from [Architecture Overview](./overview).
 
 Heavy deployment work is intentionally asynchronous:
 
-- better user-facing latency,
-- controlled retries/backpressure,
-- safer behavior during contest spikes.
+- **better user-facing latency,**
+- **controlled retries/backpressure,**
+- **safer behavior during contest spikes.**
 
 ### Isolation by default
 
-Per-deployment namespaces + gateway-only ingress are central to fairness and containment.
+**Per-deployment namespaces and gateway-only ingress** are central to fairness and containment.
 
 ### Explicit lifecycle state machine
 
-Redis + DB tracking model lifecycle as INITIAL -> PENDING_DEPLOY -> PENDING -> RUNNING -> DELETING -> STOPPED, with failure and timeout handling.
+Redis + DB tracking models lifecycle as `INITIAL -> PENDING_DEPLOY -> PENDING -> RUNNING -> DELETING -> STOPPED`, with failure and timeout handling.
 
 ### Reconciliation over assumption
 
-The system does not trust request intent alone; Deployment Listener converges from observed cluster state.
+**The system does not trust request intent alone;** Deployment Listener converges from observed cluster state.
 
 ### Defense-in-depth
 
@@ -36,16 +36,16 @@ The system does not trust request intent alone; Deployment Listener converges fr
 
 ### On-prem operability
 
-The platform favors explicit, scriptable, self-managed operations over cloud-specific abstractions.
+**The platform favors explicit, scriptable, self-managed operations** over cloud-specific abstractions.
 
 ## Summary
 
 FCTF implements a production-style self-hosted CTF architecture where:
 
-- User operations stay responsive,
-- Runtime challenge environments are isolated and short-lived,
-- Deployments are controlled through queue + workflow orchestration,
-- State is actively reconciled against Kubernetes reality,
-- Security controls are applied across API, network, data, and runtime layers.
+- **User operations stay responsive,**
+- **Runtime challenge environments are isolated and short-lived,**
+- **Deployments are controlled through queue + workflow orchestration,**
+- **State is actively reconciled against Kubernetes reality,**
+- **Security controls are applied across API, network, data, and runtime layers.**
 
 This makes the platform suitable for university clubs and organizations that need transparent, extensible, and operator-controlled CTF infrastructure on-premise.

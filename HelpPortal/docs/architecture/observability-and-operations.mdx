@@ -15,10 +15,12 @@ This page expands Section 9 from [Architecture Overview](./overview).
 - Grafana dashboards for visualization.
 - Loki stack for log aggregation.
 
+**Together, this stack provides metric, log, and dashboard visibility across runtime planes.**
+
 ### Health and diagnostics
 
 - Services expose /healthz and/or /healthcheck endpoints.
-- Deployment Center provides:
+- **Deployment Center provides:**
   - workflow log retrieval (Argo build pod logs),
   - pod logs retrieval,
   - Loki request log query by team/challenge/ns dimensions.
@@ -31,10 +33,10 @@ This page expands Section 9 from [Architecture Overview](./overview).
 
 ### Install/ops workflow
 
-- setup-master.sh / setup-worker.sh for cluster bootstrap.
-- helm.sh for platform stack installation.
-- apply app manifests + network policies + workflow templates.
-- optional service mode switch between ClusterIP and NodePort.
+- Run `setup-master.sh` / `setup-worker.sh` for cluster bootstrap.
+- Run `helm.sh` for platform stack installation.
+- Apply app manifests, network policies, and workflow templates.
+- Optionally switch service mode between ClusterIP and NodePort.
 
 ### Cluster operations tooling
 
