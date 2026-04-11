@@ -1,13 +1,15 @@
 ---
-title: Category F - Storage and Data
-description: Persistent SQL state, Redis coordination keys, queue buffering, NFS artifacts, and Harbor registry roles.
+title: Storage and Data
+description: Section 7 details for SQL state, Redis coordination keys, queue buffering, NFS artifacts, and Harbor registry roles.
 ---
 
-# Category F: Storage and Data
+# Storage and Data
 
-## 8. Storage and Data Design
+This page expands Section 7 from [Architecture Overview](./overview).
 
-### 8.1 MariaDB (persistent domain state)
+## Storage and Data Design
+
+### MariaDB (persistent domain state)
 
 ctfd database schema stores:
 
@@ -17,7 +19,7 @@ ctfd database schema stores:
 
 MariaDB remains the durable source of truth for business state and audit history.
 
-### 8.2 Redis (ephemeral + coordination)
+### Redis (ephemeral + coordination)
 
 Used for:
 
@@ -29,13 +31,13 @@ Used for:
 
 Redis provides fast, atomic coordination under concurrent competition load.
 
-### 8.3 RabbitMQ (asynchronous control transport)
+### RabbitMQ (asynchronous control transport)
 
 - Buffers deploy intents.
 - Decouples user/API latency from workflow execution latency.
 - Provides backpressure with bounded queue length and reject-publish overflow policy.
 
-### 8.4 NFS (shared file and template storage)
+### NFS (shared file and template storage)
 
 NFS is mounted for:
 
@@ -49,13 +51,8 @@ Trade-off:
 
 - Simpler than object storage in on-prem labs but introduces NFS availability/performance dependency.
 
-### 8.5 Container Registry (Harbor)
+### Container Registry (Harbor)
 
 - Harbor (namespace `registry`) stores challenge images produced by Kaniko workflows.
 - Argo workflows copy `global-regcred` so challenge namespaces can pull private images.
 - Registry credentials are an explicit operational dependency (rotation, scope, and secret distribution).
-
-## Next Reading
-
-- [Category G: Scalability](./scalability)
-- [Back to Architecture Overview](./overview)

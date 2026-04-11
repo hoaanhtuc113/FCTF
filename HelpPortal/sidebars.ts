@@ -60,25 +60,19 @@ const sidebars: SidebarsConfig = {
         'architecture/overview',
         {
           type: 'category',
-          label: 'Platform and Services',
+          label: 'Core System',
           items: [
             'architecture/platform-foundation',
             'architecture/service-architecture',
             'architecture/runtime-lifecycle-flows',
-          ],
-        },
-        {
-          type: 'category',
-          label: 'Reliability and Security',
-          items: [
             'architecture/state-reconciliation',
-            'architecture/security',
           ],
         },
         {
           type: 'category',
-          label: 'Data, Scale, and Operations',
+          label: 'Quality and Operations',
           items: [
+            'architecture/security',
             'architecture/storage-and-data',
             'architecture/scalability',
             'architecture/observability-and-operations',
