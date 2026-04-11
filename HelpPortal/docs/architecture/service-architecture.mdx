@@ -1,0 +1,143 @@
+---
+title: Category B - Service Architecture
+description: Component map for ingress, frontend, backend, async workers, workflows, and shared libraries.
+---
+
+# Category B: Service Architecture
+
+## 3. Component Breakdown
+
+### 3.1 Entry Layer
+
+#### ingress-nginx
+
+- Terminates incoming HTTP(S) traffic.
+- Routes organizer, contestant portal, API backend, and observability UIs by host.
+- Uses cert-manager annotations for certificate automation.
+
+### 3.2 Frontend Layer
+
+#### admin-mvc
+
+- CTFd-based organizer/admin UI and management backend.
+- Handles challenge authoring, event configuration, and admin workflows.
+- Reads/writes challenge files via NFS-backed PVCs.
+- Calls deployment-center for runtime operations.
+
+#### contestant-portal
+
+- Player-facing frontend (React + Vite).
+- Talks to contestant-be for competition operations.
+- Uses challenge-gateway domain/ports for runtime challenge access.
+
+### 3.3 Core Backend
+
+#### contestant-be
+
+Primary competition API for:
+
+- Auth and token session checks.
+- Teams, challenge discovery, prerequisites, files, hints, submissions.
+- Scoreboard and ticket APIs.
+- Challenge lifecycle user actions (start/stop/status) through deployment-center.
+
+Notable behavior:
+
+- Rate limiting via AspNetCoreRateLimit using Redis.
+- Token integrity checks with tokenUuid against DB/cache.
+- Redis Lua + lock-based race protection for submissions and deployment quotas.
+- Shared-instance mode supported via special team ID handling.
+
+#### deployment-center
+
+Control API for deployment orchestration:
+
+- Handles start/stop/status/log requests.
+- Publishes deploy jobs to RabbitMQ exchange deployment_exchange with routing key deploy.
+- Persists/reads deployment state in Redis.
+- Calls Kubernetes and Argo APIs (status, logs, namespace operations).
+- Exposes callback endpoint for workflow status messages.
+
+#### challenge-gateway
+
+Runtime access gateway for deployed challenge instances:
+
+- HTTP gateway on port 8080 (reverse proxy with token-cookie flow).
+- TCP gateway on port 1337 (token-authenticated stream proxy).
+- Uses HMAC-signed challenge tokens (PRIVATE_KEY) instead of direct pod exposure.
+- Redis-backed rate and connection limiting:
+  - token + IP request limits.
+  - per-IP, per-token, and global TCP connection caps.
+
+### 3.4 Async Layer
+
+#### RabbitMQ
+
+Deploy queue topology:
+
+- Vhost: fctf_deploy.
+- Exchange: deployment_exchange (direct).
+- Queue: deployment_queue.
+- Binding: routing key deploy.
+- Queue policy includes x-max-length=300 with reject-publish overflow behavior.
+
+#### deployment-consumer
+
+Worker process that:
+
+- Consumes deployment_queue with manual ack/nack semantics.
+- Applies prefetch QoS (40) and batch processing.
+- Enforces workflow concurrency by querying running Argo workflows.
+- Submits start workflow templates to Argo.
+- Updates deployment cache state and TTL.
+
+### 3.5 Execution Layer
+
+#### Argo Workflows
+
+Two primary templates:
+
+- up-challenge-template:
+  - Builds/pushes challenge images from NFS context using Kaniko.
+  - Pushes images to Harbor/internal registry and relies on registry pull secrets for runtime workloads.
+  - Calls deployment-center callback on exit with workflow status.
+- start-chal-v2-template:
+  - Applies challenge namespace/service/network policy/job manifests from NFS templates.
+  - Chooses hardened vs plain challenge manifest.
+  - Uses `USE_GVISOR` to decide whether to inject `runtimeClassName: gvisor`.
+
+#### Kubernetes Challenge Runtime
+
+For each deployment instance:
+
+- Creates a dedicated namespace (derived from team/challenge naming).
+- Service is internal ClusterIP (`${CHALLENGE_NAME}-svc`).
+- Challenge workload runs as a Job with TTL cleanup.
+- NetworkPolicies enforce default-deny ingress and gateway-only access.
+
+### 3.6 State Reconciliation
+
+#### deployment-listener
+
+Watches pod events for label ctf/kind=challenge and reconciles system state:
+
+- Detects pod deletions, restarts, and stuck states.
+- Cleans ghost resources (pods/namespaces without valid cache state).
+- Updates stopped tracking records when workloads terminate.
+- Reconciles orphaned DB entries after watch stream disruptions.
+
+### 3.7 Shared Infrastructure Library
+
+#### ResourceShared
+
+Shared cross-service implementation includes:
+
+- Redis helper with atomic Lua scripts for deployment quota and lifecycle state.
+- Kubernetes service wrapper for workflow status/logs, namespace operations, and pod health checks.
+- Token and challenge naming helpers.
+- MultiServiceConnector for service-to-service HTTP calls.
+
+## Next Reading
+
+- [Category C: Runtime and Lifecycle Flows](./runtime-lifecycle-flows)
+- [Back to Architecture Overview](./overview)

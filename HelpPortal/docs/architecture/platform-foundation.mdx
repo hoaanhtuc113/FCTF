@@ -1,0 +1,67 @@
+---
+title: Category A - Platform Foundation
+description: Architecture intent, runtime planes, namespace topology, and on-prem k3s constraints.
+---
+
+# Category A: Platform Foundation
+
+## 1. Architecture Overview
+
+FCTF is a microservice CTF platform organized into four runtime planes:
+
+- Access plane: ingress-nginx + frontend apps + challenge gateway.
+- Control plane: contestant-be and deployment-center APIs.
+- Execution plane: RabbitMQ, deployment-consumer, Argo Workflows, Kubernetes challenge namespaces.
+- Reconciliation plane: deployment-listener watching Kubernetes and correcting state.
+
+### Design goals
+
+- Keep core competition APIs responsive under load by offloading heavy deployment work to async workers.
+- Isolate challenge runtime per deployment namespace instead of exposing challenge pods directly.
+- Enforce a controlled runtime access boundary via challenge-gateway for both HTTP and TCP challenges.
+- Maintain eventual consistency between requested state and actual Kubernetes state via listener reconciliation.
+
+### Namespace topology
+
+- app: user-facing and control services (admin-mvc, contestant-be, contestant-portal, deployment-center, deployment-consumer, deployment-listener, challenge-gateway).
+- argo: workflow engine, workflow templates, workflow PVCs.
+- db: MariaDB, Redis, RabbitMQ.
+- monitoring: Prometheus stack, Grafana, Loki.
+- registry: Harbor image registry components.
+- cattle-system: Rancher management plane.
+- challenge: logical area for dynamic namespaces (actual per-challenge namespaces are created dynamically and labeled ctf/kind=challenge).
+- storage: NFS-backed components (for setup and file workflows).
+
+## 2. Infrastructure Context (k3s, On-Prem)
+
+FCTF targets self-managed, non-cloud-managed environments.
+
+### k3s baseline
+
+- k3s server is installed with flannel disabled and Traefik disabled.
+- Calico is installed explicitly and aligned to k3s pod CIDR.
+- Ingress is provided by ingress-nginx Helm chart.
+- No service mesh is installed by default in the current manifests.
+- Optional gVisor (runsc) runtime is installed and exposed as RuntimeClass gvisor.
+- RuntimeClass is applied from `prod/runtime-class.yaml` and consumed by challenge workflows through `USE_GVISOR`.
+
+### On-prem constraints driving design
+
+- No dependency on managed cloud load balancers.
+- Two service exposure modes are supported:
+  - ClusterIP + Ingress (typical production domain-based setup).
+  - NodePort fallback (local/dev or no working ingress DNS).
+- Helm stack includes Harbor for private image distribution and Rancher for cluster administration.
+- NFS is used for shared challenge assets and workflow templates because object storage may not be available in on-prem labs.
+- Cert-manager is used for TLS certificates when domain and DNS are available.
+
+### Operational implications
+
+- Operators manage node lifecycle, NFS ACLs, registry credentials, and DNS outside the platform.
+- Capacity planning is explicit (replica counts, queue length, workflow concurrency, gateway limits).
+- Cluster networking correctness is critical (e.g., pod CIDR overlap can break CoreDNS and pod networking).
+
+## Next Reading
+
+- [Category B: Service Architecture](./service-architecture)
+- [Back to Architecture Overview](./overview)
