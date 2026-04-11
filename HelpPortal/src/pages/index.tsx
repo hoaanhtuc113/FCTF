@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
@@ -8,431 +8,449 @@ import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
 
-type IconName =
-  | 'runtime'
-  | 'queue'
-  | 'gateway'
-  | 'audit'
-  | 'deploy'
-  | 'govern'
-  | 'scale'
-  | 'opensource'
-  | 'ui'
-  | 'backend'
-  | 'orchestration'
-  | 'data'
-  | 'devops'
-  | 'access'
-  | 'control'
-  | 'dataplane'
-  | 'docs'
-  | 'architecture'
-  | 'ops';
-
-type ComparisonPoint = {
-  icon: IconName;
+type Feature = {
   title: string;
-  ctfd: string;
-  fctf: string;
-  impact: string;
+  detail: string;
 };
 
-type HighlightItem = {
-  icon: IconName;
-  title: string;
-  description: string;
+type RoadmapStep = {
+  phase: string;
+  label: string;
 };
 
-type TechGroup = {
-  icon: IconName;
-  title: string;
-  items: string[];
+type SignalTrack = {
+  label: string;
+  words: string[];
 };
 
-type LandscapeLane = {
-  icon: IconName;
-  title: string;
-  description: string;
+type SceneSnippet = {
+  tag: string;
+  lines: string[];
 };
 
-const comparisonPoints: ComparisonPoint[] = [
+const partnerNames = ['FPT University', 'Security Club', 'Dev Team', 'Event Ops', 'Research Lab'];
+
+const features: Feature[] = [
   {
-    icon: 'runtime',
-    title: 'Challenge Runtime Model',
-    ctfd:
-      'Traditional CTFd deployments often depend on static challenge services or manual container operations for dynamic environments.',
-    fctf:
-      'FCTF v4 automatically deploys challenge environments as isolated sandboxes, with explicit lifecycle control for start, stop, and cleanup.',
-    impact:
-      'Fairer competition, stronger isolation, and easier event operations at scale.',
+    title: 'Automated Deployment',
+    detail: 'Challenges are packaged as containers and deployed automatically on Kubernetes.',
   },
   {
-    icon: 'queue',
-    title: 'Deployment Reliability',
-    ctfd:
-      'Direct synchronous deployment paths can become fragile under burst traffic and high concurrency.',
-    fctf:
-      'FCTF v4 uses asynchronous orchestration with Deployment Center, RabbitMQ, and Argo Workflows to control throughput and reduce overload risk.',
-    impact:
-      'More stable challenge startup behavior during peak competition windows.',
+    title: 'Isolated Team Instances',
+    detail: 'Each team gets an independent runtime environment for fair and stable gameplay.',
   },
   {
-    icon: 'gateway',
-    title: 'Access and Security Boundary',
-    ctfd:
-      'Challenge services may be exposed with limited central traffic governance depending on event setup.',
-    fctf:
-      'FCTF v4 routes challenge access through a dedicated gateway with token validation, rate limiting, and controlled internal routing.',
-    impact:
-      'Lower attack surface and more consistent edge security policy enforcement.',
+    title: 'Resource Lifecycle Control',
+    detail: 'CPU, RAM, uptime, and cleanup are controlled to keep infrastructure efficient.',
   },
   {
-    icon: 'audit',
-    title: 'Operational Visibility',
-    ctfd:
-      'Basic event tracking is available, but deep deployment-runtime traceability usually needs additional custom tooling.',
-    fctf:
-      'FCTF v4 provides richer operational evidence through deployment history, request logs, action logs, and admin audit trails.',
-    impact:
-      'Faster incident triage and better post-event governance.',
+    title: 'Real-time Monitoring',
+    detail: 'Organizers can track service health, logs, and challenge events during competitions.',
   },
 ];
 
-const highlights: HighlightItem[] = [
+const roadmap: RoadmapStep[] = [
   {
-    icon: 'runtime',
-    title: 'Per-Team Sandboxed Challenge Environments',
-    description:
-      'Each team can launch challenge runtime instances in isolated environments, reducing cross-team interference and improving fairness.',
+    phase: 'Phase 1',
+    label: 'Prepare and package challenge runtime',
   },
   {
-    icon: 'deploy',
-    title: 'Lifecycle Automation for Challenge Runtime',
-    description:
-      'Environment creation, status tracking, stop actions, and cleanup workflows are automated to reduce manual operational load.',
+    phase: 'Phase 2',
+    label: 'Deploy per-team environments automatically',
   },
   {
-    icon: 'gateway',
-    title: 'Secure Gateway for Challenge Access',
-    description:
-      'Unified challenge access with token-based control and traffic protection for both operational resilience and participant safety.',
+    phase: 'Phase 3',
+    label: 'Monitor, scale, and recover resources',
   },
   {
-    icon: 'govern',
-    title: 'Admin-Ready Governance Workflows',
-    description:
-      'Built-in support for moderation, analytics, auditability, and support handling across live competition operations.',
-  },
-  {
-    icon: 'scale',
-    title: 'Scalable Deployment Pipeline',
-    description:
-      'Queue-based orchestration and workflow automation improve reliability under high deployment concurrency.',
-  },
-  {
-    icon: 'opensource',
-    title: 'Open-Source and Extensible',
-    description:
-      'Designed to be adapted by security clubs and university teams that need transparent, operable, and evolvable infrastructure.',
+    phase: 'Phase 4',
+    label: 'Reuse challenge archives for long-term training',
   },
 ];
 
-const techGroups: TechGroup[] = [
+const signalTracks: SignalTrack[] = [
   {
-    icon: 'ui',
-    title: 'User Interface and Docs',
-    items: ['React', 'TypeScript', 'Vite', 'Docusaurus 3'],
+    label: 'mode',
+    words: ['crypto', 'web', 'pwn', 'reverse', 'forensics'],
   },
   {
-    icon: 'backend',
-    title: 'Core Application Services',
-    items: [
-      'C# / ASP.NET services for backend orchestration and APIs',
-      'Go service for Challenge Gateway',
-      'Python/Flask-based management integration (CTFd ecosystem)',
-    ],
+    label: 'task',
+    words: ['decode', 'analyze', 'exploit', 'trace', 'patch'],
   },
   {
-    icon: 'orchestration',
-    title: 'Runtime and Orchestration',
-    items: ['Kubernetes (k3s)', 'Argo Workflows', 'Containerized challenge runtime'],
+    label: 'target',
+    words: ['jwt', 'sqli', 'xss', 'buffer', 'pcap'],
   },
   {
-    icon: 'data',
-    title: 'Data and Messaging',
-    items: ['MariaDB', 'Redis', 'RabbitMQ', 'NFS shared storage'],
-  },
-  {
-    icon: 'devops',
-    title: 'DevOps and Platform Operations',
-    items: ['Harbor registry', 'CI/CD workflows', 'Operational logs and audit trails'],
+    label: 'status',
+    words: ['scanning', 'coding', 'testing', 'solving', 'owned'],
   },
 ];
 
-const landscapeLanes: LandscapeLane[] = [
+const sceneSnippets: SceneSnippet[] = [
   {
-    icon: 'access',
-    title: 'Access Plane',
-    description:
-      'Contestant traffic enters via controlled gateway paths instead of direct pod exposure.',
+    tag: 'crypto',
+    lines: ['$ crack --cipher aes-ctr', 'nonce reused: true', 'keystream recovered...'],
   },
   {
-    icon: 'control',
-    title: 'Control Plane',
-    description:
-      'Deployment Center, queue workers, and workflows coordinate environment lifecycle safely.',
+    tag: 'web',
+    lines: ['GET /challenge?id=7', 'payload => "\' OR 1=1 --"', 'sqli fingerprint detected'],
   },
   {
-    icon: 'dataplane',
-    title: 'Data Plane',
-    description:
-      'State and operations evidence are synchronized across MariaDB, Redis, and logs.',
+    tag: 'pwn',
+    lines: ['gef> checksec vuln', 'canary: disabled', 'ret2libc chain prepared'],
+  },
+  {
+    tag: 'reverse',
+    lines: ['ghidra: fn_4012a0()', 'xor key = 0x2f', 'flag buffer decoded'],
+  },
+  {
+    tag: 'forensics',
+    lines: ['pcap stream #14', 'dns tunnel pattern found', 'artifact exported to /tmp'],
+  },
+  {
+    tag: 'ops',
+    lines: ['kubectl get pods -A', 'challenge namespace healthy', 'cleanup watcher active'],
   },
 ];
-
-function IconGlyph({
-  name,
-  className,
-}: Readonly<{ name: IconName; className?: string }>): ReactNode {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    className,
-    'aria-hidden': true,
-  };
-
-  switch (name) {
-    case 'runtime':
-      return (
-        <svg {...common}>
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M8 8h8v8H8z" />
-        </svg>
-      );
-    case 'queue':
-      return (
-        <svg {...common}>
-          <path d="M4 6h16" />
-          <path d="M4 12h12" />
-          <path d="M4 18h8" />
-          <path d="M18 9v6" />
-        </svg>
-      );
-    case 'gateway':
-      return (
-        <svg {...common}>
-          <path d="M3 12h18" />
-          <path d="M9 6l-6 6 6 6" />
-          <path d="M15 6l6 6-6 6" />
-        </svg>
-      );
-    case 'audit':
-      return (
-        <svg {...common}>
-          <path d="M8 4h8" />
-          <rect x="5" y="3" width="14" height="18" rx="2" />
-          <path d="M9 10h6" />
-          <path d="M9 14h6" />
-        </svg>
-      );
-    case 'deploy':
-      return (
-        <svg {...common}>
-          <path d="M12 19V5" />
-          <path d="M7 10l5-5 5 5" />
-          <path d="M5 19h14" />
-        </svg>
-      );
-    case 'govern':
-      return (
-        <svg {...common}>
-          <path d="M4 8h16" />
-          <path d="M12 4v16" />
-          <path d="M7 8l-2 4h4z" />
-          <path d="M17 8l-2 4h4z" />
-        </svg>
-      );
-    case 'scale':
-      return (
-        <svg {...common}>
-          <path d="M4 18V6" />
-          <path d="M4 18h16" />
-          <path d="M8 14l3-3 3 2 4-5" />
-          <path d="M18 8h-3" />
-        </svg>
-      );
-    case 'opensource':
-      return (
-        <svg {...common}>
-          <path d="M9 8l-4 4 4 4" />
-          <path d="M15 8l4 4-4 4" />
-          <path d="M13 5l-2 14" />
-        </svg>
-      );
-    case 'ui':
-      return (
-        <svg {...common}>
-          <rect x="3" y="5" width="18" height="12" rx="2" />
-          <path d="M9 19h6" />
-        </svg>
-      );
-    case 'backend':
-      return (
-        <svg {...common}>
-          <rect x="4" y="4" width="16" height="5" rx="1" />
-          <rect x="4" y="10" width="16" height="5" rx="1" />
-          <rect x="4" y="16" width="16" height="4" rx="1" />
-        </svg>
-      );
-    case 'orchestration':
-      return (
-        <svg {...common}>
-          <path d="M12 3l8 4-8 4-8-4z" />
-          <path d="M4 12l8 4 8-4" />
-          <path d="M4 17l8 4 8-4" />
-        </svg>
-      );
-    case 'data':
-      return (
-        <svg {...common}>
-          <ellipse cx="12" cy="6" rx="7" ry="3" />
-          <path d="M5 6v8c0 1.7 3.1 3 7 3s7-1.3 7-3V6" />
-          <path d="M5 10c0 1.7 3.1 3 7 3s7-1.3 7-3" />
-        </svg>
-      );
-    case 'devops':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 3v3" />
-          <path d="M12 18v3" />
-          <path d="M3 12h3" />
-          <path d="M18 12h3" />
-          <path d="M5.7 5.7l2.1 2.1" />
-          <path d="M16.2 16.2l2.1 2.1" />
-          <path d="M18.3 5.7l-2.1 2.1" />
-          <path d="M7.8 16.2l-2.1 2.1" />
-        </svg>
-      );
-    case 'access':
-      return (
-        <svg {...common}>
-          <path d="M3 12h18" />
-          <path d="M12 3l9 9-9 9" />
-        </svg>
-      );
-    case 'control':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="8" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      );
-    case 'dataplane':
-      return (
-        <svg {...common}>
-          <path d="M4 8h16" />
-          <path d="M4 12h16" />
-          <path d="M4 16h16" />
-          <circle cx="8" cy="8" r="1" fill="currentColor" />
-          <circle cx="12" cy="12" r="1" fill="currentColor" />
-          <circle cx="16" cy="16" r="1" fill="currentColor" />
-        </svg>
-      );
-    case 'docs':
-      return (
-        <svg {...common}>
-          <path d="M6 3h9l3 3v15H6z" />
-          <path d="M15 3v3h3" />
-          <path d="M9 12h6" />
-        </svg>
-      );
-    case 'architecture':
-      return (
-        <svg {...common}>
-          <rect x="4" y="4" width="6" height="6" rx="1" />
-          <rect x="14" y="4" width="6" height="6" rx="1" />
-          <rect x="9" y="14" width="6" height="6" rx="1" />
-          <path d="M10 7h4" />
-          <path d="M12 10v4" />
-        </svg>
-      );
-    case 'ops':
-      return (
-        <svg {...common}>
-          <path d="M4 19l6-6 3 3 7-7" />
-          <path d="M20 13v-4h-4" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
 
 function HomepageHeader(): ReactNode {
   const logoUrl = useBaseUrl('/img/fctf-logo.png');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [signalTick, setSignalTick] = useState(0);
+  const mousePosRef = useRef({ x: -1000, y: -1000 });
+
+  useEffect(() => {
+    const timer = globalThis.setInterval(() => {
+      setSignalTick((value) => value + 1);
+    }, 1700);
+
+    return () => {
+      globalThis.clearInterval(timer);
+    };
+  }, []);
+
+  // Hacker Byte Stream Rain - Continuous vertical strands
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const hexChars = '01'.split('');
+    const bitChars = '0189ABCDEF<>{}[]!@#$&*'.split('');
+    const fontSize = 14;
+    const columnSpacing = 18;
+    const streamLength = 35; // Longer streams for code matrix look
+
+    type Stream = {
+      x: number;
+      y: number;
+      chars: string[];
+      speed: number;
+      opacity: number;
+    };
+
+    let streams: Stream[] = [];
+    let columns = 0;
+
+    const initCanvas = (): void => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      columns = Math.floor(canvas.width / columnSpacing);
+
+      // Initialize streams for each column
+      streams = [];
+      for (let i = 0; i < columns; i++) {
+        const streamChars: string[] = [];
+        for (let j = 0; j < streamLength + Math.random() * 20; j++) {
+          streamChars.push(hexChars[Math.floor(Math.random() * hexChars.length)]);
+        }
+
+        streams.push({
+          x: i * columnSpacing + 5,
+          y: Math.random() * canvas.height,
+          chars: streamChars,
+          speed: 1 + Math.random() * 2,
+          opacity: 0.4 + Math.random() * 0.5,
+        });
+      }
+    };
+
+    initCanvas();
+    globalThis.addEventListener('resize', initCanvas);
+
+    const fctfAscii = [
+      "   FFFFFFFFFFF    CCCCCCCCCCC   TTTTTTTTTTTTT  FFFFFFFFFFF   ",
+      "   FFFFFFFFFFF  CCCCCCCCCCCCCCC TTTTTTTTTTTTT  FFFFFFFFFFF   ",
+      "   FFF          CCC         CCC      TTT       FFF           ",
+      "   FFF          CCC                  TTT       FFF           ",
+      "   FFFFFFFF     CCC                  TTT       FFFFFFFF      ",
+      "   FFFFFFFF     CCC                  TTT       FFFFFFFF      ",
+      "   FFF          CCC                  TTT       FFF           ",
+      "   FFF          CCC         CCC      TTT       FFF           ",
+      "   FFF          CCCCCCCCCCCCCCC      TTT       FFF           ",
+      "   FFF            CCCCCCCCCCC        TTT       FFF           "
+    ];
+
+    const drawFCTFBackground = (tick: number): void => {
+      ctx.save();
+      const scaleX = Math.min(14, canvas.width / 65);
+      const scaleY = Math.min(16, (canvas.height * 0.6) / 10);
+      ctx.font = `bold ${Math.floor(scaleX * 0.9)}px 'Courier New', monospace`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      const artWidth = fctfAscii[0].length * scaleX;
+      const artHeight = fctfAscii.length * scaleY;
+      const startX = canvas.width / 2 - artWidth / 2;
+      const startY = canvas.height / 2 - artHeight / 2;
+
+      ctx.globalAlpha = 0.15 + (Math.sin(tick * 0.1) * 0.05); // Pulsing alpha
+
+      for (let r = 0; r < fctfAscii.length; r++) {
+        for (let c = 0; c < fctfAscii[r].length; c++) {
+          if (fctfAscii[r][c] !== ' ') {
+            const isLightMode = document.documentElement.getAttribute('data-theme') === 'light';
+            ctx.fillStyle = isLightMode ? 'rgba(153, 34, 0, 0.15)' : '#d66018';
+            // Draw entirely with dynamic bit characters
+            const charToDraw = bitChars[Math.floor((r * c * 3 + tick * 0.5) % bitChars.length)];
+            ctx.fillText(charToDraw, startX + c * scaleX, startY + r * scaleY);
+          }
+        }
+      }
+
+      ctx.restore();
+    };
+
+    const calculateCharOpacity = (charY: number, streamOpacity: number): number => {
+      const distFromTop = charY;
+      const distFromBottom = canvas.height - charY;
+      let opacity = streamOpacity;
+      if (distFromTop < fontSize * 4) {
+        opacity *= distFromTop / (fontSize * 4);
+      }
+      if (distFromBottom < fontSize * 3) {
+        opacity *= Math.max(0, distFromBottom / (fontSize * 3));
+      }
+      return opacity;
+    };
+
+    const getCharacterAppearance = (opacityIn: number, index: number, totalLen: number, isHovered: boolean, isLight: boolean): { charColor: string; renderOpacity: number; blur: number; glowColor: string } => {
+      let charColor = isLight ? '#992200' : '#cc5500';
+      let renderOpacity;
+      let blur = 0;
+      let glowColor = 'transparent';
+
+      if (isHovered) {
+        charColor = isLight ? '#000000' : '#ffffff';
+        renderOpacity = 1;
+        blur = isLight ? 0 : 8;
+        glowColor = isLight ? 'transparent' : '#ff9900';
+      } else if (index === totalLen - 1) {
+        charColor = isLight ? '#660000' : '#ffcc88';
+        renderOpacity = Math.max(opacityIn, 0.9);
+        blur = isLight ? 0 : 6;
+        glowColor = isLight ? 'transparent' : '#ff9900';
+      } else if (index >= totalLen - 5) {
+        charColor = isLight ? '#991111' : '#ffaa00';
+        renderOpacity = Math.max(opacityIn, 0.7);
+      } else {
+        renderOpacity = opacityIn * (index / totalLen);
+      }
+
+      return { charColor, renderOpacity, blur, glowColor };
+    };
+
+    const drawStreams = (isLight: boolean): void => {
+      ctx.font = `normal ${fontSize}px 'Courier New', monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const mouseX = mousePosRef.current.x;
+      const mouseY = mousePosRef.current.y;
+
+      for (const stream of streams) {
+        stream.y += stream.speed;
+
+        if (stream.y > canvas.height + fontSize * stream.chars.length) {
+          stream.y = -fontSize * Math.random() * stream.chars.length;
+          for (let j = 0; j < stream.chars.length; j++) {
+            stream.chars[j] = hexChars[Math.floor(Math.random() * hexChars.length)];
+          }
+        }
+
+        for (let i = 0; i < stream.chars.length; i++) {
+          let charY = stream.y + i * fontSize;
+          let charX = stream.x;
+
+          const dx = charX - mouseX;
+          const dy = charY - mouseY;
+          const dist = Math.hypot(dx, dy);
+
+          // Magnet/Decrypt repulsion effect
+          let isHovered = false;
+          if (dist < 100) {
+            const force = Math.pow((100 - dist) / 100, 2) * 35;
+            const angle = Math.atan2(dy, dx);
+            charX += Math.cos(angle) * force;
+            charY += Math.sin(angle) * force;
+            isHovered = true;
+          }
+
+          const { charColor, renderOpacity, blur, glowColor } = getCharacterAppearance(calculateCharOpacity(charY, stream.opacity), i, stream.chars.length, isHovered, isLight);
+
+          let char = stream.chars[i];
+          if (isHovered) {
+            char = bitChars[Math.floor(Math.random() * bitChars.length)];
+            if (Math.random() > 0.8) stream.chars[i] = char; // Corrupt character
+          } else if (Math.random() > 0.98) {
+            stream.chars[i] = hexChars[Math.floor(Math.random() * hexChars.length)];
+          }
+
+          ctx.shadowBlur = blur;
+          ctx.shadowColor = glowColor;
+          ctx.fillStyle = charColor;
+          ctx.globalAlpha = Math.max(0, Math.min(1, renderOpacity));
+          ctx.fillText(char, charX, charY);
+        }
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    };
+
+    let animFrameId: number;
+    let ticks = 0;
+
+    const draw = (): void => {
+      ticks++;
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
+      // Let the CSS theme background show through using clearRect instead of solid fill!
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Scanlines - tech green
+      ctx.strokeStyle = isLight ? 'rgba(153, 34, 0, 0.06)' : 'rgba(214, 96, 24, 0.08)';
+      ctx.lineWidth = 1;
+      for (let y = 0; y < canvas.height; y += 3) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Grid lines
+      ctx.strokeStyle = isLight ? 'rgba(153, 34, 0, 0.04)' : 'rgba(214, 96, 24, 0.05)';
+      for (let x = 0; x < canvas.width; x += columnSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+
+      drawFCTFBackground(ticks);
+      drawStreams(isLight);
+
+      animFrameId = globalThis.requestAnimationFrame(draw);
+    };
+
+    animFrameId = globalThis.requestAnimationFrame(draw);
+
+    return () => {
+      globalThis.removeEventListener('resize', initCanvas);
+      globalThis.cancelAnimationFrame(animFrameId);
+    };
+  }, []);
+
+  const handleSceneMove = (event: MouseEvent<HTMLCanvasElement>): void => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    mousePosRef.current = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+  };
+
+  const handleSceneLeave = (): void => {
+    mousePosRef.current = { x: -1000, y: -1000 };
+  };
 
   return (
     <header className={clsx('hero', styles.heroBanner)}>
       <div className="container">
-        <div className={styles.heroGrid}>
-          <div className={styles.heroMain}>
-            <div className={styles.heroTopRow}>
-              <img src={logoUrl} alt="FCTF logo" className={styles.heroLogo} />
-              <p className={styles.heroBadge}>Open Source • Version 4.0.0</p>
+        <article className={styles.heroFrame}>
+          <div className={styles.frameTopBar}>
+            <div className={styles.frameBrand}>
+              <img src={logoUrl} alt="FCTF logo" className={styles.frameLogo} />
+              <span>FCTF Platform</span>
+            </div>
+            <p className={styles.frameVersion}>Version 4.0.0</p>
+          </div>
+
+          <div className={styles.heroScene}>
+            <canvas
+              ref={canvasRef}
+              className={styles.sceneCanvas}
+              onMouseMove={handleSceneMove}
+              onMouseLeave={handleSceneLeave}
+              aria-label="Live CTF data stream visualization"
+            />
+            <div className={styles.sceneDecor} aria-hidden="true">
+              <span className={styles.sceneBeam} />
+              <span className={styles.sceneNodeA} />
+              <span className={styles.sceneNodeB} />
+              <span className={styles.sceneNodeC} />
+              <span className={styles.sceneNodeD} />
+            </div>
+            <p className={styles.sceneHint}>Data Stream • Hover to amplify signal</p>
+          </div>
+
+          <div className={styles.heroContent}>
+            <div className={styles.signalGrid}>
+              {signalTracks.map((track, index) => {
+                const word = track.words[(signalTick + index * 2) % track.words.length];
+
+                return (
+                  <article key={track.label} className={styles.signalCell}>
+                    <p className={styles.signalLabel}>{track.label}</p>
+                    <p key={`${track.label}-${word}`} className={styles.signalValue}>
+                      {word}
+                    </p>
+                  </article>
+                );
+              })}
             </div>
             <Heading as="h1" className={styles.heroTitle}>
-              FPT Capture The Flag (FCTF)
+              CTF Trading Ground For Every Team
             </Heading>
             <p className={styles.heroSubtitle}>
-              FCTF is an open-source CTF platform engineered for production competition
-              operations. Compared with a traditional CTFd-first setup, FCTF v4 emphasizes
-              automated sandboxed challenge deployment, secure gateway access, and stronger
-              runtime governance.
+              FCTF is an open-source Jeopardy-style platform for competitions, cybersecurity
+              training, and research. It is built to be stable, easy to operate, and scalable from
+              campus events to large university contests.
             </p>
             <div className={styles.heroActions}>
-              <Link
-                className="button button--primary button--lg"
-                to="/docs/intro">
-                Explore Documentation
+              <Link className="button button--primary button--lg" to="/docs/intro">
+                Start With Docs
               </Link>
-              <Link
-                className="button button--secondary button--lg"
-                to="/docs/install-and-ops/quick-start">
-                Quick Start Operations
+              <Link className="button button--secondary button--lg" to="/docs/install-and-ops/quick-start">
+                Quick Start
               </Link>
-              <Link
-                className="button button--secondary button--lg"
-                to="https://github.com/hoaanhtuc113/FCTF">
-                View Source Code
+              <Link className="button button--secondary button--lg" to="https://github.com/hoaanhtuc113/FCTF">
+                Source Code
               </Link>
             </div>
           </div>
 
-          <aside className={styles.heroPanel}>
-            <p className={styles.heroPanelEyebrow}>Platform Landscape</p>
-            <Heading as="h2" className={styles.heroPanelTitle}>
-              Cloud-native competition operations mapped end-to-end
-            </Heading>
-            <div className={styles.heroPanelLanes}>
-              {landscapeLanes.map((lane) => (
-                <article key={lane.title} className={styles.heroLane}>
-                  <h3>
-                    <IconGlyph name={lane.icon} className={styles.inlineIcon} />
-                    <span>{lane.title}</span>
-                  </h3>
-                  <p>{lane.description}</p>
-                </article>
+          <div className={styles.partnerStrip}>
+            <p>Core contributors</p>
+            <ul>
+              {partnerNames.map((name) => (
+                <li key={name}>{name}</li>
               ))}
-            </div>
-          </aside>
-        </div>
+            </ul>
+          </div>
+        </article>
       </div>
     </header>
   );
@@ -443,140 +461,86 @@ export default function Home(): ReactNode {
 
   return (
     <Layout
-      title={`${siteConfig.title} | Version 4.0.0`}
-      description="FCTF v4 documentation for sandboxed challenge deployment, secure runtime access, and competition operations.">
+      title={`${siteConfig.title} | Home`}
+      description="FCTF is an open-source CTF platform for scalable challenge operations, training, and cybersecurity competitions.">
       <HomepageHeader />
-      <main>
-        <section className={clsx(styles.section, styles.sectionTight)}>
+      <main className={styles.pageMain}>
+        <section className={styles.sectionBlock}>
           <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Why FCTF v4</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                What FCTF solves beyond a traditional CTFd setup
+            <div className={styles.aboutShell}>
+              <Heading as="h2" className={styles.blockTitle}>
+                What Is FCTF?
               </Heading>
-            </div>
-            <div className={styles.comparisonTableWrap}>
-              <table className={styles.comparisonTable}>
-                <thead>
-                  <tr>
-                    <th scope="col">Capability Area</th>
-                    <th scope="col">Traditional CTFd Baseline</th>
-                    <th scope="col">FCTF v4 Model</th>
-                    <th scope="col">Operational Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonPoints.map((point) => (
-                    <tr key={point.title}>
-                      <th scope="row">
-                        <span className={styles.rowHead}>
-                          <IconGlyph name={point.icon} className={styles.rowHeadIcon} />
-                          <span>{point.title}</span>
-                        </span>
-                      </th>
-                      <td>{point.ctfd}</td>
-                      <td>{point.fctf}</td>
-                      <td>{point.impact}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <p>
+                FCTF was developed at FPT University from real CTF operation experience. The
+                platform manages the full competition lifecycle: users, challenges, environment
+                orchestration, and results.
+              </p>
+              <p>
+                Challenge domains include cryptography, reverse engineering, web security, digital
+                forensics, binary exploitation, and miscellaneous practice tracks.
+              </p>
             </div>
           </div>
         </section>
 
-        <section className={clsx(styles.section, styles.sectionTint)}>
+        <section className={styles.sectionBlock}>
           <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Core Capabilities</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                Key features for real competition operations
+            <div className={styles.sectionHeadRow}>
+              <Heading as="h2" className={styles.blockTitle}>
+                Why Use FCTF?
               </Heading>
             </div>
-            <div className={styles.highlightGrid}>
-              {highlights.map((item) => (
-                <article key={item.title} className={styles.highlightItem}>
-                  <span className={styles.highlightIndex}>
-                    <IconGlyph name={item.icon} className={styles.highlightIcon} />
-                  </span>
-                  <div>
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                  </div>
+            <div className={styles.featureGrid}>
+              {features.map((feature, index) => (
+                <article key={feature.title} className={styles.featureCard}>
+                  <p className={styles.featureIndex}>{String(index + 1).padStart(2, '0')}</p>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.detail}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className={styles.section}>
+        <section className={styles.sectionBlock}>
           <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Technology Stack</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                Technologies used in FCTF v4
-              </Heading>
-            </div>
-            <div className={styles.techGrid}>
-              {techGroups.map((group) => (
-                <article key={group.title} className={styles.techCard}>
-                  <h3 className={styles.techCardTitle}>
-                    <IconGlyph name={group.icon} className={styles.inlineIcon} />
-                    <span>{group.title}</span>
-                  </h3>
-                  <ul className={styles.techList}>
-                    {group.items.map((item) => (
-                      <li key={`${group.title}-${item}`}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
+            <Heading as="h2" className={styles.blockTitle}>
+              Roadmap
+            </Heading>
+            <ol className={styles.roadmap}>
+              {roadmap.map((step) => (
+                <li key={step.phase}>
+                  <p className={styles.roadmapPhase}>{step.phase}</p>
+                  <p className={styles.roadmapLabel}>{step.label}</p>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </section>
 
-        <section className={clsx(styles.section, styles.sectionTint)}>
+        <section className={styles.sectionBlock}>
           <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Documentation Paths</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                Navigate by responsibility
+            <article className={styles.ctaPanel}>
+              <Heading as="h2" className={styles.ctaTitle}>
+                Build Your Next CTF Event On FCTF
               </Heading>
-            </div>
-            <div className={styles.docLinks}>
-              <Link className={styles.docCard} to="/docs/product-and-features/overview">
-                <h3>
-                  <IconGlyph name="docs" className={styles.inlineIcon} />
-                  <span>Product and Features</span>
-                </h3>
-                <p>
-                  Role-based capabilities for Admin and Contestant workflows, from governance to
-                  solve lifecycle.
-                </p>
-                <p className={styles.docCardCta}>Open this track</p>
-              </Link>
-              <Link className={styles.docCard} to="/docs/architecture/overview">
-                <h3>
-                  <IconGlyph name="architecture" className={styles.inlineIcon} />
-                  <span>Architecture Overview</span>
-                </h3>
-                <p>
-                  Service boundaries, gateway model, deployment control-plane, and runtime data
-                  paths.
-                </p>
-                <p className={styles.docCardCta}>Open this track</p>
-              </Link>
-              <Link className={styles.docCard} to="/docs/install-and-ops/quick-start">
-                <h3>
-                  <IconGlyph name="ops" className={styles.inlineIcon} />
-                  <span>Install and Operations</span>
-                </h3>
-                <p>
-                  Setup instructions, validation procedures, and event-day operation runbooks.
-                </p>
-                <p className={styles.docCardCta}>Open this track</p>
-              </Link>
-            </div>
+              <p>
+                Use FCTF for live competition operations, long-term lab training, and cybersecurity
+                research workflows.
+              </p>
+              <div className={styles.heroActions}>
+                <Link className="button button--primary button--lg" to="/docs/product-and-features/overview">
+                  Product Features
+                </Link>
+                <Link className="button button--secondary button--lg" to="/docs/architecture/overview">
+                  Architecture
+                </Link>
+                <Link className="button button--secondary button--lg" to="/docs/install-and-ops/quick-start">
+                  Operations Guide
+                </Link>
+              </div>
+            </article>
           </div>
         </section>
       </main>
