@@ -233,9 +233,9 @@
 }
 
 .installInner {
-  max-width: 800px;
+  max-width: 1100px; /* Wider to accommodate full clone path on one line */
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 2.5rem 1.5rem;
   display: flex;
   align-items: center;
   gap: 2rem;
@@ -255,12 +255,12 @@
 
 .installCode {
   flex: 1;
-  overflow-x: auto;
+  width: 100%;
 }
 
 .installCode code {
   font-family: var(--fc-m);
-  font-size: 1.05rem;
+  font-size: clamp(0.6rem, 1.4vw, 1.05rem); /* Dynamically shrinks to prevent scrollbars */
   background: none;
   border: none;
   padding: 0;
@@ -283,7 +283,7 @@
   display: flex;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 5rem 1.5rem;
+  padding: 8rem 1.5rem; /* Increased from 5rem */
 }
 
 .pillar {
@@ -345,7 +345,7 @@
 }
 
 .showcaseText {
-  padding: 4rem 3rem;
+  padding: 6rem 4rem; /* Increased from 4rem 3rem */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -385,7 +385,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 4rem 2rem; /* Increased from 2rem */
 }
 
 /* Terminal */
@@ -480,7 +480,7 @@
   position: relative;
   z-index: 1;
   border-top: 1px solid var(--fc-b);
-  padding: 4rem 1.5rem;
+  padding: 8rem 1.5rem; /* Increased from 4rem */
   max-width: 1000px;
   margin: 0 auto;
   text-align: center;
@@ -505,8 +505,8 @@
 
 .pipeStep {
   flex: 1;
-  max-width: 220px;
-  padding: 1rem;
+  max-width: 250px;
+  padding: 1.5rem;
   transition: all 0.25s ease;
   border: 1px solid transparent;
 }
@@ -521,7 +521,7 @@
 .pipeNum {
   display: block;
   font-family: var(--fc-m);
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: 800;
   color: var(--fc-o);
   opacity: 0.25;
@@ -537,18 +537,18 @@
 .pipeName {
   display: block;
   font-family: var(--fc-m);
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--fc-t);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.8rem;
 }
 
 .pipeStep p {
   margin: 0;
   font-family: var(--fc-m);
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   color: var(--fc-t3);
   line-height: 1.6;
 }
@@ -561,36 +561,102 @@
   flex-shrink: 0;
 }
 
-/* ═══ TECH STRIP ═══ */
+/* ═══ TECH STRIP MARQUEE ═══ */
 .techStrip {
   position: relative;
   z-index: 1;
   border-top: 1px solid var(--fc-b);
   border-bottom: 1px solid var(--fc-b);
-  padding: 1.5rem 2rem;
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
   background: var(--fc-surface);
+  overflow: hidden;
+  padding: 3rem 0; /* Increased from 1.5rem 0 */
 }
 
-.techStrip span {
+.techMarquee {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  /* Add subtle blur on edges */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5%,
+    black 95%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5%,
+    black 95%,
+    transparent
+  );
+}
+
+.techTrack {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  animation: scrollMarquee 30s linear infinite;
+}
+
+.techTrack:hover {
+  animation-play-state: paused;
+}
+
+.techGroup {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  min-width: 100vw; /* ensure the group spans at least a full viewport */
+  gap: 3rem;
+  padding-right: 3rem;
+}
+
+.techItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  opacity: 0.85; /* Increased from 0.6 */
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.techItem img {
+  height: 32px;
+  width: auto;
+  transition: all 0.3s ease;
+}
+
+.techItem span {
   font-family: var(--fc-m);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--fc-t4);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  transition: all 0.2s ease;
-  padding: 0.3rem 0.6rem;
-  cursor: default;
+  transition: all 0.3s ease;
 }
 
-.techStrip span:hover {
+.techItem:hover {
+  opacity: 1;
+}
+
+.techItem:hover img {
+  filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.5));
+  transform: scale(1.05); /* Slight pop out effect */
+}
+
+.techItem:hover span {
   color: var(--fc-o);
-  text-shadow: 0 0 20px rgba(251, 146, 60, 0.8), 0 0 5px rgba(251, 146, 60, 0.6);
-  background: rgba(251, 146, 60, 0.15); /* Brighter */
+  text-shadow: 0 0 10px rgba(251, 146, 60, 0.8);
+}
+
+@keyframes scrollMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); } 
 }
 
 /* ═══ CTA ═══ */
@@ -598,7 +664,7 @@
   position: relative;
   z-index: 1;
   text-align: center;
-  padding: 6rem 2rem;
+  padding: 8rem 2rem; /* Increased from 6rem */
 }
 
 .ctaTitle {
