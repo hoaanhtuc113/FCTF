@@ -239,7 +239,7 @@ def get_all_instance():
         
         # Get pagination and sorting parameters
         page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 25, type=int)
+        per_page = request.args.get("per_page", 50, type=int)
         sort_by = request.args.get("sort_by", "time_finished")  # Default sort by time
         sort_order = request.args.get("sort_order", "desc")  # Default descending
         
