@@ -36,7 +36,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/HelpPortal/',
+            'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/Documentation/',
         },
         blog: false,
         theme: {
