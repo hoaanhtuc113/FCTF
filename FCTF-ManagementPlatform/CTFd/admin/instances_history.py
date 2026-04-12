@@ -35,6 +35,12 @@ def _parse_datetime(value):
         return None
 
 
+def _local_to_utc(dt, timezone_offset):
+    offset_minutes = _parse_int(timezone_offset) or 0
+    # JS getTimezoneOffset() = UTC - local, in minutes
+    return dt + timedelta(minutes=offset_minutes)
+
+
 def _parse_quick_range(value):
     if not value:
         return None
@@ -113,6 +119,7 @@ def instances_history_listing():
     start_filter = (request.args.get("start") or "").strip()
     end_filter = (request.args.get("end") or "").strip()
     quick_filter = (request.args.get("quick") or "").strip()
+    timezone_offset = (request.args.get("timezone_offset") or "").strip()
 
     start_date = _parse_datetime(start_filter)
     end_date = _parse_datetime(end_filter)
@@ -120,6 +127,11 @@ def instances_history_listing():
     if quick_range:
         end_date = datetime.utcnow()
         start_date = end_date - quick_range
+    else:
+        if start_date:
+            start_date = _local_to_utc(start_date, timezone_offset)
+        if end_date:
+            end_date = _local_to_utc(end_date, timezone_offset)
 
     query = _base_instances_query()
     query = _apply_team_filter(query, team_filter=team_filter)
@@ -142,6 +154,7 @@ def instances_history_listing():
         start_filter=start_filter,
         end_filter=end_filter,
         quick_filter=quick_filter,
+        timezone_offset=timezone_offset,
         per_page=per_page,
     )
 
@@ -154,6 +167,7 @@ def instances_history_export_csv():
     start_filter = (request.args.get("start") or "").strip()
     end_filter = (request.args.get("end") or "").strip()
     quick_filter = (request.args.get("quick") or "").strip()
+    timezone_offset = (request.args.get("timezone_offset") or "").strip()
 
     start_date = _parse_datetime(start_filter)
     end_date = _parse_datetime(end_filter)
@@ -161,6 +175,11 @@ def instances_history_export_csv():
     if quick_range:
         end_date = datetime.utcnow()
         start_date = end_date - quick_range
+    else:
+        if start_date:
+            start_date = _local_to_utc(start_date, timezone_offset)
+        if end_date:
+            end_date = _local_to_utc(end_date, timezone_offset)
 
     query = _base_instances_query()
     query = _apply_team_filter(query, team_filter=team_filter)

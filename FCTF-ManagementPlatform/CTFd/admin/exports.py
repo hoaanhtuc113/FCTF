@@ -7,7 +7,7 @@ from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.scores import get_standings, get_user_standings, getSubmitStandings, get_team_challenge_counts
 from CTFd.utils.modes import get_model
-from datetime import datetime
+from datetime import datetime, timedelta
 
 try:
     import pandas as pd
@@ -71,6 +71,18 @@ def export_submission_data():
         challenge_filter = request.args.get("challenge_id", "", type=str).strip()
         date_from = request.args.get("date_from", "").strip()
         date_to = request.args.get("date_to", "").strip()
+        timezone_offset = request.args.get("timezone_offset", "").strip()
+
+        def _parse_int(value):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
+        def _local_to_utc(dt):
+            offset_minutes = _parse_int(timezone_offset) or 0
+            # JS getTimezoneOffset() = UTC - local, in minutes
+            return dt + timedelta(minutes=offset_minutes)
 
         filters_by = {}
         if submission_type:
@@ -95,14 +107,14 @@ def export_submission_data():
         if date_from:
             try:
                 dt_from = datetime.strptime(date_from, "%Y-%m-%d")
-                filters.append(Submissions.date >= dt_from)
+                filters.append(Submissions.date >= _local_to_utc(dt_from))
             except ValueError:
                 pass
         if date_to:
             try:
-                dt_to = datetime.strptime(date_to, "%Y-%m-%d")
-                dt_to = dt_to.replace(hour=23, minute=59, second=59)
-                filters.append(Submissions.date <= dt_to)
+                # Upper bound is exclusive start of the next local day.
+                dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+                filters.append(Submissions.date < _local_to_utc(dt_to))
             except ValueError:
                 pass
 
