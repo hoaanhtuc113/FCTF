@@ -9,6 +9,10 @@ from CTFd.models import Tickets, Users, Teams, db
 from sqlalchemy.orm import aliased
 
 
+def _string_or_empty(value):
+    return value if value is not None else ""
+
+
 def get_ticket_by_id(ticket_id):
     try:
         Author = aliased(Users)
@@ -23,18 +27,21 @@ def get_ticket_by_id(ticket_id):
         .filter(Tickets.id == ticket_id) \
         .first()
 
+        if result is None:
+            return {'message': 'Ticket not found', 'ticket': None}, 404
+
         ticket, author_name, replier_name = result
 
         ticket_data = {
             'id': ticket.id,
-            'author_name': author_name,
-            'status': ticket.status,
-            'title': ticket.title,
+            'author_name': _string_or_empty(author_name),
+            'status': _string_or_empty(ticket.status),
+            'title': _string_or_empty(ticket.title),
             'date': ticket.create_at,
-            'type': ticket.type,
-            'description': ticket.description,
-            'replier_name': replier_name,
-            'replier_message': ticket.replier_message
+            'type': _string_or_empty(ticket.type),
+            'description': _string_or_empty(ticket.description),
+            'replier_name': _string_or_empty(replier_name),
+            'replier_message': _string_or_empty(ticket.replier_message)
         }
 
         return {'ticket': ticket_data}, 200
@@ -44,6 +51,9 @@ def get_ticket_by_id(ticket_id):
 
 def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, per_page=10):
     try:
+        page = max(int(page), 1)
+        per_page = max(int(per_page), 1)
+
         Author = aliased(Users)
         Replier = aliased(Users)
         Team = aliased(Teams)
@@ -71,16 +81,16 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
         tickets_data = []
         for ticket, author_name, replier_name, team_name in tickets:
             tickets_data.append({
-                'author_name': author_name,
-                'team_name': team_name,
-                'status': ticket.status,
+                'author_name': _string_or_empty(author_name),
+                'team_name': _string_or_empty(team_name),
+                'status': _string_or_empty(ticket.status),
                 'id': ticket.id,
-                'title': ticket.title,
-                'type': ticket.type,
+                'title': _string_or_empty(ticket.title),
+                'type': _string_or_empty(ticket.type),
                 'date': ticket.create_at,
-                'description': ticket.description,
-                'replier_name': replier_name,
-                'replier_message': ticket.replier_message
+                'description': _string_or_empty(ticket.description),
+                'replier_name': _string_or_empty(replier_name),
+                'replier_message': _string_or_empty(ticket.replier_message)
             })
 
         return {'tickets': tickets_data, 'total': total}, 200
