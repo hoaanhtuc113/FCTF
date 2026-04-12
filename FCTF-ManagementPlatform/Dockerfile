@@ -1,19 +1,19 @@
 ##############################
-# Stage 1: Build frontend themes (admin + core-beta) with Node.js
+# Stage 1: Build frontend themes (admin + core-beta)
 ##############################
 FROM node:18-slim AS theme-build
 
-# Build admin theme
+# Build admin theme with lockfile-based install for deterministic/cached CI builds.
 WORKDIR /themes/admin
-COPY CTFd/themes/admin/package.json CTFd/themes/admin/package-lock.json* CTFd/themes/admin/yarn.lock* ./
-RUN npm install
+COPY CTFd/themes/admin/package.json CTFd/themes/admin/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY CTFd/themes/admin/ ./
 RUN npm run build
 
-# Build core-beta theme
+# Build core-beta theme.
 WORKDIR /themes/core-beta
-COPY CTFd/themes/core-beta/package.json CTFd/themes/core-beta/package-lock.json* CTFd/themes/core-beta/yarn.lock* ./
-RUN npm install
+COPY CTFd/themes/core-beta/package.json CTFd/themes/core-beta/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY CTFd/themes/core-beta/ ./
 RUN npm run build \
     && if [ -f static/.vite/manifest.json ] && [ ! -f static/manifest.json ]; then \
@@ -21,71 +21,75 @@ RUN npm run build \
     fi
 
 ##############################
-# Stage 2: Install Python dependencies
+# Stage 2: Build Python virtualenv + app
 ##############################
-FROM python:3.11-slim-bookworm AS build
+FROM python:3.11-slim-bookworm AS py-build
 
 WORKDIR /opt/CTFd
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PATH="/opt/venv/bin:$PATH"
 
 # hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     build-essential \
-    libffi-dev \
-    libssl-dev \
-    git \
     gcc \
     g++ \
+    libffi-dev \
+    libssl-dev \
     python3-dev \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && python -m venv /opt/venv
 
-ENV PATH="/opt/venv/bin:$PATH"
+# Install base Python dependencies in a cache-friendly layer.
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
-COPY . /opt/CTFd
+# Install plugin dependencies (if present).
+COPY CTFd/plugins ./CTFd/plugins
+RUN set -eux; \
+    if [ -d CTFd/plugins ]; then \
+      find CTFd/plugins -mindepth 2 -maxdepth 2 -name requirements.txt -print0 \
+      | xargs -0 -r -I {} pip install --no-cache-dir --prefer-binary -r {}; \
+    fi
 
-RUN pip install --no-cache-dir -r requirements.txt \
-    && for d in CTFd/plugins/*; do \
-    if [ -f "$d/requirements.txt" ]; then \
-    pip install --no-cache-dir -r "$d/requirements.txt";\
-    fi; \
-    done;
+# Copy application source after dependency install to preserve cache reuse.
+COPY . .
 
 ##############################
-# Stage 3: Final release image
+# Stage 3: Runtime image
 ##############################
 FROM python:3.11-slim-bookworm AS release
 WORKDIR /opt/CTFd
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
 
 # hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     libffi8 \
     libssl3 \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --chown=1001:1001 . /opt/CTFd
+RUN groupadd --gid 1001 ctfd \
+    && useradd --uid 1001 --gid 1001 --create-home --no-log-init --shell /usr/sbin/nologin ctfd \
+    && mkdir -p /var/log/CTFd /var/uploads /var/template_challenge
 
-# Copy built theme assets from theme-build stage
+COPY --from=py-build /opt/venv /opt/venv
+COPY --chown=1001:1001 --from=py-build /opt/CTFd /opt/CTFd
+
+# Replace theme static assets with outputs from the frontend build stage.
 COPY --chown=1001:1001 --from=theme-build /themes/admin/static /opt/CTFd/CTFd/themes/admin/static
 COPY --chown=1001:1001 --from=theme-build /themes/core-beta/static /opt/CTFd/CTFd/themes/core-beta/static
 
-RUN useradd \
-    --no-log-init \
-    --shell /bin/bash \
-    -u 1001 \
-    ctfd \
-    && mkdir -p /var/log/CTFd /var/uploads \
-    && mkdir -p /var/log/CTFd /var/template_challenge \
-    && chown -R 1001:1001 /var/template_challenge /var/log/CTFd /var/uploads /opt/CTFd \
-    && sed -i 's/\r//' /opt/CTFd/docker-entrypoint.sh \
-    && chmod +x /opt/CTFd/docker-entrypoint.sh 
+RUN chmod +x /opt/CTFd/docker-entrypoint.sh \
+    && chown -R 1001:1001 /opt/CTFd /var/log/CTFd /var/uploads /var/template_challenge
 
-COPY --chown=1001:1001 --from=build /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-USER 1001
+USER 1001:1001
 EXPOSE 8000
 ENTRYPOINT ["/opt/CTFd/docker-entrypoint.sh"]
