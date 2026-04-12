@@ -117,7 +117,7 @@ class ActionLogList(Resource):
 
             log = ActionLogs(
                 userId=user.id,
-                actionDate=datetime.now(timezone.uct).isoformat(),
+                actionDate=datetime.now(timezone.utc).isoformat(),
                 actionType=validated_data.actionType,
                 actionDetail=validated_data.actionDetail,
                 topicName=topic_name,
@@ -143,7 +143,7 @@ class ActionLogList(Resource):
                 challenge_id=challenge_id,
                 challenge_name=challenge_name,
                 action_type=validated_data.actionType,
-                action_date=datetime.now().isoformat(),
+                action_date=datetime.now(timezone.utc).isoformat(),
             )
 
             return {"success": True, "data": log.to_dict()}, 200

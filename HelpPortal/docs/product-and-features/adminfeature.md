@@ -85,7 +85,7 @@ CW: challenge writer
 
 [A/CW/J] Dừng instance theo challenge/team (stop-by-admin).
 [A/CW/J] Dừng hàng loạt theo danh sách instance (stop-bulk).
-[A/CW/J ở app, A enforced ở DeploymentCenter] Dừng toàn bộ instance (stop-all có check admin ở service deploy).
+[A/CW/J ở app, A enforced ở Deployment Center] Dừng toàn bộ instance (stop-all có check admin ở service deploy).
 [A] Lấy danh sách toàn bộ instance đang chạy từ cache, có:
 [A] Filter team/user/challenge/category/status.
 [A] Sort theo nhiều cột.

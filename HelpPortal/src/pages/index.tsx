@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
@@ -8,578 +8,438 @@ import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
 
-type IconName =
-  | 'runtime'
-  | 'queue'
-  | 'gateway'
-  | 'audit'
-  | 'deploy'
-  | 'govern'
-  | 'scale'
-  | 'opensource'
-  | 'ui'
-  | 'backend'
-  | 'orchestration'
-  | 'data'
-  | 'devops'
-  | 'access'
-  | 'control'
-  | 'dataplane'
-  | 'docs'
-  | 'architecture'
-  | 'ops';
+/* ═══ EMBER FIELD — mouse-interactive particle system ═══ */
+function EmberField(): ReactNode {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-type ComparisonPoint = {
-  icon: IconName;
-  title: string;
-  ctfd: string;
-  fctf: string;
-  impact: string;
-};
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-type HighlightItem = {
-  icon: IconName;
-  title: string;
-  description: string;
-};
+    let W = 0;
+    let H = 0;
+    let dpr = 1;
+    let mouseX = -9999;
+    let mouseY = -9999;
+    let mouseActive = false;
 
-type TechGroup = {
-  icon: IconName;
-  title: string;
-  items: string[];
-};
+    type Ember = {
+      x: number; y: number;
+      baseVx: number; baseVy: number;
+      vx: number; vy: number;
+      size: number;
+      life: number;
+      maxLife: number;
+      drift: number;
+    };
 
-type LandscapeLane = {
-  icon: IconName;
-  title: string;
-  description: string;
-};
+    let embers: Ember[] = [];
 
-const comparisonPoints: ComparisonPoint[] = [
-  {
-    icon: 'runtime',
-    title: 'Challenge Runtime Model',
-    ctfd:
-      'Traditional CTFd deployments often depend on static challenge services or manual container operations for dynamic environments.',
-    fctf:
-      'FCTF v4 automatically deploys challenge environments as isolated sandboxes, with explicit lifecycle control for start, stop, and cleanup.',
-    impact:
-      'Fairer competition, stronger isolation, and easier event operations at scale.',
-  },
-  {
-    icon: 'queue',
-    title: 'Deployment Reliability',
-    ctfd:
-      'Direct synchronous deployment paths can become fragile under burst traffic and high concurrency.',
-    fctf:
-      'FCTF v4 uses asynchronous orchestration with Deployment Center, RabbitMQ, and Argo Workflows to control throughput and reduce overload risk.',
-    impact:
-      'More stable challenge startup behavior during peak competition windows.',
-  },
-  {
-    icon: 'gateway',
-    title: 'Access and Security Boundary',
-    ctfd:
-      'Challenge services may be exposed with limited central traffic governance depending on event setup.',
-    fctf:
-      'FCTF v4 routes challenge access through a dedicated gateway with token validation, rate limiting, and controlled internal routing.',
-    impact:
-      'Lower attack surface and more consistent edge security policy enforcement.',
-  },
-  {
-    icon: 'audit',
-    title: 'Operational Visibility',
-    ctfd:
-      'Basic event tracking is available, but deep deployment-runtime traceability usually needs additional custom tooling.',
-    fctf:
-      'FCTF v4 provides richer operational evidence through deployment history, request logs, action logs, and admin audit trails.',
-    impact:
-      'Faster incident triage and better post-event governance.',
-  },
-];
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.offsetWidth;
+      H = canvas.offsetHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
 
-const highlights: HighlightItem[] = [
-  {
-    icon: 'runtime',
-    title: 'Per-Team Sandboxed Challenge Environments',
-    description:
-      'Each team can launch challenge runtime instances in isolated environments, reducing cross-team interference and improving fairness.',
-  },
-  {
-    icon: 'deploy',
-    title: 'Lifecycle Automation for Challenge Runtime',
-    description:
-      'Environment creation, status tracking, stop actions, and cleanup workflows are automated to reduce manual operational load.',
-  },
-  {
-    icon: 'gateway',
-    title: 'Secure Gateway for Challenge Access',
-    description:
-      'Unified challenge access with token-based control and traffic protection for both operational resilience and participant safety.',
-  },
-  {
-    icon: 'govern',
-    title: 'Admin-Ready Governance Workflows',
-    description:
-      'Built-in support for moderation, analytics, auditability, and support handling across live competition operations.',
-  },
-  {
-    icon: 'scale',
-    title: 'Scalable Deployment Pipeline',
-    description:
-      'Queue-based orchestration and workflow automation improve reliability under high deployment concurrency.',
-  },
-  {
-    icon: 'opensource',
-    title: 'Open-Source and Extensible',
-    description:
-      'Designed to be adapted by security clubs and university teams that need transparent, operable, and evolvable infrastructure.',
-  },
-];
+    const spawnEmber = (): Ember => {
+      const bvx = (Math.random() - 0.5) * 0.3;
+      const bvy = -(0.3 + Math.random() * 0.6); // Slow upwards velocity like original
+      return {
+        x: Math.random() * W,
+        y: H + 10,
+        baseVx: bvx, baseVy: bvy,
+        vx: bvx, vy: bvy,
+        size: 1.2 + Math.random() * 2.5,
+        life: 0,
+        maxLife: 600 + Math.random() * 600, // Very long life to reach mid-screen slowly
+        drift: (Math.random() - 0.5) * 0.008,
+      };
+    };
 
-const techGroups: TechGroup[] = [
-  {
-    icon: 'ui',
-    title: 'User Interface and Docs',
-    items: ['React', 'TypeScript', 'Vite', 'Docusaurus 3'],
-  },
-  {
-    icon: 'backend',
-    title: 'Core Application Services',
-    items: [
-      'C# / ASP.NET services for backend orchestration and APIs',
-      'Go service for Challenge Gateway',
-      'Python/Flask-based management integration (CTFd ecosystem)',
-    ],
-  },
-  {
-    icon: 'orchestration',
-    title: 'Runtime and Orchestration',
-    items: ['Kubernetes (k3s)', 'Argo Workflows', 'Containerized challenge runtime'],
-  },
-  {
-    icon: 'data',
-    title: 'Data and Messaging',
-    items: ['MariaDB', 'Redis', 'RabbitMQ', 'NFS shared storage'],
-  },
-  {
-    icon: 'devops',
-    title: 'DevOps and Platform Operations',
-    items: ['Harbor registry', 'CI/CD workflows', 'Operational logs and audit trails'],
-  },
-];
+    resize();
+    window.addEventListener('resize', resize);
 
-const landscapeLanes: LandscapeLane[] = [
-  {
-    icon: 'access',
-    title: 'Access Plane',
-    description:
-      'Contestant traffic enters via controlled gateway paths instead of direct pod exposure.',
-  },
-  {
-    icon: 'control',
-    title: 'Control Plane',
-    description:
-      'Deployment Center, queue workers, and workflows coordinate environment lifecycle safely.',
-  },
-  {
-    icon: 'dataplane',
-    title: 'Data Plane',
-    description:
-      'State and operations evidence are synchronized across MariaDB, Redis, and logs.',
-  },
-];
+    const handleMouseMove = (ev: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = ev.clientX - rect.left;
+      mouseY = ev.clientY - rect.top;
+      mouseActive = true;
+    };
+    const handleMouseLeave = () => { mouseActive = false; };
 
-function IconGlyph({
-  name,
-  className,
-}: Readonly<{ name: IconName; className?: string }>): ReactNode {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    className,
-    'aria-hidden': true,
-  };
+    window.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
 
-  switch (name) {
-    case 'runtime':
-      return (
-        <svg {...common}>
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M8 8h8v8H8z" />
-        </svg>
-      );
-    case 'queue':
-      return (
-        <svg {...common}>
-          <path d="M4 6h16" />
-          <path d="M4 12h12" />
-          <path d="M4 18h8" />
-          <path d="M18 9v6" />
-        </svg>
-      );
-    case 'gateway':
-      return (
-        <svg {...common}>
-          <path d="M3 12h18" />
-          <path d="M9 6l-6 6 6 6" />
-          <path d="M15 6l6 6-6 6" />
-        </svg>
-      );
-    case 'audit':
-      return (
-        <svg {...common}>
-          <path d="M8 4h8" />
-          <rect x="5" y="3" width="14" height="18" rx="2" />
-          <path d="M9 10h6" />
-          <path d="M9 14h6" />
-        </svg>
-      );
-    case 'deploy':
-      return (
-        <svg {...common}>
-          <path d="M12 19V5" />
-          <path d="M7 10l5-5 5 5" />
-          <path d="M5 19h14" />
-        </svg>
-      );
-    case 'govern':
-      return (
-        <svg {...common}>
-          <path d="M4 8h16" />
-          <path d="M12 4v16" />
-          <path d="M7 8l-2 4h4z" />
-          <path d="M17 8l-2 4h4z" />
-        </svg>
-      );
-    case 'scale':
-      return (
-        <svg {...common}>
-          <path d="M4 18V6" />
-          <path d="M4 18h16" />
-          <path d="M8 14l3-3 3 2 4-5" />
-          <path d="M18 8h-3" />
-        </svg>
-      );
-    case 'opensource':
-      return (
-        <svg {...common}>
-          <path d="M9 8l-4 4 4 4" />
-          <path d="M15 8l4 4-4 4" />
-          <path d="M13 5l-2 14" />
-        </svg>
-      );
-    case 'ui':
-      return (
-        <svg {...common}>
-          <rect x="3" y="5" width="18" height="12" rx="2" />
-          <path d="M9 19h6" />
-        </svg>
-      );
-    case 'backend':
-      return (
-        <svg {...common}>
-          <rect x="4" y="4" width="16" height="5" rx="1" />
-          <rect x="4" y="10" width="16" height="5" rx="1" />
-          <rect x="4" y="16" width="16" height="4" rx="1" />
-        </svg>
-      );
-    case 'orchestration':
-      return (
-        <svg {...common}>
-          <path d="M12 3l8 4-8 4-8-4z" />
-          <path d="M4 12l8 4 8-4" />
-          <path d="M4 17l8 4 8-4" />
-        </svg>
-      );
-    case 'data':
-      return (
-        <svg {...common}>
-          <ellipse cx="12" cy="6" rx="7" ry="3" />
-          <path d="M5 6v8c0 1.7 3.1 3 7 3s7-1.3 7-3V6" />
-          <path d="M5 10c0 1.7 3.1 3 7 3s7-1.3 7-3" />
-        </svg>
-      );
-    case 'devops':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 3v3" />
-          <path d="M12 18v3" />
-          <path d="M3 12h3" />
-          <path d="M18 12h3" />
-          <path d="M5.7 5.7l2.1 2.1" />
-          <path d="M16.2 16.2l2.1 2.1" />
-          <path d="M18.3 5.7l-2.1 2.1" />
-          <path d="M7.8 16.2l-2.1 2.1" />
-        </svg>
-      );
-    case 'access':
-      return (
-        <svg {...common}>
-          <path d="M3 12h18" />
-          <path d="M12 3l9 9-9 9" />
-        </svg>
-      );
-    case 'control':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="8" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      );
-    case 'dataplane':
-      return (
-        <svg {...common}>
-          <path d="M4 8h16" />
-          <path d="M4 12h16" />
-          <path d="M4 16h16" />
-          <circle cx="8" cy="8" r="1" fill="currentColor" />
-          <circle cx="12" cy="12" r="1" fill="currentColor" />
-          <circle cx="16" cy="16" r="1" fill="currentColor" />
-        </svg>
-      );
-    case 'docs':
-      return (
-        <svg {...common}>
-          <path d="M6 3h9l3 3v15H6z" />
-          <path d="M15 3v3h3" />
-          <path d="M9 12h6" />
-        </svg>
-      );
-    case 'architecture':
-      return (
-        <svg {...common}>
-          <rect x="4" y="4" width="6" height="6" rx="1" />
-          <rect x="14" y="4" width="6" height="6" rx="1" />
-          <rect x="9" y="14" width="6" height="6" rx="1" />
-          <path d="M10 7h4" />
-          <path d="M12 10v4" />
-        </svg>
-      );
-    case 'ops':
-      return (
-        <svg {...common}>
-          <path d="M4 19l6-6 3 3 7-7" />
-          <path d="M20 13v-4h-4" />
-        </svg>
-      );
-    default:
-      return null;
-  }
+    // Initial batch
+    for (let i = 0; i < 50; i++) {
+      const e = spawnEmber();
+      e.y = Math.random() * H;
+      e.life = Math.random() * e.maxLife;
+      embers.push(e);
+    }
+
+    const MOUSE_RADIUS = 250;
+    const ATTRACT_FORCE = 0.03;
+    const CONNECT_DIST = 140;
+    const MOUSE_CONNECT_DIST = 250;
+
+    let animId = 0;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const r = isLight ? 234 : 251;
+      const g = isLight ? 88 : 146;
+      const b = isLight ? 12 : 60;
+
+      // Spawn new embers
+      if (embers.length < 80 && Math.random() > 0.8) {
+        embers.push(spawnEmber());
+      }
+
+      // Mouse light pool (soft radial glow following cursor) - BRIGHTENED
+      if (mouseActive) {
+        const grad = ctx.createRadialGradient(
+          mouseX, mouseY, 0,
+          mouseX, mouseY, MOUSE_RADIUS
+        );
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.25)`);
+        grad.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.1)`);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(mouseX - MOUSE_RADIUS, mouseY - MOUSE_RADIUS, MOUSE_RADIUS * 2, MOUSE_RADIUS * 2);
+      }
+
+      // Update & draw embers
+      embers = embers.filter((e) => {
+        e.life++;
+        if (e.life > e.maxLife || e.y < -30) return false;
+
+        // Mouse attraction
+        if (mouseActive) {
+          const dx = mouseX - e.x;
+          const dy = mouseY - e.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < MOUSE_RADIUS && dist > 5) {
+            const force = ATTRACT_FORCE * (1 - dist / MOUSE_RADIUS);
+            e.vx += (dx / dist) * force;
+            e.vy += (dy / dist) * force;
+          }
+        }
+
+        // Apply drift & damping
+        e.vx += e.drift;
+        e.vx *= 0.98;
+        e.vy *= 0.98;
+        e.vx = e.vx * 0.9 + e.baseVx * 0.1;
+        e.vy = e.vy * 0.9 + e.baseVy * 0.1;
+        e.x += e.vx;
+        e.y += e.vy;
+
+        const progress = e.life / e.maxLife;
+        let alpha = progress < 0.1
+          ? progress / 0.1
+          : progress > 0.7
+            ? (1 - progress) / 0.3
+            : 1;
+
+        // Brighten near mouse - MUCH BRIGHTER
+        if (mouseActive) {
+          const dMouse = Math.hypot(mouseX - e.x, mouseY - e.y);
+          if (dMouse < MOUSE_RADIUS) {
+            alpha = Math.min(2.5, alpha * (1 + 4.0 * (1 - dMouse / MOUSE_RADIUS)));
+          }
+        }
+
+        // Outer glow
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size * 4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.04})`;
+        ctx.fill();
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.6})`;
+        ctx.fill();
+
+        // Bright center pixel
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        ctx.fill();
+
+        return true;
+      });
+
+      // Connection lines between nearby embers
+      for (let i = 0; i < embers.length; i++) {
+        for (let j = i + 1; j < embers.length; j++) {
+          const dx = embers[i].x - embers[j].x;
+          const dy = embers[i].y - embers[j].y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < CONNECT_DIST) {
+            const lineAlpha = (1 - dist / CONNECT_DIST) * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(embers[i].x, embers[i].y);
+            ctx.lineTo(embers[j].x, embers[j].y);
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${lineAlpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Mouse → ember connection lines (radial web from cursor)
+      if (mouseActive) {
+        for (const e of embers) {
+          const dx = mouseX - e.x;
+          const dy = mouseY - e.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < MOUSE_CONNECT_DIST) {
+            const lineAlpha = (1 - dist / MOUSE_CONNECT_DIST) * 0.4;
+            ctx.beginPath();
+            ctx.moveTo(mouseX, mouseY);
+            ctx.lineTo(e.x, e.y);
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${lineAlpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(draw);
+    };
+
+    animId = requestAnimationFrame(draw);
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className={styles.emberCanvas} />;
 }
 
-function HomepageHeader(): ReactNode {
-  const logoUrl = useBaseUrl('/img/fctf-logo.png');
-
-  return (
-    <header className={clsx('hero', styles.heroBanner)}>
-      <div className="container">
-        <div className={styles.heroGrid}>
-          <div className={styles.heroMain}>
-            <div className={styles.heroTopRow}>
-              <img src={logoUrl} alt="FCTF logo" className={styles.heroLogo} />
-              <p className={styles.heroBadge}>Open Source • Version 4.0.0</p>
-            </div>
-            <Heading as="h1" className={styles.heroTitle}>
-              FPT Capture The Flag (FCTF)
-            </Heading>
-            <p className={styles.heroSubtitle}>
-              FCTF is an open-source CTF platform engineered for production competition
-              operations. Compared with a traditional CTFd-first setup, FCTF v4 emphasizes
-              automated sandboxed challenge deployment, secure gateway access, and stronger
-              runtime governance.
-            </p>
-            <div className={styles.heroActions}>
-              <Link
-                className="button button--primary button--lg"
-                to="/docs/intro">
-                Explore Documentation
-              </Link>
-              <Link
-                className="button button--secondary button--lg"
-                to="/docs/install-and-ops/quick-start">
-                Quick Start Operations
-              </Link>
-              <Link
-                className="button button--secondary button--lg"
-                to="https://github.com/hoaanhtuc113/FCTF">
-                View Source Code
-              </Link>
-            </div>
-          </div>
-
-          <aside className={styles.heroPanel}>
-            <p className={styles.heroPanelEyebrow}>Platform Landscape</p>
-            <Heading as="h2" className={styles.heroPanelTitle}>
-              Cloud-native competition operations mapped end-to-end
-            </Heading>
-            <div className={styles.heroPanelLanes}>
-              {landscapeLanes.map((lane) => (
-                <article key={lane.title} className={styles.heroLane}>
-                  <h3>
-                    <IconGlyph name={lane.icon} className={styles.inlineIcon} />
-                    <span>{lane.title}</span>
-                  </h3>
-                  <p>{lane.description}</p>
-                </article>
-              ))}
-            </div>
-          </aside>
-        </div>
-      </div>
-    </header>
-  );
-}
+/* ═══ PAGE ═══ */
 
 export default function Home(): ReactNode {
   const { siteConfig } = useDocusaurusContext();
+  const logoUrl = useBaseUrl('/img/fctf-logo.png');
 
   return (
     <Layout
-      title={`${siteConfig.title} | Version 4.0.0`}
-      description="FCTF v4 documentation for sandboxed challenge deployment, secure runtime access, and competition operations.">
-      <HomepageHeader />
-      <main>
-        <section className={clsx(styles.section, styles.sectionTight)}>
-          <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Why FCTF v4</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                What FCTF solves beyond a traditional CTFd setup
-              </Heading>
+      title={`${siteConfig.title} | Home`}
+      description="FCTF — open-source CTF platform for Kubernetes-native challenge deployment and cybersecurity training."
+    >
+      {/* ─── HERO ─── */}
+      <div className={styles.page}>
+        <EmberField />
+
+        <header className={styles.hero}>
+          <div className={styles.heroInner}>
+            <img src={logoUrl} alt="FCTF" className={styles.logo} />
+
+            <Heading as="h1" className={styles.title}>
+              <span className={styles.titleLine}>FPT</span>
+              <span className={styles.titleLine}>Capture</span>
+              <span className={styles.titleLine}>
+                The <span className={styles.titleAccent}>Flag</span>
+              </span>
+            </Heading>
+
+            <p className={styles.tagline}>
+              Open-source CTF platform. Kubernetes-native.
+              Built at FPT University for real competitions.
+            </p>
+
+            <div className={styles.actions}>
+              <Link className={clsx('button', styles.btnPrimary)} to="/docs/intro">
+                [&gt;] docs
+              </Link>
+              <Link className={clsx('button', styles.btnGhost)} to="/docs/install-and-ops/quick-start">
+                [&gt;] quick_start
+              </Link>
+              <Link className={clsx('button', styles.btnGhost)} to="https://github.com/hoaanhtuc113/FCTF">
+                [&gt;] github
+              </Link>
             </div>
-            <div className={styles.comparisonTableWrap}>
-              <table className={styles.comparisonTable}>
-                <thead>
-                  <tr>
-                    <th scope="col">Capability Area</th>
-                    <th scope="col">Traditional CTFd Baseline</th>
-                    <th scope="col">FCTF v4 Model</th>
-                    <th scope="col">Operational Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonPoints.map((point) => (
-                    <tr key={point.title}>
-                      <th scope="row">
-                        <span className={styles.rowHead}>
-                          <IconGlyph name={point.icon} className={styles.rowHeadIcon} />
-                          <span>{point.title}</span>
-                        </span>
-                      </th>
-                      <td>{point.ctfd}</td>
-                      <td>{point.fctf}</td>
-                      <td>{point.impact}</td>
-                    </tr>
+          </div>
+        </header>
+
+        {/* ─── INSTALL BAND ─── */}
+        <section className={styles.installBand}>
+          <div className={styles.installInner}>
+            <p className={styles.installHint}>Launch Setup Wizard</p>
+            <div className={styles.installCode}>
+              <code>
+                <span className={styles.codePrompt}>$</span>{' '}
+                <span className={styles.codeText}>git clone https://github.com/hoaanhtuc113/FCTF.git && cd FCTF && ./manage.sh</span>
+              </code>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── PILLARS ─── */}
+        <section className={styles.pillars}>
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>deploy</span>
+            <p>Containerized challenges deployed automatically on k3s via Argo Workflows. Kaniko builds, Harbor registry, zero manual YAML.</p>
+          </div>
+          <div className={styles.pillarDivider} />
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>isolate</span>
+            <p>Dedicated Kubernetes namespace per team. NetworkPolicies, resource quotas, optional gVisor sandbox. Zero crosstalk.</p>
+          </div>
+          <div className={styles.pillarDivider} />
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>monitor</span>
+            <p>Real-time reconciliation against K8s cluster state. Ghost cleanup, drift correction. Prometheus + Grafana + Loki.</p>
+          </div>
+          <div className={styles.pillarDivider} />
+          <div className={styles.pillar}>
+            <span className={styles.pillarLabel}>train</span>
+            <p>Archive challenges into persistent labs for cybersecurity coursework. Students practice across semesters, not just weekends.</p>
+          </div>
+        </section>
+
+        {/* ─── SHOWCASE SPLIT ─── */}
+        <section className={styles.showcase}>
+          <div className={styles.showcaseText}>
+            <p className={styles.showcaseLabel}>[about]</p>
+            <h2 className={styles.showcaseTitle}>
+              The full competition lifecycle, automated
+            </h2>
+            <p className={styles.showcaseDesc}>
+              FCTF manages users, challenges, runtime orchestration, and results.
+              Built from years of organizing CTF events at FPT University — from
+              club-level to national contests. Supports cryptography, reverse engineering,
+              web security, forensics, binary exploitation, and more.
+            </p>
+            <p className={styles.showcaseDesc}>
+              Unlike static-file platforms or cloud-locked services,
+              FCTF runs entirely on your own infrastructure with full
+              Kubernetes-native runtime orchestration.
+            </p>
+          </div>
+          <div className={styles.showcaseTerminal}>
+            <div className={styles.termWin}>
+              <div className={styles.termScanline} />
+              <div className={styles.termBar}>
+                <span className={styles.termDot} data-c="r" />
+                <span className={styles.termDot} data-c="y" />
+                <span className={styles.termDot} data-c="g" />
+                <span className={styles.termLabel}>argo-worker-node</span>
+              </div>
+              <div className={styles.termBody}>
+                <div className={styles.tl}><span className={styles.tp}>fctf@argo:~$</span> <span className={styles.tc}>kubectl logs job/start-chal-v2-web-sqli</span></div>
+                <div className={styles.tl}><span className={styles.to}>=== Deploying Challenge v2 with parameters ===</span></div>
+                <div className={styles.tl}><span className={styles.to}>&gt; CHALLENGE_NAME: ch-web-sqli-5bf1</span></div>
+                <div className={styles.tl}><span className={styles.ts}>[info]</span> <span className={styles.to}>RUNTIME_CLASS_NAME: gvisor</span></div>
+                <div className={styles.tl}><span className={styles.to}>📁 Found template at /mnt/nfs/data/challenge-hardened.yaml</span></div>
+                <div className={styles.tl}><span className={styles.th}>namespace/ch-web-sqli-5bf1 created</span></div>
+                <div className={styles.tl}><span className={styles.to}>🔐 Copying imagePullSecret global-regcred...</span></div>
+                <div className={styles.tl}><span className={styles.th}>networkpolicy.networking.k8s.io/deny-all created</span></div>
+                <div className={styles.tl}><span className={styles.th}>deployment.apps/ch-web-sqli-5bf1 created</span></div>
+                <div style={{ height: '0.5rem' }} />
+                <div className={styles.tl}><span className={styles.ts}>✅ Challenge v2 manifest submitted to cluster</span></div>
+                <div className={styles.tl}><span className={styles.tp}>fctf@argo:~$</span> <span className={styles.cursor} /></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── PIPELINE ─── */}
+        <section className={styles.pipeline}>
+          <p className={styles.pipelineLabel}>how it works</p>
+          <div className={styles.pipelineSteps}>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>01</span>
+              <span className={styles.pipeName}>upload</span>
+              <p>Admins prepare and upload challenge templates</p>
+            </div>
+            <span className={styles.pipeArrow}>→</span>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>02</span>
+              <span className={styles.pipeName}>start</span>
+              <p>Contestants request isolated challenge sessions</p>
+            </div>
+            <span className={styles.pipeArrow}>→</span>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>03</span>
+              <span className={styles.pipeName}>deploy</span>
+              <p>Argo spins up dynamic gVisor secure sandboxes</p>
+            </div>
+            <span className={styles.pipeArrow}>→</span>
+            <div className={styles.pipeStep}>
+              <span className={styles.pipeNum}>04</span>
+              <span className={styles.pipeName}>access</span>
+              <p>Gateway securely routes traffic via tokens</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── TECH STRIP MARQUEE ─── */}
+        <section className={styles.techStrip}>
+          <div className={styles.techMarquee}>
+            <div className={styles.techTrack}>
+              {/* Duplicate the items to create a seamless infinite scroll loop */}
+              {[1, 2].map((group) => (
+                <div key={group} className={styles.techGroup}>
+                  {[
+                    { name: 'K3s', src: 'https://cdn.simpleicons.org/k3s' },
+                    { name: 'Kubernetes', src: 'https://cdn.simpleicons.org/kubernetes' },
+                    { name: 'Rancher', src: 'https://cdn.simpleicons.org/rancher' },
+                    { name: 'Argo', src: 'https://cdn.simpleicons.org/argo' },
+                    { name: 'Harbor', src: 'https://icon.horse/icon/goharbor.io' },
+                    { name: 'Kaniko', src: 'https://cdn.simpleicons.org/docker' },
+                    { name: 'gVisor', src: 'https://icon.horse/icon/gvisor.dev' },
+                    { name: 'Redis', src: 'https://cdn.simpleicons.org/redis' },
+                    { name: 'RabbitMQ', src: 'https://cdn.simpleicons.org/rabbitmq' },
+                    { name: 'Prometheus', src: 'https://cdn.simpleicons.org/prometheus' },
+                    { name: 'Grafana', src: 'https://cdn.simpleicons.org/grafana' },
+                    { name: 'Loki', src: 'https://grafana.com/static/img/logos/logo-loki.svg' },
+                    { name: 'Let\'s Encrypt', src: 'https://cdn.simpleicons.org/letsencrypt' },
+                    { name: 'CTFd', src: 'https://icon.horse/icon/ctfd.io' }
+                  ].map((tech) => (
+                    <div key={tech.name} className={styles.techItem}>
+                      <img 
+                        src={tech.src} 
+                        alt="" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+                      <span>{tech.name}</span>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <section className={clsx(styles.section, styles.sectionTint)}>
-          <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Core Capabilities</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                Key features for real competition operations
-              </Heading>
-            </div>
-            <div className={styles.highlightGrid}>
-              {highlights.map((item) => (
-                <article key={item.title} className={styles.highlightItem}>
-                  <span className={styles.highlightIndex}>
-                    <IconGlyph name={item.icon} className={styles.highlightIcon} />
-                  </span>
-                  <div>
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                  </div>
-                </article>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className={styles.section}>
-          <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Technology Stack</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                Technologies used in FCTF v4
-              </Heading>
-            </div>
-            <div className={styles.techGrid}>
-              {techGroups.map((group) => (
-                <article key={group.title} className={styles.techCard}>
-                  <h3 className={styles.techCardTitle}>
-                    <IconGlyph name={group.icon} className={styles.inlineIcon} />
-                    <span>{group.title}</span>
-                  </h3>
-                  <ul className={styles.techList}>
-                    {group.items.map((item) => (
-                      <li key={`${group.title}-${item}`}>{item}</li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
+        {/* ─── CTA ─── */}
+        <section className={styles.cta}>
+          <h2 className={styles.ctaTitle}>ready to deploy?</h2>
+          <p className={styles.ctaSub}>Free. Open-source. Battle-tested at FPT University.</p>
+          <div className={styles.ctaBtns}>
+            <Link className={clsx('button', styles.btnPrimary)} to="/docs/product-and-features/overview">
+              [&gt;] features
+            </Link>
+            <Link className={clsx('button', styles.btnGhost)} to="/docs/architecture/overview">
+              [&gt;] architecture
+            </Link>
+            <Link className={clsx('button', styles.btnGhost)} to="/docs/install-and-ops/quick-start">
+              [&gt;] operations
+            </Link>
           </div>
         </section>
-
-        <section className={clsx(styles.section, styles.sectionTint)}>
-          <div className="container">
-            <div className={styles.sectionHeader}>
-              <p className={styles.sectionEyebrow}>Documentation Paths</p>
-              <Heading as="h2" className={styles.sectionTitle}>
-                Navigate by responsibility
-              </Heading>
-            </div>
-            <div className={styles.docLinks}>
-              <Link className={styles.docCard} to="/docs/product-and-features/overview">
-                <h3>
-                  <IconGlyph name="docs" className={styles.inlineIcon} />
-                  <span>Product and Features</span>
-                </h3>
-                <p>
-                  Role-based capabilities for Admin and Contestant workflows, from governance to
-                  solve lifecycle.
-                </p>
-                <p className={styles.docCardCta}>Open this track</p>
-              </Link>
-              <Link className={styles.docCard} to="/docs/architecture/overview">
-                <h3>
-                  <IconGlyph name="architecture" className={styles.inlineIcon} />
-                  <span>Architecture Overview</span>
-                </h3>
-                <p>
-                  Service boundaries, gateway model, deployment control-plane, and runtime data
-                  paths.
-                </p>
-                <p className={styles.docCardCta}>Open this track</p>
-              </Link>
-              <Link className={styles.docCard} to="/docs/install-and-ops/quick-start">
-                <h3>
-                  <IconGlyph name="ops" className={styles.inlineIcon} />
-                  <span>Install and Operations</span>
-                </h3>
-                <p>
-                  Setup instructions, validation procedures, and event-day operation runbooks.
-                </p>
-                <p className={styles.docCardCta}>Open this track</p>
-              </Link>
-            </div>
-          </div>
-        </section>
-      </main>
+      </div>
     </Layout>
   );
 }

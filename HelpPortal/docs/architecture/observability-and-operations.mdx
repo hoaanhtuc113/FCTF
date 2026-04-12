@@ -1,0 +1,64 @@
+---
+title: Observability and Operations
+description: Section 9 details for monitoring stack, diagnostics, logging, installation workflow, and test coverage assets.
+---
+
+# Observability and Operations
+
+This page expands Section 9 from [Architecture Overview](./overview).
+
+:::tip[Runbook-first usage]
+Use this page as the incident entry point: detect symptom, check health endpoints, then correlate workflow and pod logs.
+:::
+
+## Observability and Operations
+
+### Monitoring stack
+
+- Prometheus (kube-prometheus-stack) for metrics.
+- Grafana dashboards for visualization.
+- Loki stack for log aggregation.
+
+**Together, this stack provides metric, log, and dashboard visibility across runtime planes.**
+
+### Health and diagnostics
+
+- Services expose /healthz and/or /healthcheck endpoints.
+- **Deployment Center provides:**
+  - workflow log retrieval (Argo build pod logs),
+  - pod logs retrieval,
+  - Loki request log query by team/challenge/ns dimensions.
+
+:::important[Incident triage order]
+Check gateway and deployment logs before making manual namespace changes. Premature cleanup can hide root cause signals.
+:::
+
+### Logging strategy
+
+- Gateway logs include protocol, route, team/challenge extraction, status, and connection metadata.
+- Deployment services log queue processing and orchestration outcomes.
+- Listener logs reconciliation and cleanup decisions.
+
+### Install/ops workflow
+
+- Run `setup-master.sh` / `setup-worker.sh` for cluster bootstrap.
+- Run `helm.sh` for platform stack installation.
+- Apply app manifests, network policies, and workflow templates.
+- Optionally switch service mode between ClusterIP and NodePort.
+
+### Cluster operations tooling
+
+- Rancher (namespace `cattle-system`) is deployed in the default Helm stack for cluster administration.
+- It is an operator-facing management surface, not part of the challenge runtime request path.
+
+### Test coverage assets
+
+Repository provides dedicated suites for:
+
+- Gateway functional/performance/race scenarios.
+- Race condition tests for business flows.
+- Stress tests for API and runtime orchestration paths.
+
+:::tip[Test cadence]
+Run quick gateway tests after config changes, and full/race suites before production contests or major scaling updates.
+:::

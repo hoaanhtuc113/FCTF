@@ -17,6 +17,15 @@ const sidebars: SidebarsConfig = {
     'intro',
     {
       type: 'category',
+      label: 'Install & Operations',
+      items: [
+        'install-and-ops/prerequisites',
+        'install-and-ops/quick-start'
+
+      ],
+    },
+    {
+      type: 'category',
       label: 'Product & Features',
       items: [
         'product-and-features/overview',
@@ -56,17 +65,32 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Architecture',
-      items: ['architecture/overview'],
-    },
-    {
-      type: 'category',
-      label: 'Install & Operations',
       items: [
-        'install-and-ops/prerequisites',
-        'install-and-ops/quick-start'
-
+        'architecture/overview',
+        {
+          type: 'category',
+          label: 'Core System',
+          items: [
+            'architecture/platform-foundation',
+            'architecture/service-architecture',
+            'architecture/runtime-lifecycle-flows',
+            'architecture/state-reconciliation',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Quality and Operations',
+          items: [
+            'architecture/security',
+            'architecture/storage-and-data',
+            'architecture/scalability',
+            'architecture/observability-and-operations',
+            'architecture/design-principles',
+          ],
+        },
       ],
     },
+    
   ],
 };
 

@@ -213,7 +213,11 @@
 						{% endif %}
 					</td>
 					<td class="text-center solve-time">
-						<span>{{ sub.date.strftime('%Y-%m-%dT%H:%M:%S.%f') if sub.date else 'N/A' }}</span>
+						{% if sub.date %}
+						<span data-time="{{ sub.date | isoformat }}" data-time-format="YYYY-MM-DDTHH:mm:ss.SSS"></span>
+						{% else %}
+						<span>N/A</span>
+						{% endif %}
 					</td>
 				</tr>
 				{% endfor %}

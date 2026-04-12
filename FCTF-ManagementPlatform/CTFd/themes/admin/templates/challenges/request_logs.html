@@ -382,7 +382,7 @@
                 } else {
                     document.getElementById('log-content').textContent = 'Error: ' + (data.error || 'Failed to fetch logs');
                 }
-                var now = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+                var now = new Date().toLocaleTimeString();
                 document.getElementById('lastRefreshed').textContent = 'Last refreshed: ' + now;
             })
             .catch(function (err) {

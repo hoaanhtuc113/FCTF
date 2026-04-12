@@ -1,32 +1,168 @@
 ---
-sidebar_position: 1
-title: Architecture Overview
+title: Overview
+description: High-level architecture map for the self-hosted FCTF platform on k3s.
 ---
 
-# Architecture Overview
+# Overview
 
-FCTF architecture separates concerns across frontend, edge routing, and control services.
+This page is the contributor entry point. It gives a fast system map and links to canonical detail pages.
 
-## High-Level Components
+:::tip[How to read this section]
+Use this page as the map, then drill down to the linked pages for implementation-level detail.
+:::
 
-| Layer | Service | Responsibility |
+## Architecture Diagram
+
+![FCTF high-level architecture](/img/HighLevelArchitecture.svg)
+
+## Section Map
+
+| Section | What it answers | Canonical details |
 | --- | --- | --- |
-| Experience | ContestantPortal | User interaction for challenges, profile, tickets, and scoreboards |
-| Edge | ChallengeGateway | Request routing, token checks, and rate limiting |
-| Control Plane | ControlCenterAndChallengeHostingServer | Deployment orchestration and challenge hosting management |
-| Operations | DeploymentCenter / listeners | Provisioning workflows and lifecycle events |
+| 1. System Overview | Why the platform is split this way | This page |
+| 2. Infrastructure | What on-prem/k3s baseline the system assumes | [Infrastructure](./platform-foundation) |
+| 3. Service Architecture | Who owns what behavior across services | [Service Architecture](./service-architecture) |
+| 4. Runtime and Lifecycle Flows | How requests/deployments/access move | [Runtime and Lifecycle Flows](./runtime-lifecycle-flows) |
+| 5. State Reconciliation | How desired and actual state are converged | [State Reconciliation](./state-reconciliation) |
+| 6. Security | Where trust boundaries and controls are enforced | [Security](./security) |
+| 7. Storage and Data | Why each data technology exists in the design | [Storage and Data](./storage-and-data) |
+| 8. Scalability | Which limits and quotas govern throughput | [Scalability](./scalability) |
+| 9. Observability and Operations | How to diagnose and operate safely under load | [Observability and Operations](./observability-and-operations) |
+| 10. Design Principles | Why major architectural decisions were chosen | [Design Principles](./design-principles) |
 
-## Traffic Pattern
+## 1. System Overview
 
-1. Contestant requests enter through ChallengeGateway.
-2. Gateway validates request constraints and forwards safely.
-3. Backend services process challenge and scoring logic.
-4. Portal consumes API responses and updates user-facing state.
+FCTF is a self-hosted CTF platform for on-premise k3s clusters. The system separates user-facing API latency from deployment execution latency.
 
-## Reliability Focus
+| Plane | Role | Main components |
+| --- | --- | --- |
+| Access | User entry and challenge runtime ingress | Ingress NGINX, Admin Portal, Contestant Portal, Challenge Gateway |
+| Control | Competition and deployment control APIs | Contestant Service, Deployment Center |
+| Execution | Queue and workflow execution | RabbitMQ, Deployment Consumer, Argo, dynamic challenge namespaces |
+| Reconciliation | Drift detection and correction | Deployment Listener |
 
-- Isolate failure domains between edge and control plane.
-- Keep challenge hosting automation observable.
-- Validate critical flows with gateway quick tests before releases.
+**Why this split exists:**
 
-Next: [Install & Operations Quick Start](../install-and-ops/quick-start).
+- **API paths stay responsive** during contest spikes.
+- **Deploy/build failures are isolated** in async pipeline stages.
+- **Runtime truth is corrected from observed cluster state**, not request intent only.
+
+:::important[Latency and reliability are intentionally separated]
+Keep user request paths synchronous and fast, while routing deployment-heavy operations through async queue and workflow boundaries.
+:::
+
+## 2. Infrastructure
+
+| Aspect | Current design | Why it matters |
+| --- | --- | --- |
+| Platform | Self-managed on-prem k3s | No cloud-managed dependency assumptions. |
+| Networking baseline | flannel disabled, Traefik disabled, Calico installed explicitly | Predictable CNI behavior and policy control. |
+| Ingress | Ingress NGINX via Helm | Consistent routing for app and runtime access boundary. |
+| Runtime sandbox | Optional RuntimeClass `gvisor` via `USE_GVISOR` | Additional isolation option for untrusted challenge workloads. |
+| Service exposure | ClusterIP + Ingress (primary), NodePort (fallback) | Works in constrained lab DNS/ingress environments. |
+
+**Key namespaces:** `app`, `argo`, `db`, `monitoring`, `registry`, `cattle-system`, `challenge` (dynamic labeled namespaces), `storage`.
+
+**Canonical details:** [Infrastructure](./platform-foundation).
+
+## 3. Service Architecture
+
+| Service boundary | Primary responsibility |
+| --- | --- |
+| Contestant Service | Competition domain APIs and race-safe quota logic |
+| Deployment Center | Deployment intent, orchestration coordination, workflow/pod status surfaces |
+| Challenge Gateway | Only runtime ingress boundary (HTTP/TCP token-based access) |
+| Deployment Consumer + Argo | Async deploy/build execution pipeline |
+| Deployment Listener | Reconcile Redis/MariaDB lifecycle truth against Kubernetes events |
+
+**Boundary reminder:** Challenge Gateway is the only runtime ingress boundary for challenge traffic.
+
+**Canonical details:** [Service Architecture](./service-architecture).
+
+## 4. Runtime and Lifecycle Flows
+
+| Flow | Path |
+| --- | --- |
+| User request | ingress -> frontend -> Contestant Service |
+| Deployment | Deployment Center -> RabbitMQ -> Deployment Consumer -> Argo -> Kubernetes |
+| Runtime access | signed token -> Challenge Gateway -> internal challenge service |
+| Stop/cleanup | control intent -> runtime termination -> reconciled `STOPPED` state |
+
+**Canonical details:** [Runtime and Lifecycle Flows](./runtime-lifecycle-flows).
+
+## 5. State Reconciliation
+
+| Concept | Implementation in FCTF |
+| --- | --- |
+| Desired state | Redis lifecycle keys + MariaDB tracking rows |
+| Actual state | Kubernetes namespaces/pods/readiness/restarts |
+| Control loop | desired -> execute -> observe -> reconcile |
+| Drift sources | watch disconnect, stale `resourceVersion`, out-of-band deletes, partial workflow completion |
+| Reconciler | Deployment Listener shards pod events and applies cleanup/state correction |
+
+**Canonical details:** [State Reconciliation](./state-reconciliation).
+
+## 6. Security
+
+| Layer | Control |
+| --- | --- |
+| Runtime exposure | Challenge pods are never directly exposed; gateway-only boundary |
+| Access tokens | HMAC-signed token flow for HTTP and TCP challenge access |
+| Network isolation | Role-scoped NetworkPolicies in `app` and challenge namespaces |
+| Data-plane authz | Redis ACL, MariaDB least privilege, scoped RabbitMQ topology |
+| Runtime hardening | Optional gVisor; RBAC scoped by service role |
+
+**Canonical details:** [Security](./security).
+
+## 7. Storage and Data
+
+| Store | Role in architecture |
+| --- | --- |
+| MariaDB | Durable business truth and audit history |
+| Redis | Low-latency coordination, quotas, lifecycle state |
+| RabbitMQ | Async buffering and backpressure for deploy intents |
+| NFS | Shared challenge assets and workflow build contexts |
+| Harbor | Private image distribution for challenge runtime namespaces |
+
+**Canonical details:** [Storage and Data](./storage-and-data).
+
+## 8. Scalability
+
+| Control area | Current approach |
+| --- | --- |
+| Queue pressure | Bounded queue length and reject-publish behavior |
+| Worker throughput | Prefetch/batch controls and workflow concurrency gate |
+| Runtime entry load | Gateway connection and rate limits (global, per-IP, per-token) |
+| Fairness | Team-level concurrent and per-challenge limits via Redis |
+| Scaling style | Hybrid: HPA for selected stateless services, manual tuning for worker/reconciler components |
+
+**Canonical details:** [Scalability](./scalability).
+
+## 9. Observability and Operations
+
+| Capability | Stack or surface |
+| --- | --- |
+| Metrics | Prometheus |
+| Visualization | Grafana |
+| Log aggregation | Loki |
+| Runtime diagnostics | Deployment Center workflow/pod/log query endpoints |
+| Cluster operations | Scripted bootstrap/install path for on-prem environments |
+
+**Canonical details:** [Observability and Operations](./observability-and-operations).
+
+## 10. Design Principles
+
+| Principle | Practical effect on implementation |
+| --- | --- |
+| Async-first control path | Keeps user-facing APIs responsive under deployment load |
+| Isolation by default | Limits blast radius and cross-team interference |
+| Reconciliation over assumption | Prevents stale runtime state from persisting |
+| Defense in depth | Applies layered controls at gateway/network/data/runtime |
+| On-premise-first operability | Works without managed cloud dependencies |
+| Contributor-first boundaries | Keeps service, flow, and consistency concerns separate |
+
+**Canonical details:** [Design Principles](./design-principles).
+
+:::tip[Contributor shortcut]
+If you are new to the codebase, read sections in this order: Overview -> Service Architecture -> Runtime and Lifecycle Flows -> State Reconciliation.
+:::
