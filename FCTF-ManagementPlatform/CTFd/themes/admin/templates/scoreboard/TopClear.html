@@ -33,7 +33,7 @@
                 </td>
                 <td class="last-submission-time">
                     {% if team.last_submission_time %}
-            {{ team.last_submission_time | convert_to_local_time | strftime("%Y-%m-%d %H:%M:%S") }}
+            <span data-time="{{ team.last_submission_time | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
         {% else %}
             N/A
         {% endif %}

@@ -6,7 +6,7 @@ from io import StringIO
 from flask import Response, render_template, request, stream_with_context, url_for
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeStartTracking, Challenges, Teams, Users, db
+from CTFd.models import ChallengeStartTracking, Challenges, Teams, db
 from CTFd.utils.decorators import admin_or_jury
 
 
@@ -52,17 +52,8 @@ def _parse_quick_range(value):
     return None
 
 
-def _apply_user_team_filters(query, user_filter, team_filter):
-    user_id = _parse_int(user_filter)
+def _apply_team_filter(query, team_filter):
     team_id = _parse_int(team_filter)
-
-    if user_filter:
-        if user_id is not None:
-            query = query.filter(Users.id == user_id)
-        else:
-            escaped_filter = _escape_like_pattern(user_filter)
-            search_pattern = f"%{escaped_filter}%"
-            query = query.filter(Users.name.ilike(search_pattern, escape="\\"))
 
     if team_filter:
         if team_id is not None:
@@ -99,14 +90,11 @@ def _base_instances_query():
     return (
         db.session.query(
             ChallengeStartTracking,
-            Users.id.label("user_id"),
-            Users.name.label("user_name"),
             Teams.id.label("team_id"),
             Teams.name.label("team_name"),
             Challenges.id.label("challenge_id"),
             Challenges.name.label("challenge_name"),
         )
-        .outerjoin(Users, ChallengeStartTracking.user_id == Users.id)
         .outerjoin(Teams, ChallengeStartTracking.team_id == Teams.id)
         .join(Challenges, ChallengeStartTracking.challenge_id == Challenges.id)
         .order_by(ChallengeStartTracking.started_at.desc())
@@ -120,7 +108,6 @@ def instances_history_listing():
     per_page = request.args.get("per_page", 50, type=int)
     per_page = max(1, min(per_page, 200))
 
-    user_filter = (request.args.get("user") or "").strip()
     team_filter = (request.args.get("team") or "").strip()
     challenge_filter = (request.args.get("challenge") or "").strip()
     start_filter = (request.args.get("start") or "").strip()
@@ -135,7 +122,7 @@ def instances_history_listing():
         start_date = end_date - quick_range
 
     query = _base_instances_query()
-    query = _apply_user_team_filters(query, user_filter=user_filter, team_filter=team_filter)
+    query = _apply_team_filter(query, team_filter=team_filter)
     query = _apply_challenge_filter(query, challenge_filter=challenge_filter)
     query = _apply_date_filters(query, start_date=start_date, end_date=end_date)
 
@@ -143,13 +130,13 @@ def instances_history_listing():
 
     args = dict(request.args)
     args.pop("page", None)
+    args.pop("user", None)
 
     return render_template(
         "admin/instances_history/instances_history.html",
         logs=logs,
         prev_page=url_for(request.endpoint, page=logs.prev_num, **args),
         next_page=url_for(request.endpoint, page=logs.next_num, **args),
-        user_filter=user_filter,
         team_filter=team_filter,
         challenge_filter=challenge_filter,
         start_filter=start_filter,
@@ -162,7 +149,6 @@ def instances_history_listing():
 @admin.route("/admin/instances_history/export/csv")
 @admin_or_jury
 def instances_history_export_csv():
-    user_filter = (request.args.get("user") or "").strip()
     team_filter = (request.args.get("team") or "").strip()
     challenge_filter = (request.args.get("challenge") or "").strip()
     start_filter = (request.args.get("start") or "").strip()
@@ -177,7 +163,7 @@ def instances_history_export_csv():
         start_date = end_date - quick_range
 
     query = _base_instances_query()
-    query = _apply_user_team_filters(query, user_filter=user_filter, team_filter=team_filter)
+    query = _apply_team_filter(query, team_filter=team_filter)
     query = _apply_challenge_filter(query, challenge_filter=challenge_filter)
     query = _apply_date_filters(query, start_date=start_date, end_date=end_date)
 
@@ -192,8 +178,6 @@ def instances_history_export_csv():
                 "label",
                 "challenge_id",
                 "challenge_name",
-                "user_id",
-                "user_name",
                 "team_id",
                 "team_name",
             ]
@@ -212,8 +196,6 @@ def instances_history_export_csv():
                     tracking.label or "",
                     row.challenge_id,
                     row.challenge_name or "",
-                    row.user_id or "",
-                    row.user_name or "",
                     row.team_id or "",
                     row.team_name or "",
                 ]

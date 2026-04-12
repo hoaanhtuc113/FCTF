@@ -140,8 +140,14 @@ def _build_query(
     target_id_filter: str,
     date_from: str,
     date_to: str,
+    timezone_offset: str,
 ):
     q = AdminAuditLog.query.order_by(AdminAuditLog.timestamp.desc())
+    offset_minutes = _parse_int(timezone_offset) or 0
+
+    def _local_to_utc(dt: datetime) -> datetime:
+        # JS getTimezoneOffset() = UTC - local, in minutes
+        return dt + timedelta(minutes=offset_minutes)
 
     # ── Actor filter (id or name) ────────────────────────────────────────────
     if actor_filter:
@@ -173,15 +179,23 @@ def _build_query(
     # ── Date-range filters ───────────────────────────────────────────────────
     if date_from:
         try:
-            dt_from = datetime.strptime(date_from, "%Y-%m-%d")
-            q = q.filter(AdminAuditLog.timestamp >= dt_from)
+            if "T" in date_from:
+                dt_from = datetime.strptime(date_from, "%Y-%m-%dT%H:%M")
+                q = q.filter(AdminAuditLog.timestamp >= _local_to_utc(dt_from))
+            else:
+                dt_from = datetime.strptime(date_from, "%Y-%m-%d")
+                q = q.filter(AdminAuditLog.timestamp >= _local_to_utc(dt_from))
         except ValueError:
             pass
 
     if date_to:
         try:
-            dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
-            q = q.filter(AdminAuditLog.timestamp < dt_to)
+            if "T" in date_to:
+                dt_to = datetime.strptime(date_to, "%Y-%m-%dT%H:%M")
+                q = q.filter(AdminAuditLog.timestamp <= _local_to_utc(dt_to))
+            else:
+                dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+                q = q.filter(AdminAuditLog.timestamp < _local_to_utc(dt_to))
         except ValueError:
             pass
 
@@ -197,6 +211,7 @@ def _current_filters() -> dict:
         "target_id_filter": (request.args.get("target_id") or "").strip(),
         "date_from": (request.args.get("date_from") or "").strip(),
         "date_to": (request.args.get("date_to") or "").strip(),
+        "timezone_offset": (request.args.get("timezone_offset") or "").strip(),
     }
 
 

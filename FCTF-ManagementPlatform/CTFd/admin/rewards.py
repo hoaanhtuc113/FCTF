@@ -1,3 +1,5 @@
+import re
+
 from flask import jsonify, request, render_template
 
 from CTFd.admin import admin
@@ -180,6 +182,24 @@ def rewards_details():
     """Return solved challenges for a specific team, used by expandable rows."""
     from sqlalchemy import text as sa_text
 
+    def _serialize_utc_datetime(value):
+        if value is None:
+            return None
+
+        if hasattr(value, "isoformat") and not isinstance(value, str):
+            raw = value.isoformat()
+        else:
+            raw = str(value).strip()
+
+        if not raw:
+            return None
+
+        normalized = raw.replace(" ", "T")
+        if re.search(r"(?:Z|[+-]\d{2}(?::?\d{2})?)$", normalized, re.IGNORECASE):
+            return normalized
+
+        return f"{normalized}Z"
+
     payload = request.get_json() or {}
     template_id = payload.get("template_id", "")
     entity_id = payload.get("entity_id")
@@ -228,7 +248,7 @@ def rewards_details():
                 "category": row.category,
                 "solved_count": row.solved_count,
                 "total_challenges": row.total_challenges,
-                "full_clear_date": str(row.full_clear_date) if row.full_clear_date else None,
+                "full_clear_date": _serialize_utc_datetime(row.full_clear_date),
             })
         return jsonify({"success": True, "details": details, "detail_type": "category_clear"})
 
@@ -291,7 +311,7 @@ def rewards_details():
             "challenge_name": row.challenge_name,
             "category": row.category,
             "score": row.score,
-            "solve_date": str(row.solve_date) if row.solve_date else None,
+            "solve_date": _serialize_utc_datetime(row.solve_date),
         })
 
     return jsonify({"success": True, "details": details})
