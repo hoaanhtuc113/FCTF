@@ -37,6 +37,7 @@ const sidebars: SidebarsConfig = {
             id: 'product-and-features/admin-features',
           },
           items: [
+            'product-and-features/admin/accounts',
             'product-and-features/admin/platform-governance',
             'product-and-features/admin/challenge-operations',
             'product-and-features/admin/live-runtime-control',
@@ -90,7 +91,7 @@ const sidebars: SidebarsConfig = {
         },
       ],
     },
-    
+
   ],
 };
 
