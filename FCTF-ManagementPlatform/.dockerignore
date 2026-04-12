@@ -1,19 +1,50 @@
+# Git and CI metadata
+.git
+.github
+.gitignore
+.codecov.yml
+.travis.yml
+
+# Local/dev artifacts
+.ctfd_secret_key
+.data
+.venv
+.venv*
+venv
+venv*
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# CTFd runtime data
 CTFd/logs/*.log
 CTFd/static/uploads
 CTFd/uploads
-CTFd/*.db
 CTFd/uploads/**/*
-.ctfd_secret_key
-.data
-.git
-.codecov.yml
-.dockerignore
-.github
-.gitignore
-.prettierignore
-.travis.yml
+CTFd/*.db
+
+# Node build caches/deps
 **/node_modules
-**/*.pyc
-**/__pycache__
-.venv*
-venv*
+
+# Docs and local-only helpers not needed at runtime
+README.md
+development.txt
+linting.txt
+messages.pot
+populate.py
+ping.py
+prepare.sh
+scripts/
+
+# Docker and editor noise
+.dockerignore
+.prettierignore
+.eslintrc.js
+.vscode/
