@@ -25,6 +25,7 @@
 	<!-- Filter & Search -->
 	<div class="clean-search-container">
 		<form method="GET" id="filterForm" class="m-0">
+			<input type="hidden" id="timezone_offset" name="timezone_offset" value="{{ timezone_offset or '' }}">
 			{% if type %}<input type="hidden" name="submission_type" value="{{ type }}">{% endif %}
 			<div class="row no-gutters align-items-end">
 				<div class="col-md-3 px-1">
@@ -234,6 +235,7 @@
 	{% if challenge_filter %}{% set _ = filter_args.update({"challenge_id": challenge_filter}) %}{% endif %}
 	{% if date_from %}{% set _ = filter_args.update({"date_from": date_from}) %}{% endif %}
 	{% if date_to %}{% set _ = filter_args.update({"date_to": date_to}) %}{% endif %}
+	{% if timezone_offset %}{% set _ = filter_args.update({"timezone_offset": timezone_offset}) %}{% endif %}
 	<div class="d-flex justify-content-between align-items-center mt-2">
 		<div class="clean-info-text" role="status" aria-live="polite">
 			Page <span class="clean-highlight">{{ submissions.page }}</span> of <span class="clean-highlight">{{
@@ -286,6 +288,13 @@
 
 {% block scripts %}
 <script>
+	(function () {
+		var tzInput = document.getElementById('timezone_offset');
+		if (tzInput && !tzInput.value) {
+			tzInput.value = String(new Date().getTimezoneOffset());
+		}
+	})();
+
 	function clearAllFilters() {
 		window.location.href = window.location.pathname;
 	}

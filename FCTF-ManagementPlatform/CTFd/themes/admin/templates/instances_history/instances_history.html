@@ -61,6 +61,7 @@
 <div class="container">
 	<div class="clean-search-container">
 		<form method="GET" action="{{ url_for('admin.instances_history_listing') }}" class="m-0">
+			<input type="hidden" id="timezone_offset" name="timezone_offset" value="{{ timezone_offset or '' }}" />
 			<div class="row no-gutters align-items-end">
 				<div class="col-md-4 px-1">
 					<label for="team">Team (id or name)</label>
@@ -124,7 +125,7 @@
 		<div class="clean-info-text">
 			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} entries
 		</div>
-		<a class="clean-btn" href="{{ url_for('admin.instances_history_export_csv', team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter) }}">
+		<a class="clean-btn" href="{{ url_for('admin.instances_history_export_csv', team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, timezone_offset=timezone_offset) }}">
 			<i class="fas fa-file-csv"></i> Export CSV
 		</a>
 	</div>
@@ -222,7 +223,7 @@
 				{% set end_page = [logs.pages, logs.page + 2]|min %}
 				{% if start_page > 1 %}
 					<li class="page-item">
-						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=1, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">1</a>
+						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=1, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, timezone_offset=timezone_offset, per_page=per_page) }}">1</a>
 					</li>
 					{% if start_page > 2 %}
 					<li class="page-item disabled"><span class="page-link">...</span></li>
@@ -230,7 +231,7 @@
 				{% endif %}
 				{% for page_num in range(start_page, end_page + 1) %}
 				<li class="page-item {% if page_num == logs.page %}active{% endif %}">
-					<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=page_num, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ page_num }}</a>
+					<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=page_num, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, timezone_offset=timezone_offset, per_page=per_page) }}">{{ page_num }}</a>
 				</li>
 				{% endfor %}
 				{% if end_page < logs.pages %}
@@ -238,7 +239,7 @@
 					<li class="page-item disabled"><span class="page-link">...</span></li>
 					{% endif %}
 					<li class="page-item">
-						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=logs.pages, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ logs.pages }}</a>
+						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=logs.pages, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, timezone_offset=timezone_offset, per_page=per_page) }}">{{ logs.pages }}</a>
 					</li>
 				{% endif %}
 				<li class="page-item {% if not logs.has_next %}disabled{% endif %}">
@@ -285,6 +286,11 @@
 	});
 
 	(function() {
+		var tzInput = document.getElementById('timezone_offset');
+		if (tzInput && !tzInput.value) {
+			tzInput.value = String(new Date().getTimezoneOffset());
+		}
+
 		function repositionOpenMenu() {
 			var menu = document.querySelector('.action-menu.open');
 			if (!menu) return;
