@@ -7,27 +7,13 @@ description: High-level architecture map for the self-hosted FCTF platform on k3
 
 This page is the contributor entry point. It gives a fast system map and links to canonical detail pages.
 
+:::tip[How to read this section]
+Use this page as the map, then drill down to the linked pages for implementation-level detail.
+:::
+
 ## Architecture Diagram
 
 ![FCTF high-level architecture](/img/HighLevelArchitecture.svg)
-
-## How to Use This Documentation
-
-| Step | What to read | Why |
-| --- | --- | --- |
-| 1 | This overview page | Build a correct mental model quickly. |
-| 2 | One section page from sidebar | Get implementation details for your task. |
-| 3 | Adjacent related section pages | Validate cross-boundary impacts before changing code. |
-
-## Contributor Paths
-
-| Goal | Start here | Then read |
-| --- | --- | --- |
-| Add or modify a service | [Service Architecture](./service-architecture) | [Runtime and Lifecycle Flows](./runtime-lifecycle-flows), [Security](./security), [Storage and Data](./storage-and-data) |
-| Debug deploy/start/stop issues | [Runtime and Lifecycle Flows](./runtime-lifecycle-flows) | [State Reconciliation](./state-reconciliation), [Observability and Operations](./observability-and-operations) |
-| Investigate wrong runtime state | [State Reconciliation](./state-reconciliation) | [Runtime and Lifecycle Flows](./runtime-lifecycle-flows), [Storage and Data](./storage-and-data) |
-| Tune contest throughput | [Scalability](./scalability) | [Runtime and Lifecycle Flows](./runtime-lifecycle-flows), [Observability and Operations](./observability-and-operations) |
-| Harden runtime security | [Security](./security) | [Infrastructure](./platform-foundation), [Service Architecture](./service-architecture) |
 
 ## Section Map
 
@@ -60,6 +46,10 @@ FCTF is a self-hosted CTF platform for on-premise k3s clusters. The system separ
 - **API paths stay responsive** during contest spikes.
 - **Deploy/build failures are isolated** in async pipeline stages.
 - **Runtime truth is corrected from observed cluster state**, not request intent only.
+
+:::important[Latency and reliability are intentionally separated]
+Keep user request paths synchronous and fast, while routing deployment-heavy operations through async queue and workflow boundaries.
+:::
 
 ## 2. Infrastructure
 
@@ -172,3 +162,7 @@ FCTF is a self-hosted CTF platform for on-premise k3s clusters. The system separ
 | Contributor-first boundaries | Keeps service, flow, and consistency concerns separate |
 
 **Canonical details:** [Design Principles](./design-principles).
+
+:::tip[Contributor shortcut]
+If you are new to the codebase, read sections in this order: Overview -> Service Architecture -> Runtime and Lifecycle Flows -> State Reconciliation.
+:::

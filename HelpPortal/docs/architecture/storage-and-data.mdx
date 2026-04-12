@@ -7,6 +7,10 @@ description: Section 7 details for SQL state, Redis coordination keys, queue buf
 
 This page expands Section 7 from [Architecture Overview](./overview).
 
+:::tip[Data model mindset]
+Use MariaDB for durable business truth and Redis for short-lived coordination. Keep responsibilities explicit to simplify incident recovery.
+:::
+
 ## Storage and Data Design
 
 ### MariaDB (persistent domain state)
@@ -39,6 +43,10 @@ The CTFd database schema stores:
 
 **RabbitMQ absorbs deployment pressure** so user-facing paths stay responsive.
 
+:::important[Durability vs speed boundary]
+Do not treat queue and cache state as durable audit history. Persist final business outcomes in MariaDB.
+:::
+
 ### NFS (shared file and template storage)
 
 NFS is mounted for:
@@ -58,3 +66,7 @@ NFS centralizes shared artifacts in self-hosted environments.
 - Harbor (namespace `registry`) stores challenge images produced by Kaniko workflows.
 - Argo workflows copy `global-regcred` so challenge namespaces can pull private images.
 - Registry credentials are an explicit operational dependency (rotation, scope, and secret distribution).
+
+:::tip[Registry operations]
+Rotate pull credentials in a staged way to avoid invalidating running workflows during active contests.
+:::

@@ -7,6 +7,10 @@ description: Section 6 details for isolation boundaries, network policy, token m
 
 This page expands Section 6 from [Architecture Overview](./overview).
 
+:::tip[Security reading strategy]
+Review this page layer by layer: boundary, network, token, data-plane, then runtime hardening.
+:::
+
 ## Security Model (Practical)
 
 ### Isolation and exposure boundaries
@@ -36,6 +40,10 @@ This page expands Section 6 from [Architecture Overview](./overview).
 - HTTP flow rotates token from URL to HttpOnly cookie.
 - TCP flow performs explicit token authentication before proxying.
 - Sessions are closed when token expiry is reached.
+
+:::important[Token scope discipline]
+Challenge tokens should remain short-lived and scoped to route and team context. Avoid adding broad permissions into runtime access tokens.
+:::
 
 ### Data-plane access controls
 
@@ -67,3 +75,7 @@ This page expands Section 6 from [Architecture Overview](./overview).
 - **gVisor sandboxing (`runtimeClassName: gvisor`) reduces kernel attack surface** for untrusted challenge code, but may require per-challenge compatibility/performance tuning.
 - **Some internal TLS verification is relaxed** for internal services (for example, Argo/self-signed scenarios) to reduce bootstrap friction; production hardening should revisit this trust model.
 - **Deployment Center callback endpoint authentication should be reviewed** to ensure strict verification in all environments.
+
+:::tip[Hardening priority]
+Prioritize tightening broad RBAC and callback authentication before adding new runtime features.
+:::
