@@ -37,11 +37,6 @@ CTFd/*.db
 README.md
 development.txt
 linting.txt
-messages.pot
-populate.py
-ping.py
-prepare.sh
-scripts/
 
 # Docker and editor noise
 .dockerignore
