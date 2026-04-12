@@ -2,11 +2,31 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+import re
 from typing import Any, Dict, Iterable, List, Tuple
 
 from sqlalchemy import inspect, text
 
 from CTFd.models import db
+
+
+def _serialize_utc_datetime(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    if hasattr(value, "isoformat") and not isinstance(value, str):
+        raw = value.isoformat()
+    else:
+        raw = str(value).strip()
+
+    if not raw:
+        return None
+
+    normalized = raw.replace(" ", "T")
+    if re.search(r"(?:Z|[+-]\d{2}(?::?\d{2})?)$", normalized, re.IGNORECASE):
+        return normalized
+
+    return f"{normalized}Z"
 
 
 ALLOWED_ENTITIES = {"team", "solve"}
@@ -524,7 +544,7 @@ def execute_query(spec: QuerySpec) -> Dict[str, Any]:
             payload["team_name"] = row._mapping.get("team_name")
         if "last_solve_date" in row._mapping:
             val = row._mapping.get("last_solve_date")
-            payload["last_solve_date"] = str(val) if val else None
+            payload["last_solve_date"] = _serialize_utc_datetime(val)
         if "solved_count" in row._mapping:
             payload["solved_count"] = row._mapping.get("solved_count")
         if "rank" in row._mapping:

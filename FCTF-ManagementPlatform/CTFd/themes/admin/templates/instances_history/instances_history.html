@@ -62,22 +62,17 @@
 	<div class="clean-search-container">
 		<form method="GET" action="{{ url_for('admin.instances_history_listing') }}" class="m-0">
 			<div class="row no-gutters align-items-end">
-				<div class="col-md-3 px-1">
-					<label for="user">User (id or name)</label>
-					<input class="clean-form-control w-100" id="user" name="user" value="{{ user_filter }}"
-						placeholder="e.g. 12 or alice" />
-				</div>
-				<div class="col-md-3 px-1">
+				<div class="col-md-4 px-1">
 					<label for="team">Team (id or name)</label>
 					<input class="clean-form-control w-100" id="team" name="team" value="{{ team_filter }}"
 						placeholder="e.g. 3 or Team A" />
 				</div>
-				<div class="col-md-3 px-1">
+				<div class="col-md-4 px-1">
 					<label for="challenge">Challenge (id or name)</label>
 					<input class="clean-form-control w-100" id="challenge" name="challenge" value="{{ challenge_filter }}"
 						placeholder="e.g. 42 or Crypto 101" />
 				</div>
-				<div class="col-md-3 px-1">
+				<div class="col-md-4 px-1">
 					<label for="start">Start time</label>
 					<input type="datetime-local" class="clean-form-control w-100" id="start" name="start"
 						value="{{ start_filter }}" />
@@ -129,7 +124,7 @@
 		<div class="clean-info-text">
 			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} entries
 		</div>
-		<a class="clean-btn" href="{{ url_for('admin.instances_history_export_csv', user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter) }}">
+		<a class="clean-btn" href="{{ url_for('admin.instances_history_export_csv', team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter) }}">
 			<i class="fas fa-file-csv"></i> Export CSV
 		</a>
 	</div>
@@ -143,7 +138,6 @@
 					<th class="text-center"><b>Stopped At</b></th>
 					<th class="text-center"><b>Label</b></th>
 					<th class="text-center"><b>Challenge</b></th>
-					<th class="text-center"><b>User</b></th>
 					<th class="text-center"><b>Team</b></th>
 					<th class="text-center"><b>Tracking ID</b></th>
 					<th class="text-center"><b>Actions</b></th>
@@ -152,8 +146,8 @@
 			<tbody>
 				{% for row in logs.items %}
 				<tr>
-					<td class="mono text-center">{{ row.ChallengeStartTracking.started_at }}</td>
-					<td class="mono text-center">{% if row.ChallengeStartTracking.stopped_at %}{{ row.ChallengeStartTracking.stopped_at | trim }}{% else %}-{% endif %}</td>
+					<td class="mono text-center">{% if row.ChallengeStartTracking.started_at %}<span data-time="{{ row.ChallengeStartTracking.started_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}-{% endif %}</td>
+					<td class="mono text-center">{% if row.ChallengeStartTracking.stopped_at %}<span data-time="{{ row.ChallengeStartTracking.stopped_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}-{% endif %}</td>
 					<td class="text-center cell-truncate" title="{{ row.ChallengeStartTracking.label }}">
 						{% if row.ChallengeStartTracking.label %}
 							{{ row.ChallengeStartTracking.label | truncate(24) }}
@@ -167,14 +161,6 @@
 							{{ row.challenge_name | truncate(28) }}
 						</a>
 						<div class="text-muted small">#{{ row.challenge_id }}</div>
-						{% else %}
-						-
-						{% endif %}
-					</td>
-					<td class="text-center cell-truncate" title="{{ row.user_name }}">
-						{% if row.user_id %}
-						<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name | truncate(24) }}</a>
-						<div class="text-muted small">#{{ row.user_id }}</div>
 						{% else %}
 						-
 						{% endif %}
@@ -214,7 +200,7 @@
 				{% endfor %}
 				{% if logs.total == 0 %}
 				<tr>
-					<td colspan="8" class="text-center text-muted">No entries found</td>
+					<td colspan="7" class="text-center text-muted">No entries found</td>
 				</tr>
 				{% endif %}
 			</tbody>
@@ -236,7 +222,7 @@
 				{% set end_page = [logs.pages, logs.page + 2]|min %}
 				{% if start_page > 1 %}
 					<li class="page-item">
-						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=1, user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">1</a>
+						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=1, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">1</a>
 					</li>
 					{% if start_page > 2 %}
 					<li class="page-item disabled"><span class="page-link">...</span></li>
@@ -244,7 +230,7 @@
 				{% endif %}
 				{% for page_num in range(start_page, end_page + 1) %}
 				<li class="page-item {% if page_num == logs.page %}active{% endif %}">
-					<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=page_num, user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ page_num }}</a>
+					<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=page_num, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ page_num }}</a>
 				</li>
 				{% endfor %}
 				{% if end_page < logs.pages %}
@@ -252,7 +238,7 @@
 					<li class="page-item disabled"><span class="page-link">...</span></li>
 					{% endif %}
 					<li class="page-item">
-						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=logs.pages, user=user_filter, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ logs.pages }}</a>
+						<a class="page-link" href="{{ url_for('admin.instances_history_listing', page=logs.pages, team=team_filter, challenge=challenge_filter, start=start_filter, end=end_filter, quick=quick_filter, per_page=per_page) }}">{{ logs.pages }}</a>
 					</li>
 				{% endif %}
 				<li class="page-item {% if not logs.has_next %}disabled{% endif %}">

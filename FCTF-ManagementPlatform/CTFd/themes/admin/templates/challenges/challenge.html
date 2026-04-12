@@ -583,7 +583,7 @@
 												<td class="text-center"><strong>v{{ version.version_number }}</strong></td>
 												<td style="word-break:break-all;">
 													<code style="background:#f8f9fa;padding:0.1rem 0.35rem;border-radius:3px;font-size:0.78rem;">{{ version.image_tag or 'N/A' }}</code>
-													<br><small class="text-muted">{{ version.created_at.strftime('%Y-%m-%d %H:%M') if version.created_at else '' }}</small>
+													<br><small class="text-muted">{% if version.created_at %}<span data-time="{{ version.created_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm"></span>{% endif %}</small>
 												</td>
 												<td class="text-center">
 													{% if version.is_active %}
