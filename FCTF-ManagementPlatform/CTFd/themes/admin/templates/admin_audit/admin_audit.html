@@ -53,6 +53,7 @@
 		font-size: .75rem;
 		padding: .2rem .5rem;
 	}
+	.timestamp-cell { white-space: nowrap !important; }
 </style>
 {% endblock %}
 
@@ -66,6 +67,7 @@
 	<!-- Filters -->
 	<div class="clean-search-container">
 		<form method="GET" action="{{ url_for('admin.admin_audit_listing') }}" class="m-0">
+			<input type="hidden" id="timezone_offset" name="timezone_offset" value="{{ timezone_offset or '' }}" />
 			<div class="row no-gutters align-items-end">
 				<div class="col-md-3 px-1">
 					<label for="actor">Actor (id or name)</label>
@@ -109,13 +111,13 @@
 			</div>
 			<div class="row no-gutters align-items-end mt-1">
 				<div class="col-md-2 px-1">
-					<label for="date_from">From (UTC)</label>
-					<input class="clean-form-control w-100" type="date" id="date_from"
+					<label for="date_from">From</label>
+					<input class="clean-form-control w-100" type="datetime-local" id="date_from"
 						name="date_from" value="{{ date_from }}" />
 				</div>
 				<div class="col-md-2 px-1">
-					<label for="date_to">To (UTC)</label>
-					<input class="clean-form-control w-100" type="date" id="date_to"
+					<label for="date_to">To</label>
+					<input class="clean-form-control w-100" type="datetime-local" id="date_to"
 						name="date_to" value="{{ date_to }}" />
 				</div>
 				<div class="col-md-2 px-1">
@@ -149,7 +151,7 @@
 		<a class="clean-btn" href="{{ url_for('admin.admin_audit_export_csv',
 					actor=actor_filter, role=role_filter, action=action_filter,
 					target_type=target_type_filter, target_id=target_id_filter,
-					date_from=date_from, date_to=date_to) }}">
+					date_from=date_from, date_to=date_to, timezone_offset=timezone_offset) }}">
 			<i class="fas fa-download"></i> Export CSV
 		</a>
 	</div>
@@ -160,7 +162,7 @@
 			<thead>
 				<tr>
 					<th class="text-center"><b>#</b></th>
-					<th class="text-center"><b>Timestamp (UTC)</b></th>
+					<th class="text-center"><b>Timestamp</b></th>
 					<th class="text-center"><b>Actor</b></th>
 					<th class="text-center"><b>Action</b></th>
 					<th class="text-center"><b>Target</b></th>
@@ -173,7 +175,7 @@
 				{% set action_verb = log.action.split('_')[-1] %}
 				<tr>
 					<td class="text-muted mono small text-center">{{ log.id }}</td>
-					<td class="mono small text-center">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}</td>
+					<td class="mono small text-center timestamp-cell">{% if log.timestamp %}<span data-time="{{ log.timestamp | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}—{% endif %}</td>
 					<td class="text-center cell-truncate">
 						{% if log.actor_id %}
 						<a href="{{ url_for('admin.users_detail', user_id=log.actor_id) }}">{{ (log.actor_name or ('User #' ~ log.actor_id)) | truncate(24) }}</a>
@@ -288,7 +290,7 @@
 						<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=1,
 								actor=actor_filter, role=role_filter, action=action_filter,
 								target_type=target_type_filter, target_id=target_id_filter,
-								date_from=date_from, date_to=date_to, per_page=per_page) }}">1</a>
+								date_from=date_from, date_to=date_to, timezone_offset=timezone_offset, per_page=per_page) }}">1</a>
 					</li>
 					{% if sp > 2 %}
 					<li class="page-item disabled"><span class="page-link">...</span></li>
@@ -299,7 +301,7 @@
 					<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=pn,
 							actor=actor_filter, role=role_filter, action=action_filter,
 							target_type=target_type_filter, target_id=target_id_filter,
-							date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ pn }}</a>
+							date_from=date_from, date_to=date_to, timezone_offset=timezone_offset, per_page=per_page) }}">{{ pn }}</a>
 				</li>
 				{% endfor %}
 				{% if ep < logs.pages %}
@@ -310,7 +312,7 @@
 						<a class="page-link" href="{{ url_for('admin.admin_audit_listing', page=logs.pages,
 								actor=actor_filter, role=role_filter, action=action_filter,
 								target_type=target_type_filter, target_id=target_id_filter,
-								date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ logs.pages }}</a>
+								date_from=date_from, date_to=date_to, timezone_offset=timezone_offset, per_page=per_page) }}">{{ logs.pages }}</a>
 					</li>
 				{% endif %}
 				<li class="page-item {% if logs.page == logs.pages %}disabled{% endif %}">
@@ -381,6 +383,11 @@
 <script>
 (function () {
 	'use strict';
+
+	var tzInput = document.getElementById('timezone_offset');
+	if (tzInput && !tzInput.value) {
+		tzInput.value = String(new Date().getTimezoneOffset());
+	}
 
 	var diffModal = document.getElementById('diffModal');
 	if (!diffModal) return;

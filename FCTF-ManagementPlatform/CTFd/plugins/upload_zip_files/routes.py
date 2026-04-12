@@ -19,7 +19,6 @@ from CTFd.utils.connector.multiservice_connector import (
     redeploy,
     handle_challenge_upload,
 )
-import pytz
 
 file_app = Blueprint("upload_zip_files", __name__)
 
@@ -59,7 +58,6 @@ from CTFd.constants.envvars import (
 
     
 redis_client = redis.StrictRedis(**get_redis_client_kwargs())
-vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
 
 def upload_file(challenge_id, file_path, exposed_port=None):
     delete_cached_files(challenge_id)
@@ -107,12 +105,12 @@ def update_challenge_info():
             challenge_id=challenge_id,
             deploy_status=deploy_status,
             log_content=log_content,
-            deploy_at=datetime.now(vietnam_tz),
+            deploy_at=datetime.utcnow(),
         )
 
         print("deploystatusss" + str(deploy_status))
 
-        challenge.last_update = datetime.now(vietnam_tz)
+        challenge.last_update = datetime.utcnow()
         challenge.image_link = data.get("ImageLink")
         challenge.deploy_status = deploy_status
 

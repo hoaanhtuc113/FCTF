@@ -90,7 +90,7 @@
 			<tbody>
 				{% for row in logs.items %}
 				<tr>
-					<td class="mono text-center">{{ row.ActionLogs.actionDate }}</td>
+					<td class="mono text-center">{% if row.ActionLogs.actionDate %}<span data-time="{{ row.ActionLogs.actionDate | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}-{% endif %}</td>
 					<td class="text-center">
 						{% if row.user_id %}
 						<a href="{{ url_for('admin.users_detail', user_id=row.user_id) }}">{{ row.user_name | truncate(24) }}</a>

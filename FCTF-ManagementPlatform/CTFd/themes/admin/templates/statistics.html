@@ -225,7 +225,7 @@
 			<div class="col-md-12 mb-4">
 				<div class="graph-container">
 					<div class="d-flex align-items-center justify-content-between graph-title">
-						<span>Challenge Analytics (CTF Time)</span>
+						<span>Challenge Difficulty Snapshot</span>
 						<button type="button" class="btn btn-sm btn-outline-primary" id="challenge-analytics-export">
 							Export CSV
 						</button>
@@ -237,17 +237,15 @@
 									<thead>
 										<tr>
 											<th>Challenge</th>
-											<th>% Solve</th>
-											<th>Avg Time</th>
-											<th>Wrong Attempts</th>
-											<th>Hints Available</th>
-											<th>% Teams Used Hints</th>
+											<th>Solve Conversion</th>
+											<th>Avg Tries/Attempter</th>
+											<th>Solvers Using Hint</th>
 											<th>Avg Hints/Solve</th>
 										</tr>
 									</thead>
 									<tbody>
 										<tr>
-											<td colspan="7" class="text-center">Loading...</td>
+											<td colspan="5" class="text-center">Loading...</td>
 										</tr>
 									</tbody>
 								</table>
@@ -274,6 +272,148 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function () {
+	"use strict";
+
+	const ANALYTICS_ENDPOINT = "/api/v1/statistics/challenges/analytics";
+	const TABLE_BODY_SELECTOR = "#challenge-analytics-table tbody";
+	const REFRESH_INTERVAL_MS = 301000;
+
+	function asNumber(value) {
+		const n = Number(value);
+		return Number.isFinite(n) ? n : 0;
+	}
+
+	function formatPercent(value) {
+		if (value === null || value === undefined) {
+			return "-";
+		}
+		return `${Number(value).toFixed(1)}%`;
+	}
+
+	function formatFixed(value, digits) {
+		if (value === null || value === undefined) {
+			return "-";
+		}
+		return Number(value).toFixed(digits);
+	}
+
+	function solveConversionPct(row) {
+		const attempters = asNumber(row.attempter_count);
+		const solves = asNumber(row.solve_count);
+		if (attempters <= 0) {
+			return null;
+		}
+		return (solves / attempters) * 100;
+	}
+
+	function escapeHtml(value) {
+		let text = String(value || "");
+		text = text.replaceAll("&", "&amp;");
+		text = text.replaceAll("<", "&lt;");
+		text = text.replaceAll(">", "&gt;");
+		text = text.replaceAll('"', "&quot;");
+		text = text.replaceAll("'", "&#39;");
+		return text;
+	}
+
+	function renderRows(rows) {
+		const tbody = document.querySelector(TABLE_BODY_SELECTOR);
+		if (!tbody) {
+			return;
+		}
+
+		if (!Array.isArray(rows) || rows.length === 0) {
+			tbody.innerHTML = '<tr><td colspan="5" class="text-center">No data</td></tr>';
+			return;
+		}
+
+		const sorted = [...rows].sort((a, b) => {
+			const convA = solveConversionPct(a);
+			const convB = solveConversionPct(b);
+
+			if (convA === null && convB !== null) return 1;
+			if (convA !== null && convB === null) return -1;
+			if (convA !== null && convB !== null && convA !== convB) {
+				return convA - convB;
+			}
+
+			return asNumber(b.avg_attempts_per_attempter) - asNumber(a.avg_attempts_per_attempter);
+		});
+
+		tbody.innerHTML = sorted
+			.map(row => {
+				const name = escapeHtml(row.name || "-");
+				const attempters = asNumber(row.attempter_count);
+				const solves = asNumber(row.solve_count);
+				const conversion = solveConversionPct(row);
+				const conversionText = conversion === null
+					? "-"
+					: `${formatPercent(conversion)} (${solves}/${attempters})`;
+
+				const hasCap = asNumber(row.max_attempts) > 0;
+				const tries = row.avg_attempts_per_attempter;
+				let triesText = "-";
+				if (tries !== null && tries !== undefined) {
+					const capText = hasCap ? ` / cap ${asNumber(row.max_attempts)}` : "";
+					triesText = `${formatFixed(tries, 2)}${capText}`;
+				}
+
+				const hintUsers = row.pct_solvers_used_hints;
+				const hintUsersText = hintUsers === null || hintUsers === undefined ? "-" : formatPercent(hintUsers);
+
+				const avgHints = row.avg_hints_per_solve;
+				const avgHintsText = avgHints === null || avgHints === undefined ? "-" : formatFixed(avgHints, 2);
+
+				return `<tr>
+					<td>${name}</td>
+					<td>${conversionText}</td>
+					<td>${triesText}</td>
+					<td>${hintUsersText}</td>
+					<td>${avgHintsText}</td>
+				</tr>`;
+			})
+			.join("");
+	}
+
+	function renderCategorySummary(data) {
+		const mostSolvedEl = document.getElementById("category-most-solved");
+		const leastSolvedEl = document.getElementById("category-least-solved");
+
+		if (mostSolvedEl) {
+			mostSolvedEl.textContent = data?.category_most_solved?.name || "-";
+		}
+		if (leastSolvedEl) {
+			leastSolvedEl.textContent = data?.category_least_solved?.name || "-";
+		}
+	}
+
+	async function refreshChallengeDifficultySnapshot() {
+		try {
+			const response = await fetch(ANALYTICS_ENDPOINT, {
+				credentials: "same-origin",
+				headers: { "Accept": "application/json" },
+			});
+			const payload = await response.json();
+			if (!payload || payload.success !== true || !payload.data) {
+				return;
+			}
+
+			renderRows(payload.data.challenges || []);
+			renderCategorySummary(payload.data);
+		} catch (error) {
+			console.debug("Challenge snapshot refresh failed", error);
+		}
+	}
+
+	document.addEventListener("DOMContentLoaded", function () {
+		refreshChallengeDifficultySnapshot();
+		setTimeout(refreshChallengeDifficultySnapshot, 250);
+		setInterval(refreshChallengeDifficultySnapshot, REFRESH_INTERVAL_MS);
+	});
+})();
+</script>
 {% endblock %}
 
 {% block entrypoint %}
