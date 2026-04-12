@@ -37,9 +37,32 @@ const formatDuration = (seconds) => {
   return `${minutes}m`;
 };
 
+const formatPercent = (value) => {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  return `${Number(value).toFixed(1)}%`;
+};
+
+const formatNumber = (value, decimals = 2) => {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  return Number(value).toFixed(decimals);
+};
+
+const solveConversionPct = (row) => {
+  const attempters = Number(row.attempter_count || 0);
+  const solves = Number(row.solve_count || 0);
+  if (attempters <= 0) {
+    return null;
+  }
+  return (solves / attempters) * 100;
+};
+
 const renderChallengeAnalytics = (force = false) => {
   fetchChallengeAnalytics(force).then((response) => {
-    if (!response || !response.success) {
+    if (!response?.success) {
       return;
     }
     const data = response.data;
@@ -50,28 +73,65 @@ const renderChallengeAnalytics = (force = false) => {
     );
     if (tableBody) {
       tableBody.innerHTML = "";
-      if (!rows.length) {
+      if (rows.length === 0) {
         const emptyRow = document.createElement("tr");
         emptyRow.innerHTML =
-          '<td colspan="7" class="text-center">No data</td>';
+          '<td colspan="5" class="text-center">No data</td>';
         tableBody.appendChild(emptyRow);
       } else {
         rows
-          .sort((a, b) => b.solve_rate - a.solve_rate)
+          .sort((a, b) => {
+            const convA = solveConversionPct(a);
+            const convB = solveConversionPct(b);
+
+            // Harder first: lower conversion, then higher retry load
+            if (convA === null && convB !== null) return 1;
+            if (convA !== null && convB === null) return -1;
+            if (convA !== null && convB !== null && convA !== convB) {
+              return convA - convB;
+            }
+            return (
+              Number(b.avg_attempts_per_attempter || 0) -
+              Number(a.avg_attempts_per_attempter || 0)
+            );
+          })
           .forEach((row) => {
             const tr = document.createElement("tr");
-            const percent = (row.solve_rate * 100).toFixed(1);
-            const hintCount = row.hint_count || 0;
-            const pctUsedHints = row.pct_teams_used_hints != null ? `${row.pct_teams_used_hints}%` : "-";
-            const avgHintsPerSolve = row.avg_hints_per_solve != null ? row.avg_hints_per_solve.toFixed(2) : "-";
+            const attempters = Number(row.attempter_count || 0);
+            const solves = Number(row.solve_count || 0);
+            const conversion = solveConversionPct(row);
+            const conversionText =
+              conversion === null
+                ? "-"
+                : `${formatPercent(conversion)} (${solves}/${attempters})`;
+
+            const hasCap = row.max_attempts && Number(row.max_attempts) > 0;
+            const capSuffix = hasCap ? ` / cap ${row.max_attempts}` : "";
+
+            const triesText =
+              row.avg_attempts_per_attempter === null ||
+              row.avg_attempts_per_attempter === undefined
+                ? "-"
+                : `${formatNumber(row.avg_attempts_per_attempter, 2)}${capSuffix}`;
+
+            const hintUserText =
+              row.pct_solvers_used_hints === null ||
+              row.pct_solvers_used_hints === undefined
+                ? "-"
+                : formatPercent(row.pct_solvers_used_hints);
+
+            const avgHintsText =
+              row.avg_hints_per_solve === null ||
+              row.avg_hints_per_solve === undefined
+                ? "-"
+                : formatNumber(row.avg_hints_per_solve, 2);
+
             tr.innerHTML = `
               <td>${row.name}</td>
-              <td>${percent}%</td>
-              <td>${formatDuration(row.avg_solve_seconds)}</td>
-              <td>${row.wrong_attempts}</td>
-              <td>${hintCount}</td>
-              <td>${pctUsedHints}</td>
-              <td>${avgHintsPerSolve}</td>
+              <td>${conversionText}</td>
+              <td>${triesText}</td>
+              <td>${hintUserText}</td>
+              <td>${avgHintsText}</td>
             `;
             tableBody.appendChild(tr);
           });
@@ -91,39 +151,40 @@ const renderChallengeAnalytics = (force = false) => {
 
 const exportChallengeAnalytics = () => {
   fetchChallengeAnalytics().then((response) => {
-    if (!response || !response.success) {
+    if (!response?.success) {
       return;
     }
     const rows = response.data?.challenges || [];
     const header = [
       "Challenge",
-      "% Solve",
-      "Avg Time (seconds)",
-      "Wrong Attempts",
-      "Hints Available",
-      "% Teams Used Hints",
+      "Solve Conversion (%)",
+      "Solved",
+      "Attempted",
+      "Avg Tries/Attempter",
+      "Solvers Using Hint (%)",
       "Avg Hints/Solve",
+      "Max Attempts",
     ];
     const lines = [header.join(",")];
     rows.forEach((row) => {
-      const percent = (row.solve_rate * 100).toFixed(2);
-      const avg =
-        row.avg_solve_seconds === null || row.avg_solve_seconds === undefined
-          ? ""
-          : Math.round(row.avg_solve_seconds);
-      const hintCount = row.hint_count || 0;
-      const pctUsedHints = row.pct_teams_used_hints != null ? row.pct_teams_used_hints : "";
-      const avgHintsPerSolve = row.avg_hints_per_solve != null ? row.avg_hints_per_solve : "";
-      const name = String(row.name).replace(/"/g, '""');
+      const solved = Number(row.solve_count || 0);
+      const attempted = Number(row.attempter_count || 0);
+      const conversion = solveConversionPct(row);
+      const avgAttempts = row.avg_attempts_per_attempter ?? "";
+      const usedHints = row.pct_solvers_used_hints ?? "";
+      const avgHints = row.avg_hints_per_solve ?? "";
+      const maxAttempts = row.max_attempts ?? 0;
+      const name = String(row.name).replaceAll('"', '""');
       lines.push(
         [
           `"${name}"`,
-          percent,
-          avg,
-          row.wrong_attempts,
-          hintCount,
-          pctUsedHints,
-          avgHintsPerSolve,
+          conversion == null ? "" : conversion.toFixed(1),
+          solved,
+          attempted,
+          avgAttempts,
+          usedHints,
+          avgHints,
+          maxAttempts,
         ].join(",")
       );
     });

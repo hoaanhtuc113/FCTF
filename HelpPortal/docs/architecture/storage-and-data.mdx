@@ -1,0 +1,72 @@
+---
+title: Storage and Data
+description: Section 7 details for SQL state, Redis coordination keys, queue buffering, NFS artifacts, and Harbor registry roles.
+---
+
+# Storage and Data
+
+This page expands Section 7 from [Architecture Overview](./overview).
+
+:::tip[Data model mindset]
+Use MariaDB for durable business truth and Redis for short-lived coordination. Keep responsibilities explicit to simplify incident recovery.
+:::
+
+## Storage and Data Design
+
+### MariaDB (persistent domain state)
+
+The CTFd database schema stores:
+
+- Core CTF entities: users, teams, challenges, flags, submissions, solves, hints, tickets.
+- Runtime control records: challenge_start_tracking, deploy_histories.
+- Config and governance state.
+
+**MariaDB remains the durable source of truth** for business state and audit history.
+
+### Redis (ephemeral + coordination)
+
+**Used for:**
+
+- Deployment lifecycle cache:
+  - `deploy_challenge_{challengeId}_{teamId}`
+  - `active_deploys_team_{teamId}`
+- API/session and rate limiting caches.
+- Atomic Lua-based quota checks, cooldown counters, and race-safe updates.
+
+**Redis provides fast, atomic coordination** under concurrent competition load.
+
+### RabbitMQ (asynchronous control transport)
+
+- Buffers deploy intents.
+- Decouples user/API latency from workflow execution latency.
+- Provides backpressure with bounded queue length and reject-publish overflow policy.
+
+**RabbitMQ absorbs deployment pressure** so user-facing paths stay responsive.
+
+:::important[Durability vs speed boundary]
+Do not treat queue and cache state as durable audit history. Persist final business outcomes in MariaDB.
+:::
+
+### NFS (shared file and template storage)
+
+NFS is mounted for:
+
+- Admin Portal challenge/file management.
+- Contestant Service challenge file reads.
+- Argo workflow templates and challenge build contexts.
+
+NFS centralizes shared artifacts in self-hosted environments.
+
+**Trade-off:**
+
+- **Simpler than object storage in on-prem labs, but introduces NFS availability/performance dependency.**
+
+### Container Registry (Harbor)
+
+- Harbor (namespace `registry`) stores challenge images produced by Kaniko workflows.
+- Argo workflows copy `global-regcred` so challenge namespaces can pull private images.
+- Registry credentials are an explicit operational dependency (rotation, scope, and secret distribution).
+
+:::tip[Registry operations]
+Rotate pull credentials in a staged way to avoid invalidating running workflows during active contests.
+:::

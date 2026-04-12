@@ -1,0 +1,63 @@
+---
+title: Design Principles
+description: Section 10 details for async control paths, isolation defaults, reconciliation, and on-prem operability.
+---
+
+# Design Principles
+
+This page expands Section 10 from [Architecture Overview](./overview).
+
+:::tip[Decision intent]
+Use this page to evaluate proposed changes: if a change weakens isolation, async control, or reconciliation, it likely needs redesign.
+:::
+
+## Design Principles and Rationale
+
+### Async-first control path
+
+Heavy deployment work is intentionally asynchronous:
+
+- **better user-facing latency,**
+- **controlled retries/backpressure,**
+- **safer behavior during contest spikes.**
+
+### Isolation by default
+
+**Per-deployment namespaces and gateway-only ingress** are central to fairness and containment.
+
+### Explicit lifecycle state machine
+
+Redis + DB tracking models lifecycle as `INITIAL -> PENDING_DEPLOY -> PENDING -> RUNNING -> DELETING -> STOPPED`, with failure and timeout handling.
+
+### Reconciliation over assumption
+
+**The system does not trust request intent alone;** Deployment Listener converges from observed cluster state.
+
+### Defense-in-depth
+
+- Layered controls: request auth, token integrity, ACL, network policy, RBAC, non-root containers.
+- Practical compromises are documented with hardening paths.
+
+:::important[Principles over convenience]
+Temporary shortcuts are acceptable only when they are documented with clear hardening follow-up and ownership.
+:::
+
+### On-prem operability
+
+**The platform favors explicit, scriptable, self-managed operations** over cloud-specific abstractions.
+
+## Summary
+
+FCTF implements a production-style self-hosted CTF architecture where:
+
+- **User operations stay responsive,**
+- **Runtime challenge environments are isolated and short-lived,**
+- **Deployments are controlled through queue + workflow orchestration,**
+- **State is actively reconciled against Kubernetes reality,**
+- **Security controls are applied across API, network, data, and runtime layers.**
+
+This makes the platform suitable for university clubs and organizations that need transparent, extensible, and operator-controlled CTF infrastructure on-premise.
+
+:::tip[Architecture review checklist]
+When reviewing pull requests, map each change to at least one principle in this page to keep design drift under control.
+:::

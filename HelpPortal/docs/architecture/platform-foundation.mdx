@@ -1,0 +1,78 @@
+---
+title: Infrastructure
+description: Section 2 details for runtime planes, namespace topology, and on-prem k3s constraints.
+---
+
+# Infrastructure
+
+This page expands Section 2 from [Architecture Overview](./overview).
+
+:::tip[Infrastructure reading order]
+Understand planes and namespace topology first, then read k3s baseline and on-prem constraints to see why those boundaries exist.
+:::
+
+## Architecture Overview
+
+FCTF is a microservice CTF platform organized into four runtime planes:
+
+- Access plane: Ingress NGINX + frontend apps + Challenge Gateway.
+- Control plane: Contestant Service and Deployment Center APIs.
+- Execution plane: RabbitMQ, Deployment Consumer, Argo Workflows, Kubernetes challenge namespaces.
+- Reconciliation plane: Deployment Listener watching Kubernetes and correcting state.
+
+> **Reading cue:** The plane split is the foundation for scaling and failure isolation decisions throughout the platform.
+
+### Design goals
+
+- **Keep core competition APIs responsive** under load by offloading heavy deployment work to async workers.
+- **Isolate challenge runtime per deployment namespace** instead of exposing challenge pods directly.
+- **Enforce a controlled runtime access boundary via Challenge Gateway** for both HTTP and TCP challenges.
+- **Maintain eventual consistency** between requested state and actual Kubernetes state via listener reconciliation.
+
+:::important[Isolation must not be bypassed]
+Challenge workloads should remain reachable only through Challenge Gateway. Direct service exposure in challenge namespaces breaks containment and fairness assumptions.
+:::
+
+### Namespace topology
+
+- app: user-facing and control services (Admin Portal, Contestant Service, Contestant Portal, Deployment Center, Deployment Consumer, Deployment Listener, Challenge Gateway).
+- argo: workflow engine, workflow templates, workflow PVCs.
+- db: MariaDB, Redis, RabbitMQ.
+- monitoring: Prometheus stack, Grafana, Loki.
+- registry: Harbor image registry components.
+- cattle-system: Rancher management plane.
+- challenge: logical area for dynamic namespaces (actual per-challenge namespaces are created dynamically and labeled ctf/kind=challenge).
+- storage: NFS-backed components (for setup and file workflows).
+
+## Infrastructure Context (k3s, On-Prem)
+
+**FCTF targets self-managed, non-cloud environments.**
+
+### k3s baseline
+
+- k3s server is installed with flannel disabled and Traefik disabled.
+- Calico is installed explicitly and aligned to k3s pod CIDR.
+- Ingress is provided by Ingress NGINX Helm chart.
+- No service mesh is enabled by default in current manifests.
+- Optional gVisor (runsc) runtime is installed and exposed as RuntimeClass gvisor.
+- RuntimeClass is applied from `prod/runtime-class.yaml` and consumed by challenge workflows through `USE_GVISOR`.
+
+### On-prem constraints driving design
+
+- No dependency on managed cloud load balancers.
+- Two service exposure modes are supported:
+  - **ClusterIP + Ingress** (typical production domain-based setup).
+  - **NodePort fallback** (local/dev or no working ingress DNS).
+- Helm stack includes Harbor for private image distribution and Rancher for cluster administration.
+- NFS is used for shared challenge assets and workflow templates because object storage may not be available in on-prem labs.
+- Cert-manager is used for TLS certificates when domain and DNS are available.
+
+### Operational implications
+
+- **Operators own node lifecycle, NFS ACLs, registry credentials, and DNS outside the platform.**
+- **Capacity planning is explicit** (replica counts, queue length, workflow concurrency, gateway limits).
+- **Cluster networking correctness is critical** (for example, pod CIDR overlap can break CoreDNS and pod networking).
+
+:::tip[On-prem operational baseline]
+Treat DNS, storage reliability, and registry credentials as first-class prerequisites before running contest traffic.
+:::

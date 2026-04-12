@@ -146,7 +146,7 @@
 					<td class="cell-truncate-sm" title="{{ ticket.type }}">{{ ticket.type | truncate(20, True, '...') }}</td>
 					<td class="cell-truncate" title="{{ ticket.title }}">{{ ticket.title | truncate(40, True, '...') }}</td>
 					<td class="cell-truncate-lg" title="{{ ticket.description }}">{{ ticket.description | truncate(90, True, '...') }}</td>
-					<td>{{ ticket.date }}</td>
+					<td>{% if ticket.date %}<span data-time="{{ ticket.date | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}N/A{% endif %}</td>
 					<td>{{ ticket.status }}</td>
 					<td class="text-center">
 						<a href="{{ url_for('admin.view_tickets_detail', ticket_id=ticket.id) }}" class="btn-view-detail">
