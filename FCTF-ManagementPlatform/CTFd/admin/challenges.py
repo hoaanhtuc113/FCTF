@@ -106,7 +106,7 @@ def challenges_listing():
         query = Challenges.query.filter(*filters).order_by(Challenges.id.asc())
         
     # Fetch the results with pagination
-    challenges = query.paginate(page=page, per_page=10, error_out=False)
+    challenges = query.paginate(page=page, per_page=50, error_out=False)
     raw_categories = (
         Challenges.query.with_entities(Challenges.category).distinct().all()
     )

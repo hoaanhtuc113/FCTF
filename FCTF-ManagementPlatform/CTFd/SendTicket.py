@@ -49,7 +49,7 @@ def get_ticket_by_id(ticket_id):
         return {'message': 'An error occurred while retrieving ticket', 'error': str(e)}, 500
 
 
-def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, per_page=10):
+def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, per_page=50):
     try:
         page = max(int(page), 1)
         per_page = max(int(per_page), 1)

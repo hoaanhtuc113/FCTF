@@ -13,7 +13,7 @@ from CTFd.utils.user import get_current_user
 def view_tickets():
     try:
         page = request.args.get("page", default=1, type=int) or 1
-        per_page = request.args.get("per_page", default=10, type=int) or 10
+        per_page = request.args.get("per_page", default=50, type=int) or 50
         page = max(page, 1)
         per_page = min(max(per_page, 1), 100)
         user_id = request.args.get("user_id", type=int)

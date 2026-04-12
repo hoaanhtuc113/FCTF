@@ -37,7 +37,7 @@ def teams_listing():
         Teams.query.options(joinedload(Teams.captain))
         .filter(*filters)
         .order_by(Teams.id.asc())
-        .paginate(page=page, per_page=10, error_out=False)
+        .paginate(page=page, per_page=50, error_out=False)
     )
 
     member_counts = {

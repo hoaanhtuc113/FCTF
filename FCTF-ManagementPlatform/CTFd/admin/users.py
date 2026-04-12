@@ -59,13 +59,13 @@ def users_listing():
             .filter(Tracking.ip.like("%{}%".format(q)))
             .filter(*filters[1:] if filters else [])
             .order_by(Users.id.asc())
-            .paginate(page=page, per_page=10, error_out=False)
+            .paginate(page=page, per_page=50, error_out=False)
         )
     else:
         users = (
             Users.query.filter(*filters)
             .order_by(Users.id.asc())
-            .paginate(page=page, per_page=10, error_out=False)
+            .paginate(page=page, per_page=50, error_out=False)
         )
 
     args = dict(request.args)
