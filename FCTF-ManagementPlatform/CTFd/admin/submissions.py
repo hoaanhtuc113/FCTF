@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 from flask import render_template, request, url_for, jsonify
@@ -8,8 +8,19 @@ from CTFd.models import Challenges, Submissions, Teams, Users, db
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.modes import get_model
-from pytz import timezone
-import pytz
+
+
+def _parse_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _local_to_utc(dt: datetime, timezone_offset: str) -> datetime:
+    offset_minutes = _parse_int(timezone_offset) or 0
+    # JS getTimezoneOffset() = UTC - local, in minutes
+    return dt + timedelta(minutes=offset_minutes)
 
 
 @admin.route("/admin/submissions", defaults={"submission_type": None})
@@ -31,6 +42,7 @@ def submissions_listing(submission_type):
     challenge_filter = request.args.get("challenge_id", "", type=str).strip()
     date_from = request.args.get("date_from", "").strip()
     date_to = request.args.get("date_to", "").strip()
+    timezone_offset = request.args.get("timezone_offset", "").strip()
 
     filters = build_model_filters(
         model=Submissions,
@@ -52,15 +64,14 @@ def submissions_listing(submission_type):
     if date_from:
         try:
             dt_from = datetime.strptime(date_from, "%Y-%m-%d")
-            filters.append(Submissions.date >= dt_from)
+            filters.append(Submissions.date >= _local_to_utc(dt_from, timezone_offset))
         except ValueError:
             pass
     if date_to:
         try:
-            dt_to = datetime.strptime(date_to, "%Y-%m-%d")
-            # Include the entire end day
-            dt_to = dt_to.replace(hour=23, minute=59, second=59)
-            filters.append(Submissions.date <= dt_to)
+            # Upper bound is exclusive start of the next local day.
+            dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+            filters.append(Submissions.date < _local_to_utc(dt_to, timezone_offset))
         except ValueError:
             pass
 
@@ -117,6 +128,7 @@ def submissions_listing(submission_type):
         challenge_filter=challenge_filter,
         date_from=date_from,
         date_to=date_to,
+        timezone_offset=timezone_offset,
     )
 
 
