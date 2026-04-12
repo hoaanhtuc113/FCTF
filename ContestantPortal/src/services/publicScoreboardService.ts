@@ -125,7 +125,7 @@ class PublicScoreboardService {
         message: result.message || '',
         start_date: result.start_date,
         end_date: result.end_date,
-        name: result.name || 'FCTF 2025'
+        name: result.name || `FCTF ${new Date().getFullYear()}`
       };
     } catch (error) {
       console.error('Error fetching contest config:', error);
@@ -136,7 +136,7 @@ class PublicScoreboardService {
         message: 'Using default config',
         start_date: now,
         end_date: now + (12 * 60 * 60),
-        name: 'FCTF 2025'
+        name: `FCTF ${new Date().getFullYear()}`
       };
     }
   }
