@@ -1,5 +1,5 @@
 from collections import defaultdict
-from flask import render_template, request
+from flask import current_app, render_template, request
 import pytz
 from CTFd.admin import admin
 from CTFd.utils.config import is_teams_mode
@@ -28,10 +28,13 @@ def scoreboard_listing():
     standings = get_standings(admin=True, bracket_id=bracket_id)
     user_standings = get_user_standings(admin=True, bracket_id=bracket_id) if is_teams_mode() else None
     top_submission = getSubmitStandings(admin=True)
-    print('top submit:', top_submission)
     top_solves = get_team_challenge_counts(is_admin=True)
     top_solves_with_topics = get_teams_cleared_all_challenges_by_topic(user_is_admin=True)
-    calculate_and_assign_awards()
+    try:
+        calculate_and_assign_awards()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Failed to calculate automatic awards for admin scoreboard")
 
     # Subquery for latest submissions
     latest_submission_subquery = (
@@ -91,9 +94,13 @@ def scoreboard_listing():
     team_scores = defaultdict(lambda: defaultdict(int))
 
     for solve in solves:
+        if solve.team_id is None or solve.challenge is None or solve.challenge.value is None:
+            continue
         team_scores[solve.challenge_id][solve.team_id] += solve.challenge.value
 
     for award in awards:
+        if award.team_id is None or award.value is None:
+            continue
         team_scores[None][award.team_id] += award.value
 
     challenge_masters_data = []
@@ -128,8 +135,6 @@ def scoreboard_listing():
                 })
                     
     challenge_masters_data = [data for data in challenge_masters_data if data["max_score"] >= 0]
-    print('master data:', challenge_masters_data)
-
     # Render the template
     return render_template(
         "admin/scoreboard.html",

@@ -607,18 +607,50 @@
     return cols;
   }
 
+  function parseDateAsLocal(dateStr) {
+    if (!dateStr) return null;
+    const raw = String(dateStr).trim();
+    if (!raw) return null;
+
+    if (/^\d+$/.test(raw)) {
+      const numeric = Number(raw);
+      if (!Number.isNaN(numeric)) {
+        const millis = raw.length <= 10 ? numeric * 1000 : numeric;
+        return new Date(millis);
+      }
+    }
+
+    const hasExplicitTimezone = /(?:Z|UTC|GMT|[+-]\d{2}(?::?\d{2})?)$/i.test(raw);
+    const candidates = [raw, raw.replace(' ', 'T')];
+
+    for (const candidate of candidates) {
+      const normalized = hasExplicitTimezone ? candidate : `${candidate}Z`;
+      const d = new Date(normalized);
+      if (!Number.isNaN(d.getTime())) {
+        return d;
+      }
+    }
+
+    const fallback = new Date(raw);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  }
+
   function formatDate(dateStr) {
-    if (!dateStr) return '-';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-    } catch (e) { return dateStr; }
+    const d = parseDateAsLocal(dateStr);
+    if (!d) return dateStr || '-';
+    return d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
   }
 
   // Templates that support detail expansion (click row to see solved challenges)
   const EXPANDABLE_TEMPLATES = [
-    'first_blood_hunters', 'category_masters', 'perfect_solvers',
+    'top_teams_by_score', 'first_blood_hunters', 'category_masters', 'perfect_solvers',
     'solve_count_champions', 'no_hints_solvers'
   ];
 
@@ -747,10 +779,10 @@
             html += `<tr><td>${i + 1}</td><td>${d.category || ''}</td><td>${d.solved_count || ''}</td><td>${d.total_challenges || ''}</td><td>${formatDate(d.full_clear_date)}</td></tr>`;
           });
         } else {
-          html += '<th>#</th><th>Challenge</th><th>Category</th><th>Score</th>';
+          html += '<th>#</th><th>Challenge</th><th>Category</th><th>Score</th><th>Solve Time</th>';
           html += '</tr></thead><tbody>';
           details.forEach((d, i) => {
-            html += `<tr><td>${i + 1}</td><td>${d.challenge_name || ''}</td><td>${d.category || ''}</td><td>${d.score || ''}</td></tr>`;
+            html += `<tr><td>${i + 1}</td><td>${d.challenge_name || ''}</td><td>${d.category || ''}</td><td>${d.score || ''}</td><td>${formatDate(d.solve_date)}</td></tr>`;
           });
         }
         html += '</tbody></table></div>';

@@ -260,7 +260,11 @@
                                 {{ version.creator.name if version.creator else 'Unknown' }}
                             </td>
                             <td class="text-center">
-                                {{ version.created_at.strftime('%Y-%m-%d %H:%M') if version.created_at else 'N/A' }}
+                                {% if version.created_at %}
+                                <span data-time="{{ version.created_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm"></span>
+                                {% else %}
+                                N/A
+                                {% endif %}
                             </td>
                             <td class="text-center">
                                 <a href="{{ url_for('admin.challenges_version_detail', challenge_id=challenge.id, version_id=version.id) }}"

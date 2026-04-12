@@ -139,7 +139,7 @@ class Tickets(db.Model):
     replier_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     replier_message = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(80), default="open")
-    create_at= db.Column(db.DateTime, default= datetime.datetime.now())
+    create_at= db.Column(db.DateTime, default=datetime.datetime.utcnow)
 class Hints(db.Model):
     __tablename__ = "hints"
     id = db.Column(db.Integer, primary_key=True)
