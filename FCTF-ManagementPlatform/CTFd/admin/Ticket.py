@@ -12,8 +12,10 @@ from CTFd.utils.user import get_current_user
 @admin.route("/admin/viewticket", methods=["GET"])
 def view_tickets():
     try:
-        page = int(request.args.get("page", 1))
-        per_page = int(request.args.get("per_page", 10))
+        page = request.args.get("page", default=1, type=int) or 1
+        per_page = request.args.get("per_page", default=10, type=int) or 10
+        page = max(page, 1)
+        per_page = min(max(per_page, 1), 100)
         user_id = request.args.get("user_id", type=int)
         status = request.args.get("status", type=str)
         type_ = request.args.get("type", type=str)
@@ -28,8 +30,16 @@ def view_tickets():
             per_page=per_page
         )
 
+        if not isinstance(response, dict):
+            response = {}
+
         tickets = response.get("tickets", []) if status_code == 200 else []
         total = response.get("total", 0) if status_code == 200 else 0
+
+        if tickets is None:
+            tickets = []
+        if total is None:
+            total = 0
 
 
         # Lấy tất cả status/type từ model Tickets (distinct)
@@ -47,6 +57,7 @@ def view_tickets():
             page=page,
             status_options=all_status,
             type_options=all_type,
+            selected_user=user_id,
             selected_status=selected_status,
             selected_type=selected_type,
             search=search
