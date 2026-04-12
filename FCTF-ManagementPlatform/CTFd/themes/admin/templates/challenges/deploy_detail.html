@@ -30,7 +30,11 @@
                     <tr>
                         <th>Deploy At</th>
                         <td>
-                            {{ deployed_challenge.deploy_at.strftime('%Y-%m-%d %H:%M:%S') if deployed_challenge.deploy_at is not none else 'N/A' }}
+                            {% if deployed_challenge.deploy_at is not none %}
+                            <span data-time="{{ deployed_challenge.deploy_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
+                            {% else %}
+                            N/A
+                            {% endif %}
                         </td>
                     </tr>
                     

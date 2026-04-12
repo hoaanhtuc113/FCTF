@@ -367,7 +367,7 @@
             <div>
                 <h1>Version {{ version.version_number }} &mdash; {{ challenge.name }}</h1>
                 <p class="text-muted mb-0 mt-1" style="font-size: 0.9rem;">
-                    {{ challenge.category }} &middot; Created {{ version.created_at.strftime('%Y-%m-%d %H:%M:%S') if version.created_at else 'N/A' }}
+                    {{ challenge.category }} &middot; Created {% if version.created_at %}<span data-time="{{ version.created_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}N/A{% endif %}
                 </p>
             </div>
             <span class="version-badge">v{{ version.version_number }}</span>
@@ -501,7 +501,7 @@
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Created At</span>
-                        <span class="detail-value">{{ version.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if version.created_at else 'N/A' }}</span>
+                        <span class="detail-value">{% if version.created_at %}<span data-time="{{ version.created_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}N/A{% endif %}</span>
                     </div>
                 </div>
             </div>

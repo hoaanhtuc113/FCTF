@@ -189,8 +189,13 @@
 				This is the time that latest build resources.
 			</small>
 		</label>
-		<input type="text" disabled="true" class="form-control chal-value" name="latest_build"
-			value="{{challenge.last_update}}">
+		<div class="form-control chal-value" style="background-color:#e9ecef;">
+			{% if challenge.last_update %}
+			<span data-time="{{ challenge.last_update | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
+			{% else %}
+			Not yet
+			{% endif %}
+		</div>
 	</div>
 	{% endblock %}
 
