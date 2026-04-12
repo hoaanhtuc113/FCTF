@@ -7,6 +7,10 @@ description: Section 5 details for Deployment Listener architecture, watch seman
 
 This page expands Section 5 from [Architecture Overview](./overview).
 
+:::tip[Reliability lens]
+Think of this subsystem as eventual consistency enforcement between desired state in data stores and actual state in Kubernetes.
+:::
+
 ## State Reconciliation Model (Deployment Listener)
 
 > **Core reliability subsystem:** Deployment Listener keeps API-visible runtime state aligned with real cluster state.
@@ -21,6 +25,10 @@ This page expands Section 5 from [Architecture Overview](./overview).
 - cache and real cluster state diverge.
 
 **Deployment Listener converges observed Kubernetes state back to the runtime state used by APIs.**
+
+:::important[Observed state wins]
+When request intent and cluster reality diverge, reconciliation should trust observed Kubernetes state to prevent ghost runtime records.
+:::
 
 ### Watch architecture
 
@@ -73,3 +81,7 @@ If pod exists but corresponding deployment cache is missing:
 ### Operational outcome
 
 **Operational outcome:** event-driven best-effort orchestration remains eventually consistent, with less manual recovery during CTF peaks.
+
+:::tip[Operator signal]
+A growing mismatch between active namespaces and unstopped tracking rows is an early warning that watch or callback paths need attention.
+:::

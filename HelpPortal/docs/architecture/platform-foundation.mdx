@@ -7,6 +7,10 @@ description: Section 2 details for runtime planes, namespace topology, and on-pr
 
 This page expands Section 2 from [Architecture Overview](./overview).
 
+:::tip[Infrastructure reading order]
+Understand planes and namespace topology first, then read k3s baseline and on-prem constraints to see why those boundaries exist.
+:::
+
 ## Architecture Overview
 
 FCTF is a microservice CTF platform organized into four runtime planes:
@@ -24,6 +28,10 @@ FCTF is a microservice CTF platform organized into four runtime planes:
 - **Isolate challenge runtime per deployment namespace** instead of exposing challenge pods directly.
 - **Enforce a controlled runtime access boundary via Challenge Gateway** for both HTTP and TCP challenges.
 - **Maintain eventual consistency** between requested state and actual Kubernetes state via listener reconciliation.
+
+:::important[Isolation must not be bypassed]
+Challenge workloads should remain reachable only through Challenge Gateway. Direct service exposure in challenge namespaces breaks containment and fairness assumptions.
+:::
 
 ### Namespace topology
 
@@ -64,3 +72,7 @@ FCTF is a microservice CTF platform organized into four runtime planes:
 - **Operators own node lifecycle, NFS ACLs, registry credentials, and DNS outside the platform.**
 - **Capacity planning is explicit** (replica counts, queue length, workflow concurrency, gateway limits).
 - **Cluster networking correctness is critical** (for example, pod CIDR overlap can break CoreDNS and pod networking).
+
+:::tip[On-prem operational baseline]
+Treat DNS, storage reliability, and registry credentials as first-class prerequisites before running contest traffic.
+:::

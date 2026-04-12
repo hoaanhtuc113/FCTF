@@ -7,6 +7,10 @@ description: Section 8 details for replica model, queue controls, gateway limits
 
 This page expands Section 8 from [Architecture Overview](./overview).
 
+:::tip[Scaling interpretation]
+Read each control as a guardrail against a specific failure mode: saturation, unfairness, or orchestration overload.
+:::
+
 ## Scalability Model
 
 ### Horizontal service scaling
@@ -41,6 +45,10 @@ These HPAs currently use CPU and memory utilization targets (`averageUtilization
 
 **These controls provide bounded admission to avoid workflow storms and cluster saturation.**
 
+:::important[Bounded admission is non-optional]
+Raising worker concurrency without adjusting queue limits and workflow caps can destabilize the cluster faster than it improves throughput.
+:::
+
 ### Runtime access scaling
 
 Challenge Gateway capacity controls include:
@@ -63,3 +71,7 @@ These controls protect challenge infrastructure from abuse and accidental overlo
 
 - **Scaling is hybrid:** HPA is enabled for selected stateless services, while worker/reconciler components remain manually scaled for predictable orchestration and reconciliation behavior.
 - **Single Deployment Consumer simplifies ordering and control**, but can become a throughput bottleneck if event size grows sharply.
+
+:::tip[Contest readiness test]
+Validate throughput settings with quick and race tests before event day, then freeze critical scaling knobs during the contest window.
+:::

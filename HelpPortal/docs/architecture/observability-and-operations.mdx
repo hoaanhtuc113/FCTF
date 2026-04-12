@@ -7,6 +7,10 @@ description: Section 9 details for monitoring stack, diagnostics, logging, insta
 
 This page expands Section 9 from [Architecture Overview](./overview).
 
+:::tip[Runbook-first usage]
+Use this page as the incident entry point: detect symptom, check health endpoints, then correlate workflow and pod logs.
+:::
+
 ## Observability and Operations
 
 ### Monitoring stack
@@ -24,6 +28,10 @@ This page expands Section 9 from [Architecture Overview](./overview).
   - workflow log retrieval (Argo build pod logs),
   - pod logs retrieval,
   - Loki request log query by team/challenge/ns dimensions.
+
+:::important[Incident triage order]
+Check gateway and deployment logs before making manual namespace changes. Premature cleanup can hide root cause signals.
+:::
 
 ### Logging strategy
 
@@ -50,3 +58,7 @@ Repository provides dedicated suites for:
 - Gateway functional/performance/race scenarios.
 - Race condition tests for business flows.
 - Stress tests for API and runtime orchestration paths.
+
+:::tip[Test cadence]
+Run quick gateway tests after config changes, and full/race suites before production contests or major scaling updates.
+:::

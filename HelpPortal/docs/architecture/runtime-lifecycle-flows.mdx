@@ -7,6 +7,10 @@ description: Section 4 details for request, deployment, runtime access, and exec
 
 This page expands Section 4 from [Architecture Overview](./overview).
 
+:::tip[Flow interpretation]
+Each flow describes one trust and latency boundary crossing; use it to reason about failure handling and retry ownership.
+:::
+
 ## Data Flow (Key Paths)
 
 ### User Flow
@@ -28,6 +32,10 @@ This page expands Section 4 from [Architecture Overview](./overview).
 6. Deployment Listener observes pod readiness/deletion and finalizes lifecycle state.
 
 **Outcome:** deployment work is queue-mediated and isolated from frontend latency.
+
+:::important[Do not short-circuit the queue path]
+Directly creating workloads from user request paths can introduce contest-time latency spikes and inconsistent lifecycle records.
+:::
 
 ### Runtime Access Flow
 
@@ -81,3 +89,7 @@ Each deployment namespace includes:
 - Challenge job has ttlSecondsAfterFinished for workload object cleanup.
 - Argo workflow templates define TTL strategy for workflow object retention.
 - Additional cron cleanup removes expired temporary challenge namespaces by label.
+
+:::tip[TTL tuning practice]
+Tune queue expiry, cache TTL, and workflow TTL together. Misaligned values can leave stale "running" state or overly aggressive cleanup.
+:::

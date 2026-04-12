@@ -7,6 +7,10 @@ description: Section 3 details for ingress, frontend, backend, async workers, wo
 
 This page expands Section 3 from [Architecture Overview](./overview).
 
+:::tip[Boundary-first reading]
+Read this page by service boundary, not by technology stack. It reflects ownership and failure domains.
+:::
+
 ## Component Breakdown
 
 ### Entry Layer
@@ -50,7 +54,7 @@ This page expands Section 3 from [Architecture Overview](./overview).
 - Redis Lua + lock-based race protection for submissions and deployment quotas.
 - Shared-instance mode supported via special team ID handling.
 
-:::tip Runtime Boundary Highlight
+:::tip[Runtime Boundary Highlight]
 Challenge Gateway is the only intended external entry boundary for challenge runtime traffic.
 :::
 
@@ -63,6 +67,10 @@ Challenge Gateway is the only intended external entry boundary for challenge run
 - Persists/reads deployment state in Redis.
 - Calls Kubernetes and Argo APIs (status, logs, namespace operations).
 - Exposes callback endpoint for workflow status messages.
+
+:::important[Control-plane contract]
+Deployment Center should remain the single control API for start and stop orchestration so retries, audit, and status transitions stay consistent.
+:::
 
 #### Challenge Gateway
 
@@ -142,3 +150,7 @@ Challenge Gateway is the only intended external entry boundary for challenge run
 - Kubernetes service wrapper for workflow status/logs, namespace operations, and pod health checks.
 - Token and challenge naming helpers.
 - MultiServiceConnector for service-to-service HTTP calls.
+
+:::tip[Shared library rule]
+Put cross-service consistency logic here only when at least two services must enforce identical behavior.
+:::
