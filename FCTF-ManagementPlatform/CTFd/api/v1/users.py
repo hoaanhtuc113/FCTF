@@ -2,6 +2,7 @@ from typing import List
 
 from flask import abort, request, session
 from flask_restx import Namespace, Resource
+from sqlalchemy import or_
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
@@ -43,6 +44,40 @@ users_namespace = Namespace("users", description="Endpoint to retrieve Users")
 
 UserModel = sqlalchemy_to_pydantic(Users)
 TransientUserModel = sqlalchemy_to_pydantic(Users, exclude=["id"])
+
+
+def _purge_user_references(user_id):
+    user_table_name = Users.__table__.name
+
+    for table in reversed(db.metadata.sorted_tables):
+        if table.name == user_table_name:
+            continue
+
+        delete_conditions = []
+        set_null_columns = set()
+
+        for fk in table.foreign_keys:
+            if fk.column.table.name != user_table_name or fk.column.name != "id":
+                continue
+
+            ondelete = (fk.ondelete or "").upper()
+            column = fk.parent
+
+            if ondelete == "SET NULL" and column.nullable:
+                set_null_columns.add(column.name)
+            else:
+                delete_conditions.append(column == user_id)
+
+        if set_null_columns:
+            null_filters = [table.c[column_name] == user_id for column_name in set_null_columns]
+            db.session.execute(
+                table.update()
+                .where(or_(*null_filters))
+                .values(**{column_name: None for column_name in set_null_columns})
+            )
+
+        if delete_conditions:
+            db.session.execute(table.delete().where(or_(*delete_conditions)))
 
 
 class UserDetailedSuccessResponse(APIDetailedSuccessResponse):
@@ -352,12 +387,8 @@ class UserPublic(Resource):
             "team_id": user.team_id,
         }
 
-        Awards.query.filter_by(user_id=user_id).delete()
-        Unlocks.query.filter_by(user_id=user_id).delete()
-        Submissions.query.filter_by(user_id=user_id).delete()
-        Solves.query.filter_by(user_id=user_id).delete()
-        Tracking.query.filter_by(user_id=user_id).delete()
-        Users.query.filter_by(id=user_id).delete()
+        _purge_user_references(user_id=user_id)
+        db.session.delete(user)
         db.session.commit()
         db.session.close()
 
@@ -368,6 +399,7 @@ class UserPublic(Resource):
         )
 
         clear_user_session(user_id=user_id)
+        clear_auth_cache(user_id=user_id)
         clear_standings()
         clear_challenges()
 

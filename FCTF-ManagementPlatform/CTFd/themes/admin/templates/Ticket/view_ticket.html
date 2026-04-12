@@ -142,10 +142,10 @@
 						<input type="checkbox" class="table-check ticket-checkbox" value="{{ ticket.id }}" form="delete-form" name="ticket_ids[]">
 					</td>
 					<td>{{ ticket.id }}</td>
-					<td class="cell-truncate-sm" title="{{ ticket.team_name }}">{{ ticket.team_name | truncate(24, True, '...') }}</td>
-					<td class="cell-truncate-sm" title="{{ ticket.type }}">{{ ticket.type | truncate(20, True, '...') }}</td>
-					<td class="cell-truncate" title="{{ ticket.title }}">{{ ticket.title | truncate(40, True, '...') }}</td>
-					<td class="cell-truncate-lg" title="{{ ticket.description }}">{{ ticket.description | truncate(90, True, '...') }}</td>
+					<td class="cell-truncate-sm" title="{{ ticket.team_name or '' }}">{{ (ticket.team_name or '') | truncate(24, True, '...') }}</td>
+					<td class="cell-truncate-sm" title="{{ ticket.type or '' }}">{{ (ticket.type or '') | truncate(20, True, '...') }}</td>
+					<td class="cell-truncate" title="{{ ticket.title or '' }}">{{ (ticket.title or '') | truncate(40, True, '...') }}</td>
+					<td class="cell-truncate-lg" title="{{ ticket.description or '' }}">{{ (ticket.description or '') | truncate(90, True, '...') }}</td>
 					<td>{% if ticket.date %}<span data-time="{{ ticket.date | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}N/A{% endif %}</td>
 					<td>{{ ticket.status }}</td>
 					<td class="text-center">
