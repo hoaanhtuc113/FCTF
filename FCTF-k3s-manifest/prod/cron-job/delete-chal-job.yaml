@@ -62,7 +62,7 @@ spec:
                   else
                     for ns in $TARGETS; do
                       echo "[Cleanup] 🗑️ Deleting expired namespace: $ns"
-                      kubectl delete ns "$ns" --ignore-not-found=true --wait=false
+                      kubectl delete ns "$ns" --grace-period=0 --ignore-not-found=true --wait=false
                     done
                   fi
                   echo "[Cleanup] ✅ Done!"

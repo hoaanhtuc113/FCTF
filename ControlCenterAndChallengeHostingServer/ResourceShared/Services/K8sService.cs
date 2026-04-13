@@ -70,14 +70,13 @@ public class K8sService : IK8sService
     {
         try
         {
-            var result = await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
+            var result = await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
+                gracePeriodSeconds: 0,
+                propagationPolicy: "Background");
+
             _logger.LogDebug("Namespace deletion requested", new { namespaceName, status = result.Status });
+
             return true;
-        }
-        catch (k8s.Autorest.HttpOperationException ex)
-        {
-            _logger.LogError(ex, data: new { namespaceName, responseContent = ex.Response.Content, errorType = "DeleteNamespaceHttpError" });
-            return false;
         }
         catch (Exception ex)
         {
@@ -113,7 +112,10 @@ public class K8sService : IK8sService
                 var namespaceName = ns.Metadata.Name;
                 try
                 {
-                    await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName);
+                    await _kubernetes.CoreV1.DeleteNamespaceAsync(namespaceName,
+                        gracePeriodSeconds: 0,
+                        propagationPolicy: "Background");
+
                     successCount++;
                     _logger.LogDebug("Successfully deleted namespace", new { namespaceName });
                 }
