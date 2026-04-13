@@ -1,51 +1,79 @@
 ---
+sidebar_position: 2
 title: Platform Governance
-description: Governance controls for policy configuration, identity administration, and data portability.
+description: System configuration, event policies, data portability, and security controls for competition administration.
 ---
 
 # Platform Governance
 
-This section describes how administrators define and control event-wide operating policies.
+This section describes how administrators configure platform-wide policies, manage data import/export operations, and apply security controls through the **Configuration** page.
 
-## System Configuration
+## Configuration Page
 
-**Business objective:** Define platform-wide behavior so all teams operate under the same rules.
+The **Config** page is the central administrative hub for defining event-wide operating parameters. It is organized into logical sections accessible via the left-hand navigation panel.
 
-**Operational steps**
+![Configuration](/img/admin/Config_Page.png)
 
-1. Open event policy settings before competition launch.
-2. Select policy area: registration, visibility, timing, scoreboard behavior, or access mode.
-3. Configure values and record the reason for governance traceability.
-4. Validate impact scope (global, bracket-level, or staff-only behavior).
-5. Apply changes and verify outcome from both admin and contestant views.
+### General
 
-**Expected result:** Event policy remains consistent and predictable.
+* **Event Name** - Define the competition name shown across the platform.
+* **Event Description** - Define reusable event text available in pages and emails.
+* **Captain Only Start Challenge** - Restrict challenge runtime start/deploy actions to team captains.
+* **Captain Only Submit Challenge** - Restrict flag submission actions to team captains.
+* **Limit Challenges** - Set the maximum number of challenge runtimes a team can run simultaneously.
+* **Incorrect Submissions per Minute** - Configure brute-force protection by limiting incorrect submissions per minute.
 
-## Identity and Team Administration
+### Appearance
 
-**Business objective:** Keep identity and team records correct so every competition action maps to the right participant context.
+* **Logo** - Upload a custom event logo that will be displayed across the platform UI and public-facing pages.
 
-**Operational steps**
+### Access
 
-1. Review new registrations and pending team assignments.
-2. Confirm role assignments for contestant, jury, challenge writer, and admin accounts.
-3. Manage team membership and captain ownership.
-4. Execute moderation actions when required (hide, suspend, restore).
-5. Perform consistency checks to prevent invalid identity states.
+* **Visibility** - Configure contestant-facing visibility controls:
+	* **Score Visibility** - Control whether scoreboard data is `Public`, `Private`, or fully `Hidden`.
+	* **Allow contestants to view other brackets** - Available when Score Visibility is `Private`; controls whether contestants can switch to other bracket standings.
+	* **Challenge Difficulty Visibility** - Control whether challenge difficulty ratings are shown to contestants.
+* **Start, End, and Freeze Time** - Define the competition schedule:
+	* **Start Time** - When challenge solving begins.
+	* **End Time** - When new solves stop.
+	* **Freeze Time** - When public ranking updates are frozen while solves continue to be recorded.
+	* **View After CTF** - Optionally keep challenge content viewable after end time while still preventing new scoring.
+* **Pause** - Temporarily block submissions until unpaused. Challenge pages remain viewable.
 
-**Expected result:** Access governance is accurate and auditable.
+### Users
 
-## Data Portability (Import and Export)
+* **Scoreboard Brackets** - Define and manage bracket divisions (e.g., Student, Professional, Open) for segmented scoring and leaderboards.
+* **Custom Fields** - Create custom metadata fields that are attached to user profiles (e.g., Student ID, Organization Unit).
 
-**Business objective:** Support onboarding, reporting, backup, and compliance workflows safely.
+### Backup (Import & Export)
 
-**Operational steps**
+The Import & Export interface enables administrators to perform bulk data operations via CSV files.
 
-1. Select operation: import users/teams, export reports, or export backup.
-2. Prepare source data with valid structure and required fields.
-3. Run validation and inspect row-level errors before applying.
-4. Execute import/export and review success-failure summary.
-5. Correct failed records and retry targeted updates.
-6. Store outputs under retention and access-control policy.
+**Tabs:**
+* **Export** - Export platform data (users, teams, challenges, submissions) as a downloadable archive for backup or reporting.
+* **Import** - Import previously exported data archives to restore or migrate platform state.
+* **Download CSV** - Download pre-formatted CSV templates for Users, Teams, or Users + Teams to prepare bulk import files.
+* **Import CSV** - Upload a completed CSV file to batch-create accounts.
 
-**Expected result:** Data movement is controlled, accurate, and secure.
+**CSV Import Workflow:**
+1. Download the appropriate CSV template (Users, Teams, or Users + Teams).
+2. Populate the template with the required fields.
+3. Select the correct **CSV Type** from the dropdown.
+4. Choose the prepared CSV file using the file picker.
+5. Click **[Import CSV]** to execute the batch operation.
+
+:::important[Template Downloads]
+Always use the platform-provided CSV templates to ensure field ordering and encoding are compatible. Malformed files will be rejected during validation.
+:::
+
+### Security
+
+* **Sanitize** - Purge potentially dangerous HTML or script content from user-generated fields (names, descriptions, etc.) across the platform database. Use this as a preventive measure against stored XSS attacks.
+
+### Danger Zone
+
+* **Reset** - Open the reset workflow to wipe selected data scopes (`Accounts`, `Submissions`, `Challenges`, `Logs`). `Logs` includes both contestant action logs and admin audit logs.
+
+:::caution[Irreversible Action]
+Reset operations permanently destroy selected competition data. Always perform a full Export backup before executing a reset.
+:::
