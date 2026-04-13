@@ -253,7 +253,7 @@ export function Login() {
 
         {/* Bottom Info */}
         <Box sx={{ mt: 3, textAlign: 'center', color: colors.placeholder, fontSize: '11px' }}>
-          <Box>FPT_University © 2025</Box>
+          <Box>FPT_University © {new Date().getFullYear()}</Box>
           <Box sx={{ mt: 1 }}>
             <span style={{ color: colors.textMuted }}>need_access?</span>{' '}
             <span style={{ color: '#fb923c', cursor: 'pointer' }}>contact_admin</span>
