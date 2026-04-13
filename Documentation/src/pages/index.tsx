@@ -83,10 +83,10 @@ function EmberField(): ReactNode {
       embers.push(e);
     }
 
-    const MOUSE_RADIUS = 250;
-    const ATTRACT_FORCE = 0.03;
+    const MOUSE_RADIUS = 200;
+    const ATTRACT_FORCE = 0.02;
     const CONNECT_DIST = 140;
-    const MOUSE_CONNECT_DIST = 250;
+    const MOUSE_CONNECT_DIST = 150;
 
     let animId = 0;
     const draw = () => {
@@ -97,7 +97,7 @@ function EmberField(): ReactNode {
       const b = isLight ? 12 : 60;
 
       // Spawn new embers
-      if (embers.length < 80 && Math.random() > 0.8) {
+      if (embers.length < 60 && Math.random() > 0.8) {
         embers.push(spawnEmber());
       }
 
@@ -107,7 +107,7 @@ function EmberField(): ReactNode {
           mouseX, mouseY, 0,
           mouseX, mouseY, MOUSE_RADIUS
         );
-        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.25)`);
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.20)`);
         grad.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.1)`);
         grad.addColorStop(1, 'transparent');
         ctx.fillStyle = grad;
@@ -151,13 +151,13 @@ function EmberField(): ReactNode {
         if (mouseActive) {
           const dMouse = Math.hypot(mouseX - e.x, mouseY - e.y);
           if (dMouse < MOUSE_RADIUS) {
-            alpha = Math.min(2.5, alpha * (1 + 4.0 * (1 - dMouse / MOUSE_RADIUS)));
+            alpha = Math.min(2, alpha * (1 + 2.0 * (1 - dMouse / MOUSE_RADIUS)));
           }
         }
 
         // Outer glow
         ctx.beginPath();
-        ctx.arc(e.x, e.y, e.size * 4, 0, Math.PI * 2);
+        ctx.arc(e.x, e.y, e.size * 2, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.04})`;
         ctx.fill();
 
@@ -169,7 +169,7 @@ function EmberField(): ReactNode {
 
         // Bright center pixel
         ctx.beginPath();
-        ctx.arc(e.x, e.y, e.size * 0.4, 0, Math.PI * 2);
+        ctx.arc(e.x, e.y, e.size * 0.3, 0, Math.PI * 1);
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
         ctx.fill();
 
@@ -309,55 +309,12 @@ export default function Home(): ReactNode {
           </div>
         </section>
 
-        {/* ─── SHOWCASE SPLIT ─── */}
-        <section className={styles.showcase}>
-          <div className={styles.showcaseText}>
-            <p className={styles.showcaseLabel}>[about]</p>
-            <h2 className={styles.showcaseTitle}>
-              The full competition lifecycle, automated
-            </h2>
-            <p className={styles.showcaseDesc}>
-              FCTF manages users, challenges, runtime orchestration, and results.
-              Built from years of organizing CTF events at FPT University — from
-              club-level to national contests. Supports cryptography, reverse engineering,
-              web security, forensics, binary exploitation, and more.
-            </p>
-            <p className={styles.showcaseDesc}>
-              Unlike static-file platforms or cloud-locked services,
-              FCTF runs entirely on your own infrastructure with full
-              Kubernetes-native runtime orchestration.
-            </p>
-          </div>
-          <div className={styles.showcaseTerminal}>
-            <div className={styles.termWin}>
-              <div className={styles.termScanline} />
-              <div className={styles.termBar}>
-                <span className={styles.termDot} data-c="r" />
-                <span className={styles.termDot} data-c="y" />
-                <span className={styles.termDot} data-c="g" />
-                <span className={styles.termLabel}>argo-worker-node</span>
-              </div>
-              <div className={styles.termBody}>
-                <div className={styles.tl}><span className={styles.tp}>fctf@argo:~$</span> <span className={styles.tc}>kubectl logs job/start-chal-v2-web-sqli</span></div>
-                <div className={styles.tl}><span className={styles.to}>=== Deploying Challenge v2 with parameters ===</span></div>
-                <div className={styles.tl}><span className={styles.to}>&gt; CHALLENGE_NAME: ch-web-sqli-5bf1</span></div>
-                <div className={styles.tl}><span className={styles.ts}>[info]</span> <span className={styles.to}>RUNTIME_CLASS_NAME: gvisor</span></div>
-                <div className={styles.tl}><span className={styles.to}>📁 Found template at /mnt/nfs/data/challenge-hardened.yaml</span></div>
-                <div className={styles.tl}><span className={styles.th}>namespace/ch-web-sqli-5bf1 created</span></div>
-                <div className={styles.tl}><span className={styles.to}>🔐 Copying imagePullSecret global-regcred...</span></div>
-                <div className={styles.tl}><span className={styles.th}>networkpolicy.networking.k8s.io/deny-all created</span></div>
-                <div className={styles.tl}><span className={styles.th}>deployment.apps/ch-web-sqli-5bf1 created</span></div>
-                <div style={{ height: '0.5rem' }} />
-                <div className={styles.tl}><span className={styles.ts}>✅ Challenge v2 manifest submitted to cluster</span></div>
-                <div className={styles.tl}><span className={styles.tp}>fctf@argo:~$</span> <span className={styles.cursor} /></div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* ─── PIPELINE ─── */}
-        <section className={styles.pipeline}>
-          <p className={styles.pipelineLabel}>how it works</p>
+        <section className={styles.pipeline} style={{ paddingTop: '20px' }}>
+            <h2 className={styles.showcaseTitle}>
+              How it work
+            </h2>
           <div className={styles.pipelineSteps}>
             <div className={styles.pipeStep}>
               <span className={styles.pipeNum}>01</span>
