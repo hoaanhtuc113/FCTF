@@ -1,0 +1,297 @@
+---
+sidebar_position: 4
+title: Hardened Docker Guidelines
+description: Developer guide for scripting Kubernetes-compatible Dockerfiles that comply with Harden Container runtime restrictions.
+---
+
+# Hardened Docker Guidelines
+
+When creating deployable challenges on the FCTF platform, enabling the **Harden Container** feature enforces strict Kubernetes Pod Security Standards. This guide outlines how to structure and write a `Dockerfile` that ensures your challenge functions correctly inside this highly restricted, zero-trust runtime environment.
+
+## Directory Structure
+
+Each challenge must be packaged within an isolated directory containing all source code and dependencies required to build the challenge. A `Dockerfile` is strictly required and must reside precisely at the root of this structure. 
+
+The entire directory content will be utilized as the build context when the platform's Argo workflows construct the container image.
+
+**Example Structure:**
+```text
+challenge-name/
+├── Dockerfile
+└── (additional files, source code, and directories defined by the author)
+```
+
+Once prepared, compress the folder into a `.zip` archive to upload it via the Create Challenge interface.
+
+## Mandatory Security Principles
+
+Your `Dockerfile` must conform 100% to the following constraints. Any violation will cause the container to crash immediately upon execution inside the Kubernetes cluster.
+
+:::caution[Strict Enforcement]
+* **USER 1000:** The container must execute as an unprivileged user with `UID 1000`. The file must explicitly declare `USER 1000` before the `CMD` or `ENTRYPOINT`.
+* **Read-only Root Filesystem:** The entire root filesystem (`/`) is mounted as read-only.
+* **Isolated Writes:** Applications can only write to `/tmp`, which is mounted as an in-memory `tmpfs` volume. Attempting to write to `/data`, `/var`, `/etc`, or `/home` at runtime will trigger a fatal `Permission Denied` error.
+* **Stream Logs:** Do not configure file-based logging (e.g., `/var/log/*.log`). All logs must be redirected to `stdout` or `stderr`.
+* **Single Expose:** Expose and listen on exactly one standardized port per challenge spec.
+* **Zero Capabilities:** The environment aggressively drops all Linux capabilities. Do not rely on `setcap` or `privileged` execution.
+:::
+
+## Standard Design Strategy
+
+### General Principles
+- **Keep runtime immutable**: Treat the rootfs as strictly read-only.
+- **Symlink to `/tmp`**: Use symbolic links to route all required runtime write paths (logs, cache, temp files) into `/tmp`.
+- **Explicit Ownership**: Ensure all file permissions are granted to `UID 1000` *before* the `USER 1000` directive is called.
+- **Pre-extract Artifacts**: Separate build-time operations from runtime. Extract artifacts (like `.war` or `.jar` files) during the build stage if possible.
+
+### Build Flow Lifecycle
+Follow this precise sequence when crafting your `Dockerfile`:
+1. Use an appropriate Base Image (Alpine is highly recommended for minimum footprint).
+2. Create and add a user mapped to `UID 1000`.
+3. Install base dependencies.
+4. Copy the application source code or artifacts.
+5. Create symlinks pointing from application write paths to `/tmp`.
+6. Execute `chown -R 1000:1000` across the application directory.
+7. Switch execution context using `USER 1000`.
+8. In the `CMD`, execute `mkdir -p /tmp/...` to construct the target write directories *before* booting the application server.
+
+:::tip[Symlink Pattern]
+Symlinks must be mapped during the **BUILD** stage (when the filesystem is still writable via `RUN`). During runtime, the `CMD` simply creates the physical `/tmp/{target}` folders right before executing the server workload.
+:::
+
+## Symlink Redirection Technique
+
+This strategy is the technical foundation for surviving a read-only root filesystem. Any directory an application natively expects to be writable must be symbolically linked to `/tmp`.
+
+**General Pattern:**
+```dockerfile
+# Inside Dockerfile (Build time - filesystem is writable):
+RUN rm -rf /path/to/writable \
+    && ln -s /tmp/some-dir /path/to/writable
+
+# Inside CMD (Runtime - construct target dirs before passing execution):
+CMD ["sh", "-c", "mkdir -p /tmp/some-dir && exec myserver"]
+```
+
+## Workload Templates
+
+The following templates cover standard application stacks. Replace the bracketed placeholders (`<...>`) with your specific variables. 
+
+### A. Static Server (Nginx)
+Nginx natively attempts to write PIDs and logs to `/var`. Use `sed` to modify the default configuration directly within the image.
+
+```dockerfile
+FROM nginx:alpine
+
+# 1. Declare User and Port
+ARG APP_USER=appuser
+ARG PORT=8080
+
+RUN adduser -D -u 1000 $APP_USER
+
+# 2. Clear default config
+RUN rm -rf /etc/nginx/conf.d/default.conf
+
+# 3. Inject new server config block
+RUN echo "server { \
+    listen ${PORT}; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html; \
+        try_files \$uri \$uri/ =404; \
+    } \
+}" > /etc/nginx/conf.d/default.conf
+
+# 4. Force Nginx to route all temporary scopes to /tmp
+RUN sed -i 's|pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+    && sed -i 's|access_log .*|access_log /dev/stdout;|' /etc/nginx/nginx.conf \
+    && sed -i 's|error_log .*|error_log /dev/stderr;|' /etc/nginx/nginx.conf \
+    && sed -i "/http {/a \    client_body_temp_path /tmp/client_temp;\n    proxy_temp_path /tmp/proxy_temp;\n    fastcgi_temp_path /tmp/fastcgi_temp;\n    uwsgi_temp_path /tmp/uwsgi_temp;\n    scgi_temp_path /tmp/scgi_temp;" /etc/nginx/nginx.conf \
+    && sed -i 's/^user/#user/' /etc/nginx/nginx.conf
+
+# 5. Copy Source Directory
+COPY ./html /usr/share/nginx/html
+
+# 6. Apply strict permission boundaries
+RUN chown -R 1000:1000 /usr/share/nginx/html /etc/nginx /var/cache/nginx
+
+USER 1000
+EXPOSE ${PORT}
+
+# 7. Construct temp structure on boot
+CMD ["sh", "-c", "mkdir -p /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp && exec nginx -g 'daemon off;'"]
+```
+
+### B. Node.js Backend
+Utilize `slim` images if native modules (like `sqlite3`) require build compilations. 
+
+```dockerfile
+FROM node:18-bullseye-slim
+WORKDIR /app
+
+# Optional: Install build dependencies for native modules
+RUN apt-get update && \
+    apt-get install -y python3 build-essential --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+RUN npm install --production
+COPY . .
+
+# Redirect writable scopes to /tmp
+RUN rm -rf /app/uploads && ln -s /tmp/uploads /app/uploads || true
+RUN rm -f /app/data.db  && ln -s /tmp/data.db  /app/data.db  || true
+
+# Map standard UID/GID
+RUN groupadd -g 1000 appgroup || true && \
+    useradd -r -u 1000 -g appgroup -m -d /home/appuser -s /usr/sbin/nologin appuser || true
+
+RUN mkdir -p /tmp/uploads && \
+    chown -R 1000:1000 /tmp /app
+
+ENV PORT=3000
+ENV TMPDIR=/tmp
+ENV NODE_ENV=production
+
+EXPOSE 3000
+USER 1000
+
+CMD ["sh","-c","mkdir -p /tmp/uploads && exec node server.js"]
+```
+
+### C. Python (Flask & FastAPI)
+`PYTHONUNBUFFERED=1` is strictly required to stream logs correctly. Frameworks like Gunicorn/Uvicorn can output directly to stdout without modifying application scripts.
+
+**Flask + Gunicorn:**
+```dockerfile
+FROM python:3.11-alpine
+
+RUN adduser -D -u 1000 appuser
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+
+# Redirect writable paths (e.g., SQLite DB or uploads)
+RUN rm -f /app/data.db     && ln -s /tmp/data.db     /app/data.db || true
+RUN rm -rf /app/uploads    && ln -s /tmp/uploads     /app/uploads || true
+
+RUN chown -R 1000:1000 /app
+USER 1000
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV TMPDIR=/tmp
+
+EXPOSE 5000
+
+CMD ["sh","-c","mkdir -p /tmp/uploads && exec gunicorn app:app --bind 0.0.0.0:5000 --workers 2 --access-logfile -"]
+```
+
+### D. Java (Spring Boot)
+Leverage multi-stage builds. Extract native libraries (like SQLite JDBC) strictly during the build stage to bypass runtime write constraints.
+
+```dockerfile
+# ── Build stage ──────────────────────────────────────────
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /build
+COPY pom.xml .
+COPY src ./src
+RUN mvn -q -DskipTests package
+ 
+# Pre-extract native libraries to prevent runtime /tmp writes
+RUN mkdir -p /native && \
+    jar xf target/*.jar BOOT-INF/lib/sqlite-jdbc-3.49.1.0.jar && \
+    jar xf BOOT-INF/lib/sqlite-jdbc-3.49.1.0.jar org/sqlite/native/Linux/x86_64/libsqlitejdbc.so && \
+    mv org/sqlite/native/Linux/x86_64/libsqlitejdbc.so /native/libsqlitejdbc.so
+ 
+# ── Runtime stage ────────────────────────────────────────
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+ 
+COPY --from=build /native/libsqlitejdbc.so /usr/lib/libsqlitejdbc.so
+COPY --from=build /build/target/*.jar /app/app.jar
+ 
+USER 1000
+ 
+ENV JAVA_TOOL_OPTIONS="\
+    -Djava.io.tmpdir=/tmp \
+    -Dorg.sqlite.lib.path=/usr/lib \
+    -Dorg.sqlite.lib.name=libsqlitejdbc.so"
+ 
+EXPOSE 8080
+ 
+CMD ["java", "-jar", "/app/app.jar", "--server.port=8080"]
+```
+
+### E. PHP (Apache)
+Apache must be constrained to bind onto higher unprivileged ports (e.g., `8080`) and mapped explicitly to run within `/tmp`.
+
+```dockerfile
+FROM php:8.2-apache
+
+RUN apt-get update && apt-get install -y libsqlite3-dev sqlite3 && rm -rf /var/lib/apt/lists/*
+RUN docker-php-ext-install pdo_sqlite
+
+# Offset to Unprivileged Port
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+    && sed -i 's/:80/:8080/' /etc/apache2/sites-available/000-default.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Map Apache Internal Variables to TMP
+ENV APACHE_RUN_DIR=/tmp/apache-run \
+    APACHE_PID_FILE=/tmp/apache-run/apache2.pid \
+    APACHE_LOCK_DIR=/tmp/apache-lock \
+    APACHE_LOG_DIR=/tmp/apache-logs
+
+RUN groupadd -g 1000 appgroup || true && \
+    useradd -r -u 1000 -g appgroup -m -d /home/appuser -s /usr/sbin/nologin appuser || true
+
+RUN chown -R 1000:1000 /var/www/html /etc/apache2 /var/log/apache2
+
+WORKDIR /var/www/html
+COPY . .
+RUN chown -R 1000:1000 /var/www/html
+
+USER 1000
+EXPOSE 8080
+
+CMD ["sh","-c", "mkdir -p $APACHE_RUN_DIR $APACHE_LOCK_DIR $APACHE_LOG_DIR /tmp/uploads && touch /tmp/data.db && exec apache2-foreground"]
+```
+
+## Implementation Checklist & Anti-Patterns
+
+Refer to this matrix to circumvent common configuration issues.
+
+| Anti-Pattern (Avoid) | Hardened Practice (Adopt) |
+| :--- | :--- |
+| Writing files directly to `/app` at runtime. | Refactor application logic to write directly to `/tmp` or invoke the `TMPDIR` env var. |
+| Leaving user default (`root`) in Dockerfile. | Explicitly append `USER 1000` directly before execution. |
+| Creating Symlinks within the `CMD`. | Create Symlinks during the `RUN ln -s` build stage. |
+| Relying on outputting to `/var/log/*.log`. | Export all logs directly into `/dev/stdout` and `/dev/stderr`. |
+| Exposing standard Privileged Ports `< 1024`. | Utilize internal overlay routing by exposing `8080`, `5000`, `3000`, etc. |
+| Omitting folder creation upon startup. | Append `mkdir -p /tmp/...` to the front of your `CMD` execution string. |
+| Forgetting to reassign file ownership. | Issue `chown -R 1000:1000 /app` prior to declaring `USER 1000`. |
+
+#### Debugging Application Crashes
+
+If your pod crashes immediately after initialization, track the error vectors:
+1. Examine container output logic via `docker logs <container_id>`.
+2. Determine if the app is attempting unauthorized writes looking for `/` root permissions. 
+3. *Identify unauthorized write paths:* Run the image with `docker exec <cid> find / -newer /etc/hostname -not -path /tmp/\* -not -path /proc/\* 2>/dev/null`
+
+## Mandatory Local Validation
+
+Executing a quick test locally is imperative before committing the package zip. Run the following command. If the container succeeds without crashing locally, it is provisionally valid for upload. 
+
+```bash
+docker build -t challenge-x .
+
+# Validate strict constraints locally:
+docker run --read-only --tmpfs /tmp --user 1000 -p 8080:8080 challenge-x
+```
+
+:::info[Preview Notice]
+While the local `docker run` command accurately mimics runtime constraints, it does not guarantee ultimate compatibility with FCTF deployments. Upon successful package upload, always execute the built-in **Preview Feature** inside the Admin Portal to ensure total system integration.
+:::

@@ -40,6 +40,7 @@ const sidebars: SidebarsConfig = {
             'product-and-features/admin/accounts',
             'product-and-features/admin/platform-governance',
             'product-and-features/admin/challenge-operations',
+            'product-and-features/admin/harden-docker-guidelines',
             'product-and-features/admin/live-runtime-control',
             'product-and-features/admin/analytics-and-incentives',
             'product-and-features/admin/support-and-compliance',
