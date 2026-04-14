@@ -1,4 +1,4 @@
-import { fetchWithAuth, API_BASE_URL } from './api';
+import { fetchWithAuth, fetchData, API_BASE_URL } from './api';
 import { API_ENDPOINTS } from '../config/endpoints';
 
 interface DateConfig {
@@ -74,7 +74,7 @@ class ConfigService {
     }
 
     try {
-      const response = await fetch(API_ENDPOINTS.CONFIG.PUBLIC, { credentials: 'same-origin' });
+      const response = await fetchData(API_ENDPOINTS.CONFIG.PUBLIC);
       const data = await response.json();
       if (data) {
         // If the returned paths are not absolute URLs, prefix with base URL
