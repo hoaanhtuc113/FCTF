@@ -1,7 +1,11 @@
 import { API_ENDPOINTS } from '../config/endpoints';
 import type { User, Team } from '../models/user.model';
 import type { LoginCredentials, AuthResponse } from '../models/auth.model';
-import type { RegisterContestantPayload, RegistrationMetadata } from '../models/registration.model';
+import type {
+  RegisterContestantPayload,
+  RegistrationFieldDefinition,
+  RegistrationMetadata,
+} from '../models/registration.model';
 import { API_BASE_URL } from './api';
 class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
@@ -40,7 +44,40 @@ class AuthService {
     }
 
     const data = await response.json();
-    return data.data as RegistrationMetadata;
+    const payload = data?.data ?? {};
+
+    const normalizeFields = (fields: unknown): RegistrationFieldDefinition[] => {
+      if (!Array.isArray(fields)) {
+        return [];
+      }
+
+      return fields
+        .filter((field): field is Record<string, unknown> => Boolean(field) && typeof field === 'object')
+        .map((field) => {
+          const fieldType: RegistrationFieldDefinition['fieldType'] = field.fieldType === 'boolean' ? 'boolean' : 'text';
+
+          return {
+            id: typeof field.id === 'number' ? field.id : 0,
+            name: typeof field.name === 'string' ? field.name : '',
+            fieldType,
+            description: typeof field.description === 'string' ? field.description : undefined,
+            required: field.required === true,
+          };
+        })
+        .filter((field) => field.id > 0);
+    };
+
+    const constraintsRaw = (payload.constraints && typeof payload.constraints === 'object') ? payload.constraints as Record<string, unknown> : {};
+
+    return {
+      userFields: normalizeFields(payload.userFields),
+      teamFields: normalizeFields(payload.teamFields),
+      constraints: {
+        teamSizeLimit: Number(constraintsRaw.teamSizeLimit ?? 0),
+        numTeamsLimit: Number(constraintsRaw.numTeamsLimit ?? 0),
+        numUsersLimit: Number(constraintsRaw.numUsersLimit ?? 0),
+      },
+    };
   }
 
   async registerContestant(payload: RegisterContestantPayload): Promise<void> {
