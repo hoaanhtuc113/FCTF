@@ -43,6 +43,44 @@ public class AuthController : BaseController
 
     }
 
+    [HttpGet("registration-metadata")]
+    public async Task<IActionResult> GetRegistrationMetadata()
+    {
+        var result = await _authService.GetRegistrationMetadata();
+
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                message = result.Message,
+            });
+        }
+
+        return Ok(new
+        {
+            data = result.Data,
+        });
+    }
+
+    [HttpPost("register-contestant")]
+    public async Task<IActionResult> RegisterContestant([FromBody] RegisterContestantDTO registerContestantDto)
+    {
+        var result = await _authService.RegisterContestant(registerContestantDto);
+
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                message = result.Message,
+            });
+        }
+
+        return Ok(new
+        {
+            message = result.Message,
+        });
+    }
+
     [HttpPost("logout")]
     [Authorize]
     public async Task<IActionResult> Logout()

@@ -16,7 +16,6 @@ FCTF applies multiple controls to keep competition fair under load while protect
 | Submission cooldown | Cooldown countdown after incorrect/rate-limited submits | Reduces brute-force pressure |
 | Attempt budget | Attempts counter and max-attempt stop behavior | Preserves challenge fairness |
 | Deploy quota | `Deploys: current/max` indicator on challenge detail | Prevents unlimited environment churn |
-| Runtime lifecycle checks | Pending/Checking/Running status transitions | Keeps state transparent during deploy |
 | Tokenized gateway access | `[YOUR ACCESS TOKEN]` block with HTTP/TCP access format | Restricts runtime entry to authorized teams |
 | Team activity logging | Action history with filters/search | Provides accountability and dispute evidence |
 
@@ -39,14 +38,6 @@ The following limits may be active per challenge or event configuration:
 - Time limit with auto-stop behavior
 
 Contestants should monitor these values in challenge detail before starting aggressive solve attempts.
-
-## Secure File and Evidence Access
-
-Contestants can safely use platform-managed assets and evidence surfaces:
-
-- PDF problem statements rendered in challenge detail
-- Attachment downloads from official challenge file entries
-- Team action logs for traceability during support incidents
 
 ## Operational Guidance
 

@@ -4,41 +4,57 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../hooks/useToast';
 import { useTheme } from '../context/ThemeContext';
 import { Box, TextField, Button, CircularProgress } from '@mui/material';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { configService } from '../services/configService';
+import { getTurnstileSiteKey } from '../services/envService';
 
 export function Login() {
   const { theme } = useTheme();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const turnstileSiteKey = getTurnstileSiteKey();
+  const captchaEnabled = turnstileSiteKey.length > 0;
 
   // Theme-aware colors
   const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#000' : '#0a0a0a',
-    border: isDark ? '#3f3f46' : '#52525b',
-    borderLight: isDark ? '#52525b' : '#71717a',
-    text: isDark ? '#fb923c' : '#f97316',
-    textSecondary: isDark ? '#a1a1aa' : '#d4d4d8',
-    textMuted: isDark ? '#71717a' : '#a1a1aa',
-    placeholder: isDark ? '#52525b' : '#71717a',
+    bg: isDark ? '#000000' : '#f8fafc',
+    cardBg: isDark ? '#000000' : '#ffffff',
+    border: isDark ? '#3f3f46' : '#d4d4d8',
+    borderLight: isDark ? '#52525b' : '#e4e4e7',
+    text: isDark ? '#fb923c' : '#ea580c',
+    textSecondary: isDark ? '#a1a1aa' : '#52525b',
+    textMuted: isDark ? '#71717a' : '#6b7280',
+    placeholder: isDark ? '#52525b' : '#9ca3af',
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (captchaEnabled && !captchaToken) {
+      toast.error('Please complete captcha challenge');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(username, password, captchaToken ?? undefined);
       toast.success('auth_success');
       // after authentication, go directly to the challenges page
       navigate('/challenges');
     } catch (err) {
       console.log(err);
+      setCaptchaToken(null);
+      setCaptchaWidgetKey((prev) => prev + 1);
       // Display error message from backend 
       const errorMessage = err instanceof Error ? err.message : 'auth_failed';
       toast.error(errorMessage);
@@ -50,6 +66,8 @@ export function Login() {
   const handleClear = () => {
     setUsername('');
     setPassword('');
+    setCaptchaToken(null);
+    setCaptchaWidgetKey((prev) => prev + 1);
     toast.info('form_cleared');
   };
 
@@ -61,6 +79,7 @@ export function Login() {
         if (cfg && cfg.ctf_logo) {
           setLogoUrl(cfg.ctf_logo);
         }
+        setRegistrationEnabled(Boolean(cfg?.contestant_registration_enabled));
       } catch (err) {
         console.error('Error loading logo config:', err);
       }
@@ -101,7 +120,7 @@ export function Login() {
         <Box
           sx={{
             border: `1px solid ${colors.border}`,
-            bgcolor: colors.bg,
+            bgcolor: colors.cardBg,
             p: 3,
           }}
         >
@@ -127,7 +146,7 @@ export function Login() {
                     '& .MuiOutlinedInput-root': {
                       fontFamily: '"Roboto Mono", monospace',
                       fontSize: '13px',
-                      bgcolor: colors.bg,
+                      bgcolor: colors.cardBg,
                       color: colors.text,
                       '& fieldset': {
                         borderColor: colors.borderLight,
@@ -166,7 +185,7 @@ export function Login() {
                       fontFamily: 'monospace',
                       fontSize: '14px',
                       color: colors.text,
-                      bgcolor: colors.bg,
+                      bgcolor: colors.cardBg,
                       '& fieldset': {
                         borderColor: colors.border,
                       },
@@ -186,6 +205,33 @@ export function Login() {
                 />
               </Box>
 
+              {captchaEnabled ? (
+                <Box>
+                  <Box sx={{ mb: 0.5, color: colors.textSecondary, fontSize: '12px' }}>
+                    [CAPTCHA]
+                  </Box>
+                  <Turnstile
+                    key={captchaWidgetKey}
+                    siteKey={turnstileSiteKey}
+                    onSuccess={(token) => setCaptchaToken(token)}
+                    onExpire={() => setCaptchaToken(null)}
+                    onError={() => {
+                      setCaptchaToken(null);
+                      setCaptchaWidgetKey((prev) => prev + 1);
+                      toast.error('Captcha verification failed. Please retry.');
+                    }}
+                    options={{
+                      theme: isDark ? 'dark' : 'light',
+                      action: 'contestant_login',
+                    }}
+                  />
+                </Box>
+              ) : (
+                <Box sx={{ color: colors.textMuted, fontSize: '11px' }}>
+                  captcha: disabled
+                </Box>
+              )}
+
               {/* Buttons */}
               <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                 <Button
@@ -197,7 +243,7 @@ export function Login() {
                     textTransform: 'none',
                     color: colors.textMuted,
                     border: `1px solid ${colors.border}`,
-                    bgcolor: colors.bg,
+                    bgcolor: colors.cardBg,
                     py: 1.2,
                     '&:hover': {
                       bgcolor: isDark ? '#09090b' : '#f5f5f5',
@@ -255,8 +301,21 @@ export function Login() {
         <Box sx={{ mt: 3, textAlign: 'center', color: colors.placeholder, fontSize: '11px' }}>
           <Box>FPT_University © {new Date().getFullYear()}</Box>
           <Box sx={{ mt: 1 }}>
-            <span style={{ color: colors.textMuted }}>need_access?</span>{' '}
-            <span style={{ color: '#fb923c', cursor: 'pointer' }}>contact_admin</span>
+            <span style={{ color: colors.textMuted }}>
+              {registrationEnabled ? 'new_team?' : 'need_access?'}
+            </span>{' '}
+            {registrationEnabled ? (
+              <span
+                style={{ color: colors.text, cursor: 'pointer' }}
+                onClick={() => navigate('/register')}
+              >
+                register_now
+              </span>
+            ) : (
+              <span style={{ color: colors.text, cursor: 'pointer' }} onClick={() => navigate('/contact')}>
+                contact_admin
+              </span>
+            )}
           </Box>
         </Box>
       </Box>
