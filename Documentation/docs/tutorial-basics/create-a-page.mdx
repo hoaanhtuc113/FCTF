@@ -2,42 +2,39 @@
 sidebar_position: 1
 ---
 
-# Create a Page
+# Create a Standalone Page
 
-Add **Markdown or React** files to `src/pages` to create a **standalone page**:
+Use `src/pages` only for site-level pages that are not part of the docs sidebar.
 
-- `src/pages/index.js` → `localhost:3000/`
-- `src/pages/foo.md` → `localhost:3000/foo`
-- `src/pages/foo/bar.js` → `localhost:3000/foo/bar`
+Examples:
 
-## Create your first React Page
+- `src/pages/index.tsx`: website homepage
+- `src/pages/xyz.mdx`: standalone informational page
 
-Create a file at `src/pages/my-react-page.js`:
+## When to use `src/pages`
 
-```jsx title="src/pages/my-react-page.js"
-import React from 'react';
-import Layout from '@theme/Layout';
+Use this path for:
 
-export default function MyReactPage() {
-  return (
-    <Layout>
-      <h1>My React page</h1>
-      <p>This is a React page</p>
-    </Layout>
-  );
-}
+- Landing pages
+- Legal or policy pages
+- Compatibility or redirect pages
+
+Do not use this path for feature documentation. Feature docs belong under `docs/` and should be linked from `sidebars.ts`.
+
+## Minimal standalone MDX page
+
+```mdx title="src/pages/example.mdx"
+---
+title: Example Standalone Page
+---
+
+# Example
+
+Use this for content that should not appear in the docs sidebar.
 ```
 
-A new page is now available at [http://localhost:3000/my-react-page](http://localhost:3000/my-react-page).
+## Checklist
 
-## Create your first Markdown Page
-
-Create a file at `src/pages/my-markdown-page.md`:
-
-```mdx title="src/pages/my-markdown-page.md"
-# My Markdown page
-
-This is a Markdown page
-```
-
-A new page is now available at [http://localhost:3000/my-markdown-page](http://localhost:3000/my-markdown-page).
+1. Confirm the page really does not belong in `docs/`.
+2. Keep URL naming stable for external links.
+3. Build docs and verify there are no broken references.

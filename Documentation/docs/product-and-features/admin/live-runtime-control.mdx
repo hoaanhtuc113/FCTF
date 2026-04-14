@@ -1,51 +1,75 @@
 ---
+sidebar_position: 5
 title: Live Runtime Control
-description: Operational controls for active environment management, monitoring, and incident evidence.
+description: Instance lifecycle history, real-time pod and request log streaming, and operational monitoring for active challenge environments.
 ---
 
 # Live Runtime Control
 
-This section focuses on maintaining runtime reliability during active competition windows.
+This section covers the operational tools available for managing, auditing, and debugging active challenge runtime environments during a live competition.
 
-## Instance Lifecycle Control
+## Instances History
 
-**Business objective:** Keep challenge environments stable while minimizing contestant disruption.
+The **Instances History** page provides a comprehensive, searchable log of every challenge instance that has been provisioned across the platform, whether currently active or already stopped.
 
-**Operational steps**
+![Instances History](/img/admin/InstancesHistory.png)
 
-1. Review active instance list by challenge, team, and runtime age.
-2. Classify issue scope (single instance, multi-instance, platform-wide).
-3. Apply minimal-impact action first (targeted stop before bulk stop).
-4. Use global stop only for critical containment scenarios.
-5. Communicate impact and ETA to support and jury channels.
-6. Record incident timeline and corrective actions.
+**Filter Controls:**
+* **Team (id or name)** - Filter by a specific team identifier or name.
+* **Challenge (id or name)** - Filter by a specific challenge identifier or name.
+* **Start time / End time** - Narrow the results to a specific time window.
+* **Quick range** - Select a preset window (e.g., last 1 hour, last 24 hours) for rapid filtering.
+* **Per page** - Configure the number of entries displayed per page.
 
-**Expected result:** Runtime incidents are isolated and resolved quickly.
+**Table Columns:**
+* **Started At** - The timestamp when the instance was initially provisioned.
+* **Stopped At** - The timestamp when the instance was terminated. Displays `-` if the instance is still running.
+* **Label** - The Kubernetes namespace label assigned to the instance (e.g., `team-24-9-whataborin...`).
+* **Challenge** - The challenge name and its internal ID.
+* **Team** - The team name and internal ID that owns this instance.
+* **Tracking ID** - The unique deployment tracking identifier.
+* **Actions** - Dropdown menu providing access to detailed logs.
 
-## Runtime Monitoring and Health Visibility
+**Available Actions (per entry):**
+* **Export CSV** - Download the full instance history table for offline auditing.
 
-**Business objective:** Detect service degradation early and improve response speed.
+## Pod Logs
 
-**Operational steps**
+The **Pod Logs** viewer streams the raw `stdout`/`stderr` output directly from the challenge container running inside its Kubernetes pod. This is the primary tool for diagnosing application-level crashes, runtime exceptions, or incorrect server behavior.
 
-1. Maintain live health dashboard throughout event windows.
-2. Track startup latency, failure spikes, and active runtime trends.
-3. Drill down from global level to challenge and team context.
-4. Prioritize and escalate high-severity incidents first.
-5. Export snapshots for post-event reliability review.
+![Pod Logs](/img/admin/PodLogs.png)
 
-**Expected result:** Reliability issues are surfaced and handled earlier.
+**Controls:**
+* **Back** - Return to the previous page.
+* **Refresh** - Manually fetch the latest log output.
+* **Auto-refresh** - Toggle automatic polling at a configurable interval: `Off`, `5s`, `10s`, `30s`, or `60s`.
 
-## Deployment and Request Logs
+**Use Cases:**
+* Verify that the challenge application started correctly (e.g., observing Tomcat startup logs).
+* Diagnose `SEVERE` errors or stack traces that would not be visible from the contestant's perspective.
+* Confirm that the application is listening on the expected port.
 
-**Business objective:** Ensure every deployment and runtime incident is traceable.
+## Request Logs
 
-**Operational steps**
+The **Request Logs** viewer streams the reverse-proxy access logs, showing every HTTP request that flows through the ingress gateway into the challenge instance. Each entry captures the full request path, HTTP method, and response status code.
 
-1. Open deployment/request logs for impacted time range.
-2. Correlate release action with observed user-facing behavior.
-3. Build evidence-based root-cause timeline.
-4. Apply mitigation (retry, rollback, or targeted repair).
-5. Publish internal incident summary and follow-up actions.
+![Request Logs](/img/admin/RequestLog.png)
 
-**Expected result:** Troubleshooting becomes faster and more defensible.
+**Controls:**
+* **Back** - Return to the previous page.
+* **Refresh** - Manually fetch the latest log output.
+* **Auto-refresh** - Toggle automatic polling at a configurable interval: `Off`, `5s`, `10s`, `30s`, or `60s`.
+* **Last refreshed** - Displays the timestamp of the most recent data fetch.
+
+**Log Format:**
+
+Each line follows the pattern:
+```
+<TIMESTAMP>: HTTP <METHOD> <PATH> <STATUS_CODE>
+```
+Status codes are color-coded for quick scanning: `200` (green/success), `400` (orange/client error), `404` (red/not found).
+
+**Use Cases:**
+* Track SQL injection or path traversal payloads being sent by contestants to understand their attack approach.
+* Verify that the contestant is reaching the correct endpoint.
+* Detect unusual traffic patterns or brute-force submission attempts.
