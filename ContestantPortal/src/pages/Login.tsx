@@ -26,13 +26,14 @@ export function Login() {
   // Theme-aware colors
   const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#000' : '#0a0a0a',
-    border: isDark ? '#3f3f46' : '#52525b',
-    borderLight: isDark ? '#52525b' : '#71717a',
-    text: isDark ? '#fb923c' : '#f97316',
-    textSecondary: isDark ? '#a1a1aa' : '#d4d4d8',
-    textMuted: isDark ? '#71717a' : '#a1a1aa',
-    placeholder: isDark ? '#52525b' : '#71717a',
+    bg: isDark ? '#000000' : '#f8fafc',
+    cardBg: isDark ? '#000000' : '#ffffff',
+    border: isDark ? '#3f3f46' : '#d4d4d8',
+    borderLight: isDark ? '#52525b' : '#e4e4e7',
+    text: isDark ? '#fb923c' : '#ea580c',
+    textSecondary: isDark ? '#a1a1aa' : '#52525b',
+    textMuted: isDark ? '#71717a' : '#6b7280',
+    placeholder: isDark ? '#52525b' : '#9ca3af',
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,7 +120,7 @@ export function Login() {
         <Box
           sx={{
             border: `1px solid ${colors.border}`,
-            bgcolor: colors.bg,
+            bgcolor: colors.cardBg,
             p: 3,
           }}
         >
@@ -145,7 +146,7 @@ export function Login() {
                     '& .MuiOutlinedInput-root': {
                       fontFamily: '"Roboto Mono", monospace',
                       fontSize: '13px',
-                      bgcolor: colors.bg,
+                      bgcolor: colors.cardBg,
                       color: colors.text,
                       '& fieldset': {
                         borderColor: colors.borderLight,
@@ -184,7 +185,7 @@ export function Login() {
                       fontFamily: 'monospace',
                       fontSize: '14px',
                       color: colors.text,
-                      bgcolor: colors.bg,
+                      bgcolor: colors.cardBg,
                       '& fieldset': {
                         borderColor: colors.border,
                       },
@@ -242,7 +243,7 @@ export function Login() {
                     textTransform: 'none',
                     color: colors.textMuted,
                     border: `1px solid ${colors.border}`,
-                    bgcolor: colors.bg,
+                    bgcolor: colors.cardBg,
                     py: 1.2,
                     '&:hover': {
                       bgcolor: isDark ? '#09090b' : '#f5f5f5',
@@ -305,13 +306,15 @@ export function Login() {
             </span>{' '}
             {registrationEnabled ? (
               <span
-                style={{ color: '#fb923c', cursor: 'pointer' }}
+                style={{ color: colors.text, cursor: 'pointer' }}
                 onClick={() => navigate('/register')}
               >
                 register_now
               </span>
             ) : (
-              <span style={{ color: '#fb923c', cursor: 'pointer' }}>contact_admin</span>
+              <span style={{ color: colors.text, cursor: 'pointer' }} onClick={() => navigate('/contact')}>
+                contact_admin
+              </span>
             )}
           </Box>
         </Box>
