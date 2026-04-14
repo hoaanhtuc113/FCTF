@@ -23,20 +23,21 @@ function AuthTurnstileComponent({
       <Turnstile
         ref={turnstileRef}
         siteKey={siteKey}
+        injectScript={false}
         onSuccess={onSuccess}
         onExpire={onExpire}
         onError={onError}
         scriptOptions={{
           id: 'cf-turnstile-script',
-          appendTo: 'head',
-          async: true,
-          defer: true,
         }}
         rerenderOnCallbackChange={false}
         options={{
           theme: 'auto',
           action,
           size: 'flexible',
+          retry: 'never',
+          refreshExpired: 'manual',
+          refreshTimeout: 'manual',
         }}
       />
     </div>

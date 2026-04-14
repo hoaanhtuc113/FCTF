@@ -10,9 +10,36 @@ import { API_BASE_URL } from './api';
 class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'user_info';
+  private readonly AUTH_REQUEST_TIMEOUT_MS = 15000;
+
+  private async fetchWithTimeout(
+    input: RequestInfo | URL,
+    init: RequestInit,
+    timeoutMs = this.AUTH_REQUEST_TIMEOUT_MS
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+
+    try {
+      return await fetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error('Request timed out. Please try again.');
+      }
+
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
+    const response = await this.fetchWithTimeout(`${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -31,7 +58,7 @@ class AuthService {
   }
 
   async getRegistrationMetadata(): Promise<RegistrationMetadata> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTRATION_METADATA}`, {
+    const response = await this.fetchWithTimeout(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTRATION_METADATA}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -81,7 +108,7 @@ class AuthService {
   }
 
   async registerContestant(payload: RegisterContestantPayload): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTER}`, {
+    const response = await this.fetchWithTimeout(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTER}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
