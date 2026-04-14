@@ -185,10 +185,10 @@
 					<th class="sort-col text-center"><b>ID</b></th>
 					<th class="sort-col text-center"><b>User</b></th>
 					{% if pending_mode %}
-					<th class="sort-col"><b>Email</b></th>
+					<th class="sort-col text-center"><b>Email</b></th>
 					<th class="sort-col text-center"><b>Team</b></th>
 					{% for custom_field in registration_custom_field_columns %}
-					<th class="sort-col"><b>{{ custom_field.name }}</b></th>
+					<th class="sort-col text-center"><b>{{ custom_field.name }}</b></th>
 					{% endfor %}
 					<th class="sort-col text-center"><b>Verified</b></th>
 					{% else %}
