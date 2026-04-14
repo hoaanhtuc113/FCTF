@@ -67,27 +67,45 @@ class ConfigService {
     }
   }
 
-  async getPublicConfig(): Promise<PublicConfig | null> {
-    const cached = this.getCachedPublicConfig();
-    if (cached) {
-      return cached;
+  async getPublicConfig(forceRefresh = false): Promise<PublicConfig | null> {
+    if (!forceRefresh) {
+      const cached = this.getCachedPublicConfig();
+      if (cached) {
+        return cached;
+      }
     }
 
     try {
       const response = await fetchData(API_ENDPOINTS.CONFIG.PUBLIC);
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`Unable to load public config (${response.status})`);
+      }
+
+      const data = await response.json() as Record<string, unknown>;
       if (data) {
-        // If the returned paths are not absolute URLs, prefix with base URL
-        const adjust = (url?: string): string | undefined => {
-          if (!url) return url;
-          if (url.startsWith('http') || url.startsWith('data:')) return url;
-          return `${API_BASE_URL.replace(/\/+$/, '')}/files/${url}`;
+        // If the returned paths are not absolute URLs, prefix with base URL.
+        const adjust = (url?: unknown): string | undefined => {
+          if (typeof url !== 'string') return undefined;
+
+          const normalizedUrl = url.trim();
+          if (!normalizedUrl) return undefined;
+
+          if (normalizedUrl.startsWith('http') || normalizedUrl.startsWith('data:')) {
+            return normalizedUrl;
+          }
+
+          return `${API_BASE_URL.replace(/\/+$/, '')}/files/${normalizedUrl}`;
         };
-        if (data.ctf_logo) data.ctf_logo = adjust(data.ctf_logo);
-        if (data.ctf_small_icon) data.ctf_small_icon = adjust(data.ctf_small_icon);
-        data.contestant_registration_enabled = this.normalizeBooleanConfig(data.contestant_registration_enabled, false);
-        this.setCachedPublicConfig(data);
-        return data;
+
+        const publicConfig: PublicConfig = {
+          ctf_logo: adjust(data.ctf_logo),
+          ctf_small_icon: adjust(data.ctf_small_icon),
+          ctf_name: typeof data.ctf_name === 'string' ? data.ctf_name : undefined,
+          contestant_registration_enabled: this.normalizeBooleanConfig(data.contestant_registration_enabled, false),
+        };
+
+        this.setCachedPublicConfig(publicConfig);
+        return publicConfig;
       }
       return null;
     } catch (error) {

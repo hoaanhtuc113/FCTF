@@ -69,10 +69,10 @@ public class ConfigController : BaseController
     [HttpGet("get_public_config")]
     public IActionResult GetPublicConfig()
     {
-        var logo = _configHelper.GetConfig("ctf_logo");
-        var icon = _configHelper.GetConfig("ctf_small_icon");
-        var name = _configHelper.GetConfig("ctf_name");
-        var bracketViewOther = _configHelper.GetConfig<bool>("bracket_view_other");
+        var logo = _configHelper.GetConfig<string?>("ctf_logo", null);
+        var icon = _configHelper.GetConfig<string?>("ctf_small_icon", null);
+        var name = _configHelper.GetConfig<string>("ctf_name", "FCTF") ?? "FCTF";
+        var bracketViewOther = _configHelper.GetConfig<bool>("bracket_view_other", false);
         var contestantRegistrationEnabled = _configHelper.GetConfig<bool>("contestant_registration_enabled", false);
         return Ok(new
         {
