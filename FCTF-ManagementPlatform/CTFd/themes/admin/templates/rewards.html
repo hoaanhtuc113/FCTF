@@ -241,6 +241,24 @@
   let teamsCache = [];
   let bracketsCache = [];
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function safeIdSuffix(value) {
+    return String(value == null ? '' : value).replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+
+  function safeIcon(value) {
+    const v = String(value == null ? '' : value).replace(/[^a-zA-Z0-9_-]/g, '');
+    return v || 'tag';
+  }
+
   // ===== Fetch helper — works whether CTFd is loaded or not =====
   function apiFetch(url, options) {
     if (window.CTFd && window.CTFd.fetch) {
@@ -353,13 +371,18 @@
     };
     container.innerHTML = allTemplates.map(t => {
       const badgeClass = CATEGORY_BADGE[t.category] || 'badge-secondary';
+      const templateId = escapeHtml(t.id);
+      const icon = safeIcon(t.icon);
+      const name = escapeHtml(t.name);
+      const description = escapeHtml(t.description);
+      const category = escapeHtml(t.category);
       return `
       <div class="col-md-4 col-lg-3 mb-2">
-        <div class="card template-card h-100" style="cursor: pointer;" data-template-id="${t.id}">
+        <div class="card template-card h-100" style="cursor: pointer;" data-template-id="${templateId}">
           <div class="card-body p-2">
-            <h6 class="mb-1"><i class="fas fa-${t.icon}"></i> ${t.name}</h6>
-            <p class="small text-muted mb-1">${t.description}</p>
-            <span class="badge ${badgeClass} badge-sm">${t.category}</span>
+            <h6 class="mb-1"><i class="fas fa-${icon}"></i> ${name}</h6>
+            <p class="small text-muted mb-1">${description}</p>
+            <span class="badge ${badgeClass} badge-sm">${category}</span>
           </div>
         </div>
       </div>
@@ -391,11 +414,12 @@
   // ===== Parameters =====
   function buildField(p) {
     const label = PARAM_LABELS[p] || p.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const safeParam = safeIdSuffix(p);
     let input = '';
 
     if (p === 'category') {
-      const options = categoriesCache.map(c => `<option value="${c}">${c}</option>`).join('');
-      input = `<select class="form-control form-control-sm" id="param-${p}">
+      const options = categoriesCache.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      input = `<select class="form-control form-control-sm" id="param-${safeParam}">
         <option value="">All</option>
         ${options}
       </select>`;
@@ -404,19 +428,19 @@
     } else if (p === 'team_id') {
       input = buildSearchSelect(p, teamsCache.map(t => ({ value: t.id, label: t.name })));
     } else {
-      input = `<input type="number" class="form-control form-control-sm" id="param-${p}" placeholder="${p === 'limit' ? '10' : ''}">`;
+      input = `<input type="number" class="form-control form-control-sm" id="param-${safeParam}" placeholder="${p === 'limit' ? '10' : ''}">`;
     }
 
     return `
       <div class="form-group col-md-6 mb-2">
-        <label class="mb-1 small font-weight-bold">${label}</label>
+        <label class="mb-1 small font-weight-bold">${escapeHtml(label)}</label>
         ${input}
       </div>
     `;
   }
 
   function buildSearchSelect(paramName, items) {
-    const id = `param-${paramName}`;
+    const id = `param-${safeIdSuffix(paramName)}`;
     return `
       <div class="search-select-wrapper" id="wrapper-${id}">
         <input type="text" class="form-control form-control-sm" id="${id}-search"
@@ -466,7 +490,7 @@
       return;
     }
     listEl.innerHTML = items.slice(0, 50).map(i => `
-      <div class="dropdown-item" data-value="${i.value}">${highlightMatch(i.label, query)}</div>
+      <div class="dropdown-item" data-value="${escapeHtml(i.value)}">${highlightMatch(i.label, query)}</div>
     `).join('');
 
     listEl.querySelectorAll('.dropdown-item').forEach(item => {
@@ -479,10 +503,16 @@
   }
 
   function highlightMatch(text, query) {
-    if (!query) return text;
-    const idx = text.toLowerCase().indexOf(query.toLowerCase());
-    if (idx === -1) return text;
-    return text.substring(0, idx) + '<strong>' + text.substring(idx, idx + query.length) + '</strong>' + text.substring(idx + query.length);
+    const src = String(text || '');
+    if (!query) return escapeHtml(src);
+    const q = String(query || '');
+    const idx = src.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return escapeHtml(src);
+    return escapeHtml(src.substring(0, idx))
+      + '<strong>'
+      + escapeHtml(src.substring(idx, idx + q.length))
+      + '</strong>'
+      + escapeHtml(src.substring(idx + q.length));
   }
 
   function showParams() {
@@ -495,7 +525,7 @@
     // Build bracket dropdown HTML (shown for all templates if brackets exist)
     let bracketHtml = '';
     if (bracketsCache.length > 0) {
-      const bracketOptions = bracketsCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      const bracketOptions = bracketsCache.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
       bracketHtml = `
         <div class="form-group col-md-6 mb-2">
           <label class="mb-1 small font-weight-bold">Bracket</label>
@@ -530,7 +560,7 @@
       params['bracket_id'] = Number(bracketEl.value);
     }
     (selectedTemplate.customizable_params || []).forEach(p => {
-      const el = document.getElementById(`param-${p}`);
+      const el = document.getElementById(`param-${safeIdSuffix(p)}`);
       if (el && el.value) {
         if (el.type === 'number' || ['challenge_id', 'team_id', 'limit', 'min_score', 'max_score',
           'min_rank', 'max_rank', 'min_count', 'min_categories_solved', 'min_perfect_solves',
@@ -703,7 +733,7 @@
     // Header
     const thead = document.getElementById("results-header");
     thead.innerHTML = visibleColumns.map(col =>
-      `<th style="width:${col.width}">${col.label}</th>`
+      `<th style="width:${escapeHtml(col.width)}">${escapeHtml(col.label)}</th>`
     ).join('');
 
     // Body
@@ -712,12 +742,12 @@
       const rowClass = isExpandable ? 'expandable-row' : '';
       const expandIcon = isExpandable ? '<i class="fas fa-chevron-right fa-xs mr-1 expand-icon"></i>' : '';
       return '<tr class="' + rowClass + '" data-idx="' + i + '">' + visibleColumns.map(col => {
-        if (col.key === 'rank') return `<td>${expandIcon}${r.rank != null ? r.rank : i + 1}</td>`;
-        if (col.key === 'last_solve_date') return `<td>${formatDate(r.last_solve_date)}</td>`;
+        if (col.key === 'rank') return `<td>${expandIcon}${escapeHtml(r.rank != null ? r.rank : i + 1)}</td>`;
+        if (col.key === 'last_solve_date') return `<td>${escapeHtml(formatDate(r.last_solve_date))}</td>`;
         if (col.key === 'entity_name' || col.key === 'team_name')
-          return `<td class="cell-truncate" title="${(r[col.key] || '').replace(/"/g, '&quot;')}">${truncText(r[col.key], 30)}</td>`;
+          return `<td class="cell-truncate" title="${escapeHtml(r[col.key] || '')}">${escapeHtml(truncText(r[col.key], 30))}</td>`;
         const val = r[col.key];
-        return `<td>${val !== null && val !== undefined ? val : ''}</td>`;
+        return `<td>${escapeHtml(val !== null && val !== undefined ? val : '')}</td>`;
       }).join('') + '</tr>';
     }).join('');
 
@@ -755,7 +785,7 @@
 
     const detailRow = document.createElement('tr');
     detailRow.className = 'detail-row';
-    detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i> Loading details...</div></td>`;
+    detailRow.innerHTML = `<td colspan="${escapeHtml(colSpan)}"><div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i> Loading details...</div></td>`;
     rowEl.after(detailRow);
 
     try {
@@ -776,22 +806,22 @@
           html += '<th>#</th><th>Category</th><th>Solved</th><th>Total</th><th>Clear Date</th>';
           html += '</tr></thead><tbody>';
           details.forEach((d, i) => {
-            html += `<tr><td>${i + 1}</td><td>${d.category || ''}</td><td>${d.solved_count || ''}</td><td>${d.total_challenges || ''}</td><td>${formatDate(d.full_clear_date)}</td></tr>`;
+            html += `<tr><td>${escapeHtml(i + 1)}</td><td>${escapeHtml(d.category || '')}</td><td>${escapeHtml(d.solved_count || '')}</td><td>${escapeHtml(d.total_challenges || '')}</td><td>${escapeHtml(formatDate(d.full_clear_date))}</td></tr>`;
           });
         } else {
           html += '<th>#</th><th>Challenge</th><th>Category</th><th>Score</th><th>Solve Time</th>';
           html += '</tr></thead><tbody>';
           details.forEach((d, i) => {
-            html += `<tr><td>${i + 1}</td><td>${d.challenge_name || ''}</td><td>${d.category || ''}</td><td>${d.score || ''}</td><td>${formatDate(d.solve_date)}</td></tr>`;
+            html += `<tr><td>${escapeHtml(i + 1)}</td><td>${escapeHtml(d.challenge_name || '')}</td><td>${escapeHtml(d.category || '')}</td><td>${escapeHtml(d.score || '')}</td><td>${escapeHtml(formatDate(d.solve_date))}</td></tr>`;
           });
         }
         html += '</tbody></table></div>';
-        detailRow.innerHTML = `<td colspan="${colSpan}">${html}</td>`;
+        detailRow.innerHTML = `<td colspan="${escapeHtml(colSpan)}">${html}</td>`;
       } else {
-        detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-muted text-center py-2">No details available</div></td>`;
+        detailRow.innerHTML = `<td colspan="${escapeHtml(colSpan)}"><div class="text-muted text-center py-2">No details available</div></td>`;
       }
     } catch (e) {
-      detailRow.innerHTML = `<td colspan="${colSpan}"><div class="text-danger text-center py-2">Failed to load details</div></td>`;
+      detailRow.innerHTML = `<td colspan="${escapeHtml(colSpan)}"><div class="text-danger text-center py-2">Failed to load details</div></td>`;
     }
   }
 
