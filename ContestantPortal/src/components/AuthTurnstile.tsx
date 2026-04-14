@@ -19,7 +19,7 @@ function AuthTurnstileComponent({
   onError,
 }: AuthTurnstileProps) {
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ width: '100%', minHeight: '65px' }}>
       <Turnstile
         ref={turnstileRef}
         siteKey={siteKey}
@@ -29,10 +29,12 @@ function AuthTurnstileComponent({
         scriptOptions={{
           id: 'cf-turnstile-script',
           appendTo: 'head',
+          async: true,
+          defer: true,
         }}
         rerenderOnCallbackChange={false}
         options={{
-          theme: 'light',
+          theme: 'auto',
           action,
           size: 'flexible',
         }}
