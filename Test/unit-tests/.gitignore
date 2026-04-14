@@ -1,5 +1,0 @@
-python/__pycache__/
-python/*.pyc
-
-dotnet/**/bin/
-dotnet/**/obj/
