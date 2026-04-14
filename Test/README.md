@@ -2,6 +2,8 @@
 
 Comprehensive testing suite for the FCTF (CTF Platform) system, covering race-condition, stress, and gateway-focused tests.
 
+This directory also contains `SystemTest-First/`, an ordered Playwright admin system-test suite for CRUD and admin-management flows.
+
 ## 📁 Test Structure
 
 ```
@@ -20,6 +22,12 @@ Test/
 └── Gateway/              # Gateway auth/proxy/rate-limit tests
     ├── k6 scripts + PowerShell runners
     └── README.md
+
+└── SystemTest-First/      # Ordered Playwright admin system tests
+    ├── 35 spec files under tests/
+    ├── run-ordered-tests.cjs
+    ├── playwright.config.ts
+    └── all-test-cases.tsv
 ```
 
 ## 🎯 Test Types
@@ -82,6 +90,24 @@ Test/
 - ✅ Ticket system APIs
 
 📖 **[See Stress Test README](Stress/README.md)** for detailed documentation.
+
+### Admin System Tests (`SystemTest-First/`)
+**Purpose**: Validate admin-side end-to-end workflows such as user/team management, submission moderation, bracket management, and custom field configuration.
+
+**Key Features**:
+- Ordered execution through `run-ordered-tests.cjs`
+- Serial Playwright execution for shared admin data
+- Excel-ready testcase export in `all-test-cases.tsv`
+- Focused admin CRUD and validation coverage from UC23 to UC82
+
+**Quick Start**:
+
+```powershell
+cd Test\SystemTest-First
+npm test
+```
+
+See [../TEST_AUTOMATION.md](../TEST_AUTOMATION.md) for the consolidated testcase inventory.
 
 ## 🚀 Quick Start
 

@@ -1,0 +1,6 @@
+projectKey=FCTF-ContestantPortal
+serverUrl=http://localhost:9000
+serverVersion=26.3.0.120487
+dashboardUrl=http://localhost:9000/dashboard?id=FCTF-ContestantPortal
+ceTaskId=0bb5cbd9-6dfa-4c49-88de-ba55307806dc
+ceTaskUrl=http://localhost:9000/api/ce/task?id=0bb5cbd9-6dfa-4c49-88de-ba55307806dc

@@ -1,0 +1,16 @@
+{
+    "name": "SystemTest-First",
+    "version": "1.0.0",
+    "description": "Playwright system test suite for FCTF admin flows",
+    "scripts": {
+        "test": "node run-ordered-tests.js",
+        "test:headed": "node run-ordered-tests.js --headed",
+        "test:uc03": "playwright test tests/uc03-create-challenge-test.spec.ts --config playwright.config.ts",
+        "test:uc03:headed": "playwright test tests/uc03-create-challenge-test.spec.ts --config playwright.config.ts --headed",
+        "test:report": "playwright show-report playwright-report --port=0",
+        "perf:accounts:template": "powershell -ExecutionPolicy Bypass -File .\\k6\\generate-accounts-template.ps1",
+        "perf:500:1h": "powershell -ExecutionPolicy Bypass -File .\\k6\\run-500-1h.ps1",
+        "perf:500:5m": "powershell -ExecutionPolicy Bypass -File .\\k6\\run-quick-500-5m.ps1"
+    },
+    "devDependencies": {}
+}
