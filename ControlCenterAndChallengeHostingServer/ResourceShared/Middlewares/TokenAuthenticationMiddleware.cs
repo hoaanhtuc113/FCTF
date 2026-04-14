@@ -32,6 +32,7 @@ public class TokenAuthenticationMiddleware
             if (authorizeAttribute == null || (context.User.Identity?.IsAuthenticated) != true)
             {
                 await _next(context);
+                return;
             }
 
             var userIdStr = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -198,6 +199,9 @@ public class TokenAuthenticationMiddleware
             {
             }
 
+            await _next(context);
+            return;
+
         }
         catch (Exception ex)
         {
@@ -209,8 +213,11 @@ public class TokenAuthenticationMiddleware
                 logger.LogError(ex, id > 0 ? id : null, data: new { path = context.Request.Path });
             }
 
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            await context.Response.WriteAsync("An error occurred while processing your request.");
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsync("An error occurred while processing your request.");
+            }
         }
     }
 
