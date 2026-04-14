@@ -7,6 +7,8 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { configService } from '../services/configService';
 import { getTurnstileSiteKey } from '../services/envService';
 
+import './Login.css';
+
 export function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
