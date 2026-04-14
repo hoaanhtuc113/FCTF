@@ -18,6 +18,7 @@ export function Login() {
   const navigate = useNavigate();
   const toast = useToast();
   const turnstileRef = useRef<TurnstileInstance | null>(null);
+  const lastCaptchaErrorAtRef = useRef(0);
   const turnstileSiteKey = getTurnstileSiteKey();
   const captchaEnabled = turnstileSiteKey.length > 0;
 
@@ -35,9 +36,14 @@ export function Login() {
   }, []);
 
   const handleCaptchaError = useCallback(() => {
-    resetCaptcha();
-    toast.error('Captcha verification failed. Please retry.');
-  }, [resetCaptcha, toast]);
+    setCaptchaToken(null);
+
+    const now = Date.now();
+    if (now - lastCaptchaErrorAtRef.current > 3000) {
+      lastCaptchaErrorAtRef.current = now;
+      toast.error('Captcha verification failed. Please retry.');
+    }
+  }, [toast]);
 
   const colors = {
     pageBg: '#f6f5f3',
