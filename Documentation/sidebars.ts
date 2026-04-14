@@ -54,6 +54,7 @@ const sidebars: SidebarsConfig = {
             id: 'product-and-features/contestant-features',
           },
           items: [
+            'product-and-features/contestant/contestant-guideline',
             'product-and-features/contestant/access-and-discovery',
             'product-and-features/contestant/solve-workflow',
             'product-and-features/contestant/team-collaboration-and-support',

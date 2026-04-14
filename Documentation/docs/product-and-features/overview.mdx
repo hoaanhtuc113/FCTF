@@ -1,12 +1,27 @@
 ---
 sidebar_position: 1
 title: Product & Features Overview
-description: Structured entry point for Admin and Contestant capability documentation.
+description: Canonical map of role-based capabilities and feature documentation in FCTF.
 ---
 
 # Product & Features Overview
 
-FCTF combines challenge delivery, secure runtime orchestration, team scoring, and operational governance in one platform.
+FCTF combines challenge authoring, secure runtime orchestration, contestant solve workflows, and operational governance in one platform.
+
+This page is the entry map for feature documentation.
+
+:::tip[How to use this section]
+Read this page first, then open the role-specific pages in the sidebar for operational details.
+:::
+
+## Role Tracks
+
+| Track | Primary audience | Canonical pages |
+| --- | --- | --- |
+| Admin Features | Admin, Jury, Challenge Writer | `docs/product-and-features/admin/*` |
+| Contestant Features | Contestants and team captains | `docs/product-and-features/contestant/*` |
+
+The Admin track and Architecture/Install tracks are the approved baseline for platform operations. Other pages should stay aligned with those baseline semantics.
 
 ## Product Goals
 
@@ -15,15 +30,36 @@ FCTF combines challenge delivery, secure runtime orchestration, team scoring, an
 - Preserve fairness with server-side enforcement, traceability, and policy controls.
 - Support post-event analysis through analytics, logs, and audit evidence.
 
-## Documentation Structure
+## Feature Families
 
-- The documentation is split into two role-specific tracks: Admin and Contestant.
-- Feature domains are now organized as child pages in the left sidebar.
-- Each child page focuses on one business capability group with step-by-step operational details.
+### Admin Families
 
-## Sidebar Navigation Map
+- Accounts, identity governance, and compliance controls
+- Challenge authoring, deployment, and version lifecycle
+- Live runtime control, monitoring, and audit-grade log surfaces
+- Scoring analytics, reward queries, and event governance
 
-### Admin Features
+### Contestant Families
+
+- Access and challenge discovery
+- Solve workflow (start, access token, submit)
+- Team collaboration (profile, scoreboard, activity logs)
+- Support operations (ticket create/list/view/delete)
+- Fair-play controls and security guardrails
+
+## Documentation Quality Standard
+
+Keep each feature page consistent with approved tracks by using this structure:
+
+1. Scope and purpose
+2. UI and operation flow
+3. Key controls and constraints
+4. Expected outcomes
+5. Evidence sources (logs, status, API behavior)
+
+## Core Navigation Map
+
+### Admin
 
 - Platform Governance
 - Challenge Operations
@@ -31,22 +67,13 @@ FCTF combines challenge delivery, secure runtime orchestration, team scoring, an
 - Analytics and Incentives
 - Support and Compliance
 
-### Contestant Features
+### Contestant
 
+- Contestant Guideline (end-to-end)
 - Access and Discovery
 - Solve Workflow
 - Team Collaboration and Support
 - Fairness and Security Controls
-
-## Feature Description Guideline
-
-Use this standard for every feature section to keep documentation professional and maintainable:
-
-1. Purpose: Why the feature exists and what problem it solves.
-2. Core Capabilities: What the feature does in practical terms.
-3. Access Scope: Which roles can use or manage the feature.
-4. Operational Guidelines: Rules and best practices for safe usage.
-5. Evidence and Traceability: Logs, audit entries, or metrics that validate behavior.
 
 ## Next Reading
 
