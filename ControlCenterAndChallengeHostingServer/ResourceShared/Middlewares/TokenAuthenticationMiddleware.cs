@@ -32,6 +32,7 @@ public class TokenAuthenticationMiddleware
             if (authorizeAttribute == null || (context.User.Identity?.IsAuthenticated) != true)
             {
                 await _next(context);
+                return;
             }
 
             var userIdStr = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
