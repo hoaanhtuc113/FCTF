@@ -7,8 +7,6 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { configService } from '../services/configService';
 import { getTurnstileSiteKey } from '../services/envService';
 
-import './Login.css';
-
 export function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -91,259 +89,262 @@ export function Login() {
         backgroundSize: '36px 36px',
       }}
     >
-      
+
 
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
         <Box sx={{ width: '100%', maxWidth: '960px' }}>
           <Box sx={{ maxWidth: '460px', mx: 'auto' }}>
-          <Box sx={{ mb: 3, textAlign: 'center' }}>
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 1,
-                px: 2,
-                py: 0.75,
-                borderRadius: '999px',
-                border: `1px solid ${colors.inputBorder}`,
-                bgcolor: '#fff7ec',
-                color: colors.primary,
-                fontSize: 13,
-              }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-              </svg>
-              Faculty of Information Assurance
-            </Box>
-
-            <Box sx={{ mt: 2, fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
-              <span
-                className="text-gradient-amber"
-                style={{
-                  background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 50%,#dc2626 100%)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  fontSize: 60,
-                  fontWeight: 800,
-                  color: 'transparent',
-                  fontFamily: 'var(--font-mono), "JetBrains Mono", ui-monospace, monospace',
+            <Box sx={{ mb: 3, textAlign: 'center' }}>
+              <Box
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: '999px',
+                  border: `1px solid ${colors.inputBorder}`,
+                  bgcolor: '#fff7ec',
+                  color: colors.primary,
+                  fontSize: 13,
                 }}
               >
-                Sân Chơi
-              </span>
-            </Box>
-            <Box sx={{ mt: 1, color: colors.textSecondary, fontSize: 14 }}>
-              Authenticate to enter the FPT Capture The Flag platform
-            </Box>
-          </Box>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                </svg>
+                Faculty of Information Assurance
+              </Box>
 
-          <Box
-            sx={{
-              border: `1px solid ${colors.border}`,
-              bgcolor: colors.panelBg,
-              p: 3.5,
-              borderRadius: '10px',
-              boxShadow: '0 18px 45px rgba(17, 24, 39, 0.08)',
-            }}
-          >
-            <Box sx={{ mb: 2.5, color: colors.primary, fontSize: 14, fontWeight: 700 }}>
-              AUTHENTICATION
+              <Box sx={{ mt: 2, fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
+                <span
+                  className="text-gradient-amber"
+                  style={{
+                    background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 50%,#dc2626 100%)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    fontSize: 60,
+                    fontWeight: 800,
+                    color: 'transparent',
+                    fontFamily: 'var(--font-mono), "JetBrains Mono", ui-monospace, monospace',
+                  }}
+                >
+                  Sân Chơi
+                </span>
+              </Box>
+              <Box sx={{ mt: 1, color: colors.textSecondary, fontSize: 14 }}>
+                Authenticate to enter the FPT Capture The Flag platform
+              </Box>
             </Box>
 
-            <form onSubmit={handleSubmit}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
-                <Box sx={{ mb: 2 }}>
-                  <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>
-                    Username
-                  </Box>
-                  <TextField
-                    fullWidth
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    disabled={loading}
-                    placeholder="input username..."
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-                        fontSize: 13,
-                        bgcolor: colors.inputBg,
-                        color: colors.text,
-                        borderRadius: '8px',
-                        '& fieldset': {
-                          borderColor: colors.inputBorder,
-                        },
-                        '&:hover fieldset': {
-                          borderColor: colors.primary,
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: colors.primary,
-                          borderWidth: '1px',
-                        },
-                      },
-                      '& .MuiInputBase-input::placeholder': {
-                        color: colors.textSecondary,
-                        opacity: 1,
-                      },
-                    }}
-                  />
-                </Box>
+            <Box
+              sx={{
+                border: `1px solid ${colors.border}`,
+                bgcolor: colors.panelBg,
+                p: 3.5,
+                borderRadius: '10px',
+                boxShadow: '0 18px 45px rgba(17, 24, 39, 0.08)',
+              }}
+            >
+              <Box sx={{ mb: 2.5, color: colors.primary, fontSize: 14, fontWeight: 700 }}>
+                AUTHENTICATION
+              </Box>
 
-                <Box>
-                  <Box sx={{ mb: 0.75, color: colors.textSecondary, fontSize: 12 }}>
-                    Password
-                  </Box>
-                  <TextField
-                    fullWidth
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    placeholder="enter_password"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-                        fontSize: 13,
-                        color: colors.text,
-                        bgcolor: colors.inputBg,
-                        borderRadius: '8px',
-                        '& fieldset': {
-                          borderColor: colors.inputBorder,
+              <form onSubmit={handleSubmit}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>
+                      Username
+                    </Box>
+                    <TextField
+                      fullWidth
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      disabled={loading}
+                      placeholder="input username..."
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                          fontSize: 13,
+                          bgcolor: colors.inputBg,
+                          color: colors.text,
+                          borderRadius: '8px',
+                          '& fieldset': {
+                            borderColor: colors.inputBorder,
+                          },
+                          '&:hover fieldset': {
+                            borderColor: colors.primary,
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: colors.primary,
+                            borderWidth: '1px',
+                          },
                         },
-                        '&:hover fieldset': {
-                          borderColor: colors.primary,
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: colors.primary,
-                          borderWidth: '1px',
-                        },
-                        '& input::placeholder': {
+                        '& .MuiInputBase-input::placeholder': {
                           color: colors.textSecondary,
                           opacity: 1,
                         },
-                      },
-                    }}
-                  />
-                </Box>
-
-                {captchaEnabled ? (
-                  <Box>
-                    <Box sx={{ mb: 0.75, color: colors.textSecondary, fontSize: 12 }}>
-                      Captcha
-                    </Box>
-                    <Turnstile
-                      key={captchaWidgetKey}
-                      siteKey={turnstileSiteKey}
-                      onSuccess={(token) => setCaptchaToken(token)}
-                      onExpire={() => setCaptchaToken(null)}
-                      onError={() => {
-                        setCaptchaToken(null);
-                        setCaptchaWidgetKey((prev) => prev + 1);
-                        toast.error('Captcha verification failed. Please retry.');
-                      }}
-                      options={{
-                        theme: 'light',
-                        action: 'contestant_login',
                       }}
                     />
                   </Box>
-                ) : (
-                  <Box sx={{ color: colors.textSecondary, fontSize: 11 }}>
-                    captcha: disabled
+
+                  <Box>
+                    <Box sx={{ mb: 0.75, color: colors.textSecondary, fontSize: 12 }}>
+                      Password
+                    </Box>
+                    <TextField
+                      fullWidth
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      placeholder="enter_password"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                          fontSize: 13,
+                          color: colors.text,
+                          bgcolor: colors.inputBg,
+                          borderRadius: '8px',
+                          '& fieldset': {
+                            borderColor: colors.inputBorder,
+                          },
+                          '&:hover fieldset': {
+                            borderColor: colors.primary,
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: colors.primary,
+                            borderWidth: '1px',
+                          },
+                          '& input::placeholder': {
+                            color: colors.textSecondary,
+                            opacity: 1,
+                          },
+                        },
+                      }}
+                    />
                   </Box>
-                )}
 
-                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                  <Button
-                    fullWidth
-                    onClick={handleClear}
-                    sx={{
-                      fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-                      fontSize: 13,
-                      textTransform: 'none',
-                      color: colors.textSecondary,
-                      border: `1px solid ${colors.inputBorder}`,
-                      bgcolor: '#fff',
-                      py: 1.2,
-                      '&:hover': {
-                        bgcolor: '#fff7ec',
-                        borderColor: colors.primary,
-                        color: colors.primary,
-                      },
-                    }}
-                  >
-                    [CLEAR]
-                  </Button>
-                  <Button
-                    type="submit"
-                    fullWidth
-                    disabled={loading}
-                    sx={{
-                      fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-                      fontSize: 13,
-                      textTransform: 'none',
-                      color: '#fff',
-                      bgcolor: colors.primary,
-                      border: `1px solid ${colors.primary}`,
-                      py: 1.2,
-                      '&:hover': {
-                        bgcolor: colors.primaryDark,
-                        borderColor: colors.primaryDark,
-                      },
-                      '&:disabled': {
-                        bgcolor: '#f4f4f5',
-                        color: '#a1a1aa',
-                        borderColor: '#e4e4e7',
-                      },
-                    }}
-                  >
-                    {loading ? (
-                      <CircularProgress size={20} sx={{ color: '#a1a1aa' }} />
-                    ) : (
-                      '[LOGIN]'
-                    )}
-                  </Button>
+                  {captchaEnabled ? (
+                    <Box>
+                      <Box sx={{ mb: 0.75, color: colors.textSecondary, fontSize: 12 }}>
+                        Captcha
+                      </Box>
+                      <div style={{ width: '100%' }}>
+                        <Turnstile
+                          key={captchaWidgetKey}
+                          siteKey={turnstileSiteKey}
+                          onSuccess={(token) => setCaptchaToken(token)}
+                          onExpire={() => setCaptchaToken(null)}
+                          onError={() => {
+                            setCaptchaToken(null);
+                            setCaptchaWidgetKey((prev) => prev + 1);
+                            toast.error('Captcha verification failed. Please retry.');
+                          }}
+                          options={{
+                            theme: 'light',
+                            action: 'contestant_login',
+                            size: 'flexible',
+                          }}
+                        />
+                      </div>
+                    </Box>
+                  ) : (
+                    <Box sx={{ color: colors.textSecondary, fontSize: 11 }}>
+                      captcha: disabled
+                    </Box>
+                  )}
+
+                  <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                    <Button
+                      fullWidth
+                      onClick={handleClear}
+                      sx={{
+                        fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                        fontSize: 13,
+                        textTransform: 'none',
+                        color: colors.textSecondary,
+                        border: `1px solid ${colors.inputBorder}`,
+                        bgcolor: '#fff',
+                        py: 1.2,
+                        '&:hover': {
+                          bgcolor: '#fff7ec',
+                          borderColor: colors.primary,
+                          color: colors.primary,
+                        },
+                      }}
+                    >
+                      [CLEAR]
+                    </Button>
+                    <Button
+                      type="submit"
+                      fullWidth
+                      disabled={loading}
+                      sx={{
+                        fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                        fontSize: 13,
+                        textTransform: 'none',
+                        color: '#fff',
+                        bgcolor: colors.primary,
+                        border: `1px solid ${colors.primary}`,
+                        py: 1.2,
+                        '&:hover': {
+                          bgcolor: colors.primaryDark,
+                          borderColor: colors.primaryDark,
+                        },
+                        '&:disabled': {
+                          bgcolor: '#f4f4f5',
+                          color: '#a1a1aa',
+                          borderColor: '#e4e4e7',
+                        },
+                      }}
+                    >
+                      {loading ? (
+                        <CircularProgress size={20} sx={{ color: '#a1a1aa' }} />
+                      ) : (
+                        '[LOGIN]'
+                      )}
+                    </Button>
+                  </Box>
                 </Box>
+              </form>
+
+
+            </Box>
+
+            <Box sx={{ mt: 3, textAlign: 'center', color: colors.textSecondary, fontSize: 11 }}>
+              <Box>FPT_University © {new Date().getFullYear()}</Box>
+              <Box sx={{ mt: 1 }}>
+                <span style={{ color: colors.textSecondary }}>
+                  {registrationEnabled ? 'new_team?' : 'need_access?'}
+                </span>{' '}
+                {registrationEnabled ? (
+                  <span
+                    style={{ color: colors.text, cursor: 'pointer' }}
+                    onClick={() => navigate('/register')}
+                  >
+                    register_now
+                  </span>
+                ) : (
+                  <span style={{ color: colors.text, cursor: 'pointer' }} onClick={() => navigate('/contact')}>
+                    contact_admin
+                  </span>
+                )}
               </Box>
-            </form>
-
-
-          </Box>
-
-          <Box sx={{ mt: 3, textAlign: 'center', color: colors.textSecondary, fontSize: 11 }}>
-            <Box>FPT_University © {new Date().getFullYear()}</Box>
-            <Box sx={{ mt: 1 }}>
-              <span style={{ color: colors.textSecondary }}>
-                {registrationEnabled ? 'new_team?' : 'need_access?'}
-              </span>{' '}
-              {registrationEnabled ? (
-                <span
-                  style={{ color: colors.text, cursor: 'pointer' }}
-                  onClick={() => navigate('/register')}
-                >
-                  register_now
-                </span>
-              ) : (
-                <span style={{ color: colors.text, cursor: 'pointer' }} onClick={() => navigate('/contact')}>
-                  contact_admin
-                </span>
-              )}
             </Box>
           </Box>
-        </Box>
         </Box>
       </Box>
 
