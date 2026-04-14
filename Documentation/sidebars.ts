@@ -61,8 +61,7 @@ const sidebars: SidebarsConfig = {
             'product-and-features/contestant/fairness-and-security-controls',
           ],
         },
-        'product-and-features/challenge-lifecycle',
-        'product-and-features/fctf-real-feature-systematization',
+
       ],
     },
     {
