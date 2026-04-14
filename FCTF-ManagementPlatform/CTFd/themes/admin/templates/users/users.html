@@ -16,6 +16,10 @@
 .dropdown .btn-secondary:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning { background-color: var(--primary-orange); border-color: var(--primary-orange); }
 .dropdown-menu .btn-warning:hover { background-color: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+
+.registration-custom-field-cell .cell-truncate-lg {
+	max-width: 220px;
+}
 </style>
 {% endblock %}
 
@@ -187,7 +191,9 @@
 					{% if pending_mode %}
 					<th class="sort-col"><b>Email</b></th>
 					<th class="sort-col text-center"><b>Team</b></th>
-					<th class="sort-col"><b>Custom Field</b></th>
+					{% for custom_field in registration_custom_field_columns %}
+					<th class="sort-col"><b>{{ custom_field.name }}</b></th>
+					{% endfor %}
 					<th class="sort-col text-center"><b>Verified</b></th>
 					{% else %}
 					<th class="sort-col text-center"><b>Team</b></th>
@@ -242,14 +248,17 @@
 						{% endif %}
 					</td>
 					{% if pending_mode %}
-					{% set custom_fields_value = registration_custom_fields.get(user.id, '') %}
-					<td value="{{ custom_fields_value }}">
-						{% if custom_fields_value %}
-							<span class="cell-truncate-lg d-inline-block align-middle" title="{{ custom_fields_value }}">{{ custom_fields_value }}</span>
+					{% set user_custom_fields = registration_custom_field_values.get(user.id, {}) %}
+					{% for custom_field in registration_custom_field_columns %}
+					{% set custom_field_value = user_custom_fields.get(custom_field.id, '') %}
+					<td class="registration-custom-field-cell" value="{{ custom_field_value }}">
+						{% if custom_field_value %}
+							<span class="cell-truncate-lg d-inline-block align-middle" title="{{ custom_field_value }}">{{ custom_field_value }}</span>
 						{% else %}
 							<span class="text-muted">-</span>
 						{% endif %}
 					</td>
+					{% endfor %}
 					<td class="text-center" value="{{ user.verified }}">
 						{% if user.verified %}
 							<span class="clean-badge clean-badge-success">verified</span>
