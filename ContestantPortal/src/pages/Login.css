@@ -1,3 +1,7 @@
+#cf-turnstile div iframe{ 
+  width: 100% !important;
+}
+/* 
 .login-container {
   display: flex;
   justify-content: center;
@@ -5,6 +9,8 @@
   min-height: 100vh;
   background: #f5f5f5;
 }
+
+
 
 .login-box {
   background: white;
@@ -58,4 +64,4 @@ button {
 button:disabled {
   background: #95a5a6;
   cursor: not-allowed;
-}
+} */
