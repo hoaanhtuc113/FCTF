@@ -5,6 +5,7 @@ declare global {
       VITE_BASE_GATEWAY?: string;
       VITE_HTTP_PORT?: string;
       VITE_TCP_PORT?: string;
+      VITE_CLOUDFLARE_TURNSTILE_SITE_KEY?: string;
       // ... các biến khác nếu có
     };
   }
