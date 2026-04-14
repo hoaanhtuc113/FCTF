@@ -228,9 +228,9 @@
 						{% endif %}
 					</td>
 					{% if pending_mode %}
-					<td value="{{ user.email or '' }}">
+					<td value="{{ user.email or '' }}" class="text-center">
 						{% if user.email %}
-							<span class="cell-truncate-lg d-inline-block align-middle" title="{{ user.email }}">{{ user.email }}</span>
+							<span class="" title="{{ user.email }}">{{ user.email }}</span>
 						{% else %}
 							<span class="text-muted">-</span>
 						{% endif %}
@@ -247,9 +247,9 @@
 					{% set user_custom_fields = registration_custom_field_values.get(user.id, {}) %}
 					{% for custom_field in registration_custom_field_columns %}
 					{% set custom_field_value = user_custom_fields.get(custom_field.id, '') %}
-					<td class="registration-custom-field-cell" value="{{ custom_field_value }}">
+					<td class="text-center" value="{{ custom_field_value }}">
 						{% if custom_field_value %}
-							<span class="cell-truncate-lg d-inline-block align-middle" title="{{ custom_field_value }}">{{ custom_field_value }}</span>
+							<span class="text-center" title="{{ custom_field_value }}">{{ custom_field_value }}</span>
 						{% else %}
 							<span class="text-muted">-</span>
 						{% endif %}
