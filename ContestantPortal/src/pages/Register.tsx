@@ -95,6 +95,7 @@ export function Register() {
   const [members, setMembers] = useState<MemberFormState[]>([]);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const initializedRef = useRef(false);
+  const lastCaptchaErrorAtRef = useRef(0);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const turnstileSiteKey = getTurnstileSiteKey();
   const captchaEnabled = turnstileSiteKey.length > 0;
@@ -184,9 +185,14 @@ export function Register() {
   }, []);
 
   const handleCaptchaError = useCallback(() => {
-    resetCaptcha();
-    toast.error('Captcha verification failed. Please retry.');
-  }, [resetCaptcha, toast]);
+    setCaptchaToken(null);
+
+    const now = Date.now();
+    if (now - lastCaptchaErrorAtRef.current > 3000) {
+      lastCaptchaErrorAtRef.current = now;
+      toast.error('Captcha verification failed. Please retry.');
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (initializedRef.current) {
