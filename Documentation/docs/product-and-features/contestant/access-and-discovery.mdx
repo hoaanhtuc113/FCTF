@@ -1,25 +1,66 @@
 ---
 title: Access and Discovery
-description: Participant access flow, challenge navigation, and identity context setup.
+description: How contestants authenticate, discover challenges, and inspect challenge detail safely.
 ---
 
 # Access and Discovery
 
-This section explains how contestants access the platform and identify the right challenge path.
+This page explains how contestants enter the platform, navigate challenge categories, and understand challenge accessibility before starting runtime.
 
-## Authentication and Session Integrity
+## Scope
 
-**Participant goal:** Enter the event securely and maintain stable access.
+- Sign-in context and top navigation behavior
+- Challenge category discovery and challenge selection
+- Challenge detail inspection and file access
+- Requirement-aware locking and eligibility checks
 
-**Operational steps**
+## Sign In and Contest Context
 
-1. Sign in with registered credentials.
-2. Complete account and event eligibility validation.
-3. Enter dashboard with personal and team context.
-4. Keep one stable authenticated session during active solving.
-5. Re-authenticate when needed and confirm context before proceeding.
+Contestants authenticate using the provided username/password pair.
 
-**Expected result:** Secure and uninterrupted participation.
+After login, the layout provides a persistent context bar:
+
+- Active navigation tabs (`Challenges`, `Instances`, `Scoreboard`, `Action Logs`, `Tickets`)
+- Team/user identity in the top-right profile area
+- Contest countdown (`Starts in` or `Ends in`) when event timing is active
+
+## Discover Challenges by Category
+
+Contestants open the `Challenges` page to browse category groups (for example Web/Pwn) and then choose a challenge from the expanded list.
+
+![Challenge list and detail panel](/img/contestant/ViewChallengeDetail.png)
+
+## Inspect Challenge Detail
+
+When a challenge is selected, contestants can inspect:
+
+- Challenge metadata (`pts`, `Time`, `Attempts`, `Deploys` when deploy is required)
+- Difficulty and solve count
+- Description and PDF problem statement preview
+- Downloadable attachments in `[ATTACHMENTS]`
+- Runtime and submission panels
+
+## Requirement-Aware Access
+
+Challenge access is not only UI-driven; it is policy-driven:
+
+- If prerequisites are unmet, the challenge can appear as locked.
+- Requirement checks are validated before full challenge access.
+- Hidden or restricted challenge states are enforced server-side.
+
+## Attachment Handling
+
+Contestants can access official challenge artifacts directly from challenge detail:
+
+- PDF files are rendered in the built-in viewer for quick reading.
+- Non-PDF assets are downloadable through the attachment list.
+- File access remains controlled by challenge visibility and requirement status.
+
+## Related Reading
+
+- [Contestant Guideline](./contestant-guideline)
+- [Solve Workflow](./solve-workflow)
+- [Fairness and Security Controls](./fairness-and-security-controls)
 
 ## Challenge Discovery and Visibility Rules
 

@@ -2,33 +2,20 @@
 sidebar_position: 3
 ---
 
-# Create a Blog Post
+# Publish Release Notes (No Blog Mode)
 
-Docusaurus creates a **page for each blog post**, but also a **blog index page**, a **tag system**, an **RSS** feed...
+The Docusaurus blog is disabled in this repository (`blog: false` in `docusaurus.config.ts`).
 
-## Create your first Post
+For release communication, use documentation pages instead of blog posts.
 
-Create a file at `blog/2021-02-28-greetings.md`:
+## Recommended release-note locations
 
-```md title="blog/2021-02-28-greetings.md"
----
-slug: greetings
-title: Greetings!
-authors:
-  - name: Joel Marcey
-    title: Co-creator of Docusaurus 1
-    url: https://github.com/JoelMarcey
-    image_url: https://github.com/JoelMarcey.png
-  - name: Sébastien Lorber
-    title: Docusaurus maintainer
-    url: https://sebastienlorber.com
-    image_url: https://github.com/slorber.png
-tags: [greetings]
----
+- Update `docs/intro.mdx` with current release metadata.
+- Update affected feature pages directly with change notes.
+- If needed, add a dedicated release note page under `docs/` and link it from `sidebars.ts`.
 
-Congratulations, you have made your first post!
+## Why this policy exists
 
-Feel free to play around and edit this post as much as you like.
-```
-
-A new blog post is now available at [http://localhost:3000/blog/greetings](http://localhost:3000/blog/greetings).
+- Keeps technical truth close to operational pages.
+- Avoids stale dual sources (blog vs docs).
+- Preserves a single review path for platform changes.
