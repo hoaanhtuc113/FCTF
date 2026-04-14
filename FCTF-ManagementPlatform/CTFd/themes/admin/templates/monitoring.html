@@ -420,6 +420,180 @@
 		if (tfoot) { tfoot.style.display = "none"; }
 	}
 
+	function normalizeId(value) {
+		const n = Number(value);
+		if (!Number.isFinite(n)) return null;
+		return Math.trunc(n);
+	}
+
+	function createCell(className, text) {
+		const td = document.createElement("td");
+		td.className = className;
+		td.textContent = text;
+		return td;
+	}
+
+	function createStatusBadge(status) {
+		const s = String(status || "unknown").toLowerCase();
+		let badgeClass = "status-badge-unknown";
+		if (s === "running") badgeClass = "status-badge-running";
+		else if (s === "pending") badgeClass = "status-badge-pending";
+		else if (s === "deleting") badgeClass = "status-badge-deleting";
+
+		const span = document.createElement("span");
+		span.className = `status-badge ${badgeClass}`;
+		span.textContent = status || "Unknown";
+		return span;
+	}
+
+	function createTokenCell(tokenValue) {
+		const td = document.createElement("td");
+		td.className = "text-center";
+
+		if (!tokenValue) {
+			td.textContent = "N/A";
+			return td;
+		}
+
+		const wrap = document.createElement("div");
+		wrap.className = "token-cell";
+
+		const span = document.createElement("span");
+		span.className = "token-value";
+		span.title = tokenValue;
+		span.textContent = `${tokenValue.substring(0, 8)}...`;
+
+		const btn = document.createElement("button");
+		btn.type = "button";
+		btn.className = "btn btn-sm btn-outline-secondary btn-copy-token";
+		btn.setAttribute("aria-label", "Copy challenge token");
+		btn.dataset.token = encodeURIComponent(tokenValue);
+		btn.addEventListener("click", function () {
+			copyChallengeToken(btn);
+		});
+
+		const icon = document.createElement("i");
+		icon.className = "fas fa-copy";
+		btn.appendChild(icon);
+
+		wrap.appendChild(span);
+		wrap.appendChild(btn);
+		td.appendChild(wrap);
+		return td;
+	}
+
+	function createActionCell(challengeId, teamId, nsRaw) {
+		const td = document.createElement("td");
+		td.className = "text-center";
+
+		const dropdown = document.createElement("div");
+		dropdown.className = "action-dropdown";
+
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "clean-btn clean-action-btn-sm";
+		button.textContent = "Actions";
+		button.addEventListener("click", function (event) {
+			toggleActionMenu(button, event);
+		});
+
+		const menu = document.createElement("div");
+		menu.className = "action-menu";
+
+		const podLogs = document.createElement("a");
+		podLogs.className = "action-menu-item";
+		podLogs.href = "#";
+		podLogs.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs';
+		podLogs.addEventListener("click", function (event) {
+			event.preventDefault();
+			viewLogs(challengeId, teamId);
+			closeAllActionMenus();
+		});
+
+		const requestLogs = document.createElement("a");
+		requestLogs.className = "action-menu-item";
+		requestLogs.href = "#";
+		requestLogs.innerHTML = '<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs';
+		requestLogs.addEventListener("click", function (event) {
+			event.preventDefault();
+			viewRequestLogs(challengeId, teamId, nsRaw || "");
+			closeAllActionMenus();
+		});
+
+		const divider = document.createElement("div");
+		divider.className = "action-menu-divider";
+
+		const stop = document.createElement("a");
+		stop.className = "action-menu-item action-menu-item-danger";
+		stop.href = "#";
+		stop.innerHTML = '<i class="fas fa-stop-circle fa-fw mr-1"></i> Stop';
+		stop.addEventListener("click", function (event) {
+			event.preventDefault();
+			stopChallenge(challengeId, teamId);
+			closeAllActionMenus();
+		});
+
+		menu.appendChild(podLogs);
+		menu.appendChild(requestLogs);
+		menu.appendChild(divider);
+		menu.appendChild(stop);
+
+		dropdown.appendChild(button);
+		dropdown.appendChild(menu);
+		td.appendChild(dropdown);
+		return td;
+	}
+
+	function buildMonitoringRow(row) {
+		const challengeId = normalizeId(row.challenge_id);
+		const teamId = normalizeId(row.team_id);
+		if (challengeId === null || teamId === null) {
+			return null;
+		}
+
+		const tr = document.createElement("tr");
+		const key = makeInstanceKey(challengeId, teamId);
+		const isChecked = selectedInstances.has(key);
+
+		const checkboxTd = document.createElement("td");
+		checkboxTd.setAttribute("data-checkbox", "");
+		const checkbox = document.createElement("input");
+		checkbox.type = "checkbox";
+		checkbox.className = "table-check instance-checkbox";
+		checkbox.dataset.challengeId = String(challengeId);
+		checkbox.dataset.teamId = String(teamId);
+		checkbox.checked = isChecked;
+		checkbox.setAttribute("aria-label", "Select instance");
+		checkbox.addEventListener("change", function () {
+			toggleRowSelection(challengeId, teamId, checkbox.checked);
+			syncSelectAllCheckbox();
+		});
+		checkboxTd.appendChild(checkbox);
+		tr.appendChild(checkboxTd);
+
+		tr.appendChild(createCell("text-center", String(challengeId)));
+		tr.appendChild(createCell("text-center", String(row.challenge_name || "N/A")));
+		tr.appendChild(createCell("text-center", String(row.team_name || "N/A")));
+		tr.appendChild(createCell("text-center", String(row.user_name || "N/A")));
+		tr.appendChild(createCell("text-center", String(row.challenge_category || "N/A")));
+
+		const statusTd = document.createElement("td");
+		statusTd.className = "text-center";
+		statusTd.appendChild(createStatusBadge(row.status));
+		tr.appendChild(statusTd);
+
+		const tokenValue = String(row.challenge_url || "");
+		tr.appendChild(createTokenCell(tokenValue));
+
+		const finished = row.time_finished ? new Date(row.time_finished).toLocaleString() : "N/A";
+		tr.appendChild(createCell("text-center", finished));
+
+		const nsRaw = String(row.ns || "");
+		tr.appendChild(createActionCell(challengeId, teamId, nsRaw));
+
+		return tr;
+	}
+
 	async function loadData(page = 1) {
 		currentPage = page;
 
@@ -491,64 +665,10 @@
 
 			hideTableFooter();
 			result.data.forEach(row => {
-				const tr = document.createElement("tr");
-				const key = makeInstanceKey(row.challenge_id, row.team_id);
-				const isChecked = selectedInstances.has(key);
-				const tokenValue = row.challenge_url ?? "";
-				const encodedToken = encodeURIComponent(tokenValue);
-
-				tr.innerHTML = `
-					<td data-checkbox>
-						<input
-							type="checkbox"
-							class="table-check instance-checkbox"
-							data-challenge-id="${row.challenge_id}"
-							data-team-id="${row.team_id}"
-							${isChecked ? 'checked' : ''}
-							onchange="toggleRowSelection(${row.challenge_id}, ${row.team_id}, this.checked); syncSelectAllCheckbox();"
-							aria-label="Select instance"
-						/>
-					</td>
-					<td class="text-center">${row.challenge_id}</td>
-					<td class="text-center">${row.challenge_name}</td>
-					<td class="text-center">${row.team_name}</td>
-					<td class="text-center">${row.user_name ?? "N/A"}</td>
-					<td class="text-center">${row.challenge_category ?? "N/A"}</td>
-					<td class="text-center">${formatStatusBadge(row.status)}</td>
-					<td class="text-center">
-						${tokenValue
-							? `<div class="token-cell"><span class="token-value" title="${tokenValue}">${tokenValue.substring(0, 8)}...</span><button type="button" class="btn btn-sm btn-outline-secondary btn-copy-token" data-token="${encodedToken}" onclick="copyChallengeToken(this)" aria-label="Copy challenge token"><i class="fas fa-copy"></i></button></div>`
-							: "N/A"}
-					</td>
-					<td class="text-center">${row.time_finished
-						? new Date(row.time_finished).toLocaleString()
-						: "N/A"}</td>
-					<td class="text-center">
-						<div class="action-dropdown">
-							<button type="button" class="clean-btn clean-action-btn-sm" onclick="toggleActionMenu(this, event)">
-								Actions
-							</button>
-							<div class="action-menu">
-								<a class="action-menu-item" href="#" onclick="viewLogs(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
-									<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs
-								</a>
-							<a class="action-menu-item" href="#"
-								data-challenge-id="${row.challenge_id}"
-								data-team-id="${row.team_id}"
-								data-ns="${encodeURIComponent(row.ns ?? '')}"
-								onclick="handleViewRequestLogs(this); closeAllActionMenus(); return false;">
-									<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs
-								</a>
-								<div class="action-menu-divider"></div>
-								<a class="action-menu-item action-menu-item-danger" href="#" onclick="stopChallenge(${row.challenge_id}, ${row.team_id}); closeAllActionMenus(); return false;">
-									<i class="fas fa-stop-circle fa-fw mr-1"></i> Stop
-								</a>
-							</div>
-						</div>
-					</td>
-				`;
-
-				tbody.appendChild(tr);
+				const tr = buildMonitoringRow(row);
+				if (tr) {
+					tbody.appendChild(tr);
+				}
 			});
 
 			// Update pagination info and controls
@@ -575,12 +695,7 @@
 	}
 
 	function formatStatusBadge(status) {
-		const s = (status || "unknown").toLowerCase();
-		let badgeClass = "status-badge-unknown";
-		if (s === "running") badgeClass = "status-badge-running";
-		else if (s === "pending") badgeClass = "status-badge-pending";
-		else if (s === "deleting") badgeClass = "status-badge-deleting";
-		return `<span class="status-badge ${badgeClass}">${status || "Unknown"}</span>`;
+		return createStatusBadge(status);
 	}
 
 	function clearFilters() {
