@@ -239,9 +239,6 @@ export function Login() {
 
                   {captchaEnabled ? (
                     <Box>
-                      <Box sx={{ mb: 0.75, color: colors.textSecondary, fontSize: 12 }}>
-                        Captcha
-                      </Box>
                       <div style={{ width: '100%' }}>
                         <Turnstile
                           key={captchaWidgetKey}
