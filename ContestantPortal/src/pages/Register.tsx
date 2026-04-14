@@ -106,9 +106,15 @@ export function Register() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const publicConfig = await configService.getPublicConfig();
+        const publicConfig = await configService.getPublicConfig(true);
 
-        if (!publicConfig?.contestant_registration_enabled) {
+        if (!publicConfig) {
+          toast.error('Unable to load registration configuration');
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        if (!publicConfig.contestant_registration_enabled) {
           toast.error('Registration is currently disabled');
           navigate('/login', { replace: true });
           return;
@@ -120,7 +126,7 @@ export function Register() {
         setTeamFieldValues(buildFieldDefaults(registrationMetadata.teamFields));
         setMembers([createMemberState(registrationMetadata.userFields)]);
 
-        if (publicConfig?.ctf_logo) {
+        if (publicConfig.ctf_logo) {
           setLogoUrl(publicConfig.ctf_logo);
         }
       } catch (error) {
