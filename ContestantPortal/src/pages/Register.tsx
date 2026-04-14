@@ -93,7 +93,7 @@ export function Register() {
   const [teamPassword, setTeamPassword] = useState('');
   const [teamFieldValues, setTeamFieldValues] = useState<Record<number, string | boolean>>({});
   const [members, setMembers] = useState<MemberFormState[]>([]);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaTokenRef = useRef<string | null>(null);
   const initializedRef = useRef(false);
   const lastCaptchaErrorAtRef = useRef(0);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
@@ -178,27 +178,30 @@ export function Register() {
   }, []);
 
   const resetCaptcha = useCallback(() => {
-    setCaptchaToken(null);
+    captchaTokenRef.current = null;
     turnstileRef.current?.reset();
   }, []);
 
   const handleCaptchaSuccess = useCallback((token: string) => {
-    setCaptchaToken(token);
+    captchaTokenRef.current = token;
   }, []);
 
   const handleCaptchaExpire = useCallback(() => {
-    setCaptchaToken(null);
+    captchaTokenRef.current = null;
   }, []);
 
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   const handleCaptchaError = useCallback(() => {
-    setCaptchaToken(null);
+    captchaTokenRef.current = null;
 
     const now = Date.now();
     if (now - lastCaptchaErrorAtRef.current > 3000) {
       lastCaptchaErrorAtRef.current = now;
-      toast.error('Captcha verification failed. Please retry.');
+      toastRef.current.error('Captcha verification failed. Please retry.');
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (initializedRef.current) {
@@ -373,7 +376,7 @@ export function Register() {
       return;
     }
 
-    if (captchaEnabled && !captchaToken) {
+    if (captchaEnabled && !captchaTokenRef.current) {
       toast.error('Please complete captcha challenge');
       return;
     }
@@ -383,7 +386,7 @@ export function Register() {
 
     const payload: RegisterContestantPayload = {
       teamName: teamName.trim(),
-      captchaToken: captchaToken ?? undefined,
+      captchaToken: captchaTokenRef.current ?? undefined,
       teamFields: buildFieldPayload(metadata.teamFields, teamFieldValues),
       members: members.map((member) => ({
         username: member.username.trim(),
