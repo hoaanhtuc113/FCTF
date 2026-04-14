@@ -184,6 +184,7 @@ public class TokenAuthenticationMiddleware
                     {
                         TokenValueFromDb = authInfo.TokenValueFromDb,
                         TeamId = authInfo.TeamId,
+                        Verified = authInfo.Verified,
                         Banned = authInfo.Banned,
                         Hidden = authInfo.Hidden,
                         TeamBanned = authInfo.TeamBanned
