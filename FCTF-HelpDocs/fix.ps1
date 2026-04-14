@@ -1,0 +1,1 @@
+$files = Get-ChildItem -Path "src\content\admin" -Filter *.ts; foreach ($file in $files) { $content = Get-Content $file.FullName; $content = $content -replace "\`(?!;)", "'"; Set-Content $file.FullName $content }

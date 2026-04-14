@@ -1,0 +1,6 @@
+projectKey=FCTF-ChallengeGateway
+serverUrl=http://localhost:9000
+serverVersion=26.3.0.120487
+dashboardUrl=http://localhost:9000/dashboard?id=FCTF-ChallengeGateway
+ceTaskId=a75290ea-845b-46b8-9ddf-a3a0f6044eeb
+ceTaskUrl=http://localhost:9000/api/ce/task?id=a75290ea-845b-46b8-9ddf-a3a0f6044eeb
