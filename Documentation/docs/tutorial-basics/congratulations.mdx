@@ -2,22 +2,32 @@
 sidebar_position: 6
 ---
 
-# Congratulations!
+# Documentation Completion Checklist
 
-You have just learned the **basics of Docusaurus** and made some changes to the **initial template**.
+Use this checklist before closing a documentation task.
 
-Docusaurus has **much more to offer**!
+## Content quality
 
-Have **5 more minutes**? Take a look at **[versioning](../tutorial-extras/manage-docs-versions.mdx)** and **[i18n](../tutorial-extras/translate-your-site.mdx)**.
+1. Page is in English and uses platform terminology consistently.
+2. Workflow steps match implemented UI and API behavior.
+3. Constraints and policy controls are clearly documented.
 
-Anything **unclear** or **buggy** in this tutorial? [Please report it!](https://github.com/facebook/docusaurus/discussions/4610)
+## Technical quality
 
-## What's next?
+1. Front matter is valid.
+2. Internal links resolve.
+3. Screenshot paths exist and render.
+4. `npm run build` passes.
 
-- Read the [official documentation](https://docusaurus.io/)
-- Modify your site configuration with [`docusaurus.config.js`](https://docusaurus.io/docs/api/docusaurus-config)
-- Add navbar and footer items with [`themeConfig`](https://docusaurus.io/docs/api/themes/configuration)
-- Add a custom [Design and Layout](https://docusaurus.io/docs/styling-layout)
-- Add a [search bar](https://docusaurus.io/docs/search)
-- Find inspirations in the [Docusaurus showcase](https://docusaurus.io/showcase)
-- Get involved in the [Docusaurus Community](https://docusaurus.io/community/support)
+## Consistency quality
+
+1. Content aligns with approved baseline sections:
+	- `docs/product-and-features/admin/*`
+	- `docs/architecture/*`
+	- `docs/install-and-ops/*`
+2. No outdated Docusaurus template text remains in operational pages.
+
+## Next reading
+
+- [Release and version workflow](../tutorial-extras/manage-docs-versions)
+- [Localization policy](../tutorial-extras/translate-your-site)

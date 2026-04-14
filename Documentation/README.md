@@ -1,41 +1,42 @@
-# Website
+# FCTF Documentation Portal
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+This folder contains the Docusaurus documentation site for FCTF v4.
 
-## Installation
+## Prerequisites
 
-```bash
-yarn
-```
+- Node.js 20+
+- npm
 
-## Local Development
-
-```bash
-yarn start
-```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
+## Install dependencies
 
 ```bash
-yarn build
+npm install
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-## Deployment
-
-Using SSH:
+## Local development
 
 ```bash
-USE_SSH=true yarn deploy
+npm run start
 ```
 
-Not using SSH:
+## Production build
 
 ```bash
-GIT_USER=<Your GitHub username> yarn deploy
+npm run build
 ```
 
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+## Serve production build locally
+
+```bash
+npm run serve
+```
+
+## Documentation quality policy
+
+1. Keep docs and behavior changes in the same pull request.
+2. Keep primary docs in English.
+3. Use approved baseline sections for terminology and style:
+	- `docs/product-and-features/admin/*`
+	- `docs/architecture/*`
+	- `docs/install-and-ops/*`
+4. Validate links, front matter, and screenshot paths before merge.

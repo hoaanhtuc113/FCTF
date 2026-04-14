@@ -1,50 +1,94 @@
 ---
-title: Analytics and Incentives
-description: Feature group for moderation, competition insight, and reward governance.
+sidebar_position: 6
+title: Analytics & Incentives
+description: Submission moderation, live scoreboard management, and dynamic reward query engine for competition governance.
 ---
 
-# Analytics and Incentives
+# Analytics & Incentives
 
-This section describes how administrators govern fairness outcomes and strategic event insight.
+This section describes how administrators govern fairness outcomes, monitor competition health, and compute reward distributions.
 
-## Submission Moderation
+## Submissions
 
-**Business objective:** Correct score-impacting anomalies fairly and transparently.
+The **Submissions** page provides a centralized audit interface for inspecting every flag submission made across the competition.
 
-**Operational steps**
+![Submissions](/img/admin/Submissions.png)
 
-1. Filter submissions by challenge, team, user, and incident window.
-2. Review evidence from submission history and support context.
-3. Apply correction only when policy criteria are satisfied.
-4. Record moderation reason and operator responsibility.
-5. Validate ranking/score impact after correction.
+**Filter Controls:**
+* **Team / User / Challenge** - Narrow the view to a specific team, user, or challenge context.
+* **Date Range** - Filter submissions within a specific `From Date` to `To Date` window.
+* **Search Field** - Choose the target field for keyword search (e.g., `Provided` to search by the submitted flag string).
+* **Search Text** - Free-text search matching against the selected field.
 
-**Expected result:** Dispute resolution is evidence-based and consistent.
+**Table Columns:**
+* **ID** - The unique submission identifier.
+* **User / Team** - The submitting user and their parent team.
+* **Challenge** - The challenge the submission was made against.
+* **Type** - The verdict: `correct` or `incorrect`.
+* **Provided** - The actual flag string submitted by the contestant. Click the lock icon to reveal the value. This is critical for investigating suspected flag-sharing or brute-force attempts.
+* **Date** - The precise timestamp of submission.
 
-## Scoreboard Intelligence and Event Analytics
+**Available Actions:**
+* Mark submissions as correct or incorrect using the inline action buttons.
+* Flag submissions for review.
+* **Delete** selected submissions to correct erroneous records.
+* **Export** the full submission dataset for offline analysis.
 
-**Business objective:** Monitor competition quality and identify performance outliers.
+:::tip[Sub-filters]
+The sidebar menu exposes quick-access sub-pages: **All Submissions**, **Correct Submissions**, and **Incorrect Submissions** for rapid triage.
+:::
 
-**Operational steps**
+## Scoreboard
 
-1. Review full standings and movement trends.
-2. Segment performance by bracket or participant cohort.
-3. Inspect challenge-level metrics: solve rate, failure density, hint usage.
-4. Detect anomalies that may indicate fairness or clarity issues.
-5. Feed insights into challenge operations and support prioritization.
+The **Scoreboard** page displays the live competition standings as viewed by the admin.
 
-**Expected result:** Organizers gain actionable visibility into event health.
+![Scoreboard](/img/admin/Scoreboard.png)
 
-## Rewards Engine
+**Tabs:**
+* **Teams** - Displays the ranked leaderboard by team, showing Place, Team Name, Score, and Visibility status.
+* **Users** - Switches to individual user rankings.
+* **Awards** - Lists all granted awards across the competition.
 
-**Business objective:** Deliver transparent and repeatable reward outcomes.
+**Table Columns (Teams tab):**
+* **Place** - The overall team rank.
+* **Team** - The team name.
+* **Score** - The total accumulated points.
+* **Visibility** - Whether the team's score is `Visible` or `Hidden` on the public scoreboard.
 
-**Operational steps**
+**Available Actions:**
+* **Visibility** - Toggle the visibility of the entire public scoreboard globally (e.g., freeze the scoreboard near end of competition).
+* **Export** - Download the current standings as a data file.
 
-1. Define reward objective and policy boundaries.
-2. Configure eligibility criteria and tie-break conditions.
-3. Preview candidate recipients before publication.
-4. Validate result set with jury and governance rules.
-5. Publish final outcomes and archive criteria for audit.
+## Dynamic Reward Query
 
-**Expected result:** Rewards are trusted, explainable, and policy-aligned.
+The **Dynamic Reward Query** engine is a powerful, template-driven analytics tool that automates the computation of award-eligible teams based on configurable criteria.
+
+![Reward Query](/img/admin/RewardQuery.png)
+
+**Template Selection:**
+
+Select a reward template card from the pre-built options:
+
+| Template | Description | Type |
+| :--- | :--- | :--- |
+| **Top Teams by Score** | Award the top N teams with highest scores. | Ranking |
+| **First Blood Hunters** | Award teams with the most first bloods (first correct submission on a challenge). | Achievement |
+| **Category Masters** | Award teams who solved all challenges in the most categories. | Achievement |
+| **First Full-Clear By Category** | Show the first team that fully cleared each category. | Achievement |
+| **Perfect Solvers** | Award teams with the most perfect solves (no wrong submissions). | Achievement |
+| **Solve Count Champions** | Award teams who solved the most challenges (regardless of score). | Achievement |
+| **First Blood by Category** | Show first blood teams for each challenge, grouped by category. | Special |
+| **No Hints Solvers** | Award teams who solved the most challenges without using hints. | Achievement |
+
+**Parameters:**
+
+After selecting a template, the **Parameters** section dynamically renders the relevant configuration inputs (e.g., `Limit` for result count, `Min First Bloods` for threshold filtering). Click **[Preview Results]** to generate the output, or **[Reset]** to clear the form.
+
+**Results:**
+
+![Reward Query Results](/img/admin/RewardQuery_result.png)
+
+The results panel provides:
+* **Summary Statistics** - Recipients count, Average Value, Max Value, and Min Value displayed as highlighted metrics.
+* **Detailed Breakdown** - An expandable table showing each qualifying team with their Team ID, Team Name, achievement value (e.g., First Bloods count), and Last Solve timestamp. Expand a row to drill down into the specific challenges that contributed to the achievement.
+* **Export Excel** - Download the complete result set as a CSV file (openable in Excel) for official record-keeping and ceremony preparation.

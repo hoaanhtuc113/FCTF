@@ -40,6 +40,7 @@ const sidebars: SidebarsConfig = {
             'product-and-features/admin/accounts',
             'product-and-features/admin/platform-governance',
             'product-and-features/admin/challenge-operations',
+            'product-and-features/admin/harden-docker-guidelines',
             'product-and-features/admin/live-runtime-control',
             'product-and-features/admin/analytics-and-incentives',
             'product-and-features/admin/support-and-compliance',
@@ -53,6 +54,7 @@ const sidebars: SidebarsConfig = {
             id: 'product-and-features/contestant-features',
           },
           items: [
+            'product-and-features/contestant/contestant-guideline',
             'product-and-features/contestant/access-and-discovery',
             'product-and-features/contestant/solve-workflow',
             'product-and-features/contestant/team-collaboration-and-support',
