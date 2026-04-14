@@ -82,6 +82,70 @@ def users_listing():
         verified_filter=verified_filter,
         hidden_filter=hidden_filter,
         banned_filter=banned_filter,
+        pending_mode=False,
+        listing_title="Users",
+    )
+
+
+@admin.route("/admin/users/pending")
+@admin_or_jury
+def users_pending_listing():
+    q = request.args.get("q")
+    field = request.args.get("field")
+    page = abs(request.args.get("page", 1, type=int))
+
+    hidden_filter = request.args.get("hidden", "")
+    banned_filter = request.args.get("banned", "")
+
+    filters = [
+        Users.type == "user",
+        Users.verified == False,
+    ]
+
+    if q and field and Users.__mapper__.has_property(field):
+        filters.append(getattr(Users, field).like("%{}%".format(q)))
+
+    if hidden_filter == "true":
+        filters.append(Users.hidden == True)
+    elif hidden_filter == "false":
+        filters.append(Users.hidden == False)
+
+    if banned_filter == "true":
+        filters.append(Users.banned == True)
+    elif banned_filter == "false":
+        filters.append(Users.banned == False)
+
+    if q and field == "ip":
+        users = (
+            Users.query.join(Tracking, Users.id == Tracking.user_id)
+            .filter(Tracking.ip.like("%{}%".format(q)))
+            .filter(*filters)
+            .order_by(Users.id.asc())
+            .paginate(page=page, per_page=50, error_out=False)
+        )
+    else:
+        users = (
+            Users.query.filter(*filters)
+            .order_by(Users.id.asc())
+            .paginate(page=page, per_page=50, error_out=False)
+        )
+
+    args = dict(request.args)
+    args.pop("page", 1)
+
+    return render_template(
+        "admin/users/users.html",
+        users=users,
+        prev_page=url_for(request.endpoint, page=users.prev_num, **args),
+        next_page=url_for(request.endpoint, page=users.next_num, **args),
+        q=q,
+        field=field,
+        role_filter="user",
+        verified_filter="false",
+        hidden_filter=hidden_filter,
+        banned_filter=banned_filter,
+        pending_mode=True,
+        listing_title="Pending Registrations",
     )
 
 

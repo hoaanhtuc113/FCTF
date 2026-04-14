@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from '../config/endpoints';
 import type { User, Team } from '../models/user.model';
 import type { LoginCredentials, AuthResponse } from '../models/auth.model';
+import type { RegisterContestantPayload, RegistrationMetadata } from '../models/registration.model';
 import { API_BASE_URL } from './api';
 class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
@@ -23,6 +24,38 @@ class AuthService {
     this.setToken(data.generatedToken);
     this.setUser(data.user);
     return data;
+  }
+
+  async getRegistrationMetadata(): Promise<RegistrationMetadata> {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTRATION_METADATA}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Unable to load registration metadata');
+    }
+
+    const data = await response.json();
+    return data.data as RegistrationMetadata;
+  }
+
+  async registerContestant(payload: RegisterContestantPayload): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REGISTER}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Registration failed');
+    }
   }
 
   async logout(): Promise<void> {

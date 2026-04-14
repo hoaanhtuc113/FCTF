@@ -4,6 +4,7 @@ type WindowEnv = {
   VITE_BASE_GATEWAY?: string;
   VITE_HTTP_PORT?: string;
   VITE_TCP_PORT?: string;
+  VITE_CLOUDFLARE_TURNSTILE_SITE_KEY?: string;
   [key: string]: string | undefined;
 };
 
@@ -56,6 +57,10 @@ export function getChallengeTcpAddress(): string {
   return `${getBaseGateway()}:${getTcpPort()}`;
 }
 
+export function getTurnstileSiteKey(): string {
+  return getEnvVar('VITE_CLOUDFLARE_TURNSTILE_SITE_KEY', '') || '';
+}
+
 export default {
   getEnvVar,
   getBaseGateway,
@@ -63,4 +68,5 @@ export default {
   getTcpPort,
   getChallengeHttpOrigin,
   getChallengeTcpAddress,
+  getTurnstileSiteKey,
 };

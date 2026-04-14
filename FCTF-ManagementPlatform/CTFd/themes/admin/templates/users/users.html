@@ -22,10 +22,17 @@
 {% block content %}
 <div class="page-header">
 	<div class="container">
-		<h1><i class="bx bx-user"></i> Users</h1>
+		<h1><i class="bx bx-user"></i> {{ listing_title or 'Users' }}</h1>
 	</div>
 </div>
 <div class="container">
+	{% if pending_mode %}
+	<div class="alert alert-warning">
+		<div class="clean-info-text">
+			Review and approve contestant accounts waiting for verification.
+		</div>
+	</div>
+	{% endif %}
 	{% if q and field %}
 	<div class="alert alert-info">
 		<div class="clean-info-text">
@@ -37,6 +44,7 @@
 	<div class="clean-search-container">
 		<form method="GET" id="filterForm">
 			<div class="row no-gutters align-items-end">
+				{% if not pending_mode %}
 				<div class="col-md-2 px-1">
 					<label for="role">Role</label>
 					<select name="role" id="role" class="clean-form-control ss-select w-100">
@@ -55,6 +63,7 @@
 						<option value="false" {% if verified_filter == 'false' %}selected{% endif %}>Not Verified</option>
 					</select>
 				</div>
+				{% endif %}
 				<div class="col-md-2 px-1">
 					<label for="hidden">Hidden</label>
 					<select name="hidden" id="hidden" class="clean-form-control ss-select w-100">
@@ -106,6 +115,11 @@
 		</div>
 		<div class="d-flex align-items-center">
 			<div class="btn-group mr-2" role="group">
+				{% if pending_mode and not is_jury() %}
+				<button type="button" class="clean-btn clean-btn-primary" id="users-approve-button" title="Approve selected users">
+					<i class="btn-fa fas fa-check"></i> Approve
+				</button>
+				{% endif %}
 				<button type="button" class="clean-btn" data-toggle="tooltip" title="Edit Users" id="users-edit-button">
 					<i class="btn-fa fas fa-pencil-alt"></i> Edit
 				</button>
@@ -209,6 +223,8 @@
 					<td class="text-center" value="{{ user.verified }}">
 						{% if user.verified %}
 							<span class="clean-badge clean-badge-success">verified</span>
+						{% else %}
+							<span class="clean-badge" style="background:#fff3cd;color:#856404;">pending</span>
 						{% endif %}
 					</td>
 					<td class="text-center" value="{{ user.hidden }}">
@@ -287,6 +303,51 @@
 function clearAllFilters() {
 	window.location.href = window.location.pathname;
 }
+
+function approveSelectedUsers() {
+	const selected = Array.from(document.querySelectorAll('input[data-user-id]:checked'));
+	if (selected.length === 0) {
+		window.alert('Please select at least one user to approve.');
+		return;
+	}
+
+	const proceed = window.confirm(`Approve ${selected.length} selected user(s)?`);
+	if (!proceed) {
+		return;
+	}
+
+	Promise.all(
+		selected.map((checkbox) => {
+			const userId = checkbox.getAttribute('data-user-id');
+			return fetch(`/api/v1/users/${userId}`, {
+				method: 'PATCH',
+				credentials: 'same-origin',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ verified: true }),
+			}).then((response) => response.json());
+		})
+	)
+		.then((results) => {
+			const failed = results.filter((item) => item.success !== true).length;
+			if (failed > 0) {
+				window.alert(`Approved ${selected.length - failed}/${selected.length} users. Some updates failed.`);
+			}
+			window.location.reload();
+		})
+		.catch(() => {
+			window.alert('Failed to approve selected users.');
+		});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+	const approveButton = document.getElementById('users-approve-button');
+	if (approveButton) {
+		approveButton.addEventListener('click', approveSelectedUsers);
+	}
+});
 </script>
 {% endblock %}
 
