@@ -209,13 +209,49 @@
         // Function to show all Instance
         function loadInstanceMetrics() {
             const container = document.getElementById("instanceData");
-            container.innerHTML = instanceMetrics.map(instance => `
-                <div class="instance-card" onclick="updateInstanceCharts(${instance.cpu}, ${instance.ram})">
-                    <p><strong>Instance ID:</strong> ${instance.id}</p>
-                    <p><strong>Challenge:</strong> ${instance.challenge}  -  <strong>Team:</strong> ${instance.team}</p>
-                    <p><strong>CPU:</strong> ${instance.cpu}%  -  <strong>RAM:</strong> ${instance.ram}%</p>
-                </div>
-            `).join('');
+            if (!container) return;
+
+            container.replaceChildren();
+
+            instanceMetrics.forEach((instance) => {
+                const card = document.createElement("div");
+                card.className = "instance-card";
+
+                card.addEventListener("click", function () {
+                    updateInstanceCharts(instance.cpu, instance.ram);
+                });
+
+                const p1 = document.createElement("p");
+                const s1 = document.createElement("strong");
+                s1.textContent = "Instance ID:";
+                p1.appendChild(s1);
+                p1.appendChild(document.createTextNode(` ${instance.id}`));
+
+                const p2 = document.createElement("p");
+                const s2a = document.createElement("strong");
+                s2a.textContent = "Challenge:";
+                const s2b = document.createElement("strong");
+                s2b.textContent = "Team:";
+                p2.appendChild(s2a);
+                p2.appendChild(document.createTextNode(` ${instance.challenge}  -  `));
+                p2.appendChild(s2b);
+                p2.appendChild(document.createTextNode(` ${instance.team}`));
+
+                const p3 = document.createElement("p");
+                const s3a = document.createElement("strong");
+                s3a.textContent = "CPU:";
+                const s3b = document.createElement("strong");
+                s3b.textContent = "RAM:";
+                p3.appendChild(s3a);
+                p3.appendChild(document.createTextNode(` ${instance.cpu}%  -  `));
+                p3.appendChild(s3b);
+                p3.appendChild(document.createTextNode(` ${instance.ram}%`));
+
+                card.appendChild(p1);
+                card.appendChild(p2);
+                card.appendChild(p3);
+                container.appendChild(card);
+            });
         }
 
         window.updateInstanceCharts = function (cpu, ram) {

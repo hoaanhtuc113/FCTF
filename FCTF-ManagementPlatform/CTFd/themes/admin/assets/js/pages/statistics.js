@@ -60,6 +60,12 @@ const solveConversionPct = (row) => {
   return (solves / attempters) * 100;
 };
 
+const appendTextCell = (rowEl, value) => {
+  const td = document.createElement("td");
+  td.textContent = String(value ?? "-");
+  rowEl.appendChild(td);
+};
+
 const renderChallengeAnalytics = (force = false) => {
   fetchChallengeAnalytics(force).then((response) => {
     if (!response?.success) {
@@ -126,13 +132,11 @@ const renderChallengeAnalytics = (force = false) => {
                 ? "-"
                 : formatNumber(row.avg_hints_per_solve, 2);
 
-            tr.innerHTML = `
-              <td>${row.name}</td>
-              <td>${conversionText}</td>
-              <td>${triesText}</td>
-              <td>${hintUserText}</td>
-              <td>${avgHintsText}</td>
-            `;
+            appendTextCell(tr, row.name || "-");
+            appendTextCell(tr, conversionText);
+            appendTextCell(tr, triesText);
+            appendTextCell(tr, hintUserText);
+            appendTextCell(tr, avgHintsText);
             tableBody.appendChild(tr);
           });
       }
