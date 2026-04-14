@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -11,7 +11,6 @@ import {
 } from '@mui/material';
 import { Add, Delete } from '@mui/icons-material';
 import { Turnstile } from '@marsidev/react-turnstile';
-import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { authService } from '../services/authService';
 import { configService } from '../services/configService';
@@ -41,13 +40,21 @@ const buildFieldDefaults = (fields: RegistrationFieldDefinition[]): Record<numbe
 };
 
 const createMemberState = (fields: RegistrationFieldDefinition[]): MemberFormState => ({
-  id: crypto.randomUUID(),
+  id: createMemberId(),
   username: '',
   email: '',
   password: '',
   confirmPassword: '',
   userFieldValues: buildFieldDefaults(fields),
 });
+
+const createMemberId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `member-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
 
 const buildFieldPayload = (
   fields: RegistrationFieldDefinition[],
@@ -75,7 +82,6 @@ const buildFieldPayload = (
 export function Register() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { theme } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -89,21 +95,30 @@ export function Register() {
   const [members, setMembers] = useState<MemberFormState[]>([]);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+  const initializedRef = useRef(false);
   const turnstileSiteKey = getTurnstileSiteKey();
   const captchaEnabled = turnstileSiteKey.length > 0;
 
-  const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#000' : '#0a0a0a',
-    border: isDark ? '#3f3f46' : '#52525b',
-    borderLight: isDark ? '#52525b' : '#71717a',
-    text: isDark ? '#fb923c' : '#f97316',
-    textSecondary: isDark ? '#a1a1aa' : '#d4d4d8',
-    textMuted: isDark ? '#71717a' : '#a1a1aa',
-    placeholder: isDark ? '#52525b' : '#71717a',
+    pageBg: '#f6f5f3',
+    panelBg: '#ffffff',
+    border: '#ece7df',
+    borderLight: '#e7dfd1',
+    text: '#121212',
+    textSecondary: '#6b7280',
+    textMuted: '#6b7280',
+    placeholder: '#9ca3af',
+    inputBg: '#fffcf8',
+    primary: '#ea7a00',
+    primaryDark: '#d86600',
   };
 
   useEffect(() => {
+    if (initializedRef.current) {
+      return;
+    }
+    initializedRef.current = true;
+
     const loadData = async () => {
       try {
         const publicConfig = await configService.getPublicConfig(true);
@@ -122,9 +137,19 @@ export function Register() {
 
         const registrationMetadata = await authService.getRegistrationMetadata();
 
-        setMetadata(registrationMetadata);
-        setTeamFieldValues(buildFieldDefaults(registrationMetadata.teamFields));
-        setMembers([createMemberState(registrationMetadata.userFields)]);
+        const normalizedMetadata: RegistrationMetadata = {
+          userFields: Array.isArray(registrationMetadata.userFields) ? registrationMetadata.userFields.filter(Boolean) : [],
+          teamFields: Array.isArray(registrationMetadata.teamFields) ? registrationMetadata.teamFields.filter(Boolean) : [],
+          constraints: {
+            teamSizeLimit: Number(registrationMetadata.constraints?.teamSizeLimit ?? 0),
+            numTeamsLimit: Number(registrationMetadata.constraints?.numTeamsLimit ?? 0),
+            numUsersLimit: Number(registrationMetadata.constraints?.numUsersLimit ?? 0),
+          },
+        };
+
+        setMetadata(normalizedMetadata);
+        setTeamFieldValues(buildFieldDefaults(normalizedMetadata.teamFields));
+        setMembers([createMemberState(normalizedMetadata.userFields)]);
 
         if (publicConfig.ctf_logo) {
           setLogoUrl(publicConfig.ctf_logo);
@@ -312,7 +337,7 @@ export function Register() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: colors.bg }}
+        style={{ backgroundColor: colors.pageBg }}
       >
         <CircularProgress sx={{ color: colors.text }} />
       </div>
@@ -321,10 +346,17 @@ export function Register() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 font-mono"
-      style={{ backgroundColor: colors.bg }}
+      className="min-h-screen flex flex-col font-mono"
+      style={{
+        backgroundColor: colors.pageBg,
+        backgroundImage:
+          'linear-gradient(to right, rgba(234,122,0,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(234,122,0,0.08) 1px, transparent 1px)',
+        backgroundSize: '36px 36px',
+      }}
     >
-      <Box sx={{ width: '100%', maxWidth: '860px' }}>
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+      <Box sx={{ width: '100%', maxWidth: '960px' }}>
+        <Box sx={{ maxWidth: '860px', mx: 'auto' }}>
         <Box sx={{ mb: 3, textAlign: 'center' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
             <img
@@ -333,7 +365,7 @@ export function Register() {
               style={{ maxWidth: '140px' }}
             />
           </Box>
-          <Box sx={{ color: colors.text, fontSize: '22px', fontWeight: 700 }}>[TEAM_REGISTRATION]</Box>
+          <Box sx={{ color: colors.primary, fontSize: '22px', fontWeight: 700 }}>[TEAM_REGISTRATION]</Box>
           <Box sx={{ color: colors.textSecondary, fontSize: '12px' }}>
             Accounts are created with pending verification status.
           </Box>
@@ -342,8 +374,10 @@ export function Register() {
         <Box
           sx={{
             border: `1px solid ${colors.border}`,
-            bgcolor: colors.bg,
+            bgcolor: colors.panelBg,
             p: 3,
+            borderRadius: '10px',
+            boxShadow: '0 18px 45px rgba(17, 24, 39, 0.08)',
           }}
         >
           <form onSubmit={handleSubmit}>
@@ -365,7 +399,7 @@ export function Register() {
                     color: colors.text,
                     '& fieldset': { borderColor: colors.border },
                     '&:hover fieldset': { borderColor: colors.borderLight },
-                    '&.Mui-focused fieldset': { borderColor: colors.text },
+                    '&.Mui-focused fieldset': { borderColor: colors.primary },
                   },
                   '& .MuiInputLabel-root': { color: colors.textSecondary },
                 }}
@@ -382,7 +416,7 @@ export function Register() {
                     color: colors.text,
                     '& fieldset': { borderColor: colors.border },
                     '&:hover fieldset': { borderColor: colors.borderLight },
-                    '&.Mui-focused fieldset': { borderColor: colors.text },
+                    '&.Mui-focused fieldset': { borderColor: colors.primary },
                   },
                   '& .MuiInputLabel-root': { color: colors.textSecondary },
                 }}
@@ -403,7 +437,7 @@ export function Register() {
                     color: colors.text,
                     '& fieldset': { borderColor: colors.border },
                     '&:hover fieldset': { borderColor: colors.borderLight },
-                    '&.Mui-focused fieldset': { borderColor: colors.text },
+                    '&.Mui-focused fieldset': { borderColor: colors.primary },
                   },
                   '& .MuiInputLabel-root': { color: colors.textSecondary },
                 }}
@@ -440,7 +474,7 @@ export function Register() {
                             color: colors.text,
                             '& fieldset': { borderColor: colors.border },
                             '&:hover fieldset': { borderColor: colors.borderLight },
-                            '&.Mui-focused fieldset': { borderColor: colors.text },
+                            '&.Mui-focused fieldset': { borderColor: colors.primary },
                           },
                           '& .MuiInputLabel-root': { color: colors.textSecondary },
                         }}
@@ -489,7 +523,7 @@ export function Register() {
                         color: colors.text,
                         '& fieldset': { borderColor: colors.border },
                         '&:hover fieldset': { borderColor: colors.borderLight },
-                        '&.Mui-focused fieldset': { borderColor: colors.text },
+                        '&.Mui-focused fieldset': { borderColor: colors.primary },
                       },
                       '& .MuiInputLabel-root': { color: colors.textSecondary },
                     }}
@@ -506,7 +540,7 @@ export function Register() {
                         color: colors.text,
                         '& fieldset': { borderColor: colors.border },
                         '&:hover fieldset': { borderColor: colors.borderLight },
-                        '&.Mui-focused fieldset': { borderColor: colors.text },
+                        '&.Mui-focused fieldset': { borderColor: colors.primary },
                       },
                       '& .MuiInputLabel-root': { color: colors.textSecondary },
                     }}
@@ -524,7 +558,7 @@ export function Register() {
                         color: colors.text,
                         '& fieldset': { borderColor: colors.border },
                         '&:hover fieldset': { borderColor: colors.borderLight },
-                        '&.Mui-focused fieldset': { borderColor: colors.text },
+                        '&.Mui-focused fieldset': { borderColor: colors.primary },
                       },
                       '& .MuiInputLabel-root': { color: colors.textSecondary },
                     }}
@@ -542,7 +576,7 @@ export function Register() {
                         color: colors.text,
                         '& fieldset': { borderColor: colors.border },
                         '&:hover fieldset': { borderColor: colors.borderLight },
-                        '&.Mui-focused fieldset': { borderColor: colors.text },
+                        '&.Mui-focused fieldset': { borderColor: colors.primary },
                       },
                       '& .MuiInputLabel-root': { color: colors.textSecondary },
                     }}
@@ -578,7 +612,7 @@ export function Register() {
                                 color: colors.text,
                                 '& fieldset': { borderColor: colors.border },
                                 '&:hover fieldset': { borderColor: colors.borderLight },
-                                '&.Mui-focused fieldset': { borderColor: colors.text },
+                                '&.Mui-focused fieldset': { borderColor: colors.primary },
                               },
                               '& .MuiInputLabel-root': { color: colors.textSecondary },
                             }}
@@ -601,7 +635,7 @@ export function Register() {
                   textTransform: 'none',
                   color: colors.textSecondary,
                   border: `1px solid ${colors.borderLight}`,
-                  '&:hover': { borderColor: colors.text, color: colors.text },
+                  '&:hover': { borderColor: colors.primary, color: colors.primary },
                 }}
               >
                 Add Member
@@ -620,8 +654,9 @@ export function Register() {
                       toast.error('Captcha verification failed. Please retry.');
                     }}
                     options={{
-                      theme: isDark ? 'dark' : 'light',
+                      theme: 'light',
                       action: 'contestant_register',
+                      size: 'flexible',
                     }}
                   />
                 </Box>
@@ -635,27 +670,29 @@ export function Register() {
                 type="submit"
                 disabled={submitting}
                 sx={{
-                  fontFamily: 'monospace',
+                  fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
                   textTransform: 'none',
-                  color: isDark ? '#000' : '#fff',
-                  bgcolor: '#fb923c',
-                  border: '1px solid #fb923c',
+                  color: '#fff',
+                  bgcolor: colors.primary,
+                  border: `1px solid ${colors.primary}`,
                   '&:hover': {
-                    bgcolor: '#f97316',
-                    borderColor: '#f97316',
+                    bgcolor: colors.primaryDark,
+                    borderColor: colors.primaryDark,
                   },
                   '&:disabled': {
-                    bgcolor: isDark ? '#18181b' : '#e5e5e5',
-                    color: isDark ? '#3f3f46' : '#a1a1aa',
-                    borderColor: isDark ? '#27272a' : '#d4d4d4',
+                    bgcolor: '#f4f4f5',
+                    color: '#a1a1aa',
+                    borderColor: '#e4e4e7',
                   },
                 }}
               >
-                {submitting ? <CircularProgress size={20} sx={{ color: isDark ? '#3f3f46' : '#a1a1aa' }} /> : '[SUBMIT_FOR_REVIEW]'}
+                {submitting ? <CircularProgress size={20} sx={{ color: '#a1a1aa' }} /> : '[SUBMIT_FOR_REVIEW]'}
               </Button>
             </Box>
           </form>
         </Box>
+        </Box>
+      </Box>
       </Box>
     </div>
   );
