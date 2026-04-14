@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'FPT Capture The Flag (FCTF) Docs',
-  tagline: 'Version 4.0.0 documentation for the open-source FCTF platform',
+  tagline: 'Version 0.0.4 documentation for the open-source FCTF platform',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -69,13 +69,13 @@ const config: Config = {
     announcementBar: {
       id: 'release-v4',
       content:
-        'FCTF v4.0.0 is live: sandboxed challenge runtime, secure gateway access, and production-ready operations docs.',
+        'FCTF v0.0.4 is live: sandboxed challenge runtime, secure gateway access, and production-ready operations docs.',
       backgroundColor: '#d66018',
       textColor: '#ffffff',
       isCloseable: true,
     },
     navbar: {
-      title: 'FCTF v4 Docs',
+      title: 'FCTF Docs',
       hideOnScroll: true,
       logo: {
         alt: 'FCTF Logo',
@@ -94,7 +94,7 @@ const config: Config = {
           position: 'left',
         },
         {
-          label: 'Version 4.0.0',
+          label: 'Version 0.0.4',
           to: '/docs/intro',
           position: 'right',
         },
