@@ -1,0 +1,165 @@
+---
+title: Contestant Guideline
+description: End-to-end guide for contestants using the FCTF Contestant Portal.
+sidebar_position: 1
+---
+
+# Contestant Guideline
+
+This guide explains the core contestant workflow in FCTF:
+
+- Solving challenges
+- Managing running instances
+- Creating and tracking support tickets
+
+:::tip[Audience]
+This page is written for contestants and team captains during live competition.
+:::
+
+## Part 1: Challenge Workflow
+
+### Step 1. Sign In
+
+1. Open the Contestant Portal URL provided by the organizer.
+2. Sign in with your assigned username and password.
+3. Confirm your team context after login (top-right profile area).
+
+### Step 2. Choose a Challenge
+
+1. Open `Challenges` from the top navigation.
+2. Select a category (for example Web or Pwn).
+3. Select a challenge to open its detail panel.
+
+![Contestant challenge detail screen](/img/contestant/ViewChallengeDetail.png)
+
+### Step 3. Start (Deploy) a Challenge Instance
+
+For deploy-required challenges, click `[+] Start Challenge`.
+
+Important information shown in challenge detail:
+
+- `pts`: challenge point value
+- `Time`: countdown time limit after instance is ready
+- `Attempts`: maximum allowed flag submissions
+- `Deploys`: current deploy count over max deploy count (for example `0/1`)
+
+`[ATTACHMENTS]` contains downloadable challenge files. PDF statements are shown directly in the built-in viewer.
+
+### Step 4. Access the Challenge Runtime
+
+After deployment succeeds, the portal shows `[YOUR ACCESS TOKEN]` and protocol-specific access information.
+
+![Challenge pending deploy state](/img/contestant/StartChallenge_WaitToReady.png)
+
+![Challenge running state with token](/img/contestant/StartChallenge_getChallengeToken.png)
+
+![Challenge ready notification popup](/img/contestant/getYourToken_popup.png)
+
+#### 4a) Access by HTTP
+
+Use the format:
+
+```text
+http://<gateway-host>:<http-port>?fctftoken=<YOUR_TOKEN>
+```
+
+Example challenge target (web):
+
+![Access challenge via HTTP](/img/contestant/AccessChallenge_SampleChallengeWeb.png)
+
+#### 4b) Access by TCP (if protocol is TCP)
+
+Use terminal access:
+
+```bash
+nc <gateway-host> <tcp-port>
+```
+
+When prompted, enter your token to authenticate.
+
+### Step 5. Submit Flag
+
+1. Enter your flag in `[SUBMIT FLAG]`.
+2. Click `[SUBMIT]`.
+3. Review verdict and continue:
+
+- `correct`: score awarded
+- `incorrect`: attempts reduced and cooldown may apply
+- `already_solved`: no additional score
+- `ratelimited`: wait and retry later
+
+## Part 2: Manage Instances
+
+Open `Instances` from the top navigation.
+
+![Contestant instances page](/img/contestant/InstancesPage.png)
+
+The table shows challenge instances in statuses such as:
+
+- `Pending`
+- `Running`
+- `Deleting` or terminal cleanup states
+
+Main actions:
+
+- `[GO]`: open challenge detail directly
+- `[STOP]`: stop the running instance (confirmation required)
+- `[REFRESH]`: reload current instance status from server
+
+## Part 3: Ticket Support (CRUD)
+
+### Step 1. View Ticket List
+
+Open `Tickets` from navigation.
+
+![Contestant ticket list](/img/contestant/ContestantTicketPage.png)
+
+The ticket list includes:
+
+- ID
+- Title
+- Type (`Question`, `Error`, `Inform`)
+- Date
+- Status (`Open` or `Closed`)
+
+### Step 2. Create a Ticket
+
+Click `+ NEW TICKET` and complete:
+
+- `Title`: short and specific issue summary
+- `Type`: issue category
+- `Description`: detailed problem context
+
+![Create ticket modal](/img/contestant/CreateTicket_popup.png)
+
+### Step 3. View Ticket Detail and Replies
+
+From the list, click `VIEW` on a ticket row.
+
+In detail view, contestants can review:
+
+- Original title and description
+- Ticket status
+- Organizer reply (if available)
+
+### Step 4. Delete Ticket
+
+Contestants can delete only eligible open tickets.
+
+Safety rule:
+
+- Tickets that are closed or already answered by organizers cannot be deleted.
+
+## Quick Best Practices
+
+1. Stop unused instances to free resources.
+2. Keep ticket descriptions reproducible and concise.
+3. Track cooldown and attempts before repeated submissions.
+4. Use action logs as evidence when reporting runtime issues.
+
+## Related Pages
+
+- [Access and Discovery](./access-and-discovery)
+- [Solve Workflow](./solve-workflow)
+- [Team Collaboration and Support](./team-collaboration-and-support)
+- [Fairness and Security Controls](./fairness-and-security-controls)
