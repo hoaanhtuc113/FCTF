@@ -252,7 +252,8 @@ public class AuthService : IAuthService
             };
 
             var httpClient = _httpClientFactory.CreateClient();
-            using var response = await httpClient.SendAsync(request);
+            using var verifyTimeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            using var response = await httpClient.SendAsync(request, verifyTimeoutCts.Token);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogDebug("Turnstile verification failed due to upstream status", new
@@ -262,8 +263,8 @@ public class AuthService : IAuthService
                 return false;
             }
 
-            await using var responseStream = await response.Content.ReadAsStreamAsync();
-            var verifyResponse = await JsonSerializer.DeserializeAsync<TurnstileVerifyResponse>(responseStream);
+            await using var responseStream = await response.Content.ReadAsStreamAsync(verifyTimeoutCts.Token);
+            var verifyResponse = await JsonSerializer.DeserializeAsync<TurnstileVerifyResponse>(responseStream, cancellationToken: verifyTimeoutCts.Token);
             if (verifyResponse?.success == true)
             {
                 return true;
@@ -274,6 +275,11 @@ public class AuthService : IAuthService
                 verifyResponse?.errorCodes,
             });
 
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogDebug("Turnstile verification timed out");
             return false;
         }
         catch (Exception ex)
