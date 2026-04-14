@@ -1,27 +1,63 @@
 ---
 sidebar_position: 3
 title: Contestant Features
-description: Detailed participant guide for challenge solving, ranking, and support workflows.
+description: Complete inventory of contestant-facing capabilities and navigation to detailed workflow pages.
 ---
 
 # Contestant Features
 
-This section is now organized in the sidebar with feature-group child pages.
-Use the left navigation to open each group in detail.
+This section documents the full contestant surface of FCTF, based on the current Contestant Portal routes, behaviors, and UI flows.
+
+## Contestant Feature Inventory
+
+| Capability | What contestants can do | Primary UI surface |
+| --- | --- | --- |
+| Authentication | Log in, log out, and maintain an authenticated session context | Login page, header session menu |
+| Contest timer awareness | See event countdown (`Starts in`/`Ends in`) in the top bar | Global layout header |
+| Challenge discovery | Browse categories/topics, inspect challenge cards, open challenge detail | Challenges page |
+| Requirement-aware visibility | See locked challenges and prerequisite indicators before access | Challenges page |
+| Challenge files | Preview PDF problem statements and download non-PDF attachments | Challenge detail panel |
+| Runtime start/stop | Start deploy-required challenge instances and stop when done | Challenge detail panel |
+| Access token retrieval | Copy token and protocol-specific access endpoint (HTTP/TCP) | `[YOUR ACCESS TOKEN]` block |
+| Runtime status tracking | Observe Pending/Checking/Running states and deployment transitions | Challenge detail + Instances page |
+| Flag submission | Submit flags with result handling (`correct`, `incorrect`, `already_solved`, `ratelimited`) | `[SUBMIT FLAG]` panel |
+| Attempt/cooldown awareness | See attempts budget, cooldown window, and captain-only restrictions | Challenge detail panel |
+| Hint unlock workflow | Unlock hints with score cost and prerequisite constraints | Hints section in challenge detail |
+| Team profile and score | View user/team profile, rank, points, members, and progress bar | Profile page |
+| Scoreboard access | View private team standings and public scoreboard views | Scoreboard + Public Scoreboard |
+| Team action logs | Filter team activity by action type/topic and search text | Action Logs page |
+| Instance management | View active instances and perform `GO`/`STOP`/`REFRESH` actions | Instances page |
+| Ticket support | Create, list, view detail, and conditionally delete own tickets | Tickets + Ticket Detail |
+
+## Contestant Route Map
+
+| Route | Purpose |
+| --- | --- |
+| `/login` | Credential-based authentication |
+| `/challenges` | Browse categories and challenge entries |
+| `/challenge/:id` | Open challenge detail directly |
+| `/instances` | Manage running/pending challenge instances |
+| `/scoreboard` | Authenticated scoreboard view |
+| `/public/scoreboard` | Public scoreboard (visibility-policy dependent) |
+| `/action-logs` | Team action timeline and filters |
+| `/tickets` | Ticket list and create flow |
+| `/tickets/:id` | Ticket detail and organizer reply view |
+| `/profile` | Profile and team performance dashboard |
 
 ## Contestant Feature Groups
 
+- [Contestant Guideline](./contestant/contestant-guideline)
 - [Access and Discovery](./contestant/access-and-discovery)
 - [Solve Workflow](./contestant/solve-workflow)
 - [Team Collaboration and Support](./contestant/team-collaboration-and-support)
 - [Fairness and Security Controls](./contestant/fairness-and-security-controls)
 
-## What You Will Find In Each Group
+## What You Will Find In The Child Pages
 
-1. Practical participant objectives.
-2. End-to-end flow from action to expected result.
-3. Detailed operational steps during live competition.
-4. Fair-play and reliability expectations.
+1. End-to-end contestant operations during a live contest.
+2. UI-specific guidance that matches the current portal.
+3. Constraints and safety limits that affect solve outcomes.
+4. Escalation and support processes for blocker scenarios.
 
 ## Related Documentation
 
