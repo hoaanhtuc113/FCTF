@@ -1,24 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../hooks/useToast';
 import { Box, TextField, Button, CircularProgress } from '@mui/material';
-import { Turnstile } from '@marsidev/react-turnstile';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { configService } from '../services/configService';
 import { getTurnstileSiteKey } from '../services/envService';
+import { AuthTurnstile } from '../components/AuthTurnstile';
 
 export function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
   const [registrationEnabled, setRegistrationEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
   const turnstileSiteKey = getTurnstileSiteKey();
   const captchaEnabled = turnstileSiteKey.length > 0;
+
+  const resetCaptcha = useCallback(() => {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }, []);
+
+  const handleCaptchaSuccess = useCallback((token: string) => {
+    setCaptchaToken(token);
+  }, []);
+
+  const handleCaptchaExpire = useCallback(() => {
+    setCaptchaToken(null);
+  }, []);
+
+  const handleCaptchaError = useCallback(() => {
+    resetCaptcha();
+    toast.error('Captcha verification failed. Please retry.');
+  }, [resetCaptcha, toast]);
 
   const colors = {
     pageBg: '#f6f5f3',
@@ -49,8 +68,7 @@ export function Login() {
       navigate('/challenges');
     } catch (err) {
       console.log(err);
-      setCaptchaToken(null);
-      setCaptchaWidgetKey((prev) => prev + 1);
+      resetCaptcha();
       // Display error message from backend 
       const errorMessage = err instanceof Error ? err.message : 'auth_failed';
       toast.error(errorMessage);
@@ -62,8 +80,7 @@ export function Login() {
   const handleClear = () => {
     setUsername('');
     setPassword('');
-    setCaptchaToken(null);
-    setCaptchaWidgetKey((prev) => prev + 1);
+    resetCaptcha();
     toast.info('form_cleared');
   };
 
@@ -239,24 +256,14 @@ export function Login() {
 
                   {captchaEnabled ? (
                     <Box>
-                      <div style={{ width: '100%' }}>
-                        <Turnstile
-                          key={captchaWidgetKey}
-                          siteKey={turnstileSiteKey}
-                          onSuccess={(token) => setCaptchaToken(token)}
-                          onExpire={() => setCaptchaToken(null)}
-                          onError={() => {
-                            setCaptchaToken(null);
-                            setCaptchaWidgetKey((prev) => prev + 1);
-                            toast.error('Captcha verification failed. Please retry.');
-                          }}
-                          options={{
-                            theme: 'light',
-                            action: 'contestant_login',
-                            size: 'flexible',
-                          }}
-                        />
-                      </div>
+                      <AuthTurnstile
+                        siteKey={turnstileSiteKey}
+                        action="contestant_login"
+                        turnstileRef={turnstileRef}
+                        onSuccess={handleCaptchaSuccess}
+                        onExpire={handleCaptchaExpire}
+                        onError={handleCaptchaError}
+                      />
                     </Box>
                   ) : (
                     <Box sx={{ color: colors.textSecondary, fontSize: 11 }}>
