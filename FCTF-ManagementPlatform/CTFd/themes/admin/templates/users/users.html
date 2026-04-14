@@ -33,18 +33,37 @@
 		</div>
 	</div>
 	{% endif %}
-	{% if q and field %}
+	{% if q %}
 	<div class="alert alert-info">
 		<div class="clean-info-text">
+			{% if pending_mode %}
+			Searching registrations matching <span class="clean-highlight">{{ q }}</span> &mdash; {{ users.total }} results
+			{% else %}
 			Searching <span class="clean-highlight">{{ field }}</span> matching <span class="clean-highlight">{{ q }}</span> &mdash; {{ users.total }} results
+			{% endif %}
 		</div>
 	</div>
 	{% endif %}
 
 	<div class="clean-search-container">
 		<form method="GET" id="filterForm">
+			{% if pending_mode %}
 			<div class="row no-gutters align-items-end">
-				{% if not pending_mode %}
+				<div class="col-md-9 px-1">
+					<label for="registration-search">Search</label>
+					<input id="registration-search" type="text" name="q" class="clean-form-control w-100" placeholder="Search by username, email, team..." value="{{ q or '' }}">
+				</div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Search
+					</button>
+					<button type="button" class="clean-btn btn-outline-secondary" onclick="clearAllFilters()" title="Reset">
+						<i class="fas fa-sync-alt"></i>
+					</button>
+				</div>
+			</div>
+			{% else %}
+			<div class="row no-gutters align-items-end">
 				<div class="col-md-2 px-1">
 					<label for="role">Role</label>
 					<select name="role" id="role" class="clean-form-control ss-select w-100">
@@ -63,7 +82,6 @@
 						<option value="false" {% if verified_filter == 'false' %}selected{% endif %}>Not Verified</option>
 					</select>
 				</div>
-				{% endif %}
 				<div class="col-md-2 px-1">
 					<label for="hidden">Hidden</label>
 					<select name="hidden" id="hidden" class="clean-form-control ss-select w-100">
@@ -102,16 +120,17 @@
 					</button>
 				</div>
 			</div>
+			{% endif %}
 		</form>
 	</div>
 
 	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
 		<div>
-			{%if not is_jury()%}
+			{% if not pending_mode and not is_jury() %}
 			<a href="{{ url_for('admin.users_new') }}" class="clean-btn clean-btn-primary">
 				<i class="fas fa-plus"></i> Create User
 			</a>
-			{%endif%}
+			{% endif %}
 		</div>
 		<div class="d-flex align-items-center">
 			<div class="btn-group mr-2" role="group">
@@ -120,16 +139,19 @@
 					<i class="btn-fa fas fa-check"></i> Approve
 				</button>
 				{% endif %}
+				{% if not pending_mode %}
 				<button type="button" class="clean-btn" data-toggle="tooltip" title="Edit Users" id="users-edit-button">
 					<i class="btn-fa fas fa-pencil-alt"></i> Edit
 				</button>
-				{% if not is_jury()%}
+				{% endif %}
+				{% if not is_jury() %}
 				<button type="button" class="clean-btn clean-btn-danger ml-2" data-toggle="tooltip" title="Delete Users" id="users-delete-button">
 					<i class="btn-fa fas fa-trash-alt"></i> Delete
 				</button>
-				{%endif%}
+				{% endif %}
 			</div>
 
+			{% if not pending_mode %}
 			<div class="dropdown d-inline-block" style="position: relative;">
 				<button class="clean-btn dropdown-toggle" type="button" id="export-csv-button"
 					aria-haspopup="true" aria-expanded="false">
@@ -154,6 +176,7 @@
 						Export
 					</button>
 				</div>
+				{% endif %}
 			</div>
 		</div>
 	</div>
@@ -246,11 +269,15 @@
 	<!-- Pagination -->
 	{% if users.pages > 0 %}
 	{% set filter_args = {} %}
-	{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
-	{% if role_filter %}{% set _ = filter_args.update({"role": role_filter}) %}{% endif %}
-	{% if verified_filter %}{% set _ = filter_args.update({"verified": verified_filter}) %}{% endif %}
-	{% if hidden_filter %}{% set _ = filter_args.update({"hidden": hidden_filter}) %}{% endif %}
-	{% if banned_filter %}{% set _ = filter_args.update({"banned": banned_filter}) %}{% endif %}
+	{% if pending_mode %}
+		{% if q %}{% set _ = filter_args.update({"q": q}) %}{% endif %}
+	{% else %}
+		{% if q %}{% set _ = filter_args.update({"q": q, "field": field}) %}{% endif %}
+		{% if role_filter %}{% set _ = filter_args.update({"role": role_filter}) %}{% endif %}
+		{% if verified_filter %}{% set _ = filter_args.update({"verified": verified_filter}) %}{% endif %}
+		{% if hidden_filter %}{% set _ = filter_args.update({"hidden": hidden_filter}) %}{% endif %}
+		{% if banned_filter %}{% set _ = filter_args.update({"banned": banned_filter}) %}{% endif %}
+	{% endif %}
 	<div class="d-flex justify-content-between align-items-center mt-2">
 		<div class="clean-info-text" role="status" aria-live="polite">
 			Page <span class="clean-highlight">{{ users.page }}</span> of <span class="clean-highlight">{{ users.pages }}</span> &bull; {{ users.total }} total
@@ -265,7 +292,7 @@
 				{% set end_page = [users.pages, users.page + 2]|min %}
 				{% if start_page > 1 %}
 					<li class="page-item">
-						<a class="page-link" href="{% if q %}{{ url_for('admin.users_listing', page=1, field=field, q=q) }}{% else %}{{ url_for('admin.users_listing', page=1) }}{% endif %}">1</a>
+						<a class="page-link" href="{{ url_for(request.endpoint, page=1, **filter_args) }}">1</a>
 					</li>
 					{% if start_page > 2 %}
 					<li class="page-item disabled"><span class="page-link">...</span></li>
@@ -273,7 +300,7 @@
 				{% endif %}
 				{% for page_num in range(start_page, end_page + 1) %}
 				<li class="page-item {% if page_num == users.page %}active{% endif %}">
-					<a class="page-link" href="{{ url_for('admin.users_listing', page=page_num, **filter_args) }}">{{ page_num }}</a>
+					<a class="page-link" href="{{ url_for(request.endpoint, page=page_num, **filter_args) }}">{{ page_num }}</a>
 				</li>
 				{% endfor %}
 				{% if end_page < users.pages %}
@@ -281,7 +308,7 @@
 					<li class="page-item disabled"><span class="page-link">...</span></li>
 					{% endif %}
 					<li class="page-item">
-						<a class="page-link" href="{{ url_for('admin.users_listing', page=users.pages, **filter_args) }}">{{ users.pages }}</a>
+						<a class="page-link" href="{{ url_for(request.endpoint, page=users.pages, **filter_args) }}">{{ users.pages }}</a>
 					</li>
 				{% endif %}
 				<li class="page-item {% if users.page == users.pages %}disabled{% endif %}">
@@ -316,10 +343,12 @@ function approveSelectedUsers() {
 		return;
 	}
 
+	const fetchFn = (typeof CTFd !== 'undefined' && CTFd.fetch) ? CTFd.fetch : window.fetch;
+
 	Promise.all(
 		selected.map((checkbox) => {
 			const userId = checkbox.getAttribute('data-user-id');
-			return fetch(`/api/v1/users/${userId}`, {
+			return fetchFn(`/api/v1/users/${userId}`, {
 				method: 'PATCH',
 				credentials: 'same-origin',
 				headers: {

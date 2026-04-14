@@ -706,7 +706,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.users_pending_listing') }}">
-                        <i class="bx bx-user-check"></i> Pending Registrations
+                        <i class="bx bx-user-check"></i> Registrations
                     </a>
                 </li>
                 <li class="nav-item">
@@ -842,15 +842,28 @@
 
             // If no sub-menu match, check main navigation links
             if (!foundMatch) {
-                $('#sidebar .nav-link').each(function () {
+                let bestMainLink = null;
+                let bestMainLinkLength = -1;
+
+                $('#sidebar .nav-link').not('.sub-btn').each(function () {
                     const linkHref = $(this).attr('href');
                     if (linkHref) {
                         const linkPath = linkHref.split('#')[0].split('?')[0];
-                        if (currentPath.startsWith(linkPath) && linkPath !== '/admin') {
-                            $(this).addClass('active');
+                        const normalizedCurrentPath = currentPath.split('?')[0];
+                        const isMatch =
+                            normalizedCurrentPath === linkPath ||
+                            normalizedCurrentPath.startsWith(linkPath + '/');
+
+                        if (isMatch && linkPath !== '/admin' && linkPath.length > bestMainLinkLength) {
+                            bestMainLink = this;
+                            bestMainLinkLength = linkPath.length;
                         }
                     }
                 });
+
+                if (bestMainLink) {
+                    $(bestMainLink).addClass('active');
+                }
             }
 
             {% if not is_detail %}

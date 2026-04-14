@@ -1,22 +1,31 @@
+import { useCallback, useMemo } from 'react';
 import { useSnackbar } from 'notistack';
 
 export function useToast() {
   const { enqueueSnackbar } = useSnackbar();
 
-  const toast = {
-    success: (message: string) => {
-      enqueueSnackbar(message, { variant: 'success' });
-    },
-    error: (message: string) => {
-      enqueueSnackbar(message, { variant: 'error' });
-    },
-    warning: (message: string) => {
-      enqueueSnackbar(message, { variant: 'warning' });
-    },
-    info: (message: string) => {
-      enqueueSnackbar(message, { variant: 'info' });
-    },
-  };
+  const success = useCallback((message: string) => {
+    enqueueSnackbar(message, { variant: 'success' });
+  }, [enqueueSnackbar]);
+
+  const error = useCallback((message: string) => {
+    enqueueSnackbar(message, { variant: 'error' });
+  }, [enqueueSnackbar]);
+
+  const warning = useCallback((message: string) => {
+    enqueueSnackbar(message, { variant: 'warning' });
+  }, [enqueueSnackbar]);
+
+  const info = useCallback((message: string) => {
+    enqueueSnackbar(message, { variant: 'info' });
+  }, [enqueueSnackbar]);
+
+  const toast = useMemo(() => ({
+    success,
+    error,
+    warning,
+    info,
+  }), [success, error, warning, info]);
 
   return toast;
 }
