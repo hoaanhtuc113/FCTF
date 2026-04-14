@@ -57,6 +57,12 @@ export function Login() {
     inputBorder: '#e7dfd1',
   };
 
+  const yieldToBrowser = useCallback(async () => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -66,6 +72,7 @@ export function Login() {
     }
 
     setLoading(true);
+    await yieldToBrowser();
 
     try {
       await login(username, password, captchaToken ?? undefined);
