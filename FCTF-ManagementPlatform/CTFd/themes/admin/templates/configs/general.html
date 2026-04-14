@@ -78,7 +78,7 @@
 			<label for="contestant_registration_enabled">
 				Contestant Registration Form
 				<small class="form-text text-muted">
-					Enable or disable contestant self-registration. When enabled, ContestantPortal shows the Register link and ContestantBE accepts registration requests.
+					Enable or disable contestant self-registration.
 				</small>
 			</label>
 			<select class="form-control custom-select" id="contestant_registration_enabled"
@@ -86,6 +86,39 @@
 				<option value="1" {% if contestant_registration_enabled==1 %}selected{% endif %}>Enabled</option>
 				<option value="0" {% if contestant_registration_enabled !=1 %}selected{% endif %}>Disabled</option>
 			</select>
+		</div>
+
+		<div class="form-group">
+			<label for="team_size">
+				Team Size Limit
+				<small class="form-text text-muted">
+					Maximum number of members allowed in a team. Set to 0 for no limit.
+				</small>
+			</label>
+			<input class="form-control" id="team_size" name="team_size" type="number" min="0"
+				placeholder="5" value="{% if team_size is defined and team_size is not none and team_size != '' %}{{ team_size }}{% else %}5{% endif %}">
+		</div>
+
+		<div class="form-group">
+			<label for="num_teams">
+				Maximum Number of Teams
+				<small class="form-text text-muted">
+					Maximum number of active teams allowed to register. Set to 0 for no limit.
+				</small>
+			</label>
+			<input class="form-control" id="num_teams" name="num_teams" type="number" min="0"
+				placeholder="500" value="{% if num_teams is defined and num_teams is not none and num_teams != '' %}{{ num_teams }}{% else %}500{% endif %}">
+		</div>
+
+		<div class="form-group">
+			<label for="num_users">
+				Maximum Number of Users
+				<small class="form-text text-muted">
+					Maximum number of active users allowed to register. Set to 0 for no limit.
+				</small>
+			</label>
+			<input class="form-control" id="num_users" name="num_users" type="number" min="0"
+				placeholder="1000" value="{% if num_users is defined and num_users is not none and num_users != '' %}{{ num_users }}{% else %}1000{% endif %}">
 		</div>
 
 		<button type="submit" class="btn btn-md btn-primary float-right">Update</button>
