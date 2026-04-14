@@ -9,6 +9,33 @@ from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.modes import TEAMS_MODE
 
 
+def _format_custom_field_value(value):
+    if value is None:
+        return ""
+
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(item) for item in value if item is not None)
+
+    if isinstance(value, dict):
+        return ", ".join(f"{key}: {item}" for key, item in value.items())
+
+    return str(value)
+
+
+def _build_registration_custom_field_map(user_items):
+    custom_field_map = {}
+
+    for user in user_items:
+        entries = []
+        for entry in user.get_fields(admin=True):
+            formatted_value = _format_custom_field_value(entry.value)
+            if formatted_value:
+                entries.append(f"{entry.name}: {formatted_value}")
+        custom_field_map[user.id] = " | ".join(entries)
+
+    return custom_field_map
+
+
 @admin.route("/admin/users")
 @admin_or_jury
 def users_listing():
@@ -84,6 +111,7 @@ def users_listing():
         hidden_filter=hidden_filter,
         banned_filter=banned_filter,
         pending_mode=False,
+        registration_custom_fields={},
         listing_title="Users",
     )
 
@@ -116,6 +144,8 @@ def users_pending_listing():
         .paginate(page=page, per_page=50, error_out=False)
     )
 
+    registration_custom_fields = _build_registration_custom_field_map(users.items)
+
     args = dict(request.args)
     args.pop("page", 1)
 
@@ -131,6 +161,7 @@ def users_pending_listing():
         hidden_filter="",
         banned_filter="",
         pending_mode=True,
+        registration_custom_fields=registration_custom_fields,
         listing_title="Registrations",
     )
 
