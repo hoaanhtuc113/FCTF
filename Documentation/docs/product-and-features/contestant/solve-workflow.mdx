@@ -1,11 +1,79 @@
 ---
 title: Solve Workflow
-description: Runtime usage, submission behavior, and hint strategy during challenge solving.
+description: End-to-end contestant flow from challenge start to runtime access and flag submission.
 ---
 
 # Solve Workflow
 
-This section describes contestant actions from runtime startup to validated solve outcomes.
+This page documents the practical workflow contestants use during a live event.
+
+## 1. Open a Challenge and Start Runtime
+
+For deploy-required challenges, contestants click `[+] Start Challenge` from the challenge detail panel.
+
+![Challenge detail with start action](/img/contestant/ViewChallengeDetail.png)
+
+## 2. Wait for Deployment Readiness
+
+After start is requested, the challenge can enter a pending status while the platform prepares runtime.
+
+![Pending deployment state](/img/contestant/StartChallenge_WaitToReady.png)
+
+When runtime is ready, contestants receive tokenized access data.
+
+![Running state with access token](/img/contestant/StartChallenge_getChallengeToken.png)
+
+An additional success popup can also present the token/result.
+
+![Challenge ready popup](/img/contestant/getYourToken_popup.png)
+
+## 3. Access the Challenge Instance
+
+### HTTP protocol
+
+Contestants use the token shown in `[YOUR ACCESS TOKEN]` with this format:
+
+```text
+http://<gateway-host>:<http-port>?fctftoken=<YOUR_TOKEN>
+```
+
+The challenge UI opens after gateway token validation.
+
+![Sample web challenge instance access](/img/contestant/AccessChallenge_SampleChallengeWeb.png)
+
+### TCP protocol
+
+If a challenge is configured for TCP, contestants connect through the gateway and provide the issued token during session authentication:
+
+```bash
+nc <gateway-host> <tcp-port>
+```
+
+## 4. Submit Flag
+
+Contestants submit flags in the `[SUBMIT FLAG]` panel.
+
+The platform handles common verdict states:
+
+- `correct`: score is awarded and challenge is marked solved
+- `incorrect`: attempts are consumed and optional cooldown is applied
+- `already_solved`: submission is acknowledged without duplicate scoring
+- `ratelimited`: temporary wait required before retry
+
+## 5. Stop Runtime When Done
+
+If the challenge is deploy-required, contestants should stop runtime after completion or when switching tasks.
+
+- Use `[-] Stop Challenge` in challenge detail, or
+- Use `[STOP]` from the `Instances` page
+
+This helps keep cluster resources available for all teams.
+
+## Related Reading
+
+- [Contestant Guideline](./contestant-guideline)
+- [Team Collaboration and Support](./team-collaboration-and-support)
+- [Fairness and Security Controls](./fairness-and-security-controls)
 
 ## Runtime Start and Stop Flow
 

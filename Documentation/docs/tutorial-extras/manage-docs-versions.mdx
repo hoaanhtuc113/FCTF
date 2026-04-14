@@ -2,54 +2,42 @@
 sidebar_position: 1
 ---
 
-# Manage Docs Versions
+# Manage Documentation Versions
 
-Docusaurus can manage multiple versions of your docs.
+FCTF currently publishes a single active documentation line for v4.
 
-## Create a docs version
+If formal multi-version docs are needed, follow this workflow.
 
-Release a version 1.0 of your project:
+## Versioning trigger
+
+Create a new docs version when:
+
+- A major platform release changes operational behavior
+- Backward compatibility needs separate runbooks
+
+## Create a version snapshot
 
 ```bash
-npm run docusaurus docs:version 1.0
+npm run docusaurus docs:version <version-tag>
 ```
 
-The `docs` folder is copied into `versioned_docs/version-1.0` and `versions.json` is created.
+Example:
 
-Your docs now have 2 versions:
-
-- `1.0` at `http://localhost:3000/docs/` for the version 1.0 docs
-- `current` at `http://localhost:3000/docs/next/` for the **upcoming, unreleased docs**
-
-## Add a Version Dropdown
-
-To navigate seamlessly across versions, add a version dropdown.
-
-Modify the `docusaurus.config.js` file:
-
-```js title="docusaurus.config.js"
-export default {
-  themeConfig: {
-    navbar: {
-      items: [
-        // highlight-start
-        {
-          type: 'docsVersionDropdown',
-        },
-        // highlight-end
-      ],
-    },
-  },
-};
+```bash
+npm run docusaurus docs:version 4.1.0
 ```
 
-The docs version dropdown appears in your navbar:
+## Versioning rules
 
-![Docs Version Dropdown](./img/docsVersionDropdown.png)
+1. Freeze the old version after release.
+2. Continue active changes in `docs/` (current line).
+3. Update navbar labels so operators can identify the active line.
+4. Keep architecture and install pages synchronized with release tags.
 
-## Update an existing version
+## Verification
 
-It is possible to edit versioned docs in their respective folder:
+After creating a version:
 
-- `versioned_docs/version-1.0/hello.md` updates `http://localhost:3000/docs/hello`
-- `docs/hello.md` updates `http://localhost:3000/docs/next/hello`
+1. Build docs locally.
+2. Validate version selector and links.
+3. Verify old version pages still render screenshots correctly.

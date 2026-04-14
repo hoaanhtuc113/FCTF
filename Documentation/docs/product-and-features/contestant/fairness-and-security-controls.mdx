@@ -1,50 +1,62 @@
 ---
 title: Fairness and Security Controls
-description: Controls that preserve fair play, secure file handling, and accountable team activity.
+description: Contestant-visible guardrails for fairness, runtime safety, and controlled challenge access.
 ---
 
 # Fairness and Security Controls
 
-This section describes participant-facing controls that preserve integrity and fair competition.
+FCTF applies multiple controls to keep competition fair under load while protecting challenge runtime infrastructure.
 
-## Team Activity Timeline
+## Control Matrix
 
-**Participant goal:** Keep team work synchronized and traceable.
+| Control area | Contestant-visible behavior | Practical effect |
+| --- | --- | --- |
+| Prerequisite gating | Locked challenge indicators and blocked solve actions | Prevents progression bypass |
+| Captain-only policies | `Only captain can start/submit` notices | Enforces team governance rules |
+| Submission cooldown | Cooldown countdown after incorrect/rate-limited submits | Reduces brute-force pressure |
+| Attempt budget | Attempts counter and max-attempt stop behavior | Preserves challenge fairness |
+| Deploy quota | `Deploys: current/max` indicator on challenge detail | Prevents unlimited environment churn |
+| Runtime lifecycle checks | Pending/Checking/Running status transitions | Keeps state transparent during deploy |
+| Tokenized gateway access | `[YOUR ACCESS TOKEN]` block with HTTP/TCP access format | Restricts runtime entry to authorized teams |
+| Team activity logging | Action history with filters/search | Provides accountability and dispute evidence |
 
-**Operational steps**
+## Runtime Access Security
 
-1. Open timeline to review challenge-related team actions.
-2. Filter by action type and topic to isolate work streams.
-3. Detect duplicate efforts or stalled tasks early.
-4. Use timeline entries as evidence for support disputes.
-5. Rebalance task ownership based on observed activity.
+Deploy-required challenges expose access only after token issuance.
 
-**Expected result:** Team execution becomes more coordinated and accountable.
+- HTTP mode requires query token in gateway URL.
+- TCP mode requires token authentication in terminal session.
+- Access token is tied to challenge runtime state and can be invalid after stop/expiry.
 
-## Secure Challenge File Access
+## Runtime Safety Limits
 
-**Participant goal:** Retrieve official challenge assets safely.
+The following limits may be active per challenge or event configuration:
 
-**Operational steps**
+- Maximum submission attempts
+- Cooldown between submissions
+- Maximum deploy count
+- Team-level challenge concurrency limits
+- Time limit with auto-stop behavior
 
-1. Access files from challenge detail page only.
-2. Download through official platform links.
-3. Validate file name and expected content.
-4. Share files internally according to team policy.
-5. Report missing/corrupted files through support workflow.
+Contestants should monitor these values in challenge detail before starting aggressive solve attempts.
 
-**Expected result:** File access remains trusted and consistent.
+## Secure File and Evidence Access
 
-## Safety Limits and Fair-Play Guards
+Contestants can safely use platform-managed assets and evidence surfaces:
 
-**Participant goal:** Compete effectively without violating protection limits.
+- PDF problem statements rendered in challenge detail
+- Attachment downloads from official challenge file entries
+- Team action logs for traceability during support incidents
 
-**Operational steps**
+## Operational Guidance
 
-1. Review submission and runtime limits for each challenge.
-2. Coordinate retries to avoid unnecessary rapid submissions.
-3. Respect cooldown windows before resubmission.
-4. Preserve attempt budget through validated testing flow.
-5. Escalate suspected false triggers with timeline evidence.
+1. Check `Attempts`, `Deploys`, and `Time` before starting.
+2. Avoid rapid repeated submissions during cooldown windows.
+3. Stop runtime when done to release capacity for other teams.
+4. Use tickets with action-log context when reporting anomalies.
 
-**Expected result:** Teams preserve solving pace while staying policy-compliant.
+## Related Reading
+
+- [Contestant Guideline](./contestant-guideline)
+- [Access and Discovery](./access-and-discovery)
+- [Team Collaboration and Support](./team-collaboration-and-support)
