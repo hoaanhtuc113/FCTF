@@ -73,6 +73,7 @@ public class ConfigController : BaseController
         var icon = _configHelper.GetConfig("ctf_small_icon");
         var name = _configHelper.GetConfig("ctf_name");
         var bracketViewOther = _configHelper.GetConfig<bool>("bracket_view_other");
+        var contestantRegistrationEnabled = _configHelper.GetConfig<bool>("contestant_registration_enabled", false);
         return Ok(new
         {
             isSuccess = true,
@@ -80,6 +81,7 @@ public class ConfigController : BaseController
             ctf_small_icon = icon,
             ctf_name = name,
             bracket_view_other = bracketViewOther,
+            contestant_registration_enabled = contestantRegistrationEnabled,
         });
     }
 

@@ -74,6 +74,20 @@
 				placeholder="10" {% if incorrect_submissions_per_min is defined and incorrect_submissions_per_min != None %}value="{{ incorrect_submissions_per_min }}" {% endif %}>
 		</div>
 
+		<div class="form-group">
+			<label for="contestant_registration_enabled">
+				Contestant Registration Form
+				<small class="form-text text-muted">
+					Enable or disable contestant self-registration. When enabled, ContestantPortal shows the Register link and ContestantBE accepts registration requests.
+				</small>
+			</label>
+			<select class="form-control custom-select" id="contestant_registration_enabled"
+				name="contestant_registration_enabled">
+				<option value="1" {% if contestant_registration_enabled==1 %}selected{% endif %}>Enabled</option>
+				<option value="0" {% if contestant_registration_enabled !=1 %}selected{% endif %}>Disabled</option>
+			</select>
+		</div>
+
 		<button type="submit" class="btn btn-md btn-primary float-right">Update</button>
 	</form>
 </div>

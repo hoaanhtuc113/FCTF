@@ -11,6 +11,7 @@ import { ThemeProvider } from './context/ThemeContext';
 
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+const Register = lazy(() => import('./pages/Register').then(module => ({ default: module.Register })));
 // Dashboard and Home screens have been removed; users go straight to challenges after login
 const Challenges = lazy(() => import('./pages/Challenges').then(module => ({ default: module.Challenges })));
 const Scoreboard = lazy(() => import('./pages/Scoreboard').then(module => ({ default: module.Scoreboard })));
@@ -33,6 +34,7 @@ function AppRoutes() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/public/scoreboard" element={<PublicScoreboard />} />
               <Route
                 path="/challenges"

@@ -15,8 +15,14 @@ CREATE USER IF NOT EXISTS 'deployment_consumer'@'%' IDENTIFIED BY 'UCEoSbGsU2haY
 
 -- ContestantBE
 GRANT SELECT ON ctfd.users TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.users TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.users TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.teams TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.teams TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.teams TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.fields TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.field_entries TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.field_entries TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.brackets TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.config TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenges TO 'contestant_be'@'%';

@@ -5,7 +5,7 @@ import type { User } from '../models/user.model';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, captchaToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -28,8 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const response = await authService.login({ username, password });
+  const login = async (username: string, password: string, captchaToken?: string) => {
+    const response = await authService.login({ username, password, captchaToken });
     setIsAuthenticated(true);
     setUser(response.user);
   };

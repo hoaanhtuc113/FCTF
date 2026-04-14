@@ -1,6 +1,8 @@
 export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login-contestant',
+    REGISTER: '/auth/register-contestant',
+    REGISTRATION_METADATA: '/auth/registration-metadata',
     LOGOUT: '/auth/logout',
     CHANGE_PASSWORD: '/auth/change-password',
   },
