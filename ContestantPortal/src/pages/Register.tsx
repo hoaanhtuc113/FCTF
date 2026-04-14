@@ -171,6 +171,12 @@ export function Register() {
     },
   };
 
+  const yieldToBrowser = useCallback(async () => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }, []);
+
   const resetCaptcha = useCallback(() => {
     setCaptchaToken(null);
     turnstileRef.current?.reset();
@@ -372,6 +378,9 @@ export function Register() {
       return;
     }
 
+    setSubmitting(true);
+    await yieldToBrowser();
+
     const payload: RegisterContestantPayload = {
       teamName: teamName.trim(),
       captchaToken: captchaToken ?? undefined,
@@ -395,7 +404,6 @@ export function Register() {
       payload.teamPassword = normalizedTeamPassword;
     }
 
-    setSubmitting(true);
     try {
       await authService.registerContestant(payload);
       toast.success('Registration submitted. Please wait for admin verification.');
