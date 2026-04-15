@@ -243,7 +243,7 @@ export default function Home(): ReactNode {
         <EmberField />
 
         <header className={styles.hero}>
-          <div className={styles.heroInner} style={{ marginTop: 15 }}>
+          <div className={styles.heroInner}>
 
             <Heading as="h1" className={styles.title}>
               <span className={styles.titleLine}>FPT</span>
