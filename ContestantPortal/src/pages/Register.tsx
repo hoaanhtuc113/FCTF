@@ -724,11 +724,8 @@ export function Register() {
                 ))}
 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2.5, alignItems: 'center' }}>
-                  <Button type="button" onClick={() => navigate('/login')} sx={secondaryButtonSx}>
-                    [BACK_TO_LOGIN]
-                  </Button>
                   <Button type="button" onClick={addMember} startIcon={<Add />} sx={secondaryButtonSx}>
-                    [ADD_MEMBER]
+                    [ADD MEMBER]
                   </Button>
 
                   {captchaEnabled ? (
@@ -756,7 +753,7 @@ export function Register() {
                       minWidth: { xs: '100%', sm: '220px' },
                     }}
                   >
-                    {submitting ? <CircularProgress size={20} sx={{ color: '#a1a1aa' }} /> : '[SUBMIT_FOR_REVIEW]'}
+                    {submitting ? <CircularProgress size={20} sx={{ color: '#a1a1aa' }} /> : '[SUBMIT]'}
                   </Button>
                 </Box>
               </form>
