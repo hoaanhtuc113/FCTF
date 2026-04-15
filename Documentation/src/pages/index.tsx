@@ -243,8 +243,7 @@ export default function Home(): ReactNode {
         <EmberField />
 
         <header className={styles.hero}>
-          <div className={styles.heroInner}>
-            <img src={logoUrl} alt="FCTF" className={styles.logo} />
+          <div className={styles.heroInner} style={{ marginTop: 15 }}>
 
             <Heading as="h1" className={styles.title}>
               <span className={styles.titleLine}>FPT</span>
@@ -312,9 +311,9 @@ export default function Home(): ReactNode {
 
         {/* ─── PIPELINE ─── */}
         <section className={styles.pipeline} style={{ paddingTop: '20px' }}>
-            <h2 className={styles.showcaseTitle}>
-              How it work
-            </h2>
+          <h2 className={styles.showcaseTitle}>
+            How it work
+          </h2>
           <div className={styles.pipelineSteps}>
             <div className={styles.pipeStep}>
               <span className={styles.pipeNum}>01</span>
@@ -366,10 +365,10 @@ export default function Home(): ReactNode {
                     { name: 'CTFd', src: 'https://icon.horse/icon/ctfd.io' }
                   ].map((tech) => (
                     <div key={tech.name} className={styles.techItem}>
-                      <img 
-                        src={tech.src} 
-                        alt="" 
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      <img
+                        src={tech.src}
+                        alt=""
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
                       <span>{tech.name}</span>
                     </div>
