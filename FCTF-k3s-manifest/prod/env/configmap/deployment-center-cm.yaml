@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-center-cm
+  namespace: app
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+  ASPNETCORE_URLS: "http://+:5020"
+  ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
+  START_CHALLENGE_TEMPLATE: "start-chal-v2-template"
+  UP_CHALLENGE_TEMPLATE: "up-challenge-template"
+  RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
+  RABBIT_USERNAME: "deployment-producer"
+  RABBIT_VHOST: "fctf_deploy"
+  RABBIT_PORT: "5671"
+  RABBIT_TLS: "true"
+
+  DEPLOYMENT_QUEUE_TIMEOUT_MINUTES: "5"
+
+  POW_DIFFICULTY_SECONDS: "5" 
+
+  LOKI_BASE_URL: "http://loki-stack.monitoring.svc.cluster.local:3100"
+
+  LOKI_QUERY_SELECTOR: "{app=\"challenge-gateway\"}"

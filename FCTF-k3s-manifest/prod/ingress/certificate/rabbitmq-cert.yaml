@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-tls
+  namespace: db
+spec:
+  secretName: rabbitmq-tls
+  dnsNames:
+    - <RABBITMQ_DOMAIN>
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

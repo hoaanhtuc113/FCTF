@@ -1,0 +1,173 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: start-chal-v2-template
+  namespace: argo
+  annotations:
+    workflows.argoproj.io/description: "Template to start and deploy challenge pods v2"
+spec:
+  serviceAccountName: start-chal-v2-workflow-sa
+  activeDeadlineSeconds: 120
+  ttlStrategy:
+    secondsAfterSuccess: 604800     # 7 days
+    secondsAfterFailure: 1209600    # 14 days
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: CHALLENGE_NAME
+      - name: CONTAINER_PORT
+      - name: CONTAINER_IMAGE
+      - name: CPU_LIMIT
+        value: "0.05"
+      - name: CPU_REQUEST
+        value: "0.05"
+      - name: MEMORY_LIMIT
+        value: "64Mi"
+      - name: MEMORY_REQUEST
+        value: "64Mi"
+      - name: USE_GVISOR
+        value: "true"
+      - name: HARDEN_CONTAINER
+        value: "true"
+      - name: IS_TEMPORARY
+        value: "true"
+      - name: CHALLENGE_TIMEOUT
+        value: "15m"
+
+  templates:
+    - name: main
+      steps:
+        - - name: deploy-challenge-v2
+            template: deploy-challenge-v2
+            arguments:
+              parameters:
+                - name: CHALLENGE_NAME
+                  value: "{{workflow.parameters.CHALLENGE_NAME}}"
+                - name: CONTAINER_PORT
+                  value: "{{workflow.parameters.CONTAINER_PORT}}"
+                - name: CONTAINER_IMAGE
+                  value: "{{workflow.parameters.CONTAINER_IMAGE}}"
+                - name: CPU_LIMIT
+                  value: "{{workflow.parameters.CPU_LIMIT}}"
+                - name: CPU_REQUEST
+                  value: "{{workflow.parameters.CPU_REQUEST}}"
+                - name: MEMORY_LIMIT
+                  value: "{{workflow.parameters.MEMORY_LIMIT}}"
+                - name: MEMORY_REQUEST
+                  value: "{{workflow.parameters.MEMORY_REQUEST}}"
+                - name: USE_GVISOR
+                  value: "{{workflow.parameters.USE_GVISOR}}"
+                - name: HARDEN_CONTAINER
+                  value: "{{workflow.parameters.HARDEN_CONTAINER}}"
+                - name: IS_TEMPORARY
+                  value: "{{workflow.parameters.IS_TEMPORARY}}"
+                - name: CHALLENGE_TIMEOUT
+                  value: "{{workflow.parameters.CHALLENGE_TIMEOUT}}"
+
+    - name: deploy-challenge-v2
+      inputs:
+        parameters:
+          - name: CHALLENGE_NAME
+          - name: CONTAINER_PORT
+          - name: CONTAINER_IMAGE
+          - name: CPU_LIMIT
+          - name: CPU_REQUEST
+          - name: MEMORY_LIMIT
+          - name: MEMORY_REQUEST
+          - name: USE_GVISOR
+          - name: HARDEN_CONTAINER
+          - name: IS_TEMPORARY
+          - name: CHALLENGE_TIMEOUT
+      priorityClassName: lowest
+      activeDeadlineSeconds: 120
+      timeout: "120s"
+      podSpecPatch: |
+        preemptionPolicy: Never
+        imagePullSecrets:
+          - name: global-regcred
+        securityContext:
+          fsGroup: 1104
+          fsGroupChangePolicy: OnRootMismatch
+      container:
+        image: <REGISTRY_DOMAIN>/fctf/kubectl-cli:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 1104
+          runAsGroup: 1104
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "0.05"
+          limits:
+            memory: "128Mi"
+            cpu: "0.25"
+        volumeMounts:
+          - name: nfs-shared-data
+            mountPath: /mnt/nfs/data
+            readOnly: true
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            echo "=== Deploying Challenge v2 with parameters ==="
+
+            export CHALLENGE_NAME="{{inputs.parameters.CHALLENGE_NAME}}"
+            export CONTAINER_PORT="{{inputs.parameters.CONTAINER_PORT}}"
+            export CONTAINER_IMAGE="{{inputs.parameters.CONTAINER_IMAGE}}"
+            export CPU_LIMIT="{{inputs.parameters.CPU_LIMIT}}"
+            export CPU_REQUEST="{{inputs.parameters.CPU_REQUEST}}"
+            export MEMORY_LIMIT="{{inputs.parameters.MEMORY_LIMIT}}"
+            export MEMORY_REQUEST="{{inputs.parameters.MEMORY_REQUEST}}"
+            export IS_TEMPORARY="{{inputs.parameters.IS_TEMPORARY}}"
+            export CHALLENGE_TIMEOUT="{{inputs.parameters.CHALLENGE_TIMEOUT}}"
+
+            if [ "{{inputs.parameters.USE_GVISOR}}" = "true" ]; then
+              export RUNTIME_CLASS_NAME_LINE="runtimeClassName: gvisor"
+            else
+              export RUNTIME_CLASS_NAME_LINE=""
+            fi
+
+            if [ "{{inputs.parameters.HARDEN_CONTAINER}}" = "true" ]; then
+              export NFS_DATA_PATH="/mnt/nfs/data/challenge-hardened.yaml"
+            else
+              export NFS_DATA_PATH="/mnt/nfs/data/challenge-plain.yaml"
+            fi
+
+            if [ ! -f "${NFS_DATA_PATH}" ]; then
+              echo "❌ Template not found at ${NFS_DATA_PATH}"
+              echo "Please ensure the challenge template is available in NFS storage"
+              exit 1
+            fi
+
+            echo "📁 Found template at ${NFS_DATA_PATH}, applying with parameters..."
+
+            # Apply Namespace first to avoid cascading "namespace not found" errors.
+            NS_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed -n '1,/^---[[:space:]]*$/p')"
+            REST_DOC="$(envsubst < "${NFS_DATA_PATH}" | sed '1,/^---[[:space:]]*$/d')"
+
+            NS_APPLY_OUTPUT="$(printf '%s\n' "${NS_DOC}" | kubectl apply -f - 2>&1)" || {
+              echo "${NS_APPLY_OUTPUT}"
+              exit 1
+            }
+
+            echo "🔐 Copying imagePullSecret global-regcred into namespace ${CHALLENGE_NAME}"
+            kubectl get secret global-regcred -n argo -o yaml \
+              | sed "s/namespace: .*/namespace: ${CHALLENGE_NAME}/" \
+              | sed '/resourceVersion:/d;/uid:/d;/creationTimestamp:/d' \
+              | awk 'BEGIN{skip=0} /managedFields:/{skip=1} skip==1 && NF==0{skip=0; next} skip==1{next} {print}' \
+              | kubectl apply -f -
+
+            # Apply namespaced resources after namespace exists.
+            printf '%s\n' "${REST_DOC}" | kubectl apply -f -
+
+            echo "✅ Challenge v2 manifest submitted to cluster"
+      volumes:
+        - name: nfs-shared-data
+          persistentVolumeClaim:
+            claimName: start-challenge-template-pvc

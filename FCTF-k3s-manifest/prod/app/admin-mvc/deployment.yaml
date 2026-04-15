@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: admin-mvc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-mvc
+  template:
+    metadata:
+      labels:
+        app: admin-mvc
+    spec:
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      securityContext:
+        fsGroup: 1101
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: admin-mvc
+          image: <REGISTRY_DOMAIN>/fctf/admin-mvc:latest
+          ports:
+            - name: http-client
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: admin-mvc-cm
+            - secretRef:
+                name: admin-mvc-secret
+            - secretRef:
+                name: common-private-key-secret
+          resources:
+            requests:
+              cpu: 1
+              memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1101
+            runAsGroup: 1101
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - NET_RAW
+            seLinuxOptions:
+              type: container_t
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: nfs-base
+              mountPath: /mnt/nfs/data
+            - name: nfs-challenges
+              mountPath: /mnt/nfs/data/challenges
+            - name: nfs-file
+              mountPath: /mnt/nfs/data/file
+            - name: tmp
+              mountPath: /tmp
+            - name: log-ctfd
+              mountPath: /var/log/CTFd
+      imagePullSecrets:
+        - name: regcred
+      volumes:
+        - name: nfs-base
+          emptyDir: {}
+        - name: nfs-challenges
+          persistentVolumeClaim:
+            claimName: admin-mvc-challenges-pvc
+        - name: nfs-file
+          persistentVolumeClaim:
+            claimName: admin-mvc-file-pvc
+        - name: tmp
+          emptyDir: {}
+        - name: log-ctfd
+          emptyDir: {}
+  revisionHistoryLimit: 3

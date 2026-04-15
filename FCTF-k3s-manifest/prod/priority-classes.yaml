@@ -1,0 +1,60 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: cluster-critical
+value: 100000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: "Used by core networking/control-plane components"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: infra-critical
+value: 10000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: "Infrastructure dependencies such as ingress, message bus, databases"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: stateful-core
+value: 1000
+preemptionPolicy: Never
+globalDefault: false
+description: "Stateful core workloads that must not preempt"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: app-normal
+value: 100
+preemptionPolicy: Never
+globalDefault: false
+description: "Default class for stateless application pods"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: batch-low
+value: 10
+preemptionPolicy: Never
+globalDefault: false
+description: "Low-priority batch/automation workloads"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: lowest
+value: 1
+preemptionPolicy: Never
+globalDefault: false
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: app-normal-preemption
+value: 100
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false

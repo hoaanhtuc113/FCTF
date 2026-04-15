@@ -1,0 +1,15 @@
+# PVC cho workflow start-challenge
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: start-challenge-template-pvc
+  namespace: argo
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: nfs-start-challenge-template-pv
+  storageClassName: ""
