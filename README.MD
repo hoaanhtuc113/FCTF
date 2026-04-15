@@ -144,9 +144,9 @@ Recommended order:
 1. Uninstall all worker nodes first.
 2. Uninstall the master node last.
 
-## Architecture
+## For more imformation
 
-> (To be completed)
+https://hoaanhtuc113.github.io/FCTF/docs/intro
 
 
 
