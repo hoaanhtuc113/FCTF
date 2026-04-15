@@ -11,8 +11,8 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://docs.fctf.vn',
-  baseUrl: '/',
+  url: 'https://hoaanhtuc113.github.io/',
+  baseUrl: '/FCTF/',
 
   organizationName: 'hoaanhtuc113',
   projectName: 'FCTF',
