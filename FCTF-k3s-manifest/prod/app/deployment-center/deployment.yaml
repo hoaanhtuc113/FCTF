@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: deployment-center
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: deployment-center
+  template:
+    metadata:
+      labels:
+        app: deployment-center
+    spec:
+      serviceAccountName: deployment-center-sa
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: deployment-center
+          image: <REGISTRY_DOMAIN>/fctf/deployment-center:latest
+          ports:
+            - name: http-client
+              containerPort: 5020
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: deployment-center-cm
+            - secretRef:
+                name: deployment-center-secret
+            - secretRef:
+                name: common-private-key-secret
+          resources:
+            requests:
+              cpu: 0.2
+              memory: 256Mi
+            limits:
+              cpu: 0.5
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5020
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5020
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1654
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - NET_RAW
+            seLinuxOptions:
+              type: container_t
+            seccompProfile:
+              type: RuntimeDefault
+      imagePullSecrets:
+        - name: regcred
+  revisionHistoryLimit: 3

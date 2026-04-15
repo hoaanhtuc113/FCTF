@@ -1,0 +1,29 @@
+# PVC cho service admin-mvc
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: admin-mvc-challenges-pvc
+  namespace: app
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: nfs-admin-mvc-challenges-pv
+  storageClassName: ""
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: admin-mvc-file-pvc
+  namespace: app
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: nfs-admin-mvc-file-pv
+  storageClassName: ""

@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: harbor-tls
+  namespace: registry
+spec:
+  secretName: harbor-tls
+  dnsNames:
+    - <REGISTRY_DOMAIN>
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

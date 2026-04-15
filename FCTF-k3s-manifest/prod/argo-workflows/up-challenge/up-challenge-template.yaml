@@ -1,0 +1,230 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: up-challenge-template
+  namespace: argo
+  annotations:
+    workflows.argoproj.io/description: "Build and push challenge image from NFS using Kaniko"
+spec:
+  serviceAccountName: up-challenge-workflow-sa
+  entrypoint: main
+  ttlStrategy:
+    secondsAfterSuccess: 604800     # 7 days
+    secondsAfterFailure: 1209600    # 14 days
+  onExit: send-message
+
+  arguments:
+    parameters:
+      - name: CHALLENGE_PATH
+      - name: CHALLENGE_ID
+      - name: IMAGE_REPO
+        value: fctf
+      - name: IMAGE_TAG
+      - name: DEPLOYMENT_CENTER_API_ENDPOINT
+        value: http://deployment-center-svc.app.svc.cluster.local:5020/api/statuscheck/message
+
+  templates:
+    - name: main
+      steps:
+        - - name: build-and-push
+            template: build-and-push
+            arguments:
+              parameters:
+                - name: CHALLENGE_PATH
+                  value: "{{workflow.parameters.CHALLENGE_PATH}}"
+                - name: IMAGE_REPO
+                  value: "{{workflow.parameters.IMAGE_REPO}}"
+                - name: IMAGE_TAG
+                  value: "{{workflow.parameters.IMAGE_TAG}}"
+
+    # ======================================================
+    # BUILD & PUSH IMAGE (KANIKO)
+    # ======================================================
+    - name: build-and-push
+      inputs:
+        parameters:
+          - name: CHALLENGE_PATH
+          - name: IMAGE_REPO
+          - name: IMAGE_TAG
+      priorityClassName: lowest
+      podSpecPatch: |
+        preemptionPolicy: Never
+        hostNetwork: true
+        dnsPolicy: ClusterFirstWithHostNet
+        securityContext:
+          fsGroup: 1103
+          fsGroupChangePolicy: OnRootMismatch
+
+      container:
+        image: gcr.io/kaniko-project/executor:debug
+        imagePullPolicy: IfNotPresent
+
+        # Kaniko REQUIRE root + writable FS
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+          privileged: true
+          allowPrivilegeEscalation: true
+
+        # Production-safe resources (tested range)
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+
+        env:
+          - name: DOCKER_CONFIG
+            value: /kaniko/.docker
+
+        volumeMounts:
+          - name: nfs-shared-data
+            mountPath: /mnt/nfs/data
+            readOnly: true
+          - name: docker-config
+            mountPath: /kaniko/.docker
+            readOnly: true
+
+        command: ["/busybox/sh", "-c"]
+        args:
+          - |
+            set -euo pipefail
+
+            echo "=== Building and pushing image with Kaniko ==="
+
+            CHALLENGE_PATH_RAW="{{inputs.parameters.CHALLENGE_PATH}}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_RAW#./}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#challenges/}"
+            CHALLENGE_PATH_NORM="${CHALLENGE_PATH_NORM#/}"
+
+            CANDIDATE_1="/mnt/nfs/data/${CHALLENGE_PATH_RAW}"
+            CANDIDATE_2="/mnt/nfs/data/${CHALLENGE_PATH_NORM}"
+
+            if [ "${CHALLENGE_PATH_RAW#/}" != "$CHALLENGE_PATH_RAW" ]; then
+              CANDIDATE_3="$CHALLENGE_PATH_RAW"
+            else
+              CANDIDATE_3=""
+            fi
+
+            echo "🔎 CANDIDATE_1: $CANDIDATE_1"
+            echo "🔎 CANDIDATE_2: $CANDIDATE_2"
+            if [ -n "$CANDIDATE_3" ]; then
+              echo "🔎 CANDIDATE_3: $CANDIDATE_3"
+            fi
+
+            CHALLENGE_DIR=""
+            CHALLENGE_DIR_SOURCE=""
+            if [ -d "$CANDIDATE_1" ]; then
+              CHALLENGE_DIR="$CANDIDATE_1"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_1"
+            elif [ -d "$CANDIDATE_2" ]; then
+              CHALLENGE_DIR="$CANDIDATE_2"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_2"
+            elif [ -n "$CANDIDATE_3" ] && [ -d "$CANDIDATE_3" ]; then
+              CHALLENGE_DIR="$CANDIDATE_3"
+              CHALLENGE_DIR_SOURCE="CANDIDATE_3"
+            fi
+
+            if [ -z "$CHALLENGE_DIR" ]; then
+              echo "❌ Challenge directory not found"
+              echo "   - Tried: $CANDIDATE_1"
+              echo "   - Tried: $CANDIDATE_2"
+              if [ -n "$CANDIDATE_3" ]; then
+                echo "   - Tried: $CANDIDATE_3"
+              fi
+              echo "📂 /mnt/nfs/data (top-level):"
+              ls -la /mnt/nfs/data || true
+              echo "📂 /mnt/nfs/data (maxdepth=3):"
+              find /mnt/nfs/data -maxdepth 3 -type d | sort || true
+              exit 1
+            fi
+
+            echo "✅ Selected ${CHALLENGE_DIR_SOURCE}: $CHALLENGE_DIR"
+
+            if [ ! -f "$CHALLENGE_DIR/Dockerfile" ]; then
+              echo "❌ Dockerfile not found in $CHALLENGE_DIR"
+              exit 1
+            fi
+
+            echo "📁 Build context: $CHALLENGE_DIR"
+            cd "$CHALLENGE_DIR"
+
+            /kaniko/executor \
+              --dockerfile=Dockerfile \
+              --context=dir://. \
+              --custom-platform=linux/amd64 \
+              --snapshot-mode=redo \
+              --verbosity=info \
+              --destination=<REGISTRY_DOMAIN>/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest
+
+            echo "✅ Image pushed: <REGISTRY_DOMAIN>/{{inputs.parameters.IMAGE_REPO}}/{{inputs.parameters.IMAGE_TAG}}:latest"
+
+      volumes:
+        - name: nfs-shared-data
+          persistentVolumeClaim:
+            claimName: up-challenge-file-pvc
+
+        - name: docker-config
+          secret:
+            secretName: global-regcred
+            items:
+              - key: .dockerconfigjson
+                path: config.json
+
+    # ======================================================
+    # ON EXIT: SEND STATUS
+    # ======================================================
+    - name: send-message
+      priorityClassName: lowest
+      podSpecPatch: |
+        preemptionPolicy: Never
+        imagePullSecrets:
+          - name: global-regcred
+
+      container:
+        image: <REGISTRY_DOMAIN>/fctf/kubectl-cli:latest
+        imagePullPolicy: IfNotPresent
+
+        # HARDENED (safe – no write needed)
+        securityContext:
+          runAsUser: 1103
+          runAsGroup: 1103
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          privileged: false
+          capabilities:
+            drop: ["ALL"]
+
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set +e
+
+            WORKFLOW_NAME="{{workflow.name}}"
+            WORKFLOW_STATUS="{{workflow.status}}"
+            WORKFLOW_TYPE="up"
+            CHALLENGE_ID="{{workflow.parameters.CHALLENGE_ID}}"
+            ENDPOINT="{{workflow.parameters.DEPLOYMENT_CENTER_API_ENDPOINT}}"
+
+            echo "Posting workflow status to deployment center"
+
+            curl -sS -X POST "${ENDPOINT}" \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "WorkFlowName": "'"${WORKFLOW_NAME}"'",
+                "ChallengeId": '"${CHALLENGE_ID}"',
+                "Status": "'"${WORKFLOW_STATUS}"'",
+                "Type": "'"${WORKFLOW_TYPE}"'"
+              }' || true

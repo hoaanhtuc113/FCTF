@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-backend-ingress
+  namespace: app
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-dev
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <CONTESTANT_API_DOMAIN> 
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: contestant-be-svc
+                port:
+                  number: 5010
+  tls:
+    - hosts:
+        - <CONTESTANT_API_DOMAIN> 
+      secretName: api-backend-tls

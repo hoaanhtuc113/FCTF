@@ -1,0 +1,179 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${CHALLENGE_NAME}
+  labels:
+    ctf/temporary: "${IS_TEMPORARY}"
+    ctf/expireAfter: "${CHALLENGE_TIMEOUT}"
+    ctf/kind: "challenge"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${CHALLENGE_NAME}-svc
+  namespace: ${CHALLENGE_NAME}
+spec:
+  type: ClusterIP
+  selector:
+    app: ${CHALLENGE_NAME}
+  ports:
+    - name: tcp-challenge
+      protocol: TCP
+      port: 3333
+      targetPort: ${CONTAINER_PORT}
+
+# ======================================================
+# DENY ALL INGRESS BY DEFAULT
+# ======================================================
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-ingress
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+# ======================================================
+# ALLOW INGRESS FROM GATEWAY ONLY
+# ======================================================
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-ingress
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app: ${CHALLENGE_NAME}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+          podSelector:
+            matchLabels:
+              app: challenge-gateway
+      ports:
+        - protocol: TCP
+          port: ${CONTAINER_PORT}
+
+# ======================================================
+# ALLOW KUBELET (READINESS / LIVENESS PROBE)
+# ======================================================
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kubelet-probe
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app: ${CHALLENGE_NAME}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: ${CONTAINER_PORT}
+
+# ======================================================
+# STRICT EGRESS:
+# - DNS only
+# - Gateway only
+# - Internet only
+# - BLOCK cluster/service
+# ======================================================
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: strict-egress
+  namespace: ${CHALLENGE_NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app: ${CHALLENGE_NAME}
+  policyTypes:
+    - Egress
+  egress:
+    # ---- DNS ----
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # ---- Gateway only ----
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: app
+          podSelector:
+            matchLabels:
+              app: challenge-gateway
+
+    # ---- Internet only (NO cluster, NO metadata) ----
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+
+# ======================================================
+# JOB
+# ======================================================
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${CHALLENGE_NAME}-job
+  namespace: ${CHALLENGE_NAME}
+spec:
+  ttlSecondsAfterFinished: 1800
+  template:
+    metadata:
+      labels:
+        app: ${CHALLENGE_NAME}
+        ctf/kind: "challenge"
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      priorityClassName: batch-low
+      preemptionPolicy: Never
+      ${RUNTIME_CLASS_NAME_LINE}
+      containers:
+        - name: challenge
+          image: "${CONTAINER_IMAGE}"
+          ports:
+            - containerPort: ${CONTAINER_PORT}
+          readinessProbe:
+            tcpSocket:
+              port: ${CONTAINER_PORT}
+            periodSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "${MEMORY_REQUEST}"
+              cpu: "${CPU_REQUEST}"
+            limits:
+              memory: "${MEMORY_LIMIT}"
+              cpu: "${CPU_LIMIT}"
+          imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+        - name: global-regcred

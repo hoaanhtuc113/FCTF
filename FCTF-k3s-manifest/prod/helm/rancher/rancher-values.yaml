@@ -1,0 +1,7 @@
+hostname: <RANCHER_DOMAIN>
+replicas: 1
+bootstrapPassword: "Ab@123456789"
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-listener-cm
+  namespace: app
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+  ASPNETCORE_URLS: "http://+:5030"  
+
+  CHALLENGE_WATCHER_WORKER_COUNT: "20"
+ 

@@ -1,0 +1,15 @@
+# PVC cho service contestant-be
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: contestant-be-file-pvc
+  namespace: app
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: nfs-contestant-be-file-pv
+  storageClassName: ""
