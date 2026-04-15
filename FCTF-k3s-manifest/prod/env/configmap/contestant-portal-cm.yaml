@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: contestant-portal-cm
+  namespace: app
+data:
+  VITE_API_URL: "https://apicontestant.sanchoi.iahn.hanoi.vn/api"
+  VITE_BASE_GATEWAY: "gateway.sanchoi.iahn.hanoi.vn"
+  VITE_HTTP_PORT: "30038"
+  VITE_TCP_PORT: "30037"

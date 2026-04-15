@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-tls
+  namespace: monitoring
+spec:
+  secretName: grafana-tls
+  dnsNames:
+    - monitor.sanchoi.iahn.hanoi.vn
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

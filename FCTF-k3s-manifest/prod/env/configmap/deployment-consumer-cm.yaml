@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-consumer-cm
+  namespace: app
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+  ARGO_WORKFLOWS_URL: "http://argo-workflows-server.argo.svc.cluster.local:2746/api/v1/workflows/argo"
+  START_CHALLENGE_TEMPLATE: "start-chal-v2-template"
+  RABBIT_HOST: "rabbitmq.db.svc.cluster.local"
+  RABBIT_USERNAME: "deployment-consumer"
+  RABBIT_VHOST: "fctf_deploy"
+  RABBIT_PORT: "5671"
+  RABBIT_TLS: "true"
+  ARGO_DEPLOY_TTL_MINUTES: "6"
+
+  BATCH_SIZE: "20"
+  MAX_RUNNING_WORKFLOW: "30"
+  WORKER_POLL_INTERVAL_SECONDS: "2"

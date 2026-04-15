@@ -1,0 +1,17 @@
+# PV cho service contestant-be
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-contestant-be-file-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Delete
+  mountOptions:
+    - noexec
+  nfs:
+    server: 10.13.2.3
+    path: /srv/nfs/share/file

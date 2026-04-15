@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: contestant-ingress
+  namespace: app
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-dev
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: sanchoi.iahn.hanoi.vn
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: contestant-portal-svc
+                port:
+                  number: 5173
+  tls:
+    - hosts:
+        - sanchoi.iahn.hanoi.vn
+      secretName: contestant-tls

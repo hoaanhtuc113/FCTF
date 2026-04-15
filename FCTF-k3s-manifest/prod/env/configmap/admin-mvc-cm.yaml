@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-mvc-cm
+  namespace: app
+data:
+  LOG_FOLDER: "/var/log/CTFd"
+  DATABASE_PORT: "3306"
+  API_URL_CONTROLSERVER: "http://deployment-center-svc.app.svc.cluster.local:5020"
+  DEPLOYMENT_SERVICE_API: "http://deployment-center-svc.app.svc.cluster.local:5020"
+  REDIS_DB: "0"
+  REDIS_HOST: "redis-headless.db.svc.cluster.local"
+  HOST_CACHE: "redis-headless.db.svc.cluster.local"
+  REVERSE_PROXY: "true"
+  WORKERS: "3"
+  UPLOAD_PROVIDER: "nfs"
+  IMAGE_REPO: "fctf"
+  DOCKER_USERNAME: "registry.sanchoi.iahn.hanoi.vn"

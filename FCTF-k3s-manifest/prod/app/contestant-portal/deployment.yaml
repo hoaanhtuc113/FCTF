@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: contestant-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: contestant-portal
+  template:
+    metadata:
+      labels:
+        app: contestant-portal
+    spec:
+      securityContext:
+        fsGroup: 1000
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: contestant-portal
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/contestant-portal:latest
+          ports:
+            - name: http-client
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: contestant-portal-cm
+          resources:
+            requests:
+              cpu: 0.1
+              memory: 100Mi
+            limits:
+              cpu: 0.15
+              memory: 150Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - NET_RAW
+            seLinuxOptions:
+              type: container_t
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      imagePullSecrets:
+        - name: regcred
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  revisionHistoryLimit: 3

@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: contestant-be
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: contestant-be
+  template:
+    metadata:
+      labels:
+        app: contestant-be
+    spec:
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      securityContext:
+        fsGroup: 1102
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: contestant-be
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/contestant-be:latest
+          ports:
+            - name: http-client
+              containerPort: 5010
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: contestant-be-cm
+            - secretRef:
+                name: contestant-be-secret
+            - secretRef:
+                name: common-private-key-secret
+          resources:
+            requests:
+              cpu: 0.3
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5010
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5010
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1102
+            runAsGroup: 1102
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - NET_RAW
+            seLinuxOptions:
+              type: container_t
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: nfs-shared-data
+              mountPath: /mnt/nfs/data/file
+              readOnly: true
+      imagePullSecrets:
+        - name: regcred
+      volumes:
+        - name: nfs-shared-data
+          persistentVolumeClaim:
+            claimName: contestant-be-file-pvc
+  revisionHistoryLimit: 3

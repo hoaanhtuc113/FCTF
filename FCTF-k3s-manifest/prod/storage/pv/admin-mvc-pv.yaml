@@ -1,0 +1,34 @@
+# PV cho service admin-mvc
+# NOTE: Đổi server thành IP NFS server thực tế.
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-admin-mvc-challenges-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Delete
+  mountOptions:
+    - noexec
+  nfs:
+    server: 10.13.2.3
+    path: /srv/nfs/share/challenges
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-admin-mvc-file-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Delete
+  mountOptions:
+    - noexec
+  nfs:
+    server: 10.13.2.3
+    path: /srv/nfs/share/file

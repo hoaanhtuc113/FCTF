@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: deployment-listener
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deployment-listener
+  template:
+    metadata:
+      labels:
+        app: deployment-listener
+    spec:
+      serviceAccountName: deployment-listener-sa
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: deployment-listener
+          image: registry.sanchoi.iahn.hanoi.vn/fctf/deployment-listener:latest
+          envFrom:
+            - configMapRef:
+                name: deployment-listener-cm
+            - secretRef:
+                name: deployment-listener-secret
+            - secretRef:
+                name: common-private-key-secret
+          resources:
+            requests:
+              cpu: 0.3
+              memory: 256Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1654
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - NET_RAW
+            seLinuxOptions:
+              type: container_t
+            seccompProfile:
+              type: RuntimeDefault
+      imagePullSecrets:
+        - name: regcred
+  revisionHistoryLimit: 3
