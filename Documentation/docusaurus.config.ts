@@ -110,56 +110,7 @@ const config: Config = {
       ],
     },
     footer: {
-      style: 'dark',
-      links: [
-        {
-          title: 'Documentation',
-          items: [
-            {
-              label: 'Overview',
-              to: '/docs/intro',
-            },
-            {
-              label: 'Architecture',
-              to: '/docs/architecture/overview',
-            },
-            {
-              label: 'Install & Operations',
-              to: '/docs/install-and-ops/quick-start',
-            },
-          ],
-        },
-        {
-          title: 'Components',
-          items: [
-            {
-              label: 'Contestant Portal',
-              href: 'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/ContestantPortal',
-            },
-            {
-              label: 'Challenge Gateway',
-              href: 'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/ChallengeGateway',
-            },
-            {
-              label: 'Admin Portal',
-              href: 'https://github.com/hoaanhtuc113/FCTF/tree/v4/release/v4.0.0/FCTF-ManagementPlatform',
-            },
-          ],
-        },
-        {
-          title: 'Community',
-          items: [
-            {
-              label: 'Repository',
-              href: 'https://github.com/hoaanhtuc113/FCTF',
-            },
-            {
-              label: 'Issues',
-              href: 'https://github.com/hoaanhtuc113/FCTF/issues',
-            },
-          ],
-        },
-      ],
+      style: 'dark',      
       copyright: `Copyright © ${new Date().getFullYear()} FCTF Team. Built with Docusaurus.`,
     },
     prism: {
