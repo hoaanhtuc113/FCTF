@@ -146,7 +146,7 @@ Recommended order:
 
 ## For more imformation
 
-https://hoaanhtuc113.github.io/FCTF/docs/intro
+https://hoaanhtuc113.github.io/FCTF
 
 
 
