@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app
+  name: challenge-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: challenge-gateway
+  template:
+    metadata:
+      labels:
+        app: challenge-gateway
+    spec:
+      priorityClassName: app-normal-preemption
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: challenge-gateway
+          image: <REGISTRY_DOMAIN>/fctf/challenge-gateway:latest
+          envFrom:
+            - configMapRef:
+                name: challenge-gateway-cm
+            - secretRef:
+                name: challenge-gateway-secret
+            - secretRef:
+                name: common-private-key-secret
+          resources:
+            requests:
+              cpu: 0.1
+              memory: 128Mi
+            limits:
+              cpu: 0.3
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            privileged: false
+            capabilities:
+              drop:
+                - NET_RAW
+            seLinuxOptions:
+              type: container_t
+            seccompProfile:
+              type: RuntimeDefault
+      imagePullSecrets:
+        - name: regcred
+  revisionHistoryLimit: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: challenge-gateway-svc
+  namespace: app
+spec:
+  ports:
+    - protocol: TCP
+      name: tcp-1337
+      port: 1337
+      targetPort: 1337
+      nodePort: 30037
+    - protocol: TCP
+      name: http-8080
+      port: 8080
+      targetPort: 8080
+      nodePort: 30038
+  selector:
+    app: challenge-gateway
+  type: NodePort

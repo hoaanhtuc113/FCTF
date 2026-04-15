@@ -1,0 +1,61 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-mvc-svc
+  namespace: app
+spec:
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 30080
+  selector:
+    app: admin-mvc
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: contestant-portal-svc
+  namespace: app
+spec:
+  ports:
+    - protocol: TCP
+      port: 5173
+      targetPort: 80
+      nodePort: 30517
+  selector:
+    app: contestant-portal
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: contestant-be-svc
+  namespace: app
+spec:
+  ports:
+    - protocol: TCP
+      port: 5010
+      targetPort: 5010
+      nodePort: 30501
+  selector:
+    app: contestant-be
+  type: NodePort
+---
+# Con này không cần expose ra ngoài vì deployment-center chỉ cần internal access từ các service khác trong cluster
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: app
+  name: deployment-center-svc
+spec:
+  ports:
+    - protocol: TCP
+      port: 5020
+      targetPort: 5020
+  selector:
+    app: deployment-center
+  type: ClusterIP
+---
