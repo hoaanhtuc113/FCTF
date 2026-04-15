@@ -83,7 +83,7 @@ function EmberField(): ReactNode {
       embers.push(e);
     }
 
-    const MOUSE_RADIUS = 200;
+    const MOUSE_RADIUS_DARK = 200;
     const ATTRACT_FORCE = 0.02;
     const CONNECT_DIST = 140;
     const MOUSE_CONNECT_DIST = 150;
@@ -95,6 +95,11 @@ function EmberField(): ReactNode {
       const r = isLight ? 234 : 251;
       const g = isLight ? 88 : 146;
       const b = isLight ? 12 : 60;
+      const mouseRadius = isLight ? 80 : MOUSE_RADIUS_DARK;
+      const mouseGlowAlphaStart = isLight ? 0.1 : 0.2;
+      const mouseGlowAlphaMid = isLight ? 0.05 : 0.1;
+      const mouseEmberBoostFactor = isLight ? 4 : 2.0;
+      const mouseEmberAlphaCap = isLight ? 3.8 : 2.0;
 
       // Spawn new embers
       if (embers.length < 60 && Math.random() > 0.8) {
@@ -105,13 +110,13 @@ function EmberField(): ReactNode {
       if (mouseActive) {
         const grad = ctx.createRadialGradient(
           mouseX, mouseY, 0,
-          mouseX, mouseY, MOUSE_RADIUS
+          mouseX, mouseY, mouseRadius
         );
-        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.20)`);
-        grad.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.1)`);
-        grad.addColorStop(1, 'transparent');
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${mouseGlowAlphaStart})`);
+        grad.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${mouseGlowAlphaMid})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
         ctx.fillStyle = grad;
-        ctx.fillRect(mouseX - MOUSE_RADIUS, mouseY - MOUSE_RADIUS, MOUSE_RADIUS * 2, MOUSE_RADIUS * 2);
+        ctx.fillRect(mouseX - mouseRadius, mouseY - mouseRadius, mouseRadius * 2, mouseRadius * 2);
       }
 
       // Update & draw embers
@@ -124,8 +129,8 @@ function EmberField(): ReactNode {
           const dx = mouseX - e.x;
           const dy = mouseY - e.y;
           const dist = Math.hypot(dx, dy);
-          if (dist < MOUSE_RADIUS && dist > 5) {
-            const force = ATTRACT_FORCE * (1 - dist / MOUSE_RADIUS);
+          if (dist < mouseRadius && dist > 5) {
+            const force = ATTRACT_FORCE * (1 - dist / mouseRadius);
             e.vx += (dx / dist) * force;
             e.vy += (dy / dist) * force;
           }
@@ -150,8 +155,8 @@ function EmberField(): ReactNode {
         // Brighten near mouse - MUCH BRIGHTER
         if (mouseActive) {
           const dMouse = Math.hypot(mouseX - e.x, mouseY - e.y);
-          if (dMouse < MOUSE_RADIUS) {
-            alpha = Math.min(2, alpha * (1 + 2.0 * (1 - dMouse / MOUSE_RADIUS)));
+          if (dMouse < mouseRadius) {
+            alpha = Math.min(mouseEmberAlphaCap, alpha * (1 + mouseEmberBoostFactor * (1 - dMouse / mouseRadius)));
           }
         }
 
@@ -381,7 +386,7 @@ export default function Home(): ReactNode {
 
         {/* ─── CTA ─── */}
         <section className={styles.cta}>
-          <h2 className={styles.ctaTitle}>ready to deploy?</h2>
+          <h2 className={styles.ctaTitle}>Ready to deploy?</h2>
           <p className={styles.ctaSub}>Free. Open-source. Battle-tested at FPT University.</p>
           <div className={styles.ctaBtns}>
             <Link className={clsx('button', styles.btnPrimary)} to="/docs/product-and-features/overview">
