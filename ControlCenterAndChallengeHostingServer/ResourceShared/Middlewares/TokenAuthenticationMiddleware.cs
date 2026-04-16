@@ -70,7 +70,8 @@ public class TokenAuthenticationMiddleware
                         return;
                     }
 
-                    if (authInfoCache.TeamId != claimTeamId)
+                    var cachedTeamId = authInfoCache.TeamId ?? 0;
+                    if (cachedTeamId != claimTeamId)
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsync("Invalid user token.");
@@ -142,7 +143,8 @@ public class TokenAuthenticationMiddleware
                     return;
                 }
 
-                if (authInfo.TeamId != claimTeamId)
+                var dbTeamId = authInfo.TeamId ?? 0;
+                if (dbTeamId != claimTeamId)
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     await context.Response.WriteAsync("Invalid user token.");

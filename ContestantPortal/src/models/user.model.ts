@@ -7,5 +7,5 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  team: Team;
+  team: Team | null;
 }

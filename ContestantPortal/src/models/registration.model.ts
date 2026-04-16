@@ -9,14 +9,11 @@ export interface RegistrationFieldDefinition {
 }
 
 export interface RegistrationConstraints {
-  teamSizeLimit: number;
-  numTeamsLimit: number;
   numUsersLimit: number;
 }
 
 export interface RegistrationMetadata {
   userFields: RegistrationFieldDefinition[];
-  teamFields: RegistrationFieldDefinition[];
   constraints: RegistrationConstraints;
 }
 
@@ -25,19 +22,11 @@ export interface RegistrationFieldValue {
   value: string | boolean;
 }
 
-export interface RegisterContestantMemberPayload {
+export interface RegisterContestantPayload {
   username: string;
   email: string;
   password: string;
   confirmPassword: string;
-  userFields: RegistrationFieldValue[];
-}
-
-export interface RegisterContestantPayload {
-  teamName: string;
-  teamEmail?: string;
-  teamPassword?: string;
   captchaToken?: string;
-  teamFields: RegistrationFieldValue[];
-  members: RegisterContestantMemberPayload[];
+  userFields: RegistrationFieldValue[];
 }

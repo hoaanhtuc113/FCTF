@@ -312,28 +312,11 @@ public class AuthService : IAuthService
                 })
                 .ToListAsync();
 
-            var teamFields = await _context.Fields
-                .AsNoTracking()
-                .Where(f => f.Type == "team")
-                .OrderBy(f => f.Id)
-                .Select(f => new RegistrationFieldDefinitionDTO
-                {
-                    id = f.Id,
-                    name = f.Name ?? string.Empty,
-                    description = f.Description,
-                    fieldType = NormalizeFieldType(f.FieldType),
-                    required = f.Required == true,
-                })
-                .ToListAsync();
-
             var metadata = new RegistrationMetadataDTO
             {
                 userFields = userFields,
-                teamFields = teamFields,
                 constraints = new RegistrationConstraintsDTO
                 {
-                    teamSizeLimit = _configHelper.GetConfig("team_size", 0),
-                    numTeamsLimit = _configHelper.GetConfig("num_teams", 0),
                     numUsersLimit = _configHelper.GetConfig("num_users", 0),
                 },
             };
@@ -356,47 +339,29 @@ public class AuthService : IAuthService
                 return BaseResponseDTO<string>.Fail("Registration is currently disabled");
             }
 
-            if (!_configHelper.IsTeamsMode())
-            {
-                return BaseResponseDTO<string>.Fail("Registration is only available in team mode");
-            }
-
             var captchaValid = await ValidateCaptchaTokenAsync(registerContestantDto.captchaToken);
             if (!captchaValid)
             {
                 return BaseResponseDTO<string>.Fail("Captcha validation failed");
             }
 
-            var teamName = NormalizeNullable(registerContestantDto.teamName);
-            var teamEmail = NormalizeNullable(registerContestantDto.teamEmail);
-            var teamPassword = NormalizeNullable(registerContestantDto.teamPassword);
-            if (teamName == null)
+            var username = NormalizeNullable(registerContestantDto.username);
+            var email = NormalizeNullable(registerContestantDto.email);
+            var password = registerContestantDto.password?.Trim() ?? string.Empty;
+            var confirmPassword = registerContestantDto.confirmPassword?.Trim() ?? string.Empty;
+            if (username == null || email == null || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(confirmPassword))
             {
-                return BaseResponseDTO<string>.Fail("Team name is required");
+                return BaseResponseDTO<string>.Fail("Username, email, password, and confirm password are required");
             }
 
-            var members = registerContestantDto.members ?? new List<RegisterContestantMemberDTO>();
-            if (members.Count == 0)
+            if (!string.Equals(password, confirmPassword, StringComparison.Ordinal))
             {
-                return BaseResponseDTO<string>.Fail("At least one team member is required");
+                return BaseResponseDTO<string>.Fail("Password confirmation does not match");
             }
 
-            var teamSizeLimit = _configHelper.GetConfig("team_size", 0);
-            if (teamSizeLimit > 0 && members.Count > teamSizeLimit)
+            if (!IsValidPasswordPolicy(password))
             {
-                return BaseResponseDTO<string>.Fail($"Teams are limited to {teamSizeLimit} member(s)");
-            }
-
-            var numTeamsLimit = _configHelper.GetConfig("num_teams", 0);
-            if (numTeamsLimit > 0)
-            {
-                var currentTeams = await _context.Teams
-                    .AsNoTracking()
-                    .CountAsync(t => t.Banned != true && t.Hidden != true);
-                if (currentTeams >= numTeamsLimit)
-                {
-                    return BaseResponseDTO<string>.Fail($"Reached the maximum number of teams ({numTeamsLimit})");
-                }
+                return BaseResponseDTO<string>.Fail("Password must be 8-20 characters and include uppercase, lowercase, number, and special character");
             }
 
             var numUsersLimit = _configHelper.GetConfig("num_users", 0);
@@ -405,88 +370,26 @@ public class AuthService : IAuthService
                 var currentUsers = await _context.Users
                     .AsNoTracking()
                     .CountAsync(u => u.Banned != true && u.Hidden != true);
-                if (currentUsers + members.Count > numUsersLimit)
+                if (currentUsers + 1 > numUsersLimit)
                 {
                     return BaseResponseDTO<string>.Fail($"Reached the maximum number of users ({numUsersLimit})");
                 }
             }
 
-            var existingTeam = await _context.Teams
+            var usernameExists = await _context.Users
                 .AsNoTracking()
-                .AnyAsync(t => t.Name == teamName);
-            if (existingTeam)
+                .AnyAsync(u => u.Name == username);
+            if (usernameExists)
             {
-                return BaseResponseDTO<string>.Fail("Team name has already been taken");
+                return BaseResponseDTO<string>.Fail($"Username has already been taken: {username}");
             }
 
-            if (teamEmail != null)
+            var emailExists = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.Email == email);
+            if (emailExists)
             {
-                var existingTeamEmail = await _context.Teams
-                    .AsNoTracking()
-                    .AnyAsync(t => t.Email == teamEmail);
-                if (existingTeamEmail)
-                {
-                    return BaseResponseDTO<string>.Fail("Team email has already been used");
-                }
-            }
-
-            var preparedMembers = new List<(string Username, string Email, string Password, IReadOnlyList<RegistrationFieldValueDTO> UserFields)>();
-            var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var emails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            for (var i = 0; i < members.Count; i++)
-            {
-                var member = members[i];
-                var username = NormalizeNullable(member.username);
-                var email = NormalizeNullable(member.email);
-                var password = member.password?.Trim() ?? string.Empty;
-                var confirmPassword = member.confirmPassword?.Trim() ?? string.Empty;
-
-                if (username == null || email == null || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(confirmPassword))
-                {
-                    return BaseResponseDTO<string>.Fail($"Member #{i + 1} is missing required information");
-                }
-
-                if (!usernames.Add(username))
-                {
-                    return BaseResponseDTO<string>.Fail($"Duplicate username in member list: {username}");
-                }
-
-                if (!emails.Add(email))
-                {
-                    return BaseResponseDTO<string>.Fail($"Duplicate email in member list: {email}");
-                }
-
-                if (!string.Equals(password, confirmPassword, StringComparison.Ordinal))
-                {
-                    return BaseResponseDTO<string>.Fail($"Password confirmation does not match for member '{username}'");
-                }
-
-                if (!IsValidPasswordPolicy(password))
-                {
-                    return BaseResponseDTO<string>.Fail($"Password for member '{username}' must be 8-20 characters and include uppercase, lowercase, number, and special character");
-                }
-
-                preparedMembers.Add((username, email, password, member.userFields ?? new List<RegistrationFieldValueDTO>()));
-            }
-
-            foreach (var member in preparedMembers)
-            {
-                var usernameExists = await _context.Users
-                    .AsNoTracking()
-                    .AnyAsync(u => u.Name == member.Username);
-                if (usernameExists)
-                {
-                    return BaseResponseDTO<string>.Fail($"Username has already been taken: {member.Username}");
-                }
-
-                var emailExists = await _context.Users
-                    .AsNoTracking()
-                    .AnyAsync(u => u.Email == member.Email);
-                if (emailExists)
-                {
-                    return BaseResponseDTO<string>.Fail($"Email address has already been used: {member.Email}");
-                }
+                return BaseResponseDTO<string>.Fail($"Email address has already been used: {email}");
             }
 
             var userFieldDefinitions = await _context.Fields
@@ -495,20 +398,14 @@ public class AuthService : IAuthService
                 .OrderBy(f => f.Id)
                 .ToListAsync();
 
-            var teamFieldDefinitions = await _context.Fields
-                .AsNoTracking()
-                .Where(f => f.Type == "team")
-                .OrderBy(f => f.Id)
-                .ToListAsync();
-
-            var teamFieldMap = BuildFieldValueMap(registerContestantDto.teamFields);
-            var teamFieldEntries = new List<FieldEntry>();
-            foreach (var field in teamFieldDefinitions)
+            var userFieldMap = BuildFieldValueMap(registerContestantDto.userFields);
+            var userFieldEntries = new List<FieldEntry>();
+            foreach (var field in userFieldDefinitions)
             {
-                var hasValue = teamFieldMap.TryGetValue(field.Id, out var rawValue) && HasFieldValue(rawValue);
+                var hasValue = userFieldMap.TryGetValue(field.Id, out var rawValue) && HasFieldValue(rawValue);
                 if (field.Required == true && !hasValue)
                 {
-                    return BaseResponseDTO<string>.Fail($"Team field '{field.Name}' is required");
+                    return BaseResponseDTO<string>.Fail($"User field '{field.Name}' is required");
                 }
 
                 if (!hasValue)
@@ -521,17 +418,17 @@ public class AuthService : IAuthService
                 {
                     if (!TryReadBoolean(rawValue, out var booleanValue))
                     {
-                        return BaseResponseDTO<string>.Fail($"Team field '{field.Name}' must be a boolean value");
+                        return BaseResponseDTO<string>.Fail($"User field '{field.Name}' must be a boolean value");
                     }
 
                     if (field.Required == true && booleanValue != true)
                     {
-                        return BaseResponseDTO<string>.Fail($"Team field '{field.Name}' must be accepted");
+                        return BaseResponseDTO<string>.Fail($"User field '{field.Name}' must be accepted");
                     }
 
-                    teamFieldEntries.Add(new FieldEntry
+                    userFieldEntries.Add(new FieldEntry
                     {
-                        Type = "team",
+                        Type = "user",
                         FieldId = field.Id,
                         Value = JsonSerializer.Serialize(booleanValue),
                     });
@@ -542,7 +439,7 @@ public class AuthService : IAuthService
                 var textValue = ReadTextValue(rawValue);
                 if (field.Required == true && textValue == null)
                 {
-                    return BaseResponseDTO<string>.Fail($"Team field '{field.Name}' is required");
+                    return BaseResponseDTO<string>.Fail($"User field '{field.Name}' is required");
                 }
 
                 if (textValue == null)
@@ -550,137 +447,38 @@ public class AuthService : IAuthService
                     continue;
                 }
 
-                teamFieldEntries.Add(new FieldEntry
+                userFieldEntries.Add(new FieldEntry
                 {
-                    Type = "team",
+                    Type = "user",
                     FieldId = field.Id,
                     Value = JsonSerializer.Serialize(textValue),
                 });
             }
 
-            var userFieldEntriesByMember = new Dictionary<int, List<FieldEntry>>();
-            for (var i = 0; i < preparedMembers.Count; i++)
-            {
-                var member = preparedMembers[i];
-                var userFieldMap = BuildFieldValueMap(member.UserFields);
-                var userFieldEntries = new List<FieldEntry>();
-
-                foreach (var field in userFieldDefinitions)
-                {
-                    var hasValue = userFieldMap.TryGetValue(field.Id, out var rawValue) && HasFieldValue(rawValue);
-                    if (field.Required == true && !hasValue)
-                    {
-                        return BaseResponseDTO<string>.Fail($"User field '{field.Name}' is required for member '{member.Username}'");
-                    }
-
-                    if (!hasValue)
-                    {
-                        continue;
-                    }
-
-                    var fieldType = NormalizeFieldType(field.FieldType);
-                    if (fieldType == "boolean")
-                    {
-                        if (!TryReadBoolean(rawValue, out var booleanValue))
-                        {
-                            return BaseResponseDTO<string>.Fail($"User field '{field.Name}' must be a boolean value for member '{member.Username}'");
-                        }
-
-                        if (field.Required == true && booleanValue != true)
-                        {
-                            return BaseResponseDTO<string>.Fail($"User field '{field.Name}' must be accepted for member '{member.Username}'");
-                        }
-
-                        userFieldEntries.Add(new FieldEntry
-                        {
-                            Type = "user",
-                            FieldId = field.Id,
-                            Value = JsonSerializer.Serialize(booleanValue),
-                        });
-
-                        continue;
-                    }
-
-                    var textValue = ReadTextValue(rawValue);
-                    if (field.Required == true && textValue == null)
-                    {
-                        return BaseResponseDTO<string>.Fail($"User field '{field.Name}' is required for member '{member.Username}'");
-                    }
-
-                    if (textValue == null)
-                    {
-                        continue;
-                    }
-
-                    userFieldEntries.Add(new FieldEntry
-                    {
-                        Type = "user",
-                        FieldId = field.Id,
-                        Value = JsonSerializer.Serialize(textValue),
-                    });
-                }
-
-                userFieldEntriesByMember[i] = userFieldEntries;
-            }
-
-            var teamPasswordRaw = teamPassword ?? preparedMembers[0].Password;
-            var now = DateTime.UtcNow;
-
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            var team = new Team
+            var user = new User
             {
-                Name = teamName,
-                Email = teamEmail,
-                Password = SHA256Helper.HashPasswordPythonStyle(teamPasswordRaw),
+                Name = username,
+                Email = email,
+                Password = SHA256Helper.HashPasswordPythonStyle(password),
+                Type = ResourceShared.Enums.UserType.User,
+                Verified = false,
                 Hidden = false,
                 Banned = false,
-                Created = now,
+                TeamId = null,
+                Created = DateTime.UtcNow,
             };
 
-            _context.Teams.Add(team);
+            _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            var users = preparedMembers
-                .Select(member => new User
-                {
-                    Name = member.Username,
-                    Email = member.Email,
-                    Password = SHA256Helper.HashPasswordPythonStyle(member.Password),
-                    Type = ResourceShared.Enums.UserType.User,
-                    Verified = false,
-                    Hidden = false,
-                    Banned = false,
-                    TeamId = team.Id,
-                    Created = now,
-                })
-                .ToList();
-
-            _context.Users.AddRange(users);
-            await _context.SaveChangesAsync();
-
-            team.CaptainId = users[0].Id;
-            _context.Teams.Update(team);
-            await _context.SaveChangesAsync();
-
-            foreach (var fieldEntry in teamFieldEntries)
+            foreach (var fieldEntry in userFieldEntries)
             {
-                fieldEntry.TeamId = team.Id;
+                fieldEntry.UserId = user.Id;
             }
 
-            _context.FieldEntries.AddRange(teamFieldEntries);
-
-            for (var i = 0; i < users.Count; i++)
-            {
-                var userFieldEntries = userFieldEntriesByMember[i];
-                foreach (var fieldEntry in userFieldEntries)
-                {
-                    fieldEntry.UserId = users[i].Id;
-                }
-
-                _context.FieldEntries.AddRange(userFieldEntries);
-            }
-
+            _context.FieldEntries.AddRange(userFieldEntries);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -688,17 +486,17 @@ public class AuthService : IAuthService
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogError(ex, data: new { registerContestantDto.teamName });
+            _logger.LogError(ex, data: new { registerContestantDto.username });
             if (ex.InnerException?.Message.Contains("Duplicate", StringComparison.OrdinalIgnoreCase) == true)
             {
-                return BaseResponseDTO<string>.Fail("A duplicated username, email, or team was detected");
+                return BaseResponseDTO<string>.Fail("A duplicated username or email was detected");
             }
 
             return BaseResponseDTO<string>.Fail("Unable to submit registration");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, data: new { registerContestantDto.teamName });
+            _logger.LogError(ex, data: new { registerContestantDto.username });
             return BaseResponseDTO<string>.Fail("Unable to submit registration");
         }
     }
@@ -754,17 +552,16 @@ public class AuthService : IAuthService
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
             }
+            if (user.Team == null)
+            {
+                return BaseResponseDTO<AuthResponseDTO>.Fail("You don't have a team yet");
+            }
             if (user.Team != null && (user.Team.Banned ?? false))
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your team has been banned");
             }
             var dateTime = DateTime.Now.AddDays(1);
             var jwt = await _tokenHelper.GenerateUserToken(user, dateTime, "Login token");
-
-            if (user.Team == null)
-            {
-                return BaseResponseDTO<AuthResponseDTO>.Fail("you don't have a team yet");
-            }
 
             // Kiểm tra xem user đã có tracking với IP này chưa
             var userIp = _userHelper.GetIP(_httpContextAccessor.HttpContext!);
@@ -806,13 +603,15 @@ public class AuthService : IAuthService
             var authResponse = new AuthResponseDTO
             {
                 id = user.Id,
-                username = user.Name,
-                email = user.Email,
-                team = new TeamResponse
-                {
-                    id = user.Team.Id,
-                    teamName = user.Team.Name
-                },
+                username = user.Name ?? string.Empty,
+                email = user.Email ?? string.Empty,
+                team = user.Team == null
+                    ? null
+                    : new TeamResponse
+                    {
+                        id = user.Team.Id,
+                        teamName = user.Team.Name ?? string.Empty
+                    },
                 token = jwt
             };
 

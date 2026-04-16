@@ -98,10 +98,7 @@ class AuthService {
 
     return {
       userFields: normalizeFields(payload.userFields),
-      teamFields: normalizeFields(payload.teamFields),
       constraints: {
-        teamSizeLimit: Number(constraintsRaw.teamSizeLimit ?? 0),
-        numTeamsLimit: Number(constraintsRaw.numTeamsLimit ?? 0),
         numUsersLimit: Number(constraintsRaw.numUsersLimit ?? 0),
       },
     };

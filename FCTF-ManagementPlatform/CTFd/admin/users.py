@@ -3,7 +3,7 @@ from sqlalchemy.sql import not_
 from sqlalchemy import or_
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Teams, Tracking, UserFields, Users
+from CTFd.models import Challenges, Tracking, UserFields, Users
 from CTFd.utils import get_config
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.modes import TEAMS_MODE
@@ -147,10 +147,7 @@ def users_pending_listing():
     q = request.args.get("q")
     page = abs(request.args.get("page", 1, type=int))
 
-    base_query = (
-        Users.query.outerjoin(Teams, Users.team_id == Teams.id)
-        .filter(Users.type == "user", Users.verified == False)
-    )
+    base_query = Users.query.filter(Users.type == "user", Users.verified == False)
 
     if q:
         search = "%{}%".format(q)
@@ -158,7 +155,6 @@ def users_pending_listing():
             or_(
                 Users.name.like(search),
                 Users.email.like(search),
-                Teams.name.like(search),
             )
         )
 
