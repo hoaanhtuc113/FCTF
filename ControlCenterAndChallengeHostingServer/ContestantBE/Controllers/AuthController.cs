@@ -32,7 +32,7 @@ public class AuthController : BaseController
                 message = result.Message,
             });
         }
-        _userBehaviorLogger.Log("LOGIN", result.Data.id, result.Data.team.id, result.Data);
+        _userBehaviorLogger.Log("LOGIN", result.Data.id, result.Data.team?.id, result.Data);
         await Console.Out.WriteLineAsync($"[Auth] Account {loginDto.username} login success");
 
         return Ok(new
