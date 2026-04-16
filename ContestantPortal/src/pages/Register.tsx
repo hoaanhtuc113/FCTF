@@ -6,10 +6,8 @@ import {
   Checkbox,
   CircularProgress,
   FormControlLabel,
-  IconButton,
   TextField,
 } from '@mui/material';
-import { Add, Delete } from '@mui/icons-material';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { useToast } from '../hooks/useToast';
 import { authService } from '../services/authService';
@@ -23,8 +21,7 @@ import type {
   RegistrationMetadata,
 } from '../models/registration.model';
 
-interface MemberFormState {
-  id: string;
+interface RegisterFormState {
   username: string;
   email: string;
   password: string;
@@ -40,22 +37,13 @@ const buildFieldDefaults = (fields: RegistrationFieldDefinition[]): Record<numbe
   return result;
 };
 
-const createMemberState = (fields: RegistrationFieldDefinition[]): MemberFormState => ({
-  id: createMemberId(),
+const createInitialFormState = (fields: RegistrationFieldDefinition[]): RegisterFormState => ({
   username: '',
   email: '',
   password: '',
   confirmPassword: '',
   userFieldValues: buildFieldDefaults(fields),
 });
-
-const createMemberId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return `member-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
 
 const buildFieldPayload = (
   fields: RegistrationFieldDefinition[],
@@ -87,12 +75,8 @@ export function Register() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [metadata, setMetadata] = useState<RegistrationMetadata | null>(null);
+  const [form, setForm] = useState<RegisterFormState>(() => createInitialFormState([]));
 
-  const [teamName, setTeamName] = useState('');
-  const [teamEmail, setTeamEmail] = useState('');
-  const [teamPassword, setTeamPassword] = useState('');
-  const [teamFieldValues, setTeamFieldValues] = useState<Record<number, string | boolean>>({});
-  const [members, setMembers] = useState<MemberFormState[]>([]);
   const captchaTokenRef = useRef<string | null>(null);
   const initializedRef = useRef(false);
   const lastCaptchaErrorAtRef = useRef(0);
@@ -134,21 +118,6 @@ export function Register() {
     '& .MuiInputBase-input::placeholder': {
       color: colors.textSecondary,
       opacity: 1,
-    },
-  };
-
-  const secondaryButtonSx = {
-    fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-    fontSize: 13,
-    textTransform: 'none',
-    color: colors.textSecondary,
-    border: `1px solid ${colors.borderLight}`,
-    bgcolor: '#fff',
-    py: 1.2,
-    '&:hover': {
-      bgcolor: '#fff7ec',
-      borderColor: colors.primary,
-      color: colors.primary,
     },
   };
 
@@ -228,18 +197,16 @@ export function Register() {
         const registrationMetadata = await authService.getRegistrationMetadata();
 
         const normalizedMetadata: RegistrationMetadata = {
-          userFields: Array.isArray(registrationMetadata.userFields) ? registrationMetadata.userFields.filter(Boolean) : [],
-          teamFields: Array.isArray(registrationMetadata.teamFields) ? registrationMetadata.teamFields.filter(Boolean) : [],
+          userFields: Array.isArray(registrationMetadata.userFields)
+            ? registrationMetadata.userFields.filter(Boolean)
+            : [],
           constraints: {
-            teamSizeLimit: Number(registrationMetadata.constraints?.teamSizeLimit ?? 0),
-            numTeamsLimit: Number(registrationMetadata.constraints?.numTeamsLimit ?? 0),
             numUsersLimit: Number(registrationMetadata.constraints?.numUsersLimit ?? 0),
           },
         };
 
         setMetadata(normalizedMetadata);
-        setTeamFieldValues(buildFieldDefaults(normalizedMetadata.teamFields));
-        setMembers([createMemberState(normalizedMetadata.userFields)]);
+        setForm(createInitialFormState(normalizedMetadata.userFields));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unable to load registration form';
         toast.error(errorMessage);
@@ -251,54 +218,18 @@ export function Register() {
     void loadData();
   }, [navigate, toast]);
 
-  const updateTeamField = (fieldId: number, value: string | boolean) => {
-    setTeamFieldValues((prev) => ({ ...prev, [fieldId]: value }));
+  const updateForm = (patch: Partial<RegisterFormState>) => {
+    setForm((prev) => ({ ...prev, ...patch }));
   };
 
-  const updateMember = (memberId: string, patch: Partial<MemberFormState>) => {
-    setMembers((prev) =>
-      prev.map((member) => (member.id === memberId ? { ...member, ...patch } : member))
-    );
-  };
-
-  const updateMemberField = (memberId: string, fieldId: number, value: string | boolean) => {
-    setMembers((prev) =>
-      prev.map((member) => {
-        if (member.id !== memberId) {
-          return member;
-        }
-
-        return {
-          ...member,
-          userFieldValues: {
-            ...member.userFieldValues,
-            [fieldId]: value,
-          },
-        };
-      })
-    );
-  };
-
-  const addMember = () => {
-    if (!metadata) {
-      return;
-    }
-
-    const teamSizeLimit = metadata.constraints.teamSizeLimit;
-    if (teamSizeLimit > 0 && members.length >= teamSizeLimit) {
-      toast.warning(`Team size is limited to ${teamSizeLimit} member(s)`);
-      return;
-    }
-
-    setMembers((prev) => [...prev, createMemberState(metadata.userFields)]);
-  };
-
-  const removeMember = (memberId: string) => {
-    if (members.length <= 1) {
-      return;
-    }
-
-    setMembers((prev) => prev.filter((member) => member.id !== memberId));
+  const updateUserField = (fieldId: number, value: string | boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      userFieldValues: {
+        ...prev.userFieldValues,
+        [fieldId]: value,
+      },
+    }));
   };
 
   const validateForm = (): string | null => {
@@ -306,56 +237,26 @@ export function Register() {
       return 'Registration metadata is not available';
     }
 
-    if (!teamName.trim()) {
-      return 'Team name is required';
+    if (!form.username.trim() || !form.email.trim() || !form.password || !form.confirmPassword) {
+      return 'Username, email, password, and confirm password are required';
     }
 
-    if (members.length === 0) {
-      return 'At least one team member is required';
+    if (form.password !== form.confirmPassword) {
+      return 'Password confirmation does not match';
     }
 
-    const teamSizeLimit = metadata.constraints.teamSizeLimit;
-    if (teamSizeLimit > 0 && members.length > teamSizeLimit) {
-      return `Team size cannot exceed ${teamSizeLimit}`;
-    }
-
-    for (const field of metadata.teamFields) {
-      const value = teamFieldValues[field.id];
+    for (const field of metadata.userFields) {
+      const value = form.userFieldValues[field.id];
       if (!field.required) {
         continue;
       }
 
       if (field.fieldType === 'boolean' && value !== true) {
-        return `Team field '${field.name}' must be accepted`;
+        return `User field '${field.name}' must be accepted`;
       }
 
       if (field.fieldType === 'text' && (typeof value !== 'string' || !value.trim())) {
-        return `Team field '${field.name}' is required`;
-      }
-    }
-
-    for (const member of members) {
-      if (!member.username.trim() || !member.email.trim() || !member.password || !member.confirmPassword) {
-        return 'Each member must provide username, email, and password';
-      }
-
-      if (member.password !== member.confirmPassword) {
-        return `Password confirmation does not match for member '${member.username || 'unknown'}'`;
-      }
-
-      for (const field of metadata.userFields) {
-        const value = member.userFieldValues[field.id];
-        if (!field.required) {
-          continue;
-        }
-
-        if (field.fieldType === 'boolean' && value !== true) {
-          return `User field '${field.name}' must be accepted for member '${member.username || 'unknown'}'`;
-        }
-
-        if (field.fieldType === 'text' && (typeof value !== 'string' || !value.trim())) {
-          return `User field '${field.name}' is required for member '${member.username || 'unknown'}'`;
-        }
+        return `User field '${field.name}' is required`;
       }
     }
 
@@ -385,27 +286,13 @@ export function Register() {
     await yieldToBrowser();
 
     const payload: RegisterContestantPayload = {
-      teamName: teamName.trim(),
+      username: form.username.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      confirmPassword: form.confirmPassword,
       captchaToken: captchaTokenRef.current ?? undefined,
-      teamFields: buildFieldPayload(metadata.teamFields, teamFieldValues),
-      members: members.map((member) => ({
-        username: member.username.trim(),
-        email: member.email.trim(),
-        password: member.password,
-        confirmPassword: member.confirmPassword,
-        userFields: buildFieldPayload(metadata.userFields, member.userFieldValues),
-      })),
+      userFields: buildFieldPayload(metadata.userFields, form.userFieldValues),
     };
-
-    const normalizedTeamEmail = teamEmail.trim();
-    if (normalizedTeamEmail) {
-      payload.teamEmail = normalizedTeamEmail;
-    }
-
-    const normalizedTeamPassword = teamPassword.trim();
-    if (normalizedTeamPassword) {
-      payload.teamPassword = normalizedTeamPassword;
-    }
 
     try {
       await authService.registerContestant(payload);
@@ -494,7 +381,7 @@ export function Register() {
                 </span>
               </Box>
               <Box sx={{ mt: 1, color: colors.textSecondary, fontSize: 14 }}>
-                Register a contestant team for the FPT Capture The Flag platform
+                Register your contestant account for the FPT Capture The Flag platform
               </Box>
             </Box>
 
@@ -513,58 +400,74 @@ export function Register() {
 
               <form onSubmit={handleSubmit}>
                 <Box sx={{ mb: 2.5, color: colors.text, fontSize: 14 }}>
-                  <span style={{ color: colors.textMuted }}>$</span> ./register-contestant-team
+                  <span style={{ color: colors.textMuted }}>$</span> ./register-contestant-account
                 </Box>
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.25, mb: 2.25 }}>
                   <Box>
-                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Team Name</Box>
+                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Username</Box>
                     <TextField
                       fullWidth
                       required
-                      value={teamName}
-                      onChange={(event) => setTeamName(event.target.value)}
-                      placeholder="input team name..."
+                      value={form.username}
+                      onChange={(event) => updateForm({ username: event.target.value })}
+                      placeholder="input username..."
                       sx={textFieldSx}
                     />
                   </Box>
                   <Box>
-                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Team Email (optional)</Box>
+                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Email</Box>
                     <TextField
                       fullWidth
-                      value={teamEmail}
-                      onChange={(event) => setTeamEmail(event.target.value)}
-                      placeholder="team@example.com"
+                      required
+                      value={form.email}
+                      onChange={(event) => updateForm({ email: event.target.value })}
+                      placeholder="user@example.com"
                       sx={textFieldSx}
                     />
                   </Box>
                 </Box>
 
-                <Box sx={{ mb: 2.25 }}>
-                  <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Team Password (optional)</Box>
-                  <TextField
-                    fullWidth
-                    type="password"
-                    value={teamPassword}
-                    onChange={(event) => setTeamPassword(event.target.value)}
-                    placeholder="leave blank to use captain password"
-                    sx={textFieldSx}
-                  />
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.25, mb: 2.75 }}>
+                  <Box>
+                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Password</Box>
+                    <TextField
+                      fullWidth
+                      required
+                      type="password"
+                      value={form.password}
+                      onChange={(event) => updateForm({ password: event.target.value })}
+                      placeholder="enter_password"
+                      sx={textFieldSx}
+                    />
+                  </Box>
+                  <Box>
+                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Confirm Password</Box>
+                    <TextField
+                      fullWidth
+                      required
+                      type="password"
+                      value={form.confirmPassword}
+                      onChange={(event) => updateForm({ confirmPassword: event.target.value })}
+                      placeholder="confirm_password"
+                      sx={textFieldSx}
+                    />
+                  </Box>
                 </Box>
 
-                {metadata && metadata.teamFields.length > 0 && (
+                {metadata && metadata.userFields.length > 0 && (
                   <Box sx={{ mb: 3 }}>
                     <Box sx={{ mb: 1.25, color: colors.primary, fontSize: 14, fontWeight: 700 }}>
-                      TEAM CUSTOM FIELDS
+                      CUSTOM FIELDS
                     </Box>
-                    {metadata.teamFields.map((field) => (
+                    {metadata.userFields.map((field) => (
                       <Box key={field.id} sx={{ mb: 1.5 }}>
                         {field.fieldType === 'boolean' ? (
                           <FormControlLabel
                             control={(
                               <Checkbox
-                                checked={teamFieldValues[field.id] === true}
-                                onChange={(event) => updateTeamField(field.id, event.target.checked)}
+                                checked={form.userFieldValues[field.id] === true}
+                                onChange={(event) => updateUserField(field.id, event.target.checked)}
                                 sx={{
                                   color: colors.primary,
                                   '&.Mui-checked': { color: colors.primary },
@@ -587,8 +490,8 @@ export function Register() {
                             </Box>
                             <TextField
                               fullWidth
-                              value={typeof teamFieldValues[field.id] === 'string' ? teamFieldValues[field.id] : ''}
-                              onChange={(event) => updateTeamField(field.id, event.target.value)}
+                              value={typeof form.userFieldValues[field.id] === 'string' ? form.userFieldValues[field.id] : ''}
+                              onChange={(event) => updateUserField(field.id, event.target.value)}
                               placeholder={field.description || ''}
                               sx={textFieldSx}
                             />
@@ -599,135 +502,13 @@ export function Register() {
                   </Box>
                 )}
 
-                <Box sx={{ mb: 1.25, color: colors.primary, fontSize: 14, fontWeight: 700 }}>
-                  TEAM MEMBERS
-                </Box>
-                {members.map((member, index) => (
-                  <Box
-                    key={member.id}
-                    sx={{
-                      border: `1px solid ${colors.borderLight}`,
-                      borderRadius: '8px',
-                      p: 2,
-                      mb: 2,
-                      bgcolor: '#fffcf8',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
-                      <Box sx={{ color: colors.textSecondary, fontWeight: 700, fontSize: 12 }}>
-                        MEMBER #{index + 1}{index === 0 ? ' (CAPTAIN)' : ''}
-                      </Box>
-                      {members.length > 1 && (
-                        <IconButton
-                          onClick={() => removeMember(member.id)}
-                          sx={{ color: '#ef4444' }}
-                          aria-label="remove-member"
-                        >
-                          <Delete />
-                        </IconButton>
-                      )}
-                    </Box>
-
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 2 }}>
-                      <Box>
-                        <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Username</Box>
-                        <TextField
-                          fullWidth
-                          required
-                          value={member.username}
-                          onChange={(event) => updateMember(member.id, { username: event.target.value })}
-                          placeholder="input username..."
-                          sx={textFieldSx}
-                        />
-                      </Box>
-                      <Box>
-                        <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Email</Box>
-                        <TextField
-                          fullWidth
-                          required
-                          value={member.email}
-                          onChange={(event) => updateMember(member.id, { email: event.target.value })}
-                          placeholder="member@example.com"
-                          sx={textFieldSx}
-                        />
-                      </Box>
-                      <Box>
-                        <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Password</Box>
-                        <TextField
-                          fullWidth
-                          required
-                          type="password"
-                          value={member.password}
-                          onChange={(event) => updateMember(member.id, { password: event.target.value })}
-                          placeholder="enter_password"
-                          sx={textFieldSx}
-                        />
-                      </Box>
-                      <Box>
-                        <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Confirm Password</Box>
-                        <TextField
-                          fullWidth
-                          required
-                          type="password"
-                          value={member.confirmPassword}
-                          onChange={(event) => updateMember(member.id, { confirmPassword: event.target.value })}
-                          placeholder="confirm_password"
-                          sx={textFieldSx}
-                        />
-                      </Box>
-                    </Box>
-
-                    {metadata && metadata.userFields.length > 0 && (
-                      <Box>
-                        {metadata.userFields.map((field) => (
-                          <Box key={`${member.id}-${field.id}`} sx={{ mb: 1.5 }}>
-                            {field.fieldType === 'boolean' ? (
-                              <FormControlLabel
-                                control={(
-                                  <Checkbox
-                                    checked={member.userFieldValues[field.id] === true}
-                                    onChange={(event) => updateMemberField(member.id, field.id, event.target.checked)}
-                                    sx={{
-                                      color: colors.primary,
-                                      '&.Mui-checked': { color: colors.primary },
-                                    }}
-                                  />
-                                )}
-                                label={`${field.name}${field.required ? ' *' : ''}`}
-                                sx={{
-                                  color: colors.textSecondary,
-                                  '& .MuiTypography-root': {
-                                    fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-                                    fontSize: 12,
-                                  },
-                                }}
-                              />
-                            ) : (
-                              <>
-                                <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>
-                                  {field.name}{field.required ? ' *' : ''}
-                                </Box>
-                                <TextField
-                                  fullWidth
-                                  value={typeof member.userFieldValues[field.id] === 'string' ? member.userFieldValues[field.id] : ''}
-                                  onChange={(event) => updateMemberField(member.id, field.id, event.target.value)}
-                                  placeholder={field.description || ''}
-                                  sx={textFieldSx}
-                                />
-                              </>
-                            )}
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
+                {metadata && metadata.constraints.numUsersLimit > 0 && (
+                  <Box sx={{ mb: 2.5, color: colors.textMuted, fontSize: 11 }}>
+                    account_limit: {metadata.constraints.numUsersLimit}
                   </Box>
-                ))}
+                )}
 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2.5, alignItems: 'center' }}>
-                  <Button type="button" onClick={addMember} startIcon={<Add />} sx={secondaryButtonSx}>
-                    [ADD MEMBER]
-                  </Button>
-
                   {captchaEnabled ? (
                     <Box sx={{ ml: { xs: 0, md: 'auto' }, width: { xs: '100%', md: 350 } }}>
                       <AuthTurnstile
@@ -753,7 +534,7 @@ export function Register() {
                       minWidth: { xs: '100%', sm: '220px' },
                     }}
                   >
-                    {submitting ? <CircularProgress size={20} sx={{ color: '#a1a1aa' }} /> : '[SUBMIT]'}
+                    {submitting ? <CircularProgress size={20} sx={{ color: '#a1a1aa' }} /> : '[CREATE ACCOUNT]'}
                   </Button>
                 </Box>
               </form>

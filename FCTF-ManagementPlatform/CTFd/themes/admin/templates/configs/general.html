@@ -89,28 +89,6 @@
 		</div>
 
 		<div class="form-group">
-			<label for="team_size">
-				Team Size Limit
-				<small class="form-text text-muted">
-					Maximum number of members allowed in a team. Set to 0 for no limit.
-				</small>
-			</label>
-			<input class="form-control" id="team_size" name="team_size" type="number" min="0"
-				placeholder="5" value="{% if team_size is defined and team_size is not none and team_size != '' %}{{ team_size }}{% else %}5{% endif %}">
-		</div>
-
-		<div class="form-group">
-			<label for="num_teams">
-				Maximum Number of Teams
-				<small class="form-text text-muted">
-					Maximum number of active teams allowed to register. Set to 0 for no limit.
-				</small>
-			</label>
-			<input class="form-control" id="num_teams" name="num_teams" type="number" min="0"
-				placeholder="500" value="{% if num_teams is defined and num_teams is not none and num_teams != '' %}{{ num_teams }}{% else %}500{% endif %}">
-		</div>
-
-		<div class="form-group">
 			<label for="num_users">
 				Maximum Number of Users
 				<small class="form-text text-muted">
