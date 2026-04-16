@@ -495,7 +495,7 @@ export function Register() {
                   </Box>
                 )}
 
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2.5, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2.5, alignItems: 'center', justifyContent: 'flex-start' }}>
                   {captchaEnabled ? (
                     <Box sx={{ width: { xs: '100%', md: 350 } }}>
                       <AuthTurnstile
