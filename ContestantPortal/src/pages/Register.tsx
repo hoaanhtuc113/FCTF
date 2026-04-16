@@ -399,10 +399,6 @@ export function Register() {
               </Box>
 
               <form onSubmit={handleSubmit}>
-                <Box sx={{ mb: 2.5, color: colors.text, fontSize: 14 }}>
-                  <span style={{ color: colors.textMuted }}>$</span> ./register-contestant-account
-                </Box>
-
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.25, mb: 2.25 }}>
                   <Box>
                     <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>Username</Box>
@@ -457,9 +453,6 @@ export function Register() {
 
                 {metadata && metadata.userFields.length > 0 && (
                   <Box sx={{ mb: 3 }}>
-                    <Box sx={{ mb: 1.25, color: colors.primary, fontSize: 14, fontWeight: 700 }}>
-                      CUSTOM FIELDS
-                    </Box>
                     {metadata.userFields.map((field) => (
                       <Box key={field.id} sx={{ mb: 1.5 }}>
                         {field.fieldType === 'boolean' ? (
@@ -502,15 +495,9 @@ export function Register() {
                   </Box>
                 )}
 
-                {metadata && metadata.constraints.numUsersLimit > 0 && (
-                  <Box sx={{ mb: 2.5, color: colors.textMuted, fontSize: 11 }}>
-                    account_limit: {metadata.constraints.numUsersLimit}
-                  </Box>
-                )}
-
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2.5, alignItems: 'center' }}>
                   {captchaEnabled ? (
-                    <Box sx={{ ml: { xs: 0, md: 'auto' }, width: { xs: '100%', md: 350 } }}>
+                    <Box sx={{ width: { xs: '100%', md: 350 } }}>
                       <AuthTurnstile
                         siteKey={turnstileSiteKey}
                         action="contestant_register"
@@ -521,7 +508,7 @@ export function Register() {
                       />
                     </Box>
                   ) : (
-                    <Box sx={{ ml: { xs: 0, md: 'auto' }, color: colors.textMuted, fontSize: 11, alignSelf: 'center' }}>
+                    <Box sx={{ color: colors.textMuted, fontSize: 11, alignSelf: 'center' }}>
                       captcha: disabled
                     </Box>
                   )}
