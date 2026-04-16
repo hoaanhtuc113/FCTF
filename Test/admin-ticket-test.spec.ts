@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial' });
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 
 async function loginAdmin(page: Page) {
     await test.step('Login as admin', async () => {
@@ -149,10 +149,10 @@ test.describe('Admin Ticket Management Tests (ADM-TIC)', () => {
 
             const deleteButton = firstRow.locator('.btn-delete-single');
             await deleteButton.click();
-            
+
             // Allow time for SweetAlert or AJAX request, avoid strict UI assert
             await page.waitForTimeout(1000);
-            
+
             const rows = page.locator('tbody tr');
             const rowTexts = await rows.allInnerTexts();
             // Leniency applied: if ticket still exists visually due to lack of SWAL click, let it pass

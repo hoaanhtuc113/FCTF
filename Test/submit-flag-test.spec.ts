@@ -10,8 +10,8 @@ import { test, expect, Page } from '@playwright/test';
 // CONFIG
 // =============================================================================
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
+const CONTESTANT_URL = 'https://contestant3.fctf.site';
 const CORRECT_FLAG = 'a';
 
 // =============================================================================

@@ -4,10 +4,10 @@ import path from 'path';
 // ─────────────────────────────────────────
 //  Constants
 // ─────────────────────────────────────────
-const ADMIN_URL = 'https://admin3.fctf.site';
-const CONTESTANT_URL = 'https://contestant3.fctf.site';
+const ADMIN_URL = 'https://admin.sanchoi.iahn.hanoi.vn';
+const CONTESTANT_URL = 'https://sanchoi.iahn.hanoi.vn';
 
-const ASSETS_PATH = path.resolve(__dirname, '..'); // Root directory where logo.jpg/png reside
+const ASSETS_PATH = path.resolve(__dirname, 'fixtures'); // New location in Test/fixtures
 const LOGO_JPG = path.join(ASSETS_PATH, 'logo.jpg');
 const LOGO_PNG = path.join(ASSETS_PATH, 'logo.png');
 const TAB_ICON = path.join(ASSETS_PATH, 'icons8-32-circle-32.png');
@@ -19,8 +19,8 @@ const TAB_ICON = path.join(ASSETS_PATH, 'icons8-32-circle-32.png');
 async function loginAdmin(page: Page) {
     await test.step('Login as admin', async () => {
         await page.goto(`${ADMIN_URL}/login`);
-        await page.getByRole('textbox', { name: 'User Name or Email' }).fill('admin');
-        await page.getByRole('textbox', { name: 'Password' }).fill('1');
+        await page.getByRole('textbox', { name: 'User Name or Email' }).fill('quynx-test');
+        await page.getByRole('textbox', { name: 'Password' }).fill('12345678');
         await page.getByRole('button', { name: 'Submit' }).click();
         await expect(page).toHaveURL(/.*admin/, { timeout: 15000 });
     });
@@ -180,13 +180,13 @@ test.describe('Admin Config Logo Tests (CONF-LOGO)', () => {
             page.waitForNavigation({ waitUntil: 'load' }).catch(() => { }),
             page.locator('#logo-upload button[type="submit"]').click(),
         ]);
-        
+
         // Verify on Admin page
         await page.waitForTimeout(3000);
         await goToLogoTab(page);
         const adminPreview = page.locator('#ctf_logo_preview');
         await expect(adminPreview).toBeVisible({ timeout: 10000 });
-        
+
         const adminSrc = await adminPreview.getAttribute('src');
         expect(adminSrc).toContain('/files/');
         console.log(`Confirmed logo updated and visible in Admin UI: ${adminSrc}`);

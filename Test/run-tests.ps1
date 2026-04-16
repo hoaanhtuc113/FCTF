@@ -1,7 +1,7 @@
 # Run Tests in Order with Config Support
-$TestDir = "Test"
-$SystemTestNhatDir = "Test/SystemTest-First/tests"
-$SystemTestNhatConfig = "Test/SystemTest-First/playwright.config.ts"
+$TestDir = "."
+$SystemTestNhatDir = "SystemTest-Nhat/tests"
+$SystemTestNhatConfig = "playwright.config.ts"
 $LastTests = @("import-export-csv-test.spec.ts", "admin-reset-test.spec.ts")
 
 # 1. System tests
@@ -32,12 +32,12 @@ foreach ($testFile in $SystemTests) {
 # Execution Category 2
 foreach ($testFile in $TopLevelTests) {
     Write-Host "`n[RUNNING] $testFile..." -ForegroundColor Cyan
-    cmd /c "npx playwright test ""$testFile"" --headed --workers=1"
+    cmd /c "npx playwright test ""$testFile"" --config=""playwright.config.ts"" --headed --workers=1"
 }
 
 # Execution Category 3
 foreach ($testFile in $FinalTests) {
     Write-Host "`n[RUNNING] $testFile..." -ForegroundColor Cyan
-    cmd /c "npx playwright test ""$testFile"" --headed --workers=1"
+    cmd /c "npx playwright test ""$testFile"" --config=""playwright.config.ts"" --headed --workers=1"
 }
 

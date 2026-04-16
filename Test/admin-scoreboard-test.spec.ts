@@ -8,7 +8,7 @@ import { test, expect, Page } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial', retries: 1 });
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 
 // =============================================================================
 // HELPERS

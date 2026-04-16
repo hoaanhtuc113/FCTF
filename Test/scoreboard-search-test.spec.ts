@@ -4,7 +4,7 @@ import { test, expect, Page } from '@playwright/test';
 // HELPER FUNCTIONS & CONSTANTS
 // =============================================================================
 
-const BASE_URL = 'https://contestant0.fctf.site';
+const BASE_URL = 'https://contestant3.fctf.site';
 const TEST_USER = 'user22';
 const TEST_PASS = '1';
 

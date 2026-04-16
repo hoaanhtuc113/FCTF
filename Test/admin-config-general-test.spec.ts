@@ -3,8 +3,8 @@ import { test, expect, type Page } from '@playwright/test';
 // ─────────────────────────────────────────
 //  Constants
 // ─────────────────────────────────────────
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
+const CONTESTANT_URL = 'https://contestant3.fctf.site';
 
 // ─────────────────────────────────────────
 //  Helpers

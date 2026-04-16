@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = '1';
 

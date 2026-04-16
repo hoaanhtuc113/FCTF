@@ -54,8 +54,8 @@ export function workspaceFile(fileName: string) {
     }
 
     const candidates = [
-        path.join(process.cwd(), fileName),
-        path.resolve(__dirname, '..', fileName),
+        path.join(process.cwd(), 'Test', 'fixtures', fileName),
+        path.resolve(__dirname, 'fixtures', fileName),
     ];
 
     for (const candidate of candidates) {

@@ -3,7 +3,7 @@
 Tài liệu này mô tả toàn bộ bộ test tự động cho hệ thống FCTF, bao gồm cách cài đặt, cấu hình và điều kiện cần thiết trước khi chạy từng file test.
 
 ---
-Chạy toàn bộ test bằng script: node run-tests.js
+Chạy toàn bộ test bằng script (bên trong thư mục Test): node run-tests.js
 
 ## 1. Cài đặt
 
@@ -36,7 +36,10 @@ npx playwright install chromium
 ## 3. Chạy test
 
 ### Chạy toàn bộ (Khuyên dùng)
-Để đảm bảo tất cả các test (bao gồm cả `SystemTest-First`) chạy đúng thứ tự và không bị xung đột, hãy sử dụng script điều hướng sau:
+Trước tiên, hãy di chuyển vào thư mục Test:
+```bash
+cd Test
+```
 
 **Cách 1: Chạy bằng Node.js (Mọi hệ điều hành)**
 ```bash
@@ -45,16 +48,16 @@ node run-tests.js
 
 **Cách 2: Chạy bằng PowerShell (Windows)**
 ```powershell
-.\run-tests.ps1
+powershell -ExecutionPolicy Bypass -File run-tests.ps1
 ```
 
 **Ưu điểm của cách chạy này:**
 - **Thứ tự thông minh**: Tự động chạy `SystemTest-First` trước (35 file), sau đó đến các test giao diện trong folder `Test/` gốc, và cuối cùng mới chạy các file Reset dữ liệu (CSV, Reset Contest).
 - **Worker = 1**: Đảm bảo chạy tuần tự từng test case một, tránh lỗi do quá tải server hoặc xung đột session đăng nhập.
-- **Vượt rào cản Config**: Tự động nạp đúng file cấu hình cho folder `SystemTest-First` (thứ mà lệnh `npx playwright test` thông thường sẽ bỏ qua).
+- **Vượt rào cản Config**: Tự động nạp đúng file cấu hình (thứ mà lệnh `npx playwright test` thông thường sẽ bỏ qua).
 ### Chạy một file cụ thể
 ```bash
-npx playwright test Test/<tên-file>.spec.ts
+npx playwright test <tên-file>.spec.ts
 ```
 
 ### Chạy toàn bộ
@@ -450,6 +453,7 @@ npx playwright show-report
 #### Technical Notes (Logo)
 - **Bootstrap Modals**: The "Remove" actions trigger a custom Bootstrap modal (`ezQuery`). Playwright must click the "Yes" button in the modal footer rather than handling a native browser dialog.
 - **Cache Clearing**: The Contestant Portal caches public configuration in `localStorage` for 5 minutes. Tests must clear `localStorage` and reload to verify logo changes immediately.
+- **Assets Folder**: To keep the project root clean, all test assets (images, zip files, etc.) are now stored in `Test/fixtures/`.
 - **Security Finding (File Upload)**: The system allows uploading non-image extensions (like `.php`) for the logo. However, since the server is Python/Flask-based and serves files statically via `send_file`, the PHP code is treated as a binary stream and **never executed**, preventing RCE (Remote Code Execution).
 - **Recommendation**: Implement backend validation to strictly allowed image mime-types (`image/png`, `image/jpeg`, etc.) to prevent potential XSS or storage cluttering.
 

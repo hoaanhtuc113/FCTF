@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 
 async function loginAdmin(page: Page) {
     await test.step('Login as admin', async () => {

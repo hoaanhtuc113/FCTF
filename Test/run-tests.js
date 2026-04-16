@@ -2,9 +2,9 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const TEST_DIR = path.join(__dirname, 'Test');
+const TEST_DIR = __dirname;
 const SYSTEM_TEST_NHAT_DIR = path.join(TEST_DIR, 'SystemTest-Nhat', 'tests');
-const SYSTEM_TEST_NHAT_CONFIG = path.join(TEST_DIR, 'SystemTest-Nhat', 'playwright.config.ts');
+const SYSTEM_TEST_NHAT_CONFIG = path.join(TEST_DIR, 'playwright.config.ts'); // Move it here
 
 // Group 0: SystemTest-Nhat (Dynamic)
 let systemTests = [];
@@ -106,9 +106,13 @@ if (process.argv.includes('--dry-run')) {
 // Execution - Category 0: SystemTest-Nhat
 if (systemTests.length > 0) {
     console.log(`\n\x1b[36m>>> Starting Nhóm 0: SystemTest-Nhat <<<\x1b[0m`);
-    const systemConfigFlag = fs.existsSync(SYSTEM_TEST_NHAT_CONFIG) ? `--config="${SYSTEM_TEST_NHAT_CONFIG}"` : '';
+    // System tests are already relative to TEST_DIR in the map function (Test/SystemTest...)
+    // but the map function used 'Test/'. Let's fix that.
+    const systemConfigFlag = fs.existsSync(SYSTEM_TEST_NHAT_CONFIG) ? `--config="playwright.config.ts"` : '';
     for (const testFile of systemTests) {
-        runTest(testFile, systemConfigFlag);
+        // Strip the 'Test/' prefix because we will run from TEST_DIR
+        const relativePath = testFile.startsWith('Test/') ? testFile.substring(5) : testFile;
+        runTest(relativePath, systemConfigFlag);
     }
 }
 
@@ -116,20 +120,25 @@ if (systemTests.length > 0) {
 for (const group of groups) {
     console.log(`\n\x1b[33m>>> Starting ${group.name} <<<\x1b[0m`);
     for (const testFile of group.tests) {
-        runTest(`Test/${testFile}`, '');
+        runTest(testFile, `--config="playwright.config.ts"`);
     }
 }
 
 function runTest(testPath, configFlag) {
-    if (!fs.existsSync(testPath)) {
-        console.error(`[\x1b[31mSKIPPED\x1b[0m] File not found: ${testPath}`);
+    const fullTestPath = path.join(TEST_DIR, testPath);
+    if (!fs.existsSync(fullTestPath)) {
+        console.error(`[\x1b[31mSKIPPED\x1b[0m] File not found: ${fullTestPath}`);
         return;
     }
 
     console.log(`\n[\x1b[34mRUNNING\x1b[0m] ${testPath}...`);
     try {
         // Run sequentially with --headed and --workers=1 to ensure strict ordering
-        execSync(`npx playwright test "${testPath}" ${configFlag} --headed --workers=1`, { stdio: 'inherit' });
+        // Execute with TEST_DIR as CWD so it finds local node_modules
+        execSync(`npx playwright test "${testPath}" ${configFlag} --headed --workers=1`, { 
+            stdio: 'inherit',
+            cwd: TEST_DIR
+        });
     } catch (error) {
         console.error(`[\x1b[31mFAILED\x1b[0m] ${testPath}`);
     }

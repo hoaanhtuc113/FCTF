@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 
 async function loginAdmin(page: Page) {
     await test.step('Login as admin', async () => {
@@ -31,7 +31,7 @@ test.describe('Admin Action Logs Filter Tests (FILT-ADM-AL)', () => {
             // wraps the search input and dropdown inside a .ss-wrapper.
             const wrapper = page.locator(`.ss-wrapper:has(input[name="${name}"])`);
             const input = wrapper.locator('.ss-input');
-            
+
             await expect(input).toBeVisible();
             await input.click();
 
@@ -49,8 +49,8 @@ test.describe('Admin Action Logs Filter Tests (FILT-ADM-AL)', () => {
         }
 
         await page.locator('button[type="submit"]').filter({ hasText: 'Filter' }).click();
-        
-        await page.waitForLoadState('load'); 
+
+        await page.waitForLoadState('load');
         await page.waitForTimeout(2000); // Wait for potential animations or dynamic rendering
     };
 

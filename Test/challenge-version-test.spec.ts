@@ -4,7 +4,7 @@ import { test, expect, Page } from '@playwright/test';
 // CONFIGURATION
 // =============================================================================
 
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
 const DEFAULT_CHALLENGE_GATEWAY_ID = 2;
 const challengeIdFromEnv = Number(
     ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env

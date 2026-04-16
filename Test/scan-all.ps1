@@ -8,7 +8,7 @@ param(
 )
 
 $SONAR_URL = "http://localhost:9000"
-$Root = $PSScriptRoot
+$Root = Split-Path -Parent $PSScriptRoot
 $Results = @()
 
 function Print-Header {

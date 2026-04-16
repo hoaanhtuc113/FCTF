@@ -5,8 +5,8 @@ import { test, expect, Page } from '@playwright/test';
  * Covers viewing, copying, and managing active instances.
  */
 
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
-const ADMIN_URL = 'https://admin0.fctf.site';
+const ADMIN_URL = 'https://admin.sanchoi.iahn.hanoi.vn';
+const CONTESTANT_URL = 'https://sanchoi.iahn.hanoi.vn';
 const TEST_USER = 'user22';
 const TEST_PASSWORD = '1';
 const AUTHENTICATED_CONTESTANT_PATH = /\/(dashboard|challenges|tickets|scoreboard|instances|action-logs|profile)(?:[/?#]|$)/i;

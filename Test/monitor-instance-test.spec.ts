@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin.sanchoi.iahn.hanoi.vn';
+const CONTESTANT_URL = 'https://sanchoi.iahn.hanoi.vn';
 
 async function loginAdmin(page: Page, retries = 2) {
     for (let i = 0; i < retries; i++) {

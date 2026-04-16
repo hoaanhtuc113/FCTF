@@ -8,8 +8,8 @@ import { test, expect, Page, Locator } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial', retries: 1 });
 
-const ADMIN_URL = 'https://admin0.fctf.site';
-const CONTESTANT_URL = 'https://contestant0.fctf.site';
+const ADMIN_URL = 'https://admin3.fctf.site';
+const CONTESTANT_URL = 'https://contestant3.fctf.site';
 const CHALLENGE_ID = '3'; // Using a known challenge ID from research
 
 // =============================================================================
