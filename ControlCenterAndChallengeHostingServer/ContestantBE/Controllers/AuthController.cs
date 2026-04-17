@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResourceShared.DTOs.Auth;
 using ResourceShared.Logger;
+using System.Linq;
 
 namespace ContestantBE.Controllers;
 
@@ -65,6 +66,23 @@ public class AuthController : BaseController
     [HttpPost("register-contestant")]
     public async Task<IActionResult> RegisterContestant([FromBody] RegisterContestantDTO registerContestantDto)
     {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState
+                .Where(entry => entry.Value?.Errors.Count > 0)
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => entry.Value!.Errors
+                        .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage) ? "Invalid value" : error.ErrorMessage)
+                        .ToArray());
+
+            return BadRequest(new
+            {
+                message = "Validation failed",
+                errors,
+            });
+        }
+
         var result = await _authService.RegisterContestant(registerContestantDto);
 
         if (!result.Success)
