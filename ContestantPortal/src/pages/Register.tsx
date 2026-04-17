@@ -407,7 +407,7 @@ export function Register() {
                       required
                       value={form.username}
                       onChange={(event) => updateForm({ username: event.target.value })}
-                      placeholder="input username..."
+                      placeholder="input_username"
                       sx={textFieldSx}
                     />
                   </Box>

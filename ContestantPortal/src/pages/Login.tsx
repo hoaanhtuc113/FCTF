@@ -205,7 +205,7 @@ export function Login() {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       disabled={loading}
-                      placeholder="input username..."
+                      placeholder="input_username"
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',

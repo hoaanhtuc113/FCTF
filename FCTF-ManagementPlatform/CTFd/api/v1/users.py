@@ -53,6 +53,14 @@ def _purge_user_references(user_id):
         if table.name == user_table_name:
             continue
 
+        # User.field_entries is eagerly loaded (lazy="joined").
+        # Deleting those rows with raw SQL here can desynchronize ORM state and
+        # trigger StaleDataError during flush when SQLAlchemy later tries to
+        # update/delete the same in-memory objects.
+        # Let ORM/DB FK cascade handle field_entries for user deletion.
+        if table.name == "field_entries":
+            continue
+
         delete_conditions = []
         set_null_columns = set()
 
