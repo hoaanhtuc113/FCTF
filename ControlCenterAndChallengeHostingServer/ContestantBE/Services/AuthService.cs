@@ -24,6 +24,7 @@ public class AuthService : IAuthService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly AppLogger _logger;
     private readonly RedisHelper _redisHelper;
+    private readonly RedisLockHelper _redisLockHelper;
     private readonly ConfigHelper _configHelper;
     public AuthService(
         AppDbContext context,
@@ -33,6 +34,7 @@ public class AuthService : IAuthService
         IHttpClientFactory httpClientFactory,
         AppLogger logger,
         RedisHelper redisHelper,
+        RedisLockHelper redisLockHelper,
         ConfigHelper configHelper)
     {
         _context = context;
@@ -42,6 +44,7 @@ public class AuthService : IAuthService
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _redisHelper = redisHelper;
+        _redisLockHelper = redisLockHelper;
         _configHelper = configHelper;
     }
 
@@ -332,6 +335,10 @@ public class AuthService : IAuthService
 
     public async Task<BaseResponseDTO<string>> RegisterContestant(RegisterContestantDTO registerContestantDto)
     {
+        const string registrationLimitLockKey = "auth:register:num-users-limit";
+        var registrationLimitLockToken = Guid.NewGuid().ToString("N");
+        var registrationLimitLockAcquired = false;
+
         try
         {
             if (!IsContestantRegistrationEnabled())
@@ -367,6 +374,15 @@ public class AuthService : IAuthService
             var numUsersLimit = _configHelper.GetConfig("num_users", 0);
             if (numUsersLimit > 0)
             {
+                registrationLimitLockAcquired = await _redisLockHelper.AcquireLock(
+                    registrationLimitLockKey,
+                    registrationLimitLockToken,
+                    TimeSpan.FromSeconds(6));
+                if (!registrationLimitLockAcquired)
+                {
+                    return BaseResponseDTO<string>.Fail("Registration is busy, please try again");
+                }
+
                 var currentUsers = await _context.Users
                     .AsNoTracking()
                     .CountAsync(u => u.Banned != true && u.Hidden != true);
@@ -455,7 +471,6 @@ public class AuthService : IAuthService
                 });
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync();
 
             var user = new User
             {
@@ -471,7 +486,6 @@ public class AuthService : IAuthService
             };
 
             _context.Users.Add(user);
-            await _context.SaveChangesAsync();
 
             foreach (var fieldEntry in userFieldEntries)
             {
@@ -480,7 +494,6 @@ public class AuthService : IAuthService
 
             _context.FieldEntries.AddRange(userFieldEntries);
             await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
 
             return BaseResponseDTO<string>.Ok("Registration submitted. Your account is pending verification.", "Registration submitted");
         }
@@ -498,6 +511,20 @@ public class AuthService : IAuthService
         {
             _logger.LogError(ex, data: new { registerContestantDto.username });
             return BaseResponseDTO<string>.Fail("Unable to submit registration");
+        }
+        finally
+        {
+            if (registrationLimitLockAcquired)
+            {
+                try
+                {
+                    await _redisLockHelper.ReleaseLock(registrationLimitLockKey, registrationLimitLockToken);
+                }
+                catch
+                {
+                    // ignore lock release errors
+                }
+            }
         }
     }
 
