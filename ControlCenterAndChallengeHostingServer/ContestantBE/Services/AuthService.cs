@@ -490,13 +490,22 @@ public class AuthService : IAuthService
 
             await _context.SaveChangesAsync();
 
+            if (user.Id <= 0)
+            {
+                throw new DbUpdateException("Failed to create user before saving registration fields");
+            }
+
             foreach (var fieldEntry in userFieldEntries)
             {
                 fieldEntry.UserId = user.Id;
+                fieldEntry.User = user;
             }
 
-            _context.FieldEntries.AddRange(userFieldEntries);
-            await _context.SaveChangesAsync();
+            if (userFieldEntries.Count > 0)
+            {
+                _context.FieldEntries.AddRange(userFieldEntries);
+                await _context.SaveChangesAsync();
+            }
 
             await transaction.CommitAsync();
 
@@ -504,10 +513,18 @@ public class AuthService : IAuthService
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogError(ex, data: new { registerContestantDto.username });
-            if (ex.InnerException?.Message.Contains("Duplicate", StringComparison.OrdinalIgnoreCase) == true)
+            var dbError = ex.GetBaseException().Message;
+            _logger.LogError(ex, data: new { registerContestantDto.username, dbError });
+
+            if (dbError.Contains("Duplicate", StringComparison.OrdinalIgnoreCase))
             {
                 return BaseResponseDTO<string>.Fail("A duplicated username or email was detected");
+            }
+
+            if (dbError.Contains("json_valid", StringComparison.OrdinalIgnoreCase)
+                || dbError.Contains("field_entries", StringComparison.OrdinalIgnoreCase))
+            {
+                return BaseResponseDTO<string>.Fail("Invalid registration field data");
             }
 
             return BaseResponseDTO<string>.Fail("Unable to submit registration");
