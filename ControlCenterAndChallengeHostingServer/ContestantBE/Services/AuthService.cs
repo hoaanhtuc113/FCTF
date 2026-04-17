@@ -471,6 +471,7 @@ public class AuthService : IAuthService
                 });
             }
 
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
             var user = new User
             {
@@ -487,6 +488,8 @@ public class AuthService : IAuthService
 
             _context.Users.Add(user);
 
+            await _context.SaveChangesAsync();
+
             foreach (var fieldEntry in userFieldEntries)
             {
                 fieldEntry.UserId = user.Id;
@@ -494,6 +497,8 @@ public class AuthService : IAuthService
 
             _context.FieldEntries.AddRange(userFieldEntries);
             await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
 
             return BaseResponseDTO<string>.Ok("Registration submitted. Your account is pending verification.", "Registration submitted");
         }
