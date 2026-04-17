@@ -23,8 +23,20 @@ loki:
   datasource:
     jsonData: "{}"
     uid: ""
-
-
+  config:
+    # Keep Loki auth disabled for single-tenant setup.
+    auth_enabled: false
+    limits_config:
+      ingestion_rate_mb: 8
+      ingestion_burst_size_mb: 16
+      per_stream_rate_limit: 3MB
+      per_stream_rate_limit_burst: 10MB
+      retention_period: 168h
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: 168h
+    compactor:
+      retention_enabled: true
 promtail:
   enabled: true
   priorityClassName: infra-critical
@@ -61,11 +73,74 @@ promtail:
             expression: "(?i)error"
             replace: "error"
 
+        # Redact common sensitive fields before shipping logs.
+        - replace:
+            expression: '(?i)("?(?:password|passwd|pwd|token|access_token|refresh_token|api[_-]?key|secret|authorization|cookie|set-cookie)"?\s*[:=]\s*")([^"]+)(")'
+            replace: '$1[REDACTED]$3'
+        - replace:
+            expression: '(?i)("?(?:password|passwd|pwd|token|access_token|refresh_token|api[_-]?key|secret|authorization|cookie|set-cookie)"?\s*[:=]\s*)([^,\s}]+)'
+            replace: '$1[REDACTED]'
+
         # Gán labels
         - labels:
             level:
             type:
             action:
+  extraObjects:
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: loki-api-ingress-allowlist
+        namespace: '{{ .Release.Namespace }}'
+      spec:
+        podSelector:
+          matchLabels:
+            app: loki
+            release: '{{ .Release.Name }}'
+        policyTypes:
+          - Ingress
+        ingress:
+          - from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: monitoring
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: promtail
+                    app.kubernetes.io/instance: '{{ .Release.Name }}'
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: monitoring
+                podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: grafana
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: monitoring
+                podSelector:
+                  matchLabels:
+                    app: prometheus-grafana
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: app
+                podSelector:
+                  matchLabels:
+                    app: deployment-center
+            ports:
+              - protocol: TCP
+                port: 3100
+          - from:
+              - podSelector:
+                  matchLabels:
+                    app: loki
+                    release: '{{ .Release.Name }}'
+            ports:
+              - protocol: TCP
+                port: 9095
+              - protocol: TCP
+                port: 7946
+              - protocol: UDP
+                port: 7946
 
 fluent-bit:
   enabled: false
