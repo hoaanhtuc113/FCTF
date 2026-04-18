@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Keep key auth pages crawlable for brand queries such as "FCTF capture the flag"
+Allow: /login
