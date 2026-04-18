@@ -332,35 +332,40 @@ export function Register() {
         <Box sx={{ width: '100%', maxWidth: '960px' }}>
           <Box sx={{ maxWidth: '960px', mx: 'auto' }}>
             <Box sx={{ mb: 3, textAlign: 'center' }}>
-              <Box
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: '999px',
-                  border: `1px solid ${colors.borderLight}`,
-                  bgcolor: '#fff7ec',
-                  color: colors.primary,
-                  fontSize: 13,
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+              <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1,
+                    px: 2,
+                    py: 0.75,
+                    borderRadius: '999px',
+                    border: `1px solid ${colors.borderLight}`,
+                    bgcolor: '#fff7ec',
+                    color: colors.primary,
+                    fontSize: 13,
+                    whiteSpace: 'nowrap',
+                    width: 'max-content',
+                  }}
                 >
-                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                </svg>
-                Faculty of Information Assurance
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                  </svg>
+                  IA-Lab — Faculty of Information Assurance · FPT University Hà Nội
+                </Box>
               </Box>
 
               <Box sx={{ mt: 2, fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
@@ -561,31 +566,16 @@ export function Register() {
             py: 1.8,
             display: 'flex',
             flexDirection: { xs: 'column', sm: 'row' },
-            alignItems: 'center',
+            alignItems: { xs: 'center', sm: 'center' },
             justifyContent: 'space-between',
             gap: 1,
           }}
         >
           <Box sx={{ fontSize: 11, color: 'rgba(107,114,128,0.75)' }}>
-            © 2026 Khoa An toàn Thông tin — FPT University Hà Nội
+            © 2026 Phòng thí nghiệm ATTT — khoa ATTT, FPT University Hà Nội
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: 11, color: 'rgba(107,114,128,0.55)' }}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 19h8" />
-              <path d="m4 17 6-6-6-6" />
-            </svg>
-            FUHL Portal v2.0
+          <Box sx={{ fontSize: 11, color: 'rgba(107,114,128,0.55)', textAlign: { xs: 'center', sm: 'right' } }}>
+            Địa chỉ: Phòng D101 & D102, tòa nhà Delta, Trường Đại học FPT, Cơ sở Hà Nội.
           </Box>
         </Box>
       </Box>

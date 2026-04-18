@@ -180,35 +180,40 @@ export function Login() {
         <Box sx={{ width: '100%', maxWidth: '960px' }}>
           <Box sx={{ maxWidth: '460px', mx: 'auto' }}>
             <Box sx={{ mb: 3, textAlign: 'center' }}>
-              <Box
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: '999px',
-                  border: `1px solid ${colors.inputBorder}`,
-                  bgcolor: '#fff7ec',
-                  color: colors.primary,
-                  fontSize: 13,
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+              <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1,
+                    px: 2,
+                    py: 0.75,
+                    borderRadius: '999px',
+                    border: `1px solid ${colors.inputBorder}`,
+                    bgcolor: '#fff7ec',
+                    color: colors.primary,
+                    fontSize: 13,
+                    whiteSpace: 'nowrap',
+                    width: 'max-content',
+                  }}
                 >
-                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                </svg>
-                IA-Lab — Faculty of Information Assurance · FPT University Hà Nội
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                  </svg>
+                  IA-Lab — Faculty of Information Assurance · FPT University Hà Nội
+                </Box>
               </Box>
 
               <Box sx={{ mt: 2, fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
@@ -439,16 +444,16 @@ export function Login() {
             px: { xs: 2, sm: 3, lg: 4 },
             py: 1.8,
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 0.5,
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'center', sm: 'center' },
+            justifyContent: 'space-between',
+            gap: 1,
           }}
         >
           <Box sx={{ fontSize: 11, color: 'rgba(107,114,128,0.75)' }}>
             © 2026 Phòng thí nghiệm ATTT — khoa ATTT, FPT University Hà Nội
           </Box>
-          <Box sx={{ fontSize: 11, color: 'rgba(107,114,128,0.55)', textAlign: 'center' }}>
+          <Box sx={{ fontSize: 11, color: 'rgba(107,114,128,0.55)', textAlign: { xs: 'center', sm: 'right' } }}>
             Địa chỉ: Phòng D101 & D102, tòa nhà Delta, Trường Đại học FPT, Cơ sở Hà Nội.
           </Box>
         </Box>
