@@ -374,10 +374,12 @@ public class AuthService : IAuthService
             var numUsersLimit = _configHelper.GetConfig("num_users", 0);
             if (numUsersLimit > 0)
             {
-                registrationLimitLockAcquired = await _redisLockHelper.AcquireLock(
+                registrationLimitLockAcquired = await _redisLockHelper.AcquireWithRetry(
                     registrationLimitLockKey,
                     registrationLimitLockToken,
-                    TimeSpan.FromSeconds(6));
+                    TimeSpan.FromSeconds(10),
+                    retry: 8,
+                    delayMs: 100);
                 if (!registrationLimitLockAcquired)
                 {
                     return BaseResponseDTO<string>.Fail("Registration is busy, please try again");
