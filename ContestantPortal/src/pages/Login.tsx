@@ -114,7 +114,7 @@ export function Login() {
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'IA-lab | Phòng thí nghiệm AATT - khoa AATT, FPT University Hà Nội';
+    document.title = 'IA-lab | Phòng thí nghiệm ATTT - khoa ATTT, FPT University Hà Nội';
 
     const upsertMeta = (selector: string, key: 'name' | 'property', value: string, content: string) => {
       let tag = document.head.querySelector(selector) as HTMLMetaElement | null;
