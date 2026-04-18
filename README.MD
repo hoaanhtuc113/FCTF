@@ -19,10 +19,11 @@ The system helps organizers operate competitions reliably at scale while providi
 
 Recommended installation flow:
 
-1. Run **Setup master** on the master node.
-2. Run **Setup worker** on each worker node to join the cluster (requires master URL and master token).
-3. Return to the master node and run **Install FCTF**.
-4. Run **Setup Harbor** on the master node.
+1. Run **Configure service domains/IP** on the master node.
+2. Run **Setup master** on the master node.
+3. Run **Setup worker** on each worker node to join the cluster (requires master URL and master token).
+4. Return to the master node and run **Install FCTF**.
+5. Run **Setup Harbor** on the master node.
 
 ### Prerequisites
 
@@ -36,7 +37,19 @@ cd FCTF
 chmod +x manage.sh
 ```
 
-### Step 1: Set up the master node
+### Step 1: Configure service domains/IP (run first)
+
+On the master node:
+
+```bash
+./manage.sh
+```
+
+Select:
+
+- `9) Configure service domains/IP`
+
+### Step 2: Set up the master node
 
 ```bash
 ./manage.sh
@@ -48,7 +61,7 @@ Select:
 
 This installs K3s server and prints the worker join token at the end.
 
-### Step 2: Set up worker nodes and join the cluster
+### Step 3: Set up worker nodes and join the cluster
 
 On each worker node:
 
@@ -68,7 +81,7 @@ When prompted, provide:
 
 Repeat for all worker nodes.
 
-### Step 3: Install FCTF platform components
+### Step 4: Install FCTF platform components
 
 Back on the master node:
 
@@ -81,7 +94,7 @@ Select:
 
 - `3) Install FCTF`
 
-### Step 4: Set up Harbor
+### Step 5: Set up Harbor
 
 On the master node:
 
