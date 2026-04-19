@@ -7,6 +7,7 @@ import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { configService } from '../services/configService';
 import { getTurnstileSiteKey } from '../services/envService';
 import { AuthTurnstile } from '../components/AuthTurnstile';
+import { LoginGlobeLottie } from '../components/LoginGlobeLottie';
 
 export function Login() {
   const [username, setUsername] = useState('');
@@ -49,15 +50,15 @@ export function Login() {
   }, []);
 
   const colors = {
-    pageBg: '#f6f5f3',
-    panelBg: '#ffffff',
-    border: '#ece7df',
+    pageBg: '#efede8',
+    panelBg: '#fcf8f1',
+    border: '#dfd7c8',
     primary: '#ea7a00',
     primaryDark: '#d86600',
     text: '#121212',
-    textSecondary: '#6b7280',
-    inputBg: '#fffcf8',
-    inputBorder: '#e7dfd1',
+    textSecondary: '#5f6673',
+    inputBg: '#f8f2e8',
+    inputBorder: '#d9cfbd',
   };
 
   const yieldToBrowser = useCallback(async () => {
@@ -166,17 +167,24 @@ export function Login() {
 
   return (
     <div
-      className="min-h-screen flex flex-col font-mono"
+      className="min-h-screen flex flex-col font-mono relative overflow-hidden"
       style={{
         backgroundColor: colors.pageBg,
-        backgroundImage:
-          'linear-gradient(to right, rgba(234,122,0,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(234,122,0,0.08) 1px, transparent 1px)',
-        backgroundSize: '36px 36px',
+        backgroundImage: 'radial-gradient(circle at 50% 110%, rgba(15,23,42,0.14), transparent 58%), radial-gradient(circle at 20% 12%, rgba(234,122,0,0.13), transparent 46%), radial-gradient(circle at 78% 0%, rgba(245,158,11,0.11), transparent 42%)',
       }}
     >
 
+      <div className="login-bg-stage" aria-hidden="true">
+        <LoginGlobeLottie />
+        <div className="login-bg-gradient" />
 
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+        <div className="login-bg-grid-wrapper">
+          <div className="login-bg-grid" />
+        </div>
+      </div>
+
+
+      <Box sx={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
         <Box sx={{ width: '100%', maxWidth: '960px' }}>
           <Box sx={{ maxWidth: '460px', mx: 'auto' }}>
             <Box sx={{ mb: 3, textAlign: 'center' }}>
@@ -431,7 +439,7 @@ export function Login() {
           mt: 'auto',
           position: 'sticky',
           bottom: 0,
-          zIndex: 20,
+          zIndex: 2,
           borderTop: `1px solid ${colors.border}`,
           bgcolor: 'rgba(255,255,255,0.75)',
           backdropFilter: 'blur(4px)',

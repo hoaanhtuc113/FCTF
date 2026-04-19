@@ -109,4 +109,172 @@
   .animate-glitch {
     animation: glitch 0.3s infinite;
   }
+
+  /* Login cinematic background */
+  @keyframes loginGradientShift {
+    0%,
+    100% {
+      transform: translate3d(-2%, -1%, 0) scale(1);
+      opacity: 0.65;
+    }
+    50% {
+      transform: translate3d(2%, 1%, 0) scale(1.08);
+      opacity: 0.95;
+    }
+  }
+
+  @keyframes loginOrbFloat {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(0, -18px, 0) scale(1.06);
+    }
+  }
+
+  @keyframes loginGridDrift {
+    0% {
+      transform: rotateX(73deg) translateY(0) translateZ(0);
+    }
+    100% {
+      transform: rotateX(73deg) translateY(52px) translateZ(0);
+    }
+  }
+
+
+  .login-bg-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    isolation: isolate;
+  }
+
+  .login-globe-lottie {
+    position: absolute;
+    top: 0.25rem;
+    right: clamp(0rem, 2vw, 1.2rem);
+    width: clamp(320px, 46vw, 560px);
+    height: clamp(320px, 46vw, 560px);
+    opacity: 0.96;
+    filter: saturate(1.45) contrast(1.34) brightness(1.16) drop-shadow(0 0 56px rgba(234, 122, 0, 0.56));
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .login-trunkrs-lottie {
+    position: absolute;
+    inset: 0;
+    opacity: 0.72;
+    filter: saturate(1.35) contrast(1.24) brightness(1.12);
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  .login-trunkrs-lottie-player {
+    width: 100%;
+    height: 100%;
+  }
+
+  .login-globe-lottie-player {
+    width: 100%;
+    height: 100%;
+  }
+
+  .login-bg-gradient {
+    position: absolute;
+    inset: -16%;
+    z-index: 1;
+    opacity: 0.24;
+    background:
+      radial-gradient(circle at 22% 24%, rgba(234, 122, 0, 0.3), transparent 35%),
+      radial-gradient(circle at 80% 18%, rgba(245, 158, 11, 0.22), transparent 32%),
+      radial-gradient(circle at 50% 82%, rgba(255, 255, 255, 0.5), transparent 50%);
+    filter: blur(14px);
+    animation: loginGradientShift 12s ease-in-out infinite;
+  }
+
+  .login-bg-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(2px);
+    mix-blend-mode: multiply;
+    animation: loginOrbFloat 7s ease-in-out infinite;
+  }
+
+  .login-bg-orb-1 {
+    width: 360px;
+    height: 360px;
+    left: -120px;
+    top: -90px;
+    background: radial-gradient(circle at 35% 35%, rgba(251, 191, 36, 0.34), rgba(234, 88, 12, 0.18) 56%, rgba(234, 88, 12, 0) 78%);
+  }
+
+  .login-bg-orb-2 {
+    width: 440px;
+    height: 440px;
+    right: -150px;
+    top: 5%;
+    background: radial-gradient(circle at 45% 45%, rgba(234, 122, 0, 0.27), rgba(194, 65, 12, 0.14) 58%, rgba(194, 65, 12, 0) 82%);
+    animation-duration: 9s;
+    animation-delay: 0.8s;
+  }
+
+  .login-bg-orb-3 {
+    width: 500px;
+    height: 500px;
+    left: 25%;
+    bottom: -280px;
+    background: radial-gradient(circle at 50% 20%, rgba(249, 115, 22, 0.2), rgba(251, 146, 60, 0.09) 53%, rgba(251, 146, 60, 0) 78%);
+    animation-duration: 10.5s;
+    animation-delay: 1.5s;
+  }
+
+  .login-bg-grid-wrapper {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -22%;
+    height: 60%;
+    perspective: 680px;
+    opacity: 0.16;
+    z-index: 2;
+  }
+
+  @media (max-width: 900px) {
+    .login-globe-lottie {
+      right: 50%;
+      transform: translateX(50%);
+      width: clamp(260px, 72vw, 440px);
+      height: clamp(260px, 72vw, 440px);
+      opacity: 0.88;
+    }
+  }
+
+  .login-bg-grid {
+    width: 100%;
+    height: 150%;
+    transform-origin: center top;
+    background-image:
+      linear-gradient(to right, rgba(234, 122, 0, 0.2) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(234, 122, 0, 0.16) 1px, transparent 1px);
+    background-size: 44px 44px;
+    animation: loginGridDrift 8s linear infinite;
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.95) 30%, rgba(0, 0, 0, 0));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .login-trunkrs-lottie,
+    .login-globe-lottie {
+      display: none;
+    }
+
+    .login-bg-gradient,
+    .login-bg-orb,
+    .login-bg-grid {
+      animation: none !important;
+    }
+  }
 }
