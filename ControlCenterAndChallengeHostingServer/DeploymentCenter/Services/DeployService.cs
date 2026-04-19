@@ -151,26 +151,10 @@ public class DeployService : IDeployService
                 time_finished = 0
             };
 
-            var teamIdStr = startReq?.teamId.ToString() ?? "0";
-            var challengeIdStr = startReq?.challengeId.ToString() ?? "0";
-
-            var updated = await _redisHelper.AtomicUpdateExpiration(
-                teamIdStr,
+            await _redisHelper.SetCacheAsync(
                 deploymentKey,
-                challengeIdStr,
-                expirySeconds,
-                JsonSerializer.Serialize(deploymentCache));
-
-            if (!updated)
-            {
-                await _redisHelper.RemoveCacheAsync(deploymentKey);
-                return new ChallengeDeployResponeDTO
-                {
-                    status = (int)HttpStatusCode.Conflict,
-                    success = false,
-                    message = "Deployment reservation expired. Please try again."
-                };
-            }
+                deploymentCache,
+                TimeSpan.FromMinutes(DeploymentCenterConfigHelper.DEPLOYMENT_QUEUE_TIMEOUT_MINUTES));
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.OK,
