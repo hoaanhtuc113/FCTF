@@ -387,7 +387,7 @@ public class RedisHelper
                 values: new RedisValue[] { challengeId, realExpiryScore, realTtlSeconds, deploymentValue ?? "", teamIdInt }
             );
 
-            return (int)result == (int)DeploymentCheckResult.Pass;
+            return (int)result == 1;
         }
         catch (Exception ex)
         {
