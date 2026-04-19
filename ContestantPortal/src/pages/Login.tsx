@@ -50,14 +50,14 @@ export function Login() {
   }, []);
 
   const colors = {
-    pageBg: '#efede8',
-    panelBg: '#fcf8f1',
+    pageBg: '#f6f5f3',
+    panelBg: '#ffffff',
     border: '#dfd7c8',
     primary: '#ea7a00',
     primaryDark: '#d86600',
     text: '#121212',
     textSecondary: '#5f6673',
-    inputBg: '#f8f2e8',
+    inputBg: '#ffffff',
     inputBorder: '#d9cfbd',
   };
 
@@ -170,13 +170,12 @@ export function Login() {
       className="min-h-screen flex flex-col font-mono relative overflow-hidden"
       style={{
         backgroundColor: colors.pageBg,
-        backgroundImage: 'radial-gradient(circle at 50% 110%, rgba(15,23,42,0.14), transparent 58%), radial-gradient(circle at 20% 12%, rgba(234,122,0,0.13), transparent 46%), radial-gradient(circle at 78% 0%, rgba(245,158,11,0.11), transparent 42%)',
+        backgroundImage: 'linear-gradient(180deg, #f6f5f3 0%, #f6f5f3 100%)',
       }}
     >
 
       <div className="login-bg-stage" aria-hidden="true">
         <LoginGlobeLottie />
-        <div className="login-bg-gradient" />
 
         <div className="login-bg-grid-wrapper">
           <div className="login-bg-grid" />
