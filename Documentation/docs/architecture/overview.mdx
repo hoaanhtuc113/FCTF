@@ -11,15 +11,11 @@ This page is the contributor entry point. It gives a fast system map and links t
 Use this page as the map, then drill down to the linked pages for implementation-level detail.
 :::
 
-## Architecture Diagram
-
-![FCTF high-level architecture](/img/HighLevelArchitecture.svg)
-
 ## Section Map
 
 | Section | What it answers | Canonical details |
 | --- | --- | --- |
-| 1. System Overview | Why the platform is split this way | This page |
+| 1. Architecture Overview | Why the platform is split this way | This page |
 | 2. Infrastructure | What on-prem/k3s baseline the system assumes | [Infrastructure](./platform-foundation) |
 | 3. Service Architecture | Who owns what behavior across services | [Service Architecture](./service-architecture) |
 | 4. Runtime and Lifecycle Flows | How requests/deployments/access move | [Runtime and Lifecycle Flows](./runtime-lifecycle-flows) |
@@ -30,26 +26,18 @@ Use this page as the map, then drill down to the linked pages for implementation
 | 9. Observability and Operations | How to diagnose and operate safely under load | [Observability and Operations](./observability-and-operations) |
 | 10. Design Principles | Why major architectural decisions were chosen | [Design Principles](./design-principles) |
 
-## 1. System Overview
+## 1. Architecture Overview
 
-FCTF is a self-hosted CTF platform for on-premise k3s clusters. The system separates user-facing API latency from deployment execution latency.
+![FCTF high-level architecture](/img/overviewArchitecture.svg)
 
-| Plane | Role | Main components |
-| --- | --- | --- |
-| Access | User entry and challenge runtime ingress | Ingress NGINX, Admin Portal, Contestant Portal, Challenge Gateway |
-| Control | Competition and deployment control APIs | Contestant Service, Deployment Center |
-| Execution | Queue and workflow execution | RabbitMQ, Deployment Consumer, Argo, dynamic challenge namespaces |
-| Reconciliation | Drift detection and correction | Deployment Listener |
+The platform is organized into four primary blocks with clear ownership boundaries.
 
-**Why this split exists:**
-
-- **API paths stay responsive** during contest spikes.
-- **Deploy/build failures are isolated** in async pipeline stages.
-- **Runtime truth is corrected from observed cluster state**, not request intent only.
-
-:::important[Latency and reliability are intentionally separated]
-Keep user request paths synchronous and fast, while routing deployment-heavy operations through async queue and workflow boundaries.
-:::
+| Block | Responsibility |
+| --- | --- |
+| Management & Business | User-facing entry point. Contestants interact through the Contestant Portal, and requests are handled by backend services. The Admin Portal is based on open-source CTFd and provides management interfaces for Jury, Challenge Writers, and Platform Admins. |
+| Deployment Orchestration | Coordinates challenge build and deployment through Deployment Center and Argo Workflows. Manages challenge lifecycle operations and exposes control APIs such as stop, status check, and log retrieval. |
+| Infrastructure (Kubernetes) | Runs each challenge as an isolated pod and performs expired challenge cleanup via scheduled cron jobs. |
+| Shared Persistence & Caching | Provides shared state infrastructure. MariaDB stores durable data, while Redis supports caching, locking, and temporary lifecycle state management. |
 
 ## 2. Infrastructure
 
