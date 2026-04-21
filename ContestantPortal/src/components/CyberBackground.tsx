@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 type Phase = 'traveling' | 'attacking' | 'victorious';
-type AttackType = 'WEB' | 'PWN' | 'CRYPTO' | 'REVERSE' | 'FORENSICS' | 'STEGO' | 'OSINT';
+type AttackType = 'WEB' | 'PWN' | 'CRYPTO' | 'REVERSE' | 'FORENSICS' | 'STEGO' | 'OSINT' | 'MISC';
 
 type Server = {
   tx: number;
@@ -223,6 +223,20 @@ const PAYLOADS: Record<AttackType, string[]> = {
     `reverse img`,
     `street view`,
   ],
+  MISC: [
+    `base64 -d`,
+    `rot13`,
+    `pyjail esc`,
+    `__import__`,
+    `regex puzzle`,
+    `brainfuck`,
+    `polyglot`,
+    `zip bomb`,
+    `QR decode`,
+    `morse .-..`,
+    `unicode fuzz`,
+    `esoteric`,
+  ],
 };
 
 const SERVER_POSITIONS: Array<{ tx: number; ty: number; type: AttackType }> = [
@@ -233,7 +247,7 @@ const SERVER_POSITIONS: Array<{ tx: number; ty: number; type: AttackType }> = [
   { tx: 14, ty: -1, type: 'REVERSE' },
   { tx: 15, ty: 3, type: 'PWN' },
   { tx: 18, ty: 6, type: 'OSINT' },
-  { tx: 22, ty: 4, type: 'CRYPTO' },
+  { tx: 22, ty: 4, type: 'MISC' },
 ];
 
 const TEAM_DEFS = [
