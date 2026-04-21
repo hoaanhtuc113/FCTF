@@ -106,12 +106,12 @@ const PAYLOADS: Record<AttackType, string[]> = {
 };
 
 const SERVER_POSITIONS: Array<{ tx: number; ty: number; type: AttackType }> = [
-  { tx: 11, ty: 0, type: 'CSRF' },
-  { tx: 3, ty: 8, type: 'PWN' },
-  { tx: 14, ty: 3, type: 'IDOR' },
+  { tx: 12, ty: 0, type: 'CSRF' },
+  { tx: 3, ty: 7, type: 'PWN' },
+  { tx: 16, ty: 3, type: 'IDOR' },
   { tx: 5, ty: 12, type: 'SQLI' },
-  { tx: 19, ty: 4, type: 'CRYPTO' },
-  { tx: 9, ty: 14, type: 'XSS' },
+  { tx: 21, ty: 4, type: 'CRYPTO' },
+  { tx: 10, ty: 14, type: 'XSS' },
 ];
 
 const TEAM_DEFS = [
