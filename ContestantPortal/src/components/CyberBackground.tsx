@@ -1402,7 +1402,7 @@ export function CyberBackground() {
         height: '100%',
         display: 'block',
         pointerEvents: 'none',
-        opacity: 0.35,
+        opacity: 0.22,
       }}
     />
   );
