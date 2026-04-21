@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 type Phase = 'traveling' | 'attacking' | 'victorious';
-type AttackType = 'SQLI' | 'XSS' | 'CSRF' | 'PWN' | 'IDOR' | 'WEB' | 'CRYPTO';
+type AttackType = 'WEB' | 'PWN' | 'CRYPTO' | 'REVERSE' | 'FORENSICS' | 'STEGO' | 'OSINT';
 
 type Server = {
   tx: number;
@@ -55,6 +55,20 @@ type Impact = { startTime: number; x: number; y: number; color: string };
 type Spark = { startTime: number; x: number; y: number; color: string };
 type KeyStroke = { startTime: number; x: number; y: number; dx: number; color: string };
 
+type RepairerState = 'idle' | 'moving' | 'repairing' | 'returning';
+type Repairer = {
+  homeTx: number;
+  homeTy: number;
+  currentPos: { tx: number; ty: number };
+  state: RepairerState;
+  target: number | null;
+  phaseStart: number;
+  moveSpeed: number;
+  phase: number;
+  zone: 'left' | 'right';
+  lastSparkAt: number;
+};
+
 const TILE_W = 58;
 const TILE_H = 29;
 const MAP_COLS = 22;
@@ -85,6 +99,8 @@ const p = {
   teamOrange: '#c26d1a',
   teamTeal: '#5a7d8f',
   teamPurple: '#7c6ba0',
+  teamSienna: '#a06548',
+  teamMoss: '#7d8c5a',
 
   payloadBg: 'rgba(253, 249, 240, 0.9)',
   payloadText: 'rgba(61, 40, 23, 0.82)',
@@ -96,48 +112,178 @@ const p = {
 };
 
 const PAYLOADS: Record<AttackType, string[]> = {
-  SQLI: [`' OR 1=1--`, `UNION SELECT`, `'; DROP--`, `admin'--`, `"=OR=0x27`],
-  XSS: [`<script>`, `onerror=x`, `<img src=x>`, `javascript:`, `</svg>`],
-  CSRF: [`POST /pay`, `tok=forge`, `GET /admin`, `Origin=*`, `no-csrf`],
-  PWN: [`0x41414141`, `\\x90\\x90`, `ret2libc`, `buf+0x80`, `system()`],
-  IDOR: [`?id=1`, `?id=2`, `?user=root`, `/api/42`, `role=admin`],
-  WEB: [`../etc/pwd`, `SSRF=169.`, `LFI=/.env`, `/.git/HEAD`, `?q=../../`],
-  CRYPTO: [`AES-ECB`, `padOracle`, `weak-IV`, `PRNG=0`, `HMAC-bypass`],
+  WEB: [
+    `<script>`,
+    `onerror=x`,
+    `' OR 1=1--`,
+    `UNION SELECT`,
+    `SSRF=169.254`,
+    `gopher://`,
+    `?file=../etc/`,
+    `/.git/HEAD`,
+    `?page=//evil`,
+    `?inc=//evil`,
+    `;id`,
+    `$(curl evil)`,
+    `?id=admin`,
+    `/api/42`,
+    `{{7*7}}`,
+    `{{config}}`,
+    `tok=forge`,
+    `Origin=*`,
+    `?next=//evil`,
+    `?url=evil.com`,
+  ],
+  PWN: [
+    `0x41414141`,
+    `buf+0x100`,
+    `stack smash`,
+    `%p.%p.%p`,
+    `%n %n %n`,
+    `use-after-free`,
+    `dangling ptr`,
+    `tcache++`,
+    `heap overflow`,
+    `unlink()`,
+    `ret2libc`,
+    `pop rdi;ret`,
+    `ROP chain`,
+    `\\x90\\x90\\x90`,
+    `system('/bin/sh')`,
+  ],
+  CRYPTO: [
+    `RSA e=3`,
+    `Wiener atk`,
+    `Hastad bcast`,
+    `N=p*q`,
+    `xor key`,
+    `crib drag`,
+    `key cycle`,
+    `pad oracle`,
+    `CBC bit-flip`,
+    `AES-CBC`,
+    `MD5 coll`,
+    `hashcat`,
+    `john`,
+    `rainbow tbl`,
+  ],
+  REVERSE: [
+    `crackme`,
+    `strcmp()`,
+    `check()`,
+    `keygen`,
+    `serial=42`,
+    `valid()`,
+    `packed`,
+    `VMProtect`,
+    `deobfuscate`,
+    `IDA pro`,
+    `ghidra`,
+    `radare2`,
+  ],
+  FORENSICS: [
+    `wireshark`,
+    `tcp.stream`,
+    `.pcap`,
+    `volatility`,
+    `memdump`,
+    `pslist`,
+    `autopsy`,
+    `MFT parse`,
+    `$MFT`,
+    `journalctl`,
+    `grep ERR`,
+    `syslog`,
+  ],
+  STEGO: [
+    `stegsolve`,
+    `zsteg`,
+    `LSB plane`,
+    `bit-plane`,
+    `spectrogram`,
+    `audacity`,
+    `sonic-vis`,
+    `PNG chunk`,
+    `exiftool`,
+    `binwalk`,
+    `steghide`,
+    `outguess`,
+  ],
+  OSINT: [
+    `shodan`,
+    `whois`,
+    `crt.sh`,
+    `dork site:`,
+    `wayback`,
+    `passive DNS`,
+    `EXIF GPS`,
+    `metadata`,
+    `GPS tag`,
+    `geohash`,
+    `reverse img`,
+    `street view`,
+  ],
 };
 
 const SERVER_POSITIONS: Array<{ tx: number; ty: number; type: AttackType }> = [
-  { tx: 12, ty: 0, type: 'CSRF' },
-  { tx: 3, ty: 7, type: 'PWN' },
-  { tx: 16, ty: 3, type: 'IDOR' },
-  { tx: 5, ty: 12, type: 'SQLI' },
-  { tx: 21, ty: 4, type: 'CRYPTO' },
-  { tx: 10, ty: 14, type: 'XSS' },
+  { tx: 1, ty: 8, type: 'CRYPTO' },
+  { tx: 5, ty: 9, type: 'WEB' },
+  { tx: 6, ty: 13, type: 'FORENSICS' },
+  { tx: 10, ty: 14, type: 'STEGO' },
+  { tx: 14, ty: -1, type: 'REVERSE' },
+  { tx: 15, ty: 3, type: 'PWN' },
+  { tx: 18, ty: 6, type: 'OSINT' },
+  { tx: 22, ty: 4, type: 'CRYPTO' },
 ];
 
 const TEAM_DEFS = [
   { id: 0, color: p.teamOrange, colorSoft: 'rgba(194, 109, 26, 0.88)' },
   { id: 1, color: p.teamTeal, colorSoft: 'rgba(90, 125, 143, 0.88)' },
-  { id: 2, color: p.teamPurple, colorSoft: 'rgba(124, 107, 160, 0.88)' },
+  { id: 2, color: p.teamMoss, colorSoft: 'rgba(125, 140, 90, 0.88)' },
+  { id: 3, color: p.teamPurple, colorSoft: 'rgba(124, 107, 160, 0.88)' },
+  { id: 4, color: p.teamSienna, colorSoft: 'rgba(160, 101, 72, 0.88)' },
 ];
 
 const TEAM_STARTS = [
-  { tx: 0, ty: 5 },
-  { tx: 16, ty: 0 },
-  { tx: 20, ty: 6 },
+  { tx: 0, ty: 3 },
+  { tx: 2, ty: 9 },
+  { tx: 4, ty: 12 },
+  { tx: 13, ty: 0 },
+  { tx: 22, ty: 8 },
 ];
 
 const TEAM_TARGETS = [
-  [1, 3, 5],
-  [0, 2],
-  [2, 4],
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [4, 5],
+  [5, 6, 7],
 ];
 
 const ROUND_DURATION = 16000;
 
-const ATTACK_DURATION = 2600;
-const VICTORY_DURATION = 650;
-const PAYLOAD_RATE = 380;
-const KEYSTROKE_RATE = 85;
+const ATTACK_DURATION = 800;
+const VICTORY_DURATION = 320;
+const PAYLOAD_RATE = 100;
+const KEYSTROKE_RATE = 38;
+const REPAIR_DURATION = 1200;
+
+const HACKER_FORMATION = [
+  { dx: 0, dy: 0, phaseOffset: 0 },
+  { dx: -0.35, dy: 0.28, phaseOffset: 1.6 },
+];
+
+const LEFT_SERVERS = [0, 1, 2, 3];
+const RIGHT_SERVERS = [4, 5, 6, 7];
+
+const REPAIRER_HOMES: Array<{ tx: number; ty: number; zone: 'left' | 'right' }> = [
+  { tx: 6, ty: 14, zone: 'left' },
+  { tx: 7, ty: 15, zone: 'left' },
+  { tx: 8, ty: 15.5, zone: 'left' },
+  { tx: 22, ty: 5, zone: 'right' },
+  { tx: 22.8, ty: 5.8, zone: 'right' },
+  { tx: 22.5, ty: 6.5, zone: 'right' },
+];
 
 const easeInOut = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
 const easeOutQuad = (x: number) => 1 - Math.pow(1 - x, 2);
@@ -233,6 +379,19 @@ export function CyberBackground() {
     const keystrokes: KeyStroke[] = [];
     let roundStart = start;
 
+    const repairers: Repairer[] = REPAIRER_HOMES.map((home, i) => ({
+      homeTx: home.tx,
+      homeTy: home.ty,
+      currentPos: { tx: home.tx, ty: home.ty },
+      state: 'idle',
+      target: null,
+      phaseStart: start,
+      moveSpeed: 0.05 + Math.random() * 0.02,
+      phase: i * 0.8,
+      zone: home.zone,
+      lastSparkAt: 0,
+    }));
+
     const initTeam = (def: typeof TEAM_DEFS[number], idx: number): Team => {
       const targets = [...TEAM_TARGETS[idx]];
       const startTile = TEAM_STARTS[idx];
@@ -249,7 +408,7 @@ export function CyberBackground() {
         currentPos,
         fromPos,
         totalDist: dist(fromPos, firstTarget),
-        travelDuration: 1000 + dist(fromPos, firstTarget) * 320,
+        travelDuration: 700 + dist(fromPos, firstTarget) * 230,
         lastPayload: 0,
         lastKeystroke: 0,
         payloadIdx: 0,
@@ -575,8 +734,13 @@ export function CyberBackground() {
       }
     };
 
-    const drawHacker = (team: Team, t: number, now: number) => {
-      const pos = iso(team.currentPos.tx, team.currentPos.ty);
+    const drawSingleHacker = (
+      team: Team,
+      f: { dx: number; dy: number; phaseOffset: number },
+      t: number,
+      now: number
+    ) => {
+      const pos = iso(team.currentPos.tx + f.dx, team.currentPos.ty + f.dy);
       const gs = scaleFn();
 
       let walkPhase = 0;
@@ -586,7 +750,7 @@ export function CyberBackground() {
         const elapsed = now - team.phaseStart;
         const prog = Math.min(elapsed / team.travelDuration, 1);
         const traveled = prog * team.totalDist;
-        walkPhase = (traveled * 3.2) % 1;
+        walkPhase = (traveled * 3.2 + f.phaseOffset * 0.17) % 1;
         legA = Math.max(0, Math.sin(walkPhase * Math.PI * 2));
         legB = Math.max(0, Math.sin((walkPhase + 0.5) * Math.PI * 2));
       }
@@ -594,9 +758,9 @@ export function CyberBackground() {
       const bob =
         team.phase === 'traveling'
           ? Math.abs(Math.sin(walkPhase * Math.PI * 2)) * 1.1
-          : Math.sin(t * 2) * 0.5;
+          : Math.sin(t * 2 + f.phaseOffset) * 0.5;
 
-      const breathScale = 1 + Math.sin(t * 2.2 + team.id * 0.9) * 0.04;
+      const breathScale = 1 + Math.sin(t * 2.2 + team.id * 0.9 + f.phaseOffset) * 0.04;
 
       ctx.save();
       ctx.translate(pos.x, pos.y + (bob + team.bounce) * gs);
@@ -643,7 +807,7 @@ export function CyberBackground() {
       ctx.fill();
       ctx.stroke();
 
-      const eyeFlick = 0.55 + Math.sin(t * 3 + team.id) * 0.45;
+      const eyeFlick = 0.55 + Math.sin(t * 3 + team.id + f.phaseOffset) * 0.45;
       ctx.fillStyle = team.color;
       ctx.globalAlpha = eyeFlick;
       ctx.beginPath();
@@ -655,8 +819,9 @@ export function CyberBackground() {
       ctx.globalAlpha = 1;
 
       if (team.phase === 'attacking') {
-        const handTwitchA = Math.sin(now * 0.04) * 0.8;
-        const handTwitchB = Math.sin(now * 0.04 + Math.PI) * 0.8;
+        const twitchBase = now * 0.04 + f.phaseOffset * 1.7;
+        const handTwitchA = Math.sin(twitchBase) * 0.8;
+        const handTwitchB = Math.sin(twitchBase + Math.PI) * 0.8;
         ctx.fillStyle = 'rgba(30, 22, 14, 0.75)';
         ctx.beginPath();
         ctx.ellipse(-3 + handTwitchA * 0.4, -2 + handTwitchA * 0.3, 1.1, 0.8, 0, 0, Math.PI * 2);
@@ -667,6 +832,217 @@ export function CyberBackground() {
       }
 
       ctx.restore();
+    };
+
+    const drawHacker = (team: Team, t: number, now: number) => {
+      const sorted = [...HACKER_FORMATION].sort(
+        (a, b) => (a.dx + a.dy) - (b.dx + b.dy)
+      );
+      for (const f of sorted) drawSingleHacker(team, f, t, now);
+    };
+
+    const drawRepairer = (r: Repairer, t: number, now: number) => {
+      const pos = iso(r.currentPos.tx, r.currentPos.ty);
+      const gs = scaleFn();
+
+      const moving = r.state === 'moving' || r.state === 'returning';
+      const walkPhase = moving ? now * 0.013 + r.phase : 0;
+      const idlePhase = !moving ? t * 1.8 + r.phase : 0;
+      const bob = moving
+        ? Math.abs(Math.sin(walkPhase)) * 1.2
+        : Math.sin(idlePhase) * 0.5;
+
+      ctx.save();
+      ctx.translate(pos.x, pos.y + bob * gs);
+      ctx.scale(gs, gs);
+
+      ctx.fillStyle = 'rgba(61, 40, 23, 0.26)';
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 6.8, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const legA = moving ? Math.max(0, Math.sin(walkPhase)) : 0;
+      const legB = moving ? Math.max(0, Math.sin(walkPhase + Math.PI)) : 0;
+      ctx.fillStyle = 'rgba(40, 56, 84, 0.88)';
+      ctx.beginPath();
+      ctx.ellipse(-2, 2.2 - legA * 1.5, 1.4, 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(2, 2.2 - legB * 1.5, 1.4, 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(72, 114, 156, 0.88)';
+      ctx.strokeStyle = 'rgba(30, 50, 80, 0.92)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-5, 1);
+      ctx.quadraticCurveTo(-6, -7, -3, -10);
+      ctx.lineTo(3, -10);
+      ctx.quadraticCurveTo(6, -7, 5, 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(30, 50, 80, 0.55)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-1.8, -9);
+      ctx.lineTo(-1.8, 0);
+      ctx.moveTo(1.8, -9);
+      ctx.lineTo(1.8, 0);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(245, 200, 160, 0.92)';
+      ctx.strokeStyle = 'rgba(120, 80, 50, 0.85)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.ellipse(0, -11, 3.4, 3.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(246, 193, 37, 0.95)';
+      ctx.strokeStyle = 'rgba(120, 80, 0, 0.9)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(0, -12, 3.5, Math.PI, 2 * Math.PI);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillRect(-4.3, -12, 8.6, 1);
+      ctx.strokeRect(-4.3, -12, 8.6, 1);
+      ctx.fillStyle = 'rgba(120, 80, 0, 0.85)';
+      ctx.fillRect(-0.7, -14, 1.4, 1);
+
+      if (r.state === 'repairing') {
+        const swing = Math.sin(now * 0.022 + r.phase) * 0.9;
+        ctx.save();
+        ctx.translate(4, -3);
+        ctx.rotate(-Math.PI / 4 + swing);
+        ctx.strokeStyle = 'rgba(130, 140, 160, 0.95)';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -8);
+        ctx.stroke();
+        ctx.fillStyle = '#b4bcc9';
+        ctx.strokeStyle = 'rgba(50, 62, 80, 0.9)';
+        ctx.lineWidth = 0.7;
+        ctx.fillRect(-2.1, -10, 4.2, 2.2);
+        ctx.strokeRect(-2.1, -10, 4.2, 2.2);
+        ctx.restore();
+      } else {
+        ctx.strokeStyle = 'rgba(130, 140, 160, 0.85)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(4, -3);
+        ctx.lineTo(4.8, -7);
+        ctx.stroke();
+        ctx.fillStyle = '#a8b0bc';
+        ctx.fillRect(4.1, -8.5, 1.6, 1.3);
+      }
+
+      ctx.restore();
+    };
+
+    const updateRepairer = (r: Repairer, now: number) => {
+      const zoneList = r.zone === 'left' ? LEFT_SERVERS : RIGHT_SERVERS;
+
+      if (r.state === 'idle') {
+        const candidates = zoneList.filter(
+          (idx) =>
+            servers[idx].controller !== null &&
+            !repairers.some((rr) => rr !== r && rr.target === idx)
+        );
+        if (candidates.length > 0) {
+          let bestIdx = candidates[0];
+          let bestDist = dist(r.currentPos, {
+            tx: servers[bestIdx].tx,
+            ty: servers[bestIdx].ty,
+          });
+          for (const idx of candidates) {
+            const d = dist(r.currentPos, { tx: servers[idx].tx, ty: servers[idx].ty });
+            if (d < bestDist) {
+              bestDist = d;
+              bestIdx = idx;
+            }
+          }
+          r.target = bestIdx;
+          r.state = 'moving';
+          r.phaseStart = now;
+        }
+      } else if (r.state === 'moving') {
+        if (r.target === null) {
+          r.state = 'returning';
+          return;
+        }
+        const sv = servers[r.target];
+        if (sv.controller === null) {
+          r.target = null;
+          r.state = 'returning';
+          return;
+        }
+        const targetTx = sv.tx - 0.75;
+        const targetTy = sv.ty + 0.7;
+        const dx = targetTx - r.currentPos.tx;
+        const dy = targetTy - r.currentPos.ty;
+        const d = Math.hypot(dx, dy);
+        if (d < 0.08) {
+          r.state = 'repairing';
+          r.phaseStart = now;
+          r.lastSparkAt = now;
+        } else {
+          r.currentPos.tx += (dx / d) * r.moveSpeed;
+          r.currentPos.ty += (dy / d) * r.moveSpeed;
+        }
+      } else if (r.state === 'repairing') {
+        if (r.target !== null) {
+          const sv = servers[r.target];
+          if (sv.controller === null) {
+            r.target = null;
+            r.state = 'returning';
+            return;
+          }
+          if (now - r.lastSparkAt > 160) {
+            r.lastSparkAt = now;
+            const sp = iso(sv.tx, sv.ty);
+            sparks.push({
+              startTime: now,
+              x: sp.x + (Math.random() - 0.5) * 20,
+              y: sp.y - 18 * scaleFn(),
+              color: 'rgba(255, 195, 60, 0.85)',
+            });
+          }
+        }
+        if (now - r.phaseStart >= REPAIR_DURATION) {
+          if (r.target !== null) {
+            const sv = servers[r.target];
+            if (sv.controller !== null) {
+              sv.controller = null;
+              sv.captureAnimStart = null;
+              const sp = iso(sv.tx, sv.ty);
+              sparks.push({
+                startTime: now,
+                x: sp.x,
+                y: sp.y - 22 * scaleFn(),
+                color: 'rgba(110, 180, 240, 0.85)',
+              });
+            }
+          }
+          r.target = null;
+          r.state = 'returning';
+          r.phaseStart = now;
+        }
+      } else if (r.state === 'returning') {
+        const dx = r.homeTx - r.currentPos.tx;
+        const dy = r.homeTy - r.currentPos.ty;
+        const d = Math.hypot(dx, dy);
+        if (d < 0.08) {
+          r.state = 'idle';
+        } else {
+          r.currentPos.tx += (dx / d) * r.moveSpeed;
+          r.currentPos.ty += (dy / d) * r.moveSpeed;
+        }
+      }
     };
 
     const bezier = (
@@ -848,7 +1224,7 @@ export function CyberBackground() {
       team.payloadIdx = 0;
       const target = getApproachOffset(servers[team.targets[cursor]]);
       team.totalDist = dist(team.fromPos, target);
-      team.travelDuration = 1000 + team.totalDist * 320;
+      team.travelDuration = 700 + team.totalDist * 230;
     };
 
     const advanceTeam = (team: Team, now: number) => {
@@ -882,17 +1258,6 @@ export function CyberBackground() {
       } else if (team.phase === 'victorious') {
         if (now - team.phaseStart >= VICTORY_DURATION) {
           const next = (team.cursor + 1) % team.targets.length;
-          if (next === 0) {
-            const owned = team.targets.filter((idx) => servers[idx].controller === team.id);
-            if (owned.length > 0) {
-              const forceCount = Math.max(1, Math.floor(owned.length * 0.6));
-              const shuffled = [...owned].sort(() => Math.random() - 0.5);
-              for (let i = 0; i < forceCount; i++) {
-                servers[shuffled[i]].controller = null;
-                servers[shuffled[i]].captureAnimStart = null;
-              }
-            }
-          }
           beginTravel(team, now, next);
         }
       }
@@ -938,6 +1303,7 @@ export function CyberBackground() {
           }
         }
         for (const team of teams) advanceTeam(team, now);
+        for (const r of repairers) updateRepairer(r, now);
         updateProceduralState();
       }
 
@@ -964,6 +1330,12 @@ export function CyberBackground() {
         entries.push({
           depth: team.currentPos.tx + team.currentPos.ty + 0.1,
           draw: () => drawHacker(team, t, now),
+        });
+      }
+      for (const r of repairers) {
+        entries.push({
+          depth: r.currentPos.tx + r.currentPos.ty + 0.05,
+          draw: () => drawRepairer(r, t, now),
         });
       }
       entries.sort((a, b) => a.depth - b.depth);
@@ -1016,7 +1388,7 @@ export function CyberBackground() {
         height: '100%',
         display: 'block',
         pointerEvents: 'none',
-        opacity: 0.6,
+        opacity: 0.35,
       }}
     />
   );
