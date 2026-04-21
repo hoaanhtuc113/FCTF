@@ -7,6 +7,7 @@ import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { configService } from '../services/configService';
 import { getTurnstileSiteKey } from '../services/envService';
 import { AuthTurnstile } from '../components/AuthTurnstile';
+import { CyberBackground } from '../components/CyberBackground';
 
 export function Login() {
   const [username, setUsername] = useState('');
@@ -168,15 +169,14 @@ export function Login() {
     <div
       className="min-h-screen flex flex-col font-mono"
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         backgroundColor: colors.pageBg,
-        backgroundImage:
-          'linear-gradient(to right, rgba(234,122,0,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(234,122,0,0.08) 1px, transparent 1px)',
-        backgroundSize: '36px 36px',
       }}
     >
+      <CyberBackground />
 
-
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
         <Box sx={{ width: '100%', maxWidth: '960px' }}>
           <Box sx={{ maxWidth: '460px', mx: 'auto' }}>
             <Box sx={{ mb: 3, textAlign: 'center' }}>
