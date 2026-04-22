@@ -433,71 +433,133 @@ public class ChallengeController : BaseController
         // Handle correct attempt - CRITICAL SECTION with minimal lock
         if (attempt.status)
         {
-            // Re-validate inside lock (race condition protection)
-            var solveCheck = await _context.Solves
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
-            if (solveCheck != null)
+            bool isDynamic = challenge.Type == "dynamic";
+            string recalcLockKey = DynamicChallengeHelper.GetRecalcLockKey(challenge.Id);
+            string recalcLockToken = Guid.NewGuid().ToString();
+            bool recalcLockAcquired = false;
+
+            if (isDynamic)
             {
-                return Ok(new
+                // Acquire Redis lock BEFORE BeginTransaction and release AFTER the tx is
+                // disposed, so concurrent recalcs for this challenge cannot race on the
+                // MVCC snapshot used to read solveCount / write Challenge.Value.
+                // Bounded retry — fail fast with 503 instead of spinning forever.
+                recalcLockAcquired = await _redisLockHelper.AcquireWithRetry(
+                    recalcLockKey,
+                    recalcLockToken,
+                    expiry: TimeSpan.FromSeconds(30),
+                    retry: 10,
+                    delayMs: 100);
+
+                if (!recalcLockAcquired)
                 {
-                    success = true,
-                    data = new
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
                     {
-                        status = "already_solved",
-                        message = "You or your teammate already solved this"
-                    }
-                });
+                        success = false,
+                        data = new
+                        {
+                            status = "busy",
+                            message = "Scoring is busy, please retry in a moment."
+                        }
+                    });
+                }
             }
+
             try
             {
-                var submission = new Submission
+                await using var dbTransaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    UserId = user.Id,
-                    TeamId = user.TeamId,
-                    ChallengeId = challenge.Id,
-                    Ip = _userHelper.GetIP(HttpContext),
-                    Provided = request.Submission,
-                    Type = SubmissionTypes.CORRECT,
-                    Solf = new Solf
+                    // Race-safe solve check: FOR UPDATE on the unique (challenge_id, team_id)
+                    // index acquires a next-key/gap lock under REPEATABLE READ so no other
+                    // session can insert a matching solves row until this tx commits.
+                    var existingSolve = await _context.Solves
+                        .FromSqlRaw(
+                            "SELECT * FROM solves WHERE challenge_id = {0} AND team_id = {1} FOR UPDATE",
+                            challenge.Id, user.TeamId)
+                        .AsNoTracking()
+                        .ToListAsync();
+                    if (existingSolve.Count > 0)
+                    {
+                        return Ok(new
+                        {
+                            success = true,
+                            data = new
+                            {
+                                status = "already_solved",
+                                message = "You or your teammate already solved this"
+                            }
+                        });
+                    }
+
+                    var submission = new Submission
                     {
                         UserId = user.Id,
                         TeamId = user.TeamId,
                         ChallengeId = challenge.Id,
-                    }
-                };
+                        Ip = _userHelper.GetIP(HttpContext),
+                        Provided = request.Submission,
+                        Type = SubmissionTypes.CORRECT,
+                        Solf = new Solf
+                        {
+                            UserId = user.Id,
+                            TeamId = user.TeamId,
+                            ChallengeId = challenge.Id,
+                        }
+                    };
 
-                _context.Submissions.Add(submission);
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException ex) when (IsDuplicateKey(ex))
-            {
-                return Ok(new
-                {
-                    success = true,
-                    data = new
+                    _context.Submissions.Add(submission);
+                    await _context.SaveChangesAsync();
+
+                    // Recalc inside the same transaction so the solve insert and the
+                    // Challenge.Value update commit together. On failure the outer catch
+                    // rolls back the whole transaction and returns 500; the client retries
+                    // the full request, which is safe because nothing was committed.
+                    if (isDynamic)
                     {
-                        status = "already_solved",
-                        message = "You or your teammate already solved this"
+                        await DynamicChallengeHelper.RecalculateDynamicChallengeValue(
+                            _context, challenge.Id);
                     }
-                });
-            }
-            catch (Exception ex)
-            {
-                await Console.Error.WriteLineAsync($"[Error] Submission save failed for challenge {challenge.Id}, team {user.TeamId}: {ex.Message}");
-                return StatusCode(StatusCodes.Status500InternalServerError, new
+
+                    await dbTransaction.CommitAsync();
+                }
+                catch (DbUpdateException ex) when (IsDuplicateKey(ex))
                 {
-                    success = false,
-                    error = "Failed to record submission. Please try again."
-                });
+                    // Defence-in-depth — the gap lock above should already prevent this.
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            status = "already_solved",
+                            message = "You or your teammate already solved this"
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await Console.Error.WriteLineAsync($"[Error] Submission save/recalc failed for challenge {challenge.Id}, team {user.TeamId}: {ex.Message}");
+                    return StatusCode(StatusCodes.Status500InternalServerError, new
+                    {
+                        success = false,
+                        error = "Failed to record submission. Please try again."
+                    });
+                }
             }
-            // Handle dynamic challenge value calculation
-            if (challenge.Type == "dynamic")
+            finally
             {
-                _ = await DynamicChallengeHelper.RecalculateDynamicChallengeValue(
-                    _context,
-                    challenge.Id,
-                    _redisLockHelper);
+                if (recalcLockAcquired)
+                {
+                    try
+                    {
+                        await _redisLockHelper.ReleaseLock(recalcLockKey, recalcLockToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        await Console.Error.WriteLineAsync(
+                            $"[Recalc] Failed to release lock for challenge {challenge.Id}: {ex.Message}");
+                    }
+                }
             }
 
             // Auto stop challenge if require_deploy and cache exists
