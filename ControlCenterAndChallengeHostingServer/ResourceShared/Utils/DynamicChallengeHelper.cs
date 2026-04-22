@@ -95,94 +95,49 @@ namespace ResourceShared.Utils
         }
 
         /// <summary>
-        /// Recalculate dynamic challenge value after a solve
+        /// Redis key used to serialize dynamic-score recalcs for a given challenge.
+        /// Callers must acquire this lock before <c>BeginTransaction</c> and release it only
+        /// after the transaction is disposed, so the snapshot used to read
+        /// <c>solveCount</c> and write <c>Challenge.Value</c> cannot overlap across sessions.
+        /// </summary>
+        public static string GetRecalcLockKey(int challengeId) =>
+            $"challenge:dynamic:recalc:{challengeId}";
+
+        /// <summary>
+        /// Recalculate dynamic challenge value after a solve.
+        /// MUST be called inside an open DB transaction on <paramref name="context"/>, with
+        /// the Redis recalc lock (see <see cref="GetRecalcLockKey"/>) already held by the
+        /// caller. The <c>SaveChangesAsync</c> inside participates in the caller's transaction
+        /// so the <c>Challenge.Value</c> update commits atomically with the submission insert
+        /// that triggered the recalc. Retries for transient DB failures are the caller's
+        /// responsibility.
         /// </summary>
         public static async Task<int> RecalculateDynamicChallengeValue(
-            AppDbContext context, 
-            int challengeId,
-            RedisLockHelper? redisLockHelper = null)
+            AppDbContext context,
+            int challengeId)
         {
-            try
-            {
-                string lockKey = $"challenge:dynamic:recalc:{challengeId}";
-                string lockToken = Guid.NewGuid().ToString();
-                bool lockAcquired = redisLockHelper == null;
-                if (redisLockHelper != null)
-                {
-                    var lockWaitTimeout = TimeSpan.FromSeconds(5);
-                    var lockWaitStart = DateTime.UtcNow;
-                    bool timeoutLogged = false;
-                    while (!lockAcquired)
-                    {
-                        lockAcquired = await redisLockHelper.AcquireLock(
-                            lockKey,
-                            lockToken,
-                            TimeSpan.FromSeconds(10));
-                        if (!lockAcquired)
-                        {
-                            if (DateTime.UtcNow - lockWaitStart > lockWaitTimeout)
-                            {
-                                if (!timeoutLogged)
-                                {
-                                    await Console.Error.WriteLineAsync($"[DynamicChallengeHelper] Lock wait exceeded for challenge {challengeId}, continuing to wait.");
-                                    timeoutLogged = true;
-                                }
-                            }
-                            await Task.Delay(100);
-                        }
-                    }
-                }
+            var challenge = await context.Challenges
+                .Include(c => c.DynamicChallenge)
+                .FirstOrDefaultAsync(c => c.Id == challengeId);
 
-                try
-                {
-                var challenge = await context.Challenges
-                    .Include(c => c.DynamicChallenge)
-                    .FirstOrDefaultAsync(c => c.Id == challengeId);
-                
-                if (challenge == null || challenge.DynamicChallenge == null)
-                {
-                    return challenge?.Value ?? 0;
-                }
-                
-                var dynamicChallenge = challenge.DynamicChallenge;
-                
-                // Count number of solves (excluding hidden and banned users)
-                var solveCount = await GetSolveCount(context, challengeId);
-                
-                  
-                // Calculate new value based on function type
-                int newValue;
-                string function = dynamicChallenge.Function ?? "logarithmic";
-                
-                switch (function.ToLower())
-                {
-                    case "linear":
-                        newValue = Linear(dynamicChallenge, solveCount);
-                        break;
-                    
-                    case "logarithmic":
-                    default:
-                        newValue = Logarithmic(dynamicChallenge, solveCount);
-                        break;
-                }
-                
-                challenge.Value = newValue;
-                await context.SaveChangesAsync();
-                return newValue;
-                }
-                finally
-                {
-                    if (redisLockHelper != null && lockAcquired)
-                    {
-                        await redisLockHelper.ReleaseLock(lockKey, lockToken);
-                    }
-                }
-            }
-            catch (Exception ex)
+            if (challenge == null || challenge.DynamicChallenge == null)
             {
-                await Console.Error.WriteLineAsync($"[DynamicChallengeHelper] Error: {ex.Message}");
-                throw;
+                return challenge?.Value ?? 0;
             }
+
+            var dynamicChallenge = challenge.DynamicChallenge;
+            var solveCount = await GetSolveCount(context, challengeId);
+
+            string function = (dynamicChallenge.Function ?? "logarithmic").ToLower();
+            int newValue = function switch
+            {
+                "linear" => Linear(dynamicChallenge, solveCount),
+                _ => Logarithmic(dynamicChallenge, solveCount),
+            };
+
+            challenge.Value = newValue;
+            await context.SaveChangesAsync();
+            return newValue;
         }
     }
 }
