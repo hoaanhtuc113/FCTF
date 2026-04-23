@@ -30,6 +30,7 @@ from CTFd.admin import statistics  # noqa: F401,I001
 from CTFd.admin import submissions  # noqa: F401,I001
 from CTFd.admin import teams  # noqa: F401,I001
 from CTFd.admin import users  # noqa: F401,I001
+from CTFd.admin import semesters 
 from CTFd.admin import Ticket
 from CTFd.admin import monitors
 from CTFd.admin import exports

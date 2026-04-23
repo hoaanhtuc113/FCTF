@@ -1,0 +1,289 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.challenge_bank_listing') }}">Challenge Bank</a>
+                </li>
+                <li class="breadcrumb-item active">{{ challenge.name }}</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bx bx-edit"></i> {{ challenge.name }}</h1>
+            <form method="POST" action="{{ url_for('admin.challenge_bank_delete', bank_id=challenge.id) }}"
+                onsubmit="return confirm('Xoá challenge &#39;{{ challenge.name }}&#39;? Hành động này không thể hoàn tác.')">
+                <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bx bx-trash"></i> Xoá
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} alert-dismissible py-2">
+        {{ msg }}<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+    </div>
+    {% endfor %}{% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+
+        <div class="row">
+            {# Left column #}
+            <div class="col-lg-7">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title mb-3" style="color:var(--primary-orange);">
+                            <i class="bx bx-info-circle"></i> Thông tin cơ bản
+                        </h6>
+
+                        <div class="form-group mb-3">
+                            <label class="font-weight-600" style="font-size:.83rem;">Tên challenge <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" name="name" class="clean-form-control w-100" required
+                                value="{{ challenge.name }}">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label class="font-weight-600" style="font-size:.83rem;">Mô tả</label>
+                            <textarea name="description" class="clean-form-control w-100"
+                                rows="4">{{ challenge.description or '' }}</textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-6 mb-3">
+                                <label class="font-weight-600" style="font-size:.83rem;">Category</label>
+                                <input type="text" name="category" class="clean-form-control w-100"
+                                    value="{{ challenge.category or '' }}">
+                            </div>
+                            <div class="col-sm-6 mb-3">
+                                <label class="font-weight-600" style="font-size:.83rem;">Difficulty</label>
+                                <select name="difficulty" class="clean-form-control w-100">
+                                    <option value="">— Chọn —</option>
+                                    {% for val, label in [(1,'Very Easy'),(2,'Easy'),(3,'Medium'),(4,'Hard'),(5,'Very
+                                    Hard')] %}
+                                    <option value="{{ val }}" {% if challenge.difficulty==val %}selected{% endif %}>{{
+                                        label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-4 mb-3">
+                                <label class="font-weight-600" style="font-size:.83rem;">Value (pts)</label>
+                                <input type="number" name="value" class="clean-form-control w-100"
+                                    value="{{ challenge.value or 100 }}" min="0">
+                            </div>
+                            <div class="col-sm-4 mb-3">
+                                <label class="font-weight-600" style="font-size:.83rem;">Time limit (phút)</label>
+                                <input type="number" name="time_limit" class="clean-form-control w-100"
+                                    value="{{ challenge.time_limit or 30 }}" min="0">
+                            </div>
+                            <div class="col-sm-4 mb-3">
+                                <label class="font-weight-600" style="font-size:.83rem;">Max attempts</label>
+                                <input type="number" name="max_attempts" class="clean-form-control w-100"
+                                    value="{{ challenge.max_attempts or 0 }}" min="0">
+                                <small class="text-muted">0 = không giới hạn</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-2">
+                            <label class="font-weight-600" style="font-size:.83rem;">Cooldown (giây)</label>
+                            <input type="number" name="cooldown" class="clean-form-control" style="width:140px;"
+                                value="{{ challenge.cooldown or 0 }}" min="0">
+                        </div>
+
+                        <div class="form-group mb-0">
+                            <label class="font-weight-600" style="font-size:.83rem;">Tags</label>
+                            <input type="text" name="tags" class="clean-form-control w-100"
+                                value="{{ challenge.tags or '' }}" placeholder="tag1, tag2, tag3">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title mb-3" style="color:var(--primary-orange);">
+                            <i class="bx bx-flag"></i> Flag
+                        </h6>
+                        <div class="form-group mb-2">
+                            <label class="font-weight-600" style="font-size:.83rem;">Flag value</label>
+                            <input type="text" name="flag" class="clean-form-control w-100"
+                                value="{{ challenge.flag or '' }}">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="font-weight-600" style="font-size:.83rem;">Flag data</label>
+                            <input type="text" name="flag_data" class="clean-form-control w-100"
+                                value="{{ challenge.flag_data or '' }}" placeholder="case_insensitive hoặc để trống">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Right column — deploy #}
+            <div class="col-lg-5">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title mb-3" style="color:var(--primary-orange);">
+                            <i class="bx bx-cube"></i> Cấu hình Deploy
+                            <small class="text-muted ml-1" style="font-weight:400;font-size:.78rem;">
+                                (Pod chỉ tạo khi thí sinh start)
+                            </small>
+                        </h6>
+
+                        <div class="form-group mb-3">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="require_deploy"
+                                    name="require_deploy" value="1" {% if challenge.require_deploy %}checked{% endif %}
+                                    onchange="toggleDeployFields(this.checked)">
+                                <label class="custom-control-label font-weight-600" for="require_deploy"
+                                    style="font-size:.83rem;">Cần deploy pod</label>
+                            </div>
+                        </div>
+
+                        <div id="deploy-fields" {% if not challenge.require_deploy %}style="display:none;" {% endif %}>
+                            <div class="form-group mb-2">
+                                <label class="font-weight-600" style="font-size:.83rem;">Deploy file</label>
+                                {% if challenge.deploy_file %}
+                                <div class="mb-1 p-2" style="background:#f8f9fa;border-radius:4px;font-size:.82rem;">
+                                    <i class="bx bx-file text-muted"></i>
+                                    <span class="text-muted">Hiện tại:</span>
+                                    <code>{{ challenge.deploy_file.split('/')[-1] }}</code>
+                                </div>
+                                {% endif %}
+                                <input type="file" name="deploy_file" class="form-control-file"
+                                    accept=".yaml,.yml,.json,.zip,.tar.gz">
+                                <small class="text-muted">Upload file mới để thay thế</small>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-sm-6 mb-2">
+                                    <label class="font-weight-600" style="font-size:.83rem;">Expose port</label>
+                                    <input type="text" name="expose_port" class="clean-form-control w-100"
+                                        value="{{ challenge.expose_port or '' }}" placeholder="8080">
+                                </div>
+                                <div class="col-sm-6 mb-2">
+                                    <label class="font-weight-600" style="font-size:.83rem;">Protocol</label>
+                                    <select name="connection_protocol" class="clean-form-control w-100">
+                                        {% for proto in ['http','tcp','https'] %}
+                                        <option value="{{ proto }}" {% if challenge.connection_protocol==proto
+                                            %}selected{% endif %}>
+                                            {{ proto.upper() }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-sm-6 mb-2">
+                                    <label class="font-weight-600" style="font-size:.83rem;">CPU request (m)</label>
+                                    <input type="number" name="cpu_request" class="clean-form-control w-100"
+                                        value="{{ challenge.cpu_request or '' }}">
+                                </div>
+                                <div class="col-sm-6 mb-2">
+                                    <label class="font-weight-600" style="font-size:.83rem;">CPU limit (m)</label>
+                                    <input type="number" name="cpu_limit" class="clean-form-control w-100"
+                                        value="{{ challenge.cpu_limit or '' }}">
+                                </div>
+                                <div class="col-sm-6 mb-2">
+                                    <label class="font-weight-600" style="font-size:.83rem;">Memory request (Mi)</label>
+                                    <input type="number" name="memory_request" class="clean-form-control w-100"
+                                        value="{{ challenge.memory_request or '' }}">
+                                </div>
+                                <div class="col-sm-6 mb-2">
+                                    <label class="font-weight-600" style="font-size:.83rem;">Memory limit (Mi)</label>
+                                    <input type="number" name="memory_limit" class="clean-form-control w-100"
+                                        value="{{ challenge.memory_limit or '' }}">
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-2">
+                                <label class="font-weight-600" style="font-size:.83rem;">Max deploy count</label>
+                                <input type="number" name="max_deploy_count" class="clean-form-control"
+                                    style="width:120px;" value="{{ challenge.max_deploy_count or 0 }}" min="0">
+                                <small class="text-muted d-block">0 = không giới hạn</small>
+                            </div>
+
+                            <div class="form-group mb-0">
+                                <div class="custom-control custom-switch mb-2">
+                                    <input type="checkbox" class="custom-control-input" id="use_gvisor"
+                                        name="use_gvisor" value="1" {% if challenge.use_gvisor %}checked{% endif %}>
+                                    <label class="custom-control-label" for="use_gvisor" style="font-size:.83rem;">
+                                        Dùng gVisor sandbox
+                                    </label>
+                                </div>
+                                <div class="custom-control custom-switch mb-2">
+                                    <input type="checkbox" class="custom-control-input" id="harden_container"
+                                        name="harden_container" value="1" {% if challenge.harden_container %}checked{%
+                                        endif %}>
+                                    <label class="custom-control-label" for="harden_container"
+                                        style="font-size:.83rem;">
+                                        Harden container
+                                    </label>
+                                </div>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="shared_instant"
+                                        name="shared_instant" value="1" {% if challenge.shared_instant %}checked{% endif
+                                        %}>
+                                    <label class="custom-control-label" for="shared_instant" style="font-size:.83rem;">
+                                        Shared instance
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="no-deploy-note" {% if challenge.require_deploy %}style="display:none;" {% endif %}>
+                            <div class="alert alert-light py-2 mb-0"
+                                style="font-size:.82rem;border:1px dashed var(--border-medium);">
+                                <i class="bx bx-info-circle text-muted"></i>
+                                Challenge static — thí sinh chỉ submit flag, không tạo pod.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Meta info #}
+                <div class="card mb-3" style="font-size:.82rem;">
+                    <div class="card-body py-2">
+                        <div class="text-muted">
+                            <i class="bx bx-time-five"></i>
+                            Tạo: {{ challenge.created.strftime('%d/%m/%Y %H:%M') if challenge.created else '—' }}
+                        </div>
+                        {% if challenge.creator %}
+                        <div class="text-muted mt-1">
+                            <i class="bx bx-user"></i>
+                            Bởi: {{ challenge.creator.name }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bx bx-save"></i> Lưu thay đổi
+                    </button>
+                    <a href="{{ url_for('admin.challenge_bank_listing') }}" class="btn btn-outline-secondary">
+                        Huỷ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function toggleDeployFields(show) {
+        document.getElementById('deploy-fields').style.display = show ? 'block' : 'none';
+        document.getElementById('no-deploy-note').style.display = show ? 'none' : 'block';
+    }
+</script>
+{% endblock %}

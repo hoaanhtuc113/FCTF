@@ -1,0 +1,116 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.semester_detail', semester_id=semester.id) }}">{{ semester.name }}</a>
+                </li>
+                <li class="breadcrumb-item active">Tạo contest</li>
+            </ol>
+        </nav>
+        <h1><i class="bx bx-plus-circle"></i> Tạo contest mới</h1>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+
+                        <div class="form-group">
+                            <label>Tên contest <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="contestName" class="form-control" required
+                                placeholder="VD: CTF Cuối kỳ 1 2025">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Slug (URL)</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">/contest/</span>
+                                </div>
+                                <input type="text" name="slug" id="contestSlug" class="form-control"
+                                    placeholder="ctf-cuoi-ky-1-2025">
+                            </div>
+                            <small class="text-muted">Để trống sẽ tự sinh từ tên.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mô tả</label>
+                            <textarea name="description" class="form-control" rows="3"
+                                placeholder="Mô tả ngắn về contest..."></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label>Trạng thái</label>
+                                <select name="state" class="form-control">
+                                    <option value="hidden">Hidden (ẩn)</option>
+                                    <option value="upcoming">Upcoming</option>
+                                    <option value="active">Active</option>
+                                    <option value="paused">Paused</option>
+                                    <option value="ended">Ended</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label>User mode</label>
+                                <select name="user_mode" class="form-control">
+                                    <option value="users">Users (cá nhân)</option>
+                                    <option value="teams">Teams (nhóm)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>Thời gian bắt đầu</label>
+                                <input type="datetime-local" name="start_time" class="form-control">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>Thời gian kết thúc</label>
+                                <input type="datetime-local" name="end_time" class="form-control">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>Đóng băng bảng điểm</label>
+                                <input type="datetime-local" name="freeze_scoreboard_at" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('admin.semester_detail', semester_id=semester.id) }}"
+                                class="btn btn-outline-secondary mr-2">Huỷ</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bx bx-save"></i> Tạo contest
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tự sinh slug từ tên
+document.getElementById('contestName').addEventListener('input', function () {
+    const slug = document.getElementById('contestSlug');
+    if (!slug._userEdited) {
+        slug.value = this.value.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .trim().replace(/[\s]+/g, '-').slice(0, 100);
+    }
+});
+document.getElementById('contestSlug').addEventListener('input', function () {
+    this._userEdited = this.value.length > 0;
+});
+</script>
+{% endblock %}

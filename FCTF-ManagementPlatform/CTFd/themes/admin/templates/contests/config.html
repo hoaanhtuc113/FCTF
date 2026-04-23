@@ -1,0 +1,556 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+    /* Clean Config Page Styles — header inherits from base.html */
+
+    .config-container {
+        padding: 0.75rem 0;
+    }
+
+    /* Sidebar Navigation */
+    #config-sidebar {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e8e8e8;
+        padding: 1rem;
+        position: sticky;
+        top: 20px;
+    }
+
+    #config-sidebar .section-title {
+        display: block;
+        color: #6c757d;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 1rem 0.75rem 0.5rem 0.75rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #e8e8e8;
+    }
+
+    #config-sidebar .section-title:first-child {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+    }
+
+    #config-sidebar .nav-link {
+        color: #495057;
+        padding: 0.6rem 0.75rem;
+        margin-bottom: 0.25rem;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+
+    #config-sidebar .nav-link .action-icon {
+        margin-right: 0.75rem;
+        font-size: 1rem;
+        width: 20px;
+        text-align: center;
+    }
+
+    #config-sidebar .nav-link:hover {
+        background-color: #fff5f2;
+        color: #ff6b35;
+        transform: translateX(3px);
+    }
+
+    #config-sidebar .nav-link.active {
+        background-color: #ff6b35;
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    /* Tab Content */
+    .tab-content {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e8e8e8;
+        padding: 2rem;
+    }
+
+    .tab-pane h2 {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e8e8e8;
+    }
+
+    /* Form Styles */
+    .form-group label {
+        color: #495057;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control,
+    .custom-select {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 0.6rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus,
+    .custom-select:focus {
+        border-color: #ff6b35;
+        box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+    }
+
+    .form-text {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+        transition: all 0.2s ease;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .btn-primary:hover {
+        background-color: #e85d2a;
+        border-color: #e85d2a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+    }
+
+    .btn-success {
+        transition: all 0.2s ease;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-danger {
+        transition: all 0.2s ease;
+    }
+
+    .btn-danger:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Cards */
+    .card {
+        border: 1px solid #e8e8e8;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #e8e8e8;
+        padding: 1rem 1.25rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    /* Custom Checkbox/Radio */
+    .custom-control-label {
+        color: #495057;
+    }
+
+    .custom-control-input:checked~.custom-control-label::before {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+    }
+
+    /* Alerts */
+    .alert {
+        border-radius: 6px;
+        border: 1px solid;
+    }
+
+    .alert-info {
+        background-color: #f0f9ff;
+        border-color: #b3e0ff;
+        color: #0c5c8d;
+    }
+
+    .alert-warning {
+        background-color: #fff5f2;
+        border-color: #ffccb3;
+        color: #8b2500;
+    }
+
+    /* Avoid tab flicker on reload by hiding content until URL-based tab is restored */
+    .tab-restore-pending #config-sidebar,
+    .tab-restore-pending .tab-content {
+        visibility: hidden;
+    }
+</style>
+
+<script>
+    (function () {
+        try {
+            var params = new URLSearchParams(window.location.search);
+            if (window.location.hash || params.get("backup_tab")) {
+                document.documentElement.classList.add("tab-restore-pending");
+            }
+        } catch (e) { }
+    })();
+</script>
+<link rel="stylesheet" type="text/css" href="{{ url_for('views.themes', theme='admin', path='css/codemirror.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set _cpage = true %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>{% if
+                contest.semester %}<li class="breadcrumb-item"><a
+                        href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                        contest.semester.name }}</a></li>{% endif %}<li class="breadcrumb-item"><a
+                        href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
+                </li>
+                <li class="breadcrumb-item active">Config</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<div class="config-page">
+    <div class="page-header">
+        <div class="container">
+            <h1><i class="bx bx-cog"></i> Configuration</h1>
+        </div>
+    </div>
+    <div class="container config-container">
+        <div class="row">
+            <div class="col-md-3">
+                <ul id="config-sidebar" class="nav nav-pills flex-column">
+
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1 active" href="#general" role="tab" data-toggle="tab">
+                            <i class="fa fa-gear action-icon"></i>General
+                        </a>
+                    </li>
+                    <!-- Appearance -->
+                    <small class="section-title">Appearance</small>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#logo" role="tab" data-toggle="tab">
+                            <i class="fa fa-signature action-icon"></i>Logo
+                        </a>
+                    </li>
+                    <!-- Access -->
+                    <small class="section-title">Access</small>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#visibility" role="tab" data-toggle="tab">
+                            <i class="fa fa-eye action-icon"></i>Visibility
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#ctftime" role="tab" data-toggle="tab">
+                            <i class="fa fa-stopwatch action-icon"></i>Start and End Time
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#pause" role="tab" data-toggle="tab">
+                            <i class="fa fa-pause action-icon"></i>Pause
+                        </a>
+                    </li>
+
+                    <!-- Users -->
+                    <small class="section-title">Users</small>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#brackets" role="tab" data-toggle="tab">
+                            <i class="fa fa-chart-line action-icon"></i>Scoreboard Brackets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#fields" role="tab" data-toggle="tab">
+                            <i class="fa fa-fingerprint action-icon"></i>Custom Fields
+                        </a>
+                    </li>
+
+                    <small class="section-title">Backup</small>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#backup" role="tab" data-toggle="tab">
+                            <i class="fa fa-file-import action-icon"></i>Import & Export
+                        </a>
+                    </li>
+
+                    <!-- Security -->
+                    <small class="section-title">Security</small>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#sanitize" role="tab" data-toggle="tab">
+                            <i class="fa fa-shield-halved action-icon"></i>Sanitize
+                        </a>
+                    </li>
+
+                    <!-- Plugins -->
+                    {% set plugins = get_configurable_plugins() %}
+                    {% if plugins %}
+                    <small class="section-title">Plugins</small>
+                    {% for plugin in plugins %}
+                    {% if plugin.config %}
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="#plugin_{{loop.index}}" role="tab" data-toggle="tab">
+                            <i class="fa fa-folder action-icon"></i>{{ plugin.name }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+
+                    <!-- Reset -->
+                    <small class="section-title">Danger zone</small>
+                    <li class="nav-item">
+                        <a class="nav-link rounded-0 py-1" href="{{ url_for('admin.reset') }}" role="tab">
+                            <i class="fa fa-trash-can action-icon"></i>Reset
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-9">
+                {% for error in errors %}
+                <div class="alert alert-danger alert-dismissable" role="alert">
+                    <span class="sr-only">Error:</span>
+                    {{ error }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+                {% endfor %}
+
+                <div class="tab-content">
+                    {% include "admin/configs/general.html" %}
+
+                    <!-- Appearance -->
+
+                    {% include "admin/configs/logo.html" %}
+
+                    <!-- Access -->
+
+                    {% include "admin/configs/visibility.html" %}
+
+                    {% include "admin/configs/time.html" %}
+
+                    {% include "admin/configs/pause.html" %}
+
+                    <!-- Users -->
+
+                    {% include "admin/configs/accounts.html" %}
+
+                    {% include "admin/configs/brackets.html" %}
+
+                    {% include "admin/configs/fields.html" %}
+
+                    <!-- Security -->
+
+                    {% include "admin/configs/backup.html" %}
+
+                    {% include "admin/configs/sanitize.html" %}
+
+                    <!-- Plugins -->
+
+                    {% if plugins %}
+                    {% for plugin in plugins %}
+                    {% if plugin.config %}
+                    <div role="tabpanel" class="tab-pane config-section" id="plugin_{{loop.index}}">
+                        {% include plugin.config %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                    <!-- Danger zone -->
+                    <!-- reset.html is top-level so no need to include -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        // Compatibility shim for bundles that call bootstrap.Tab.getOrCreateInstance
+        // while current bootstrap runtime only exposes constructor API.
+        try {
+            if (window.bootstrap && window.bootstrap.Tab) {
+                var TabCtor = window.bootstrap.Tab;
+                if (typeof TabCtor.getOrCreateInstance !== "function" && typeof TabCtor === "function") {
+                    TabCtor.getOrCreateInstance = function (el) {
+                        return new TabCtor(el);
+                    };
+                }
+            }
+        } catch (e) { }
+    })();
+
+    (function () {
+        function extractHash(href) {
+            if (!href) return "";
+            if (href.charAt(0) === "#") return href;
+            try {
+                var u = new URL(href, window.location.href);
+                return u.hash || "";
+            } catch (e) {
+                return "";
+            }
+        }
+
+        function setUrl(opts) {
+            var url = new URL(window.location.href);
+            if (opts && opts.backupTab) {
+                url.searchParams.set("backup_tab", opts.backupTab);
+                url.hash = "#backup";
+            } else {
+                url.searchParams.delete("backup_tab");
+                url.hash = (opts && opts.hash) ? opts.hash : "";
+            }
+            window.history.replaceState({}, "", url.toString());
+        }
+
+        function showTab(el) {
+            if (!el) return;
+            try {
+                // Bootstrap 4 jQuery plugin
+                if (window.jQuery && typeof window.jQuery(el).tab === "function") {
+                    window.jQuery(el).tab("show");
+                    return;
+                }
+            } catch (e) { }
+            el.click();
+        }
+
+        function restoreTabsFromUrl() {
+            var params = new URLSearchParams(window.location.search);
+            var backupTab = params.get("backup_tab");
+            var hash = window.location.hash;
+            if (backupTab) {
+                showTab(document.querySelector("a[href='#backup'][data-toggle='tab']"));
+                showTab(document.querySelector("#backup a[href='#" + backupTab + "'][data-toggle='tab']"));
+                return;
+            }
+            if (hash) {
+                showTab(document.querySelector("a[href='" + hash + "'][data-toggle='tab']"));
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Override configs.js AJAX handler for Import CSV and show feedback inline (no reload)
+            try {
+                if (window.jQuery) {
+                    window.jQuery("#import-csv-form").off("submit");
+                }
+            } catch (e) { }
+
+            var importCsvForm = document.getElementById("import-csv-form");
+            if (importCsvForm) {
+                importCsvForm.addEventListener(
+                    "submit",
+                    function (ev) {
+                        ev.preventDefault();
+                        ev.stopImmediatePropagation();
+
+                        // Ensure we stay on the correct tab
+                        setUrl({ backupTab: "import-csv" });
+                        showTab(document.querySelector("a[href='#backup'][data-toggle='tab']"));
+                        showTab(document.querySelector("#backup a[href='#import-csv'][data-toggle='tab']"));
+
+                        var feedback = document.getElementById("import-csv-feedback");
+                        if (!feedback) {
+                            feedback = document.createElement("div");
+                            feedback.id = "import-csv-feedback";
+                            importCsvForm.parentNode.insertBefore(feedback, importCsvForm);
+                        }
+                        feedback.innerHTML = "<div class='alert alert-info' role='alert'>Uploading...</div>";
+
+                        var formData = new FormData(importCsvForm);
+                        fetch(importCsvForm.getAttribute("action"), {
+                            method: "POST",
+                            body: formData,
+                            credentials: "same-origin",
+                            headers: {
+                                "X-Requested-With": "XMLHttpRequest",
+                                "Accept": "application/json",
+                            },
+                        })
+                            .then(function (resp) {
+                                return resp
+                                    .json()
+                                    .then(function (data) {
+                                        return { ok: resp.ok, data: data };
+                                    });
+                            })
+                            .then(function (r) {
+                                var ok = r.ok;
+                                var data = r.data || {};
+                                var msg = "";
+
+                                if (data.warnings && data.warnings.length) {
+                                    msg +=
+                                        "Imported with warnings:\n" +
+                                        data.warnings.slice(0, 50).join("\n") +
+                                        "\n\n";
+                                }
+
+                                if (ok && data.success) {
+                                    msg += data.message || "Import completed successfully";
+                                    feedback.innerHTML = "";
+                                    alert(msg);
+                                    return;
+                                }
+
+                                msg += data.message || "Import failed";
+                                feedback.innerHTML = "";
+                                alert(msg);
+                            })
+                            .catch(function (err) {
+                                feedback.innerHTML = "";
+                                alert("Request failed: " + String(err));
+                            });
+                        return false;
+                    },
+                    true,
+                );
+            }
+
+            // Update URL when clicking tabs/sub-tabs
+            document.addEventListener("click", function (ev) {
+                var a = ev.target && ev.target.closest ? ev.target.closest("a[data-toggle='tab']") : null;
+                if (!a) return;
+                var targetHash = extractHash(a.getAttribute("href"));
+                if (!targetHash || targetHash.charAt(0) !== "#") return;
+
+                var isBackupInner = !!(a.closest && a.closest("#backup"));
+                if (isBackupInner && targetHash !== "#backup") {
+                    setUrl({ backupTab: targetHash.slice(1) });
+                    return;
+                }
+
+                if (targetHash === "#backup") {
+                    setUrl({ hash: "#backup" });
+                    return;
+                }
+
+                setUrl({ hash: targetHash });
+            }, true);
+
+            restoreTabsFromUrl();
+            document.documentElement.classList.remove("tab-restore-pending");
+        });
+    })();
+</script>
+{% endblock %}
+
+{% block entrypoint %}
+{{ Assets.js("assets/js/pages/configs.js", theme="admin") }}
+{% endblock %}

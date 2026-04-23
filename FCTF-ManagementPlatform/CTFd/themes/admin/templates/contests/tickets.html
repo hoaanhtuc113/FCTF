@@ -1,0 +1,266 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+    /* Tickets page — only page-specific overrides; shared styles in base.html */
+    #popup {
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-delete-single {
+        background: transparent;
+        border: none;
+        color: #dc3545;
+        font-size: 1rem;
+        padding: 0.3rem 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 4px;
+    }
+
+    .btn-delete-single:hover {
+        background-color: #dc3545;
+        color: #ffffff;
+        transform: scale(1.1);
+    }
+
+    .btn-view-detail {
+        color: #ff6b35;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.85rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        display: inline-block;
+    }
+
+    .btn-view-detail:hover {
+        background-color: #fff5f2;
+        color: #e85d2a;
+        text-decoration: none;
+    }
+
+    .btn-view-detail i {
+        margin-right: 0.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set _cpage = true %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>{% if
+                contest.semester %}<li class="breadcrumb-item"><a
+                        href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                        contest.semester.name }}</a></li>{% endif %}<li class="breadcrumb-item"><a
+                        href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
+                </li>
+                <li class="breadcrumb-item active">Tickets</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<!-- Pop-up notification container -->
+<div id="popup" class="alert" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 1000;"></div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const popup = document.getElementById("popup");
+        let messageContent = `
+					{% for category, message in messages %}
+						<div class="alert alert-{{ category }}">{{ message }}</div>
+					{% endfor %}
+				`;
+        popup.innerHTML = messageContent;
+        popup.style.display = "block";
+        setTimeout(function () {
+            popup.style.display = "none";
+        }, 3000);
+    });
+</script>
+{% endif %}
+{% endwith %}
+
+<div class="page-header">
+    <div class="container">
+        <h1><i class="bx bx-envelope"></i> Tickets</h1>
+    </div>
+</div>
+<div class="container">
+    <!-- Filter -->
+    <div class="clean-search-container">
+        <form method="get" action="" class="m-0">
+            <div class="row no-gutters align-items-end">
+                <div class="col-md-3 px-1">
+                    <label>Status</label>
+                    <select name="status" class="clean-form-control ss-select w-100" id="status-select"
+                        onchange="this.form.submit()">
+                        <option value="">All Status</option>
+                        {% for s in status_options %}
+                        <option value="{{ s }}" {% if selected_status==s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 px-1">
+                    <label>Type</label>
+                    <select name="type" class="clean-form-control ss-select w-100" id="type-select"
+                        onchange="this.form.submit()">
+                        <option value="">All Types</option>
+                        {% for t in type_options %}
+                        <option value="{{ t }}" {% if selected_type==t %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 px-1">
+                    <label>Search</label>
+                    <input type="text" name="search" class="clean-form-control w-100" placeholder="Search by title"
+                        value="{{ search or '' }}">
+                </div>
+                <div class="col-md-2 px-1">
+                    <button type="submit" class="clean-btn clean-btn-primary w-100">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="d-flex justify-content-end align-items-center action-buttons mt-2">
+        <form id="delete-form" method="post" action="{{ url_for('admin.delete_tickets') }}"
+            onsubmit="return confirmDelete()">
+            <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+            <button type="submit" class="clean-btn clean-btn-danger">
+                <i class="fas fa-trash"></i> Delete Selected
+            </button>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="clean-table-wrapper mt-2">
+        <table class="clean-table table">
+            <thead>
+                <tr>
+                    <th data-checkbox>
+                        <input type="checkbox" class="table-check" id="select-all">
+                    </th>
+                    <th class="text-center"><b>ID</b></th>
+                    <th class="text-center"><b>Team</b></th>
+                    <th class="text-center"><b>Type</b></th>
+                    <th class="text-center"><b>Title</b></th>
+                    <th class="text-center"><b>Message</b></th>
+                    <th class="text-center"><b>Create At</b></th>
+                    <th class="text-center"><b>Status</b></th>
+                    <th class="text-center"><b>Details</b></th>
+                    <th class="text-center"><b>Action</b></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                <tr class="text-center">
+                    <td data-checkbox>
+                        <input type="checkbox" class="table-check ticket-checkbox" value="{{ ticket.id }}"
+                            form="delete-form" name="ticket_ids[]">
+                    </td>
+                    <td>{{ ticket.id }}</td>
+                    <td class="cell-truncate-sm" title="{{ ticket.team_name or '' }}">{{ (ticket.team_name or '') |
+                        truncate(24, True, '...') }}</td>
+                    <td class="cell-truncate-sm" title="{{ ticket.type or '' }}">{{ (ticket.type or '') | truncate(20,
+                        True, '...') }}</td>
+                    <td class="cell-truncate" title="{{ ticket.title or '' }}">{{ (ticket.title or '') | truncate(40,
+                        True, '...') }}</td>
+                    <td class="cell-truncate-lg" title="{{ ticket.description or '' }}">{{ (ticket.description or '') |
+                        truncate(90, True, '...') }}</td>
+                    <td>{% if ticket.date %}<span data-time="{{ ticket.date | isoformat }}"
+                            data-time-format="YYYY-MM-DD HH:mm:ss"></span>{% else %}N/A{% endif %}</td>
+                    <td>{{ ticket.status }}</td>
+                    <td class="text-center">
+                        <a href="{{ url_for('admin.view_tickets_detail', ticket_id=ticket.id) }}"
+                            class="btn-view-detail">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn-delete-single" onclick="deleteSingleTicket({{ ticket.id }})"
+                            title="Delete ticket">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center text-muted">No tickets found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% set total_pages = (total // per_page) + (1 if total % per_page else 0) %}
+    {% if total_pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        <div class="clean-info-text" role="status" aria-live="polite">
+            Page <span class="clean-highlight">{{ page }}</span> of <span class="clean-highlight">{{ total_pages
+                }}</span> &bull; {{ total }} total
+        </div>
+        <nav aria-label="Page navigation">
+            <ul class="clean-pagination pagination mb-0">
+                {% for p in range(1, total_pages+1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link"
+                        href="?user_id={{ selected_user or '' }}&status={{ selected_status or '' }}&type={{ selected_type or '' }}&search={{ search or '' }}&page={{ p }}&per_page={{ per_page }}">{{
+                        p }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.getElementById('select-all').addEventListener('change', function () {
+        const checkboxes = document.querySelectorAll('.ticket-checkbox');
+        for (const cb of checkboxes) {
+            cb.checked = this.checked;
+        }
+    });
+
+    function confirmDelete() {
+        const checkboxes = document.querySelectorAll('.ticket-checkbox:checked');
+        if (checkboxes.length === 0) {
+            alert('Please select at least one ticket to delete');
+            return false;
+        }
+        return confirm(`Are you sure you want to delete ${checkboxes.length} ticket(s)? This action cannot be undone.`);
+    }
+
+    function deleteSingleTicket(ticketId) {
+        if (confirm('Are you sure you want to delete this ticket? This action cannot be undone.')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("admin.delete_tickets") }}';
+            const nonceInput = document.createElement('input');
+            nonceInput.type = 'hidden';
+            nonceInput.name = 'nonce';
+            nonceInput.value = '{{ Session.nonce }}';
+            form.appendChild(nonceInput);
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'ticket_ids[]';
+            input.value = ticketId;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
+{% endblock %}

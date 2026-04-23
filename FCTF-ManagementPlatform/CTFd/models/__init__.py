@@ -431,6 +431,66 @@ class DynamicFlag(Flags):
     def __repr__(self):
         return f"<DynamicFlag {self.content} for challenge {self.challenge_id}>"
     
+class ChallengeBank(db.Model):
+    """Kho challenge do Super Admin tạo, Teacher import vào contest."""
+    __tablename__ = "challenge_bank"
+
+    id                 = db.Column(db.Integer, primary_key=True)
+    name               = db.Column(db.String(80), nullable=False)
+    description        = db.Column(db.Text, nullable=True)
+    category           = db.Column(db.String(80), nullable=True)
+    difficulty         = db.Column(db.Integer, nullable=True)        # 1-5
+    value              = db.Column(db.Integer, nullable=True, default=100)
+    time_limit         = db.Column(db.Integer, nullable=True, default=30)
+    max_attempts       = db.Column(db.Integer, nullable=True, default=0)
+    cooldown           = db.Column(db.Integer, nullable=True, default=0)
+    # flag
+    flag               = db.Column(db.Text, nullable=True)
+    flag_data          = db.Column(db.String(32), nullable=True, default="")
+    # deploy
+    require_deploy     = db.Column(db.Boolean, nullable=False, default=False)
+    expose_port        = db.Column(db.String(16), nullable=True)
+    connection_protocol= db.Column(db.String(10), nullable=True, default="http")
+    cpu_limit          = db.Column(db.Integer, nullable=True)
+    cpu_request        = db.Column(db.Integer, nullable=True)
+    memory_limit       = db.Column(db.Integer, nullable=True)
+    memory_request     = db.Column(db.Integer, nullable=True)
+    use_gvisor         = db.Column(db.Boolean, nullable=True, default=True)
+    harden_container   = db.Column(db.Boolean, nullable=True, default=True)
+    shared_instant     = db.Column(db.Boolean, nullable=False, default=False)
+    max_deploy_count   = db.Column(db.Integer, nullable=True, default=0)
+    deploy_file        = db.Column(db.String(256), nullable=True)
+    # meta
+    tags               = db.Column(db.Text, nullable=True)           # comma-separated
+    created_by         = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created            = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
+
+    def tags_list(self):
+        if not self.tags:
+            return []
+        return [t.strip() for t in self.tags.split(",") if t.strip()]
+
+    def difficulty_label(self):
+        return {1: "Very Easy", 2: "Easy", 3: "Medium", 4: "Hard", 5: "Very Hard"}.get(self.difficulty, "—")
+
+    def to_dict(self):
+        return {
+            "id": self.id, "name": self.name, "description": self.description,
+            "category": self.category, "difficulty": self.difficulty,
+            "value": self.value, "time_limit": self.time_limit,
+            "max_attempts": self.max_attempts, "cooldown": self.cooldown,
+            "flag": self.flag, "tags": self.tags,
+            "require_deploy": self.require_deploy,
+            "created_by": self.created_by,
+            "created": self.created.isoformat() if self.created else None,
+        }
+
+    def __repr__(self):
+        return f"<ChallengeBank id={self.id} name={self.name!r}>"
+
+
 class ActionLogs(db.Model):
     __tablename__ = "action_logs"
 
@@ -999,6 +1059,9 @@ class AwardBadges(db.Model):
 class Submissions(db.Model):
     __tablename__ = "submissions"
     id = db.Column(db.Integer, primary_key=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
+    )
     challenge_id = db.Column(
         db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
@@ -1052,6 +1115,9 @@ class Submissions(db.Model):
 
 class Solves(Submissions):
     __tablename__ = "solves"
+    # Không đặt UniqueConstraint trên contest_id ở đây vì contest_id
+    # được kế thừa từ Submissions qua joined-table inheritance.
+    # Constraint thực tế đã được tạo ở tầng DB qua migration.
     __table_args__ = (
         db.UniqueConstraint("challenge_id", "user_id"),
         db.UniqueConstraint("challenge_id", "team_id"),
@@ -1093,6 +1159,9 @@ class Discards(Submissions):
 class Unlocks(db.Model):
     __tablename__ = "unlocks"
     id = db.Column(db.Integer, primary_key=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
+    )
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
     target = db.Column(db.Integer)
@@ -1350,3 +1419,170 @@ class AdminAuditLog(db.Model):
             f"<AdminAuditLog id={self.id} action={self.action!r} "
             f"actor_id={self.actor_id}>"
         )
+
+
+class Semester(db.Model):
+    __tablename__ = "semesters"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)
+    code = db.Column(db.String(32), nullable=True)
+    academic_year = db.Column(db.String(32), nullable=True)
+    start_date = db.Column(db.String(20), nullable=True)
+    end_date = db.Column(db.String(20), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="upcoming")
+    note = db.Column(db.Text, nullable=True)
+    created = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    contests = db.relationship(
+        "Contest", backref="semester", lazy="dynamic", cascade="all, delete-orphan"
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "code": self.code,
+            "academic_year": self.academic_year,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "status": self.status,
+            "note": self.note,
+            "created": self.created.isoformat() if self.created else None,
+        }
+
+    def __repr__(self):
+        return f"<Semester id={self.id} name={self.name!r} status={self.status!r}>"
+
+
+class Contest(db.Model):
+    """Một kỳ thi / contest trong một Semester."""
+    __tablename__ = "contests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    semester_id = db.Column(
+        db.Integer, db.ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True
+    )
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    slug = db.Column(db.String(100), nullable=False, unique=True)
+    owner_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    state = db.Column(db.String(20), nullable=False, default="hidden")
+    # upcoming / active / paused / ended / hidden
+    user_mode = db.Column(db.String(20), nullable=False, default="users")
+    start_time = db.Column(db.DateTime, nullable=True)
+    end_time = db.Column(db.DateTime, nullable=True)
+    freeze_scoreboard_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=True)
+
+    owner = db.relationship("Users", foreign_keys=[owner_id], lazy="select")
+    participants = db.relationship(
+        "ContestParticipant", backref="contest", lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+    contest_challenges = db.relationship(
+        "ContestChallenge", backref="contest", lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "semester_id": self.semester_id,
+            "name": self.name,
+            "description": self.description,
+            "slug": self.slug,
+            "owner_id": self.owner_id,
+            "state": self.state,
+            "user_mode": self.user_mode,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "freeze_scoreboard_at": self.freeze_scoreboard_at.isoformat() if self.freeze_scoreboard_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def __repr__(self):
+        return f"<Contest id={self.id} name={self.name!r} state={self.state!r}>"
+
+
+class ContestChallenge(db.Model):
+    """Challenge được thêm vào một contest (từ ChallengeBank)."""
+    __tablename__ = "contests_challenges"
+
+    id = db.Column(db.Integer, primary_key=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
+    )
+    bank_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_bank.id", ondelete="SET NULL"), nullable=True
+    )
+    name = db.Column(db.String(80), nullable=True)
+    connection_info = db.Column(db.Text, nullable=True)
+    next_id = db.Column(db.Integer, nullable=True)
+    last_update = db.Column(db.DateTime, nullable=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
+    connection_protocol = db.Column(db.String(10), nullable=True, default="http")
+
+    bank = db.relationship("ChallengeBank", foreign_keys=[bank_id], lazy="select")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "contest_id": self.contest_id,
+            "bank_id": self.bank_id,
+            "name": self.name,
+            "connection_info": self.connection_info,
+            "max_deploy_count": self.max_deploy_count,
+            "connection_protocol": self.connection_protocol,
+        }
+
+    def __repr__(self):
+        return f"<ContestChallenge id={self.id} contest={self.contest_id} bank={self.bank_id}>"
+
+
+class ContestParticipant(db.Model):
+    """User/Team tham gia một contest."""
+    __tablename__ = "contest_participants"
+
+    id = db.Column(db.Integer, primary_key=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    team_id = db.Column(
+        db.Integer, db.ForeignKey("teams.id", ondelete="SET NULL"), nullable=True
+    )
+    role = db.Column(db.String(20), nullable=False, default="contestant")
+    score = db.Column(db.Integer, nullable=False, default=0)
+    joined_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_solve_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("contest_id", "user_id", name="uq_cp_contest_user"),
+    )
+
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "contest_id": self.contest_id,
+            "user_id": self.user_id,
+            "team_id": self.team_id,
+            "role": self.role,
+            "score": self.score,
+            "joined_at": self.joined_at.isoformat() if self.joined_at else None,
+            "last_solve_at": self.last_solve_at.isoformat() if self.last_solve_at else None,
+        }
+
+    def __repr__(self):
+        return f"<ContestParticipant contest={self.contest_id} user={self.user_id}>"

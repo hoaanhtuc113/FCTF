@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
+                {% if contest.semester %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                        contest.semester.name }}</a>
+                </li>
+                {% endif %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
+                </li>
+                <li class="breadcrumb-item active">Scoreboard</li>
+            </ol>
+        </nav>
+        <h1><i class="bx bx-trophy"></i> Scoreboard — {{ contest.name }}</h1>
+    </div>
+</div>
+
+<div class="container">
+    {% if standings %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead style="background:#fff5f0;">
+                <tr>
+                    <th width="60px">Hạng</th>
+                    <th>User</th>
+                    <th>Score</th>
+                    <th>Last Solve</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in standings %}
+                <tr {% if loop.index <=3 %}style="background:#fffbf0;" {% endif %}>
+                    <td class="text-center">
+                        {% if loop.index == 1 %}<span style="font-size:1.3rem;">🥇</span>
+                        {% elif loop.index == 2 %}<span style="font-size:1.3rem;">🥈</span>
+                        {% elif loop.index == 3 %}<span style="font-size:1.3rem;">🥉</span>
+                        {% else %}<span class="text-muted">{{ loop.index }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if p.user_obj %}
+                        <a href="{{ url_for('admin.users_detail', user_id=p.user_id) }}">
+                            {{ p.user_obj.name }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">User #{{ p.user_id }}</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ p.score }}</strong></td>
+                    <td>
+                        {% if p.last_solve_at %}
+                        {{ p.last_solve_at.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-light border">{{ p.role }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bx bx-trophy" style="font-size:4rem;color:#ddd;"></i>
+        <p class="text-muted mt-3">Chưa có dữ liệu scoreboard.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

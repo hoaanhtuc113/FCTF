@@ -1,0 +1,46 @@
+services:
+  db:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ctfd_root
+      MYSQL_DATABASE: ctfd
+      MYSQL_USER: ctfd
+      MYSQL_PASSWORD: ctfd_pass
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uctfd", "-pctfd_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+  fctf-admin:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    entrypoint: ["python", "-m", "gunicorn", "CTFd:create_app()", "--bind", "0.0.0.0:8000", "--workers", "1", "--worker-class", "gevent"]
+    environment:
+      SECRET_KEY: localdevkey123
+      DATABASE_URL: mysql+pymysql://ctfd:ctfd_pass@db/ctfd
+      REDIS_URL: redis://redis:6379
+      CACHE_REDIS_URL: redis://redis:6379
+      SKIP_DB_PING: "true"
+    volumes:
+      - ./CTFd/admin:/opt/CTFd/CTFd/admin
+      - ./CTFd/models:/opt/CTFd/CTFd/models
+      - ./CTFd/themes/admin/templates:/opt/CTFd/CTFd/themes/admin/templates
+      - ./CTFd/plugins:/opt/CTFd/CTFd/plugins
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  db_data:

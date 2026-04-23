@@ -1,0 +1,183 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+{# Inject context contest cho sidebar #}
+
+
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
+                {% if contest.semester %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">
+                        {{ contest.semester.name }}
+                    </a>
+                </li>
+                {% endif %}
+                <li class="breadcrumb-item active">{{ contest.name }}</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bx bx-flag"></i> {{ contest.name }}</h1>
+            <div>
+                {% if contest.state == 'active' %}
+                <span class="badge badge-success mr-2" style="font-size:.9rem;padding:.4em .8em;">Active</span>
+                {% elif contest.state == 'ended' %}
+                <span class="badge badge-secondary mr-2" style="font-size:.9rem;padding:.4em .8em;">Ended</span>
+                {% elif contest.state == 'hidden' %}
+                <span class="badge badge-dark mr-2" style="font-size:.9rem;padding:.4em .8em;">Hidden</span>
+                {% else %}
+                <span class="badge badge-warning mr-2" style="font-size:.9rem;padding:.4em .8em;">{{ contest.state
+                    }}</span>
+                {% endif %}
+                <a href="{{ url_for('admin.contest_edit', contest_id=contest.id) }}"
+                    class="btn btn-sm btn-outline-secondary">
+                    <i class="bx bx-edit"></i> Sửa contest
+                </a>
+            </div>
+        </div>
+        {% if contest.description %}
+        <p class="text-muted mt-1">{{ contest.description }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}
+        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    {# Stat cards #}
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body py-4">
+                    <i class="bx bx-book" style="font-size:2.5rem;color:#ff6b35;"></i>
+                    <h2 class="mt-2 mb-0">{{ challenge_count }}</h2>
+                    <p class="text-muted mb-0">Challenges</p>
+                </div>
+                <div class="card-footer p-2">
+                    <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
+                        class="btn btn-sm btn-outline-primary btn-block">Quản lý</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body py-4">
+                    <i class="bx bx-user" style="font-size:2.5rem;color:#ff6b35;"></i>
+                    <h2 class="mt-2 mb-0">{{ participant_count }}</h2>
+                    <p class="text-muted mb-0">Participants</p>
+                </div>
+                <div class="card-footer p-2">
+                    <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
+                        class="btn btn-sm btn-outline-primary btn-block">Quản lý</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body py-4">
+                    <i class="bx bx-check-circle" style="font-size:2.5rem;color:#28a745;"></i>
+                    <h2 class="mt-2 mb-0">{{ solve_count }}</h2>
+                    <p class="text-muted mb-0">Solves</p>
+                </div>
+                <div class="card-footer p-2">
+                    <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id, type='correct') }}"
+                        class="btn btn-sm btn-outline-success btn-block">Xem</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center shadow-sm h-100">
+                <div class="card-body py-4">
+                    <i class="bx bx-list-ul" style="font-size:2.5rem;color:#6c757d;"></i>
+                    <h2 class="mt-2 mb-0">{{ submission_count }}</h2>
+                    <p class="text-muted mb-0">Submissions</p>
+                </div>
+                <div class="card-footer p-2">
+                    <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
+                        class="btn btn-sm btn-outline-secondary btn-block">Xem</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Thông tin contest #}
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header"><strong>Thông tin contest</strong></div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted" width="40%">Slug</td>
+                            <td><code>{{ contest.slug }}</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">User mode</td>
+                            <td>{{ contest.user_mode }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Bắt đầu</td>
+                            <td>{{ contest.start_time.strftime('%d/%m/%Y %H:%M') if contest.start_time else '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Kết thúc</td>
+                            <td>{{ contest.end_time.strftime('%d/%m/%Y %H:%M') if contest.end_time else '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Đóng băng bảng điểm</td>
+                            <td>{{ contest.freeze_scoreboard_at.strftime('%d/%m/%Y %H:%M') if
+                                contest.freeze_scoreboard_at else '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Tạo lúc</td>
+                            <td>{{ contest.created_at.strftime('%d/%m/%Y %H:%M') if contest.created_at else '—' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header"><strong>Điều hướng nhanh</strong></div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
+                            <i class="bx bx-book mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
+                            <span>Challenges</span>
+                            <span class="ml-auto badge badge-light border">{{ challenge_count }}</span>
+                        </a>
+                        <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
+                            <i class="bx bx-user mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
+                            <span>Users / Participants</span>
+                            <span class="ml-auto badge badge-light border">{{ participant_count }}</span>
+                        </a>
+                        <a href="{{ url_for('admin.contest_scoreboard', contest_id=contest.id) }}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
+                            <i class="bx bx-trophy mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
+                            <span>Scoreboard</span>
+                        </a>
+                        <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
+                            class="list-group-item list-group-item-action d-flex align-items-center">
+                            <i class="bx bx-list-ul mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
+                            <span>Submissions</span>
+                            <span class="ml-auto badge badge-light border">{{ submission_count }}</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
