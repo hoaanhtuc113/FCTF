@@ -447,7 +447,7 @@ public class ChallengeController : BaseController
                 recalcLockAcquired = await _redisLockHelper.AcquireWithRetry(
                     recalcLockKey,
                     recalcLockToken,
-                    expiry: TimeSpan.FromSeconds(30),
+                    expiry: TimeSpan.FromSeconds(11),
                     retry: 10,
                     delayMs: 100);
 
@@ -470,15 +470,11 @@ public class ChallengeController : BaseController
                 await using var dbTransaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Race-safe solve check: FOR UPDATE on the unique (challenge_id, team_id)
-                    // index acquires a next-key/gap lock under REPEATABLE READ so no other
-                    // session can insert a matching solves row until this tx commits.
                     var existingSolve = await _context.Solves
-                        .FromSqlRaw(
-                            "SELECT * FROM solves WHERE challenge_id = {0} AND team_id = {1} FOR UPDATE",
-                            challenge.Id, user.TeamId)
+                        .Where(x => x.ChallengeId == challenge.Id && x.TeamId == user.TeamId)
                         .AsNoTracking()
                         .ToListAsync();
+
                     if (existingSolve.Count > 0)
                     {
                         return Ok(new
