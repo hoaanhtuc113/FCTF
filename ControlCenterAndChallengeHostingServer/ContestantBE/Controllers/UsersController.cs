@@ -28,7 +28,6 @@ public class UsersController : BaseController
     {
         var userId = UserContext.UserId;
         var user = await _context.Users
-                         .Include(u => u.Team)
                          .FirstOrDefaultAsync(u => u.Id == userId);
         _userBehaviorLogger.Log("GET_PROFILE", userId, UserContext.TeamId, null);
         if (user == null || user is not User currentUser)
@@ -48,7 +47,14 @@ public class UsersController : BaseController
             return NotFound();
         }
 
-        if (currentUser.Team == null)
+        var currentTeam = await _context.UsersTeams
+            .Include(ut => ut.Team)
+            .Where(ut => ut.UserId == userId)
+            .OrderByDescending(ut => ut.JoinedAt)
+            .Select(ut => ut.Team)
+            .FirstOrDefaultAsync();
+
+        if (currentTeam == null)
         {
             return NotFound(new
             {
@@ -64,8 +70,8 @@ public class UsersController : BaseController
         {
             Username = currentUser.Name,
             Email = currentUser.Email,
-            Team = currentUser.Team.Name,
-            TeamBracketId = currentUser.Team.BracketId,
+            Team = currentTeam.Name,
+            TeamBracketId = currentTeam.BracketId,
         };
 
         return Ok(new

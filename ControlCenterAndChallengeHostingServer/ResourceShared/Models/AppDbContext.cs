@@ -54,6 +54,7 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Contest> Contests { get; set; }
     public virtual DbSet<ContestParticipant> ContestParticipants { get; set; }
     public virtual DbSet<ContestsChallenge> ContestsChallenges { get; set; }
+    public virtual DbSet<UserTeam> UsersTeams { get; set; }
 
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //{
@@ -1278,6 +1279,26 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("cc_ibfk_user");
+        });
+
+        modelBuilder.Entity<UserTeam>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.TeamId }).HasName("PRIMARY");
+            entity.ToTable("users_teams");
+
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.JoinedAt).HasMaxLength(6).HasColumnName("joined_at");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_users_teams_user");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.Users)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_users_teams_team");
         });
     }
 

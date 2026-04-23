@@ -47,6 +47,8 @@ public partial class Team
 
     public virtual User? Captain { get; set; }
 
+    public virtual ICollection<User> Users { get; set; } = new List<User>();
+
     public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
 
     public virtual ICollection<FieldEntry> FieldEntries { get; set; } = new List<FieldEntry>();

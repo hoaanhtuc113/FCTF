@@ -703,7 +703,6 @@ CREATE TABLE IF NOT EXISTS `users`  (
   `hidden` tinyint(1) NULL DEFAULT NULL,
   `banned` tinyint(1) NULL DEFAULT NULL,
   `verified` tinyint(1) NULL DEFAULT NULL,
-  `team_id` int(11) NULL DEFAULT NULL,
   `created` datetime(6) NULL DEFAULT NULL,
   `language` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `bracket_id` int(11) NULL DEFAULT NULL,
@@ -712,13 +711,28 @@ CREATE TABLE IF NOT EXISTS `users`  (
   UNIQUE INDEX `id`(`id`, `oauth_id`) USING BTREE,
   UNIQUE INDEX `oauth_id`(`oauth_id`) USING BTREE,
   INDEX `fk_users_bracket_id`(`bracket_id`) USING BTREE,
-  INDEX `fk_users_team_id`(`team_id`) USING BTREE,
-  CONSTRAINT `fk_users_bracket_id` FOREIGN KEY (`bracket_id`) REFERENCES `brackets` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
-  CONSTRAINT `fk_users_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+  CONSTRAINT `fk_users_bracket_id` FOREIGN KEY (`bracket_id`) REFERENCES `brackets` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of users
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for users_teams
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `users_teams`  (
+  `user_id` int(11) NOT NULL,
+  `team_id` int(11) NOT NULL,
+  `joined_at` datetime(6) NOT NULL DEFAULT current_timestamp(6),
+  PRIMARY KEY (`user_id`, `team_id`) USING BTREE,
+  INDEX `fk_users_teams_team`(`team_id`) USING BTREE,
+  CONSTRAINT `fk_users_teams_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_users_teams_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of users_teams
 -- ----------------------------
 
 SET FOREIGN_KEY_CHECKS = 1;
