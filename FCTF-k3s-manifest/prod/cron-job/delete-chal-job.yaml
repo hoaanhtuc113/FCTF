@@ -43,7 +43,7 @@ spec:
                 - |
                   echo "[Cleanup] 🕒 Current Time: $(date -u)"
                   echo "[Cleanup] 🧹 Checking for expired namespaces..."
-                  
+z
                   # Lấy danh sách các namespace cần xóa và in ra lý do
                   TARGETS=$(kubectl get ns -l ctf/temporary=true -o json | jq -r '
                     .items[] | 

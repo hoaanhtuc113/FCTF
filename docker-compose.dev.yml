@@ -1,0 +1,64 @@
+## FCTF Local Development Infrastructure
+## Chỉ chạy database/cache/queue — app services chạy native bên ngoài
+##
+## Usage:
+##   docker compose -f docker-compose.dev.yml up -d
+##   docker compose -f docker-compose.dev.yml down
+##   docker compose -f docker-compose.dev.yml down -v   # xóa cả data
+
+services:
+  mariadb:
+    image: bitnami/mariadb:latest
+    container_name: fctf-mariadb
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: root_password
+      MARIADB_DATABASE: ctfd
+      MARIADB_USER: fctf_user
+      MARIADB_PASSWORD: fctf_password
+    volumes:
+      - mariadb_data:/bitnami/mariadb
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: bitnami/redis:latest
+    container_name: fctf-redis
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: redis_password
+    volumes:
+      - redis_data:/bitnami/redis/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fctf-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI → http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: rabbitmq_password
+      RABBITMQ_DEFAULT_VHOST: fctf_deploy
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mariadb_data:
+  redis_data:
+  rabbitmq_data:

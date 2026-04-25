@@ -33,6 +33,10 @@ public partial class Team
 
     public int? BracketId { get; set; }
 
+    public int? ContestId { get; set; }
+
+    public virtual Contest? Contest { get; set; }
+
     public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 
     public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();
@@ -42,6 +46,8 @@ public partial class Team
     public virtual Bracket? Bracket { get; set; }
 
     public virtual User? Captain { get; set; }
+
+    public virtual ICollection<User> Users { get; set; } = new List<User>();
 
     public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
 
@@ -54,6 +60,4 @@ public partial class Team
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 
     public virtual ICollection<Unlock> Unlocks { get; set; } = new List<Unlock>();
-
-    public virtual ICollection<User> Users { get; set; } = new List<User>();
 }

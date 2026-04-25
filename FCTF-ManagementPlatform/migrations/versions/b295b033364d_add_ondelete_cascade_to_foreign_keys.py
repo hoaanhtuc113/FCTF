@@ -14,12 +14,34 @@ branch_labels = None
 depends_on = None
 
 
+def get_fk_name(bind, table_name, column_name, referenced_table_name):
+    """Look up the actual FK constraint name from information_schema."""
+    sql = (
+        "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+        "WHERE TABLE_SCHEMA = DATABASE() "
+        "AND TABLE_NAME = '{}' "
+        "AND COLUMN_NAME = '{}' "
+        "AND REFERENCED_TABLE_NAME = '{}' "
+        "LIMIT 1"
+    ).format(table_name, column_name, referenced_table_name)
+    result = bind.execute(sql)
+    row = result.fetchone()
+    return row[0] if row else None
+
+
+def drop_fk_by_column(bind, table_name, column_name, referenced_table_name):
+    """Find FK by column lookup and drop it if it exists."""
+    fk_name = get_fk_name(bind, table_name, column_name, referenced_table_name)
+    if fk_name:
+        op.drop_constraint(fk_name, table_name, type_="foreignkey")
+
+
 def upgrade():
     bind = op.get_bind()
     url = str(bind.engine.url)
     if url.startswith("mysql"):
-        op.drop_constraint("awards_ibfk_1", "awards", type_="foreignkey")
-        op.drop_constraint("awards_ibfk_2", "awards", type_="foreignkey")
+        drop_fk_by_column(bind, "awards", "team_id", "teams")
+        drop_fk_by_column(bind, "awards", "user_id", "users")
         op.create_foreign_key(
             "awards_ibfk_1", "awards", "teams", ["team_id"], ["id"], ondelete="CASCADE"
         )
@@ -27,7 +49,7 @@ def upgrade():
             "awards_ibfk_2", "awards", "users", ["user_id"], ["id"], ondelete="CASCADE"
         )
 
-        op.drop_constraint("files_ibfk_1", "files", type_="foreignkey")
+        drop_fk_by_column(bind, "files", "challenge_id", "challenges")
         op.create_foreign_key(
             "files_ibfk_1",
             "files",
@@ -37,7 +59,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("flags_ibfk_1", "flags", type_="foreignkey")
+        drop_fk_by_column(bind, "flags", "challenge_id", "challenges")
         op.create_foreign_key(
             "flags_ibfk_1",
             "flags",
@@ -47,7 +69,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("hints_ibfk_1", "hints", type_="foreignkey")
+        drop_fk_by_column(bind, "hints", "challenge_id", "challenges")
         op.create_foreign_key(
             "hints_ibfk_1",
             "hints",
@@ -57,7 +79,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("tags_ibfk_1", "tags", type_="foreignkey")
+        drop_fk_by_column(bind, "tags", "challenge_id", "challenges")
         op.create_foreign_key(
             "tags_ibfk_1",
             "tags",
@@ -67,7 +89,7 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("team_captain_id", "teams", type_="foreignkey")
+        drop_fk_by_column(bind, "teams", "captain_id", "users")
         op.create_foreign_key(
             "team_captain_id",
             "teams",
@@ -77,7 +99,7 @@ def upgrade():
             ondelete="SET NULL",
         )
 
-        op.drop_constraint("tracking_ibfk_1", "tracking", type_="foreignkey")
+        drop_fk_by_column(bind, "tracking", "user_id", "users")
         op.create_foreign_key(
             "tracking_ibfk_1",
             "tracking",
@@ -87,8 +109,8 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        op.drop_constraint("unlocks_ibfk_1", "unlocks", type_="foreignkey")
-        op.drop_constraint("unlocks_ibfk_2", "unlocks", type_="foreignkey")
+        drop_fk_by_column(bind, "unlocks", "team_id", "teams")
+        drop_fk_by_column(bind, "unlocks", "user_id", "users")
         op.create_foreign_key(
             "unlocks_ibfk_1",
             "unlocks",

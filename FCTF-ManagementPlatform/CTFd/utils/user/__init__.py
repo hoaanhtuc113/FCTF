@@ -51,7 +51,7 @@ def get_user_attrs(user_id):
     if user:
         d = {}
         for field in UserAttrs._fields:
-            d[field] = getattr(user, field)
+            d[field] = getattr(user, field, None)
         return UserAttrs(**d)
     return None
 
@@ -114,7 +114,7 @@ def get_team_attrs(team_id):
     if team:
         d = {}
         for field in TeamAttrs._fields:
-            d[field] = getattr(team, field)
+            d[field] = getattr(team, field, None)
         return TeamAttrs(**d)
     return None
 

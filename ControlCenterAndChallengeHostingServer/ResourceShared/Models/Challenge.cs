@@ -1,8 +1,16 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
 
+/// <summary>
+/// Challenge Bank — template dùng chung.
+/// Giáo viên tạo challenge ở đây. Challenge này KHÔNG gắn trực tiếp với bất kỳ contest nào.
+/// Khi đưa vào contest, một bản ContestsChallenge sẽ được tạo ra tham chiếu BankId = challenges.id.
+///
+/// Table: challenges
+/// Các cột runtime (state, value, max_attempts, ...) đã chuyển sang bảng contests_challenges.
+/// </summary>
 public partial class Challenge
 {
     public int Id { get; set; }
@@ -11,39 +19,21 @@ public partial class Challenge
 
     public string? Description { get; set; }
 
-    public int? MaxAttempts { get; set; }
-
-    public int? Value { get; set; }
-
     public string? Category { get; set; }
 
     public string? Type { get; set; }
 
-    public string State { get; set; } = null!;
+    public int? Difficulty { get; set; }
 
     public string? Requirements { get; set; }
 
-    public string? ConnectionInfo { get; set; }
+    // --- Tác giả (đổi từ user_id → author_id) ---
+    public int? AuthorId { get; set; }
 
-    public int? NextId { get; set; }
-
-    public int? TimeLimit { get; set; }
-
-    public bool RequireDeploy { get; set; }
-
-    public string? DeployStatus { get; set; }
-
-    public DateTime? LastUpdate { get; set; }
-
-    public DateTime? TimeFinished { get; set; }
-
-    public DateTime? StartTime { get; set; }
-
+    // --- Deploy config (giữ nguyên trên bank) ---
     public string? ImageLink { get; set; }
 
-    public int UserId { get; set; }
-
-    public int? Cooldown { get; set; }
+    public string? DeployFile { get; set; }
 
     public int? CpuLimit { get; set; }
 
@@ -55,47 +45,42 @@ public partial class Challenge
 
     public bool? UseGvisor { get; set; }
 
-    public bool? HardenContainer { get; set; }
+    public bool? HardenContainer { get; set; } = true;
 
-    public int? MaxDeployCount { get; set; }
+    public int? MaxDeployCount { get; set; } = 0;
 
-    public int? Difficulty { get; set; }
+    public string ConnectionProtocol { get; set; } = "http";
 
-    public bool SharedInstant { get; set; }
+    public bool SharedInstant { get; set; } = false;
 
-    public string ConnectionProtocol { get; set; } = null!;
+    // --- Bank metadata (mới) ---
+    public bool IsPublic { get; set; } = false;
 
-    public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
+    public int ImportCount { get; set; } = 0;
 
-    public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();
+    public DateTime? CreatedAt { get; set; }
 
-    public virtual ICollection<ChallengeTopic> ChallengeTopics { get; set; } = new List<ChallengeTopic>();
+    public DateTime? UpdatedAt { get; set; }
 
-    public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
+    // Navigation properties
+    public virtual User? Author { get; set; }
 
-    public virtual ICollection<DeployHistory> DeployHistories { get; set; } = new List<DeployHistory>();
-
-    public virtual ICollection<ChallengeStartTracking> ChallengeStartTrackings { get; set; } = new List<ChallengeStartTracking>();
-
-    public virtual DynamicChallenge? DynamicChallenge { get; set; }
-
-    public virtual ICollection<File> Files { get; set; } = new List<File>();
-
+    // Bank children (flags, hints, files, tags, topics gắn với bank challenge)
     public virtual ICollection<Flag> Flags { get; set; } = new List<Flag>();
 
     public virtual ICollection<Hint> Hints { get; set; } = new List<Hint>();
 
-    public virtual ICollection<Challenge> InverseNext { get; set; } = new List<Challenge>();
-
-    public virtual MultipleChoiceChallenge? MultipleChoiceChallenge { get; set; }
-
-    public virtual Challenge? Next { get; set; }
-
-    public virtual ICollection<Solf> Solves { get; set; } = new List<Solf>();
-
-    public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
+    public virtual ICollection<File> Files { get; set; } = new List<File>();
 
     public virtual ICollection<Tag> Tags { get; set; } = new List<Tag>();
 
-    public virtual User User { get; set; } = null!;
+    public virtual ICollection<ChallengeTopic> ChallengeTopics { get; set; } = new List<ChallengeTopic>();
+
+    // Polymorphic subtypes
+    public virtual DynamicChallenge? DynamicChallenge { get; set; }
+
+    public virtual MultipleChoiceChallenge? MultipleChoiceChallenge { get; set; }
+
+    // Tất cả contest instances được tạo từ bank challenge này
+    public virtual ICollection<ContestsChallenge> ContestInstances { get; set; } = new List<ContestsChallenge>();
 }

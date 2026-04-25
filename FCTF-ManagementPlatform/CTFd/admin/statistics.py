@@ -17,8 +17,7 @@ def statistics():
     users_q = db.session.query(db.func.count(Users.id)).scalar_subquery()
     chals_q = db.session.query(db.func.count(Challenges.id)).scalar_subquery()
     points_q = (
-        db.session.query(db.func.sum(Challenges.value))
-        .filter(Challenges.state == "visible")
+        db.session.query(db.func.sum(db.literal(0)))
         .scalar_subquery()
     )
     ips_q = db.session.query(db.func.count(db.func.distinct(Tracking.ip))).scalar_subquery()
@@ -44,21 +43,23 @@ def statistics():
 
     solves_sub = (
         db.session.query(
-            Solves.challenge_id, db.func.count(Solves.challenge_id).label("solves_cnt")
+            Solves.contest_challenge_id, db.func.count(Solves.contest_challenge_id).label("solves_cnt")
         )
         .join(Model, Solves.account_id == Model.id)
         .filter(Model.banned == False, Model.hidden == False)
-        .group_by(Solves.challenge_id)
+        .group_by(Solves.contest_challenge_id)
         .subquery()
     )
     
+    from CTFd.models import ContestsChallenges
     solves = (
         db.session.query(
-            solves_sub.columns.challenge_id,
+            ContestsChallenges.challenge_id,
             solves_sub.columns.solves_cnt,
             Challenges.name,
         )
-        .join(Challenges, solves_sub.columns.challenge_id == Challenges.id)
+        .join(ContestsChallenges, solves_sub.columns.contest_challenge_id == ContestsChallenges.id)
+        .join(Challenges, ContestsChallenges.challenge_id == Challenges.id)
         .all()
     )
     # solves is a list of tuples: (challenge_id, solves_cnt, name)

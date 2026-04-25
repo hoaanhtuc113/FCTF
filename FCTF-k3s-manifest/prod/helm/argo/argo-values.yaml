@@ -682,7 +682,7 @@ server:
   # -- A list of supported authentication modes. Available values are `server`, `client`, or `sso`. If you provide sso, please configure `.Values.server.sso` as well.
   ## Ref: https://argo-workflows.readthedocs.io/en/stable/argo-server-auth-mode/
   authModes: 
-    - client
+    - server
 
   # -- Extra arguments to provide to the Argo server binary.
   ## Ref: https://argo-workflows.readthedocs.io/en/stable/argo-server/#options

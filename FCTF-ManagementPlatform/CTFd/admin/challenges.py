@@ -83,8 +83,10 @@ def challenges_listing():
     if difficulty:
         filters.append(Challenges.difficulty == int(difficulty))
 
-    if state_filter:
-        filters.append(Challenges.state == state_filter)
+    if state_filter == "visible":
+        filters.append(Challenges.is_public == True)
+    elif state_filter == "hidden":
+        filters.append(Challenges.is_public == False)
 
     if has_prereq == "yes":
         # requirements is a JSON column like {"prerequisites": [1, 2, ...]}
@@ -99,7 +101,7 @@ def challenges_listing():
     elif is_challenge_writer():
         # Filter by the challenge writer associated with the current session
         writer_id = session["id"]  # Assuming the session stores the user ID
-        filters.append(Challenges.user_id == writer_id)
+        filters.append(Challenges.author_id == writer_id)
         query = Challenges.query.filter(*filters).order_by(Challenges.id.asc())
     else:
         # Default fallback - show all challenges
@@ -116,7 +118,7 @@ def challenges_listing():
     types = [t[0] for t in raw_types if t and t[0]]
     # Add creator names to challenges
     for c in challenges.items:
-        user = Users.query.filter_by(id=c.user_id).first()
+        user = Users.query.filter_by(id=c.author_id).first()
         if user:
             c.creator = user.name
         else:

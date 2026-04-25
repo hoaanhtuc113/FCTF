@@ -34,6 +34,7 @@ func main() {
 
 	<-ctx.Done()
 	log.Println("Shutting down gateways...")
+	log.Println("CI/CD Demo: Triggered from Github Actions!")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

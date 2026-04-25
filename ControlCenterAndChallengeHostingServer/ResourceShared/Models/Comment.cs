@@ -15,7 +15,11 @@ public partial class Comment
 
     public int? AuthorId { get; set; }
 
-    public int? ChallengeId { get; set; }
+    /// <summary>FK → contests.id</summary>
+    public int? ContestId { get; set; }
+
+    /// <summary>FK → contests_challenges.id (chỉ có giá trị khi Type = "challenge")</summary>
+    public int? ContestChallengeId { get; set; }
 
     public int? UserId { get; set; }
 
@@ -23,7 +27,9 @@ public partial class Comment
 
     public virtual User? Author { get; set; }
 
-    public virtual Challenge? Challenge { get; set; }
+    public virtual Contest? Contest { get; set; }
+
+    public virtual ContestsChallenge? ContestChallenge { get; set; }
 
     public virtual Team? Team { get; set; }
 

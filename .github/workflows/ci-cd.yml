@@ -8,7 +8,7 @@
 #
 #   HARBOR_USERNAME   – Harbor username (NOT email)
 #   HARBOR_TOKEN      – Harbor access token (NOT password)
-#                          Create at: https://registry.sanchoi.iahn.hanoi.vn/settings/security
+#                          Create at: https://registry.fctf.nvtai24.site/settings/security
 #   KUBE_CONFIG          – base64-encoded kubeconfig cho CI/CD ServiceAccount
 #                          Chạy script trên server K3s để tạo tự động:
 #                            cd FCTF-k3s-manifest
@@ -31,8 +31,8 @@ on:
   workflow_dispatch: # allow manual trigger
 
 env:
-  REGISTRY: registry.sanchoi.iahn.hanoi.vn
-  IMAGE_BASE: registry.sanchoi.iahn.hanoi.vn/fctf
+  REGISTRY: registry.fctf.nvtai24.site
+  IMAGE_BASE: registry.fctf.nvtai24.site/fctf
 
 # ---------------------------------------------------------------------------
 # 1. Detect which services changed
@@ -133,7 +133,7 @@ jobs:
       - name: Login to Harbor
         uses: docker/login-action@v3
         with:
-          registry: registry.sanchoi.iahn.hanoi.vn
+          registry: registry.fctf.nvtai24.site
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_TOKEN }}
 

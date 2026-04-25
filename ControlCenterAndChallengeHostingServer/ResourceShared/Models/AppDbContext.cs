@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 using System;
@@ -17,65 +17,44 @@ public partial class AppDbContext : DbContext
     {
     }
 
+    // --- Existing tables ---
     public virtual DbSet<Achievement> Achievements { get; set; }
-
     public virtual DbSet<ActionLog> ActionLogs { get; set; }
-
     public virtual DbSet<AlembicVersion> AlembicVersions { get; set; }
-
     public virtual DbSet<Award> Awards { get; set; }
-
     public virtual DbSet<AwardBadge> AwardBadges { get; set; }
-
     public virtual DbSet<Bracket> Brackets { get; set; }
-
     public virtual DbSet<Challenge> Challenges { get; set; }
-
     public virtual DbSet<ChallengeStartTracking> ChallengeStartTrackings { get; set; }
-
     public virtual DbSet<ChallengeTopic> ChallengeTopics { get; set; }
-
     public virtual DbSet<Comment> Comments { get; set; }
-
     public virtual DbSet<Config> Configs { get; set; }
-
     public virtual DbSet<DeployHistory> DeployHistories { get; set; }
-
     public virtual DbSet<DynamicChallenge> DynamicChallenges { get; set; }
-
     public virtual DbSet<Field> Fields { get; set; }
-
     public virtual DbSet<FieldEntry> FieldEntries { get; set; }
-
     public virtual DbSet<File> Files { get; set; }
-
     public virtual DbSet<Flag> Flags { get; set; }
-
     public virtual DbSet<Hint> Hints { get; set; }
-
     public virtual DbSet<MultipleChoiceChallenge> MultipleChoiceChallenges { get; set; }
-
     public virtual DbSet<Notification> Notifications { get; set; }
-
     public virtual DbSet<Solf> Solves { get; set; }
-
     public virtual DbSet<Submission> Submissions { get; set; }
-
     public virtual DbSet<Tag> Tags { get; set; }
-
     public virtual DbSet<Team> Teams { get; set; }
-
     public virtual DbSet<Ticket> Tickets { get; set; }
-
     public virtual DbSet<Token> Tokens { get; set; }
-
     public virtual DbSet<Topic> Topics { get; set; }
-
     public virtual DbSet<Tracking> Trackings { get; set; }
-
     public virtual DbSet<Unlock> Unlocks { get; set; }
-
     public virtual DbSet<User> Users { get; set; }
+
+    // --- New tables (multiple-contest architecture) ---
+    public virtual DbSet<Semester> Semesters { get; set; }
+    public virtual DbSet<Contest> Contests { get; set; }
+    public virtual DbSet<ContestParticipant> ContestParticipants { get; set; }
+    public virtual DbSet<ContestsChallenge> ContestsChallenges { get; set; }
+    public virtual DbSet<UserTeam> UsersTeams { get; set; }
 
     //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //{
@@ -112,43 +91,28 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Achievement>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("achievements");
-
             entity.HasIndex(e => e.AchievementId, "achievement_id");
-
-            entity.HasIndex(e => e.ChallengeId, "challenge_id");
-
+            entity.HasIndex(e => e.ContestChallengeId, "contest_challenge_id");
+            entity.HasIndex(e => e.ContestId, "contest_id");
             entity.HasIndex(e => e.TeamId, "team_id");
-
             entity.HasIndex(e => e.UserId, "user_id");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.AchievementId)
-                .HasColumnType("int(11)")
-                .HasColumnName("achievement_id");
-            entity.Property(e => e.ChallengeId)
-                .HasColumnType("int(11)")
-                .HasColumnName("challenge_id");
-            entity.Property(e => e.Name)
-                .HasMaxLength(80)
-                .HasColumnName("name");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.AchievementId).HasColumnType("int(11)").HasColumnName("achievement_id");
+            entity.Property(e => e.ContestChallengeId).HasColumnType("int(11)").HasColumnName("contest_challenge_id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.Name).HasMaxLength(80).HasColumnName("name");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
 
             entity.HasOne(d => d.AchievementNavigation).WithMany(p => p.Achievements)
                 .HasForeignKey(d => d.AchievementId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("achievements_ibfk_1");
 
-            entity.HasOne(d => d.Challenge).WithMany(p => p.Achievements)
-                .HasForeignKey(d => d.ChallengeId)
+            entity.HasOne(d => d.ContestChallenge).WithMany(p => p.Achievements)
+                .HasForeignKey(d => d.ContestChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("achievements_ibfk_2");
 
@@ -161,6 +125,11 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("achievements_ibfk_4");
+
+            entity.HasOne(d => d.Contest).WithMany()
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("achievements_ibfk_contest");
         });
 
         modelBuilder.Entity<ActionLog>(entity =>
@@ -210,16 +179,13 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Award>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("awards");
-
             entity.HasIndex(e => e.TeamId, "awards_ibfk_1");
-
             entity.HasIndex(e => e.UserId, "awards_ibfk_2");
+            entity.HasIndex(e => e.ContestId, "ix_awards_contest_id");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
             entity.Property(e => e.Category)
                 .HasMaxLength(80)
                 .HasColumnName("category");
@@ -252,6 +218,11 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("int(11)")
                 .HasColumnName("value");
 
+            entity.HasOne(d => d.Contest).WithMany(p => p.Awards)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("awards_ibfk_contest");
+
             entity.HasOne(d => d.Team).WithMany(p => p.Awards)
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.Cascade)
@@ -266,33 +237,26 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<AwardBadge>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("award_badges");
-
-            entity.HasIndex(e => e.ChallengeId, "challenge_id");
-
+            entity.HasIndex(e => e.ContestChallengeId, "challenge_id");
+            entity.HasIndex(e => e.ContestId, "contest_id");
             entity.HasIndex(e => e.TeamId, "team_id");
-
             entity.HasIndex(e => e.UserId, "user_id");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.ChallengeId)
-                .HasColumnType("int(11)")
-                .HasColumnName("challenge_id");
-            entity.Property(e => e.Name)
-                .HasMaxLength(80)
-                .HasColumnName("name");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.ContestChallengeId).HasColumnType("int(11)").HasColumnName("challenge_id");
+            entity.Property(e => e.Name).HasMaxLength(80).HasColumnName("name");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
 
-            entity.HasOne(d => d.Challenge).WithMany(p => p.AwardBadges)
-                .HasForeignKey(d => d.ChallengeId)
+            entity.HasOne(d => d.Contest).WithMany()
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("award_badges_ibfk_contest");
+
+            entity.HasOne(d => d.ContestChallenge).WithMany(p => p.AwardBadges)
+                .HasForeignKey(d => d.ContestChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("award_badges_ibfk_1");
 
@@ -330,140 +294,62 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Challenge>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("challenges");
+            entity.HasIndex(e => e.AuthorId, "author_id");
 
-            entity.HasIndex(e => e.NextId, "next_id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.Name).HasMaxLength(80).HasColumnName("name");
+            entity.Property(e => e.Description).HasColumnType("text").HasColumnName("description");
+            entity.Property(e => e.Category).HasMaxLength(80).HasColumnName("category");
+            entity.Property(e => e.Type).HasMaxLength(80).HasColumnName("type");
+            entity.Property(e => e.Difficulty).HasColumnType("int(11)").HasColumnName("difficulty");
+            entity.Property(e => e.AuthorId).HasColumnType("int(11)").HasColumnName("author_id");
+            entity.Property(e => e.Requirements).HasColumnType("json").HasColumnName("requirements");
+            entity.Property(e => e.ImageLink).HasColumnType("text").HasColumnName("image_link");
+            entity.Property(e => e.DeployFile).HasMaxLength(256).HasColumnName("deploy_file");
+            entity.Property(e => e.CpuLimit).HasColumnType("int(11)").HasColumnName("cpu_limit");
+            entity.Property(e => e.CpuRequest).HasColumnType("int(11)").HasColumnName("cpu_request");
+            entity.Property(e => e.MemoryLimit).HasColumnType("int(11)").HasColumnName("memory_limit");
+            entity.Property(e => e.MemoryRequest).HasColumnType("int(11)").HasColumnName("memory_request");
+            entity.Property(e => e.UseGvisor).HasColumnName("use_gvisor");
+            entity.Property(e => e.HardenContainer).HasColumnName("harden_container");
+            entity.Property(e => e.MaxDeployCount).HasColumnType("int(11)").HasColumnName("max_deploy_count");
+            entity.Property(e => e.ConnectionProtocol).HasMaxLength(10).HasDefaultValueSql("'http'").HasColumnName("connection_protocol");
+            entity.Property(e => e.SharedInstant).HasColumnName("shared_instant").HasDefaultValue(false);
+            entity.Property(e => e.IsPublic).HasColumnName("is_public").HasDefaultValue(false);
+            entity.Property(e => e.ImportCount).HasColumnType("int(11)").HasColumnName("import_count").HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasMaxLength(6).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasMaxLength(6).HasColumnName("updated_at");
 
-            entity.HasIndex(e => e.UserId, "user_id");
-
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.Category)
-                .HasMaxLength(80)
-                .HasColumnName("category");
-            entity.Property(e => e.ConnectionInfo)
-                .HasColumnType("text")
-                .HasColumnName("connection_info");
-            entity.Property(e => e.ConnectionProtocol)
-                .HasMaxLength(10)
-                .HasDefaultValueSql("'http'")
-                .HasColumnName("connection_protocol");
-            entity.Property(e => e.DeployStatus)
-                .HasColumnType("text")
-                .HasColumnName("deploy_status");
-            entity.Property(e => e.Description)
-                .HasColumnType("text")
-                .HasColumnName("description");
-            entity.Property(e => e.ImageLink)
-                .HasColumnType("text")
-                .HasColumnName("image_link");
-            entity.Property(e => e.LastUpdate)
-                .HasMaxLength(6)
-                .HasColumnName("last_update");
-            entity.Property(e => e.MaxAttempts)
-                .HasColumnType("int(11)")
-                .HasColumnName("max_attempts");
-            entity.Property(e => e.Name)
-                .HasMaxLength(80)
-                .HasColumnName("name");
-            entity.Property(e => e.NextId)
-                .HasColumnType("int(11)")
-                .HasColumnName("next_id");
-            entity.Property(e => e.RequireDeploy).HasColumnName("require_deploy");
-            entity.Property(e => e.Requirements)
-                .HasColumnType("json")
-                .HasColumnName("requirements");
-            entity.Property(e => e.StartTime)
-                .HasMaxLength(6)
-                .HasColumnName("start_time");
-            entity.Property(e => e.State)
-                .HasMaxLength(80)
-                .HasColumnName("state");
-            entity.Property(e => e.TimeFinished)
-                .HasMaxLength(6)
-                .HasColumnName("time_finished");
-            entity.Property(e => e.TimeLimit)
-                .HasColumnType("int(11)")
-                .HasColumnName("time_limit");
-            entity.Property(e => e.Type)
-                .HasMaxLength(80)
-                .HasColumnName("type");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
-            entity.Property(e => e.Value)
-                .HasColumnType("int(11)")
-                .HasColumnName("value");
-            entity.Property(e => e.CpuLimit)
-                .HasColumnType("int(11)")
-                .HasColumnName("cpu_limit");
-            entity.Property(e => e.CpuRequest)
-                .HasColumnType("int(11)")
-                .HasColumnName("cpu_request");
-            entity.Property(e => e.MemoryLimit)
-                .HasColumnType("int(11)")
-                .HasColumnName("memory_limit");
-            entity.Property(e => e.MemoryRequest)
-                .HasColumnType("int(11)")
-                .HasColumnName("memory_request");
-            entity.Property(e => e.UseGvisor)
-                .HasColumnName("use_gvisor");
-            entity.Property(e => e.HardenContainer)
-                .HasColumnName("harden_container");
-            entity.Property(e => e.MaxDeployCount)
-                .HasColumnType("int(11)")
-                .HasColumnName("max_deploy_count");
-            entity.Property(e => e.SharedInstant)
-                .HasColumnName("shared_instant")
-                .HasDefaultValue(false);
-
-            entity.HasOne(d => d.Next).WithMany(p => p.InverseNext)
-                .HasForeignKey(d => d.NextId)
+            entity.HasOne(d => d.Author).WithMany(p => p.AuthoredChallenges)
+                .HasForeignKey(d => d.AuthorId)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("challenges_ibfk_1");
-
-            entity.HasOne(d => d.User).WithMany(p => p.Challenges)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("challenges_ibfk_2");
         });
 
         modelBuilder.Entity<ChallengeStartTracking>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("challenge_start_tracking");
+            entity.HasIndex(e => e.ContestChallengeId, "ix_cst_cc_id");
+            entity.HasIndex(e => e.ContestId, "contest_id");
 
-            entity.HasIndex(e => new { e.UserId, e.ChallengeId }, "idx_challenge_start_tracking_user_challenge");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.ContestChallengeId).HasColumnType("int(11)").HasColumnName("contest_challenge_id");
+            entity.Property(e => e.StartedAt).HasMaxLength(6).HasColumnName("started_at");
+            entity.Property(e => e.StoppedAt).HasMaxLength(6).HasColumnName("stopped_at");
+            entity.Property(e => e.Label).HasMaxLength(255).HasColumnName("label");
 
-            entity.HasIndex(e => new { e.TeamId, e.ChallengeId }, "idx_challenge_start_tracking_team_challenge");
+            entity.HasOne(d => d.Contest).WithMany()
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_challenge_start_tracking_contest_id");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
-            entity.Property(e => e.ChallengeId)
-                .HasColumnType("int(11)")
-                .HasColumnName("challenge_id");
-            entity.Property(e => e.StartedAt)
-                .HasMaxLength(6)
-                .HasColumnName("started_at");
-            entity.Property(e => e.StoppedAt)
-                .HasMaxLength(6)
-                .HasColumnName("stopped_at");
-            entity.Property(e => e.Label)
-                .HasMaxLength(255)
-                .HasColumnName("label");
-
-            entity.HasOne(d => d.Challenge).WithMany(p => p.ChallengeStartTrackings)
-                .HasForeignKey(d => d.ChallengeId)
+            entity.HasOne(d => d.ContestChallenge).WithMany(p => p.StartTrackings)
+                .HasForeignKey(d => d.ContestChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_challenge_start_tracking_challenge_id");
 
@@ -516,11 +402,9 @@ public partial class AppDbContext : DbContext
             entity.ToTable("comments");
 
             entity.HasIndex(e => e.AuthorId, "author_id");
-
-            entity.HasIndex(e => e.ChallengeId, "challenge_id");
-
+            entity.HasIndex(e => e.ContestChallengeId, "challenge_id");
+            entity.HasIndex(e => e.ContestId, "contest_id");
             entity.HasIndex(e => e.TeamId, "team_id");
-
             entity.HasIndex(e => e.UserId, "user_id");
 
             entity.Property(e => e.Id)
@@ -529,9 +413,12 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.AuthorId)
                 .HasColumnType("int(11)")
                 .HasColumnName("author_id");
-            entity.Property(e => e.ChallengeId)
+            entity.Property(e => e.ContestId)
                 .HasColumnType("int(11)")
-                .HasColumnName("challenge_id");
+                .HasColumnName("contest_id");
+            entity.Property(e => e.ContestChallengeId)
+                .HasColumnType("int(11)")
+                .HasColumnName("contest_challenge_id");
             entity.Property(e => e.Content)
                 .HasColumnType("text")
                 .HasColumnName("content");
@@ -553,10 +440,15 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("comments_ibfk_1");
 
-            entity.HasOne(d => d.Challenge).WithMany(p => p.Comments)
-                .HasForeignKey(d => d.ChallengeId)
+            entity.HasOne(d => d.ContestChallenge).WithMany()
+                .HasForeignKey(d => d.ContestChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("comments_ibfk_2");
+
+            entity.HasOne(d => d.Contest).WithMany()
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("comments_ibfk_contest");
 
             entity.HasOne(d => d.Team).WithMany(p => p.Comments)
                 .HasForeignKey(d => d.TeamId)
@@ -589,30 +481,18 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<DeployHistory>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("deploy_histories");
+            entity.HasIndex(e => e.ContestChallengeId, "challenge_id");
 
-            entity.HasIndex(e => e.ChallengeId, "challenge_id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestChallengeId).HasColumnType("int(11)").HasColumnName("contest_challenge_id");
+            entity.Property(e => e.DeployAt).HasMaxLength(6).HasColumnName("deploy_at");
+            entity.Property(e => e.DeployStatus).HasMaxLength(50).HasColumnName("deploy_status");
+            entity.Property(e => e.LogContent).HasColumnType("text").HasColumnName("log_content");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.ChallengeId)
-                .HasColumnType("int(11)")
-                .HasColumnName("challenge_id");
-            entity.Property(e => e.DeployAt)
-                .HasMaxLength(6)
-                .HasColumnName("deploy_at");
-            entity.Property(e => e.DeployStatus)
-                .HasMaxLength(50)
-                .HasColumnName("deploy_status");
-            entity.Property(e => e.LogContent)
-                .HasColumnType("text")
-                .HasColumnName("log_content");
-
-            entity.HasOne(d => d.Challenge).WithMany(p => p.DeployHistories)
-                .HasForeignKey(d => d.ChallengeId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+            entity.HasOne(d => d.ContestChallenge).WithMany(p => p.DeployHistories)
+                .HasForeignKey(d => d.ContestChallengeId)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("deploy_histories_ibfk_1");
         });
 
@@ -829,31 +709,23 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Notification>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("notifications");
-
+            entity.HasIndex(e => e.ContestId, "contest_id");
             entity.HasIndex(e => e.TeamId, "team_id");
-
             entity.HasIndex(e => e.UserId, "user_id");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.Content)
-                .HasColumnType("text")
-                .HasColumnName("content");
-            entity.Property(e => e.Date)
-                .HasMaxLength(6)
-                .HasColumnName("date");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
-            entity.Property(e => e.Title)
-                .HasColumnType("text")
-                .HasColumnName("title");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.Title).HasColumnType("text").HasColumnName("title");
+            entity.Property(e => e.Content).HasColumnType("text").HasColumnName("content");
+            entity.Property(e => e.Date).HasMaxLength(6).HasColumnName("date");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+
+            entity.HasOne(d => d.Contest).WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("notifications_ibfk_contest");
 
             entity.HasOne(d => d.Team).WithMany(p => p.Notifications)
                 .HasForeignKey(d => d.TeamId)
@@ -867,33 +739,25 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Solf>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("solves");
-
-            entity.HasIndex(e => new { e.ChallengeId, e.TeamId }, "challenge_id").IsUnique();
-
-            entity.HasIndex(e => new { e.ChallengeId, e.UserId }, "challenge_id_2").IsUnique();
-
+            entity.HasIndex(e => new { e.ContestChallengeId, e.TeamId }, "uq_solves_cc_team").IsUnique();
+            entity.HasIndex(e => new { e.ContestChallengeId, e.UserId }, "uq_solves_cc_user").IsUnique();
             entity.HasIndex(e => e.TeamId, "team_id");
-
             entity.HasIndex(e => e.UserId, "user_id");
 
-            entity.Property(e => e.Id)
-                .ValueGeneratedNever()
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.ChallengeId)
-                .HasColumnType("int(11)")
-                .HasColumnName("challenge_id");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
+            entity.Property(e => e.Id).ValueGeneratedNever().HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.ContestChallengeId).HasColumnType("int(11)").HasColumnName("contest_challenge_id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
 
-            entity.HasOne(d => d.Challenge).WithMany(p => p.Solves)
-                .HasForeignKey(d => d.ChallengeId)
+            entity.HasOne(d => d.Contest).WithMany(p => p.Solves)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("solves_ibfk_contest");
+
+            entity.HasOne(d => d.ContestChallenge).WithMany(p => p.Solves)
+                .HasForeignKey(d => d.ContestChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("solves_ibfk_1");
 
@@ -915,42 +779,29 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Submission>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("submissions");
-
-            entity.HasIndex(e => e.ChallengeId, "challenge_id");
-
+            entity.HasIndex(e => e.ContestChallengeId, "ix_submissions_cc_id");
+            entity.HasIndex(e => e.ContestId, "contest_id");
             entity.HasIndex(e => e.TeamId, "team_id");
-
             entity.HasIndex(e => e.UserId, "user_id");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.ChallengeId)
-                .HasColumnType("int(11)")
-                .HasColumnName("challenge_id");
-            entity.Property(e => e.Date)
-                .HasMaxLength(6)
-                .HasColumnName("date");
-            entity.Property(e => e.Ip)
-                .HasMaxLength(46)
-                .HasColumnName("ip");
-            entity.Property(e => e.Provided)
-                .HasColumnType("text")
-                .HasColumnName("provided");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
-            entity.Property(e => e.Type)
-                .HasMaxLength(32)
-                .HasColumnName("type");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.ContestChallengeId).HasColumnType("int(11)").HasColumnName("contest_challenge_id");
+            entity.Property(e => e.Date).HasMaxLength(6).HasColumnName("date");
+            entity.Property(e => e.Ip).HasMaxLength(46).HasColumnName("ip");
+            entity.Property(e => e.Provided).HasColumnType("text").HasColumnName("provided");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.Type).HasMaxLength(32).HasColumnName("type");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
 
-            entity.HasOne(d => d.Challenge).WithMany(p => p.Submissions)
-                .HasForeignKey(d => d.ChallengeId)
+            entity.HasOne(d => d.Contest).WithMany(p => p.Submissions)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("submissions_ibfk_contest");
+
+            entity.HasOne(d => d.ContestChallenge).WithMany(p => p.Submissions)
+                .HasForeignKey(d => d.ContestChallengeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("submissions_ibfk_1");
 
@@ -1043,6 +894,11 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Website)
                 .HasMaxLength(128)
                 .HasColumnName("website");
+            entity.Property(e => e.ContestId)
+                .HasColumnType("int(11)")
+                .HasColumnName("contest_id");
+
+            entity.HasIndex(e => e.ContestId, "ix_teams_contest_id");
 
             entity.HasOne(d => d.Bracket).WithMany(p => p.Teams)
                 .HasForeignKey(d => d.BracketId)
@@ -1053,6 +909,11 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.CaptainId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("team_captain_id");
+
+            entity.HasOne(d => d.Contest).WithMany(p => p.Teams)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_teams_contest_id");
         });
 
         modelBuilder.Entity<Ticket>(entity =>
@@ -1062,12 +923,15 @@ public partial class AppDbContext : DbContext
             entity.ToTable("tickets");
 
             entity.HasIndex(e => e.AuthorId, "author_id");
-
             entity.HasIndex(e => e.ReplierId, "replier_id");
+            entity.HasIndex(e => e.ContestId, "ix_tickets_contest_id");
 
             entity.Property(e => e.Id)
                 .HasColumnType("int(11)")
                 .HasColumnName("id");
+            entity.Property(e => e.ContestId)
+                .HasColumnType("int(11)")
+                .HasColumnName("contest_id");
             entity.Property(e => e.AuthorId)
                 .HasColumnType("int(11)")
                 .HasColumnName("author_id");
@@ -1092,6 +956,11 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Type)
                 .HasMaxLength(80)
                 .HasColumnName("type");
+
+            entity.HasOne(d => d.Contest).WithMany(p => p.Tickets)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_tickets_contest_id");
 
             entity.HasOne(d => d.Author).WithMany(p => p.TicketAuthors)
                 .HasForeignKey(d => d.AuthorId)
@@ -1191,31 +1060,23 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Unlock>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
-
             entity.ToTable("unlocks");
-
+            entity.HasIndex(e => e.ContestId, "ix_unlocks_contest_id");
             entity.HasIndex(e => e.TeamId, "unlocks_ibfk_1");
-
             entity.HasIndex(e => e.UserId, "unlocks_ibfk_2");
 
-            entity.Property(e => e.Id)
-                .HasColumnType("int(11)")
-                .HasColumnName("id");
-            entity.Property(e => e.Date)
-                .HasMaxLength(6)
-                .HasColumnName("date");
-            entity.Property(e => e.Target)
-                .HasColumnType("int(11)")
-                .HasColumnName("target");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
-            entity.Property(e => e.Type)
-                .HasMaxLength(32)
-                .HasColumnName("type");
-            entity.Property(e => e.UserId)
-                .HasColumnType("int(11)")
-                .HasColumnName("user_id");
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.Date).HasMaxLength(6).HasColumnName("date");
+            entity.Property(e => e.Target).HasColumnType("int(11)").HasColumnName("target");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.Type).HasMaxLength(32).HasColumnName("type");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+
+            entity.HasOne(d => d.Contest).WithMany(p => p.Unlocks)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("unlocks_ibfk_contest");
 
             entity.HasOne(d => d.Team).WithMany(p => p.Unlocks)
                 .HasForeignKey(d => d.TeamId)
@@ -1237,8 +1098,6 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.Email, "email").IsUnique();
 
             entity.HasIndex(e => e.BracketId, "fk_users_bracket_id");
-
-            entity.HasIndex(e => e.TeamId, "fk_users_team_id");
 
             entity.HasIndex(e => new { e.Id, e.OauthId }, "id").IsUnique();
 
@@ -1279,9 +1138,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Secret)
                 .HasMaxLength(128)
                 .HasColumnName("secret");
-            entity.Property(e => e.TeamId)
-                .HasColumnType("int(11)")
-                .HasColumnName("team_id");
             entity.Property(e => e.Type)
                 .HasMaxLength(80)
                 .HasColumnName("type");
@@ -1294,14 +1150,156 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.BracketId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("fk_users_bracket_id");
-
-            entity.HasOne(d => d.Team).WithMany(p => p.Users)
-                .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("fk_users_team_id");
         });
 
         OnModelCreatingPartial(modelBuilder);
+
+        // =====================================================================
+        // NEW ENTITIES — multiple-contest architecture
+        // =====================================================================
+
+        modelBuilder.Entity<Semester>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("semester");
+            entity.HasIndex(e => e.SemesterName, "semester_name").IsUnique();
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.SemesterName).HasMaxLength(128).HasColumnName("semester_name");
+            entity.Property(e => e.StartTime).HasMaxLength(6).HasColumnName("start_time");
+            entity.Property(e => e.EndTime).HasMaxLength(6).HasColumnName("end_time");
+        });
+
+        modelBuilder.Entity<Contest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("contests");
+            entity.HasIndex(e => e.Slug, "uq_contests_slug").IsUnique();
+            entity.HasIndex(e => e.State, "ix_contests_state");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.Name).HasMaxLength(255).HasColumnName("name");
+            entity.Property(e => e.Description).HasColumnType("text").HasColumnName("description");
+            entity.Property(e => e.Slug).HasMaxLength(100).HasColumnName("slug");
+            entity.Property(e => e.OwnerId).HasColumnType("int(11)").HasColumnName("owner_id");
+            entity.Property(e => e.SemesterName).HasMaxLength(128).HasColumnName("semester_name");
+            entity.Property(e => e.State).HasMaxLength(20).HasDefaultValueSql("'draft'").HasColumnName("state");
+            entity.Property(e => e.UserMode).HasMaxLength(20).HasDefaultValueSql("'users'").HasColumnName("user_mode");
+            entity.Property(e => e.StartTime).HasMaxLength(6).HasColumnName("start_time");
+            entity.Property(e => e.EndTime).HasMaxLength(6).HasColumnName("end_time");
+            entity.Property(e => e.FreezeScoreboardAt).HasMaxLength(6).HasColumnName("freeze_scoreboard_at");
+            entity.Property(e => e.CreatedAt).HasMaxLength(6).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasMaxLength(6).HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Owner).WithMany(p => p.OwnedContests)
+                .HasForeignKey(d => d.OwnerId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("contests_ibfk_owner");
+
+            entity.HasOne(d => d.Semester).WithMany(p => p.Contests)
+                .HasForeignKey(d => d.SemesterName)
+                .HasPrincipalKey(s => s.SemesterName)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("contests_ibfk_semester");
+        });
+
+        modelBuilder.Entity<ContestParticipant>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("contest_participants");
+            entity.HasIndex(e => new { e.ContestId, e.UserId }, "uq_contest_participants_contest_user").IsUnique();
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValueSql("'contestant'").HasColumnName("role");
+            entity.Property(e => e.Score).HasColumnType("int(11)").HasDefaultValue(0).HasColumnName("score");
+            entity.Property(e => e.JoinedAt).HasMaxLength(6).HasColumnName("joined_at");
+            entity.Property(e => e.LastSolveAt).HasMaxLength(6).HasColumnName("last_solve_at");
+
+            entity.HasOne(d => d.Contest).WithMany(p => p.Participants)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("cp_ibfk_contest");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ContestParticipations)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("cp_ibfk_user");
+
+            entity.HasOne(d => d.Team).WithMany()
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("cp_ibfk_team");
+        });
+
+        modelBuilder.Entity<ContestsChallenge>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.ToTable("contests_challenges");
+            entity.HasIndex(e => e.ContestId, "ix_cc_contest_id");
+            entity.HasIndex(e => e.BankId, "ix_cc_bank_id");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
+            entity.Property(e => e.ContestId).HasColumnType("int(11)").HasColumnName("contest_id");
+            entity.Property(e => e.BankId).HasColumnType("int(11)").HasColumnName("bank_id");
+            entity.Property(e => e.Name).HasMaxLength(80).HasColumnName("name");
+            entity.Property(e => e.ConnectionInfo).HasColumnType("text").HasColumnName("connection_info");
+            entity.Property(e => e.NextId).HasColumnType("int(11)").HasColumnName("next_id");
+            entity.Property(e => e.MaxAttempts).HasColumnType("int(11)").HasDefaultValue(0).HasColumnName("max_attempts");
+            entity.Property(e => e.Value).HasColumnType("int(11)").HasColumnName("value");
+            entity.Property(e => e.State).HasMaxLength(80).HasDefaultValueSql("'visible'").HasColumnName("state");
+            entity.Property(e => e.TimeLimit).HasColumnType("int(11)").HasColumnName("time_limit");
+            entity.Property(e => e.StartTime).HasMaxLength(6).HasColumnName("start_time");
+            entity.Property(e => e.TimeFinished).HasMaxLength(6).HasColumnName("time_finished");
+            entity.Property(e => e.Cooldown).HasColumnType("int(11)").HasDefaultValue(0).HasColumnName("cooldown");
+            entity.Property(e => e.RequireDeploy).HasColumnName("require_deploy").HasDefaultValue(false);
+            entity.Property(e => e.DeployStatus).HasColumnType("text").HasDefaultValueSql("'CREATED'").HasColumnName("deploy_status");
+            entity.Property(e => e.LastUpdate).HasMaxLength(6).HasColumnName("last_update");
+            entity.Property(e => e.MaxDeployCount).HasColumnType("int(11)").HasDefaultValue(0).HasColumnName("max_deploy_count");
+            entity.Property(e => e.ConnectionProtocol).HasMaxLength(10).HasDefaultValueSql("'http'").HasColumnName("connection_protocol");
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+
+            entity.HasOne(d => d.Contest).WithMany(p => p.ContestsChallenges)
+                .HasForeignKey(d => d.ContestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("cc_ibfk_contest");
+
+            entity.HasOne(d => d.BankChallenge).WithMany(p => p.ContestInstances)
+                .HasForeignKey(d => d.BankId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("cc_ibfk_bank");
+
+            entity.HasOne(d => d.Next).WithMany(p => p.InverseNext)
+                .HasForeignKey(d => d.NextId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("cc_ibfk_next");
+
+            entity.HasOne(d => d.Creator).WithMany(p => p.DeployedContestChallenges)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("cc_ibfk_user");
+        });
+
+        modelBuilder.Entity<UserTeam>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.TeamId }).HasName("PRIMARY");
+            entity.ToTable("users_teams");
+
+            entity.Property(e => e.UserId).HasColumnType("int(11)").HasColumnName("user_id");
+            entity.Property(e => e.TeamId).HasColumnType("int(11)").HasColumnName("team_id");
+            entity.Property(e => e.JoinedAt).HasMaxLength(6).HasColumnName("joined_at");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_users_teams_user");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.Users)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_users_teams_team");
+        });
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);

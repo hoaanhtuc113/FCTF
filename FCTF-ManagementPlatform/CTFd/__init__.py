@@ -164,12 +164,16 @@ def create_app(config="CTFd.config.Config"):
     with app.app_context():
 
         app.config.from_object(config)
-        app.config["CACHE_TYPE"] = "redis"
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        if redis_url.startswith("rediss://") and "ssl_cert_reqs=" not in redis_url:
-            sep = "&" if "?" in redis_url else "?"
-            redis_url = f"{redis_url}{sep}ssl_cert_reqs=none"
-        app.config["CACHE_REDIS_URL"] = redis_url
+        # Đọc Redis URL từ config.ini (CACHE_REDIS_URL), fallback sang env var REDIS_URL
+        redis_url = app.config.get("CACHE_REDIS_URL") or os.getenv("REDIS_URL")
+        if redis_url:
+            if redis_url.startswith("rediss://") and "ssl_cert_reqs=" not in redis_url:
+                sep = "&" if "?" in redis_url else "?"
+                redis_url = f"{redis_url}{sep}ssl_cert_reqs=none"
+            app.config["CACHE_TYPE"] = "redis"
+            app.config["CACHE_REDIS_URL"] = redis_url
+        else:
+            app.config["CACHE_TYPE"] = "filesystem"
         cache = Cache(app)
 
         from CTFd.cache import cache
@@ -260,9 +264,16 @@ def create_app(config="CTFd.config.Config"):
             db.create_all()
             stamp_latest_revision()
         else:
-            # This creates tables instead of db.create_all()
-            # Allows migrations to happen properly
-            upgrade()
+            # Only run migrations if schema has not been set up yet
+            from CTFd.utils.migrations import get_current_revision
+            try:
+                current_rev = get_current_revision()
+            except Exception:
+                current_rev = None
+            if current_rev is None:
+                upgrade()
+            else:
+                print(f"[CTFd] DB schema already at revision {current_rev}, skipping migrations.")
 
         from CTFd.models import ma
 
