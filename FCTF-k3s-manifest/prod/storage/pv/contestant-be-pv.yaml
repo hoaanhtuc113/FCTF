@@ -1,5 +1,4 @@
 # PV cho service contestant-be
-
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -10,8 +9,6 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Delete
-  mountOptions:
-    - noexec
-  nfs:
-    server: <MASTER_NODE_PRIVATE_IP>
-    path: /srv/nfs/share/file
+  hostPath:
+    path: /run/desktop/mnt/host/c/fctf-data/file
+    type: DirectoryOrCreate

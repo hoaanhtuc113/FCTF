@@ -46,14 +46,14 @@ RUN apt-get update \
 
 # Install base Python dependencies in a cache-friendly layer.
 COPY requirements.txt ./
-RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
+RUN pip install --default-timeout=1000 --no-cache-dir --prefer-binary -r requirements.txt
 
 # Install plugin dependencies (if present).
 COPY CTFd/plugins ./CTFd/plugins
 RUN set -eux; \
     if [ -d CTFd/plugins ]; then \
       find CTFd/plugins -mindepth 2 -maxdepth 2 -name requirements.txt -print0 \
-      | xargs -0 -r -I {} pip install --no-cache-dir --prefer-binary -r {}; \
+      | xargs -0 -r -I {} pip install --default-timeout=1000 --no-cache-dir --prefer-binary -r {}; \
     fi
 
 # Copy application source after dependency install to preserve cache reuse.

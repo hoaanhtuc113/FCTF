@@ -1,5 +1,4 @@
 # PV cho workflow up-challenge
-
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -10,8 +9,6 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Delete
-  mountOptions:
-    - noexec
-  nfs:
-    server: <MASTER_NODE_PRIVATE_IP>
-    path: /srv/nfs/share/challenges
+  hostPath:
+    path: /run/desktop/mnt/host/c/fctf-data/challenges
+    type: DirectoryOrCreate

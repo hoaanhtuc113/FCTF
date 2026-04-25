@@ -1,0 +1,167 @@
+services:
+
+  db:
+    image: mariadb:10.11
+    ports:
+      - "3306:3306"
+    restart: always
+    environment:
+      - MARIADB_ROOT_PASSWORD=ctfd
+      - MARIADB_USER=ctfd
+      - MARIADB_PASSWORD=ctfd
+      - MARIADB_DATABASE=ctfd
+      - MARIADB_AUTO_UPGRADE=1
+    volumes:
+      - ./FCTF-ManagementPlatform/data/mysql:/var/lib/mysql
+    networks:
+      - fctf
+    command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --max-connection=1000, --wait_timeout=28800, --log-warnings=0]
+
+  cache:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - ./FCTF-ManagementPlatform/data/redis:/data
+    networks:
+      - fctf
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    networks:
+      - fctf
+
+  ctfd:
+    build: ./FCTF-ManagementPlatform
+    user: root
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.local
+    volumes:
+      - ./FCTF-ManagementPlatform/CTFd/logs:/var/log/CTFd
+      - ./FCTF-ManagementPlatform/CTFd/uploads:/var/uploads
+      - ./FCTF-ManagementPlatform:/opt/CTFd
+      - ./local-nfs:/srv/nfs/share
+    depends_on:
+      - db
+      - cache
+    networks:
+      - fctf
+    entrypoint: sh -c "export PYTHONUNBUFFERED=1 && export FLASK_APP=CTFd:create_app && export FLASK_ENV=development && python ping.py && flask db upgrade && flask run --host=0.0.0.0 --port=8000 --reload"
+
+  contestant-be:
+    build:
+      context: ./ControlCenterAndChallengeHostingServer
+      dockerfile: ContestantBE/Dockerfile
+    restart: always
+    ports:
+      - "5010:5010"
+    env_file:
+      - .env.local
+    environment:
+      - ASPNETCORE_URLS=http://+:5010
+    volumes:
+      - ./local-nfs:/srv/nfs/share
+    depends_on:
+      - db
+      - cache
+    networks:
+      - fctf
+
+  contestant-portal:
+    build:
+      context: ./ContestantPortal
+      dockerfile: docker/Dockerfile
+    restart: always
+    ports:
+      - "3000:8080"
+    env_file:
+      - .env.local
+    networks:
+      - fctf
+
+  challenge-gateway:
+    build:
+      context: ./ChallengeGateway
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8888:8080"
+      - "1337:1337"
+    env_file:
+      - .env.local
+    environment:
+      - REDIS_ADDR=cache:6379
+      - REDIS_PASSWORD=
+    depends_on:
+      - cache
+    networks:
+      - fctf
+
+  deployment-center:
+    build:
+      context: ./ControlCenterAndChallengeHostingServer
+      dockerfile: DeploymentCenter/Dockerfile
+    restart: on-failure
+    ports:
+      - "5020:5020"
+    env_file:
+      - .env.local
+    environment:
+      - ASPNETCORE_URLS=http://+:5020
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ./local-kube/config:/root/.kube/config:ro
+    depends_on:
+      - db
+      - cache
+    networks:
+      - fctf
+
+  deployment-listener:
+    build:
+      context: ./ControlCenterAndChallengeHostingServer
+      dockerfile: DeploymentListener/Dockerfile
+    restart: on-failure
+    ports:
+      - "5030:5030"
+    env_file:
+      - .env.local
+    environment:
+      - ASPNETCORE_URLS=http://+:5030
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ./local-kube/config:/root/.kube/config:ro
+    depends_on:
+      - db
+      - cache
+    networks:
+      - fctf
+
+  deployment-consumer:
+    build:
+      context: ./ControlCenterAndChallengeHostingServer
+      dockerfile: DeploymentConsumer/Dockerfile
+    restart: on-failure
+    env_file:
+      - .env.local
+    depends_on:
+      - db
+      - cache
+      - rabbitmq
+    networks:
+      - fctf
+
+networks:
+  fctf:
+    driver: bridge
