@@ -67,6 +67,7 @@ from CTFd.models import (
     Tokens,
     Unlocks,
     Users,
+    UsersTeams,
     AwardBadges,
     db,
 )
@@ -374,9 +375,9 @@ def dump_csv_with_passwords(field=None, q=None):
     # Build query with filters
     query = (
         db.session.query(Users, Teams)
-        .outerjoin(Teams, Users.team_id == Teams.id)
+        .outerjoin(UsersTeams, Users.id == UsersTeams.user_id)
+        .outerjoin(Teams, UsersTeams.team_id == Teams.id)
         .filter(Users.type == "user")
-        .options(joinedload(Users.team))
     )
     
     # Apply filters if provided
@@ -438,7 +439,8 @@ def dump_csv_without_passwords(field=None, q=None):
     # Build query with filters
     query = (
         db.session.query(Users, Teams)
-        .outerjoin(Teams, Users.team_id == Teams.id)
+        .outerjoin(UsersTeams, Users.id == UsersTeams.user_id)
+        .outerjoin(Teams, UsersTeams.team_id == Teams.id)
         .filter(Users.type == "user")
     )
     

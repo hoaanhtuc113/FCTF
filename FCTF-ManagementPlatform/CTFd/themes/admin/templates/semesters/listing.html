@@ -3,9 +3,9 @@
 {% block content %}
 <div class="page-header">
     <div class="container d-flex justify-content-between align-items-center">
-        <h1><i class="bx bx-calendar"></i> Kỳ học (Semesters)</h1>
+        <h1><i class="bx bx-calendar"></i> Semesters</h1>
         <a href="{{ url_for('admin.semester_new') }}" class="btn btn-primary">
-            <i class="bx bx-plus"></i> Tạo kỳ học mới
+            <i class="bx bx-plus"></i> Create New Semester
         </a>
     </div>
 </div>
@@ -26,42 +26,39 @@
             <div class="card h-100 shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center"
                     style="background: #fff5f0; border-bottom: 2px solid #ff6b35;">
-                    <strong>{{ sem.name }}</strong>
-                    {% if sem.status == 'active' %}
-                    <span class="badge badge-success">Active</span>
-                    {% elif sem.status == 'ended' %}
-                    <span class="badge badge-secondary">Ended</span>
-                    {% else %}
-                    <span class="badge badge-warning">Upcoming</span>
-                    {% endif %}
+                    <strong>{{ sem.semester_name }}</strong>
                 </div>
                 <div class="card-body">
-                    {% if sem.code %}<p class="mb-1"><strong>Mã:</strong> {{ sem.code }}</p>{% endif %}
-                    {% if sem.academic_year %}<p class="mb-1"><strong>Năm học:</strong> {{ sem.academic_year }}</p>{%
-                    endif %}
-                    {% if sem.start_date %}<p class="mb-1"><strong>Bắt đầu:</strong> {{ sem.start_date }}</p>{% endif %}
-                    {% if sem.end_date %}<p class="mb-1"><strong>Kết thúc:</strong> {{ sem.end_date }}</p>{% endif %}
+                    {% if sem.start_time or sem.end_time %}
+                    <p class="mb-1 text-muted small">
+                        <i class="bx bx-calendar"></i>
+                        {% if sem.start_time %}{{ sem.start_time.strftime('%d/%m/%Y') }}{% endif %}
+                        {% if sem.end_time %} → {{ sem.end_time.strftime('%d/%m/%Y') }}{% endif %}
+                    </p>
+                    {% endif %}
                     <p class="mb-0 text-muted small">
                         <i class="bx bx-flag"></i>
                         {{ sem.contests.count() }} contest(s)
                     </p>
                 </div>
-                <div class="card-footer d-flex gap-2">
-                    <a href="{{ url_for('admin.semester_detail', semester_id=sem.id) }}"
-                        class="btn btn-sm btn-primary flex-grow-1">
-                        <i class="bx bx-show"></i> Xem
-                    </a>
-                    <a href="{{ url_for('admin.semester_edit', semester_id=sem.id) }}"
-                        class="btn btn-sm btn-outline-secondary">
-                        <i class="bx bx-edit"></i>
-                    </a>
-                    <form method="POST" action="{{ url_for('admin.semester_delete', semester_id=sem.id) }}"
-                        onsubmit="return confirm('Xoá kỳ học và toàn bộ contest bên trong?')">
-                        <input type="hidden" name="nonce" value="{{ Session.nonce }}">
-                        <button class="btn btn-sm btn-outline-danger" type="submit">
-                            <i class="bx bx-trash"></i>
-                        </button>
-                    </form>
+                <div class="card-footer">
+                    <div class="d-flex">
+                        <a href="{{ url_for('admin.semester_detail', semester_id=sem.id) }}"
+                            class="btn btn-sm btn-primary flex-grow-1 mr-1">
+                            <i class="bx bx-show"></i> View
+                        </a>
+                        <a href="{{ url_for('admin.semester_edit', semester_id=sem.id) }}"
+                            class="btn btn-sm btn-outline-secondary mr-1">
+                            <i class="bx bx-edit"></i>
+                        </a>
+                        <form method="POST" action="{{ url_for('admin.semester_delete', semester_id=sem.id) }}"
+                            onsubmit="return confirm('Delete this semester and all its contests?')">
+                            <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -70,9 +67,9 @@
     {% else %}
     <div class="text-center py-5">
         <i class="bx bx-calendar" style="font-size:4rem;color:#ddd;"></i>
-        <p class="text-muted mt-3">Chưa có kỳ học nào. Hãy tạo kỳ học đầu tiên!</p>
+        <p class="text-muted mt-3">No semesters yet. Create your first one!</p>
         <a href="{{ url_for('admin.semester_new') }}" class="btn btn-primary mt-2">
-            <i class="bx bx-plus"></i> Tạo kỳ học
+            <i class="bx bx-plus"></i> Create Semester
         </a>
     </div>
     {% endif %}

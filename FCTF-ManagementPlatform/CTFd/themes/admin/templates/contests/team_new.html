@@ -1,0 +1,152 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+    /* Clean Create Team Page Styles */
+    .create-team-page .jumbotron {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-bottom: 2px solid #e8e8e8;
+        margin-bottom: 0;
+        padding: 2.5rem 0;
+    }
+
+    .create-team-page .jumbotron h1 {
+        color: #2c3e50;
+        font-weight: 700;
+        font-size: 2rem;
+        margin: 0;
+    }
+
+    .create-team-container {
+        padding: 2rem 0;
+    }
+
+    .form-container {
+        background: #ffffff;
+        padding: 2.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e8e8e8;
+    }
+
+    .form-container .form-control,
+    .form-container .custom-select {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 0.6rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-container .form-control:focus,
+    .form-container .custom-select:focus {
+        border-color: #ff6b35;
+        box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+    }
+
+    .form-container label {
+        color: #495057;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-container .btn-primary {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+        transition: all 0.2s ease;
+        width: 100%;
+        padding: 0.65rem;
+        font-weight: 600;
+    }
+
+    .form-container .btn-primary:hover {
+        background-color: #e85d2a;
+        border-color: #e85d2a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li> {% if
+                contest.semester_name %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                        contest.semester_name }}</a>
+                </li>
+                {% endif %}<li class="breadcrumb-item"><a
+                        href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
+                </li>
+                <li class="breadcrumb-item"><a
+                        href="{{ url_for('admin.contest_teams', contest_id=contest.id) }}">Teams</a></li>
+                <li class="breadcrumb-item active">Create Team</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+<div class="create-team-page">
+    <div class="jumbotron">
+        <div class="container">
+            <h1>Create Team</h1>
+        </div>
+    </div>
+
+    <div class="container create-team-container">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <div class="form-container">
+                    {% include "admin/modals/teams/create.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+    // Override team.js createTeam để redirect về contest sau khi tạo
+    $(document).ready(function () {
+        $('#team-info-create-form').off('submit').on('submit', function (e) {
+            e.preventDefault();
+            var params = $(this).serializeJSON(true);
+            params.fields = [];
+            for (var prop in params) {
+                if (prop.match(/fields\[\d+\]/)) {
+                    params.fields.push({ field_id: parseInt(prop.slice(7, -1)), value: params[prop] });
+                    delete params[prop];
+                }
+            }
+            CTFd.fetch('/api/v1/teams', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify(params),
+            })
+                .then(r => r.json())
+                .then(function (response) {
+                    if (response.success) {
+                        window.location = '{{ url_for("admin.contest_teams", contest_id=contest.id) }}';
+                    } else {
+                        $('#team-info-create-form > #results').empty();
+                        Object.keys(response.errors || {}).forEach(function (key) {
+                            $('#team-info-create-form > #results').append(
+                                '<div class="alert alert-danger py-1">' + response.errors[key] + '</div>'
+                            );
+                        });
+                    }
+                });
+        });
+    });
+</script>
+{% endblock %}
+
+{% block entrypoint %}
+{# Override entrypoint để dùng contest team route #}
+{{ Assets.js("assets/js/pages/team.js", theme="admin") }}
+{% endblock %}

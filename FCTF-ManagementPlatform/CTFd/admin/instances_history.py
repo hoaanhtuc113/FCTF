@@ -6,7 +6,7 @@ from io import StringIO
 from flask import Response, render_template, request, stream_with_context, url_for
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeStartTracking, Challenges, Teams, db
+from CTFd.models import ChallengeStartTracking, Challenges, ContestsChallenges, Teams, db
 from CTFd.utils.decorators import admin_or_jury
 
 
@@ -102,7 +102,8 @@ def _base_instances_query():
             Challenges.name.label("challenge_name"),
         )
         .outerjoin(Teams, ChallengeStartTracking.team_id == Teams.id)
-        .join(Challenges, ChallengeStartTracking.challenge_id == Challenges.id)
+        .join(ContestsChallenges, ChallengeStartTracking.contest_challenge_id == ContestsChallenges.id)
+        .outerjoin(Challenges, ContestsChallenges.bank_id == Challenges.id)
         .order_by(ChallengeStartTracking.started_at.desc())
     )
 

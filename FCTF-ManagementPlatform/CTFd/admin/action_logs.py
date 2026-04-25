@@ -45,25 +45,36 @@ def _escape_like_pattern(value):
 
 def _apply_user_team_filters(query, user_filter, team_filter):
 	user_id = _parse_int(user_filter)
-	team_id = _parse_int(team_filter)
 
 	if user_filter:
 		if user_id is not None:
 			query = query.filter(Users.id == user_id)
 		else:
-			# Escape LIKE wildcards and use parameterized query to prevent SQL injection
 			escaped_filter = _escape_like_pattern(user_filter)
 			search_pattern = f"%{escaped_filter}%"
 			query = query.filter(Users.name.ilike(search_pattern, escape="\\"))
 
+	# team_filter: filter via users_teams junction
 	if team_filter:
+		from CTFd.models import UsersTeams
+		team_id = _parse_int(team_filter)
 		if team_id is not None:
-			query = query.filter(Teams.id == team_id)
+			user_ids_in_team = [
+				ut.user_id for ut in UsersTeams.query.filter_by(team_id=team_id).all()
+			]
+			query = query.filter(ActionLogs.userId.in_(user_ids_in_team))
 		else:
-			# Escape LIKE wildcards and use parameterized query to prevent SQL injection
+			from CTFd.models import Teams
 			escaped_filter = _escape_like_pattern(team_filter)
-			search_pattern = f"%{escaped_filter}%"
-			query = query.filter(Teams.name.ilike(search_pattern, escape="\\"))
+			teams = Teams.query.filter(Teams.name.ilike(f"%{escaped_filter}%", escape="\\")).all()
+			team_ids = [t.id for t in teams]
+			if team_ids:
+				from CTFd.models import UsersTeams
+				user_ids = [ut.user_id for ut in UsersTeams.query.filter(UsersTeams.team_id.in_(team_ids)).all()]
+				query = query.filter(ActionLogs.userId.in_(user_ids))
+			else:
+				from CTFd.models import db as _db
+				query = query.filter(_db.false())
 
 	return query
 
@@ -80,11 +91,8 @@ def _base_action_logs_query():
 		ActionLogs.query.add_columns(
 			Users.id.label("user_id"),
 			Users.name.label("user_name"),
-			Teams.id.label("team_id"),
-			Teams.name.label("team_name"),
 		)
 		.join(Users, ActionLogs.userId == Users.id)
-		.outerjoin(Teams, Users.team_id == Teams.id)
 		.order_by(ActionLogs.actionDate.desc())
 	)
 

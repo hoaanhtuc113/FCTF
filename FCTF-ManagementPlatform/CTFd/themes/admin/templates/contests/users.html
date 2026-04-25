@@ -41,10 +41,10 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb bg-transparent p-0 mb-1">
                 <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
-                {% if contest.semester %}
+                {% if contest.semester_name %}
                 <li class="breadcrumb-item">
                     <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
-                        contest.semester.name }}</a>
+                        contest.semester_name }}</a>
                 </li>
                 {% endif %}
                 <li class="breadcrumb-item">
@@ -338,6 +338,8 @@
 
 {% block scripts %}
 <script>
+    const _csrfNonce = "{{ Session.nonce }}";
+
     function clearAllFilters() {
         window.location.href = "{{ url_for('admin.contest_users', contest_id=contest.id) }}";
     }
@@ -349,7 +351,7 @@
     $('#importModal').on('show.bs.modal', function () {
         $('#userList').html('<p class="text-center text-muted">Đang tải...</p>');
         selectedUsers.clear(); updateUserCount();
-        fetch(AVAIL_URL, { headers: { 'CSRF-Token': init.csrfNonce } })
+        fetch(AVAIL_URL, { headers: { 'CSRF-Token': _csrfNonce } })
             .then(r => r.json())
             .then(data => { userData = data.users || []; renderUsers(userData); })
             .catch(() => $('#userList').html('<p class="text-center text-danger">Không tải được danh sách user.</p>'));
@@ -399,7 +401,7 @@
         $(this).prop('disabled', true).text('Đang import...');
         fetch(IMPORT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'CSRF-Token': init.csrfNonce },
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': _csrfNonce },
             body: JSON.stringify({ user_ids: [...selectedUsers] })
         })
             .then(r => r.json())

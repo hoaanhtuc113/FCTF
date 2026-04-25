@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import os
 import time
@@ -17,7 +18,8 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, ChallengeBank, db
+from CTFd.models import Challenges, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
+ChallengeBank = Challenges  # alias
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -99,7 +101,7 @@ def challenges_listing():
     elif is_challenge_writer():
         # Filter by the challenge writer associated with the current session
         writer_id = session["id"]  # Assuming the session stores the user ID
-        filters.append(Challenges.user_id == writer_id)
+        filters.append(Challenges.author_id == writer_id)
         query = Challenges.query.filter(*filters).order_by(Challenges.id.asc())
     else:
         # Default fallback - show all challenges
@@ -116,7 +118,7 @@ def challenges_listing():
     types = [t[0] for t in raw_types if t and t[0]]
     # Add creator names to challenges
     for c in challenges.items:
-        user = Users.query.filter_by(id=c.user_id).first()
+        user = Users.query.filter_by(id=c.author_id).first()
         if user:
             c.creator = user.name
         else:
@@ -417,7 +419,6 @@ def challenge_bank_listing():
     q = request.args.get("q", "").strip()
     category = request.args.get("category", "")
     difficulty = request.args.get("difficulty", "")
-    require_deploy = request.args.get("require_deploy", "")
     page = abs(request.args.get("page", 1, type=int))
 
     query = ChallengeBank.query
@@ -433,12 +434,10 @@ def challenge_bank_listing():
         query = query.filter(ChallengeBank.category == category)
     if difficulty:
         query = query.filter(ChallengeBank.difficulty == int(difficulty))
-    if require_deploy != "":
-        query = query.filter(ChallengeBank.require_deploy == (require_deploy == "1"))
 
     # JSON mode — dùng cho modal "Thêm từ Bank" trong contest/challenges
     if request.args.get("format") == "json":
-        items = query.order_by(ChallengeBank.created.desc()).all()
+        items = query.order_by(ChallengeBank.created_at.desc()).all()
         return jsonify({
             "success": True,
             "challenges": [
@@ -446,20 +445,19 @@ def challenge_bank_listing():
                     "id": c.id,
                     "name": c.name,
                     "category": c.category or "",
-                    "difficulty_label": c.difficulty_label(),
-                    "value": c.value or 0,
-                    "require_deploy": c.require_deploy,
-                    "tags": c.tags_list(),
+                    "difficulty_label": c.difficulty_label() if hasattr(c, 'difficulty_label') else "",
+                    "value": 0,
+                    "require_deploy": False,
+                    "tags": [],
                 }
                 for c in items
             ],
         })
 
-    pagination = query.order_by(ChallengeBank.created.desc()).paginate(
+    pagination = query.order_by(ChallengeBank.created_at.desc()).paginate(
         page=page, per_page=50
     )
 
-    # Lấy danh sách category để filter
     categories = [
         r[0]
         for r in db.session.query(ChallengeBank.category)
@@ -477,7 +475,7 @@ def challenge_bank_listing():
         q=q,
         category=category,
         difficulty=difficulty,
-        require_deploy=require_deploy,
+        require_deploy="",
     )
 
 
@@ -498,14 +496,6 @@ def challenge_bank_new():
             description=request.form.get("description", "").strip() or None,
             category=request.form.get("category", "").strip() or None,
             difficulty=request.form.get("difficulty", type=int) or None,
-            value=request.form.get("value", 100, type=int),
-            time_limit=request.form.get("time_limit", 30, type=int),
-            max_attempts=request.form.get("max_attempts", 0, type=int),
-            cooldown=request.form.get("cooldown", 0, type=int),
-            flag=request.form.get("flag", "").strip() or None,
-            flag_data=request.form.get("flag_data", "").strip() or "",
-            require_deploy=request.form.get("require_deploy") == "1",
-            expose_port=request.form.get("expose_port", "").strip() or None,
             connection_protocol=request.form.get("connection_protocol", "http"),
             cpu_limit=request.form.get("cpu_limit", type=int) or None,
             cpu_request=request.form.get("cpu_request", type=int) or None,
@@ -515,11 +505,10 @@ def challenge_bank_new():
             harden_container=request.form.get("harden_container") == "1",
             shared_instant=request.form.get("shared_instant") == "1",
             max_deploy_count=request.form.get("max_deploy_count", 0, type=int),
-            tags=request.form.get("tags", "").strip() or None,
-            created_by=owner.id if owner else None,
+            author_id=owner.id if owner else None,
+            is_public=request.form.get("is_public") == "1",
         )
 
-        # Upload deploy file (docker-compose / yaml)
         deploy_file = request.files.get("deploy_file")
         if deploy_file and deploy_file.filename:
             from CTFd.utils.uploads import upload_file as _upload
@@ -552,14 +541,6 @@ def challenge_bank_edit(bank_id):
         bc.description = request.form.get("description", "").strip() or None
         bc.category = request.form.get("category", "").strip() or None
         bc.difficulty = request.form.get("difficulty", type=int) or None
-        bc.value = request.form.get("value", bc.value, type=int)
-        bc.time_limit = request.form.get("time_limit", bc.time_limit, type=int)
-        bc.max_attempts = request.form.get("max_attempts", bc.max_attempts, type=int)
-        bc.cooldown = request.form.get("cooldown", bc.cooldown, type=int)
-        bc.flag = request.form.get("flag", "").strip() or None
-        bc.flag_data = request.form.get("flag_data", "").strip() or ""
-        bc.require_deploy = request.form.get("require_deploy") == "1"
-        bc.expose_port = request.form.get("expose_port", "").strip() or None
         bc.connection_protocol = request.form.get("connection_protocol", "http")
         bc.cpu_limit = request.form.get("cpu_limit", type=int) or None
         bc.cpu_request = request.form.get("cpu_request", type=int) or None
@@ -569,7 +550,8 @@ def challenge_bank_edit(bank_id):
         bc.harden_container = request.form.get("harden_container") == "1"
         bc.shared_instant = request.form.get("shared_instant") == "1"
         bc.max_deploy_count = request.form.get("max_deploy_count", bc.max_deploy_count, type=int)
-        bc.tags = request.form.get("tags", "").strip() or None
+        bc.is_public = request.form.get("is_public") == "1"
+        bc.updated_at = datetime.datetime.utcnow()
 
         deploy_file = request.files.get("deploy_file")
         if deploy_file and deploy_file.filename:

@@ -9,10 +9,10 @@
                 <li class="breadcrumb-item">
                     <a href="{{ url_for('admin.semester_detail', semester_id=semester.id) }}">{{ semester.name }}</a>
                 </li>
-                <li class="breadcrumb-item active">Tạo contest</li>
+                <li class="breadcrumb-item active">Create Contest</li>
             </ol>
         </nav>
-        <h1><i class="bx bx-plus-circle"></i> Tạo contest mới</h1>
+        <h1><i class="bx bx-plus-circle"></i> Create New Contest</h1>
     </div>
 </div>
 
@@ -25,9 +25,9 @@
                         <input type="hidden" name="nonce" value="{{ Session.nonce }}">
 
                         <div class="form-group">
-                            <label>Tên contest <span class="text-danger">*</span></label>
+                            <label>Contest Name <span class="text-danger">*</span></label>
                             <input type="text" name="name" id="contestName" class="form-control" required
-                                placeholder="VD: CTF Cuối kỳ 1 2025">
+                                placeholder="e.g. Final CTF Semester 1 2025">
                         </div>
 
                         <div class="form-group">
@@ -37,22 +37,22 @@
                                     <span class="input-group-text">/contest/</span>
                                 </div>
                                 <input type="text" name="slug" id="contestSlug" class="form-control"
-                                    placeholder="ctf-cuoi-ky-1-2025">
+                                    placeholder="final-ctf-sem1-2025">
                             </div>
-                            <small class="text-muted">Để trống sẽ tự sinh từ tên.</small>
+                            <small class="text-muted">Leave blank to auto-generate from name.</small>
                         </div>
 
                         <div class="form-group">
-                            <label>Mô tả</label>
+                            <label>Description</label>
                             <textarea name="description" class="form-control" rows="3"
-                                placeholder="Mô tả ngắn về contest..."></textarea>
+                                placeholder="Brief description of the contest..."></textarea>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group col-md-6">
-                                <label>Trạng thái</label>
+                                <label>Status</label>
                                 <select name="state" class="form-control">
-                                    <option value="hidden">Hidden (ẩn)</option>
+                                    <option value="hidden">Hidden</option>
                                     <option value="upcoming">Upcoming</option>
                                     <option value="active">Active</option>
                                     <option value="paused">Paused</option>
@@ -60,34 +60,34 @@
                                 </select>
                             </div>
                             <div class="form-group col-md-6">
-                                <label>User mode</label>
+                                <label>User Mode</label>
                                 <select name="user_mode" class="form-control">
-                                    <option value="users">Users (cá nhân)</option>
-                                    <option value="teams">Teams (nhóm)</option>
+                                    <option value="users">Users (Individual)</option>
+                                    <option value="teams">Teams (Group)</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <label>Thời gian bắt đầu</label>
+                                <label>Start Time</label>
                                 <input type="datetime-local" name="start_time" class="form-control">
                             </div>
                             <div class="form-group col-md-4">
-                                <label>Thời gian kết thúc</label>
+                                <label>End Time</label>
                                 <input type="datetime-local" name="end_time" class="form-control">
                             </div>
                             <div class="form-group col-md-4">
-                                <label>Đóng băng bảng điểm</label>
+                                <label>Freeze Scoreboard At</label>
                                 <input type="datetime-local" name="freeze_scoreboard_at" class="form-control">
                             </div>
                         </div>
 
                         <div class="d-flex justify-content-end">
                             <a href="{{ url_for('admin.semester_detail', semester_id=semester.id) }}"
-                                class="btn btn-outline-secondary mr-2">Huỷ</a>
+                                class="btn btn-outline-secondary mr-2">Cancel</a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bx bx-save"></i> Tạo contest
+                                <i class="bx bx-save"></i> Create Contest
                             </button>
                         </div>
                     </form>
@@ -100,17 +100,16 @@
 
 {% block scripts %}
 <script>
-// Tự sinh slug từ tên
-document.getElementById('contestName').addEventListener('input', function () {
-    const slug = document.getElementById('contestSlug');
-    if (!slug._userEdited) {
-        slug.value = this.value.toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, '')
-            .trim().replace(/[\s]+/g, '-').slice(0, 100);
-    }
-});
-document.getElementById('contestSlug').addEventListener('input', function () {
-    this._userEdited = this.value.length > 0;
-});
+    document.getElementById('contestName').addEventListener('input', function () {
+        const slug = document.getElementById('contestSlug');
+        if (!slug._userEdited) {
+            slug.value = this.value.toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .trim().replace(/[\s]+/g, '-').slice(0, 100);
+        }
+    });
+    document.getElementById('contestSlug').addEventListener('input', function () {
+        this._userEdited = this.value.length > 0;
+    });
 </script>
 {% endblock %}

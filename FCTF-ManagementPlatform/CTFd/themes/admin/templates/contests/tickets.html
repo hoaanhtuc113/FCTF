@@ -54,15 +54,19 @@
     <div class="container">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb bg-transparent p-0 mb-1">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>{% if
-                contest.semester %}<li class="breadcrumb-item"><a
-                        href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
-                        contest.semester.name }}</a></li>{% endif %}<li class="breadcrumb-item"><a
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li> {% if
+                contest.semester_name %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                        contest.semester_name }}</a>
+                </li>
+                {% endif %}<li class="breadcrumb-item"><a
                         href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
                 </li>
                 <li class="breadcrumb-item active">Tickets</li>
             </ol>
         </nav>
+        <h1><i class="bx bx-envelope"></i> Tickets</h1>
     </div>
 </div>
 <!-- Pop-up notification container -->
@@ -88,11 +92,6 @@
 {% endif %}
 {% endwith %}
 
-<div class="page-header">
-    <div class="container">
-        <h1><i class="bx bx-envelope"></i> Tickets</h1>
-    </div>
-</div>
 <div class="container">
     <!-- Filter -->
     <div class="clean-search-container">

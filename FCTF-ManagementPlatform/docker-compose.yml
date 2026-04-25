@@ -27,18 +27,11 @@ services:
     entrypoint: ["python", "-m", "gunicorn", "CTFd:create_app()", "--bind", "0.0.0.0:8000", "--workers", "1", "--worker-class", "gevent"]
     environment:
       SECRET_KEY: localdevkey123
-      DATABASE_URL: mysql+pymysql://ctfd:ctfd_pass@db/ctfd
+      DATABASE_URL: mysql+pymysql://root:QXVwILHTeNpRHpy2ds1xr3BZlPqjjWx2AJBT7w4cXrDYsav904@34.126.80.121:30306/ctfd
       REDIS_URL: redis://redis:6379
       CACHE_REDIS_URL: redis://redis:6379
       SKIP_DB_PING: "true"
-    volumes:
-      - ./CTFd/admin:/opt/CTFd/CTFd/admin
-      - ./CTFd/models:/opt/CTFd/CTFd/models
-      - ./CTFd/themes/admin/templates:/opt/CTFd/CTFd/themes/admin/templates
-      - ./CTFd/plugins:/opt/CTFd/CTFd/plugins
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_started
 

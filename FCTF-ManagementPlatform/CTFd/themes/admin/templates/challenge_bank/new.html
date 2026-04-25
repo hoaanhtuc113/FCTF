@@ -5,11 +5,12 @@
     <div class="container">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb bg-transparent p-0 mb-1">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.challenge_bank_listing') }}">Challenge Bank</a></li>
-                <li class="breadcrumb-item active">Tạo mới</li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.challenge_bank_listing') }}">Challenge Bank</a>
+                </li>
+                <li class="breadcrumb-item active">Create New</li>
             </ol>
         </nav>
-        <h1><i class="bx bx-plus-circle"></i> Tạo Challenge Mới</h1>
+        <h1><i class="bx bx-plus-circle"></i> Create New Challenge</h1>
     </div>
 </div>
 
@@ -26,23 +27,25 @@
         <input type="hidden" name="nonce" value="{{ Session.nonce }}">
 
         <div class="row">
-            {# Left column — thông tin cơ bản #}
+            {# Left column — basic info #}
             <div class="col-lg-7">
                 <div class="card mb-3">
                     <div class="card-body">
                         <h6 class="card-title mb-3" style="color:var(--primary-orange);">
-                            <i class="bx bx-info-circle"></i> Thông tin cơ bản
+                            <i class="bx bx-info-circle"></i> Basic Information
                         </h6>
 
                         <div class="form-group mb-3">
-                            <label class="font-weight-600" style="font-size:.83rem;">Tên challenge <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="clean-form-control w-100" required placeholder="VD: Web Exploitation 101">
+                            <label class="font-weight-600" style="font-size:.83rem;">Challenge Name <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" name="name" class="clean-form-control w-100" required
+                                placeholder="e.g. Web Exploitation 101">
                         </div>
 
                         <div class="form-group mb-3">
-                            <label class="font-weight-600" style="font-size:.83rem;">Mô tả</label>
+                            <label class="font-weight-600" style="font-size:.83rem;">Description</label>
                             <textarea name="description" class="clean-form-control w-100" rows="4"
-                                placeholder="Mô tả bài challenge, gợi ý cho thí sinh…"></textarea>
+                                placeholder="Describe the challenge, hints for participants…"></textarea>
                         </div>
 
                         <div class="row">
@@ -54,7 +57,7 @@
                             <div class="col-sm-6 mb-3">
                                 <label class="font-weight-600" style="font-size:.83rem;">Difficulty</label>
                                 <select name="difficulty" class="clean-form-control w-100">
-                                    <option value="">— Chọn —</option>
+                                    <option value="">— Select —</option>
                                     <option value="1">Very Easy</option>
                                     <option value="2">Easy</option>
                                     <option value="3">Medium</option>
@@ -66,29 +69,32 @@
 
                         <div class="row">
                             <div class="col-sm-4 mb-3">
-                                <label class="font-weight-600" style="font-size:.83rem;">Điểm (Value)</label>
+                                <label class="font-weight-600" style="font-size:.83rem;">Value (pts)</label>
                                 <input type="number" name="value" class="clean-form-control w-100" value="100" min="0">
                             </div>
                             <div class="col-sm-4 mb-3">
-                                <label class="font-weight-600" style="font-size:.83rem;">Time limit (phút)</label>
-                                <input type="number" name="time_limit" class="clean-form-control w-100" value="30" min="0">
+                                <label class="font-weight-600" style="font-size:.83rem;">Time Limit (minutes)</label>
+                                <input type="number" name="time_limit" class="clean-form-control w-100" value="30"
+                                    min="0">
                             </div>
                             <div class="col-sm-4 mb-3">
-                                <label class="font-weight-600" style="font-size:.83rem;">Max attempts</label>
-                                <input type="number" name="max_attempts" class="clean-form-control w-100" value="0" min="0">
-                                <small class="text-muted">0 = không giới hạn</small>
+                                <label class="font-weight-600" style="font-size:.83rem;">Max Attempts</label>
+                                <input type="number" name="max_attempts" class="clean-form-control w-100" value="0"
+                                    min="0">
+                                <small class="text-muted">0 = unlimited</small>
                             </div>
                         </div>
 
                         <div class="form-group mb-3">
-                            <label class="font-weight-600" style="font-size:.83rem;">Cooldown (giây)</label>
-                            <input type="number" name="cooldown" class="clean-form-control" style="width:140px;" value="0" min="0">
+                            <label class="font-weight-600" style="font-size:.83rem;">Cooldown (seconds)</label>
+                            <input type="number" name="cooldown" class="clean-form-control" style="width:140px;"
+                                value="0" min="0">
                         </div>
 
                         <div class="form-group mb-2">
                             <label class="font-weight-600" style="font-size:.83rem;">Tags</label>
                             <input type="text" name="tags" class="clean-form-control w-100"
-                                placeholder="tag1, tag2, tag3 (phân cách bằng dấu phẩy)">
+                                placeholder="tag1, tag2, tag3 (comma-separated)">
                         </div>
                     </div>
                 </div>
@@ -100,14 +106,14 @@
                             <i class="bx bx-flag"></i> Flag
                         </h6>
                         <div class="form-group mb-2">
-                            <label class="font-weight-600" style="font-size:.83rem;">Flag value</label>
+                            <label class="font-weight-600" style="font-size:.83rem;">Flag Value</label>
                             <input type="text" name="flag" class="clean-form-control w-100"
-                                placeholder="FLAG{...} hoặc regex nếu dùng regex flag">
+                                placeholder="FLAG{...} or regex if using regex flag">
                         </div>
                         <div class="form-group mb-0">
-                            <label class="font-weight-600" style="font-size:.83rem;">Flag data</label>
+                            <label class="font-weight-600" style="font-size:.83rem;">Flag Data</label>
                             <input type="text" name="flag_data" class="clean-form-control w-100"
-                                placeholder="case_insensitive hoặc để trống">
+                                placeholder="case_insensitive or leave blank">
                         </div>
                     </div>
                 </div>
@@ -118,9 +124,9 @@
                 <div class="card mb-3">
                     <div class="card-body">
                         <h6 class="card-title mb-3" style="color:var(--primary-orange);">
-                            <i class="bx bx-cube"></i> Cấu hình Deploy
+                            <i class="bx bx-cube"></i> Deploy Configuration
                             <small class="text-muted ml-1" style="font-weight:400;font-size:.78rem;">
-                                (Pod chỉ tạo khi thí sinh start)
+                                (Pod is created only when participant starts)
                             </small>
                         </h6>
 
@@ -129,13 +135,13 @@
                                 <input type="checkbox" class="custom-control-input" id="require_deploy"
                                     name="require_deploy" value="1" onchange="toggleDeployFields(this.checked)">
                                 <label class="custom-control-label font-weight-600" for="require_deploy"
-                                    style="font-size:.83rem;">Cần deploy pod</label>
+                                    style="font-size:.83rem;">Requires pod deploy</label>
                             </div>
                         </div>
 
                         <div id="deploy-fields" style="display:none;">
                             <div class="form-group mb-2">
-                                <label class="font-weight-600" style="font-size:.83rem;">Deploy file</label>
+                                <label class="font-weight-600" style="font-size:.83rem;">Deploy File</label>
                                 <input type="file" name="deploy_file" class="form-control-file"
                                     accept=".yaml,.yml,.json,.zip,.tar.gz">
                                 <small class="text-muted">Upload docker-compose / Kubernetes YAML / zip image</small>
@@ -143,8 +149,9 @@
 
                             <div class="row">
                                 <div class="col-sm-6 mb-2">
-                                    <label class="font-weight-600" style="font-size:.83rem;">Expose port</label>
-                                    <input type="text" name="expose_port" class="clean-form-control w-100" placeholder="8080">
+                                    <label class="font-weight-600" style="font-size:.83rem;">Expose Port</label>
+                                    <input type="text" name="expose_port" class="clean-form-control w-100"
+                                        placeholder="8080">
                                 </div>
                                 <div class="col-sm-6 mb-2">
                                     <label class="font-weight-600" style="font-size:.83rem;">Protocol</label>
@@ -158,27 +165,32 @@
 
                             <div class="row">
                                 <div class="col-sm-6 mb-2">
-                                    <label class="font-weight-600" style="font-size:.83rem;">CPU request (m)</label>
-                                    <input type="number" name="cpu_request" class="clean-form-control w-100" placeholder="100">
+                                    <label class="font-weight-600" style="font-size:.83rem;">CPU Request (m)</label>
+                                    <input type="number" name="cpu_request" class="clean-form-control w-100"
+                                        placeholder="100">
                                 </div>
                                 <div class="col-sm-6 mb-2">
-                                    <label class="font-weight-600" style="font-size:.83rem;">CPU limit (m)</label>
-                                    <input type="number" name="cpu_limit" class="clean-form-control w-100" placeholder="500">
+                                    <label class="font-weight-600" style="font-size:.83rem;">CPU Limit (m)</label>
+                                    <input type="number" name="cpu_limit" class="clean-form-control w-100"
+                                        placeholder="500">
                                 </div>
                                 <div class="col-sm-6 mb-2">
-                                    <label class="font-weight-600" style="font-size:.83rem;">Memory request (Mi)</label>
-                                    <input type="number" name="memory_request" class="clean-form-control w-100" placeholder="64">
+                                    <label class="font-weight-600" style="font-size:.83rem;">Memory Request (Mi)</label>
+                                    <input type="number" name="memory_request" class="clean-form-control w-100"
+                                        placeholder="64">
                                 </div>
                                 <div class="col-sm-6 mb-2">
-                                    <label class="font-weight-600" style="font-size:.83rem;">Memory limit (Mi)</label>
-                                    <input type="number" name="memory_limit" class="clean-form-control w-100" placeholder="256">
+                                    <label class="font-weight-600" style="font-size:.83rem;">Memory Limit (Mi)</label>
+                                    <input type="number" name="memory_limit" class="clean-form-control w-100"
+                                        placeholder="256">
                                 </div>
                             </div>
 
                             <div class="form-group mb-2">
-                                <label class="font-weight-600" style="font-size:.83rem;">Max deploy count</label>
-                                <input type="number" name="max_deploy_count" class="clean-form-control" style="width:120px;" value="0" min="0">
-                                <small class="text-muted d-block">0 = không giới hạn</small>
+                                <label class="font-weight-600" style="font-size:.83rem;">Max Deploy Count</label>
+                                <input type="number" name="max_deploy_count" class="clean-form-control"
+                                    style="width:120px;" value="0" min="0">
+                                <small class="text-muted d-block">0 = unlimited</small>
                             </div>
 
                             <div class="form-group mb-2">
@@ -186,13 +198,14 @@
                                     <input type="checkbox" class="custom-control-input" id="use_gvisor"
                                         name="use_gvisor" value="1" checked>
                                     <label class="custom-control-label" for="use_gvisor" style="font-size:.83rem;">
-                                        Dùng gVisor sandbox
+                                        Use gVisor sandbox
                                     </label>
                                 </div>
                                 <div class="custom-control custom-switch mb-2">
                                     <input type="checkbox" class="custom-control-input" id="harden_container"
                                         name="harden_container" value="1" checked>
-                                    <label class="custom-control-label" for="harden_container" style="font-size:.83rem;">
+                                    <label class="custom-control-label" for="harden_container"
+                                        style="font-size:.83rem;">
                                         Harden container
                                     </label>
                                 </div>
@@ -200,17 +213,18 @@
                                     <input type="checkbox" class="custom-control-input" id="shared_instant"
                                         name="shared_instant" value="1">
                                     <label class="custom-control-label" for="shared_instant" style="font-size:.83rem;">
-                                        Shared instance (dùng chung pod)
+                                        Shared instance (shared pod)
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        {# Note khi không deploy #}
+                        {# Note when not deploying #}
                         <div id="no-deploy-note">
-                            <div class="alert alert-light py-2 mb-0" style="font-size:.82rem;border:1px dashed var(--border-medium);">
+                            <div class="alert alert-light py-2 mb-0"
+                                style="font-size:.82rem;border:1px dashed var(--border-medium);">
                                 <i class="bx bx-info-circle text-muted"></i>
-                                Challenge static — thí sinh chỉ submit flag, không tạo pod.
+                                Static challenge — participants only submit a flag, no pod is created.
                             </div>
                         </div>
                     </div>
@@ -219,10 +233,10 @@
                 {# Submit buttons #}
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bx bx-save"></i> Lưu Challenge
+                        <i class="bx bx-save"></i> Save Challenge
                     </button>
                     <a href="{{ url_for('admin.challenge_bank_listing') }}" class="btn btn-outline-secondary">
-                        Huỷ
+                        Cancel
                     </a>
                 </div>
             </div>
@@ -231,11 +245,11 @@
 </div>
 
 <script>
-function toggleDeployFields(show) {
-    document.getElementById('deploy-fields').style.display = show ? 'block' : 'none';
-    document.getElementById('no-deploy-note').style.display = show ? 'none' : 'block';
-}
-// Init
-toggleDeployFields(document.getElementById('require_deploy').checked);
+    function toggleDeployFields(show) {
+        document.getElementById('deploy-fields').style.display = show ? 'block' : 'none';
+        document.getElementById('no-deploy-note').style.display = show ? 'none' : 'block';
+    }
+    // Init
+    toggleDeployFields(document.getElementById('require_deploy').checked);
 </script>
 {% endblock %}

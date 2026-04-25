@@ -5,6 +5,7 @@ from sqlalchemy.sql import and_
 from CTFd.api.v1.statistics import statistics_namespace
 from CTFd.models import (
     Challenges,
+    ContestsChallenges,
     Fails,
     HintUnlocks,
     Hints,
@@ -53,11 +54,11 @@ class ChallengeSolveStatistics(Resource):
 
         solves_sub = (
             db.session.query(
-                Solves.challenge_id, db.func.count(Solves.challenge_id).label("solves")
+                Solves.contest_challenge_id, db.func.count(Solves.contest_challenge_id).label("solves")
             )
             .join(Model, Solves.account_id == Model.id)
             .filter(Model.banned == False, Model.hidden == False)
-            .group_by(Solves.challenge_id)
+            .group_by(Solves.contest_challenge_id)
             .subquery()
         )
 
@@ -117,7 +118,7 @@ class ChallengeSolvePercentages(Resource):
             solve_count = (
                 Solves.query.join(Model, Solves.account_id == Model.id)
                 .filter(
-                    Solves.challenge_id == challenge.id,
+                    Solves.contest_challenge_id == challenge.id,
                     Model.banned == False,
                     Model.hidden == False,
                 )
@@ -141,15 +142,41 @@ class ChallengeSolvePercentages(Resource):
 class ChallengeAnalytics(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self):
+        from flask import request as _req
+        contest_id = _req.args.get("contest_id", type=int)
+
         start_raw = get_config("start")
         end_raw = get_config("end")
         start_ts = int(start_raw) if start_raw else 0
         end_ts = int(end_raw) if end_raw else 0
 
+        # If contest_id provided, use contest's own start/end times
+        if contest_id:
+            from CTFd.models import Contests
+            contest = Contests.query.get(contest_id)
+            if contest:
+                import calendar
+                if contest.start_time:
+                    start_ts = int(calendar.timegm(contest.start_time.timetuple()))
+                if contest.end_time:
+                    end_ts = int(calendar.timegm(contest.end_time.timetuple()))
+
         start_dt = unix_time_to_utc(start_ts) if start_ts else None
         end_dt = unix_time_to_utc(end_ts) if end_ts else None
 
         Model = get_model()
+
+        # Build contest_challenge_id filter if contest_id provided
+        contest_cc_ids = None
+        if contest_id:
+            cc_rows = ContestsChallenges.query.filter_by(contest_id=contest_id).with_entities(ContestsChallenges.id).all()
+            contest_cc_ids = [r.id for r in cc_rows]
+
+        def cc_filter(column):
+            """Return filter list restricting to contest's contest_challenge_ids."""
+            if contest_cc_ids is not None:
+                return [column.in_(contest_cc_ids)] if contest_cc_ids else [db.false()]
+            return []
 
         def time_filters(column):
             filters = []
@@ -182,24 +209,24 @@ class ChallengeAnalytics(Resource):
 
         solves_sub = (
             db.session.query(
-                Solves.challenge_id,
+                Solves.contest_challenge_id,
                 func.count(Solves.id).label("solve_count"),
                 avg_expr.label("avg_solve_seconds"),
             )
             .join(Model, Solves.account_id == Model.id)
-            .filter(Model.banned == False, Model.hidden == False, *time_filters(Solves.date))
-            .group_by(Solves.challenge_id)
+            .filter(Model.banned == False, Model.hidden == False, *cc_filter(Solves.contest_challenge_id), *time_filters(Solves.date))
+            .group_by(Solves.contest_challenge_id)
             .subquery()
         )
 
         fails_sub = (
             db.session.query(
-                Fails.challenge_id,
+                Fails.contest_challenge_id,
                 func.count(Fails.id).label("wrong_attempts"),
             )
             .join(Model, Fails.account_id == Model.id)
-            .filter(Model.banned == False, Model.hidden == False, *time_filters(Fails.date))
-            .group_by(Fails.challenge_id)
+            .filter(Model.banned == False, Model.hidden == False, *cc_filter(Fails.contest_challenge_id), *time_filters(Fails.date))
+            .group_by(Fails.contest_challenge_id)
             .subquery()
         )
 
@@ -247,7 +274,7 @@ class ChallengeAnalytics(Resource):
             .join(
                 Solves,
                 and_(
-                    Solves.challenge_id == Hints.challenge_id,
+                    Solves.contest_challenge_id == Hints.challenge_id,
                     solve_account_col == hint_account_col,
                 ),
             )
@@ -267,7 +294,7 @@ class ChallengeAnalytics(Resource):
             .join(
                 Solves,
                 and_(
-                    Solves.challenge_id == Hints.challenge_id,
+                    Solves.contest_challenge_id == Hints.challenge_id,
                     solve_account_col == hint_account_col,
                 ),
             )
@@ -279,7 +306,7 @@ class ChallengeAnalytics(Resource):
         # Total attempts and distinct attempters per challenge
         attempts_sub = (
             db.session.query(
-                Submissions.challenge_id,
+                Submissions.contest_challenge_id,
                 func.count(Submissions.id).label("total_attempts"),
                 func.count(func.distinct(submission_account_col)).label("attempter_count"),
             )
@@ -287,21 +314,22 @@ class ChallengeAnalytics(Resource):
             .filter(
                 *account_filters,
                 Submissions.type.in_(["correct", "incorrect"]),
+                *cc_filter(Submissions.contest_challenge_id),
                 *time_filters(Submissions.date),
             )
-            .group_by(Submissions.challenge_id)
+            .group_by(Submissions.contest_challenge_id)
             .subquery()
         )
 
         # First solve timestamp per challenge (in contest window)
         first_solve_sub = (
             db.session.query(
-                Solves.challenge_id,
+                Solves.contest_challenge_id,
                 func.min(Solves.date).label("first_solve_date"),
             )
             .join(account_model, solve_account_join)
-            .filter(*account_filters, *time_filters(Solves.date))
-            .group_by(Solves.challenge_id)
+            .filter(*account_filters, *cc_filter(Solves.contest_challenge_id), *time_filters(Solves.date))
+            .group_by(Solves.contest_challenge_id)
             .subquery()
         )
 
@@ -340,6 +368,7 @@ class ChallengeAnalytics(Resource):
             .outerjoin(solvers_used_hints_sub, Challenges.id == solvers_used_hints_sub.c.challenge_id)
             .outerjoin(first_solve_sub, Challenges.id == first_solve_sub.c.challenge_id)
             .filter(and_(Challenges.state != "hidden", Challenges.state != "locked"))
+            .filter(Challenges.id.in_([cc.bank_id for cc in ContestsChallenges.query.filter_by(contest_id=contest_id).all()]) if contest_id else db.true())
             .order_by(Challenges.category, Challenges.name)
             .all()
         )
@@ -466,7 +495,7 @@ class ChallengeAnalytics(Resource):
 
         category_counts = (
             db.session.query(Challenges.category, func.count(Solves.id).label("solves"))
-            .join(Solves, Solves.challenge_id == Challenges.id)
+            .join(Solves, Solves.contest_challenge_id == Challenges.id)
             .join(Model, Solves.account_id == Model.id)
             .filter(
                 Model.banned == False,

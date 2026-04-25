@@ -17,7 +17,6 @@ UserAttrs = namedtuple(
         "banned",
         "verified",
         "language",
-        "team_id",
         "created",
     ],
 )

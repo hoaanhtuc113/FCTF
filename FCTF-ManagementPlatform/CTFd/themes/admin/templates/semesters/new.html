@@ -6,10 +6,10 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb bg-transparent p-0 mb-1">
                 <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
-                <li class="breadcrumb-item active">Tạo mới</li>
+                <li class="breadcrumb-item active">Create New</li>
             </ol>
         </nav>
-        <h1><i class="bx bx-calendar-plus"></i> Tạo kỳ học mới</h1>
+        <h1><i class="bx bx-calendar-plus"></i> Create New Semester</h1>
     </div>
 </div>
 
@@ -22,37 +22,36 @@
                         <input type="hidden" name="nonce" value="{{ Session.nonce }}">
 
                         <div class="form-group">
-                            <label>Tên kỳ học <span class="text-danger">*</span></label>
+                            <label>Semester Name <span class="text-danger">*</span></label>
                             <input type="text" name="name" class="form-control" required
-                                placeholder="VD: Học kỳ 1 năm 2025-2026">
+                                placeholder="e.g. Semester 1, 2025-2026">
                         </div>
 
                         <div class="form-row">
                             <div class="form-group col-md-6">
-                                <label>Mã kỳ học</label>
-                                <input type="text" name="code" class="form-control"
-                                    placeholder="VD: HK1-2526">
+                                <label>Semester Code</label>
+                                <input type="text" name="code" class="form-control" placeholder="e.g. SEM1-2526">
                             </div>
                             <div class="form-group col-md-6">
-                                <label>Năm học</label>
+                                <label>Academic Year</label>
                                 <input type="text" name="academic_year" class="form-control"
-                                    placeholder="VD: 2025-2026">
+                                    placeholder="e.g. 2025-2026">
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group col-md-6">
-                                <label>Ngày bắt đầu</label>
+                                <label>Start Date</label>
                                 <input type="date" name="start_date" class="form-control">
                             </div>
                             <div class="form-group col-md-6">
-                                <label>Ngày kết thúc</label>
+                                <label>End Date</label>
                                 <input type="date" name="end_date" class="form-control">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>Trạng thái</label>
+                            <label>Status</label>
                             <select name="status" class="form-control">
                                 <option value="upcoming">Upcoming</option>
                                 <option value="active">Active</option>
@@ -61,16 +60,16 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Ghi chú</label>
+                            <label>Notes</label>
                             <textarea name="note" class="form-control" rows="3"
-                                placeholder="Ghi chú tuỳ chọn..."></textarea>
+                                placeholder="Optional notes..."></textarea>
                         </div>
 
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{{ url_for('admin.semesters_listing') }}"
-                                class="btn btn-outline-secondary mr-2">Huỷ</a>
+                                class="btn btn-outline-secondary mr-2">Cancel</a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bx bx-save"></i> Tạo kỳ học
+                                <i class="bx bx-save"></i> Create Semester
                             </button>
                         </div>
                     </form>

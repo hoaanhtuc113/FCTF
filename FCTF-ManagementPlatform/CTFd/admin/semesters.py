@@ -9,7 +9,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 
 from CTFd.admin import admin
 from CTFd.models import Users, db
-from CTFd.models import Contest, ContestParticipant, Semester
+from CTFd.models import Contests as Contest, ContestParticipants as ContestParticipant, Semester
 from CTFd.utils.decorators import admins_only
 
 
@@ -37,7 +37,7 @@ def _unique_slug(base: str, exclude_id: int | None = None) -> str:
 @admin.route("/admin/semesters")
 @admins_only
 def semesters_listing():
-    semesters = Semester.query.order_by(Semester.created.desc()).all()
+    semesters = Semester.query.order_by(Semester.id.desc()).all()
     return render_template("admin/semesters/listing.html", semesters=semesters)
 
 
@@ -51,17 +51,11 @@ def semester_new():
             return redirect(url_for("admin.semester_new"))
 
         sem = Semester(
-            name=name,
-            code=request.form.get("code", "").strip() or None,
-            academic_year=request.form.get("academic_year", "").strip() or None,
-            start_date=request.form.get("start_date", "").strip() or None,
-            end_date=request.form.get("end_date", "").strip() or None,
-            status=request.form.get("status", "upcoming"),
-            note=request.form.get("note", "").strip() or None,
+            semester_name=name,
         )
         db.session.add(sem)
         db.session.commit()
-        flash(f"Đã tạo kỳ học '{sem.name}'.", "success")
+        flash(f"Đã tạo kỳ học '{sem.semester_name}'.", "success")
         return redirect(url_for("admin.semester_detail", semester_id=sem.id))
 
     return render_template("admin/semesters/new.html")
@@ -72,7 +66,7 @@ def semester_new():
 def semester_detail(semester_id):
     sem = Semester.query.get_or_404(semester_id)
     contests = (
-        Contest.query.filter_by(semester_id=semester_id)
+        Contest.query.filter_by(semester_name=sem.semester_name)
         .order_by(Contest.created_at.desc())
         .all()
     )
@@ -89,13 +83,7 @@ def semester_detail(semester_id):
 def semester_edit(semester_id):
     sem = Semester.query.get_or_404(semester_id)
     if request.method == "POST":
-        sem.name = request.form.get("name", sem.name).strip()
-        sem.code = request.form.get("code", "").strip() or None
-        sem.academic_year = request.form.get("academic_year", "").strip() or None
-        sem.start_date = request.form.get("start_date", "").strip() or None
-        sem.end_date = request.form.get("end_date", "").strip() or None
-        sem.status = request.form.get("status", sem.status)
-        sem.note = request.form.get("note", "").strip() or None
+        sem.semester_name = request.form.get("name", sem.semester_name).strip()
         db.session.commit()
         flash("Đã cập nhật kỳ học.", "success")
         return redirect(url_for("admin.semester_detail", semester_id=sem.id))
@@ -106,7 +94,7 @@ def semester_edit(semester_id):
 @admins_only
 def semester_delete(semester_id):
     sem = Semester.query.get_or_404(semester_id)
-    name = sem.name
+    name = sem.semester_name
     db.session.delete(sem)
     db.session.commit()
     flash(f"Đã xoá kỳ học '{name}'.", "success")
@@ -140,7 +128,7 @@ def contest_new(semester_id):
         owner = get_current_user()
 
         contest = Contest(
-            semester_id=semester_id,
+            semester_name=sem.semester_name,
             name=name,
             description=request.form.get("description", "").strip() or None,
             slug=slug,
@@ -203,13 +191,13 @@ def contest_edit(contest_id):
 @admins_only
 def contest_delete(contest_id):
     contest = Contest.query.get_or_404(contest_id)
-    semester_id = contest.semester_id
+    semester_name = contest.semester_name
     name = contest.name
     db.session.delete(contest)
     db.session.commit()
     flash(f"Đã xoá contest '{name}'.", "success")
-    if semester_id:
-        return redirect(url_for("admin.semester_detail", semester_id=semester_id))
+    if semester_name:
+        return redirect(url_for("admin.semesters_listing"))
     return redirect(url_for("admin.semesters_listing"))
 
 
@@ -220,10 +208,40 @@ def contest_delete(contest_id):
 def contest_dashboard(contest_id):
     contest = Contest.query.get_or_404(contest_id)
     participant_count = ContestParticipant.query.filter_by(contest_id=contest_id).count()
-    from CTFd.models import ContestChallenge, Submissions, Solves
+    from CTFd.models import ContestsChallenges as ContestChallenge, Submissions, Solves, Fails, db as _db
+    from CTFd.utils.modes import get_model
+
     challenge_count = ContestChallenge.query.filter_by(contest_id=contest_id).count()
-    solve_count = Solves.query.filter_by(contest_id=contest_id).count()
-    submission_count = Submissions.query.filter_by(contest_id=contest_id).count()
+
+    cc_ids = [
+        cc.id for cc in ContestChallenge.query.filter_by(contest_id=contest_id).with_entities(ContestChallenge.id).all()
+    ]
+    solve_count = Solves.query.filter(Solves.contest_challenge_id.in_(cc_ids)).count() if cc_ids else 0
+    submission_count = Submissions.query.filter(Submissions.contest_challenge_id.in_(cc_ids)).count() if cc_ids else 0
+    wrong_count = Fails.query.filter(Fails.contest_challenge_id.in_(cc_ids)).count() if cc_ids else 0
+
+    # Total possible points
+    total_points = _db.session.query(_db.func.sum(ContestChallenge.value)).filter_by(contest_id=contest_id).scalar() or 0
+
+    # Solve counts per challenge for most/least solved
+    from CTFd.models import Challenges
+    solves_per_cc = {}
+    if cc_ids:
+        rows = (
+            _db.session.query(Solves.contest_challenge_id, _db.func.count(Solves.id).label("cnt"))
+            .filter(Solves.contest_challenge_id.in_(cc_ids))
+            .group_by(Solves.contest_challenge_id)
+            .all()
+        )
+        cc_map = {cc.id: cc for cc in ContestChallenge.query.filter_by(contest_id=contest_id).all()}
+        for cc_id, cnt in rows:
+            cc = cc_map.get(cc_id)
+            name = cc.name if cc and cc.name else (Challenges.query.get(cc.bank_id).name if cc and cc.bank_id else f"#{cc_id}")
+            solves_per_cc[name] = cnt
+
+    most_solved = max(solves_per_cc, key=solves_per_cc.get) if solves_per_cc else None
+    least_solved = min(solves_per_cc, key=solves_per_cc.get) if solves_per_cc else None
+
     return render_template(
         "admin/contests/dashboard.html",
         contest=contest,
@@ -231,6 +249,11 @@ def contest_dashboard(contest_id):
         challenge_count=challenge_count,
         solve_count=solve_count,
         submission_count=submission_count,
+        wrong_count=wrong_count,
+        total_points=total_points,
+        solve_data=solves_per_cc,
+        most_solved=most_solved,
+        least_solved=least_solved,
     )
 
 
@@ -240,7 +263,7 @@ def contest_dashboard(contest_id):
 @admins_only
 def contest_challenges(contest_id):
     contest = Contest.query.get_or_404(contest_id)
-    from CTFd.models import ContestChallenge, ChallengeBank, Challenges, Tags
+    from CTFd.models import ContestsChallenges as ContestChallenge, Challenges as ChallengeBank, Challenges, Tags
 
     # Lấy danh sách challenge_id thuộc contest này
     cc_bank_ids = {
@@ -295,10 +318,8 @@ def contest_challenges(contest_id):
     )
 
     # Thêm creator name
-    from CTFd.models import Users
     for c in challenges.items:
-        user = Users.query.filter_by(id=c.user_id).first()
-        c.creator = user.name if user else "Unknown"
+        c.creator = c.author.name if c.author else "Unknown"
 
     categories = [r[0] for r in db.session.query(Challenges.category).filter(
         Challenges.id.in_(bank_challenge_ids)).distinct().all() if r[0]]
@@ -335,7 +356,7 @@ def contest_challenges(contest_id):
 @admins_only
 def contest_challenge_add(contest_id):
     contest = Contest.query.get_or_404(contest_id)
-    from CTFd.models import ContestChallenge, ChallengeBank
+    from CTFd.models import ContestsChallenges as ContestChallenge, Challenges as ChallengeBank
     data = request.get_json(silent=True) or {}
     bank_ids = data.get("bank_ids", [])
     if not bank_ids:
@@ -378,7 +399,7 @@ def contest_challenge_add(contest_id):
 )
 @admins_only
 def contest_challenge_remove(contest_id, cc_id):
-    from CTFd.models import ContestChallenge
+    from CTFd.models import ContestsChallenges as ContestChallenge
     cc = ContestChallenge.query.filter_by(
         id=cc_id, contest_id=contest_id
     ).first_or_404()
@@ -565,7 +586,7 @@ def contest_api_available_users(contest_id):
 @admins_only
 def contest_submissions(contest_id, type=None):
     contest = Contest.query.get_or_404(contest_id)
-    from CTFd.models import Submissions, Challenges, Teams as TeamsModel
+    from CTFd.models import Submissions, Challenges, Teams as TeamsModel, ContestsChallenges as ContestChallenge
 
     q = request.args.get("q")
     field = request.args.get("field")
@@ -574,9 +595,17 @@ def contest_submissions(contest_id, type=None):
     user_filter = request.args.get("user_id", "").strip()
     challenge_filter = request.args.get("challenge_id", "").strip()
 
+    # Lấy contest_challenge_ids thuộc contest này
+    cc_ids = [
+        cc.id for cc in ContestChallenge.query.filter_by(contest_id=contest_id)
+        .with_entities(ContestChallenge.id).all()
+    ]
+
     filters = []
-    if contest_id:
-        filters.append(Submissions.contest_id == contest_id)
+    if cc_ids:
+        filters.append(Submissions.contest_challenge_id.in_(cc_ids))
+    else:
+        filters.append(db.false())
     if type:
         filters.append(Submissions.type == type)
     if team_filter:
@@ -584,7 +613,7 @@ def contest_submissions(contest_id, type=None):
     if user_filter:
         filters.append(Submissions.user_id == int(user_filter))
     if challenge_filter:
-        filters.append(Submissions.challenge_id == int(challenge_filter))
+        filters.append(Submissions.contest_challenge_id == int(challenge_filter))
 
     submissions = (
         Submissions.query.filter(*filters)
@@ -594,8 +623,8 @@ def contest_submissions(contest_id, type=None):
 
     participant_ids = [cp.user_id for cp in ContestParticipant.query.filter_by(contest_id=contest_id).all()]
     all_users = Users.query.filter(Users.id.in_(participant_ids)).order_by(Users.name).all() if participant_ids else []
-    all_teams = TeamsModel.query.join(Users, TeamsModel.id == Users.team_id).filter(Users.id.in_(participant_ids)).distinct().all() if participant_ids else []
-    all_challenges = Challenges.query.all()
+    all_teams = TeamsModel.query.filter(TeamsModel.contest_id == contest_id).all()
+    all_challenges = ContestChallenge.query.filter_by(contest_id=contest_id).all()
 
     args = dict(request.args)
     args.pop("page", None)
@@ -634,18 +663,7 @@ def contest_teams(contest_id):
     banned = request.args.get("banned", "")
     page = abs(request.args.get("page", 1, type=int))
 
-    participant_ids = [cp.user_id for cp in ContestParticipant.query.filter_by(contest_id=contest_id).all()]
-
-    filters = []
-    if participant_ids:
-        filters.append(
-            TeamsModel.id.in_(
-                db.session.query(Users.team_id)
-                .filter(Users.id.in_(participant_ids), Users.team_id.isnot(None))
-            )
-        )
-    else:
-        filters.append(db.false())
+    filters = [TeamsModel.contest_id == contest_id]
 
     if q and hasattr(TeamsModel, field):
         filters.append(getattr(TeamsModel, field).ilike(f"%{q}%"))
@@ -679,6 +697,60 @@ def contest_teams(contest_id):
         prev_page=prev_page,
         next_page=next_page,
     )
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams/new", methods=["GET", "POST"])
+@admins_only
+def contest_team_new(contest_id):
+    contest = Contest.query.get_or_404(contest_id)
+    from CTFd.models import Teams as TeamsModel
+    from CTFd.utils.crypto import hash_password
+    from CTFd.forms.teams import TeamCreateForm
+
+    form = TeamCreateForm()
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        password = (request.form.get("password") or "").strip()
+        email = (request.form.get("email") or "").strip() or None
+
+        if not name:
+            flash("Tên team không được trống.", "danger")
+        elif not password:
+            flash("Password không được trống.", "danger")
+        elif TeamsModel.query.filter_by(name=name).first():
+            flash(f"Team '{name}' đã tồn tại.", "danger")
+        else:
+            team = TeamsModel(
+                name=name,
+                email=email,
+                password=hash_password(password),
+                hidden=request.form.get("hidden") == "y",
+                banned=request.form.get("banned") == "y",
+                contest_id=contest_id,
+            )
+            db.session.add(team)
+            db.session.commit()
+            flash(f"Đã tạo team '{name}'.", "success")
+            return redirect(url_for("admin.contest_teams", contest_id=contest_id))
+
+    return render_template(
+        "admin/contests/team_new.html",
+        contest=contest,
+        form=form,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>/remove", methods=["POST"])
+@admins_only
+def contest_team_remove(contest_id, team_id):
+    from CTFd.models import Teams as TeamsModel
+    team = TeamsModel.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
+    team.contest_id = None
+    db.session.commit()
+    flash("Đã xoá team khỏi contest.", "success")
+    return redirect(url_for("admin.contest_teams", contest_id=contest_id))
+
 
 
 @admin.route("/admin/contests/<int:contest_id>/action-logs")

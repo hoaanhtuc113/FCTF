@@ -7,20 +7,20 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb bg-transparent p-0 mb-1">
                 <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
-                {% if contest.semester %}
+                {% if contest.semester_name %}
                 <li class="breadcrumb-item">
                     <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">
-                        {{ contest.semester.name }}
+                        {{ contest.semester_name }}
                     </a>
                 </li>
                 {% endif %}
                 <li class="breadcrumb-item">
                     <a href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
                 </li>
-                <li class="breadcrumb-item active">Sửa</li>
+                <li class="breadcrumb-item active">Edit</li>
             </ol>
         </nav>
-        <h1><i class="bx bx-edit"></i> Sửa contest</h1>
+        <h1><i class="bx bx-edit"></i> Edit contest</h1>
     </div>
 </div>
 
@@ -33,7 +33,7 @@
                         <input type="hidden" name="nonce" value="{{ Session.nonce }}">
 
                         <div class="form-group">
-                            <label>Tên contest <span class="text-danger">*</span></label>
+                            <label>Contest Name <span class="text-danger">*</span></label>
                             <input type="text" name="name" class="form-control" value="{{ contest.name }}" required>
                         </div>
 
@@ -48,14 +48,14 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Mô tả</label>
+                            <label>Description</label>
                             <textarea name="description" class="form-control"
                                 rows="3">{{ contest.description or '' }}</textarea>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group col-md-6">
-                                <label>Trạng thái</label>
+                                <label>State</label>
                                 <select name="state" class="form-control">
                                     {% for s in ['hidden', 'upcoming', 'active', 'paused', 'ended'] %}
                                     <option value="{{ s }}" {% if contest.state==s %}selected{% endif %}>
@@ -77,17 +77,17 @@
 
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <label>Bắt đầu</label>
+                                <label>Start Time</label>
                                 <input type="datetime-local" name="start_time" class="form-control"
                                     value="{{ contest.start_time.strftime('%Y-%m-%dT%H:%M') if contest.start_time else '' }}">
                             </div>
                             <div class="form-group col-md-4">
-                                <label>Kết thúc</label>
+                                <label>End Time</label>
                                 <input type="datetime-local" name="end_time" class="form-control"
                                     value="{{ contest.end_time.strftime('%Y-%m-%dT%H:%M') if contest.end_time else '' }}">
                             </div>
                             <div class="form-group col-md-4">
-                                <label>Đóng băng bảng điểm</label>
+                                <label>Freeze Scoreboard</label>
                                 <input type="datetime-local" name="freeze_scoreboard_at" class="form-control"
                                     value="{{ contest.freeze_scoreboard_at.strftime('%Y-%m-%dT%H:%M') if contest.freeze_scoreboard_at else '' }}">
                             </div>
@@ -95,17 +95,17 @@
 
                         <div class="d-flex justify-content-between">
                             <form method="POST" action="{{ url_for('admin.contest_delete', contest_id=contest.id) }}"
-                                onsubmit="return confirm('Xoá contest này?')">
+                                onsubmit="return confirm('Delete this contest?')">
                                 <input type="hidden" name="nonce" value="{{ Session.nonce }}">
                                 <button type="submit" class="btn btn-outline-danger">
-                                    <i class="bx bx-trash"></i> Xoá contest
+                                    <i class="bx bx-trash"></i> Delete Contest
                                 </button>
                             </form>
                             <div>
                                 <a href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}"
-                                    class="btn btn-outline-secondary mr-2">Huỷ</a>
+                                    class="btn btn-outline-secondary mr-2">Cancel</a>
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="bx bx-save"></i> Lưu thay đổi
+                                    <i class="bx bx-save"></i> Save Changes
                                 </button>
                             </div>
                         </div>

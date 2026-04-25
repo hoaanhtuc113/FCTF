@@ -31,12 +31,12 @@
             'csrfNonce': "{{ Session.nonce }}",
             'userMode': "{{ Configs.user_mode }}",
             'userId': {{ Session.id }},
-        'userName': {{ User.name | tojson }},
-        'userEmail': {{ User.email | tojson }},
-        'teamId': {{ Team.id | tojson }},
-        'teamName': {{ Team.name | tojson }},
-        'start': {{ Configs.start | tojson }},
-        'end': {{ Configs.end | tojson }}
+        'userName': { { User.name | tojson } },
+        'userEmail': { { User.email | tojson } },
+        'teamId': { { Team.id | tojson } },
+        'teamName': { { Team.name | tojson } },
+        'start': { { Configs.start | tojson } },
+        'end': { { Configs.end | tojson } }
         }
     </script>
     {% block stylesheets %} {% endblock %}
@@ -1054,7 +1054,7 @@
             <ul class="list-unstyled components">
 
                 {# ══════════════════════════════════════════════════════════
-                GLOBAL NAV — chỉ hiện khi KHÔNG ở trong context contest
+                GLOBAL NAV — shown when NOT in a contest context
                 ══════════════════════════════════════════════════════════ #}
                 {% set _contest = current_contest if current_contest is defined else (contest if contest is defined else
                 none) %}
@@ -1090,7 +1090,7 @@
                 {% endif %}{# end global nav #}
 
                 {# ══════════════════════════════════════════════════════════
-                CONTEST NAV — hiện khi đang trong context một contest
+                CONTEST NAV — shown when inside a contest context
                 Template set: {% set current_contest = contest %}
                 ══════════════════════════════════════════════════════════ #}
                 {% if _contest %}
@@ -1178,15 +1178,19 @@
                         <i class="bx bx-server"></i> Monitoring
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_edit', contest_id=_contest.id) }}">
+                        <i class="bx bx-cog"></i> Settings
+                    </a>
+                </li>
 
                 <li class="nav-item mt-1">
                     <hr style="border-color:var(--border-light);margin:.25rem 0 .4rem;">
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link"
-                        href="{{ url_for('admin.semester_detail', semester_id=_contest.semester_id) if _contest.semester_id else url_for('admin.semesters_listing') }}"
+                    <a class="nav-link" href="{{ url_for('admin.semesters_listing') }}"
                         style="font-size:0.83rem;color:var(--text-light);">
-                        <i class="bx bx-arrow-back"></i> Về Semester
+                        <i class="bx bx-arrow-back"></i> Back to Semester
                     </a>
                 </li>
 
@@ -1213,7 +1217,7 @@
         </main>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 

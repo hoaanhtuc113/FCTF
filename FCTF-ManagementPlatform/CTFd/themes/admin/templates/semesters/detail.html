@@ -8,29 +8,34 @@
                 <li class="breadcrumb-item">
                     <a href="{{ url_for('admin.semesters_listing') }}">Semesters</a>
                 </li>
-                <li class="breadcrumb-item active">{{ semester.name }}</li>
+                <li class="breadcrumb-item active">{{ semester.semester_name }}</li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bx bx-calendar-check"></i> {{ semester.name }}</h1>
-            <div class="d-flex gap-2">
+            <h1><i class="bx bx-calendar-check"></i> {{ semester.semester_name }}</h1>
+            <div>
                 <a href="{{ url_for('admin.semester_edit', semester_id=semester.id) }}"
-                    class="btn btn-outline-secondary btn-sm">
-                    <i class="bx bx-edit"></i> Sửa kỳ học
+                    class="btn btn-outline-secondary btn-sm mr-2">
+                    <i class="bx bx-edit"></i> Edit Semester
                 </a>
-                <a href="{{ url_for('admin.contest_new', semester_id=semester.id) }}"
-                    class="btn btn-primary btn-sm">
-                    <i class="bx bx-plus"></i> Tạo contest mới
+                <a href="{{ url_for('admin.contest_new', semester_id=semester.id) }}" class="btn btn-primary btn-sm">
+                    <i class="bx bx-plus"></i> Create New Contest
                 </a>
             </div>
         </div>
         <div class="text-muted small mt-1">
-            {% if semester.code %}Mã: <strong>{{ semester.code }}</strong> &nbsp;|&nbsp; {% endif %}
-            {% if semester.academic_year %}Năm học: <strong>{{ semester.academic_year }}</strong> &nbsp;|&nbsp; {% endif %}
-            Trạng thái:
-            {% if semester.status == 'active' %}<span class="badge badge-success">Active</span>
-            {% elif semester.status == 'ended' %}<span class="badge badge-secondary">Ended</span>
-            {% else %}<span class="badge badge-warning">Upcoming</span>{% endif %}
+            {% if semester.start_time or semester.end_time %}
+            <span>
+                {% if semester.start_time %}
+                <i class="bx bx-calendar"></i> {{ semester.start_time.strftime('%d/%m/%Y') }}
+                {% endif %}
+                {% if semester.end_time %}
+                → {{ semester.end_time.strftime('%d/%m/%Y') }}
+                {% endif %}
+            </span>
+            {% else %}
+            <span class="text-muted">No time range set</span>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -45,29 +50,30 @@
     {% endwith %}
 
     {% if contests %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead style="background:#fff5f0;">
+    <div class="clean-table-wrapper">
+        <table class="clean-table table">
+            <thead>
                 <tr>
-                    <th>Tên Contest</th>
+                    <th>Contest Name</th>
                     <th>Slug</th>
-                    <th>Trạng thái</th>
-                    <th>User mode</th>
-                    <th>Thời gian</th>
-                    <th>Participants</th>
-                    <th class="text-right">Thao tác</th>
+                    <th>Status</th>
+                    <th>User Mode</th>
+                    <th>Time</th>
+                    <th class="text-center">Participants</th>
+                    <th class="text-center">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for c in contests %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('admin.contest_dashboard', contest_id=c.id) }}"
-                            class="font-weight-bold text-dark">
+                        <a href="{{ url_for('admin.contest_dashboard', contest_id=c.id) }}" class="font-weight-bold">
                             {{ c.name }}
                         </a>
                         {% if c.description %}
-                        <br><small class="text-muted">{{ c.description[:80] }}{% if c.description|length > 80 %}…{% endif %}</small>
+                        <br><small class="text-muted"
+                            style="display:block;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                            title="{{ c.description }}">{{ c.description }}</small>
                         {% endif %}
                     </td>
                     <td><code>{{ c.slug }}</code></td>
@@ -81,24 +87,29 @@
                     <td>{{ c.user_mode }}</td>
                     <td>
                         {% if c.start_time %}
-                        <small>{{ c.start_time.strftime('%d/%m/%Y %H:%M') }}</small><br>
+                        <small>{{ c.start_time.strftime('%d/%m/%Y %H:%M') }}</small>
                         {% endif %}
+                        {% if c.start_time and c.end_time %}<br>{% endif %}
                         {% if c.end_time %}
                         <small class="text-muted">→ {{ c.end_time.strftime('%d/%m/%Y %H:%M') }}</small>
                         {% endif %}
+                        {% if not c.start_time and not c.end_time %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
                     </td>
-                    <td><span class="badge badge-light border">{{ c.participant_count }}</span></td>
-                    <td class="text-right">
+                    <td class="text-center">
+                        <span class="badge badge-light border">{{ c.participant_count }}</span>
+                    </td>
+                    <td class="text-center" style="white-space:nowrap;">
                         <a href="{{ url_for('admin.contest_dashboard', contest_id=c.id) }}"
-                            class="btn btn-sm btn-primary">Vào contest</a>
+                            class="btn btn-sm btn-primary mr-1">Go to Contest</a>
                         <a href="{{ url_for('admin.contest_edit', contest_id=c.id) }}"
-                            class="btn btn-sm btn-outline-secondary">Sửa</a>
-                        <form method="POST"
-                            action="{{ url_for('admin.contest_delete', contest_id=c.id) }}"
-                            class="d-inline"
-                            onsubmit="return confirm('Xoá contest {{ c.name }}?')">
+                            class="btn btn-sm btn-outline-secondary mr-1" style="color:#495057;"
+                            onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#495057'">Edit</a>
+                        <form method="POST" action="{{ url_for('admin.contest_delete', contest_id=c.id) }}"
+                            class="d-inline" onsubmit="return confirm('Delete contest {{ c.name }}?')">
                             <input type="hidden" name="nonce" value="{{ Session.nonce }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Xoá</button>
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
                         </form>
                     </td>
                 </tr>
@@ -109,10 +120,9 @@
     {% else %}
     <div class="text-center py-5">
         <i class="bx bx-flag" style="font-size:4rem;color:#ddd;"></i>
-        <p class="text-muted mt-3">Kỳ học này chưa có contest nào.</p>
-        <a href="{{ url_for('admin.contest_new', semester_id=semester.id) }}"
-            class="btn btn-primary mt-2">
-            <i class="bx bx-plus"></i> Tạo contest
+        <p class="text-muted mt-3">No contests in this semester yet.</p>
+        <a href="{{ url_for('admin.contest_new', semester_id=semester.id) }}" class="btn btn-primary mt-2">
+            <i class="bx bx-plus"></i> Create Contest
         </a>
     </div>
     {% endif %}

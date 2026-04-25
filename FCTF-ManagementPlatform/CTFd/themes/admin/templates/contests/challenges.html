@@ -70,10 +70,10 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb bg-transparent p-0 mb-1">
                 <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
-                {% if contest.semester %}
+                {% if contest.semester_name %}
                 <li class="breadcrumb-item">
                     <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
-                        contest.semester.name }}</a>
+                        contest.semester_name }}</a>
                 </li>
                 {% endif %}
                 <li class="breadcrumb-item">
@@ -85,7 +85,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <h1><i class="bx bx-book"></i> Challenges — {{ contest.name }}</h1>
             <button class="btn btn-primary" data-toggle="modal" data-target="#addChalModal">
-                <i class="bx bx-plus"></i> Thêm từ Bank
+                <i class="bx bx-plus"></i> Add from Bank
             </button>
         </div>
     </div>
@@ -391,20 +391,19 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Thêm challenges từ Bank</h5>
+                <h5 class="modal-title">Add Challenges from Bank</h5>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body">
-                <input type="text" id="bankSearch" class="form-control mb-3"
-                    placeholder="Tìm kiếm theo tên, category...">
+                <input type="text" id="bankSearch" class="form-control mb-3" placeholder="Search by name, category...">
                 <div id="bankList" style="max-height:400px;overflow-y:auto;">
-                    <p class="text-center text-muted">Đang tải...</p>
+                    <p class="text-center text-muted">Loading...</p>
                 </div>
             </div>
             <div class="modal-footer">
-                <span id="selectedCount" class="mr-auto text-muted">0 challenge đã chọn</span>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Huỷ</button>
-                <button type="button" class="btn btn-primary" id="addSelectedBtn" disabled>Thêm vào contest</button>
+                <span id="selectedCount" class="mr-auto text-muted">0 challenges selected</span>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="addSelectedBtn" disabled>Add to contest</button>
             </div>
         </div>
     </div>
@@ -423,17 +422,17 @@
     let bankData = [], selected = new Set();
 
     $('#addChalModal').on('show.bs.modal', function () {
-        $('#bankList').html('<p class="text-center text-muted">Đang tải...</p>');
+        $('#bankList').html('<p class="text-center text-muted">Loading...</p>');
         selected.clear(); updateCount();
         fetch(BANK_URL + '?format=json', { headers: { 'CSRF-Token': init.csrfNonce } })
             .then(r => r.json())
             .then(data => { bankData = data.challenges || []; renderBank(bankData); })
-            .catch(() => $('#bankList').html('<p class="text-center text-danger">Không tải được danh sách challenge từ bank.</p>'));
+            .catch(() => $('#bankList').html('<p class="text-center text-danger">Failed to load challenges from bank.</p>'));
     });
 
     function renderBank(list) {
-        if (!list.length) { $('#bankList').html('<p class="text-center text-muted">Không có challenge nào trong bank.</p>'); return; }
-        let html = '<table class="table table-sm table-hover"><thead><tr><th width="30"></th><th>Tên</th><th>Category</th><th>Difficulty</th><th>Value</th></tr></thead><tbody>';
+        if (!list.length) { $('#bankList').html('<p class="text-center text-muted">No challenges in bank.</p>'); return; }
+        let html = '<table class="table table-sm table-hover"><thead><tr><th width="30"></th><th>Name</th><th>Category</th><th>Difficulty</th><th>Value</th></tr></thead><tbody>';
         list.forEach(c => {
             const checked = selected.has(c.id) ? 'checked' : '';
             html += `<tr class="bank-row" data-id="${c.id}" style="cursor:pointer">
@@ -459,7 +458,7 @@
     });
 
     function updateCount() {
-        $('#selectedCount').text(selected.size + ' challenge đã chọn');
+        $('#selectedCount').text(selected.size + ' challenges selected');
         $('#addSelectedBtn').prop('disabled', selected.size === 0);
     }
 
@@ -470,7 +469,7 @@
 
     $('#addSelectedBtn').on('click', function () {
         if (!selected.size) return;
-        $(this).prop('disabled', true).text('Đang thêm...');
+        $(this).prop('disabled', true).text('Adding...');
         fetch(ADD_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'CSRF-Token': init.csrfNonce },
@@ -479,9 +478,9 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) location.reload();
-                else { alert(data.message || 'Lỗi khi thêm challenge.'); $('#addSelectedBtn').prop('disabled', false).text('Thêm vào contest'); }
+                else { alert(data.message || 'Error adding challenge.'); $('#addSelectedBtn').prop('disabled', false).text('Add to contest'); }
             })
-            .catch(() => { alert('Lỗi kết nối.'); $('#addSelectedBtn').prop('disabled', false).text('Thêm vào contest'); });
+            .catch(() => { alert('Connection error.'); $('#addSelectedBtn').prop('disabled', false).text('Add to contest'); });
     });
 </script>
 {% endblock %}

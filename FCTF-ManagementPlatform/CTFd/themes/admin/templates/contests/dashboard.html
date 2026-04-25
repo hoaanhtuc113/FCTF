@@ -1,183 +1,450 @@
 {% extends "admin/base.html" %}
 
 {% block content %}
-{# Inject context contest cho sidebar #}
+<style>
+    /* Clean Dashboard Page Styles — header inherits from base.html */
 
+    .statistics-container {
+        padding: 0;
+    }
 
-<div class="page-header">
-    <div class="container">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb bg-transparent p-0 mb-1">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
-                {% if contest.semester %}
-                <li class="breadcrumb-item">
-                    <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">
-                        {{ contest.semester.name }}
+    .statistics-text {
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e8e8e8;
+    }
+
+    .statistics-text h5 {
+        color: #495057;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+        font-weight: 500;
+        line-height: 1.6;
+    }
+
+    .statistics-text h5 b {
+        color: #2c3e50;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .statistics-text hr {
+        border-top: 2px solid #e8e8e8;
+        margin: 1.5rem 0;
+    }
+
+    .graph-container {
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e8e8e8;
+        min-height: 400px;
+    }
+
+    .graph-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e8e8e8;
+    }
+
+    .spinner {
+        color: #ff6b35;
+    }
+
+    .section-divider {
+        border: 0;
+        height: 2px;
+        background: linear-gradient(to right, transparent, #e8e8e8, transparent);
+        margin: 2rem 0;
+    }
+
+    .stats-highlight {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        background: #fff5f2;
+        border-radius: 4px;
+        color: #ff6b35;
+        font-weight: 700;
+    }
+
+    .pie-stats {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .pie-stats h5 {
+        color: #495057;
+        font-size: 0.9rem;
+        margin: 0.5rem 0;
+    }
+
+    .pie-stats h5 b {
+        color: #ff6b35;
+        font-size: 1.2rem;
+    }
+</style>
+
+<div class="statistics-page">
+    <div class="page-header">
+        <div class="container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb bg-transparent p-0 mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
+                    {% if contest.semester_name %}
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                            contest.semester_name }}</a>
+                    </li>
+                    {% endif %}
+                    <li class="breadcrumb-item active">{{ contest.name }}</li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="bx bx-bar-chart-alt-2"></i> {{ contest.name }} — Dashboard</h1>
+                <div>
+                    {% if contest.state == 'active' %}
+                    <span class="badge badge-success mr-2" style="font-size:.9rem;padding:.4em .8em;">Active</span>
+                    {% elif contest.state == 'ended' %}
+                    <span class="badge badge-secondary mr-2" style="font-size:.9rem;padding:.4em .8em;">Ended</span>
+                    {% elif contest.state == 'hidden' %}
+                    <span class="badge badge-dark mr-2" style="font-size:.9rem;padding:.4em .8em;">Hidden</span>
+                    {% else %}
+                    <span class="badge badge-warning mr-2" style="font-size:.9rem;padding:.4em .8em;">{{ contest.state
+                        }}</span>
+                    {% endif %}
+                    <a href="{{ url_for('admin.contest_edit', contest_id=contest.id) }}"
+                        class="btn btn-sm btn-outline-secondary">
+                        <i class="bx bx-edit"></i> Edit contest
                     </a>
-                </li>
-                {% endif %}
-                <li class="breadcrumb-item active">{{ contest.name }}</li>
-            </ol>
-        </nav>
-        <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bx bx-flag"></i> {{ contest.name }}</h1>
-            <div>
-                {% if contest.state == 'active' %}
-                <span class="badge badge-success mr-2" style="font-size:.9rem;padding:.4em .8em;">Active</span>
-                {% elif contest.state == 'ended' %}
-                <span class="badge badge-secondary mr-2" style="font-size:.9rem;padding:.4em .8em;">Ended</span>
-                {% elif contest.state == 'hidden' %}
-                <span class="badge badge-dark mr-2" style="font-size:.9rem;padding:.4em .8em;">Hidden</span>
-                {% else %}
-                <span class="badge badge-warning mr-2" style="font-size:.9rem;padding:.4em .8em;">{{ contest.state
-                    }}</span>
-                {% endif %}
-                <a href="{{ url_for('admin.contest_edit', contest_id=contest.id) }}"
-                    class="btn btn-sm btn-outline-secondary">
-                    <i class="bx bx-edit"></i> Sửa contest
-                </a>
-            </div>
-        </div>
-        {% if contest.description %}
-        <p class="text-muted mt-1">{{ contest.description }}</p>
-        {% endif %}
-    </div>
-</div>
-
-<div class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}
-        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
-    </div>
-    {% endfor %}
-    {% endwith %}
-
-    {# Stat cards #}
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card text-center shadow-sm h-100">
-                <div class="card-body py-4">
-                    <i class="bx bx-book" style="font-size:2.5rem;color:#ff6b35;"></i>
-                    <h2 class="mt-2 mb-0">{{ challenge_count }}</h2>
-                    <p class="text-muted mb-0">Challenges</p>
-                </div>
-                <div class="card-footer p-2">
-                    <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
-                        class="btn btn-sm btn-outline-primary btn-block">Quản lý</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-center shadow-sm h-100">
-                <div class="card-body py-4">
-                    <i class="bx bx-user" style="font-size:2.5rem;color:#ff6b35;"></i>
-                    <h2 class="mt-2 mb-0">{{ participant_count }}</h2>
-                    <p class="text-muted mb-0">Participants</p>
-                </div>
-                <div class="card-footer p-2">
-                    <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
-                        class="btn btn-sm btn-outline-primary btn-block">Quản lý</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-center shadow-sm h-100">
-                <div class="card-body py-4">
-                    <i class="bx bx-check-circle" style="font-size:2.5rem;color:#28a745;"></i>
-                    <h2 class="mt-2 mb-0">{{ solve_count }}</h2>
-                    <p class="text-muted mb-0">Solves</p>
-                </div>
-                <div class="card-footer p-2">
-                    <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id, type='correct') }}"
-                        class="btn btn-sm btn-outline-success btn-block">Xem</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-center shadow-sm h-100">
-                <div class="card-body py-4">
-                    <i class="bx bx-list-ul" style="font-size:2.5rem;color:#6c757d;"></i>
-                    <h2 class="mt-2 mb-0">{{ submission_count }}</h2>
-                    <p class="text-muted mb-0">Submissions</p>
-                </div>
-                <div class="card-footer p-2">
-                    <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
-                        class="btn btn-sm btn-outline-secondary btn-block">Xem</a>
                 </div>
             </div>
         </div>
     </div>
 
-    {# Thông tin contest #}
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm">
-                <div class="card-header"><strong>Thông tin contest</strong></div>
-                <div class="card-body">
-                    <table class="table table-sm table-borderless mb-0">
-                        <tr>
-                            <td class="text-muted" width="40%">Slug</td>
-                            <td><code>{{ contest.slug }}</code></td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">User mode</td>
-                            <td>{{ contest.user_mode }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Bắt đầu</td>
-                            <td>{{ contest.start_time.strftime('%d/%m/%Y %H:%M') if contest.start_time else '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Kết thúc</td>
-                            <td>{{ contest.end_time.strftime('%d/%m/%Y %H:%M') if contest.end_time else '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Đóng băng bảng điểm</td>
-                            <td>{{ contest.freeze_scoreboard_at.strftime('%d/%m/%Y %H:%M') if
-                                contest.freeze_scoreboard_at else '—' }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Tạo lúc</td>
-                            <td>{{ contest.created_at.strftime('%d/%m/%Y %H:%M') if contest.created_at else '—' }}</td>
-                        </tr>
-                    </table>
+    <div class="container statistics-container">
+        <div class="row d-flex align-items-stretch">
+            <div class="col-md-4 mb-4">
+                <div class="statistics-text h-100">
+                    <h5><b>{{ participant_count }}</b> participants</h5>
+                    <h5><b>{{ challenge_count }}</b> challenges</h5>
+                    <h5><b>{{ solve_count }}</b> solves</h5>
+                    <h5><b>{{ submission_count }}</b> submissions</h5>
+                    <hr>
+                    <h5><b>{{ total_points }}</b> total possible points</h5>
+                    {% if most_solved %}
+                    <h5><span class="stats-highlight">{{ most_solved }}</span> has the most solves with <br><b>{{
+                            solve_data[most_solved] }}</b> solves</h5>
+                    {% endif %}
+                    {% if least_solved %}
+                    <h5><span class="stats-highlight">{{ least_solved }}</span> has the least solves with <br><b>{{
+                            solve_data[least_solved] }}</b> solves</h5>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-8 mb-4">
+                <div class="graph-container h-100">
+                    <div class="graph-title">Solves Over Time</div>
+                    <div id="solves-graph" class="d-flex align-items-center">
+                        <div class="text-center w-100">
+                            <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-6 mb-3">
-            <div class="card shadow-sm">
-                <div class="card-header"><strong>Điều hướng nhanh</strong></div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
-                            class="list-group-item list-group-item-action d-flex align-items-center">
-                            <i class="bx bx-book mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
-                            <span>Challenges</span>
-                            <span class="ml-auto badge badge-light border">{{ challenge_count }}</span>
-                        </a>
-                        <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
-                            class="list-group-item list-group-item-action d-flex align-items-center">
-                            <i class="bx bx-user mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
-                            <span>Users / Participants</span>
-                            <span class="ml-auto badge badge-light border">{{ participant_count }}</span>
-                        </a>
-                        <a href="{{ url_for('admin.contest_scoreboard', contest_id=contest.id) }}"
-                            class="list-group-item list-group-item-action d-flex align-items-center">
-                            <i class="bx bx-trophy mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
-                            <span>Scoreboard</span>
-                        </a>
-                        <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
-                            class="list-group-item list-group-item-action d-flex align-items-center">
-                            <i class="bx bx-list-ul mr-3" style="color:#ff6b35;font-size:1.2rem;"></i>
-                            <span>Submissions</span>
-                            <span class="ml-auto badge badge-light border">{{ submission_count }}</span>
-                        </a>
+        <hr class="section-divider">
+
+        <div class="row">
+            <div class="col-md-12 mb-4">
+                <div class="graph-container">
+                    <div class="graph-title">Score Distribution</div>
+                    <div id="score-distribution-graph" class="d-flex align-items-center">
+                        <div class="text-center w-100">
+                            <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="row">
+            <div class="col-md-12 mb-4">
+                <div class="graph-container">
+                    <div class="graph-title">Solve Percentages</div>
+                    <div id="solve-percentages-graph" class="d-flex align-items-center">
+                        <div class="text-center w-100">
+                            <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <div class="graph-title">Avg Solve Time per Challenge</div>
+                    <div id="avg-solve-time-graph" class="d-flex align-items-center" style="min-height: 320px;">
+                        <div class="text-center w-100">
+                            <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <div class="graph-title">Wrong Attempts per Challenge</div>
+                    <div id="wrong-attempts-graph" class="d-flex align-items-center" style="min-height: 320px;">
+                        <div class="text-center w-100">
+                            <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <div class="graph-title">Submission Results</div>
+                    <div id="keys-pie-graph" class="d-flex align-items-center" style="min-height: 300px;">
+                        <div class="text-center w-100">
+                            <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                        </div>
+                    </div>
+                    <div class="pie-stats">
+                        <h5><b>{{ solve_count }}</b> right submissions</h5>
+                        <h5><b>{{ wrong_count }}</b> wrong submissions</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="graph-container">
+                    <div class="graph-title">Challenge Categories</div>
+                    <div id="categories-pie-graph" class="d-flex align-items-center" style="min-height: 300px;">
+                        <div class="text-center w-100">
+                            <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="row">
+            <div class="col-md-12 mb-4">
+                <div class="graph-container">
+                    <div class="d-flex align-items-center justify-content-between graph-title">
+                        <span>Challenge Difficulty Snapshot</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="challenge-analytics-export">
+                            Export CSV
+                        </button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="table-responsive">
+                                <table class="table table-sm" id="challenge-analytics-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Challenge</th>
+                                            <th>Solve Conversion</th>
+                                            <th>Avg Tries/Attempter</th>
+                                            <th>Solvers Using Hint</th>
+                                            <th>Avg Hints/Solve</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="5" class="text-center">Loading...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div id="category-solves-graph" class="d-flex align-items-center"
+                                style="min-height: 320px;">
+                                <div class="text-center w-100">
+                                    <i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+                                </div>
+                            </div>
+                            <div class="pie-stats">
+                                <h5>Most solved category: <b id="category-most-solved">-</b></h5>
+                                <h5>Least solved category: <b id="category-least-solved">-</b></h5>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        "use strict";
+
+        const CONTEST_ID = parseInt("{{ contest.id }}");
+        const ANALYTICS_ENDPOINT = "/api/v1/statistics/challenges/analytics?contest_id=" + CONTEST_ID;
+        const TABLE_BODY_SELECTOR = "#challenge-analytics-table tbody";
+        const REFRESH_INTERVAL_MS = 301000;
+
+        function asNumber(value) {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatPercent(value) {
+            if (value === null || value === undefined) {
+                return "-";
+            }
+            return `${Number(value).toFixed(1)}%`;
+        }
+
+        function formatFixed(value, digits) {
+            if (value === null || value === undefined) {
+                return "-";
+            }
+            return Number(value).toFixed(digits);
+        }
+
+        function solveConversionPct(row) {
+            const attempters = asNumber(row.attempter_count);
+            const solves = asNumber(row.solve_count);
+            if (attempters <= 0) {
+                return null;
+            }
+            return (solves / attempters) * 100;
+        }
+
+        function escapeHtml(value) {
+            let text = String(value || "");
+            text = text.replaceAll("&", "&amp;");
+            text = text.replaceAll("<", "&lt;");
+            text = text.replaceAll(">", "&gt;");
+            text = text.replaceAll('"', "&quot;");
+            text = text.replaceAll("'", "&#39;");
+            return text;
+        }
+
+        function renderRows(rows) {
+            const tbody = document.querySelector(TABLE_BODY_SELECTOR);
+            if (!tbody) {
+                return;
+            }
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">No data</td></tr>';
+                return;
+            }
+
+            const sorted = [...rows].sort((a, b) => {
+                const convA = solveConversionPct(a);
+                const convB = solveConversionPct(b);
+
+                if (convA === null && convB !== null) return 1;
+                if (convA !== null && convB === null) return -1;
+                if (convA !== null && convB !== null && convA !== convB) {
+                    return convA - convB;
+                }
+
+                return asNumber(b.avg_attempts_per_attempter) - asNumber(a.avg_attempts_per_attempter);
+            });
+
+            tbody.innerHTML = sorted
+                .map(row => {
+                    const name = escapeHtml(row.name || "-");
+                    const attempters = asNumber(row.attempter_count);
+                    const solves = asNumber(row.solve_count);
+                    const conversion = solveConversionPct(row);
+                    const conversionText = conversion === null
+                        ? "-"
+                        : `${formatPercent(conversion)} (${solves}/${attempters})`;
+
+                    const hasCap = asNumber(row.max_attempts) > 0;
+                    const tries = row.avg_attempts_per_attempter;
+                    let triesText = "-";
+                    if (tries !== null && tries !== undefined) {
+                        const capText = hasCap ? ` / cap ${asNumber(row.max_attempts)}` : "";
+                        triesText = `${formatFixed(tries, 2)}${capText}`;
+                    }
+
+                    const hintUsers = row.pct_solvers_used_hints;
+                    const hintUsersText = hintUsers === null || hintUsers === undefined ? "-" : formatPercent(hintUsers);
+
+                    const avgHints = row.avg_hints_per_solve;
+                    const avgHintsText = avgHints === null || avgHints === undefined ? "-" : formatFixed(avgHints, 2);
+
+                    return `<tr>
+					<td>${name}</td>
+					<td>${conversionText}</td>
+					<td>${triesText}</td>
+					<td>${hintUsersText}</td>
+					<td>${avgHintsText}</td>
+				</tr>`;
+                })
+                .join("");
+        }
+
+        function renderCategorySummary(data) {
+            const mostSolvedEl = document.getElementById("category-most-solved");
+            const leastSolvedEl = document.getElementById("category-least-solved");
+
+            if (mostSolvedEl) {
+                mostSolvedEl.textContent = data?.category_most_solved?.name || "-";
+            }
+            if (leastSolvedEl) {
+                leastSolvedEl.textContent = data?.category_least_solved?.name || "-";
+            }
+        }
+
+        async function refreshChallengeDifficultySnapshot() {
+            try {
+                const response = await fetch(ANALYTICS_ENDPOINT, {
+                    credentials: "same-origin",
+                    headers: { "Accept": "application/json" },
+                });
+                const payload = await response.json();
+                if (!payload || payload.success !== true || !payload.data) {
+                    return;
+                }
+
+                renderRows(payload.data.challenges || []);
+                renderCategorySummary(payload.data);
+            } catch (error) {
+                console.debug("Challenge snapshot refresh failed", error);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            refreshChallengeDifficultySnapshot();
+            setTimeout(refreshChallengeDifficultySnapshot, 250);
+            setInterval(refreshChallengeDifficultySnapshot, REFRESH_INTERVAL_MS);
+        });
+    })();
+</script>
+{% endblock %}
+
+{% block entrypoint %}
+{{ Assets.js("assets/js/pages/statistics.js", theme="admin") }}
 {% endblock %}
