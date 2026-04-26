@@ -1,0 +1,252 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+    /* Scoreboard page — only page-specific overrides; shared styles in base.html */
+    .tab-content {
+        padding: 1rem;
+    }
+
+    .tab-content h3 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .scoreboard-actions .clean-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .scoreboard-actions .btn-fa {
+        font-size: 0.82rem;
+        line-height: 1;
+    }
+
+    .scoreboard-status-btn {
+        min-width: 84px;
+        padding: 0.22rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.2;
+        border-radius: 999px;
+        border: 1px solid transparent;
+    }
+
+    .scoreboard-status-btn.is-visible {
+        background: #e9f8ef;
+        border-color: #b7ebc9;
+        color: #1f8f4c;
+    }
+
+    .scoreboard-status-btn.is-hidden {
+        background: #fdebec;
+        border-color: #f4c8cd;
+        color: #c03744;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li>
+                {% if contest is defined and contest %}
+                {% if contest.semester_name %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                        contest.semester_name }}</a>
+                </li>
+                {% endif %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
+                </li>
+                {% endif %}
+                <li class="breadcrumb-item active">Scoreboard</li>
+            </ol>
+        </nav>
+        <h1><i class="bx bx-trophy"></i> Scoreboard</h1>
+    </div>
+</div>
+<div class="container">
+    <!-- Bracket Filter & Action Buttons -->
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        {% if brackets and brackets | length > 0 %}
+        <div class="d-flex align-items-center">
+            <label class="mr-2 mb-0 font-weight-bold" for="bracket-filter">Bracket:</label>
+            <select id="bracket-filter" class="form-control form-control-sm" style="width: auto; min-width: 180px;">
+                <option value="">All Brackets</option>
+                {% for bracket in brackets %}
+                <option value="{{ bracket.id }}" {% if selected_bracket_id==bracket.id %}selected{% endif %}>
+                    {{ bracket.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% else %}
+        <div></div>
+        {% endif %}
+        <div class="btn-group scoreboard-actions" role="group">
+            <button type="button" class="clean-btn" id="scoreboard-edit-button" data-toggle="tooltip"
+                title="Hide/Unhide Accounts">
+                <i class="btn-fa fas fa-eye"></i> Visibility
+            </button>
+            <a href="{{ url_for('admin.export_data') }}" class="clean-btn ml-2" title="Export Data">
+                <i class="btn-fa fas fa-file-excel"></i> Export
+            </a>
+        </div>
+    </div>
+
+    {% if Configs.user_mode == UserModeTypes.TEAMS %}
+    <ul class="nav nav-tabs nav-fill mt-2" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#standings" role="tab">Teams</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#user-standings" role="tab">Users</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#awards" role="tab">Awards</a>
+        </li>
+    </ul>
+    {% endif %}
+
+    <div class="clean-table-wrapper mt-2">
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="standings" role="tabpanel">
+                <table id="scoreboard" class="clean-table table">
+                    <thead>
+                        <tr>
+                            <th data-checkbox>
+                                <input type="checkbox" class="table-check" id="scoreboard-bulk-select"
+                                    autocomplete="off" data-checkbox-all>
+                            </th>
+                            <th class="sort-col text-center"><b>Place</b></th>
+                            <th class="sort-col"><b>User</b></th>
+                            <th class="sort-col"><b>Score</b></th>
+                            <th class="sort-col"><b>Last Solve</b></th>
+                            <th class="sort-col"><b>Role</b></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in standings %}
+                        <tr>
+                            <td data-checkbox>
+                                <input type="checkbox" class="table-check" value="{{ p.user_id }}" autocomplete="off">
+                            </td>
+                            <td class="text-center" width="10%">{{ loop.index }}</td>
+                            <td class="cell-truncate">
+                                {% if p.user_obj %}
+                                <a href="{{ url_for('admin.users_detail', user_id=p.user_id) }}">
+                                    {{ p.user_obj.name | truncate(32) }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">User #{{ p.user_id }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ p.score }}</td>
+                            <td>
+                                {% if p.last_solve_at %}
+                                {{ p.last_solve_at.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-light border">{{ p.role }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if Configs.user_mode == UserModeTypes.TEAMS %}
+            <div class="tab-pane fade" id="user-standings" role="tabpanel">
+                {% include "admin/scoreboard/users.html" %}
+            </div>
+            <div class="tab-pane fade" id="awards" role="tabpanel">
+                <h3 class="text-center m-5">Awards</h3>
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#first-blood" role="tab">First Blood Awards</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#top-solves" role="tab">Top Solves Teams</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#top-solves-topic" role="tab">Top Teams Clears All
+                            Challenges</a>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="challenge-master" role="tabpanel">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th class="text-center"><b>Challenge</b></th>
+                                    <th class="text-center"><b>Team</b></th>
+                                    <th class="text-center"><b>Score</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for challenge_master in challenge_masters %}
+                                <tr>
+                                    <td class="text-center cell-truncate" title="{{ challenge_master.challenge_name }}">
+                                        {{ challenge_master.challenge_name | truncate(28) }}</td>
+                                    <td class="text-center cell-truncate"
+                                        title="{{ challenge_master.team_name or challenge_master.user_name }}">{{
+                                        (challenge_master.team_name or challenge_master.user_name) | truncate(28) }}
+                                    </td>
+                                    <td class="text-center">{{ challenge_master.max_score }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="tab-pane fade" id="first-blood" role="tabpanel">
+                        <table class="clean-table table">
+                            <thead>
+                                <tr>
+                                    <th class="text-center"><b>Challenge</b></th>
+                                    <th class="text-center"><b>User</b></th>
+                                    <th class="text-center"><b>Team</b></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for first_blood in first_bloods %}
+                                <tr>
+                                    <td class="text-center cell-truncate" title="{{ first_blood.challenge }}">{{
+                                        first_blood.challenge | truncate(28) }}</td>
+                                    <td class="text-center cell-truncate" title="{{ first_blood.user_name }}">{{
+                                        first_blood.user_name | truncate(24) }}</td>
+                                    <td class="text-center cell-truncate" title="{{ first_blood.team_name }}">{{
+                                        first_blood.team_name | truncate(24) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="tab-pane fade" id="top-submitssion" role="tabpanel">
+                        {% include "admin/scoreboard/FastSubmission.html" %}
+                    </div>
+                    <div class="tab-pane fade" id="top-solves" role="tabpanel">
+                        {% include "admin/scoreboard/TopTeamSolves.html" %}
+                    </div>
+                    <div class="tab-pane fade" id="top-solves-topic" role="tabpanel">
+                        {% include "admin/scoreboard/TopClear.html" %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}
+
+{% block entrypoint %}
+{{ Assets.js("assets/js/pages/scoreboard.js", theme="admin") }}
+{% endblock %}

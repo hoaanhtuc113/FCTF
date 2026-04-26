@@ -1,0 +1,324 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+{{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+<style>
+    .clean-icon-btn {
+        color: #6c757d;
+        transition: all 0.2s ease;
+        font-size: 1.3rem;
+    }
+
+    .clean-icon-btn:hover {
+        color: var(--primary-orange);
+    }
+
+    .action-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    .action-menu {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        min-width: 170px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 4px 0;
+        font-size: 0.875rem;
+    }
+
+    .action-menu.open {
+        display: block;
+    }
+
+    .action-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.45rem 0.9rem;
+        color: #495057 !important;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .action-menu-item:hover {
+        background: #fff5f2;
+        color: #ff6b35 !important;
+        text-decoration: none;
+    }
+
+    .action-menu-divider {
+        height: 1px;
+        background: #dee2e6;
+        margin: 4px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1><i class="bx bx-server"></i> Challenge Bank</h1>
+    </div>
+</div>
+<div class="container">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }} alert-dismissible py-2">
+        {{ msg }}<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    {% if q or category or difficulty or require_deploy %}
+    <div class="alert alert-info">
+        <div class="clean-info-text">
+            {% if q %}Searching for <span class="clean-highlight">{{ q }}</span>{% endif %}
+            {% if category %}<span class="ml-2">| Category: <span class="clean-highlight">{{ category }}</span></span>{%
+            endif %}
+            {% if difficulty %}
+            {% set diff_labels = {'1': 'Very Easy', '2': 'Easy', '3': 'Medium', '4': 'Hard', '5': 'Very Hard'} %}
+            <span class="ml-2">| Difficulty: <span class="clean-highlight">{{ diff_labels[difficulty] }}</span></span>
+            {% endif %}
+            {% if require_deploy %}<span class="ml-2">| Deploy: <span class="clean-highlight">{{ 'Yes' if require_deploy
+                    == '1' else 'No' }}</span></span>{% endif %}
+        </div>
+        <div class="clean-info-text">{{ pagination.total }} results</div>
+    </div>
+    {% endif %}
+
+    <div class="clean-search-container">
+        <form method="GET" class="m-0">
+            <div class="row no-gutters align-items-center">
+                <div class="col-md-2 px-1">
+                    <select name="category" class="clean-form-control ss-select w-100">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat==category %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 px-1">
+                    <select name="difficulty" class="clean-form-control ss-select w-100">
+                        <option value="">All Difficulties</option>
+                        <option value="1" {% if difficulty=='1' %}selected{% endif %}>&#9733; Very Easy</option>
+                        <option value="2" {% if difficulty=='2' %}selected{% endif %}>&#9733;&#9733; Easy</option>
+                        <option value="3" {% if difficulty=='3' %}selected{% endif %}>&#9733;&#9733;&#9733; Medium
+                        </option>
+                        <option value="4" {% if difficulty=='4' %}selected{% endif %}>&#9733;&#9733;&#9733;&#9733; Hard
+                        </option>
+                        <option value="5" {% if difficulty=='5' %}selected{% endif %}>
+                            &#9733;&#9733;&#9733;&#9733;&#9733; Very Hard</option>
+                    </select>
+                </div>
+                <div class="col-md-2 px-1">
+                    <select name="require_deploy" class="clean-form-control ss-select w-100">
+                        <option value="">All Types</option>
+                        <option value="1" {% if require_deploy=='1' %}selected{% endif %}>Deploy</option>
+                        <option value="0" {% if require_deploy=='0' %}selected{% endif %}>Static</option>
+                    </select>
+                </div>
+                <div class="col-md-6 px-1">
+                    <input type="text" name="q" class="clean-form-control w-100" placeholder="Search keywords..."
+                        value="{{ q or '' }}">
+                </div>
+            </div>
+            <div class="row no-gutters align-items-center mt-1">
+                <div class="col-md-9 px-1"></div>
+                <div class="col-md-3 px-1 d-flex">
+                    <button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <a href="{{ url_for('admin.challenge_bank_listing') }}"
+                        class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+                        style="width: 40px;" title="Reset">
+                        <i class="fas fa-sync-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+        <div>
+            <a href="{{ url_for('admin.challenge_bank_new') }}" class="clean-btn clean-btn-primary">
+                <i class="fas fa-plus"></i> Create Challenge
+            </a>
+        </div>
+        <div class="btn-group" role="group">
+            <button type="button" class="clean-btn clean-btn-danger ml-2" id="bank-delete-btn" disabled>
+                <i class="btn-fa fas fa-trash-alt"></i> Delete
+            </button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="clean-table-wrapper mt-2">
+        <table id="challenges" class="clean-table table">
+            <thead>
+                <tr>
+                    <th data-checkbox>
+                        <input type="checkbox" class="table-check" autocomplete="off" id="check-all">
+                    </th>
+                    <th class="sort-col text-center"><b>ID</b></th>
+                    <th class="sort-col text-center"><b>Name</b></th>
+                    <th class="sort-col text-center"><b>Category</b></th>
+                    <th class="sort-col text-center"><b>Difficulty</b></th>
+                    <th class="sort-col text-center"><b>Value</b></th>
+                    <th class="sort-col text-center"><b>Tags</b></th>
+                    <th class="sort-col text-center"><b>Deploy</b></th>
+                    <th class="sort-col text-center"><b>Created</b></th>
+                    <th class="sort-col text-center"><b>Actions</b></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ch in challenges %}
+                <tr data-href="{{ url_for('admin.challenge_bank_edit', bank_id=ch.id) }}"
+                    onclick="window.location=this.dataset.href">
+                    <td data-checkbox onclick="event.stopPropagation()">
+                        <input type="checkbox" class="table-check row-check" value="{{ ch.id }}" autocomplete="off">
+                    </td>
+                    <td class="text-center">{{ ch.id }}</td>
+                    <td class="text-center cell-truncate" title="{{ ch.name }}">
+                        <a href="{{ url_for('admin.challenge_bank_edit', bank_id=ch.id) }}"
+                            onclick="event.stopPropagation()">
+                            {{ ch.name | truncate(40) }}
+                        </a>
+                    </td>
+                    <td class="text-center cell-truncate-sm">{{ ch.category or '—' }}</td>
+                    <td class="text-center" style="white-space:nowrap">
+                        {% if ch.difficulty %}
+                        {% for i in range(1, 6) %}
+                        <i class="fa{% if i <= ch.difficulty %}s{% else %}r{% endif %} fa-star"
+                            style="color:{% if i <= ch.difficulty %}#ff6b35{% else %}#dee2e6{% endif %};font-size:.75rem"></i>
+                        {% endfor %}
+                        {% else %}<span class="text-muted">&mdash;</span>{% endif %}
+                    </td>
+                    <td class="text-center">{{ ch.value or 0 }}</td>
+                    <td class="text-center">
+                        {% if ch.tags %}
+                        {% for tag in ch.tags_list() %}
+                        <span class="clean-badge clean-badge-secondary mr-1" title="{{ tag }}">{{ tag | truncate(15)
+                            }}</span>
+                        {% endfor %}
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if ch.require_deploy %}
+                        <span class="clean-badge badge-info">Deploy</span>
+                        {% else %}
+                        <span class="clean-badge clean-badge-secondary">Static</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center" style="font-size:.8rem;color:var(--text-light);">
+                        {{ ch.created.strftime('%d/%m/%Y') if ch.created else '—' }}
+                    </td>
+                    <td class="text-center" onclick="event.stopPropagation()">
+                        <form method="POST" action="{{ url_for('admin.challenge_bank_delete', bank_id=ch.id) }}"
+                            class="d-inline" onsubmit="return confirm('Xoá challenge &#39;{{ ch.name }}&#39;?')">
+                            <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+                            <button class="clean-btn clean-btn-danger clean-action-btn-sm" type="submit" title="Xoá">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center py-5" style="color:var(--text-light);">
+                        <i class="bx bx-inbox" style="font-size:3rem;display:block;margin-bottom:.5rem;"></i>
+                        Chưa có challenge nào trong bank.
+                        <a href="{{ url_for('admin.challenge_bank_new') }}">Tạo ngay</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Backend Pagination Controls -->
+    {% if pagination.pages > 0 %}
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        <div class="clean-info-text" role="status" aria-live="polite">
+            Page <span class="clean-highlight">{{ pagination.page }}</span> of
+            <span class="clean-highlight">{{ pagination.pages }}</span> &bull; {{ pagination.total }} total
+        </div>
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Challenge Bank pagination">
+            <ul class="clean-pagination pagination mb-0">
+                <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                    <a class="page-link"
+                        href="{{ url_for('admin.challenge_bank_listing', page=pagination.prev_num, q=q, category=category, difficulty=difficulty, require_deploy=require_deploy) if pagination.has_prev else '#' }}">&laquo;</a>
+                </li>
+                {% set start_page = [1, pagination.page - 2]|max %}
+                {% set end_page = [pagination.pages, pagination.page + 2]|min %}
+                {% if start_page > 1 %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="{{ url_for('admin.challenge_bank_listing', page=1, q=q, category=category, difficulty=difficulty, require_deploy=require_deploy) }}">1</a>
+                </li>
+                {% if start_page > 2 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+                {% endif %}
+                {% for page_num in range(start_page, end_page + 1) %}
+                <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                    <a class="page-link"
+                        href="{{ url_for('admin.challenge_bank_listing', page=page_num, q=q, category=category, difficulty=difficulty, require_deploy=require_deploy) }}">{{
+                        page_num }}</a>
+                </li>
+                {% endfor %}
+                {% if end_page < pagination.pages %} {% if end_page < pagination.pages - 1 %}<li
+                    class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="{{ url_for('admin.challenge_bank_listing', page=pagination.pages, q=q, category=category, difficulty=difficulty, require_deploy=require_deploy) }}">{{
+                            pagination.pages }}</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
+                        <a class="page-link"
+                            href="{{ url_for('admin.challenge_bank_listing', page=pagination.next_num, q=q, category=category, difficulty=difficulty, require_deploy=require_deploy) if pagination.has_next else '#' }}">&raquo;</a>
+                    </li>
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('check-all').addEventListener('change', function () {
+        document.querySelectorAll('.row-check').forEach(cb => cb.checked = this.checked);
+        updateDeleteBtn();
+    });
+    document.addEventListener('change', function (e) {
+        if (e.target.classList.contains('row-check')) updateDeleteBtn();
+    });
+    function updateDeleteBtn() {
+        const checked = document.querySelectorAll('.row-check:checked').length;
+        document.getElementById('bank-delete-btn').disabled = checked === 0;
+    }
+    document.getElementById('bank-delete-btn').addEventListener('click', function () {
+        const ids = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+        if (!ids.length) return;
+        if (!confirm('Xoá ' + ids.length + ' challenge đã chọn?')) return;
+        Promise.all(ids.map(id =>
+            fetch('/admin/challenge-bank/' + id + '/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'CSRF-Token': init.csrfNonce },
+                body: 'nonce=' + encodeURIComponent(init.csrfNonce)
+            })
+        )).then(() => location.reload());
+    });
+</script>
+{% endblock %}

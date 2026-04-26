@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import os
 import time
@@ -18,6 +19,7 @@ from werkzeug.utils import secure_filename
 
 from CTFd.admin import admin
 from CTFd.models import Challenges, DeployedChallenge, ChallengeVersion, Flags, Solves, Users, Tags, db
+ChallengeBank = Challenges  # alias
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class, BaseChallenge
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils.decorators import (
@@ -406,3 +408,173 @@ def challenge_start():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": f"Internal error: {str(e)}"}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CHALLENGE BANK — routes quản lý kho challenge (chỉ build image, không deploy pod)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@admin.route("/admin/challenge-bank")
+@admins_only
+def challenge_bank_listing():
+    q = request.args.get("q", "").strip()
+    category = request.args.get("category", "")
+    difficulty = request.args.get("difficulty", "")
+    page = abs(request.args.get("page", 1, type=int))
+
+    query = ChallengeBank.query
+
+    if q:
+        query = query.filter(
+            db.or_(
+                ChallengeBank.name.ilike(f"%{q}%"),
+                ChallengeBank.category.ilike(f"%{q}%"),
+            )
+        )
+    if category:
+        query = query.filter(ChallengeBank.category == category)
+    if difficulty:
+        query = query.filter(ChallengeBank.difficulty == int(difficulty))
+
+    # JSON mode — dùng cho modal "Thêm từ Bank" trong contest/challenges
+    if request.args.get("format") == "json":
+        items = query.order_by(ChallengeBank.created_at.desc()).all()
+        return jsonify({
+            "success": True,
+            "challenges": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "category": c.category or "",
+                    "difficulty_label": c.difficulty_label() if hasattr(c, 'difficulty_label') else "",
+                    "value": 0,
+                    "require_deploy": False,
+                    "tags": [],
+                }
+                for c in items
+            ],
+        })
+
+    pagination = query.order_by(ChallengeBank.created_at.desc()).paginate(
+        page=page, per_page=50
+    )
+
+    categories = [
+        r[0]
+        for r in db.session.query(ChallengeBank.category)
+        .filter(ChallengeBank.category.isnot(None))
+        .distinct()
+        .order_by(ChallengeBank.category)
+        .all()
+    ]
+
+    return render_template(
+        "admin/challenge_bank/listing.html",
+        challenges=pagination.items,
+        pagination=pagination,
+        categories=categories,
+        q=q,
+        category=category,
+        difficulty=difficulty,
+        require_deploy="",
+    )
+
+
+@admin.route("/admin/challenge-bank/new", methods=["GET", "POST"])
+@admins_only
+def challenge_bank_new():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        if not name:
+            flash("Tên challenge không được trống.", "danger")
+            return redirect(url_for("admin.challenge_bank_new"))
+
+        from CTFd.utils.user import get_current_user
+        owner = get_current_user()
+
+        bc = ChallengeBank(
+            name=name,
+            description=request.form.get("description", "").strip() or None,
+            category=request.form.get("category", "").strip() or None,
+            difficulty=request.form.get("difficulty", type=int) or None,
+            connection_protocol=request.form.get("connection_protocol", "http"),
+            cpu_limit=request.form.get("cpu_limit", type=int) or None,
+            cpu_request=request.form.get("cpu_request", type=int) or None,
+            memory_limit=request.form.get("memory_limit", type=int) or None,
+            memory_request=request.form.get("memory_request", type=int) or None,
+            use_gvisor=request.form.get("use_gvisor") == "1",
+            harden_container=request.form.get("harden_container") == "1",
+            shared_instant=request.form.get("shared_instant") == "1",
+            max_deploy_count=request.form.get("max_deploy_count", 0, type=int),
+            author_id=owner.id if owner else None,
+            is_public=request.form.get("is_public") == "1",
+        )
+
+        deploy_file = request.files.get("deploy_file")
+        if deploy_file and deploy_file.filename:
+            from CTFd.utils.uploads import upload_file as _upload
+            result = _upload(file=deploy_file, location="challenge_bank")
+            if result:
+                bc.deploy_file = result
+
+        db.session.add(bc)
+        db.session.commit()
+        flash(f"Đã tạo challenge '{bc.name}' vào bank.", "success")
+        return redirect(url_for("admin.challenge_bank_listing"))
+
+    return render_template("admin/challenge_bank/new.html")
+
+
+@admin.route("/admin/challenge-bank/<int:bank_id>", methods=["GET"])
+@admins_only
+def challenge_bank_detail(bank_id):
+    bc = ChallengeBank.query.get_or_404(bank_id)
+    return render_template("admin/challenge_bank/detail.html", challenge=bc)
+
+
+@admin.route("/admin/challenge-bank/<int:bank_id>/edit", methods=["GET", "POST"])
+@admins_only
+def challenge_bank_edit(bank_id):
+    bc = ChallengeBank.query.get_or_404(bank_id)
+
+    if request.method == "POST":
+        bc.name = request.form.get("name", bc.name).strip()
+        bc.description = request.form.get("description", "").strip() or None
+        bc.category = request.form.get("category", "").strip() or None
+        bc.difficulty = request.form.get("difficulty", type=int) or None
+        bc.connection_protocol = request.form.get("connection_protocol", "http")
+        bc.cpu_limit = request.form.get("cpu_limit", type=int) or None
+        bc.cpu_request = request.form.get("cpu_request", type=int) or None
+        bc.memory_limit = request.form.get("memory_limit", type=int) or None
+        bc.memory_request = request.form.get("memory_request", type=int) or None
+        bc.use_gvisor = request.form.get("use_gvisor") == "1"
+        bc.harden_container = request.form.get("harden_container") == "1"
+        bc.shared_instant = request.form.get("shared_instant") == "1"
+        bc.max_deploy_count = request.form.get("max_deploy_count", bc.max_deploy_count, type=int)
+        bc.is_public = request.form.get("is_public") == "1"
+        bc.updated_at = datetime.datetime.utcnow()
+
+        deploy_file = request.files.get("deploy_file")
+        if deploy_file and deploy_file.filename:
+            from CTFd.utils.uploads import upload_file as _upload
+            result = _upload(file=deploy_file, location="challenge_bank")
+            if result:
+                bc.deploy_file = result
+
+        db.session.commit()
+        flash(f"Đã cập nhật challenge '{bc.name}'.", "success")
+        return redirect(url_for("admin.challenge_bank_listing"))
+
+    return render_template("admin/challenge_bank/edit.html", challenge=bc)
+
+
+@admin.route("/admin/challenge-bank/<int:bank_id>/delete", methods=["POST"])
+@admins_only
+def challenge_bank_delete(bank_id):
+    bc = ChallengeBank.query.get_or_404(bank_id)
+    name = bc.name
+    db.session.delete(bc)
+    db.session.commit()
+    flash(f"Đã xoá challenge '{name}' khỏi bank.", "success")
+    return redirect(url_for("admin.challenge_bank_listing"))

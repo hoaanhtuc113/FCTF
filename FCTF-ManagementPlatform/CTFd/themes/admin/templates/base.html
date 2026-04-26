@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
@@ -31,12 +31,12 @@
             'csrfNonce': "{{ Session.nonce }}",
             'userMode': "{{ Configs.user_mode }}",
             'userId': {{ Session.id }},
-            'userName': {{ User.name | tojson }},
-            'userEmail': {{ User.email | tojson }},
-            'teamId': {{ Team.id | tojson }},
-            'teamName': {{ Team.name | tojson }},
-            'start': {{ Configs.start | tojson }},
-            'end': {{ Configs.end | tojson }}
+        'userName': { { User.name | tojson } },
+        'userEmail': { { User.email | tojson } },
+        'teamId': { { Team.id | tojson } },
+        'teamName': { { Team.name | tojson } },
+        'start': { { Configs.start | tojson } },
+        'end': { { Configs.end | tojson } }
         }
     </script>
     {% block stylesheets %} {% endblock %}
@@ -64,8 +64,8 @@
             --text-light: #6c757d;
             --border-light: #e8e8e8;
             --border-medium: #dee2e6;
-            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-            --shadow-md: 0 4px 8px rgba(0,0,0,0.08);
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08);
         }
 
         body {
@@ -83,7 +83,8 @@
             width: 250px;
             height: 100vh;
             position: fixed;
-            top: 0; left: 0;
+            top: 0;
+            left: 0;
             background: var(--bg-sidebar);
             color: var(--text-light);
             padding: 12px 14px;
@@ -94,10 +95,23 @@
             align-items: flex-start;
             box-shadow: var(--shadow-md);
         }
-        #sidebar::-webkit-scrollbar { width: 5px; }
-        #sidebar::-webkit-scrollbar-track { background: transparent; }
-        #sidebar::-webkit-scrollbar-thumb { background: rgba(255,107,53,0.3); border-radius: 3px; }
-        #sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,107,53,0.5); }
+
+        #sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        #sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 107, 53, 0.3);
+            border-radius: 3px;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 107, 53, 0.5);
+        }
 
         .logo-container {
             display: flex;
@@ -107,8 +121,16 @@
             margin-bottom: 14px;
             background-color: transparent !important;
         }
-        .logo-container img { max-width: 60%; height: auto; transition: transform 0.3s ease; }
-        .logo-container:hover img { transform: scale(1.05); }
+
+        .logo-container img {
+            max-width: 60%;
+            height: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .logo-container:hover img {
+            transform: scale(1.05);
+        }
 
         #sidebar a {
             color: var(--text-light);
@@ -124,17 +146,32 @@
             width: 100%;
             margin-top: 7px;
         }
-        #sidebar a i { margin-right: 10px; font-size: 1.15em; min-width: 18px; transition: transform 0.2s ease; }
-        #sidebar a:hover { background-color: var(--primary-orange); color: var(--bg-white); transform: translateX(3px); }
-        #sidebar a:hover i { transform: scale(1.1); }
+
+        #sidebar a i {
+            margin-right: 10px;
+            font-size: 1.15em;
+            min-width: 18px;
+            transition: transform 0.2s ease;
+        }
+
+        #sidebar a:hover {
+            background-color: var(--primary-orange);
+            color: var(--bg-white);
+            transform: translateX(3px);
+        }
+
+        #sidebar a:hover i {
+            transform: scale(1.1);
+        }
 
         #sidebar .nav-link.active,
         #sidebar .sub-btn.active {
             background-color: var(--primary-orange);
             color: var(--bg-white) !important;
-            box-shadow: 0 2px 8px rgba(255,107,53,0.3);
+            box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
             font-weight: 600;
         }
+
         #sidebar .sub-menu a.active {
             background-color: var(--primary-orange);
             color: var(--bg-white) !important;
@@ -144,7 +181,7 @@
         /* Sub Menu */
         #sidebar .sub-menu {
             display: none;
-            background-color: rgba(247,207,190,0.5);
+            background-color: rgba(247, 207, 190, 0.5);
             border-left: 3px solid var(--primary-orange);
             margin-left: 8px;
             padding-left: 8px;
@@ -152,10 +189,29 @@
             margin-bottom: 6px;
             border-radius: 4px;
         }
-        #sidebar .sub-menu a { background-color: transparent; font-size: 0.82rem; padding: 6px 10px; margin-bottom: 2px; }
-        #sidebar .sub-menu a:hover { color: var(--bg-white); background-color: var(--primary-orange); transform: translateX(3px); }
-        #sidebar .nav-item a .dropdown { position: absolute; right: 12px; transition: transform 0.3s ease; }
-        .rotate { transform: rotate(90deg); }
+
+        #sidebar .sub-menu a {
+            background-color: transparent;
+            font-size: 0.82rem;
+            padding: 6px 10px;
+            margin-bottom: 2px;
+        }
+
+        #sidebar .sub-menu a:hover {
+            color: var(--bg-white);
+            background-color: var(--primary-orange);
+            transform: translateX(3px);
+        }
+
+        #sidebar .nav-item a .dropdown {
+            position: absolute;
+            right: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .rotate {
+            transform: rotate(90deg);
+        }
 
         .dropdown-menu {
             background-color: var(--bg-sidebar);
@@ -165,7 +221,11 @@
             border: 1px solid var(--border-light);
             box-shadow: var(--shadow-md);
         }
-        .dropdown-menu a:hover { background-color: var(--primary-orange); color: white; }
+
+        .dropdown-menu a:hover {
+            background-color: var(--primary-orange);
+            color: white;
+        }
 
         /* ── Content Area ─────────────────────────────────────────────── */
         #content {
@@ -178,13 +238,33 @@
         }
 
         /* ── Nav Links ────────────────────────────────────────────────── */
-        .nav-link { transition: color 0.2s ease; cursor: pointer; color: var(--text-medium); }
-        .nav-link:hover { color: var(--primary-orange); }
+        .nav-link {
+            transition: color 0.2s ease;
+            cursor: pointer;
+            color: var(--text-medium);
+        }
+
+        .nav-link:hover {
+            color: var(--primary-orange);
+        }
 
         /* ── Card ─────────────────────────────────────────────────────── */
-        .card { border: 1px solid var(--border-light); border-radius: 6px; box-shadow: var(--shadow-sm); background: var(--bg-white); transition: all 0.2s ease; }
-        .card:hover { box-shadow: var(--shadow-md); }
-        .card-title { color: var(--text-dark); font-weight: 600; }
+        .card {
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            box-shadow: var(--shadow-sm);
+            background: var(--bg-white);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-title {
+            color: var(--text-dark);
+            font-weight: 600;
+        }
 
         /* ── Jumbotron / Page Header ──────────────────────────────────── */
         .jumbotron {
@@ -194,10 +274,34 @@
             padding: 1.25rem 0;
             box-shadow: none;
         }
-        .jumbotron h1 { color: var(--text-dark); font-weight: 700; font-size: 1.45rem; font-family: "Space Mono", monospace; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 0.5rem; }
-        .jumbotron h1 i { font-size: 1.5rem; color: var(--primary-orange); }
-        .jumbotron svg { margin-top: 0.5rem; }        /* Override: when .jumbotron is used with .page-header, use consistent page-header spacing */
-        .jumbotron.page-header { margin-bottom: 0.75rem; }
+
+        .jumbotron h1 {
+            color: var(--text-dark);
+            font-weight: 700;
+            font-size: 1.45rem;
+            font-family: "Space Mono", monospace;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .jumbotron h1 i {
+            font-size: 1.5rem;
+            color: var(--primary-orange);
+        }
+
+        .jumbotron svg {
+            margin-top: 0.5rem;
+        }
+
+        /* Override: when .jumbotron is used with .page-header, use consistent page-header spacing */
+        .jumbotron.page-header {
+            margin-bottom: 0.75rem;
+        }
+
         /* ── Button Styles ────────────────────────────────────────────── */
         .btn-primary {
             background-color: var(--primary-orange) !important;
@@ -205,15 +309,20 @@
             color: var(--bg-white) !important;
             transition: all 0.2s ease;
         }
+
         .btn-primary:hover {
             background-color: var(--primary-orange-dark) !important;
             border-color: var(--primary-orange-dark) !important;
             transform: translateY(-1px);
-            box-shadow: 0 3px 6px rgba(255,107,53,0.3);
+            box-shadow: 0 3px 6px rgba(255, 107, 53, 0.3);
         }
 
         /* ── Container Spacing ─────────────────────────────────── */
-        .container { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .container {
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+
         #content .container {
             max-width: 100%;
             padding-left: 2.5rem;
@@ -239,6 +348,7 @@
             margin-bottom: 0.75rem;
             box-shadow: none;
         }
+
         .page-header h1 {
             font-family: "Space Mono", monospace;
             font-size: 1.45rem;
@@ -251,6 +361,7 @@
             align-items: center;
             gap: 0.5rem;
         }
+
         .page-header h1 i {
             font-size: 1.5rem;
             color: var(--primary-orange);
@@ -265,6 +376,7 @@
             border: 1px solid var(--border-light);
             margin-bottom: 0.75rem;
         }
+
         .filter-section label {
             font-size: 0.75rem;
             font-weight: 600;
@@ -273,6 +385,7 @@
             letter-spacing: 0.3px;
             margin-bottom: 0.15rem;
         }
+
         .filter-section .form-control,
         .filter-section .custom-select,
         .filter-section .form-select {
@@ -283,12 +396,14 @@
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
             height: 34px;
         }
+
         .filter-section .form-control:focus,
         .filter-section .custom-select:focus,
         .filter-section .form-select:focus {
             border-color: var(--primary-orange);
-            box-shadow: 0 0 0 0.15rem rgba(255,107,53,0.15);
+            box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
         }
+
         .btn-filter {
             background-color: var(--primary-orange);
             border-color: var(--primary-orange);
@@ -300,13 +415,15 @@
             font-size: 0.85rem;
             padding: 0 0.75rem;
         }
+
         .btn-filter:hover {
             background-color: var(--primary-orange-dark);
             border-color: var(--primary-orange-dark);
             color: #fff;
             transform: translateY(-1px);
-            box-shadow: 0 3px 6px rgba(255,107,53,0.3);
+            box-shadow: 0 3px 6px rgba(255, 107, 53, 0.3);
         }
+
         .btn-clear-filter {
             border: 1px solid var(--border-medium);
             color: var(--text-medium);
@@ -318,15 +435,39 @@
             padding: 0 0.75rem;
             background: #fff;
         }
-        .btn-clear-filter:hover { background-color: var(--bg-light); }
+
+        .btn-clear-filter:hover {
+            background-color: var(--bg-light);
+        }
 
         /* Action buttons row */
-        .action-buttons { margin-bottom: 0.5rem; }
+        .action-buttons {
+            margin-bottom: 0.5rem;
+        }
 
-        .btn-outline-secondary { border: 1px solid var(--border-medium); color: var(--text-medium); transition: all 0.2s ease; }
-        .btn-outline-secondary:hover { background-color: var(--primary-orange); border-color: var(--primary-orange); color: #fff; }
-        .btn-outline-danger { border: 1px solid #dc3545; color: #dc3545; transition: all 0.2s ease; }
-        .btn-outline-danger:hover { background-color: #dc3545; border-color: #dc3545; color: #fff; }
+        .btn-outline-secondary {
+            border: 1px solid var(--border-medium);
+            color: var(--text-medium);
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--primary-orange);
+            border-color: var(--primary-orange);
+            color: #fff;
+        }
+
+        .btn-outline-danger {
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-danger:hover {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: #fff;
+        }
 
         /* ── Table (shared) ───────────────────────────────────────────── */
         .admin-table-wrapper {
@@ -336,12 +477,14 @@
             box-shadow: var(--shadow-sm);
             overflow: visible;
         }
+
         .admin-table-wrapper .table,
         .admin-table {
             margin: 0;
             font-size: 0.85rem;
             width: 100%;
         }
+
         .admin-table thead th,
         .admin-table-wrapper .table thead th {
             background: var(--bg-light);
@@ -355,28 +498,33 @@
             vertical-align: middle;
             white-space: nowrap;
         }
+
         .admin-table thead td,
         .admin-table-wrapper .table thead td {
             background: var(--bg-light);
             border-bottom: 2px solid var(--border-light);
             padding: 0.55rem 0.6rem;
         }
+
         .admin-table tbody tr,
         .admin-table-wrapper .table tbody tr {
             border-bottom: 1px solid #f1f1f1;
             transition: background 0.15s ease;
         }
+
         .admin-table tbody tr:hover,
         .admin-table-wrapper .table tbody tr:hover {
             background: #fffbf9;
             cursor: pointer;
         }
+
         .admin-table tbody td,
         .admin-table-wrapper .table tbody td {
             padding: 0.5rem 0.6rem;
             color: var(--text-medium);
             vertical-align: middle;
         }
+
         .admin-table tbody td a,
         .admin-table-wrapper .table tbody td a {
             color: var(--text-dark);
@@ -384,6 +532,7 @@
             font-weight: 500;
             transition: color 0.2s ease;
         }
+
         .admin-table tbody td a:hover,
         .admin-table-wrapper .table tbody td a:hover {
             color: var(--primary-orange);
@@ -398,7 +547,11 @@
             padding: 0;
             overflow-x: auto;
         }
-        .table-responsive .table { margin-bottom: 0; }
+
+        .table-responsive .table {
+            margin-bottom: 0;
+        }
+
         .table-responsive .table thead th {
             background-color: var(--bg-light);
             color: var(--text-dark);
@@ -408,19 +561,37 @@
             vertical-align: middle;
             font-size: 0.8rem;
         }
-        .table-responsive .table tbody tr { transition: background 0.15s ease; cursor: pointer; }
-        .table-responsive .table tbody tr:hover { background-color: #fffbf9; }
+
+        .table-responsive .table tbody tr {
+            transition: background 0.15s ease;
+            cursor: pointer;
+        }
+
+        .table-responsive .table tbody tr:hover {
+            background-color: #fffbf9;
+        }
+
         .table-responsive .table tbody td {
             padding: 0.5rem 0.6rem;
             vertical-align: middle;
             color: var(--text-medium);
             border-bottom: 1px solid #f1f1f1;
         }
-        .table-responsive .table tbody td a { color: var(--text-dark); font-weight: 500; transition: color 0.2s ease; }
-        .table-responsive .table tbody td a:hover { color: var(--primary-orange); text-decoration: none; }
+
+        .table-responsive .table tbody td a {
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .table-responsive .table tbody td a:hover {
+            color: var(--primary-orange);
+            text-decoration: none;
+        }
 
         /* ── Badges (shared) ──────────────────────────────────────────── */
-        .badge, .clean-badge {
+        .badge,
+        .clean-badge {
             padding: 0.25rem 0.5rem;
             border-radius: 3px;
             font-size: 0.72rem;
@@ -428,15 +599,46 @@
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
-        .badge-primary, .clean-badge-primary { background: #ffe8df; color: var(--primary-orange); }
-        .badge-success, .clean-badge-success { background: #d4edda; color: #155724; }
-        .badge-danger, .clean-badge-danger   { background: #f8d7da; color: #721c24; }
-        .badge-warning, .clean-badge-warning { background: #fff3cd; color: #856404; }
-        .badge-info    { background: #d1ecf1; color: #0c5460; }
-        .clean-badge-secondary { background: #e2e3e5; color: #6c757d; }
+
+        .badge-primary,
+        .clean-badge-primary {
+            background: #ffe8df;
+            color: var(--primary-orange);
+        }
+
+        .badge-success,
+        .clean-badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-danger,
+        .clean-badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-warning,
+        .clean-badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .clean-badge-secondary {
+            background: #e2e3e5;
+            color: #6c757d;
+        }
 
         /* ── Pagination (shared) ──────────────────────────────────────── */
-        .pagination { margin-top: 0.75rem; }
+        .pagination {
+            margin-top: 0.75rem;
+        }
+
         .pagination .page-link,
         .clean-pagination .page-link {
             border: 1px solid var(--border-medium);
@@ -447,18 +649,21 @@
             transition: all 0.2s ease;
             font-size: 0.85rem;
         }
+
         .pagination .page-link:hover,
         .clean-pagination .page-link:hover {
             background: var(--primary-orange);
             border-color: var(--primary-orange);
             color: #fff;
         }
+
         .pagination .page-item.active .page-link,
         .clean-pagination .page-item.active .page-link {
             background: var(--primary-orange);
             border-color: var(--primary-orange);
             color: #fff;
         }
+
         .pagination .page-item.disabled .page-link,
         .clean-pagination .page-item.disabled .page-link {
             background: var(--bg-light);
@@ -466,25 +671,33 @@
             cursor: not-allowed;
         }
 
-        .dataTables_info, .clean-info-text {
+        .dataTables_info,
+        .clean-info-text {
             color: var(--text-light);
             font-size: 0.82rem;
         }
-        .clean-highlight { color: var(--primary-orange); font-weight: 500; }
+
+        .clean-highlight {
+            color: var(--primary-orange);
+            font-weight: 500;
+        }
 
         /* ── Searchable Select Component ──────────────────────────────── */
         .ss-wrapper {
             position: relative;
         }
+
         .ss-wrapper .ss-input {
             width: 100%;
             cursor: text;
             background: #fff;
         }
+
         .ss-wrapper .ss-dropdown {
             position: absolute;
             top: 100%;
-            left: 0; right: 0;
+            left: 0;
+            right: 0;
             z-index: 1050;
             max-height: 200px;
             overflow-y: auto;
@@ -492,10 +705,14 @@
             border: 1px solid var(--border-medium);
             border-top: none;
             border-radius: 0 0 4px 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             display: none;
         }
-        .ss-wrapper .ss-dropdown.show { display: block; }
+
+        .ss-wrapper .ss-dropdown.show {
+            display: block;
+        }
+
         .ss-wrapper .ss-option {
             padding: 0.3rem 0.6rem;
             cursor: pointer;
@@ -503,34 +720,67 @@
             color: var(--text-medium);
             transition: background 0.1s;
         }
+
         .ss-wrapper .ss-option:hover,
         .ss-wrapper .ss-option.active {
             background: #fff5f2;
             color: var(--primary-orange);
         }
+
         .ss-wrapper .ss-option.selected {
             background: var(--primary-orange);
             color: #fff;
         }
 
         /* Also support legacy .searchable-select-wrapper class */
-        .searchable-select-wrapper { position: relative; }
-        .searchable-select-wrapper .ss-input { width: 100%; cursor: text; background: #fff; }
+        .searchable-select-wrapper {
+            position: relative;
+        }
+
+        .searchable-select-wrapper .ss-input {
+            width: 100%;
+            cursor: text;
+            background: #fff;
+        }
+
         .searchable-select-wrapper .ss-dropdown {
-            position: absolute; top: 100%; left: 0; right: 0;
-            z-index: 1050; max-height: 200px; overflow-y: auto;
-            background: #fff; border: 1px solid var(--border-medium);
-            border-top: none; border-radius: 0 0 4px 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid var(--border-medium);
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: none;
         }
-        .searchable-select-wrapper .ss-dropdown.show { display: block; }
+
+        .searchable-select-wrapper .ss-dropdown.show {
+            display: block;
+        }
+
         .searchable-select-wrapper .ss-option {
-            padding: 0.3rem 0.6rem; cursor: pointer; font-size: 0.85rem;
-            color: var(--text-medium); transition: background 0.1s;
+            padding: 0.3rem 0.6rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-medium);
+            transition: background 0.1s;
         }
+
         .searchable-select-wrapper .ss-option:hover,
-        .searchable-select-wrapper .ss-option.active { background: #fff5f2; color: var(--primary-orange); }
-        .searchable-select-wrapper .ss-option.selected { background: var(--primary-orange); color: #fff; }
+        .searchable-select-wrapper .ss-option.active {
+            background: #fff5f2;
+            color: var(--primary-orange);
+        }
+
+        .searchable-select-wrapper .ss-option.selected {
+            background: var(--primary-orange);
+            color: #fff;
+        }
 
         /* ── Clean button variants ────────────────────────────────────── */
         .clean-btn {
@@ -544,12 +794,39 @@
             transition: all 0.2s ease;
             cursor: pointer;
         }
-        .clean-btn:hover { border-color: var(--primary-orange); color: var(--primary-orange); background: #fff5f2; }
-        .clean-btn-primary { background: var(--primary-orange); color: #fff; border-color: var(--primary-orange); }
-        .clean-btn-primary:hover { background: var(--primary-orange-dark); border-color: var(--primary-orange-dark); color: #fff; }
-        .clean-btn-danger { border-color: #dc3545; color: #dc3545; }
-        .clean-btn-danger:hover { background: #dc3545; color: #fff; }
-        .clean-action-btn-sm { padding: 0.25rem 0.55rem; font-size: 0.8rem; }
+
+        .clean-btn:hover {
+            border-color: var(--primary-orange);
+            color: var(--primary-orange);
+            background: #fff5f2;
+        }
+
+        .clean-btn-primary {
+            background: var(--primary-orange);
+            color: #fff;
+            border-color: var(--primary-orange);
+        }
+
+        .clean-btn-primary:hover {
+            background: var(--primary-orange-dark);
+            border-color: var(--primary-orange-dark);
+            color: #fff;
+        }
+
+        .clean-btn-danger {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .clean-btn-danger:hover {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        .clean-action-btn-sm {
+            padding: 0.25rem 0.55rem;
+            font-size: 0.8rem;
+        }
 
         /* ── Clean search container (challenges) ─────────────────────── */
         .clean-search-container {
@@ -565,11 +842,18 @@
             background: #fff;
             border: 1px solid var(--border-light);
             border-radius: 6px;
-            overflow-x: auto;               /* responsive horizontal scroll */
+            overflow-x: auto;
+            /* responsive horizontal scroll */
             overflow-y: visible;
             box-shadow: var(--shadow-sm);
         }
-        .clean-table { margin: 0; font-size: 0.85rem; width: 100%; white-space: nowrap; }
+
+        .clean-table {
+            margin: 0;
+            font-size: 0.85rem;
+            width: 100%;
+            white-space: nowrap;
+        }
 
         /* ── Unified table checkbox ───────────────────────────────────── */
         .table-check {
@@ -580,6 +864,7 @@
             vertical-align: middle;
             margin: 0;
         }
+
         .clean-table th[data-checkbox],
         .clean-table td[data-checkbox] {
             width: 36px;
@@ -601,12 +886,37 @@
             font-size: 0.72rem;
             letter-spacing: 0.4px;
         }
-        .clean-table thead td { background: var(--bg-light); border-bottom: 2px solid var(--border-light); }
-        .clean-table tbody tr { border-bottom: 1px solid #f1f1f1; transition: all 0.15s ease; }
-        .clean-table tbody tr:hover { background: #fffbf9; cursor: pointer; }
-        .clean-table tbody tr:hover td a { color: var(--primary-orange); }
-        .clean-table tbody td { padding: 0.5rem 0.6rem; color: var(--text-medium); vertical-align: middle; }
-        .clean-table tbody td a { color: var(--text-medium); text-decoration: none; transition: color 0.2s ease; }
+
+        .clean-table thead td {
+            background: var(--bg-light);
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .clean-table tbody tr {
+            border-bottom: 1px solid #f1f1f1;
+            transition: all 0.15s ease;
+        }
+
+        .clean-table tbody tr:hover {
+            background: #fffbf9;
+            cursor: pointer;
+        }
+
+        .clean-table tbody tr:hover td a {
+            color: var(--primary-orange);
+        }
+
+        .clean-table tbody td {
+            padding: 0.5rem 0.6rem;
+            color: var(--text-medium);
+            vertical-align: middle;
+        }
+
+        .clean-table tbody td a {
+            color: var(--text-medium);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
 
         /* ── Cell truncation utility ──────────────────────────────────── */
         .cell-truncate {
@@ -615,8 +925,21 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .cell-truncate-sm { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .cell-truncate-lg { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .cell-truncate-sm {
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cell-truncate-lg {
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .cell-wrap-detail {
             max-width: 360px;
             white-space: pre-wrap;
@@ -632,9 +955,10 @@
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
             height: 34px;
         }
+
         .clean-form-control:focus {
             border-color: var(--primary-orange);
-            box-shadow: 0 0 0 0.15rem rgba(255,107,53,0.15);
+            box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
             outline: none;
         }
 
@@ -647,14 +971,50 @@
             box-shadow: var(--shadow-sm);
             margin-bottom: 0;
         }
-        .nav-tabs .nav-link { color: var(--text-medium); border: none; border-bottom: 3px solid transparent; padding: 0.5rem 1rem; font-weight: 500; transition: all 0.2s ease; }
-        .nav-tabs .nav-link:hover { color: var(--primary-orange); border-bottom-color: var(--primary-orange); background-color: transparent !important; }
-        .nav-tabs .nav-link.active { color: var(--primary-orange) !important; background-color: transparent !important; border-bottom-color: var(--primary-orange) !important; font-weight: 600; }
-        .tab-content { background: #fff; padding: 1rem; border-radius: 0 0 6px 6px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-light); border-top: none; }
-        .tab-content h3 { color: var(--text-dark); font-weight: 600; margin-bottom: 1rem; }
+
+        .nav-tabs .nav-link {
+            color: var(--text-medium);
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: var(--primary-orange);
+            border-bottom-color: var(--primary-orange);
+            background-color: transparent !important;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--primary-orange) !important;
+            background-color: transparent !important;
+            border-bottom-color: var(--primary-orange) !important;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            background: #fff;
+            padding: 1rem;
+            border-radius: 0 0 6px 6px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            border-top: none;
+        }
+
+        .tab-content h3 {
+            color: var(--text-dark);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
 
         /* ── Misc ─────────────────────────────────────────────────────── */
-        .mono { font-family: "Space Mono", monospace; white-space: pre-wrap; word-break: break-word; }
+        .mono {
+            font-family: "Space Mono", monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
 
         /* Fix select dropdown text cut off */
         select.form-control,
@@ -668,8 +1028,14 @@
 
         /* ── Responsive ───────────────────────────────────────────────── */
         @media (max-width: 768px) {
-            #sidebar { margin-left: -250px; }
-            #content { margin-left: 0; width: 100%; }
+            #sidebar {
+                margin-left: -250px;
+            }
+
+            #content {
+                margin-left: 0;
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -687,96 +1053,149 @@
         <div class="d-flex flex-column w-100">
             <ul class="list-unstyled components">
 
+                {# ══════════════════════════════════════════════════════════
+                GLOBAL NAV — shown when NOT in a contest context
+                ══════════════════════════════════════════════════════════ #}
+                {% set _contest = current_contest if current_contest is defined else (contest if contest is defined else
+                none) %}
+
+                {% if not _contest %}
+
+                {% if is_admin() %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.statistics') }}">
                         <i class="bx bx-bar-chart-alt-2"></i> Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.challenges_listing') }}">
-                        <i class="bx bx-book"></i> Challenges
+                    <a class="nav-link" href="{{ url_for('admin.semesters_listing') }}">
+                        <i class="bx bx-calendar"></i> Semesters
                     </a>
                 </li>
-                {% if is_admin() or is_jury() %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.challenge_bank_listing') }}">
+                        <i class="bx bx-server"></i> Challenge Bank
+                    </a>
+                </li>
+                {% endif %}
 
+                {% if is_admin() or is_jury() %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.users_listing') }}">
                         <i class="bx bx-user"></i> Users
                     </a>
                 </li>
+                {% endif %}
+
+                {% endif %}{# end global nav #}
+
+                {# ══════════════════════════════════════════════════════════
+                CONTEST NAV — shown when inside a contest context
+                Template set: {% set current_contest = contest %}
+                ══════════════════════════════════════════════════════════ #}
+                {% if _contest %}
+
+                {# Header contest #}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.users_pending_listing') }}">
-                        <i class="bx bx-user-check"></i> Registrations
+                    <div class="px-3 py-1 mb-1"
+                        style="font-size:0.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-light);border-bottom:1px solid var(--border-light);padding-bottom:.4rem!important;">
+                        <i class="bx bx-flag" style="color:var(--primary-orange);"></i>
+                        {{ _contest.name[:24] }}{% if _contest.name|length > 24 %}…{% endif %}
+                    </div>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_dashboard', contest_id=_contest.id) }}">
+                        <i class="bx bx-home"></i> Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.action_logs_listing') }}">
+                    <a class="nav-link" href="{{ url_for('admin.contest_challenges', contest_id=_contest.id) }}">
+                        <i class="bx bx-book"></i> Challenges
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_users', contest_id=_contest.id) }}">
+                        <i class="bx bx-group"></i> Users
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_scoreboard', contest_id=_contest.id) }}">
+                        <i class="bx bx-trophy"></i> Scoreboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="sub-btn nav-link">
+                        <i class="bx bx-down-arrow-circle"></i> Submissions
+                        <i class='bx bx-chevron-right dropdown'></i>
+                    </a>
+                    <div class="sub-menu">
+                        <a href="{{ url_for('admin.contest_submissions', contest_id=_contest.id) }}"
+                            class="sub-item">All</a>
+                        <a href="{{ url_for('admin.contest_submissions', contest_id=_contest.id, type='correct') }}"
+                            class="sub-item">Correct</a>
+                        <a href="{{ url_for('admin.contest_submissions', contest_id=_contest.id, type='incorrect') }}"
+                            class="sub-item">Incorrect</a>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_teams', contest_id=_contest.id) }}">
+                        <i class="bx bx-group"></i> Teams
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_action_logs', contest_id=_contest.id) }}">
                         <i class="bx bx-list-ul"></i> Action Logs
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.instances_history_listing') }}">
-                        <i class="bx bx-history"></i> Instances History
+                    <a class="nav-link" href="{{ url_for('admin.contest_instances', contest_id=_contest.id) }}">
+                        <i class="bx bx-history"></i> Instances
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.admin_audit_listing') }}">
+                    <a class="nav-link" href="{{ url_for('admin.contest_tickets', contest_id=_contest.id) }}">
+                        <i class="bx bx-envelope"></i> Tickets
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_audit_logs', contest_id=_contest.id) }}">
                         <i class="bx bx-shield-quarter"></i> Audit Logs
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.view_tickets') }}">
-                        <i class="bx bx-envelope"></i> Tickets
+                    <a class="nav-link" href="{{ url_for('admin.contest_rewards', contest_id=_contest.id) }}">
+                        <i class="bx bx-line-chart"></i> Dynamic Reward
                     </a>
                 </li>
-                {% if get_config('user_mode') == 'teams' %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.teams_listing') }}">
-                        <i class="bx bx-group"></i> Teams
-                    </a>
-                </li>
-                {% endif %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.scoreboard_listing') }}">
-                        <i class="bx bx-trophy"></i> Scoreboard
-                    </a>
-                </li>
-
-
-                {% endif %}
-
-                {% if is_admin() or is_jury() %}
-                <li class="nav-item">
-                    <a class="sub-btn nav-link"><i class="bx bx-down-arrow-circle"></i>Submissions<i
-                            class='bx bx-chevron-right dropdown'></i> </a>
-                    <div class="sub-menu">
-                        <a href="{{ url_for('admin.submissions_listing') }}" class="sub-item">All Submissions</a>
-                        <a href="{{ url_for('admin.submissions_listing', submission_type='correct') }}"
-                            class="sub-item">Correct Submissions</a>
-                        <a href="{{ url_for('admin.submissions_listing', submission_type='incorrect') }}"
-                            class="sub-item">Incorrect Submissions</a>
-                    </div>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.rewards_page') }}">
-                        <i class="bx bx-line-chart"></i> Dynamic Reward Query
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_admin() %}
-
-
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.config') }}">
+                    <a class="nav-link" href="{{ url_for('admin.contest_config', contest_id=_contest.id) }}">
                         <i class="bx bx-cog"></i> Config
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.monitoring') }}">
+                    <a class="nav-link" href="{{ url_for('admin.contest_monitoring', contest_id=_contest.id) }}">
                         <i class="bx bx-server"></i> Monitoring
                     </a>
                 </li>
-                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contest_edit', contest_id=_contest.id) }}">
+                        <i class="bx bx-cog"></i> Settings
+                    </a>
+                </li>
+
+                <li class="nav-item mt-1">
+                    <hr style="border-color:var(--border-light);margin:.25rem 0 .4rem;">
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.semesters_listing') }}"
+                        style="font-size:0.83rem;color:var(--text-light);">
+                        <i class="bx bx-arrow-back"></i> Back to Semester
+                    </a>
+                </li>
+
+                {% endif %}{# end contest nav #}
+
             </ul>
         </div>
 
@@ -798,7 +1217,7 @@
         </main>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
@@ -887,20 +1306,20 @@
         (function initSearchableSelects() {
             // Convert every <select> inside .filter-section / .clean-search-container
             // that has the class "ss-select" into a searchable dropdown.
-            document.querySelectorAll('select.ss-select').forEach(function(sel) {
+            document.querySelectorAll('select.ss-select').forEach(function (sel) {
                 var wrapper = document.createElement('div');
                 wrapper.className = 'ss-wrapper';
                 sel.parentNode.insertBefore(wrapper, sel);
 
                 var hiddenInput = document.createElement('input');
-                hiddenInput.type  = 'hidden';
-                hiddenInput.name  = sel.name;
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = sel.name;
                 hiddenInput.value = sel.value;
                 wrapper.appendChild(hiddenInput);
 
                 var textInput = document.createElement('input');
-                textInput.type        = 'text';
-                textInput.className   = sel.className.replace('ss-select','').trim() + ' ss-input';
+                textInput.type = 'text';
+                textInput.className = sel.className.replace('ss-select', '').trim() + ' ss-input';
                 textInput.placeholder = sel.options[0] ? sel.options[0].text : '';
                 textInput.autocomplete = 'off';
                 wrapper.appendChild(textInput);
@@ -910,7 +1329,7 @@
                 wrapper.appendChild(dropdown);
 
                 var optionEls = [];
-                Array.from(sel.options).forEach(function(opt) {
+                Array.from(sel.options).forEach(function (opt) {
                     var d = document.createElement('div');
                     d.className = 'ss-option';
                     d.setAttribute('data-value', opt.value);
@@ -925,17 +1344,17 @@
 
                 sel.remove();
 
-                textInput.addEventListener('focus', function() {
+                textInput.addEventListener('focus', function () {
                     dropdown.classList.add('show');
                     textInput.select();
                     filterOpts('');
                 });
-                textInput.addEventListener('input', function() {
+                textInput.addEventListener('input', function () {
                     filterOpts(textInput.value);
                     dropdown.classList.add('show');
                 });
-                textInput.addEventListener('blur', function() {
-                    setTimeout(function() {
+                textInput.addEventListener('blur', function () {
+                    setTimeout(function () {
                         dropdown.classList.remove('show');
                         if (hiddenInput.value) {
                             var s = wrapper.querySelector('.ss-option.selected');
@@ -943,70 +1362,70 @@
                         } else { textInput.value = ''; }
                     }, 160);
                 });
-                textInput.addEventListener('keydown', function(e) {
-                    var vis = optionEls.filter(function(o) { return o.style.display !== 'none'; });
-                    var idx = vis.findIndex(function(o) { return o.classList.contains('active'); });
-                    if (e.key === 'ArrowDown') { e.preventDefault(); if (idx < vis.length-1) { if (idx>=0) vis[idx].classList.remove('active'); vis[idx+1].classList.add('active'); vis[idx+1].scrollIntoView({block:'nearest'}); } }
-                    else if (e.key === 'ArrowUp') { e.preventDefault(); if (idx > 0) { vis[idx].classList.remove('active'); vis[idx-1].classList.add('active'); vis[idx-1].scrollIntoView({block:'nearest'}); } }
-                    else if (e.key === 'Enter') { e.preventDefault(); var a = vis.find(function(o) { return o.classList.contains('active'); }); if (a) pick(a); }
+                textInput.addEventListener('keydown', function (e) {
+                    var vis = optionEls.filter(function (o) { return o.style.display !== 'none'; });
+                    var idx = vis.findIndex(function (o) { return o.classList.contains('active'); });
+                    if (e.key === 'ArrowDown') { e.preventDefault(); if (idx < vis.length - 1) { if (idx >= 0) vis[idx].classList.remove('active'); vis[idx + 1].classList.add('active'); vis[idx + 1].scrollIntoView({ block: 'nearest' }); } }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); if (idx > 0) { vis[idx].classList.remove('active'); vis[idx - 1].classList.add('active'); vis[idx - 1].scrollIntoView({ block: 'nearest' }); } }
+                    else if (e.key === 'Enter') { e.preventDefault(); var a = vis.find(function (o) { return o.classList.contains('active'); }); if (a) pick(a); }
                     else if (e.key === 'Escape') { textInput.blur(); }
                 });
 
-                optionEls.forEach(function(opt) {
-                    opt.addEventListener('mousedown', function(e) { e.preventDefault(); pick(opt); });
+                optionEls.forEach(function (opt) {
+                    opt.addEventListener('mousedown', function (e) { e.preventDefault(); pick(opt); });
                 });
 
                 function filterOpts(q) {
                     var lq = q.toLowerCase().trim();
-                    optionEls.forEach(function(o) {
+                    optionEls.forEach(function (o) {
                         o.style.display = (!lq || o.textContent.toLowerCase().indexOf(lq) !== -1) ? '' : 'none';
                         o.classList.remove('active');
                     });
                 }
                 function pick(opt) {
-                    optionEls.forEach(function(o) { o.classList.remove('selected'); });
+                    optionEls.forEach(function (o) { o.classList.remove('selected'); });
                     opt.classList.add('selected');
                     hiddenInput.value = opt.getAttribute('data-value');
-                    textInput.value   = opt.getAttribute('data-value') ? opt.textContent.trim() : '';
+                    textInput.value = opt.getAttribute('data-value') ? opt.textContent.trim() : '';
                     dropdown.classList.remove('show');
                 }
             });
 
             // Also init any existing .searchable-select-wrapper / .ss-wrapper with pre-built markup
-            document.querySelectorAll('.searchable-select-wrapper, .ss-wrapper').forEach(function(wrapper) {
+            document.querySelectorAll('.searchable-select-wrapper, .ss-wrapper').forEach(function (wrapper) {
                 if (wrapper._ssInit) return;
                 wrapper._ssInit = true;
                 var hiddenInput = wrapper.querySelector('input[type="hidden"]');
-                var textInput   = wrapper.querySelector('.ss-input');
-                var dropdown    = wrapper.querySelector('.ss-dropdown');
+                var textInput = wrapper.querySelector('.ss-input');
+                var dropdown = wrapper.querySelector('.ss-dropdown');
                 if (!hiddenInput || !textInput || !dropdown) return;
                 var options = wrapper.querySelectorAll('.ss-option');
 
                 var currentVal = hiddenInput.value;
                 if (currentVal) {
-                    var m = wrapper.querySelector('.ss-option[data-value="'+currentVal+'"]');
+                    var m = wrapper.querySelector('.ss-option[data-value="' + currentVal + '"]');
                     if (m) { textInput.value = m.textContent.trim(); m.classList.add('selected'); }
                 }
-                textInput.addEventListener('focus', function() { dropdown.classList.add('show'); textInput.select(); filt(''); });
-                textInput.addEventListener('input', function() { filt(textInput.value); dropdown.classList.add('show'); });
-                textInput.addEventListener('blur', function() {
-                    setTimeout(function() {
+                textInput.addEventListener('focus', function () { dropdown.classList.add('show'); textInput.select(); filt(''); });
+                textInput.addEventListener('input', function () { filt(textInput.value); dropdown.classList.add('show'); });
+                textInput.addEventListener('blur', function () {
+                    setTimeout(function () {
                         dropdown.classList.remove('show');
                         if (hiddenInput.value) { var s = wrapper.querySelector('.ss-option.selected'); textInput.value = s ? s.textContent.trim() : ''; }
                         else { textInput.value = ''; }
                     }, 160);
                 });
-                textInput.addEventListener('keydown', function(e) {
-                    var vis = Array.from(options).filter(function(o) { return o.style.display !== 'none'; });
-                    var idx = vis.findIndex(function(o) { return o.classList.contains('active'); });
-                    if (e.key==='ArrowDown') { e.preventDefault(); if (idx<vis.length-1){ if(idx>=0) vis[idx].classList.remove('active'); vis[idx+1].classList.add('active'); vis[idx+1].scrollIntoView({block:'nearest'}); } }
-                    else if (e.key==='ArrowUp') { e.preventDefault(); if (idx>0){ vis[idx].classList.remove('active'); vis[idx-1].classList.add('active'); vis[idx-1].scrollIntoView({block:'nearest'}); } }
-                    else if (e.key==='Enter') { e.preventDefault(); var a=vis.find(function(o){return o.classList.contains('active');}); if(a) pk(a); }
-                    else if (e.key==='Escape') { textInput.blur(); }
+                textInput.addEventListener('keydown', function (e) {
+                    var vis = Array.from(options).filter(function (o) { return o.style.display !== 'none'; });
+                    var idx = vis.findIndex(function (o) { return o.classList.contains('active'); });
+                    if (e.key === 'ArrowDown') { e.preventDefault(); if (idx < vis.length - 1) { if (idx >= 0) vis[idx].classList.remove('active'); vis[idx + 1].classList.add('active'); vis[idx + 1].scrollIntoView({ block: 'nearest' }); } }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); if (idx > 0) { vis[idx].classList.remove('active'); vis[idx - 1].classList.add('active'); vis[idx - 1].scrollIntoView({ block: 'nearest' }); } }
+                    else if (e.key === 'Enter') { e.preventDefault(); var a = vis.find(function (o) { return o.classList.contains('active'); }); if (a) pk(a); }
+                    else if (e.key === 'Escape') { textInput.blur(); }
                 });
-                options.forEach(function(opt) { opt.addEventListener('mousedown', function(e) { e.preventDefault(); pk(opt); }); });
-                function filt(q) { var lq=q.toLowerCase().trim(); options.forEach(function(o){ o.style.display=(!lq||o.textContent.toLowerCase().indexOf(lq)!==-1)?'':'none'; o.classList.remove('active'); }); }
-                function pk(opt) { options.forEach(function(o){o.classList.remove('selected');}); opt.classList.add('selected'); hiddenInput.value=opt.getAttribute('data-value'); textInput.value=opt.getAttribute('data-value')?opt.textContent.trim():''; dropdown.classList.remove('show'); }
+                options.forEach(function (opt) { opt.addEventListener('mousedown', function (e) { e.preventDefault(); pk(opt); }); });
+                function filt(q) { var lq = q.toLowerCase().trim(); options.forEach(function (o) { o.style.display = (!lq || o.textContent.toLowerCase().indexOf(lq) !== -1) ? '' : 'none'; o.classList.remove('active'); }); }
+                function pk(opt) { options.forEach(function (o) { o.classList.remove('selected'); }); opt.classList.add('selected'); hiddenInput.value = opt.getAttribute('data-value'); textInput.value = opt.getAttribute('data-value') ? opt.textContent.trim() : ''; dropdown.classList.remove('show'); }
             });
         })();
     </script>

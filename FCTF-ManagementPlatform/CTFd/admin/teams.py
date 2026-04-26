@@ -40,11 +40,12 @@ def teams_listing():
         .paginate(page=page, per_page=50, error_out=False)
     )
 
+    from CTFd.models import UsersTeams
+    from sqlalchemy import func as sa_func
     member_counts = {
         team_id: count
-        for team_id, count in db.session.query(Users.team_id, func.count(Users.id))
-        .filter(Users.team_id.isnot(None))
-        .group_by(Users.team_id)
+        for team_id, count in db.session.query(UsersTeams.team_id, sa_func.count(UsersTeams.user_id))
+        .group_by(UsersTeams.team_id)
         .all()
     }
 

@@ -321,7 +321,7 @@ class ChallengeList(Resource):
                 "difficulty": challenge.difficulty,
                 "requirements": challenge.requirements,
                 "next_id": challenge.next_id,
-                "user_id": challenge.user_id,
+                "author_id": challenge.author_id,
                 "require_deploy": challenge.require_deploy,
                 "deploy_status": challenge.deploy_status,
                 "image_link": challenge.image_link,
@@ -405,9 +405,9 @@ class Challenge(Resource):
                 user = get_current_user()
                 if user:
                     solve_ids = (
-                        Solves.query.with_entities(Solves.challenge_id)
+                        Solves.query.with_entities(Solves.contest_challenge_id)
                         .filter_by(account_id=user.account_id)
-                        .order_by(Solves.challenge_id.asc())
+                        .order_by(Solves.contest_challenge_id.asc())
                         .all()
                     )
                 else:
@@ -510,9 +510,7 @@ class Challenge(Resource):
 
         if authed():
             # Get current attempts for the user
-            attempts = Submissions.query.filter_by(
-                account_id=user.account_id, challenge_id=challenge_id
-            ).count()
+            attempts = Submissions.query.filter_by(account_id=user.account_id).count()
         else:
             attempts = 0
 
@@ -591,7 +589,7 @@ class Challenge(Resource):
             "difficulty": challenge.difficulty,
             "requirements": challenge.requirements,
             "next_id": challenge.next_id,
-            "user_id": challenge.user_id,
+            "author_id": challenge.author_id,
             "require_deploy": challenge.require_deploy,
             "deploy_status": challenge.deploy_status,
             "image_link": challenge.image_link,
@@ -607,10 +605,10 @@ class Challenge(Resource):
         }
 
         if user.type == "admin":
-            data["user_id"] = challenge.user_id
+            data["user_id"] = challenge.author_id
             pass
         elif user.type == "challenge_writer":
-            if challenge.user_id != user_id:
+            if challenge.author_id != user_id:
                 return {
                     "success": False,
                     "error": "You are not authorized to update this challenge.",
@@ -681,7 +679,7 @@ class Challenge(Resource):
                 "difficulty": challenge.difficulty,
                 "requirements": challenge.requirements,
                 "next_id": challenge.next_id,
-                "user_id": challenge.user_id,
+                "author_id": challenge.author_id,
                 "require_deploy": challenge.require_deploy,
                 "deploy_status": challenge.deploy_status,
                 "image_link": challenge.image_link,
@@ -714,7 +712,7 @@ class Challenge(Resource):
         responses={200: ("Success", "APISimpleSuccessResponse")},
     )
     def delete(self, challenge_id):
-        DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
+        # DeployedChallenge uses contest_challenge_id, skip direct delete here
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         
@@ -734,7 +732,7 @@ class Challenge(Resource):
             "difficulty": challenge.difficulty,
             "requirements": challenge.requirements,
             "next_id": challenge.next_id,
-            "user_id": challenge.user_id,
+            "author_id": challenge.author_id,
             "require_deploy": challenge.require_deploy,
             "deploy_status": challenge.deploy_status,
             "image_link": challenge.image_link,
@@ -926,9 +924,7 @@ class ChallengeAttempt(Resource):
         if config.is_teams_mode() and team is None:
             abort(403)
 
-        fails = Fails.query.filter_by(
-            account_id=user.account_id, challenge_id=challenge_id
-        ).count()
+        fails = Fails.query.filter_by(account_id=user.account_id).count()
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
 
@@ -941,9 +937,9 @@ class ChallengeAttempt(Resource):
         if challenge.requirements:
             requirements = challenge.requirements.get("prerequisites", [])
             solve_ids = (
-                Solves.query.with_entities(Solves.challenge_id)
+                Solves.query.with_entities(Solves.contest_challenge_id)
                 .filter_by(account_id=user.account_id)
-                .order_by(Solves.challenge_id.asc())
+                .order_by(Solves.contest_challenge_id.asc())
                 .all()
             )
             solve_ids = {solve_id for solve_id, in solve_ids}
@@ -985,9 +981,7 @@ class ChallengeAttempt(Resource):
                 429,
             )
 
-        solves = Solves.query.filter_by(
-            account_id=user.account_id, challenge_id=challenge_id
-        ).first()
+        solves = Solves.query.filter_by(account_id=user.account_id).first()
 
         # Challenge not solved yet
         if not solves:
@@ -1404,7 +1398,7 @@ class ChallengeVersionRollback(Resource):
                 challenge.max_deploy_count = version.max_deploy_count
 
             challenge.deploy_status = "DEPLOY_SUCCESS"
-            challenge.last_update = datetime.utcnow()
+            challenge.updated_at = datetime.utcnow()
 
             db.session.commit()
 
@@ -1420,4 +1414,3 @@ class ChallengeVersionRollback(Resource):
         except Exception as e:
             db.session.rollback()
             return {"success": False, "message": f"Rollback failed: {str(e)}"}, 500
-

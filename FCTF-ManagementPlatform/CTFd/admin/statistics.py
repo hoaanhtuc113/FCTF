@@ -1,7 +1,7 @@
 from flask import render_template
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Fails, Solves, Teams, Tracking, Users, db
+from CTFd.models import Challenges, ContestParticipants, ContestsChallenges, Contests, Fails, Solves, Teams, Tracking, Users, db
 from CTFd.utils.decorators import admins_only, admin_or_challenge_writer_only_or_jury
 from CTFd.utils.modes import get_model
 from CTFd.utils.updates import update_check
@@ -9,11 +9,9 @@ from CTFd.utils.updates import update_check
 
 @admin.route("/admin/statistics", methods=["GET"])
 @admin_or_challenge_writer_only_or_jury
-# @challenge_writer_only
 def statistics():
-    # update_check()
     Model = get_model()
-    teams_q = db.session.query(db.func.count(Teams.id)).scalar_subquery()
+
     users_q = db.session.query(db.func.count(Users.id)).scalar_subquery()
     chals_q = db.session.query(db.func.count(Challenges.id)).scalar_subquery()
     points_q = (
@@ -21,25 +19,20 @@ def statistics():
         .scalar_subquery()
     )
     ips_q = db.session.query(db.func.count(db.func.distinct(Tracking.ip))).scalar_subquery()
-
     wrong_q = (
         db.session.query(db.func.count(Fails.id))
         .join(Model, Fails.account_id == Model.id)
         .filter(Model.banned == False, Model.hidden == False)
         .scalar_subquery()
     )
-
     solve_q = (
         db.session.query(db.func.count(Solves.id))
         .join(Model, Solves.account_id == Model.id)
         .filter(Model.banned == False, Model.hidden == False)
         .scalar_subquery()
     )
-    # executing batch query
-    stats = db.session.query(
-        teams_q, users_q, chals_q, points_q, ips_q, wrong_q, solve_q
-    ).first()
-    (team_count, user_count, challenge_count, total_points, ip_count, wrong_count, solve_count) = stats
+    from CTFd.models import Semester
+    semester_q = db.session.query(db.func.count(Semester.id)).scalar_subquery()
 
     solves_sub = (
         db.session.query(
@@ -72,13 +65,11 @@ def statistics():
     return render_template(
         "admin/statistics.html",
         user_count=user_count,
-        team_count=team_count,
         ip_count=ip_count,
         wrong_count=wrong_count,
         solve_count=solve_count,
         challenge_count=challenge_count,
         total_points=total_points,
-        solve_data=solve_data,
-        most_solved=most_solved,
-        least_solved=least_solved,
+        semester_count=semester_count,
+        recent_contests=recent_contests,
     )

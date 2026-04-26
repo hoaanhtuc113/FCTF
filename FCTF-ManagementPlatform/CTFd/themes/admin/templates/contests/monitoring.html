@@ -1,0 +1,1029 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+    /* Clean Monitoring Page Styles — header inherits from base.html */
+
+    .monitoring-container {
+        padding: 0;
+    }
+
+    /* Spinner animation */
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .fa-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    /* Table Styles */
+    /* Table — uses clean-table from base.html; only page-specific overrides here */
+    .clean-table {
+        table-layout: auto;
+        white-space: normal;
+    }
+
+    .clean-table-wrapper {
+        overflow-y: visible;
+    }
+
+    .clean-table tbody td {
+        overflow-wrap: anywhere;
+    }
+
+    .clean-table tbody td.allow-wrap {
+        white-space: normal;
+    }
+
+    /* Action dropdown — no Bootstrap JS / Popper, fully manual */
+    .action-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+
+    /* clean-btn already defined in base.html */
+
+    .action-menu {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        min-width: 160px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 4px 0;
+        font-size: 0.875rem;
+    }
+
+    .action-menu.open {
+        display: block;
+    }
+
+    .action-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.45rem 0.9rem;
+        color: #495057 !important;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .action-menu-item:hover {
+        background: #fff5f2;
+        color: #ff6b35 !important;
+        text-decoration: none;
+        border-color: #ff6b35;
+    }
+
+    .action-menu-item-danger {
+        color: #dc3545 !important;
+    }
+
+    .action-menu-item-danger:hover {
+        background: #dc3545;
+        color: #ffffff !important;
+    }
+
+    .action-menu-divider {
+        height: 1px;
+        background: #dee2e6;
+        margin: 4px 0;
+    }
+
+    /* Challenge token cell */
+    .token-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .token-value {
+        display: inline-block;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .btn-copy-token {
+        padding: 0.2rem 0.45rem;
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+
+    /* Status badge styles */
+    .status-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .status-badge-running {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-badge-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-badge-deleting {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .status-badge-unknown {
+        background: #e2e3e5;
+        color: #6c757d;
+    }
+
+    /* Pagination Styles */
+    .clean-pagination {
+        margin: 0;
+    }
+
+    .clean-pagination .page-link {
+        border: 1px solid #dee2e6;
+        color: #495057;
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.15rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .clean-pagination .page-link:hover {
+        background: #ff6b35;
+        border-color: #ff6b35;
+        color: #ffffff;
+    }
+
+    .clean-pagination .page-item.active .page-link {
+        background: #ff6b35;
+        border-color: #ff6b35;
+        color: #ffffff;
+    }
+
+    .clean-pagination .page-item.disabled .page-link {
+        background: #f8f9fa;
+        color: #6c757d;
+        cursor: not-allowed;
+    }
+
+    .clean-info-text {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .clean-highlight {
+        color: #ff6b35;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set _cpage = true %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent p-0 mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.semesters_listing') }}">Semesters</a></li> {% if
+                contest.semester_name %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('admin.semester_detail', semester_id=contest.semester_id) }}">{{
+                        contest.semester_name }}</a>
+                </li>
+                {% endif %}<li class="breadcrumb-item"><a
+                        href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}">{{ contest.name }}</a>
+                </li>
+                <li class="breadcrumb-item active">Monitoring</li>
+            </ol>
+        </nav>
+        <h1><i class="bx bx-server"></i> Challenge Instance</h1>
+    </div>
+</div>
+<div class="monitoring-page">
+
+    <div class="container monitoring-container">
+        <!-- Filters and Search -->
+        <div class="clean-search-container">
+            <div class="row no-gutters align-items-center">
+                <div class="col-md-3 px-1">
+                    <input type="text" id="teamFilter" list="teamFilterList" class="clean-form-control w-100"
+                        placeholder="All Teams" onkeyup="handleSearch()" onchange="handleSearch()">
+                    <datalist id="teamFilterList"></datalist>
+                </div>
+                <div class="col-md-3 px-1">
+                    <input type="text" id="userFilter" list="userFilterList" class="clean-form-control w-100"
+                        placeholder="All Users" onkeyup="handleSearch()" onchange="handleSearch()">
+                    <datalist id="userFilterList"></datalist>
+                </div>
+                <div class="col-md-3 px-1">
+                    <input type="text" id="categoryFilter" list="categoryFilterList" class="clean-form-control w-100"
+                        placeholder="All Categories" onkeyup="handleSearch()" onchange="handleSearch()">
+                    <datalist id="categoryFilterList"></datalist>
+                </div>
+                <div class="col-md-3 px-1">
+                    <select id="statusFilter" class="clean-form-control w-100" onchange="handleSearch()">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="running">Running</option>
+                        <option value="deleting">Deleting</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row no-gutters align-items-center mt-1">
+                <div class="col-md-9 px-1">
+                    <input type="text" id="challengeSearch" class="clean-form-control w-100"
+                        placeholder="Search by challenge name..." onkeyup="handleSearch()">
+                </div>
+                <div class="col-md-3 px-1 d-flex">
+                    <button onclick="clearFilters()" class="clean-btn flex-grow-1 mr-1">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                    <button onclick="loadData()" class="clean-btn clean-btn-primary flex-grow-1">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="d-flex justify-content-end align-items-center mb-2">
+            <span class="clean-info-text mr-2">
+                Selected: <span class="clean-highlight" id="selectedCountTop">0</span>
+            </span>
+            <button id="bulkStopBtnTop" onclick="bulkStopSelected()" class="clean-btn clean-btn-danger mr-1" disabled>
+                <i class="fas fa-stop-circle"></i> Stop Selected
+            </button>
+            <button onclick="DeleteAll()" class="clean-btn clean-btn-danger">
+                <i class="fas fa-trash-alt"></i> Stop All
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="clean-table-wrapper">
+            <table id="challengeTable" class="table clean-table mb-0">
+                <colgroup>
+                    <col style="width: 36px;"> <!-- checkbox -->
+                    <col style="width: 4%;"> <!-- ID -->
+                    <col style="width: 15%;"> <!-- Challenge Name -->
+                    <col style="width: 10%;"> <!-- Team Name -->
+                    <col style="width: 10%;"> <!-- User Name -->
+                    <col style="width: 8%;"> <!-- Category -->
+                    <col style="width: 20%;"> <!-- Status -->
+                    <col style="width: 10%;"> <!-- Token -->
+                    <col style="width: 10%;"> <!-- Time Finished -->
+                    <col style="width: 10%;"> <!-- Action -->
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th data-checkbox>
+                            <input id="selectAll" type="checkbox" class="table-check"
+                                onchange="toggleSelectAllOnPage(this.checked)" aria-label="Select all on page" />
+                        </th>
+                        <th class="sort-col text-center">ID</th>
+                        <th class="sort-col text-center">Challenge Name</th>
+                        <th class="sort-col text-center">Team Name</th>
+                        <th class="sort-col text-center">User Name</th>
+                        <th class="sort-col text-center">Category</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Challenge Token</th>
+                        <th class="sort-col text-center">Time Finished</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="small">
+                    <!-- Dynamic rows go here -->
+                </tbody>
+                <tfoot id="tableFooter" style="display: none;">
+                    <tr>
+                        <td colspan="10" class="text-center py-4" style="color: #999; font-style: italic;">
+                            <i class="bx bx-info-circle" style="font-size: 1.2rem; vertical-align: middle;"></i>
+                            <span id="footerMsg">No instances found</span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="row mt-3" id="paginationContainer">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="clean-info-text" role="status" aria-live="polite">
+                        Page <span class="clean-highlight" id="currentPage">1</span> of <span class="clean-highlight"
+                            id="totalPages">1</span> • <span id="totalItems">0</span> total
+                    </div>
+                    <nav aria-label="Instance pagination">
+                        <ul class="clean-pagination pagination mb-0" id="paginationControls">
+                            <!-- Pagination buttons will be inserted here -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    let perPage = 50;
+    let sortBy = "time_finished";
+    let sortOrder = "desc";
+    let paginationData = null;
+    let searchTimeout = null;
+    // Persist selections across pagination/search within the page
+    let selectedInstances = new Map(); // key => { challenge_id, team_id }
+
+    function makeInstanceKey(challengeId, teamId) {
+        return `${challengeId}:${teamId}`;
+    }
+
+    function updateSelectedUI() {
+        const count = selectedInstances.size;
+        const selectedCountTopEl = document.getElementById("selectedCountTop");
+        if (selectedCountTopEl) selectedCountTopEl.textContent = String(count);
+
+        const bulkBtnTop = document.getElementById("bulkStopBtnTop");
+        if (bulkBtnTop) bulkBtnTop.disabled = count === 0;
+    }
+
+    function toggleRowSelection(challengeId, teamId, checked) {
+        const key = makeInstanceKey(challengeId, teamId);
+        if (checked) {
+            selectedInstances.set(key, { challenge_id: challengeId, team_id: teamId });
+        } else {
+            selectedInstances.delete(key);
+        }
+        updateSelectedUI();
+    }
+
+    function toggleSelectAllOnPage(checked) {
+        const checkboxes = document.querySelectorAll('input.instance-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = checked;
+            const challengeId = Number(cb.dataset.challengeId);
+            const teamId = Number(cb.dataset.teamId);
+            toggleRowSelection(challengeId, teamId, checked);
+        });
+    }
+
+    function syncSelectAllCheckbox() {
+        const selectAll = document.getElementById("selectAll");
+        if (!selectAll) return;
+        const checkboxes = Array.from(document.querySelectorAll('input.instance-checkbox'));
+        if (checkboxes.length === 0) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+        const checkedCount = checkboxes.filter(cb => cb.checked).length;
+        selectAll.checked = checkedCount === checkboxes.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+    }
+
+    // Populate datalist suggestions for text-based filters
+    function populateSuggestions(inputId, listId, items) {
+        const input = document.getElementById(inputId);
+        const datalist = document.getElementById(listId);
+        if (!input || !datalist) return;
+        const normalizedItems = Array.isArray(items) ? items : [];
+        const currentValue = input.value;
+
+        datalist.innerHTML = "";
+        normalizedItems.forEach(item => {
+            const option = document.createElement("option");
+            option.value = item;
+            datalist.appendChild(option);
+        });
+
+        if (currentValue && !normalizedItems.includes(currentValue)) {
+            // Keep user's typed value for partial/free-text filtering
+            input.value = currentValue;
+        }
+    }
+
+    // Populate teams dropdown from data
+    function populateTeams(teams) {
+        populateSuggestions("teamFilter", "teamFilterList", teams);
+    }
+
+    function populateUsers(users) {
+        populateSuggestions("userFilter", "userFilterList", users);
+    }
+
+    function populateCategories(categories) {
+        populateSuggestions("categoryFilter", "categoryFilterList", categories);
+    }
+
+    function showTableFooter(msg) {
+        const tfoot = document.getElementById("tableFooter");
+        const footerMsg = document.getElementById("footerMsg");
+        if (tfoot) { tfoot.style.display = ""; }
+        if (footerMsg) { footerMsg.textContent = msg || "No instances found"; }
+    }
+
+    function hideTableFooter() {
+        const tfoot = document.getElementById("tableFooter");
+        if (tfoot) { tfoot.style.display = "none"; }
+    }
+
+    function normalizeId(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return null;
+        return Math.trunc(n);
+    }
+
+    function createCell(className, text) {
+        const td = document.createElement("td");
+        td.className = className;
+        td.textContent = text;
+        return td;
+    }
+
+    function createStatusBadge(status) {
+        const s = String(status || "unknown").toLowerCase();
+        let badgeClass = "status-badge-unknown";
+        if (s === "running") badgeClass = "status-badge-running";
+        else if (s === "pending") badgeClass = "status-badge-pending";
+        else if (s === "deleting") badgeClass = "status-badge-deleting";
+
+        const span = document.createElement("span");
+        span.className = `status-badge ${badgeClass}`;
+        span.textContent = status || "Unknown";
+        return span;
+    }
+
+    function createTokenCell(tokenValue) {
+        const td = document.createElement("td");
+        td.className = "text-center";
+
+        if (!tokenValue) {
+            td.textContent = "N/A";
+            return td;
+        }
+
+        const wrap = document.createElement("div");
+        wrap.className = "token-cell";
+
+        const span = document.createElement("span");
+        span.className = "token-value";
+        span.title = tokenValue;
+        span.textContent = `${tokenValue.substring(0, 8)}...`;
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-sm btn-outline-secondary btn-copy-token";
+        btn.setAttribute("aria-label", "Copy challenge token");
+        btn.dataset.token = encodeURIComponent(tokenValue);
+        btn.addEventListener("click", function () {
+            copyChallengeToken(btn);
+        });
+
+        const icon = document.createElement("i");
+        icon.className = "fas fa-copy";
+        btn.appendChild(icon);
+
+        wrap.appendChild(span);
+        wrap.appendChild(btn);
+        td.appendChild(wrap);
+        return td;
+    }
+
+    function createActionCell(challengeId, teamId, nsRaw) {
+        const td = document.createElement("td");
+        td.className = "text-center";
+
+        const dropdown = document.createElement("div");
+        dropdown.className = "action-dropdown";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "clean-btn clean-action-btn-sm";
+        button.textContent = "Actions";
+        button.addEventListener("click", function (event) {
+            toggleActionMenu(button, event);
+        });
+
+        const menu = document.createElement("div");
+        menu.className = "action-menu";
+
+        const podLogs = document.createElement("a");
+        podLogs.className = "action-menu-item";
+        podLogs.href = "#";
+        podLogs.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs';
+        podLogs.addEventListener("click", function (event) {
+            event.preventDefault();
+            viewLogs(challengeId, teamId);
+            closeAllActionMenus();
+        });
+
+        const requestLogs = document.createElement("a");
+        requestLogs.className = "action-menu-item";
+        requestLogs.href = "#";
+        requestLogs.innerHTML = '<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs';
+        requestLogs.addEventListener("click", function (event) {
+            event.preventDefault();
+            viewRequestLogs(challengeId, teamId, nsRaw || "");
+            closeAllActionMenus();
+        });
+
+        const divider = document.createElement("div");
+        divider.className = "action-menu-divider";
+
+        const stop = document.createElement("a");
+        stop.className = "action-menu-item action-menu-item-danger";
+        stop.href = "#";
+        stop.innerHTML = '<i class="fas fa-stop-circle fa-fw mr-1"></i> Stop';
+        stop.addEventListener("click", function (event) {
+            event.preventDefault();
+            stopChallenge(challengeId, teamId);
+            closeAllActionMenus();
+        });
+
+        menu.appendChild(podLogs);
+        menu.appendChild(requestLogs);
+        menu.appendChild(divider);
+        menu.appendChild(stop);
+
+        dropdown.appendChild(button);
+        dropdown.appendChild(menu);
+        td.appendChild(dropdown);
+        return td;
+    }
+
+    function buildMonitoringRow(row) {
+        const challengeId = normalizeId(row.challenge_id);
+        const teamId = normalizeId(row.team_id);
+        if (challengeId === null || teamId === null) {
+            return null;
+        }
+
+        const tr = document.createElement("tr");
+        const key = makeInstanceKey(challengeId, teamId);
+        const isChecked = selectedInstances.has(key);
+
+        const checkboxTd = document.createElement("td");
+        checkboxTd.setAttribute("data-checkbox", "");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "table-check instance-checkbox";
+        checkbox.dataset.challengeId = String(challengeId);
+        checkbox.dataset.teamId = String(teamId);
+        checkbox.checked = isChecked;
+        checkbox.setAttribute("aria-label", "Select instance");
+        checkbox.addEventListener("change", function () {
+            toggleRowSelection(challengeId, teamId, checkbox.checked);
+            syncSelectAllCheckbox();
+        });
+        checkboxTd.appendChild(checkbox);
+        tr.appendChild(checkboxTd);
+
+        tr.appendChild(createCell("text-center", String(challengeId)));
+        tr.appendChild(createCell("text-center", String(row.challenge_name || "N/A")));
+        tr.appendChild(createCell("text-center", String(row.team_name || "N/A")));
+        tr.appendChild(createCell("text-center", String(row.user_name || "N/A")));
+        tr.appendChild(createCell("text-center", String(row.challenge_category || "N/A")));
+
+        const statusTd = document.createElement("td");
+        statusTd.className = "text-center";
+        statusTd.appendChild(createStatusBadge(row.status));
+        tr.appendChild(statusTd);
+
+        const tokenValue = String(row.challenge_url || "");
+        tr.appendChild(createTokenCell(tokenValue));
+
+        const finished = row.time_finished ? new Date(row.time_finished).toLocaleString() : "N/A";
+        tr.appendChild(createCell("text-center", finished));
+
+        const nsRaw = String(row.ns || "");
+        tr.appendChild(createActionCell(challengeId, teamId, nsRaw));
+
+        return tr;
+    }
+
+    async function loadData(page = 1) {
+        currentPage = page;
+
+        const tbody = document.querySelector("#challengeTable tbody");
+        if (tbody) { tbody.innerHTML = ""; }
+        showTableFooter("Loading...");
+
+        const challengeSearch = (document.getElementById("challengeSearch")?.value ?? "").trim();
+        const teamFilter = (document.getElementById("teamFilter")?.value ?? "").trim();
+        const userFilter = (document.getElementById("userFilter")?.value ?? "").trim();
+        const categoryFilter = (document.getElementById("categoryFilter")?.value ?? "").trim();
+        const statusFilter = (document.getElementById("statusFilter")?.value ?? "").trim();
+
+        let url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}&sort_by=${sortBy}&sort_order=${sortOrder}`;
+
+        if (challengeSearch) {
+            url += `&challenge_name=${encodeURIComponent(challengeSearch)}`;
+        }
+        if (teamFilter) {
+            url += `&team_name=${encodeURIComponent(teamFilter)}`;
+        }
+        if (userFilter) {
+            url += `&user_name=${encodeURIComponent(userFilter)}`;
+        }
+        if (categoryFilter) {
+            url += `&challenge_category=${encodeURIComponent(categoryFilter)}`;
+        }
+        if (statusFilter) {
+            url += `&status=${encodeURIComponent(statusFilter)}`;
+        }
+
+        try {
+            const fetchFn = (typeof CTFd !== "undefined" && CTFd.fetch) ? CTFd.fetch : window.fetch;
+            const response = await fetchFn(url, {
+                method: "GET",
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (!response.ok) {
+                const errBody = await response.text();
+                console.error("Monitoring API error:", response.status, errBody);
+                showTableFooter(`Error ${response.status}: ${response.statusText}`);
+                return;
+            }
+
+            const result = await response.json();
+            if (tbody) { tbody.innerHTML = ""; }
+
+            if (result.success) {
+                paginationData = result.pagination;
+
+                // Populate filter dropdowns with unique values from response
+                if (result.teams) {
+                    populateTeams(result.teams);
+                }
+                if (result.users) {
+                    populateUsers(result.users);
+                }
+                if (result.categories) {
+                    populateCategories(result.categories);
+                }
+
+                if (!result.data || result.data.length === 0) {
+                    showTableFooter("No instances found");
+                    updatePagination();
+                    return;
+                }
+
+                hideTableFooter();
+                result.data.forEach(row => {
+                    const tr = buildMonitoringRow(row);
+                    if (tr) {
+                        tbody.appendChild(tr);
+                    }
+                });
+
+                // Update pagination info and controls
+                updatePagination();
+                syncSelectAllCheckbox();
+                updateSelectedUI();
+            } else {
+                console.error("API returned error:", result.error);
+                showTableFooter("Error: " + (result.error || "Unknown error"));
+            }
+        } catch (error) {
+            console.error("loadData failed:", error);
+            const tbodyErr = document.querySelector("#challengeTable tbody");
+            if (tbodyErr) tbodyErr.innerHTML = "";
+            showTableFooter("Failed to load data: " + error.message);
+        }
+    }
+
+    function handleSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            loadData(1); // Reset to first page when searching
+        }, 300);
+    }
+
+    function formatStatusBadge(status) {
+        return createStatusBadge(status);
+    }
+
+    function clearFilters() {
+        const challengeSearch = document.getElementById("challengeSearch");
+        const teamFilter = document.getElementById("teamFilter");
+        const userFilter = document.getElementById("userFilter");
+        const categoryFilter = document.getElementById("categoryFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
+        if (challengeSearch) challengeSearch.value = "";
+        if (teamFilter) teamFilter.value = "";
+        if (userFilter) userFilter.value = "";
+        if (categoryFilter) categoryFilter.value = "";
+        if (statusFilter) statusFilter.value = "";
+        loadData(1);
+    }
+
+    function updatePagination() {
+        if (!paginationData) return;
+
+        // Update info text
+        document.getElementById("currentPage").textContent = paginationData.page;
+        document.getElementById("totalPages").textContent = paginationData.total_pages;
+        document.getElementById("totalItems").textContent = paginationData.total_items;
+
+        // Build pagination controls
+        const paginationControls = document.getElementById("paginationControls");
+        paginationControls.innerHTML = "";
+
+        // Previous button
+        const prevLi = document.createElement("li");
+        prevLi.className = `page-item ${!paginationData.has_prev ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${currentPage - 1}); return false;">&laquo;</a>`;
+        paginationControls.appendChild(prevLi);
+
+        // Page numbers
+        const totalPages = paginationData.total_pages;
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 3) {
+            endPage = Math.min(5, totalPages);
+        }
+        if (currentPage >= totalPages - 2) {
+            startPage = Math.max(1, totalPages - 4);
+        }
+
+        // First page
+        if (startPage > 1) {
+            const firstLi = document.createElement("li");
+            firstLi.className = "page-item";
+            firstLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(1); return false;">1</a>`;
+            paginationControls.appendChild(firstLi);
+
+            if (startPage > 2) {
+                const ellipsisLi = document.createElement("li");
+                ellipsisLi.className = "page-item disabled";
+                ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+                paginationControls.appendChild(ellipsisLi);
+            }
+        }
+
+        // Page number buttons
+        for (let i = startPage; i <= endPage; i++) {
+            const pageLi = document.createElement("li");
+            pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${i}); return false;">${i}</a>`;
+            paginationControls.appendChild(pageLi);
+        }
+
+        // Last page
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                const ellipsisLi = document.createElement("li");
+                ellipsisLi.className = "page-item disabled";
+                ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+                paginationControls.appendChild(ellipsisLi);
+            }
+
+            const lastLi = document.createElement("li");
+            lastLi.className = "page-item";
+            lastLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${totalPages}); return false;">${totalPages}</a>`;
+            paginationControls.appendChild(lastLi);
+        }
+
+        // Next button
+        const nextLi = document.createElement("li");
+        nextLi.className = `page-item ${!paginationData.has_next ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="loadData(${currentPage + 1}); return false;">&raquo;</a>`;
+        paginationControls.appendChild(nextLi);
+    }
+
+    // Initial load when DOM is ready
+    document.addEventListener('DOMContentLoaded', function () {
+        loadData();
+    });
+
+    function viewLogs(challengeId, teamId) {
+        window.location.href = `/deploy_History/${challengeId}/pods-logs?team_id=${teamId}`;
+    }
+
+    function handleViewRequestLogs(el) {
+        const challengeId = el.dataset.challengeId;
+        const teamId = el.dataset.teamId;
+        const ns = decodeURIComponent(el.dataset.ns || '');
+        viewRequestLogs(challengeId, teamId, ns);
+    }
+
+    function viewRequestLogs(challengeId, teamId, ns) {
+        const nsParam = ns ? `&ns=${encodeURIComponent(ns)}` : '';
+        window.location.href = `/deploy_History/${challengeId}/request-logs?team_id=${teamId}${nsParam}`;
+    }
+
+    async function copyChallengeToken(button) {
+        try {
+            const encodedToken = button?.dataset?.token || "";
+            const token = decodeURIComponent(encodedToken);
+            if (!token) return;
+
+            await navigator.clipboard.writeText(token);
+
+            const originalHtml = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            button.disabled = true;
+            setTimeout(() => {
+                button.innerHTML = originalHtml;
+                button.disabled = false;
+            }, 1200);
+        } catch (error) {
+            alert("Cannot copy token: " + error.message);
+        }
+    }
+
+    async function stopChallenge(challengeId, teamId) {
+        try {
+            const response = await CTFd.fetch("/api/challenge/stop-by-admin", {
+                method: "POST",
+                body: JSON.stringify({
+                    challenge_id: challengeId,
+                    team_id: teamId
+                })
+            });
+
+            if (response.ok) {
+                // HTTP status 2xx
+                alert("Challenge stopped successfully.");
+                loadData(); // Refresh the list
+            } else {
+                // HTTP status không thành công (4xx hoặc 5xx)
+                const result = await response.json();
+                alert("Failed to stop challenge: " + (result.error || "Unknown error"));
+            }
+        } catch (error) {
+            alert("Network or server error: " + error.message);
+        }
+
+    }
+
+    async function bulkStopSelected() {
+        const items = Array.from(selectedInstances.values());
+        if (!items.length) return;
+
+        const confirmed = confirm(
+            `Stop ${items.length} selected challenge instance(s)?\n\n` +
+            `This will force-stop selected instances only.`
+        );
+        if (!confirmed) return;
+
+        const bulkBtnTop = document.getElementById("bulkStopBtnTop");
+        const originalTextTop = bulkBtnTop ? bulkBtnTop.textContent : "";
+        if (bulkBtnTop) {
+            bulkBtnTop.disabled = true;
+            bulkBtnTop.textContent = "Stopping...";
+        }
+
+        try {
+            const response = await CTFd.fetch("/api/challenge/stop-bulk", {
+                method: "POST",
+                body: JSON.stringify({ items })
+            });
+
+            const result = await response.json().catch(() => null);
+            if (!response.ok) {
+                alert("Failed to stop selected challenges: " + ((result && (result.error || result.message)) || "Unknown error"));
+                return;
+            }
+
+            const stopped = (result && result.stopped) || 0;
+            const failed = (result && result.failed) || 0;
+            alert(`Bulk stop completed. Stopped: ${stopped}, Failed: ${failed}`);
+
+            // Clear successful items from selection to avoid re-stopping
+            if (result && Array.isArray(result.results)) {
+                for (const r of result.results) {
+                    if (r && r.success) {
+                        selectedInstances.delete(makeInstanceKey(r.challenge_id, r.team_id));
+                    }
+                }
+            } else {
+                selectedInstances.clear();
+            }
+
+            updateSelectedUI();
+            await loadData(currentPage);
+        } catch (error) {
+            alert("Network or server error: " + error.message);
+        } finally {
+            if (bulkBtnTop) {
+                bulkBtnTop.textContent = originalTextTop;
+                bulkBtnTop.disabled = selectedInstances.size === 0;
+            }
+            updateSelectedUI();
+        }
+    }
+
+    async function DeleteAll() {
+        // Show confirmation dialog
+        const confirmed = confirm(
+            "Are you sure you want to stop all running challenge instances?\n\n" +
+            "This action will stop all active challenges for all teams and cannot be undone."
+        );
+
+        if (!confirmed) {
+            return; // User cancelled
+        }
+
+        // Get button element and disable it
+        const deleteAllBtn = event.target.closest('button');
+        const originalContent = deleteAllBtn.innerHTML;
+
+        // Disable button and show spinner
+        deleteAllBtn.disabled = true;
+        deleteAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping All...';
+
+        try {
+            const response = await CTFd.fetch("/api/challenge/stop-all", {
+                method: "DELETE"
+            });
+
+            if (response.ok) {
+                await response.json();
+                alert("All challenges stopped successfully.");
+                loadData(); // Refresh the list
+            } else {
+                const result = await response.json();
+                alert("Failed to stop all challenges: " + (result.error || "Unknown error"));
+            }
+        } catch (error) {
+            alert("Network or server error: " + error.message);
+        } finally {
+            // Re-enable button and restore original content
+            deleteAllBtn.disabled = false;
+            deleteAllBtn.innerHTML = originalContent;
+        }
+    }
+
+    /* ── Manual action-menu open/close/position ── */
+    function closeAllActionMenus() {
+        document.querySelectorAll('.action-menu.open').forEach(function (m) {
+            m.classList.remove('open');
+        });
+    }
+
+    function toggleActionMenu(btn, event) {
+        event.stopPropagation();
+        var menu = btn.nextElementSibling;
+        if (!menu) return;
+        var isOpen = menu.classList.contains('open');
+        closeAllActionMenus();
+        if (!isOpen) {
+            menu.classList.add('open');
+            positionActionMenu(menu, btn);
+        }
+    }
+
+    function positionActionMenu(menu, btn) {
+        var rect = btn.getBoundingClientRect();
+        var menuW = menu.offsetWidth || 160;
+        var left = rect.right - menuW;
+        if (left < 4) left = rect.left;
+        menu.style.top = (rect.bottom + 2) + 'px';
+        menu.style.left = left + 'px';
+    }
+
+    /* Close on outside click */
+    document.addEventListener('click', function () {
+        closeAllActionMenus();
+    });
+
+    /* Reposition on scroll */
+    (function () {
+        function repositionOpenMenu() {
+            var menu = document.querySelector('.action-menu.open');
+            if (!menu) return;
+            var btn = menu.previousElementSibling;
+            if (btn) positionActionMenu(menu, btn);
+        }
+        var tableWrapper = document.querySelector('.monitoring-table-wrapper');
+        if (tableWrapper) tableWrapper.addEventListener('scroll', repositionOpenMenu);
+        window.addEventListener('scroll', repositionOpenMenu);
+    })();
+</script>
+
+{% endblock %}
