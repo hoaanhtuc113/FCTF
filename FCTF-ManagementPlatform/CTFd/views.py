@@ -123,13 +123,52 @@ def team_invite():
 
     user = Users.query.filter_by(name=username).first()
     
-    # Verify password with safety check for malformed hashes
-    valid_password = False
-    if user and user.password:
-        try:
-            valid_password = verify_password(password, user.password)
-        except ValueError:
-            valid_password = False
+    # Custom verification logic for Contestant Portal's $bcrypt-sha256$v=2 format
+    # Using bcrypt library directly to avoid passlib 1.7.4 + bcrypt 4.x initialization bugs
+    def verify_contestant_password(plaintext, hash_str):
+        import hmac
+        import hashlib
+        import base64
+        import re
+        import bcrypt
+
+        if not hash_str:
+            return False
+            
+        if hash_str.startswith("$bcrypt-sha256$v=2"):
+            try:
+                # Format: $bcrypt-sha256$v=2,t=2b,r=10$<salt22>$<digest31> (C# format)
+                # OR $bcrypt-sha256$v=2,t=2b,r=10$<salt22><digest31> (standard passlib format)
+                # The '$' between salt and digest is optional to support both formats
+                pattern = r"\$bcrypt-sha256\$v=2,t=(?P<type>2[ab]),r=(?P<rounds>\d{1,2})\$(?P<salt>[./A-Za-z0-9]{22})\$?(?P<digest>[./A-Za-z0-9]{31})$"
+                match = re.match(pattern, hash_str)
+                if not match:
+                    return False
+                    
+                groups = match.groupdict()
+                t = groups["type"]
+                r = int(groups["rounds"])
+                salt22 = groups["salt"]
+                digest31 = groups["digest"]
+                
+                # Reconstruct standard bcrypt hash for bcrypt.checkpw: $2b$10$SALT22DIGEST31
+                inner_bcrypt_hash = f"${t}${r:02d}${salt22}{digest31}".encode("ascii")
+                
+                # v2 pre-hash uses HMAC-SHA256 (key=salt22, msg=plaintext)
+                h = hmac.new(salt22.encode("ascii"), plaintext.encode("utf-8"), hashlib.sha256)
+                prehashed_base64 = base64.b64encode(h.digest())
+                
+                return bcrypt.checkpw(prehashed_base64, inner_bcrypt_hash)
+            except Exception:
+                return False
+        else:
+            # Fallback for other formats
+            try:
+                return verify_password(plaintext, hash_str)
+            except Exception:
+                return False
+
+    valid_password = verify_contestant_password(password, user.password if user else None)
 
     if user is None or valid_password is False:
         errors.append("Invalid username or password.")
