@@ -31,6 +31,10 @@ var tcpPendingAuth int64
 // can close it during graceful shutdown.
 func StartTCP(ctx context.Context, cfg config.Config, limiters *limiter.Set) net.Listener {
 	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime | log.Lmicroseconds))
+	tlsConfig, err := gatewayTLSConfig(cfg)
+	if err != nil {
+		log.Fatalf("TCP Gateway TLS config error: %v", err)
+	}
 
 	copyBufBytes := 32 * 1024
 	if cfg.TCPCopyBufBytes > 0 {
@@ -50,8 +54,13 @@ func StartTCP(ctx context.Context, cfg config.Config, limiters *limiter.Set) net
 	if err != nil {
 		log.Fatalf("Error starting TCP gateway: %v", err)
 	}
+	ln = newGatewayListener(ln, tlsConfig)
 
-	fmt.Printf("[*] TCP Gateway running on port %s...\n", tcpListenAddr)
+	if tlsConfig != nil {
+		fmt.Printf("[*] TCP Gateway running on port %s (TLS enabled)...\n", tcpListenAddr)
+	} else {
+		fmt.Printf("[*] TCP Gateway running on port %s...\n", tcpListenAddr)
+	}
 
 	// Close listener when context is cancelled.
 	go func() {
@@ -114,7 +123,12 @@ func handleTCPConnection(clientConn net.Conn, authTimeout time.Duration, limiter
 	clientIP := ParseRemoteIP(remoteAddr)
 	log.Printf("[+] TCP connection from %s proto=\"tcp\" event=\"connect\"", remoteAddr)
 
-	if tcpConn, ok := clientConn.(*net.TCPConn); ok {
+	if rawConnProvider, ok := clientConn.(interface{ RawConn() net.Conn }); ok {
+		if tcpConn, ok := rawConnProvider.RawConn().(*net.TCPConn); ok {
+			_ = tcpConn.SetKeepAlive(true)
+			_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
+		}
+	} else if tcpConn, ok := clientConn.(*net.TCPConn); ok {
 		_ = tcpConn.SetKeepAlive(true)
 		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}

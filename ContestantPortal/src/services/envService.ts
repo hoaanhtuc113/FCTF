@@ -2,6 +2,7 @@
 type WindowEnv = {
   VITE_API_URL?: string;
   VITE_BASE_GATEWAY?: string;
+  VITE_GATEWAY_SCHEME?: string;
   VITE_HTTP_PORT?: string;
   VITE_TCP_PORT?: string;
   VITE_CLOUDFLARE_TURNSTILE_SITE_KEY?: string;
@@ -34,6 +35,7 @@ export function getEnvVar(key: keyof WindowEnv, fallback?: string): string | und
 }
 
 const DEFAULT_GATEWAY = '<GATEWAY_DOMAIN>';
+const DEFAULT_GATEWAY_SCHEME = 'http';
 const DEFAULT_HTTP_PORT = '30038';
 const DEFAULT_TCP_PORT = '30037';
 
@@ -49,8 +51,13 @@ export function getTcpPort(): string {
   return getEnvVar('VITE_TCP_PORT', DEFAULT_TCP_PORT)!;
 }
 
+export function getGatewayScheme(): string {
+  const scheme = (getEnvVar('VITE_GATEWAY_SCHEME', DEFAULT_GATEWAY_SCHEME) || DEFAULT_GATEWAY_SCHEME).trim().toLowerCase();
+  return scheme === 'https' ? 'https' : 'http';
+}
+
 export function getChallengeHttpOrigin(): string {
-  return `http://${getBaseGateway()}:${getHttpPort()}`;
+  return `${getGatewayScheme()}://${getBaseGateway()}:${getHttpPort()}`;
 }
 
 export function getChallengeTcpAddress(): string {
@@ -64,6 +71,7 @@ export function getTurnstileSiteKey(): string {
 export default {
   getEnvVar,
   getBaseGateway,
+  getGatewayScheme,
   getHttpPort,
   getTcpPort,
   getChallengeHttpOrigin,
