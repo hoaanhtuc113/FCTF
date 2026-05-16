@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="jumbotron">
+    <div class="container">
+      <h1>{% trans %}Success!{% endtrans %}</h1>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8 col-lg-6 offset-md-2 offset-lg-3 text-center">
+        <div class="alert alert-success mt-md-4" role="alert">
+          <h4 class="alert-heading">{% trans %}Welcome to the team!{% endtrans %}</h4>
+          <p>{% trans %}You have successfully joined{% endtrans %} <strong>{{ team_name }}</strong>.</p>
+          <hr>
+          <p class="mb-0">{% trans %}You can now close this tab and return to the contestant portal.{% endtrans %}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -67,6 +67,110 @@ from CTFd.utils.user import authed, get_current_team, get_current_user, get_ip, 
 views = Blueprint("views", __name__)
 
 
+@views.route("/teams/invite", methods=["GET", "POST"])
+def team_invite():
+    """
+    Public endpoint for contestants to join a team via invite link.
+    Contestants must provide their own username and password to verify identity before joining.
+    """
+    from CTFd.exceptions import TeamTokenExpiredException, TeamTokenInvalidException
+    from CTFd.utils.crypto import verify_password
+
+    code = request.args.get("code", "").strip()
+
+    errors = []
+    team = None
+
+    # Validate the invite code first
+    if not code:
+        errors.append("Invalid or missing invite code.")
+    else:
+        try:
+            team = Teams.load_invite_code(code)
+        except TeamTokenExpiredException:
+            errors.append("This invite link has expired. Please ask the admin for a new one.")
+        except TeamTokenInvalidException:
+            errors.append("This invite link is invalid.")
+
+    if request.method == "GET":
+        return render_template(
+            "teams/invite.html",
+            team=team,
+            code=code,
+            errors=errors,
+        )
+
+    # POST - process credentials
+    if errors or team is None:
+        return render_template(
+            "teams/invite.html",
+            team=team,
+            code=code,
+            errors=errors,
+        )
+
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+
+    if not username or not password:
+        errors.append("Username and password are required.")
+        return render_template(
+            "teams/invite.html",
+            team=team,
+            code=code,
+            errors=errors,
+        )
+
+    user = Users.query.filter_by(name=username).first()
+    if user is None or verify_password(password, user.password) is False:
+        errors.append("Invalid username or password.")
+        return render_template(
+            "teams/invite.html",
+            team=team,
+            code=code,
+            errors=errors,
+        )
+
+    if user.verified is False:
+        errors.append("Your account must be verified before joining a team.")
+        return render_template(
+            "teams/invite.html",
+            team=team,
+            code=code,
+            errors=errors,
+        )
+
+    if user.team_id is not None:
+        if user.team_id == team.id:
+            errors.append("You are already a member of this team.")
+        else:
+            errors.append("You are already in another team. Please contact an admin.")
+        return render_template(
+            "teams/invite.html",
+            team=team,
+            code=code,
+            errors=errors,
+        )
+
+    if team.banned:
+        errors.append("This team has been banned.")
+        return render_template(
+            "teams/invite.html",
+            team=team,
+            code=code,
+            errors=errors,
+        )
+
+    team.members.append(user)
+    db.session.commit()
+    db.session.close()
+
+    return render_template(
+        "teams/invite_success.html",
+        team_name=team.name,
+    )
+
+
 @views.route("/setup", methods=["GET", "POST"])
 def setup():
     errors = get_errors()
