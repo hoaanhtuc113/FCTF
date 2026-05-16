@@ -3786,7 +3786,7 @@ function ChallengeDetailPanel({
                   const connectionProtocol = (challenge.connection_protocol ?? 'http').toLowerCase();
                   const isHttpProtocol = connectionProtocol !== 'tcp';
                   const httpAddr = `${getChallengeHttpOrigin()}?fctftoken=${token}`;
-                  const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
+                  const tcpAddr = `ncat --ssl ${getBaseGateway()} ${getTcpPort()}`;
                   return (
                     <div className="space-y-2.5">
                       {/* Token */}
