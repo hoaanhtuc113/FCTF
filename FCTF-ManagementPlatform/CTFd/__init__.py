@@ -404,6 +404,7 @@ def create_app(config="CTFd.config.Config"):
                 or path.startswith("/redirect")
                 or path.startswith("/reset_password")
                 or path.startswith("/confirm")
+                or path.startswith("/teams/invite")
             ):
                 return
 

@@ -247,14 +247,6 @@
 				<form id="team-invite-form" method="POST">
 					<div id="team-invite-results"></div>
 					<div class="form-group">
-						<label for="team-invite-username"><b>Contestant Username</b></label>
-						<input id="team-invite-username" name="username" class="form-control" type="text" autocomplete="off" required>
-					</div>
-					<div class="form-group">
-						<label for="team-invite-password"><b>Contestant Password</b></label>
-						<input id="team-invite-password" name="password" class="form-control" type="password" autocomplete="off" required>
-					</div>
-					<div class="form-group">
 						<b>{{ form.link.label }}</b>
 						<div class="input-group mb-3">
 							{{ form.link(id="team-invite-link", class="form-control", readonly=True) }}
@@ -265,7 +257,7 @@
 							</div>
 						</div>
 						<small class="form-text text-muted">
-							Enter the contestant credentials first, then generate and copy the invite link.
+							Click the button below to generate a team invite link, then copy and give it to the contestant.
 						</small>
 					</div>
 					<div class="d-flex justify-content-end gap-2">

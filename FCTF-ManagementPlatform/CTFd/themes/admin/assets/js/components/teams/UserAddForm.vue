@@ -37,23 +37,35 @@
         <li
           :class="{
             'list-group-item': true,
-            active: idx === selectedResultIdx,
+            'd-flex': true,
+            'justify-content-between': true,
+            'align-items-center': true,
+            active: idx === selectedResultIdx && user.verified !== false,
+            'list-group-item-secondary': user.verified === false,
           }"
+          :style="user.verified === false ? 'cursor: not-allowed; opacity: 0.65;' : 'cursor: pointer;'"
           v-for="(user, idx) in userResults"
           :key="user.id"
-          @click="selectUser(idx)"
+          @click="user.verified !== false && selectUser(idx)"
         >
-          {{ user.name }}
-          <small
-            v-if="user.team_id"
-            :class="{
-              'float-right': true,
-              'text-white': idx === selectedResultIdx,
-              'text-muted': idx !== selectedResultIdx,
-            }"
-          >
-            already in a team
-          </small>
+          <span>{{ user.name }}</span>
+          <span class="ml-2">
+            <small
+              v-if="user.verified === false"
+              class="badge badge-danger"
+            >
+              Unverified
+            </small>
+            <small
+              v-else-if="user.team_id"
+              :class="{
+                'text-white': idx === selectedResultIdx,
+                'text-muted': idx !== selectedResultIdx,
+              }"
+            >
+              already in a team
+            </small>
+          </span>
         </li>
       </ul>
     </div>
@@ -132,6 +144,11 @@ export default {
         idx = this.selectedResultIdx;
       }
       let user = this.userResults[idx];
+
+      // Block unverified users from being selected
+      if (user.verified === false) {
+        return;
+      }
 
       // Avoid duplicates
       const found = this.selectedUsers.some(
