@@ -122,7 +122,16 @@ def team_invite():
         )
 
     user = Users.query.filter_by(name=username).first()
-    if user is None or verify_password(password, user.password) is False:
+    
+    # Verify password with safety check for malformed hashes
+    valid_password = False
+    if user and user.password:
+        try:
+            valid_password = verify_password(password, user.password)
+        except ValueError:
+            valid_password = False
+
+    if user is None or valid_password is False:
         errors.append("Invalid username or password.")
         return render_template(
             "teams/invite.html",
