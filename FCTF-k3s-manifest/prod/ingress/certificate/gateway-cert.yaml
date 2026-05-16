@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gateway-tls
+  namespace: app
+spec:
+  secretName: gateway-tls
+  dnsNames:
+    - <GATEWAY_DOMAIN>
+  issuerRef:
+    name: letsencrypt-dev
+    kind: ClusterIssuer

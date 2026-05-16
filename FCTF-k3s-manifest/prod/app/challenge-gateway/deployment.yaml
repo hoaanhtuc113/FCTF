@@ -28,6 +28,11 @@ spec:
                 name: challenge-gateway-secret
             - secretRef:
                 name: common-private-key-secret
+          env:
+            - name: GATEWAY_TLS_CERT_FILE
+              value: /etc/gateway/tls/tls.crt
+            - name: GATEWAY_TLS_KEY_FILE
+              value: /etc/gateway/tls/tls.key
           resources:
             requests:
               cpu: 0.1
@@ -52,6 +57,10 @@ spec:
             timeoutSeconds: 2
             failureThreshold: 3
           imagePullPolicy: Always
+          volumeMounts:
+            - name: gateway-tls
+              mountPath: /etc/gateway/tls
+              readOnly: true
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
@@ -68,6 +77,10 @@ spec:
               type: RuntimeDefault
       imagePullSecrets:
         - name: regcred
+      volumes:
+        - name: gateway-tls
+          secret:
+            secretName: gateway-tls
   revisionHistoryLimit: 3
 ---
 apiVersion: v1

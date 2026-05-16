@@ -55,6 +55,10 @@ func (sr *statusRecorder) WriteHeader(code int) {
 // It returns the *http.Server so the caller can gracefully shut it down.
 func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime | log.Lmicroseconds))
+	tlsConfig, err := gatewayTLSConfig(cfg)
+	if err != nil {
+		log.Fatalf("HTTP Gateway TLS config error: %v", err)
+	}
 
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -106,9 +110,19 @@ func StartHTTP(cfg config.Config, limiters *limiter.Set) *http.Server {
 		MaxHeaderBytes:    1 << 20,
 	}
 
+	ln, err := net.Listen("tcp", httpListenAddr)
+	if err != nil {
+		log.Fatalf("Error starting HTTP gateway: %v", err)
+	}
+	ln = newGatewayListener(ln, tlsConfig)
+
 	go func() {
-		log.Printf("[*] HTTP Gateway running on port %s...", httpListenAddr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if tlsConfig != nil {
+			log.Printf("[*] HTTP Gateway running on port %s (TLS enabled)...", httpListenAddr)
+		} else {
+			log.Printf("[*] HTTP Gateway running on port %s...", httpListenAddr)
+		}
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP Gateway error: %v", err)
 		}
 	}()

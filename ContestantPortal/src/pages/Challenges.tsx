@@ -24,7 +24,7 @@ import remarkGfm from 'remark-gfm';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { fetchWithAuth, downloadFile } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
-import { getBaseGateway, getHttpPort, getTcpPort } from '../services/envService';
+import { getBaseGateway, getChallengeHttpOrigin, getTcpPort } from '../services/envService';
 import {
   ChallengeListSkeleton,
   ChallengeDetailSkeleton
@@ -3785,7 +3785,7 @@ function ChallengeDetailPanel({
                   const token = url ? url.trim() : "Deploying... Please wait";
                   const connectionProtocol = (challenge.connection_protocol ?? 'http').toLowerCase();
                   const isHttpProtocol = connectionProtocol !== 'tcp';
-                  const httpAddr = !isPodHealthy ? `${getBaseGateway()}:${getHttpPort()}?fctftoken={token}` : `${getBaseGateway()}:${getHttpPort()}?fctftoken=${token}`;
+                  const httpAddr = `${getChallengeHttpOrigin()}?fctftoken=${token}`;
                   const tcpAddr = `${getBaseGateway()} ${getTcpPort()}`;
                   return (
                     <div className="space-y-2.5">
