@@ -40,21 +40,21 @@
             'd-flex': true,
             'justify-content-between': true,
             'align-items-center': true,
-            active: idx === selectedResultIdx && user.verified !== false,
-            'list-group-item-secondary': user.verified === false,
+            active: idx === selectedResultIdx && user.verified === true,
+            'list-group-item-secondary': user.verified !== true,
           }"
-          :style="user.verified === false ? 'cursor: not-allowed; opacity: 0.65;' : 'cursor: pointer;'"
+          :style="user.verified !== true ? 'cursor: not-allowed; opacity: 0.65;' : 'cursor: pointer;'"
           v-for="(user, idx) in userResults"
           :key="user.id"
-          @click="user.verified !== false && selectUser(idx)"
+          @click="user.verified === true && selectUser(idx)"
         >
           <span>{{ user.name }}</span>
           <span class="ml-2">
             <small
-              v-if="user.verified === false"
-              class="badge badge-danger"
+              v-if="user.verified !== true"
+              class="text-danger"
             >
-              Unverified
+              unverified
             </small>
             <small
               v-else-if="user.team_id"
@@ -146,7 +146,7 @@ export default {
       let user = this.userResults[idx];
 
       // Block unverified users from being selected
-      if (user.verified === false) {
+      if (user.verified !== true) {
         return;
       }
 
