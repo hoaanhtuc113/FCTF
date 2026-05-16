@@ -12,6 +12,8 @@ type Config struct {
 	HTTPIPRate            float64
 	HTTPIPBurst           int
 	HTTPMaxBodyBytes      int64
+	GatewayTLSCertFile    string
+	GatewayTLSKeyFile     string
 	TCPRate               float64
 	TCPBurst              int
 	TCPCopyBufBytes       int
@@ -39,6 +41,8 @@ func Load() Config {
 		HTTPIPRate:            EnvFloat("HTTP_IP_RATE", 500),
 		HTTPIPBurst:           EnvInt("HTTP_IP_BURST", 1000),
 		HTTPMaxBodyBytes:      EnvInt64("HTTP_MAX_BODY_BYTES", 10<<20),
+		GatewayTLSCertFile:    EnvString("GATEWAY_TLS_CERT_FILE", ""),
+		GatewayTLSKeyFile:     EnvString("GATEWAY_TLS_KEY_FILE", ""),
 		TCPRate:               EnvFloat("TCP_RATE", 10),
 		TCPBurst:              EnvInt("TCP_BURST", 30),
 		TCPCopyBufBytes:       EnvInt("TCP_COPY_BUF_BYTES", 32*1024),
