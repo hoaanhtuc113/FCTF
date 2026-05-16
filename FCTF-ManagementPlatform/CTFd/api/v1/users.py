@@ -154,7 +154,9 @@ class UserList(Resource):
 
         filters = build_model_filters(model=Users, query=q, field=field)
 
+        view = "user"
         if is_admin() and request.args.get("view") == "admin":
+            view = "admin"
             users = (
                 Users.query.filter_by(**query_args)
                 .filter(*filters)
@@ -167,7 +169,7 @@ class UserList(Resource):
                 .paginate(per_page=50, max_per_page=100, error_out=False)
             )
 
-        response = UserSchema(view="user", many=True).dump(users.items)
+        response = UserSchema(view=view, many=True).dump(users.items)
 
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
