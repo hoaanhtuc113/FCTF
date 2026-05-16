@@ -209,13 +209,13 @@ def team_invite():
             errors=errors,
         )
 
+    team_name = team.name
     team.members.append(user)
     db.session.commit()
-    db.session.close()
 
     return render_template(
         "teams/invite_success.html",
-        team_name=team.name,
+        team_name=team_name,
     )
 
 
