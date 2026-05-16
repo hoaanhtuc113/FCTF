@@ -708,6 +708,49 @@ class Jury(Users):
     __mapper_args__ = {
         'polymorphic_identity': 'jury',
     }
+
+
+def _get_team_invite_secret_key():
+    from CTFd.constants.envvars import PRIVATE_KEY
+
+    if not PRIVATE_KEY:
+        raise RuntimeError("Server PRIVATE_KEY is not configured")
+
+    return PRIVATE_KEY.encode("utf-8") if isinstance(PRIVATE_KEY, str) else PRIVATE_KEY
+
+
+def _encode_team_invite_payload(payload):
+    import base64
+    import json
+
+    payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return base64.urlsafe_b64encode(payload_bytes).rstrip(b"=").decode("ascii")
+
+
+def _decode_team_invite_payload(encoded_payload):
+    import base64
+
+    padding = "=" * (-len(encoded_payload) % 4)
+    payload_bytes = base64.urlsafe_b64decode((encoded_payload + padding).encode("ascii"))
+    return payload_bytes.decode("utf-8")
+
+
+def _team_invite_signature(value, secret_key):
+    import hashlib
+    import hmac
+
+    if isinstance(secret_key, str):
+        secret_key = secret_key.encode("utf-8")
+
+    return hmac.new(secret_key, value.encode("ascii"), hashlib.sha256).hexdigest()
+
+
+def _team_invite_verification(team_id, team_password, secret_key):
+    team_password = team_password or ""
+    value = f"{team_id}:{team_password}"
+    return _team_invite_signature(value, secret_key)
+
+
 class Teams(db.Model):
     __tablename__ = "teams"
     __table_args__ = (db.UniqueConstraint("id", "oauth_id"), {})
@@ -823,63 +866,49 @@ class Teams(db.Model):
         ]
 
     def get_invite_code(self):
-        from flask import current_app  # noqa: I001
+        import time
 
-        from CTFd.utils.security.signing import hmac, serialize
-
-        secret_key = current_app.config["SECRET_KEY"]
-        if isinstance(secret_key, str):
-            secret_key = secret_key.encode("utf-8")
-
-        verification_secret = secret_key
-        if self.password:
-            team_password_key = self.password.encode("utf-8")
-            verification_secret += team_password_key
-
+        secret_key = _get_team_invite_secret_key()
         invite_object = {
+            "exp": int(time.time()) + 86400,
             "id": self.id,
-            "v": hmac(str(self.id), secret=verification_secret),
+            "v": _team_invite_verification(self.id, self.password, secret_key),
         }
-        code = serialize(data=invite_object, secret=secret_key)
-        return code
+        payload = _encode_team_invite_payload(invite_object)
+        signature = _team_invite_signature(payload, secret_key)
+        return f"{payload}.{signature}"
 
     @classmethod
     def load_invite_code(cls, code):
-        from flask import current_app  # noqa: I001
-
         from CTFd.exceptions import TeamTokenExpiredException, TeamTokenInvalidException
-        from CTFd.utils.security.signing import (
-            BadSignature,
-            BadTimeSignature,
-            hmac,
-            unserialize,
-        )
-
-        secret_key = current_app.config["SECRET_KEY"]
-        if isinstance(secret_key, str):
-            secret_key = secret_key.encode("utf-8")
-
-        # Unserialize the invite code
         try:
-            # Links expire after 1 day
-            invite_object = unserialize(code, max_age=86400)
-        except BadTimeSignature:
-            raise TeamTokenExpiredException
-        except BadSignature:
+            payload, signature = code.split(".", 1)
+        except ValueError:
             raise TeamTokenInvalidException
 
+        secret_key = _get_team_invite_secret_key()
+        expected_signature = _team_invite_signature(payload, secret_key)
+        if expected_signature != signature:
+            raise TeamTokenInvalidException
+
+        try:
+            import json
+            import time
+
+            invite_object = json.loads(_decode_team_invite_payload(payload))
+            team_id = int(invite_object["id"])
+            invite_expiration = int(invite_object.get("exp", 0))
+        except Exception:
+            raise TeamTokenInvalidException
+
+        if invite_expiration < int(time.time()):
+            raise TeamTokenExpiredException
+
         # Load the team by the ID in the invite
-        team_id = invite_object["id"]
         team = cls.query.filter_by(id=team_id).first_or_404()
 
         # Create the team specific secret
-        verification_secret = secret_key
-        if team.password:
-            team_password_key = team.password.encode("utf-8")
-            verification_secret += team_password_key
-
-        # Verify the team verficiation code
-        verified = hmac(str(team.id), secret=verification_secret) == invite_object["v"]
+        verified = _team_invite_verification(team.id, team.password, secret_key) == invite_object["v"]
         if verified is False:
             raise TeamTokenInvalidException
         return team

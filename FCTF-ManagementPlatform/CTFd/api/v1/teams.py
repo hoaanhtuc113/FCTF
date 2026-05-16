@@ -22,6 +22,7 @@ from CTFd.schemas.awards import AwardSchema
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.schemas.teams import TeamSchema
 from CTFd.utils import get_config
+from CTFd.utils.crypto import verify_password
 from CTFd.utils.decorators import admins_only, authed_only, require_team
 from CTFd.utils.decorators.modes import require_team_mode
 from CTFd.utils.decorators.visibility import (
@@ -536,17 +537,63 @@ class TeamMembers(Resource):
             response = {"code": invite_code}
             return {"success": True, "data": response}
 
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         user_id = data.get("user_id")
-        user = Users.query.filter_by(id=user_id).first_or_404()
-        if user.team_id is None:
-            team.members.append(user)
-            db.session.commit()
+        username = str(data.get("username", "")).strip()
+        password = str(data.get("password", ""))
+
+        if user_id is not None:
+            user = Users.query.filter_by(id=user_id).first_or_404()
+
+            if user.verified is False:
+                return (
+                    {
+                        "success": False,
+                        "errors": {"id": ["User must be verified before adding to a team"]},
+                    },
+                    400,
+                )
+
+            if user.team_id is None:
+                team.members.append(user)
+                db.session.commit()
+            else:
+                return (
+                    {
+                        "success": False,
+                        "errors": {"id": ["User has already joined a team"]},
+                    },
+                    400,
+                )
+        elif username and password:
+            user = Users.query.filter_by(name=username).first_or_404()
+
+            if user.verified is False:
+                return (
+                    {
+                        "success": False,
+                        "errors": {"username": ["User must be verified before generating an invite link"]},
+                    },
+                    400,
+                )
+
+            if verify_password(password, user.password) is False:
+                return (
+                    {
+                        "success": False,
+                        "errors": {"password": ["Invalid contestant credentials"]},
+                    },
+                    400,
+                )
+
+            invite_code = team.get_invite_code()
+            response = {"code": invite_code}
+            return {"success": True, "data": response}
         else:
             return (
                 {
                     "success": False,
-                    "errors": {"id": ["User has already joined a team"]},
+                    "errors": {"": ["Username and password are required"]},
                 },
                 400,
             )

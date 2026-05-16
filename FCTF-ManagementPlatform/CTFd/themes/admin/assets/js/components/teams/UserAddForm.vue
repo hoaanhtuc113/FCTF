@@ -109,7 +109,7 @@ export default {
         })
         .then((response) => {
           if (response.success) {
-            this.userResults = response.data.slice(0, 10);
+            this.userResults = response.data;
           }
         });
     },
