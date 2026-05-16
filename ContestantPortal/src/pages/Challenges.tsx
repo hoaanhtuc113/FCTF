@@ -3785,7 +3785,7 @@ function ChallengeDetailPanel({
                   const token = url ? url.trim() : "Deploying... Please wait";
                   const connectionProtocol = (challenge.connection_protocol ?? 'http').toLowerCase();
                   const isHttpProtocol = connectionProtocol !== 'tcp';
-                  const httpAddr = `${getChallengeHttpOrigin()}?fctftoken=${token}`;
+                  const httpAddr = !isPodHealthy ? `${getChallengeHttpOrigin()}?fctftoken={token}` : `${getChallengeHttpOrigin()}?fctftoken=${token}`;
                   const tcpAddr = `ncat --ssl ${getBaseGateway()} ${getTcpPort()}`;
                   return (
                     <div className="space-y-2.5">
