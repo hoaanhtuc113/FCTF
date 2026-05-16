@@ -412,21 +412,7 @@ $(() => {
   $("#team-invite-form").submit(function (e) {
     e.preventDefault();
 
-    const params = $("#team-invite-form").serializeJSON(true);
-    const username = (params.username || "").trim();
-    const password = params.password || "";
-
     $("#team-invite-results").empty();
-
-    if (!username || !password) {
-      $("#team-invite-results").append(
-        ezBadge({
-          type: "error",
-          body: "Contestant username and password are required.",
-        }),
-      );
-      return;
-    }
 
     CTFd.fetch(`/api/v1/teams/${window.TEAM_ID}/members`, {
       method: "POST",
@@ -435,7 +421,6 @@ $(() => {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username, password }),
     })
       .then(function (response) {
         return response.json();

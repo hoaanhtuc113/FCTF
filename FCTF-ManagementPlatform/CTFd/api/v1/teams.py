@@ -539,8 +539,6 @@ class TeamMembers(Resource):
 
         data = request.get_json(silent=True) or {}
         user_id = data.get("user_id")
-        username = str(data.get("username", "")).strip()
-        password = str(data.get("password", ""))
 
         if user_id is not None:
             user = Users.query.filter_by(id=user_id).first_or_404()
@@ -565,38 +563,10 @@ class TeamMembers(Resource):
                     },
                     400,
                 )
-        elif username and password:
-            user = Users.query.filter_by(name=username).first_or_404()
-
-            if user.verified is False:
-                return (
-                    {
-                        "success": False,
-                        "errors": {"username": ["User must be verified before generating an invite link"]},
-                    },
-                    400,
-                )
-
-            if verify_password(password, user.password) is False:
-                return (
-                    {
-                        "success": False,
-                        "errors": {"password": ["Invalid contestant credentials"]},
-                    },
-                    400,
-                )
-
+        else:
             invite_code = team.get_invite_code()
             response = {"code": invite_code}
             return {"success": True, "data": response}
-        else:
-            return (
-                {
-                    "success": False,
-                    "errors": {"": ["Username and password are required"]},
-                },
-                400,
-            )
 
         view = "admin" if is_admin() else "user"
         schema = TeamSchema(view=view)
