@@ -403,6 +403,31 @@ $(() => {
   });
 
   $(".invite-team").click(function (_e) {
+    $("#team-invite-results").empty();
+    $("#team-invite-form")[0].reset();
+    $("#team-invite-link").val("");
+    $("#team-invite-modal").modal("toggle");
+  });
+
+  $("#team-invite-form").submit(function (e) {
+    e.preventDefault();
+
+    const params = $("#team-invite-form").serializeJSON(true);
+    const username = (params.username || "").trim();
+    const password = params.password || "";
+
+    $("#team-invite-results").empty();
+
+    if (!username || !password) {
+      $("#team-invite-results").append(
+        ezBadge({
+          type: "error",
+          body: "Contestant username and password are required.",
+        }),
+      );
+      return;
+    }
+
     CTFd.fetch(`/api/v1/teams/${window.TEAM_ID}/members`, {
       method: "POST",
       credentials: "same-origin",
@@ -410,6 +435,7 @@ $(() => {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({ username, password }),
     })
       .then(function (response) {
         return response.json();
@@ -417,10 +443,26 @@ $(() => {
       .then(function (response) {
         if (response.success) {
           let code = response.data.code;
-          let url = `${window.location.origin}${CTFd.config.urlRoot}/teams/invite?code=${code}`;
-          $("#team-invite-modal input[name=link]").val(url);
-          $("#team-invite-modal").modal("toggle");
+          let url = `${window.location.origin}${CTFd.config.urlRoot}/teams/invite?code=${encodeURIComponent(code)}`;
+          $("#team-invite-link").val(url);
+          $("#team-invite-results").append(
+            ezBadge({
+              type: "success",
+              body: "Invite link generated successfully.",
+            }),
+          );
+          return;
         }
+
+        const errors = response.errors || {};
+        Object.keys(errors).forEach(function (key) {
+          $("#team-invite-results").append(
+            ezBadge({
+              type: "error",
+              body: errors[key],
+            }),
+          );
+        });
       });
   });
 
