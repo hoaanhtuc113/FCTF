@@ -1029,8 +1029,8 @@ class AwardBadges(db.Model):
 class Submissions(db.Model):
     __tablename__ = "submissions"
     id = db.Column(db.Integer, primary_key=True)
-    challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
+    contest_challenge_id = db.Column(
+        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
     )
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
@@ -1042,8 +1042,8 @@ class Submissions(db.Model):
     # Relationships
     user = db.relationship("Users", foreign_keys="Submissions.user_id", lazy="select")
     team = db.relationship("Teams", foreign_keys="Submissions.team_id", lazy="select")
-    challenge = db.relationship(
-        "Challenges", foreign_keys="Submissions.challenge_id", lazy="select"
+    contest_challenge = db.relationship(
+        "ContestChallenge", foreign_keys="Submissions.contest_challenge_id", lazy="select"
     )
 
     __mapper_args__ = {"polymorphic_on": type}
@@ -1077,22 +1077,22 @@ class Submissions(db.Model):
         return child_classes[type]
 
     def __repr__(self):
-        return f"<Submission id={self.id}, challenge_id={self.challenge_id}, ip={self.ip}, provided={self.provided}>"
+        return f"<Submission id={self.id}, contest_challenge_id={self.contest_challenge_id}, ip={self.ip}, provided={self.provided}>"
 
 
 class Solves(Submissions):
     __tablename__ = "solves"
     __table_args__ = (
-        db.UniqueConstraint("challenge_id", "user_id"),
-        db.UniqueConstraint("challenge_id", "team_id"),
+        db.UniqueConstraint("contest_challenge_id", "user_id"),
+        db.UniqueConstraint("contest_challenge_id", "team_id"),
         {},
     )
     id = db.Column(
         None, db.ForeignKey("submissions.id", ondelete="CASCADE"), primary_key=True
     )
-    challenge_id = column_property(
-        db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")),
-        Submissions.challenge_id,
+    contest_challenge_id = column_property(
+        db.Column(db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE")),
+        Submissions.contest_challenge_id,
     )
     user_id = column_property(
         db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE")),
@@ -1105,8 +1105,8 @@ class Solves(Submissions):
 
     user = db.relationship("Users", foreign_keys="Solves.user_id", lazy="select")
     team = db.relationship("Teams", foreign_keys="Solves.team_id", lazy="select")
-    challenge = db.relationship(
-        "Challenges", foreign_keys="Solves.challenge_id", lazy="select"
+    contest_challenge = db.relationship(
+        "ContestChallenge", foreign_keys="Solves.contest_challenge_id", lazy="select"
     )
 
     __mapper_args__ = {"polymorphic_identity": "correct"}
