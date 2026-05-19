@@ -1209,6 +1209,45 @@ class Contests(db.Model):
         return "<Contest %r>" % self.name
 
 
+class ContestChallenge(db.Model):
+    __tablename__ = "contests_challenges"
+
+    id = db.Column(db.Integer, primary_key=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
+    )
+    challenge_template_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False
+    )
+    template_version_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_template_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    value = db.Column(db.Integer, nullable=True)
+    state = db.Column(db.String(32), nullable=False, default="hidden")
+    max_attempts = db.Column(db.Integer, nullable=True)
+    cooldown = db.Column(db.Integer, nullable=True)
+    time_limit = db.Column(db.Integer, nullable=True)
+    start_time = db.Column(db.DateTime, nullable=True)
+    finish_time = db.Column(db.DateTime, nullable=True)
+    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
+    next_id = db.Column(
+        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="SET NULL"), nullable=True
+    )
+
+    contest = db.relationship("Contests", foreign_keys=[contest_id], lazy="select")
+    challenge_template = db.relationship("Challenges", foreign_keys=[challenge_template_id], lazy="select")
+    template_version = db.relationship("ChallengeVersion", foreign_keys=[template_version_id], lazy="select")
+    next_challenge = db.relationship("ContestChallenge", foreign_keys=[next_id], remote_side=[id], lazy="select")
+
+    def __init__(self, **kwargs):
+        super(ContestChallenge, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ContestChallenge contest_id={} challenge_template_id={}>".format(
+            self.contest_id, self.challenge_template_id
+        )
+
+
 class Configs(db.Model):
     __tablename__ = "config"
     id = db.Column(db.Integer, primary_key=True)
