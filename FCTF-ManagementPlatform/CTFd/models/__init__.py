@@ -742,15 +742,23 @@ def _team_invite_verification(team_id, team_password, secret_key):
 
 class Teams(db.Model):
     __tablename__ = "teams"
-    __table_args__ = (db.UniqueConstraint("id", "oauth_id"), {})
+    __table_args__ = (
+        db.UniqueConstraint("id", "oauth_id"),
+        db.UniqueConstraint("contest_id", "email", name="uq_teams_contest_email"),
+        {},
+    )
     # Core attributes
     id = db.Column(db.Integer, primary_key=True)
     oauth_id = db.Column(db.Integer, unique=True)
     # Team names are not constrained to be unique to allow for official/unofficial teams.
     name = db.Column(db.String(128))
-    email = db.Column(db.String(128), unique=True)
+    email = db.Column(db.String(128))
     password = db.Column(db.String(128))
     secret = db.Column(db.String(128))
+
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
+    )
 
     members = db.relationship(
         "Users", backref="team", foreign_keys="Users.team_id", lazy="joined"
@@ -767,12 +775,12 @@ class Teams(db.Model):
     banned = db.Column(db.Boolean, default=False)
 
     # Relationship for Users
-    captain_id = db.Column(
+    captain_user_id = db.Column(
         db.Integer,
-        db.ForeignKey("users.id", ondelete="SET NULL", use_alter=True, name="fk_teams_captain_id"),
+        db.ForeignKey("users.id", ondelete="SET NULL", use_alter=True, name="fk_teams_captain_user_id"),
         nullable=True
     )
-    captain = db.relationship("Users", foreign_keys=[captain_id])
+    captain = db.relationship("Users", foreign_keys=[captain_user_id])
 
     field_entries = db.relationship(
         "TeamFieldEntries",
