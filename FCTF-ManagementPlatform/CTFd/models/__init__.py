@@ -119,17 +119,17 @@ class Challenges(db.Model):
         return "<Challenge %r>" % self.name
 
 class Tickets(db.Model):
-    tablename = "tickets"
+    __tablename__ = "tickets"
     id = db.Column(db.Integer, primary_key=True)
-    author_id = db.Column(db.Integer, db.ForeignKey(
-        "users.id", ondelete="CASCADE"))
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     title = db.Column(db.String(255))
     type = db.Column(db.String(80))
     description = db.Column(db.Text)
     replier_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     replier_message = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(80), default="open")
-    create_at= db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
 class Hints(db.Model):
     __tablename__ = "hints"
     id = db.Column(db.Integer, primary_key=True)
@@ -423,39 +423,34 @@ class DynamicFlag(Flags):
 class ActionLogs(db.Model):
     __tablename__ = "action_logs"
 
-    actionId = db.Column(db.Integer, primary_key=True)
-    userId = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="RESTRICT", onupdate="RESTRICT"))
-    actionDate = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
-    actionType = db.Column(db.Integer, nullable=False)
-    actionDetail = db.Column(db.String(255), nullable=False)
-    topicName = db.Column(db.String(255), nullable=True)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    type = db.Column(db.Integer, nullable=False)
+    detail = db.Column(db.String(255), nullable=False)
+    topic_name = db.Column(db.String(255), nullable=True)
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
+
+    user = db.relationship(
+        "Users",
+        foreign_keys=[user_id],
+        lazy="joined",
+        backref=db.backref("action_logs", lazy="dynamic"),
+    )
 
     def to_dict(self):
         return {
-            "actionId": self.actionId,
-            "userId": self.userId,
-            "actionDate": self.actionDate.isoformat(),
-            "actionType": self.actionType,
-            "actionDetail": self.actionDetail,
-            "topicName": self.topicName
+            "id": self.id,
+            "user_id": self.user_id,
+            "date": self.date.isoformat(),
+            "type": self.type,
+            "detail": self.detail,
+            "topic_name": self.topic_name,
+            "contest_id": self.contest_id,
         }
-    # Relationship with Users
-    user = db.relationship(
-        "Users",
-        foreign_keys=[userId],
-        lazy="joined",
-        backref=db.backref("action_logs", lazy="dynamic")
-    )
-
-    def __init__(self, userId, actionType, actionDetail, actionDate=None, topicName = ""):
-        self.userId = userId
-        self.actionType = actionType
-        self.actionDetail = actionDetail
-        self.actionDate = actionDate or datetime.datetime.utcnow()
-        self.topicName = topicName
 
     def __repr__(self):
-        return f"<ActionLogs(actionId={self.actionId}, userId={self.userId}, actionType={self.actionType})>"
+        return f"<ActionLogs(id={self.id}, user_id={self.user_id}, type={self.type})>"
 
 class UserTeamMember(db.Model):
     __tablename__ = "user_team_members"
@@ -1158,6 +1153,7 @@ class Tracking(db.Model):
     type = db.Column(db.String(32))
     ip = db.Column(db.String(46))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     user = db.relationship("Users", foreign_keys="Tracking.user_id", lazy="select")
@@ -1347,6 +1343,7 @@ class Fields(db.Model):
     required = db.Column(db.Boolean, default=False)
     public = db.Column(db.Boolean, default=False)
     editable = db.Column(db.Boolean, default=False)
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
 
     __mapper_args__ = {"polymorphic_identity": "standard", "polymorphic_on": type}
 
@@ -1365,6 +1362,7 @@ class FieldEntries(db.Model):
     type = db.Column(db.String(80), default="standard")
     value = db.Column(db.JSON)
     field_id = db.Column(db.Integer, db.ForeignKey("fields.id", ondelete="CASCADE"))
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
 
     field = db.relationship(
         "Fields", foreign_keys="FieldEntries.field_id", lazy="joined"
