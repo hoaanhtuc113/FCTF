@@ -457,6 +457,29 @@ class ActionLogs(db.Model):
     def __repr__(self):
         return f"<ActionLogs(actionId={self.actionId}, userId={self.userId}, actionType={self.actionType})>"
 
+class UserTeamMember(db.Model):
+    __tablename__ = "user_team_members"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "team_id", name="uq_user_team_members"),
+        {},
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    team_id = db.Column(
+        db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+    )
+    joined_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+
+    def __repr__(self):
+        return "<UserTeamMember user_id={} team_id={}>".format(self.user_id, self.team_id)
+
+
 class Users(db.Model):
     __tablename__ = "users"
     __table_args__ = (db.UniqueConstraint("id", "oauth_id"), {})
@@ -470,24 +493,12 @@ class Users(db.Model):
     type = db.Column(db.String(80))
     secret = db.Column(db.String(128))
 
-    # Supplementary attributes
-    website = db.Column(db.String(128))
-    affiliation = db.Column(db.String(128))
-    country = db.Column(db.String(32))
     bracket_id = db.Column(
         db.Integer, db.ForeignKey("brackets.id", ondelete="SET NULL")
     )
     hidden = db.Column(db.Boolean, default=False)
     banned = db.Column(db.Boolean, default=False)
     verified = db.Column(db.Boolean, default=False)
-    language = db.Column(db.String(32), nullable=True, default=None)
-
-    # Relationship for Teams
-    team_id = db.Column(
-    db.Integer,
-    db.ForeignKey("teams.id", ondelete="SET NULL", use_alter=True, name="fk_users_team_id"),
-    nullable=True
-)
 
     field_entries = db.relationship(
         "UserFieldEntries",
@@ -511,23 +522,11 @@ class Users(db.Model):
 
     @hybrid_property
     def account_id(self):
-        from CTFd.utils import get_config
-
-        user_mode = get_config("user_mode")
-        if user_mode == "teams":
-            return self.team_id
-        elif user_mode == "users":
-            return self.id
+        return self.id
 
     @hybrid_property
     def account(self):
-        from CTFd.utils import get_config
-
-        user_mode = get_config("user_mode")
-        if user_mode == "teams":
-            return self.team
-        elif user_mode == "users":
-            return self
+        return self
 
     @property
     def fields(self):
@@ -761,7 +760,12 @@ class Teams(db.Model):
     )
 
     members = db.relationship(
-        "Users", backref="team", foreign_keys="Users.team_id", lazy="joined"
+        "Users",
+        secondary="user_team_members",
+        primaryjoin="Teams.id == UserTeamMember.team_id",
+        secondaryjoin="Users.id == UserTeamMember.user_id",
+        lazy="joined",
+        overlaps="team,user",
     )
 
     # Supplementary attributes
