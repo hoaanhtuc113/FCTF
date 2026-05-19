@@ -1167,6 +1167,59 @@ class Tracking(db.Model):
         return "<Tracking %r>" % self.ip
 
 
+class Contests(db.Model):
+    __tablename__ = "contests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    slug = db.Column(db.String(128), unique=True, nullable=False)
+    access_password = db.Column(db.String(128), nullable=True)
+    owner_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Contest mode & lifecycle
+    user_mode = db.Column(db.String(32), nullable=False, default="users")
+    state = db.Column(db.String(32), nullable=False, default="hidden")
+    start_time = db.Column(db.DateTime, nullable=True)
+    end_time = db.Column(db.DateTime, nullable=True)
+    freeze_scoreboard_at = db.Column(db.DateTime, nullable=True)
+    view_after_ctf = db.Column(db.Boolean, nullable=False, default=False)
+
+    # Visibility settings (migrated from config table)
+    challenge_visibility = db.Column(db.String(32), nullable=False, default="private")
+    score_visibility = db.Column(db.String(32), nullable=False, default="private")
+    account_visibility = db.Column(db.String(32), nullable=False, default="private")
+    registration_visibility = db.Column(db.String(32), nullable=False, default="private")
+
+    # Team settings
+    team_size = db.Column(db.Integer, nullable=True)
+    captain_only_start_challenge = db.Column(db.Boolean, nullable=False, default=True)
+    captain_only_submit_challenge = db.Column(db.Boolean, nullable=False, default=False)
+    team_disbanding = db.Column(db.Boolean, nullable=False, default=True)
+
+    # Participant settings
+    allow_name_change = db.Column(db.Boolean, nullable=False, default=True)
+    incorrect_submissions_per_min = db.Column(db.Integer, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
+        nullable=False,
+    )
+
+    owner = db.relationship("Users", foreign_keys=[owner_id], lazy="select")
+
+    def __init__(self, **kwargs):
+        super(Contests, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<Contest %r>" % self.name
+
+
 class Configs(db.Model):
     __tablename__ = "config"
     id = db.Column(db.Integer, primary_key=True)
