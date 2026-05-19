@@ -178,14 +178,14 @@ class Hints(db.Model):
 class DeployedChallenge(db.Model):
     __tablename__ = "deploy_histories"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    contest_challenge_id = db.Column(
-        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
+    challenge_template_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=True
     )
     log_content = db.Column(db.Text, nullable=True)
     deploy_status = db.Column(db.String(50), nullable=False, default="null")
     deploy_at = db.Column(db.DateTime, nullable=True)
-    contest_challenge = db.relationship(
-        "ContestChallenge", backref=db.backref("deploy_histories", lazy=True)
+    challenge_template = db.relationship(
+        "Challenges", foreign_keys=[challenge_template_id], backref=db.backref("deploy_histories", lazy=True)
     )
 
 
@@ -197,12 +197,19 @@ class ChallengeVersion(db.Model):
     )
     version_number = db.Column(db.Integer, nullable=False, default=1)
     image_link = db.Column(db.Text, nullable=True)
+    deploy_file = db.Column(db.Text, nullable=True)
+    cpu_limit = db.Column(db.String(50), nullable=True)
+    cpu_request = db.Column(db.String(50), nullable=True)
+    memory_limit = db.Column(db.String(50), nullable=True)
+    memory_request = db.Column(db.String(50), nullable=True)
+    use_gvisor = db.Column(db.Boolean, nullable=True, default=False)
+    harden_container = db.Column(db.Boolean, nullable=True, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=False)
     created_by = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-    note = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
 
     challenge_template = db.relationship(
         "Challenges",
@@ -271,6 +278,7 @@ class Awards(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True)
     type = db.Column(db.String(80), default="standard")
     name = db.Column(db.String(80))
     description = db.Column(db.Text)
@@ -282,6 +290,7 @@ class Awards(db.Model):
 
     user = db.relationship("Users", foreign_keys="Awards.user_id", lazy="select")
     team = db.relationship("Teams", foreign_keys="Awards.team_id", lazy="select")
+    contest = db.relationship("Contests", foreign_keys="Awards.contest_id", lazy="select")
 
     __mapper_args__ = {"polymorphic_identity": "standard", "polymorphic_on": type}
 
@@ -1394,6 +1403,8 @@ class Brackets(db.Model):
     name = db.Column(db.String(255))
     description = db.Column(db.Text)
     type = db.Column(db.String(80))
+    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True)
+    contest = db.relationship("Contests", foreign_keys="Brackets.contest_id", lazy="select")
 
 
 class AdminAuditLog(db.Model):
