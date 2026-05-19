@@ -248,22 +248,21 @@ class ChallengeStartTracking(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False)
+    contest_challenge_id = db.Column(db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=False)
     started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     stopped_at = db.Column(db.DateTime, nullable=True)
     label = db.Column(db.String(255), nullable=True)
-    
-    # Relationships
+
     user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
     team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
-    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")
-    
+    contest_challenge = db.relationship("ContestChallenge", foreign_keys=[contest_challenge_id], lazy="select")
+
     def __init__(self, *args, **kwargs):
         super(ChallengeStartTracking, self).__init__(**kwargs)
-    
+
     def __repr__(self):
-        return "<ChallengeStartTracking user_id={} team_id={} challenge_id={}>".format(
-            self.user_id, self.team_id, self.challenge_id
+        return "<ChallengeStartTracking user_id={} team_id={} contest_challenge_id={}>".format(
+            self.user_id, self.team_id, self.contest_challenge_id
         )
 
 
