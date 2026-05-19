@@ -67,43 +67,6 @@ class ChallengeSchema(ma.ModelSchema):
         ],
     )
 
-    requirements = field_for(
-        Challenges,
-        "requirements",
-        validate=[ChallengeRequirementsValidator()],
-    )
-
-    points= field_for(
-        Challenges, 
-        "value",
-        allow_none= False,
-        validate= [
-            validate.Range(
-                min=1, 
-                error= "Challenge can't not be saved, Value must greater than 0"
-            )
-        ]
-            
-    )
-    max_attempts= field_for(
-        Challenges,
-        "max_attempts",
-        allow_none= False,
-        validate= [
-            validate.Range(
-                min=0, 
-            )
-        ]
-    )
-    cooldown = field_for(
-        Challenges,
-        "cooldown",
-        allow_none=False,
-        validate=[
-            validate.Range(min=0, error="Cooldown must be greater than or equal to 0")
-        ],
-    )
-
     cpu_limit = field_for(
         Challenges,
         "cpu_limit",
@@ -162,18 +125,6 @@ class ChallengeSchema(ma.ModelSchema):
         Challenges,
         "harden_container",
         allow_none=True,
-    )
-
-    max_deploy_count = field_for(
-        Challenges,
-        "max_deploy_count",
-        allow_none=True,
-        validate=[
-            validate.Range(
-                min=0,
-                error="Max deploy count must be greater than or equal to 0",
-            )
-        ],
     )
 
     difficulty = field_for(

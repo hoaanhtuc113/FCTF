@@ -10,7 +10,7 @@ from CTFd.plugins.migrations import upgrade
 class DynamicChallenge(Challenges):
     __mapper_args__ = {"polymorphic_identity": "dynamic"}
     id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), primary_key=True
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), primary_key=True
     )
     initial = db.Column(db.Integer, default=0)
     minimum = db.Column(db.Integer, default=0)
@@ -19,7 +19,6 @@ class DynamicChallenge(Challenges):
 
     def __init__(self, *args, **kwargs):
         super(DynamicChallenge, self).__init__(**kwargs)
-        self.value = kwargs["initial"]
 
 
 class DynamicValueChallenge(BaseChallenge):

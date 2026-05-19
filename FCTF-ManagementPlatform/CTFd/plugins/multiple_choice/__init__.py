@@ -9,7 +9,7 @@ from textwrap import dedent
 class MultipleChoiceChallenge(Challenges):
     __mapper_args__ = {"polymorphic_identity": "multiple_choice"}
     id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), primary_key=True
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), primary_key=True
     )
 
 

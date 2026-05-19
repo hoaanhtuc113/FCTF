@@ -53,38 +53,29 @@ def compile_datetime_mysql(_type, _compiler, **kw):
 
 
 class Challenges(db.Model):
-    __tablename__ = "challenges"
+    __tablename__ = "challenge_templates"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80))
     description = db.Column(db.Text)
-    connection_info = db.Column(db.Text)
-    next_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="SET NULL"))
-    max_attempts = db.Column(db.Integer, default=0)
-    value = db.Column(db.Integer)
     category = db.Column(db.String(80))
     type = db.Column(db.String(80))
-    state = db.Column(db.String(80), nullable=False, default="visible")
-    requirements = db.Column(db.JSON)
-    time_limit = db.Column(db.Integer, nullable=True)
-    time_finished = db.Column(db.DateTime, nullable=True)
-    start_time = db.Column(db.DateTime, nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    cooldown = db.Column(db.Integer, nullable=True, default=0)
+    difficulty = db.Column(db.Integer, nullable=True, default=None)
     require_deploy = db.Column(db.Boolean, nullable=False, default=False)
     deploy_status = db.Column(db.Text, nullable=True, default="CREATED")
-    last_update = db.Column(db.DateTime)
-    image_link = db.Column(db.Text,nullable =True)
-    deploy_file = db.Column(db.String(256), nullable=True)
+    image_link = db.Column(db.Text, nullable=True)
+    connection_info = db.Column(db.Text)
+    connection_protocol = db.Column(db.String(10), nullable=False, default="http")
     cpu_limit = db.Column(db.Integer, nullable=True)
     cpu_request = db.Column(db.Integer, nullable=True)
     memory_limit = db.Column(db.Integer, nullable=True)
     memory_request = db.Column(db.Integer, nullable=True)
     use_gvisor = db.Column(db.Boolean, nullable=True)
     harden_container = db.Column(db.Boolean, nullable=True, default=True)
-    max_deploy_count = db.Column(db.Integer, default=0, nullable=True)
-    difficulty = db.Column(db.Integer, nullable=True, default=None)
     shared_instant = db.Column(db.Boolean, nullable=False, default=False)
-    connection_protocol = db.Column(db.String(10), nullable=False, default="http")
+    last_update = db.Column(db.DateTime)
+    created_by = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     files = db.relationship("ChallengeFiles", backref="challenge")
     tags = db.relationship("Tags", backref="challenge")
@@ -145,7 +136,7 @@ class Hints(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(80), default="standard")
     challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     content = db.Column(db.Text)
     cost = db.Column(db.Integer, default=0)
@@ -188,7 +179,7 @@ class Hints(db.Model):
 class DeployedChallenge(db.Model):
     __tablename__ = "deploy_histories"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id"), nullable=False)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id"), nullable=False)
     log_content = db.Column(db.Text, nullable=True)
     deploy_status = db.Column(db.String(50), nullable=False, default="null")
     deploy_at = db.Column(db.DateTime, nullable=True)
@@ -201,7 +192,7 @@ class DeployedChallenge(db.Model):
 class ChallengeVersion(db.Model):
     __tablename__ = "challenge_versions"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False)
     version_number = db.Column(db.Integer, nullable=False, default=1)
     image_link = db.Column(db.Text, nullable=True)
     deploy_file = db.Column(db.String(256), nullable=True)
@@ -259,7 +250,7 @@ class ChallengeStartTracking(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False)
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False)
     started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     stopped_at = db.Column(db.DateTime, nullable=True)
     label = db.Column(db.String(255), nullable=True)
@@ -318,7 +309,7 @@ class Tags(db.Model):
     __tablename__ = "tags"
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     value = db.Column(db.String(80))
 
@@ -339,7 +330,7 @@ class ChallengeTopics(db.Model):
     __tablename__ = "challenge_topics"
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     topic_id = db.Column(db.Integer, db.ForeignKey("topics.id", ondelete="CASCADE"))
 
@@ -372,7 +363,7 @@ class Files(db.Model):
 class ChallengeFiles(Files):
     __mapper_args__ = {"polymorphic_identity": "challenge"}
     challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
 
     def __init__(self, *args, **kwargs):
@@ -383,7 +374,7 @@ class Flags(db.Model):
     __tablename__ = "flags"
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     type = db.Column(db.String(80))
     content = db.Column(db.Text)
@@ -995,7 +986,7 @@ class Achievements(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"))
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"))
     name = db.Column(db.String(80))  # Tên thành tích
     achievement_id = db.Column(db.Integer, db.ForeignKey("award_badges.id", ondelete="CASCADE"))
     
@@ -1014,7 +1005,7 @@ class AwardBadges(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"))
+    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"))
     name = db.Column(db.String(80))  # Tên giải thưởng
     
     user = db.relationship("Users", foreign_keys="AwardBadges.user_id", lazy="select")
@@ -1029,7 +1020,7 @@ class Submissions(db.Model):
     __tablename__ = "submissions"
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
@@ -1090,7 +1081,7 @@ class Solves(Submissions):
         None, db.ForeignKey("submissions.id", ondelete="CASCADE"), primary_key=True
     )
     challenge_id = column_property(
-        db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")),
+        db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")),
         Submissions.challenge_id,
     )
     user_id = column_property(
@@ -1280,7 +1271,7 @@ class Comments(db.Model):
 class ChallengeComments(Comments):
     __mapper_args__ = {"polymorphic_identity": "challenge"}
     challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
 
 
