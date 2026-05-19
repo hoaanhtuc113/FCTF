@@ -408,10 +408,6 @@ def create_app(config="CTFd.config.Config"):
             ):
                 return
 
-            # Always allow /setup – the view itself redirects away when already configured
-            if path.startswith("/setup"):
-                return
-
             # For everything else, require staff roles
             if is_admin() or is_challenge_writer() or is_jury():
                 return

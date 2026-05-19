@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 
-from flask import abort, redirect, render_template, request, session, url_for
+from flask import abort, redirect, render_template, request, session
 from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
@@ -221,17 +221,11 @@ def init_request_processors(app):
             else:
                 return "Import currently in progress", 403
         if is_setup() is False:
-            if request.endpoint in (
-                "views.setup",
-                "views.integrations",
-                "views.themes",
-                "views.files",
-                "views.healthcheck",
-                "views.robots",
-            ):
-                return
-            else:
-                return redirect(url_for("views.setup"))
+            # Auto-initialize on first deploy — no setup wizard needed.
+            # Import here to avoid circular imports at module load time.
+            from CTFd.views import auto_initialize
+            auto_initialize()
+            # After initialization, allow the request to continue normally.
 
     @app.before_request
     def tracker():

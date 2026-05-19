@@ -14,8 +14,7 @@ TeamAttrs = namedtuple(
         "bracket_id",
         "hidden",
         "banned",
-        "captain_id",
-        "created",
+        "captain_user_id",
     ],
 )
 

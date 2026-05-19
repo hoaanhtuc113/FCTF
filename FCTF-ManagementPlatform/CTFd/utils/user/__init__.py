@@ -97,14 +97,8 @@ def get_current_team():
 
 
 def get_current_team_attrs():
-    if authed():
-        try:
-            user = get_user_attrs(user_id=session["id"])
-        except TypeError:
-            clear_user_session(user_id=session["id"])
-            user = get_user_attrs(user_id=session["id"])
-        if user and user.team_id:
-            return get_team_attrs(team_id=user.team_id)
+    # In multi-contest mode, team membership is per-contest via UserTeamMember.
+    # Global team_id no longer exists on the user object.
     return None
 
 
@@ -216,12 +210,7 @@ def get_ip(req=None):
 
 
 def get_locale():
-    # Use the user's preferred language
-    if authed():
-        user = get_current_user_attrs()
-        if user and user.language:
-            return user.language
-    # Use the admin's default language
+    # Use the admin's default language (user-level language pref removed in multi-contest)
     default_locale = get_config("default_locale")
     if default_locale:
         return default_locale

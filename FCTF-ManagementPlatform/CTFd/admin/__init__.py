@@ -84,7 +84,7 @@ from CTFd.utils.user import is_admin,is_challenge_writer,is_jury
 @admin.route("/admin", methods=["GET"])
 def view():
     if is_challenge_writer() or is_admin() or is_jury():
-        return redirect(url_for("admin.statistics"))
+        return redirect(url_for("admin.users_listing"))
     return redirect(url_for("auth.login"))
 
 
@@ -551,7 +551,7 @@ def reset():
             set_config("setup", False)
             cache.clear()
             logout_user()
-            next_url = url_for("views.setup")
+            next_url = url_for("auth.login")
 
         db.session.commit()
 

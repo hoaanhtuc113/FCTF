@@ -42,7 +42,7 @@ auth = Blueprint("auth", __name__)
 def confirm(data=None):
     if not get_config("verify_emails"):
         # If the CTF doesn't care about confirming email addresses then redirect to admin
-        return redirect(url_for("admin.challenges_listing"))
+        return redirect(url_for("admin.users_listing"))
 
     # User is confirming email account
     if data and request.method == "GET":
@@ -72,7 +72,7 @@ def confirm(data=None):
         email.successful_registration_notification(user.email)
         db.session.close()
         if current_user.authed():
-            return redirect(url_for("admin.challenges_listing"))
+            return redirect(url_for("admin.users_listing"))
         return redirect(url_for("auth.login"))
 
     # User is trying to start or restart the confirmation flow
@@ -238,7 +238,7 @@ def login():
 
                 db.session.close()
                 if is_challenge_writer() or is_admin() or is_jury():
-                    return redirect(url_for("admin.challenges_listing"))
+                    return redirect(url_for("admin.users_listing"))
                 return redirect(url_for("auth.login"))
 
             else:
@@ -412,7 +412,7 @@ def oauth_redirect():
 
             login_user(user)
 
-            return redirect(url_for("admin.challenges_listing"))
+            return redirect(url_for("admin.users_listing"))
         else:
             log("logins", "[{date}] {ip} - OAuth token retrieval failure")
             error_for(endpoint="auth.login", message="OAuth token retrieval failure.")

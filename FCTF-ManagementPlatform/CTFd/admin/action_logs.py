@@ -5,7 +5,7 @@ from io import StringIO
 from flask import Response, render_template, request, stream_with_context, url_for, send_file
 
 from CTFd.admin import admin
-from CTFd.models import ActionLogs, Teams, Users
+from CTFd.models import ActionLogs, Teams, UserTeamMember, Users
 from CTFd.utils.decorators import admin_or_jury
 from CTFd.utils import get_config
 
@@ -51,7 +51,6 @@ def _apply_user_team_filters(query, user_filter, team_filter):
 		if user_id is not None:
 			query = query.filter(Users.id == user_id)
 		else:
-			# Escape LIKE wildcards and use parameterized query to prevent SQL injection
 			escaped_filter = _escape_like_pattern(user_filter)
 			search_pattern = f"%{escaped_filter}%"
 			query = query.filter(Users.name.ilike(search_pattern, escape="\\"))
@@ -60,7 +59,6 @@ def _apply_user_team_filters(query, user_filter, team_filter):
 		if team_id is not None:
 			query = query.filter(Teams.id == team_id)
 		else:
-			# Escape LIKE wildcards and use parameterized query to prevent SQL injection
 			escaped_filter = _escape_like_pattern(team_filter)
 			search_pattern = f"%{escaped_filter}%"
 			query = query.filter(Teams.name.ilike(search_pattern, escape="\\"))
@@ -71,7 +69,7 @@ def _apply_user_team_filters(query, user_filter, team_filter):
 def _apply_action_type_filter(query, action_type_filter):
 	action_type = _parse_int(action_type_filter)
 	if action_type_filter and action_type is not None:
-		query = query.filter(ActionLogs.actionType == action_type)
+		query = query.filter(ActionLogs.type == action_type)
 	return query
 
 
@@ -83,9 +81,10 @@ def _base_action_logs_query():
 			Teams.id.label("team_id"),
 			Teams.name.label("team_name"),
 		)
-		.join(Users, ActionLogs.userId == Users.id)
-		.outerjoin(Teams, Users.team_id == Teams.id)
-		.order_by(ActionLogs.actionDate.desc())
+		.join(Users, ActionLogs.user_id == Users.id)
+		.outerjoin(UserTeamMember, UserTeamMember.user_id == Users.id)
+		.outerjoin(Teams, Teams.id == UserTeamMember.team_id)
+		.order_by(ActionLogs.date.desc())
 	)
 
 
@@ -158,12 +157,12 @@ def action_logs_export_csv():
 			log = row.ActionLogs
 			writer.writerow(
 				[
-					log.actionId,
-					log.actionDate.isoformat() if log.actionDate else "",
-					log.actionType,
-					_action_type_label(log.actionType),
-					log.topicName or "",
-					log.actionDetail or "",
+					log.id,
+					log.date.isoformat() if log.date else "",
+					log.type,
+					_action_type_label(log.type),
+					log.topic_name or "",
+					log.detail or "",
 					row.user_id,
 					row.user_name,
 					row.team_id or "",
@@ -225,15 +224,15 @@ def _write_action_logs_worksheet(ws, headers, group_rows, date_format):
 	for idx, row in enumerate(group_rows, start=1):
 		row_count = idx
 		log = row.ActionLogs
-		ws.write(idx, 0, log.actionId)
-		if log.actionDate:
-			ws.write_datetime(idx, 1, log.actionDate, date_format)
+		ws.write(idx, 0, log.id)
+		if log.date:
+			ws.write_datetime(idx, 1, log.date, date_format)
 		else:
 			ws.write(idx, 1, "")
-		ws.write(idx, 2, log.actionType)
-		ws.write(idx, 3, _action_type_label(log.actionType))
-		ws.write(idx, 4, log.topicName or "")
-		ws.write(idx, 5, log.actionDetail or "")
+		ws.write(idx, 2, log.type)
+		ws.write(idx, 3, _action_type_label(log.type))
+		ws.write(idx, 4, log.topic_name or "")
+		ws.write(idx, 5, log.detail or "")
 		ws.write(idx, 6, row.user_id)
 		ws.write(idx, 7, row.user_name)
 		ws.write(idx, 8, row.team_id or "")

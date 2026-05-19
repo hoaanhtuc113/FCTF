@@ -8,21 +8,13 @@ from flask import (
     render_template,
     request,
     send_file,
-    session,
     url_for,
 )
-from jinja2.exceptions import TemplateNotFound
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import safe_join
 
 from CTFd.cache import cache
-from CTFd.constants.config import (
-    AccountVisibilityTypes,
-    ChallengeVisibilityTypes,
-    ConfigTypes,
-    RegistrationVisibilityTypes,
-    ScoreVisibilityTypes,
-)
+from CTFd.constants.config import ConfigTypes
 from CTFd.constants.themes import DEFAULT_THEME
 from CTFd.models import (
     Admins,
@@ -34,7 +26,6 @@ from CTFd.models import (
 )
 from CTFd.utils import config, get_config, set_config
 from CTFd.utils import user as current_user
-from CTFd.utils import validators
 from CTFd.utils.config import is_setup, is_teams_mode
 from CTFd.utils.config.visibility import challenges_visible
 from CTFd.utils.dates import ctf_ended, ctftime, view_after_ctf
@@ -52,17 +43,14 @@ from CTFd.utils.email import (
 from CTFd.utils.health import check_config, check_database
 from CTFd.utils.helpers import get_errors, get_infos, markup
 from CTFd.utils.modes import TEAMS_MODE
-from CTFd.utils.security.auth import login_user
-from CTFd.utils.security.csrf import generate_nonce
 from CTFd.utils.security.signing import (
     BadSignature,
     BadTimeSignature,
     SignatureExpired,
-    serialize,
     unserialize,
 )
-from CTFd.utils.uploads import get_uploader, upload_file
-from CTFd.utils.user import authed, get_current_team, get_current_user, get_ip, is_admin
+from CTFd.utils.uploads import get_uploader
+from CTFd.utils.user import authed, get_current_team, get_current_user, get_ip
 
 views = Blueprint("views", __name__)
 
@@ -219,219 +207,65 @@ def team_invite():
     )
 
 
-@views.route("/setup", methods=["GET", "POST"])
-def setup():
-    errors = get_errors()
-    if not config.is_setup():
-        if not session.get("nonce"):
-            session["nonce"] = generate_nonce()
-        if request.method == "POST":
-            # General
-            ctf_name = request.form.get("ctf_name")
-            ctf_description = request.form.get("ctf_description")
-            set_config("ctf_name", ctf_name)
-            set_config("ctf_description", ctf_description)
-            set_config("user_mode", TEAMS_MODE)
+def auto_initialize():
+    """Auto-initialize the platform on first deploy without a setup wizard.
 
-            # Settings
-            challenge_visibility = ChallengeVisibilityTypes(
-                request.form.get(
-                    "challenge_visibility", default=ChallengeVisibilityTypes.PRIVATE
-                )
-            )
-            account_visibility = AccountVisibilityTypes(
-                request.form.get(
-                    "account_visibility", default=AccountVisibilityTypes.PUBLIC
-                )
-            )
-            score_visibility = ScoreVisibilityTypes(
-                request.form.get(
-                    "score_visibility", default=ScoreVisibilityTypes.PUBLIC
-                )
-            )
-            registration_visibility = RegistrationVisibilityTypes(
-                request.form.get(
-                    "registration_visibility",
-                    default=RegistrationVisibilityTypes.PUBLIC,
-                )
-            )
-            verify_emails = request.form.get("verify_emails")
-            team_size = request.form.get("team_size")
+    Creates the default admin account and sets platform-level config.
+    Contest-specific settings (start/end time, team limits, etc.) are
+    configured per-contest and are NOT set here.
+    """
+    set_config("ctf_name", "F-CTF")
+    set_config("ctf_description", "Welcome to F-CTF — the multi-contest hacking platform.")
+    set_config("ctf_theme", DEFAULT_THEME)
+    set_config("user_mode", TEAMS_MODE)
 
-            # Style
-            ctf_logo = request.files.get("ctf_logo")
-            if ctf_logo:
-                f = upload_file(file=ctf_logo)
-                set_config("ctf_logo", f.location)
+    set_config("mail_server", None)
+    set_config("mail_port", None)
+    set_config("mail_tls", None)
+    set_config("mail_ssl", None)
+    set_config("mail_username", None)
+    set_config("mail_password", None)
+    set_config("mail_useauth", None)
 
-            ctf_small_icon = request.files.get("ctf_small_icon")
-            if ctf_small_icon:
-                f = upload_file(file=ctf_small_icon)
-                set_config("ctf_small_icon", f.location)
+    set_config("verification_email_subject", DEFAULT_VERIFICATION_EMAIL_SUBJECT)
+    set_config("verification_email_body", DEFAULT_VERIFICATION_EMAIL_BODY)
+    set_config("successful_registration_email_subject", DEFAULT_SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT)
+    set_config("successful_registration_email_body", DEFAULT_SUCCESSFUL_REGISTRATION_EMAIL_BODY)
+    set_config("user_creation_email_subject", DEFAULT_USER_CREATION_EMAIL_SUBJECT)
+    set_config("user_creation_email_body", DEFAULT_USER_CREATION_EMAIL_BODY)
+    set_config("password_reset_subject", DEFAULT_PASSWORD_RESET_SUBJECT)
+    set_config("password_reset_body", DEFAULT_PASSWORD_RESET_BODY)
+    set_config("password_change_alert_subject", "Password Change Confirmation for {ctf_name}")
+    set_config(
+        "password_change_alert_body",
+        (
+            "Your password for {ctf_name} has been changed.\n\n"
+            "If you didn't request a password change you can reset your password here: {url}"
+        ),
+    )
 
-            theme = request.form.get("ctf_theme", DEFAULT_THEME)
-            set_config("ctf_theme", theme)
-            theme_color = request.form.get("theme_color")
-            theme_header = get_config("theme_header")
-            if theme_color and bool(theme_header) is False:
-                # Uses {{ and }} to insert curly braces while using the format method
-                css = (
-                    '<style id="theme-color">\n'
-                    ":root {{--theme-color: {theme_color};}}\n"
-                    ".navbar{{background-color: var(--theme-color) !important;}}\n"
-                    ".jumbotron{{background-color: var(--theme-color) !important;}}\n"
-                    "</style>\n"
-                ).format(theme_color=theme_color)
-                set_config("theme_header", css)
+    set_config("captain_only_start_challenge", 1)
+    set_config("captain_only_submit_challenge", 0)
+    set_config("limit_challenges", 3)
 
-            # DateTime
-            start = request.form.get("start")
-            end = request.form.get("end")
-            set_config("start", start)
-            set_config("end", end)
-            set_config("freeze", None)
-
-            # Administration
-            name = request.form["name"]
-            email = request.form["email"]
-            password = request.form["password"]
-
-            name_len = len(name) == 0
-            names = (
-                Users.query.add_columns(Users.name, Users.id)
-                .filter_by(name=name)
-                .first()
-            )
-            emails = (
-                Users.query.add_columns(Users.email, Users.id)
-                .filter_by(email=email)
-                .first()
-            )
-            pass_short = len(password) == 0
-            pass_long = len(password) > 128
-            valid_email = validators.validate_email(request.form["email"])
-            team_name_email_check = validators.validate_email(name)
-
-            if not valid_email:
-                errors.append("Please enter a valid email address")
-            if names:
-                errors.append("That user name is already taken")
-            if team_name_email_check is True:
-                errors.append("Your user name cannot be an email address")
-            if emails:
-                errors.append("That email has already been used")
-            if pass_short:
-                errors.append("Pick a longer password")
-            if pass_long:
-                errors.append("Pick a shorter password")
-            if name_len:
-                errors.append("Pick a longer user name")
-
-            if len(errors) > 0:
-                return render_template(
-                    "setup.html",
-                    errors=errors,
-                    name=name,
-                    email=email,
-                    password=password,
-                    state=serialize(generate_nonce()),
-                )
-
-            admin = Admins(
-                name=name, email=email, password=password, type="admin", hidden=True
-            )
-
-            # Upload banner
-            default_ctf_banner_location = url_for("views.themes", path="img/logo.png")
-            ctf_banner = request.files.get("ctf_banner")
-            if ctf_banner:
-                f = upload_file(file=ctf_banner)
-                default_ctf_banner_location = url_for("views.files", path=f.location)
-                set_config("ctf_banner", f.location)
-
-            # Visibility
-            set_config(ConfigTypes.CHALLENGE_VISIBILITY, challenge_visibility)
-            set_config(ConfigTypes.REGISTRATION_VISIBILITY, registration_visibility)
-            set_config(ConfigTypes.SCORE_VISIBILITY, score_visibility)
-            set_config(ConfigTypes.ACCOUNT_VISIBILITY, account_visibility)
-
-            # Verify emails
-            set_config("verify_emails", verify_emails)
-
-            # Team Size
-            set_config("team_size", team_size)
-
-            set_config("mail_server", None)
-            set_config("mail_port", None)
-            set_config("mail_tls", None)
-            set_config("mail_ssl", None)
-            set_config("mail_username", None)
-            set_config("mail_password", None)
-            set_config("mail_useauth", None)
-
-            # Set up default emails
-            set_config("verification_email_subject", DEFAULT_VERIFICATION_EMAIL_SUBJECT)
-            set_config("verification_email_body", DEFAULT_VERIFICATION_EMAIL_BODY)
-
-            set_config(
-                "successful_registration_email_subject",
-                DEFAULT_SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT,
-            )
-            set_config(
-                "successful_registration_email_body",
-                DEFAULT_SUCCESSFUL_REGISTRATION_EMAIL_BODY,
-            )
-
-            set_config(
-                "user_creation_email_subject", DEFAULT_USER_CREATION_EMAIL_SUBJECT
-            )
-            set_config("user_creation_email_body", DEFAULT_USER_CREATION_EMAIL_BODY)
-
-            set_config("password_reset_subject", DEFAULT_PASSWORD_RESET_SUBJECT)
-            set_config("password_reset_body", DEFAULT_PASSWORD_RESET_BODY)
-
-            set_config(
-                "password_change_alert_subject",
-                "Password Change Confirmation for {ctf_name}",
-            )
-            set_config(
-                "password_change_alert_body",
-                (
-                    "Your password for {ctf_name} has been changed.\n\n"
-                    "If you didn't request a password change you can reset your password here: {url}"
-                ),
-            )
-
-            # Set default value for captain only start challenge (using "0" for disabled, "1" for enabled)
-            set_config("captain_only_start_challenge", 1)
-            
-            # Set default value for captain only submit challenge (using "0" for disabled, "1" for enabled)
-            set_config("captain_only_submit_challenge", 0)
-
-            set_config("limit_challenges", 3)
-
-            set_config("setup", True)
-
-            try:
-                db.session.add(admin)
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-
-            login_user(admin)
-
-            db.session.close()
-            with app.app_context():
-                cache.clear()
-
-            return redirect(url_for("views.static_html"))
+    existing = Users.query.filter_by(name="adminmultiple").first()
+    if not existing:
+        admin = Admins(
+            name="adminmultiple",
+            email="admin@fctf.local",
+            password="1",
+            type="admin",
+            hidden=True,
+            verified=True,
+        )
         try:
-            return render_template("setup.html", state=serialize(generate_nonce()))
-        except TemplateNotFound:
-            # Set theme to default and try again
-            set_config("ctf_theme", DEFAULT_THEME)
-            return render_template("setup.html", state=serialize(generate_nonce()))
-    return redirect(url_for("views.static_html"))
+            db.session.add(admin)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+
+    set_config("setup", True)
+    cache.clear()
 
 
 @views.route("/settings", methods=["GET"])
@@ -480,15 +314,10 @@ def settings():
 
 @views.route("/")
 def static_html():
-    """
-    Root route: redirect staff to admin, show landing page for unauthenticated users.
-    """
+    """Root route: auto-initialize on first deploy, then redirect to login."""
     if is_setup() is False:
-        return redirect(url_for("views.setup"))
-    if authed():
-        return redirect(url_for("admin.view"))
-    # Show landing page for unauthenticated users
-    return render_template("page.html", content="", title="Welcome")
+        auto_initialize()
+    return redirect(url_for("auth.login"))
 
 
 @views.route("/files", defaults={"path": ""})
