@@ -81,7 +81,6 @@ class Challenges(db.Model):
     tags = db.relationship("Tags", foreign_keys="Tags.challenge_template_id", backref="challenge")
     hints = db.relationship("Hints", foreign_keys="Hints.challenge_template_id", backref="challenge")
     flags = db.relationship("Flags", foreign_keys="Flags.challenge_template_id", backref="challenge")
-    comments = db.relationship("ChallengeComments", backref="challenge")
     topics = db.relationship("ChallengeTopics", foreign_keys="ChallengeTopics.challenge_template_id", backref="challenge")
     class alt_defaultdict(defaultdict):
         """
@@ -179,13 +178,14 @@ class Hints(db.Model):
 class DeployedChallenge(db.Model):
     __tablename__ = "deploy_histories"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id"), nullable=False)
+    contest_challenge_id = db.Column(
+        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
+    )
     log_content = db.Column(db.Text, nullable=True)
     deploy_status = db.Column(db.String(50), nullable=False, default="null")
     deploy_at = db.Column(db.DateTime, nullable=True)
-    # Relationship with the User model
-    challenge = db.relationship(
-        "Challenges", backref=db.backref("deploy_histories", lazy=True)
+    contest_challenge = db.relationship(
+        "ContestChallenge", backref=db.backref("deploy_histories", lazy=True)
     )
 
 
@@ -1125,7 +1125,10 @@ class Unlocks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
-    target = db.Column(db.Integer)
+    hint_id = db.Column(db.Integer, db.ForeignKey("hints.id", ondelete="CASCADE"), nullable=True)
+    contest_challenge_id = db.Column(
+        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
+    )
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     type = db.Column(db.String(32))
 
@@ -1319,8 +1322,8 @@ class Comments(db.Model):
 
 class ChallengeComments(Comments):
     __mapper_args__ = {"polymorphic_identity": "challenge"}
-    challenge_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
+    contest_challenge_id = db.Column(
+        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
     )
 
 
