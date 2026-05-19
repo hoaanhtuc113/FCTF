@@ -190,38 +190,37 @@ class DeployedChallenge(db.Model):
 
 
 class ChallengeVersion(db.Model):
-    __tablename__ = "challenge_versions"
+    __tablename__ = "challenge_template_versions"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False)
+    challenge_template_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False
+    )
     version_number = db.Column(db.Integer, nullable=False, default=1)
     image_link = db.Column(db.Text, nullable=True)
-    deploy_file = db.Column(db.String(256), nullable=True)
-    cpu_limit = db.Column(db.Integer, nullable=True)
-    cpu_request = db.Column(db.Integer, nullable=True)
-    memory_limit = db.Column(db.Integer, nullable=True)
-    memory_request = db.Column(db.Integer, nullable=True)
-    use_gvisor = db.Column(db.Boolean, nullable=True)
-    harden_container = db.Column(db.Boolean, nullable=True, default=True)
-    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
     is_active = db.Column(db.Boolean, nullable=False, default=False)
-    created_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-    notes = db.Column(db.Text, nullable=True)
+    note = db.Column(db.Text, nullable=True)
 
-    challenge = db.relationship("Challenges", backref=db.backref("versions", lazy="dynamic", order_by="ChallengeVersion.version_number.desc()"))
+    challenge_template = db.relationship(
+        "Challenges",
+        foreign_keys=[challenge_template_id],
+        backref=db.backref("versions", lazy="dynamic", order_by="ChallengeVersion.version_number.desc()"),
+    )
     creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
 
     def __init__(self, *args, **kwargs):
         super(ChallengeVersion, self).__init__(**kwargs)
 
     def __repr__(self):
-        return "<ChallengeVersion challenge_id={} version={}>".format(
-            self.challenge_id, self.version_number
+        return "<ChallengeVersion challenge_template_id={} version={}>".format(
+            self.challenge_template_id, self.version_number
         )
 
     @property
     def image_tag(self):
-        """Extract the image tag from the image_link JSON"""
         import json
         if self.image_link:
             try:
@@ -234,7 +233,6 @@ class ChallengeVersion(db.Model):
 
     @property
     def expose_port(self):
-        """Extract the exposed port from the image_link JSON"""
         import json
         if self.image_link:
             try:
