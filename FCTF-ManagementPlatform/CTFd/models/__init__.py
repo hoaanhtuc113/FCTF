@@ -77,12 +77,12 @@ class Challenges(db.Model):
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    files = db.relationship("ChallengeFiles", backref="challenge")
-    tags = db.relationship("Tags", backref="challenge")
-    hints = db.relationship("Hints", backref="challenge")
-    flags = db.relationship("Flags", backref="challenge")
+    files = db.relationship("ChallengeFiles", foreign_keys="ChallengeFiles.challenge_template_id", backref="challenge")
+    tags = db.relationship("Tags", foreign_keys="Tags.challenge_template_id", backref="challenge")
+    hints = db.relationship("Hints", foreign_keys="Hints.challenge_template_id", backref="challenge")
+    flags = db.relationship("Flags", foreign_keys="Flags.challenge_template_id", backref="challenge")
     comments = db.relationship("ChallengeComments", backref="challenge")
-    topics = db.relationship("ChallengeTopics", backref="challenge")
+    topics = db.relationship("ChallengeTopics", foreign_keys="ChallengeTopics.challenge_template_id", backref="challenge")
     class alt_defaultdict(defaultdict):
         """
         This slightly modified defaultdict is intended to allow SQLAlchemy to
@@ -135,7 +135,7 @@ class Hints(db.Model):
     __tablename__ = "hints"
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(80), default="standard")
-    challenge_id = db.Column(
+    challenge_template_id = db.Column(
         db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     content = db.Column(db.Text)
@@ -306,7 +306,7 @@ class Awards(db.Model):
 class Tags(db.Model):
     __tablename__ = "tags"
     id = db.Column(db.Integer, primary_key=True)
-    challenge_id = db.Column(
+    challenge_template_id = db.Column(
         db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     value = db.Column(db.String(80))
@@ -327,7 +327,7 @@ class Topics(db.Model):
 class ChallengeTopics(db.Model):
     __tablename__ = "challenge_topics"
     id = db.Column(db.Integer, primary_key=True)
-    challenge_id = db.Column(
+    challenge_template_id = db.Column(
         db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     topic_id = db.Column(db.Integer, db.ForeignKey("topics.id", ondelete="CASCADE"))
@@ -360,7 +360,7 @@ class Files(db.Model):
 
 class ChallengeFiles(Files):
     __mapper_args__ = {"polymorphic_identity": "challenge"}
-    challenge_id = db.Column(
+    challenge_template_id = db.Column(
         db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
 
@@ -371,7 +371,7 @@ class ChallengeFiles(Files):
 class Flags(db.Model):
     __tablename__ = "flags"
     id = db.Column(db.Integer, primary_key=True)
-    challenge_id = db.Column(
+    challenge_template_id = db.Column(
         db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
     )
     type = db.Column(db.String(80))
@@ -384,7 +384,7 @@ class Flags(db.Model):
         super(Flags, self).__init__(**kwargs)
 
     def __repr__(self):
-        return "<Flag {0} for challenge {1}>".format(self.content, self.challenge_id)
+        return "<Flag {0} for challenge {1}>".format(self.content, self.challenge_template_id)
 class StaticFlag(Flags):
     __mapper_args__ = {
         "polymorphic_identity": "static"  # Identifies the 'static' type flag
