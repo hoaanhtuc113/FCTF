@@ -985,40 +985,34 @@ class Teams(db.Model):
                 return ordinalize(n)
         else:
             return None
-class Achievements(db.Model):
-    __tablename__ = "achievements"
-    
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"))
-    name = db.Column(db.String(80))  # Tên thành tích
-    achievement_id = db.Column(db.Integer, db.ForeignKey("award_badges.id", ondelete="CASCADE"))
-    
-    # Liên kết với bảng AwardBadges
-    award_badge = db.relationship("AwardBadges", foreign_keys="Achievements.achievement_id", lazy="select")
-    
-    user = db.relationship("Users", foreign_keys="Achievements.user_id", lazy="select")
-    team = db.relationship("Teams", foreign_keys="Achievements.team_id", lazy="select")
-    challenge = db.relationship("Challenges", foreign_keys="Achievements.challenge_id", lazy="select")
-
-    def __repr__(self):
-        return f"<Achievement {self.name} for {self.team.name if self.team else self.user.username}>"
 class AwardBadges(db.Model):
     __tablename__ = "award_badges"
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    challenge_id = db.Column(db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"))
-    name = db.Column(db.String(80))  # Tên giải thưởng
-    
-    user = db.relationship("Users", foreign_keys="AwardBadges.user_id", lazy="select")
-    team = db.relationship("Teams", foreign_keys="AwardBadges.team_id", lazy="select")
-    challenge = db.relationship("Challenges", foreign_keys="AwardBadges.challenge_id", lazy="select")
+    name = db.Column(db.String(80))
+    challenge_template_id = db.Column(
+        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="SET NULL"), nullable=True
+    )
+
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_template_id], lazy="select")
 
     def __repr__(self):
-        return f"<AwardBadge {self.name} for {self.team.name if self.team else self.user.username}>"
+        return f"<AwardBadge {self.name}>"
+
+
+class Achievements(db.Model):
+    __tablename__ = "achievements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
+    award_badge_id = db.Column(db.Integer, db.ForeignKey("award_badges.id", ondelete="CASCADE"))
+    date = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    award_badge = db.relationship("AwardBadges", foreign_keys=[award_badge_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+
+    def __repr__(self):
+        return f"<Achievement badge_id={self.award_badge_id} team_id={self.team_id}>"
 
 
 class Submissions(db.Model):
