@@ -1,0 +1,386 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+.import-selected-row {
+    background: #fff5f2 !important;
+}
+.import-selected-row td:first-child {
+    border-left: 3px solid var(--primary-orange);
+}
+.import-imported-row {
+    opacity: 0.55;
+    cursor: default !important;
+}
+.import-imported-row:hover {
+    background: transparent !important;
+    cursor: default !important;
+}
+.import-star-on  { color: var(--primary-orange); font-size: 0.75rem; }
+.import-star-off { color: var(--border-medium);  font-size: 0.75rem; }
+.import-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.85rem;
+    background: var(--bg-light);
+    border-top: 1px solid var(--border-light);
+    border-radius: 0 0 6px 6px;
+}
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="page-header">
+    <div class="container">
+        <h1>
+            <i class="bx bx-import"></i> Import Challenges
+            <small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+        </h1>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="alert alert-warning d-flex align-items-start" style="font-size:0.82rem;padding:0.6rem 0.85rem;border-radius:6px;">
+        <i class="bx bx-info-circle mr-2 mt-1" style="font-size:1rem;flex-shrink:0;"></i>
+        <span>
+            Challenges already added to this contest are shown in grey and cannot be re-selected.
+            Imported challenges default to state <strong>hidden</strong>.
+        </span>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="clean-search-container">
+        <div class="row no-gutters align-items-end">
+            <div class="col px-1" style="min-width:200px;">
+                <label>Search</label>
+                <div class="position-relative">
+                    <i class="bx bx-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-light);font-size:0.9rem;pointer-events:none;"></i>
+                    <input type="text" id="ic-search" class="clean-form-control w-100"
+                           style="padding-left:28px;" placeholder="Search by name or category…">
+                </div>
+            </div>
+            <div class="col-md-2 px-1">
+                <label>Type</label>
+                <select id="ic-f-type" class="clean-form-control w-100">
+                    <option value="">All Types</option>
+                    {% for t in types %}
+                    <option value="{{ t }}">{{ t | title | replace('_', ' ') }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 px-1">
+                <label>Category</label>
+                <select id="ic-f-cat" class="clean-form-control w-100">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 px-1">
+                <label>Difficulty</label>
+                <select id="ic-f-diff" class="clean-form-control w-100">
+                    <option value="">All Difficulties</option>
+                    <option value="1">&#9733; Very Easy</option>
+                    <option value="2">&#9733;&#9733; Easy</option>
+                    <option value="3">&#9733;&#9733;&#9733; Medium</option>
+                    <option value="4">&#9733;&#9733;&#9733;&#9733; Hard</option>
+                    <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; Very Hard</option>
+                </select>
+            </div>
+            <div class="col-auto px-1 d-flex" style="gap:6px;">
+                <button class="btn-filter" id="ic-btn-search" style="height:34px;padding:0 0.75rem;font-size:0.85rem;font-weight:600;border:none;border-radius:4px;cursor:pointer;">
+                    <i class="fas fa-search mr-1"></i> Search
+                </button>
+                <button class="btn-clear-filter" id="ic-btn-reset" style="height:34px;">
+                    <i class="fas fa-sync-alt mr-1"></i> Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action row: selection count + import button -->
+    <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+        <div class="clean-info-text" id="ic-sel-info">
+            <span class="text-muted">No challenges selected</span>
+        </div>
+        <div>
+            <button class="clean-btn clean-btn-primary" id="ic-btn-import" disabled>
+                <i class="btn-fa fas fa-file-import"></i> Import to contest
+            </button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="clean-table-wrapper mt-2" id="ic-table-wrap">
+        <table class="clean-table table" id="ic-table">
+            <thead>
+                <tr>
+                    <th data-checkbox style="width:36px;text-align:center;">
+                        <input type="checkbox" class="table-check" id="ic-chk-all" autocomplete="off">
+                    </th>
+                    <th class="text-center">#</th>
+                    <th class="text-center">Name</th>
+                    <th class="text-center">Category</th>
+                    <th class="text-center">Type</th>
+                    <th class="text-center">Difficulty</th>
+                    <th class="text-center">Docker</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody id="ic-tbody">
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Footer: pagination -->
+        <div class="import-footer" id="ic-pagination" style="display:none;">
+            <div class="clean-info-text" id="ic-page-info"></div>
+            <nav>
+                <ul class="clean-pagination pagination mb-0" id="ic-page-btns"></ul>
+            </nav>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+(function () {
+    const CONTEST_ID = {{ contest.id }};
+    const API_BASE   = '/api/v1/contest_challenges';
+    const CSRF       = (window.init && init.csrfNonce) || '';
+
+    var state = { page: 1, pages: 1, total: 0, challenges: [], selected: new Set() };
+
+    /* ── helpers ─────────────────────────────────────────────────── */
+    function stars(n) {
+        if (!n) return '<span class="text-muted">&mdash;</span>';
+        return [1,2,3,4,5].map(function(i) {
+            return '<i class="fas fa-star import-star-' + (i <= n ? 'on' : 'off') + '"></i>';
+        }).join('');
+    }
+
+    function typeTag(t) {
+        if (!t) return '';
+        var map = {
+            standard: 'clean-badge-success',
+            dynamic:  'clean-badge-primary',
+            multiple_choice: 'clean-badge-secondary'
+        };
+        var cls = map[t] || 'clean-badge-secondary';
+        return '<span class="clean-badge ' + cls + '">' + t.replace(/_/g,' ').toUpperCase() + '</span>';
+    }
+
+    function escHtml(s) {
+        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function getFilters() {
+        return {
+            q:          document.getElementById('ic-search').value.trim(),
+            type:       document.getElementById('ic-f-type').value,
+            category:   document.getElementById('ic-f-cat').value,
+            difficulty: document.getElementById('ic-f-diff').value
+        };
+    }
+
+    /* ── fetch ───────────────────────────────────────────────────── */
+    function load(page) {
+        var f = getFilters();
+        var params = new URLSearchParams({ contest_id: CONTEST_ID, page: page || state.page, per_page: 50 });
+        if (f.q)          params.set('q', f.q);
+        if (f.type)       params.set('type', f.type);
+        if (f.category)   params.set('category', f.category);
+        if (f.difficulty) params.set('difficulty', f.difficulty);
+
+        document.getElementById('ic-tbody').innerHTML =
+            '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-loader-alt bx-spin mr-1"></i> Loading…</td></tr>';
+
+        fetch(API_BASE + '?' + params, { headers: { 'CSRF-Token': CSRF } })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (!res.success) return;
+                state.challenges = res.data;
+                state.page  = res.meta.page;
+                state.pages = res.meta.pages;
+                state.total = res.meta.total;
+                render();
+            });
+    }
+
+    /* ── render ──────────────────────────────────────────────────── */
+    function render() {
+        var tbody = document.getElementById('ic-tbody');
+        var offset = (state.page - 1) * 50;
+
+        if (!state.challenges.length) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bx bx-info-circle mr-1"></i> No challenges found</td></tr>';
+        } else {
+            tbody.innerHTML = state.challenges.map(function(c, i) {
+                var imp = c.imported;
+                var sel = state.selected.has(c.id);
+                var rowCls = imp ? 'import-imported-row' : (sel ? 'import-selected-row' : '');
+                var onRow  = imp ? '' : ' onclick="window._icToggle(' + c.id + ')"';
+
+                var chkHtml = imp
+                    ? '<input type="checkbox" class="table-check" checked disabled>'
+                    : '<input type="checkbox" class="table-check" ' + (sel ? 'checked' : '') + ' onclick="event.stopPropagation();window._icToggle(' + c.id + ')">';
+
+                var dockerCell = c.require_deploy
+                    ? '<span class="clean-badge" style="background:#fff3cd;color:#856404;border:1px solid #ffe08a;">Docker</span>'
+                    : '<span class="text-muted">&mdash;</span>';
+
+                var statusCell = imp
+                    ? '<span class="clean-badge clean-badge-success"><i class="fas fa-check mr-1" style="font-size:0.65rem;"></i>Imported</span>'
+                    : '<span class="text-muted">&mdash;</span>';
+
+                return '<tr class="' + rowCls + '"' + onRow + '>' +
+                    '<td data-checkbox style="text-align:center;">' + chkHtml + '</td>' +
+                    '<td class="text-center" style="color:var(--text-light);">' + (offset + i + 1) + '</td>' +
+                    '<td class="text-center"><strong>' + escHtml(c.name) + '</strong></td>' +
+                    '<td class="text-center"><span class="clean-badge clean-badge-secondary">' + escHtml(c.category) + '</span></td>' +
+                    '<td class="text-center">' + typeTag(c.type) + '</td>' +
+                    '<td class="text-center">' + stars(c.difficulty) + '</td>' +
+                    '<td class="text-center">' + dockerCell + '</td>' +
+                    '<td class="text-center">' + statusCell + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        /* select-all checkbox */
+        var avail  = state.challenges.filter(function(c) { return !c.imported; });
+        var allChk = document.getElementById('ic-chk-all');
+        allChk.checked       = avail.length > 0 && avail.every(function(c) { return state.selected.has(c.id); });
+        allChk.indeterminate = !allChk.checked && avail.some(function(c) { return state.selected.has(c.id); });
+
+        /* sel info + import btn */
+        var n = state.selected.size;
+        document.getElementById('ic-btn-import').disabled = n === 0;
+        document.getElementById('ic-sel-info').innerHTML = n > 0
+            ? 'Selected <span class="clean-badge clean-badge-primary">' + n + '</span> challenge' + (n > 1 ? 's' : '')
+            : '<span class="text-muted">No challenges selected</span>';
+
+        renderPagination();
+    }
+
+    function renderPagination() {
+        var pg = document.getElementById('ic-pagination');
+        if (state.pages <= 1) { pg.style.display = 'none'; return; }
+        pg.style.display = 'flex';
+
+        document.getElementById('ic-page-info').textContent =
+            'Page ' + state.page + ' of ' + state.pages + ' · ' + state.total + ' total';
+
+        var start = Math.max(1, state.page - 2);
+        var end   = Math.min(state.pages, state.page + 2);
+        var html  = '<li class="page-item' + (state.page === 1 ? ' disabled' : '') + '">' +
+                    '<a class="page-link" href="#" onclick="window._icPage(' + (state.page - 1) + ');return false;">&laquo;</a></li>';
+
+        if (start > 1) {
+            html += '<li class="page-item"><a class="page-link" href="#" onclick="window._icPage(1);return false;">1</a></li>';
+            if (start > 2) html += '<li class="page-item disabled"><span class="page-link">…</span></li>';
+        }
+        for (var p = start; p <= end; p++) {
+            html += '<li class="page-item' + (p === state.page ? ' active' : '') + '">' +
+                    '<a class="page-link" href="#" onclick="window._icPage(' + p + ');return false;">' + p + '</a></li>';
+        }
+        if (end < state.pages) {
+            if (end < state.pages - 1) html += '<li class="page-item disabled"><span class="page-link">…</span></li>';
+            html += '<li class="page-item"><a class="page-link" href="#" onclick="window._icPage(' + state.pages + ');return false;">' + state.pages + '</a></li>';
+        }
+        html += '<li class="page-item' + (state.page === state.pages ? ' disabled' : '') + '">' +
+                '<a class="page-link" href="#" onclick="window._icPage(' + (state.page + 1) + ');return false;">&raquo;</a></li>';
+
+        document.getElementById('ic-page-btns').innerHTML = html;
+    }
+
+    /* ── public handlers ─────────────────────────────────────────── */
+    window._icToggle = function(id) {
+        var c = state.challenges.find(function(x) { return x.id === id; });
+        if (!c || c.imported) return;
+        state.selected.has(id) ? state.selected.delete(id) : state.selected.add(id);
+        render();
+    };
+
+    window._icPage = function(p) {
+        if (p < 1 || p > state.pages) return;
+        load(p);
+    };
+
+    /* ── select-all ──────────────────────────────────────────────── */
+    document.getElementById('ic-chk-all').addEventListener('change', function() {
+        var checked = this.checked;
+        state.challenges.filter(function(c) { return !c.imported; }).forEach(function(c) {
+            checked ? state.selected.add(c.id) : state.selected.delete(c.id);
+        });
+        render();
+    });
+
+    /* ── filter events ───────────────────────────────────────────── */
+    var searchTimer;
+    document.getElementById('ic-search').addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() { state.selected.clear(); load(1); }, 300);
+    });
+    document.getElementById('ic-search').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { clearTimeout(searchTimer); state.selected.clear(); load(1); }
+    });
+    document.getElementById('ic-btn-search').addEventListener('click', function() {
+        state.selected.clear(); load(1);
+    });
+    ['ic-f-type','ic-f-cat','ic-f-diff'].forEach(function(id) {
+        document.getElementById(id).addEventListener('change', function() { state.selected.clear(); load(1); });
+    });
+    document.getElementById('ic-btn-reset').addEventListener('click', function() {
+        document.getElementById('ic-search').value = '';
+        document.getElementById('ic-f-type').value = '';
+        document.getElementById('ic-f-cat').value  = '';
+        document.getElementById('ic-f-diff').value = '';
+        state.selected.clear();
+        load(1);
+    });
+
+    /* ── import ──────────────────────────────────────────────────── */
+    document.getElementById('ic-btn-import').addEventListener('click', function() {
+        if (!state.selected.size) return;
+        var ids = Array.from(state.selected);
+        var btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin btn-fa"></i> Importing…';
+
+        fetch(API_BASE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF },
+            body: JSON.stringify({ contest_id: CONTEST_ID, challenge_ids: ids })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.success) {
+                state.selected.clear();
+                load(state.page);
+                var d = res.data;
+                alert('Imported ' + d.imported + ' challenge(s) successfully.' +
+                    (d.skipped ? ' (' + d.skipped + ' already present or not found)' : ''));
+            } else {
+                alert('Import failed. Please try again.');
+            }
+        })
+        .catch(function() { alert('Network error. Please try again.'); })
+        .finally(function() {
+            btn.innerHTML = '<i class="btn-fa fas fa-file-import"></i> Import to contest';
+        });
+    });
+
+    /* ── init ────────────────────────────────────────────────────── */
+    load(1);
+})();
+</script>
+{% endblock %}

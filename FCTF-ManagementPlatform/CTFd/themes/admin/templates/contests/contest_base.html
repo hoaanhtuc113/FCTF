@@ -135,7 +135,7 @@
     </a>
 
     <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
-       class="cs-nav-link {% if request.endpoint == 'admin.contest_challenges' %}active{% endif %}">
+       class="cs-nav-link {% if request.endpoint in ['admin.contest_challenges', 'admin.contest_import_challenges'] %}active{% endif %}">
         <i class="bx bx-desktop"></i> Challenges
     </a>
 
