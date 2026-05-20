@@ -808,16 +808,135 @@ def contest_action_logs(contest_id):
     )
 
 
-@admin.route("/admin/contests/<int:contest_id>/tickets")
+@admin.route("/admin/contests/<int:contest_id>/tickets", methods=["GET"])
 @admins_only
 def contest_tickets(contest_id):
+    from CTFd.SendTicket import get_all_tickets
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     is_detail = True
+
+    page = request.args.get("page", default=1, type=int) or 1
+    per_page = request.args.get("per_page", default=50, type=int) or 50
+    page = max(page, 1)
+    per_page = min(max(per_page, 1), 100)
+    status = request.args.get("status", type=str)
+    type_ = request.args.get("type", type=str)
+    search = request.args.get("search", type=str)
+
+    response, status_code = get_all_tickets(
+        status=status,
+        type_=type_,
+        search=search,
+        page=page,
+        per_page=per_page,
+        contest_id=contest_id,
+    )
+
+    tickets = response.get("tickets", []) if status_code == 200 else []
+    total = response.get("total", 0) if status_code == 200 else 0
+
     return render_template(
         "admin/contests/sections/tickets.html",
         contest=contest,
         is_detail=is_detail,
+        tickets=tickets,
+        total=total,
+        page=page,
+        per_page=per_page,
+        status_options=["Open", "Closed"],
+        type_options=["Question", "Error"],
+        selected_status=status,
+        selected_type=type_,
+        search=search,
     )
+
+
+@admin.route("/admin/contests/<int:contest_id>/tickets/delete", methods=["POST"])
+@admins_only
+def contest_delete_tickets(contest_id):
+    from CTFd.models import Tickets
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    ticket_ids = request.form.getlist("ticket_ids[]")
+
+    if not ticket_ids:
+        flash("No tickets selected for deletion", "warning")
+        return redirect(url_for("admin.contest_tickets", contest_id=contest_id))
+
+    deleted_count = 0
+    for tid in ticket_ids:
+        ticket = Tickets.query.filter_by(id=int(tid), contest_id=contest_id).first()
+        if ticket:
+            db.session.delete(ticket)
+            deleted_count += 1
+
+    db.session.commit()
+
+    if deleted_count > 0:
+        flash(f"Successfully deleted {deleted_count} ticket(s)", "success")
+    else:
+        flash("No tickets were deleted", "warning")
+
+    return redirect(url_for("admin.contest_tickets", contest_id=contest_id))
+
+
+@admin.route("/admin/contests/<int:contest_id>/tickets/<int:ticket_id>", methods=["GET"])
+@admins_only
+def contest_ticket_detail(contest_id, ticket_id):
+    from CTFd.SendTicket import get_ticket_by_id
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    current_user_id = None
+    try:
+        from CTFd.utils.user import get_current_user
+        u = get_current_user()
+        if u:
+            current_user_id = u.id
+    except Exception:
+        pass
+
+    response, status_code = get_ticket_by_id(ticket_id=ticket_id)
+    ticket_data = response.get("ticket") if status_code == 200 else None
+
+    return render_template(
+        "admin/contests/sections/ticket_detail.html",
+        contest=contest,
+        is_detail=True,
+        ticket_data=ticket_data,
+        userId=current_user_id,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/tickets/respond", methods=["POST"])
+@admins_only
+def contest_send_ticket_response(contest_id):
+    from CTFd.SendTicket import send_ticket_from_relier
+    from CTFd.utils.user import get_current_user
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    current_user = get_current_user()
+    if not current_user:
+        flash("You must be logged in to reply to tickets", "danger")
+        return redirect(url_for("admin.contest_tickets", contest_id=contest_id))
+
+    ticket_id = request.form.get("ticket_id")
+    response_content = request.form.get("response")
+
+    if not ticket_id or not response_content:
+        flash("All fields are required", "danger")
+        return redirect(url_for("admin.contest_ticket_detail", contest_id=contest_id, ticket_id=ticket_id))
+
+    data = {
+        "ticket_id": ticket_id,
+        "replier_id": current_user.id,
+        "replier_message": response_content,
+    }
+
+    _, status_code = send_ticket_from_relier(ticket_id, data)
+
+    if status_code == 200:
+        flash("Message sent successfully", "success")
+    else:
+        flash("Failed to submit the response. Please try again", "danger")
+
+    return redirect(url_for("admin.contest_tickets", contest_id=contest_id))
 
 
 @admin.route("/admin/contests/<int:contest_id>/instances")
