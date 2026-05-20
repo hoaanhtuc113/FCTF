@@ -204,11 +204,11 @@ auth:
   ## @param auth.username RabbitMQ application username
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
-  username: rabbit-admin
+  username: admin
   ## @param auth.password RabbitMQ application password
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##
-  password: "Fctf2025@admin"
+  password: "Fctf@2026"
   ## @param auth.securePassword Whether to set the RabbitMQ password securely. This is incompatible with loading external RabbitMQ definitions and 'true' when not setting the auth.password parameter.
   ## ref: https://github.com/bitnami/containers/tree/main/bitnami/rabbitmq#environment-variables
   ##

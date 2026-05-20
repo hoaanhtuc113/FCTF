@@ -35,7 +35,7 @@ Description:
      4) Rotate MariaDB service-account passwords (contestant_be, deployment_*)
        (SQL ALTER USER + DB_CONNECTION patch)
      5) Patch matching Kubernetes Secrets (excluding ctfd namespace)
-    6) Keep Harbor admin/rabbit-admin/rancher/grafana admin accounts unchanged
+    6) Keep Harbor admin/admin/rancher/grafana admin accounts unchanged
     7) Rotate RABBIT_PASSWORD only for deployment-center/deployment-consumer
      8) Rotate SECRET_KEY and PRIVATE_KEY for secrets in namespace app
     9) Wait for selected DB pods readiness before applying changes
@@ -1332,7 +1332,7 @@ echo "============================================================"
 echo "Rotate Service + Infrastructure Credentials"
 echo "============================================================"
 echo "Mode: rotate Redis + RabbitMQ producer/consumer + MariaDB + Harbor credentials."
-echo "Note: rabbit-admin/Harbor admin/Rancher/Grafana admins are not rotated."
+echo "Note: admin/Harbor admin/Rancher/Grafana admins are not rotated."
 echo "Note: RABBIT_PASSWORD is rotated only for deployment-center-secret/deployment-consumer-secret."
 echo
 
