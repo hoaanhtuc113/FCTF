@@ -380,13 +380,15 @@ class ChallengeTemplate(Resource):
         DeployedChallenge.query.filter_by(challenge_template_id=template_id).delete()
 
         if challenge.require_deploy:
-            if challenge.deploy_file:
-                delete_folder(challenge.deploy_file)
+            active_version = ChallengeVersion.query.filter_by(
+                challenge_template_id=template_id, is_active=True
+            ).first()
+            if active_version and active_version.deploy_file:
+                delete_folder(active_version.deploy_file)
             delete_cached_files(challenge.id)
 
         # Remove all related records before deleting the challenge itself
         from CTFd.models import ContestChallenge
-        # Nullify template_version_id references before removing versions
         ChallengeVersion.query.filter_by(challenge_template_id=template_id).delete()
 
         db.session.delete(challenge)

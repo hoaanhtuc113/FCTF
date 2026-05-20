@@ -272,7 +272,7 @@
 
 </div>
 
-<!-- Delete confirm modal -->
+<!-- Delete confirm modal (single row) -->
 <div class="modal fade" id="delete-template-modal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -286,7 +286,27 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirm-delete-template">Delete</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-template">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk delete confirm modal -->
+<div class="modal fade" id="bulk-delete-template-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Challenge Templates</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="bulk-delete-count"></strong> selected template(s)?<br>
+                This will remove all associated flags, files, hints, and deploy history. This cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-bulk-delete-template">Yes, Delete</button>
             </div>
         </div>
     </div>
@@ -322,36 +342,51 @@ function deleteTemplate(id, name) {
 
 document.getElementById('confirm-delete-template').addEventListener('click', function () {
     if (!_deleteTargetId) return;
+    const btn = this;
+    btn.disabled = true;
     fetch('/api/v1/challenge_templates/' + _deleteTargetId, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': init.csrfNonce },
+        headers: { 'Content-Type': 'application/json', 'CSRF-Token': init.csrfNonce },
         credentials: 'same-origin',
     })
     .then(r => r.json())
     .then(data => {
+        $('#delete-template-modal').modal('hide');
         if (data.success) {
             location.reload();
         } else {
-            alert('Delete failed: ' + JSON.stringify(data));
+            btn.disabled = false;
         }
     })
-    .catch(e => alert('Error: ' + e));
+    .catch(() => { btn.disabled = false; });
 });
 
 // Bulk delete
+let _bulkDeleteIds = [];
+
 document.getElementById('templates-delete-button')?.addEventListener('click', function () {
     const checked = Array.from(document.querySelectorAll('.table-check:checked:not([data-checkbox-all])'))
         .map(cb => parseInt(cb.value));
-    if (!checked.length) { alert('No templates selected.'); return; }
-    if (!confirm('Delete ' + checked.length + ' template(s)? This cannot be undone.')) return;
+    if (!checked.length) return;
+    _bulkDeleteIds = checked;
+    document.getElementById('bulk-delete-count').textContent = checked.length;
+    $('#bulk-delete-template-modal').modal('show');
+});
 
-    Promise.all(checked.map(id =>
+document.getElementById('confirm-bulk-delete-template')?.addEventListener('click', function () {
+    if (!_bulkDeleteIds.length) return;
+    const btn = this;
+    btn.disabled = true;
+    Promise.all(_bulkDeleteIds.map(id =>
         fetch('/api/v1/challenge_templates/' + id, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': init.csrfNonce },
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': init.csrfNonce },
             credentials: 'same-origin',
         }).then(r => r.json())
-    )).then(() => location.reload());
+    )).then(() => {
+        $('#bulk-delete-template-modal').modal('hide');
+        location.reload();
+    }).catch(() => { btn.disabled = false; });
 });
 
 // Row click navigation
