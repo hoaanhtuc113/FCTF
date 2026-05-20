@@ -1,6 +1,7 @@
 import datetime
+from io import BytesIO
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, send_file, url_for
 from sqlalchemy import or_
 
 from CTFd.admin import admin
@@ -124,13 +125,387 @@ def contest_submissions(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/scoreboard")
 @admins_only
 def contest_scoreboard(contest_id):
+    from sqlalchemy.sql.expression import union_all
+    from CTFd.models import AwardBadges, Achievements, Awards, Brackets, Challenges, ContestChallenge, Solves, Teams, Users, UserTeamMember
+    from CTFd.utils.config import is_teams_mode
+
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    is_detail = True
+
+    bracket_id = request.args.get("bracket_id", type=int)
+    brackets = Brackets.query.filter_by(contest_id=contest_id).all()
+
+    # Team standings: Solves → ContestChallenge (contest_challenge_id), filter by contest_id
+    # ContestChallenge.value holds the point value for this challenge in this contest
+    team_scores = (
+        db.session.query(
+            Solves.team_id.label("account_id"),
+            db.func.sum(ContestChallenge.value).label("score"),
+            db.func.max(Solves.id).label("id"),
+            db.func.max(Solves.date).label("date"),
+        )
+        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+        .filter(ContestChallenge.contest_id == contest_id)
+        .filter(ContestChallenge.value != 0)
+        .filter(Solves.team_id != None)
+        .group_by(Solves.team_id)
+    )
+    team_awards = (
+        db.session.query(
+            Awards.team_id.label("account_id"),
+            db.func.sum(Awards.value).label("score"),
+            db.func.max(Awards.id).label("id"),
+            db.func.max(Awards.date).label("date"),
+        )
+        .filter(Awards.contest_id == contest_id)
+        .filter(Awards.value != 0)
+        .filter(Awards.team_id != None)
+        .group_by(Awards.team_id)
+    )
+    sumscores = union_all(team_scores, team_awards).alias("sumscores")
+
+    standings_query = (
+        db.session.query(
+            Teams.id.label("account_id"),
+            Teams.oauth_id.label("oauth_id"),
+            Teams.name.label("name"),
+            Teams.hidden.label("hidden"),
+            db.func.sum(sumscores.columns.score).label("score"),
+        )
+        .join(sumscores, Teams.id == sumscores.columns.account_id)
+        .filter(Teams.contest_id == contest_id)
+        .filter(Teams.banned == False)
+        .group_by(Teams.id)
+        .order_by(
+            db.func.sum(sumscores.columns.score).desc(),
+            db.func.max(sumscores.columns.date).asc(),
+            db.func.max(sumscores.columns.id).asc(),
+        )
+    )
+    if bracket_id is not None:
+        standings_query = standings_query.filter(Teams.bracket_id == bracket_id)
+    standings = standings_query.all()
+
+    # User standings (teams mode only)
+    user_standings = None
+    if is_teams_mode():
+        u_scores = (
+            db.session.query(
+                Solves.user_id.label("user_id"),
+                db.func.sum(ContestChallenge.value).label("score"),
+                db.func.max(Solves.id).label("id"),
+                db.func.max(Solves.date).label("date"),
+            )
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+            .filter(ContestChallenge.contest_id == contest_id)
+            .filter(ContestChallenge.value != 0)
+            .filter(Solves.user_id != None)
+            .group_by(Solves.user_id)
+        )
+        u_awards = (
+            db.session.query(
+                Awards.user_id.label("user_id"),
+                db.func.sum(Awards.value).label("score"),
+                db.func.max(Awards.id).label("id"),
+                db.func.max(Awards.date).label("date"),
+            )
+            .filter(Awards.contest_id == contest_id)
+            .filter(Awards.value != 0)
+            .filter(Awards.user_id != None)
+            .group_by(Awards.user_id)
+        )
+        u_sumscores = union_all(u_scores, u_awards).alias("u_sumscores")
+        user_standings_query = (
+            db.session.query(
+                Users.id.label("user_id"),
+                Users.oauth_id.label("oauth_id"),
+                Users.name.label("name"),
+                Users.hidden.label("hidden"),
+                db.func.sum(u_sumscores.columns.score).label("score"),
+            )
+            .join(u_sumscores, Users.id == u_sumscores.columns.user_id)
+            .join(UserTeamMember, Users.id == UserTeamMember.user_id)
+            .join(Teams, UserTeamMember.team_id == Teams.id)
+            .filter(Teams.contest_id == contest_id)
+            .filter(Users.banned == False, Users.hidden == False)
+            .group_by(Users.id)
+            .order_by(
+                db.func.sum(u_sumscores.columns.score).desc(),
+                db.func.max(u_sumscores.columns.date).asc(),
+                db.func.max(u_sumscores.columns.id).asc(),
+            )
+        )
+        if bracket_id is not None:
+            user_standings_query = user_standings_query.filter(Users.bracket_id == bracket_id)
+        user_standings = user_standings_query.all()
+
+    # First bloods: Achievements → AwardBadges → Challenges, filtered to this contest's challenges
+    contest_challenge_tpl_ids = [
+        r[0] for r in db.session.query(ContestChallenge.challenge_template_id)
+        .filter(ContestChallenge.contest_id == contest_id).all()
+    ]
+    first_bloods_data = []
+    if contest_challenge_tpl_ids:
+        fb_rows = (
+            db.session.query(
+                Challenges.name.label("challenge"),
+                Teams.name.label("team_name"),
+            )
+            .select_from(Achievements)
+            .join(AwardBadges, Achievements.award_badge_id == AwardBadges.id)
+            .join(Challenges, AwardBadges.challenge_template_id == Challenges.id)
+            .join(Teams, Achievements.team_id == Teams.id)
+            .filter(AwardBadges.name == "First Blood")
+            .filter(AwardBadges.challenge_template_id.in_(contest_challenge_tpl_ids))
+            .all()
+        )
+        first_bloods_data = [
+            {"challenge": row.challenge, "team_name": row.team_name, "user_name": "—"}
+            for row in fb_rows
+        ]
+
     return render_template(
         "admin/contests/sections/scoreboard.html",
         contest=contest,
-        is_detail=is_detail,
+        is_detail=True,
+        standings=standings,
+        user_standings=user_standings,
+        brackets=brackets,
+        selected_bracket_id=bracket_id,
+        first_bloods=first_bloods_data,
+        challenge_masters=[],
+        top_submission=[],
+        top_solves=[],
+        top_solves_with_topics={},
     )
+
+
+@admin.route("/admin/contests/<int:contest_id>/scoreboard/export")
+@admins_only
+def contest_scoreboard_export(contest_id):
+    try:
+        import pandas as pd
+    except ImportError:
+        return {"success": False, "error": "pandas library not installed"}, 500
+
+    try:
+        import traceback
+        from sqlalchemy.sql.expression import union_all
+        from CTFd.models import Awards, Brackets, Challenges, ContestChallenge, Solves, Teams, Users, UserTeamMember
+
+        contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        bracket_id = request.args.get("bracket_id", type=int)
+
+        # bracket lookup map (id → name) để tránh join phức tạp
+        bracket_map = {b.id: b.name for b in Brackets.query.filter_by(contest_id=contest_id).all()}
+
+        # ── Sheet 1: Teams Standings ──────────────────────────────────────────
+        team_scores = (
+            db.session.query(
+                Solves.team_id.label("account_id"),
+                db.func.sum(ContestChallenge.value).label("score"),
+                db.func.max(Solves.id).label("id"),
+                db.func.max(Solves.date).label("date"),
+            )
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+            .filter(ContestChallenge.contest_id == contest_id, ContestChallenge.value != 0)
+            .filter(Solves.team_id != None)
+            .group_by(Solves.team_id)
+        )
+        team_awards = (
+            db.session.query(
+                Awards.team_id.label("account_id"),
+                db.func.sum(Awards.value).label("score"),
+                db.func.max(Awards.id).label("id"),
+                db.func.max(Awards.date).label("date"),
+            )
+            .filter(Awards.contest_id == contest_id, Awards.value != 0)
+            .filter(Awards.team_id != None)
+            .group_by(Awards.team_id)
+        )
+        sumscores = union_all(team_scores, team_awards).alias("sumscores")
+        team_q = (
+            db.session.query(
+                Teams.id.label("account_id"),
+                Teams.oauth_id.label("oauth_id"),
+                Teams.name.label("name"),
+                Teams.bracket_id.label("bracket_id"),
+                Teams.hidden.label("hidden"),
+                Teams.banned.label("banned"),
+                db.func.sum(sumscores.columns.score).label("score"),
+                db.func.max(sumscores.columns.date).label("last_date"),
+                db.func.max(sumscores.columns.id).label("last_id"),
+            )
+            .join(sumscores, Teams.id == sumscores.columns.account_id)
+            .filter(Teams.contest_id == contest_id)
+            .group_by(
+                Teams.id, Teams.oauth_id, Teams.name,
+                Teams.bracket_id, Teams.hidden, Teams.banned,
+            )
+            .order_by(
+                db.func.sum(sumscores.columns.score).desc(),
+                db.func.max(sumscores.columns.date).asc(),
+                db.func.max(sumscores.columns.id).asc(),
+            )
+        )
+        if bracket_id is not None:
+            team_q = team_q.filter(Teams.bracket_id == bracket_id)
+
+        standings_data = [
+            {
+                "Rank": i + 1,
+                "account_id": r.account_id,
+                "oauth_id": r.oauth_id,
+                "name": r.name,
+                "bracket_id": r.bracket_id,
+                "bracket_name": bracket_map.get(r.bracket_id, ""),
+                "hidden": r.hidden,
+                "banned": r.banned,
+                "score": r.score or 0,
+            }
+            for i, r in enumerate(team_q.all())
+        ]
+
+        # ── Sheet 2: Submit Standings (solve log) ─────────────────────────────
+        submit_q = (
+            db.session.query(
+                Solves.team_id.label("team_id"),
+                Teams.name.label("team_name"),
+                Challenges.id.label("challenge_id"),
+                Challenges.name.label("challenge_name"),
+                Solves.date.label("submission_time"),
+                Teams.country.label("country"),
+            )
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+            .join(Teams, Solves.team_id == Teams.id)
+            .join(Challenges, ContestChallenge.challenge_template_id == Challenges.id)
+            .filter(ContestChallenge.contest_id == contest_id)
+            .filter(Teams.hidden == False, Teams.banned == False)
+            .order_by(Solves.date.asc())
+        )
+        if bracket_id is not None:
+            submit_q = submit_q.filter(Teams.bracket_id == bracket_id)
+
+        submit_data = [
+            {
+                "team_id": r.team_id,
+                "team_name": r.team_name,
+                "challenge_id": r.challenge_id,
+                "challenge_name": r.challenge_name,
+                "submission_time": r.submission_time.strftime("%Y-%m-%d %H:%M:%S") if r.submission_time else "",
+                "country": r.country,
+            }
+            for r in submit_q.all()
+        ]
+
+        # ── Sheet 3: Users Standings ──────────────────────────────────────────
+        u_scores = (
+            db.session.query(
+                Solves.user_id.label("user_id"),
+                db.func.sum(ContestChallenge.value).label("score"),
+                db.func.max(Solves.id).label("id"),
+                db.func.max(Solves.date).label("date"),
+            )
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+            .filter(ContestChallenge.contest_id == contest_id, ContestChallenge.value != 0)
+            .filter(Solves.user_id != None)
+            .group_by(Solves.user_id)
+        )
+        u_awards = (
+            db.session.query(
+                Awards.user_id.label("user_id"),
+                db.func.sum(Awards.value).label("score"),
+                db.func.max(Awards.id).label("id"),
+                db.func.max(Awards.date).label("date"),
+            )
+            .filter(Awards.contest_id == contest_id, Awards.value != 0)
+            .filter(Awards.user_id != None)
+            .group_by(Awards.user_id)
+        )
+        u_sumscores = union_all(u_scores, u_awards).alias("u_sumscores")
+        user_q = (
+            db.session.query(
+                Users.id.label("user_id"),
+                Users.oauth_id.label("oauth_id"),
+                Users.name.label("name"),
+                Users.hidden.label("hidden"),
+                Users.banned.label("banned"),
+                db.func.sum(u_sumscores.columns.score).label("score"),
+            )
+            .join(u_sumscores, Users.id == u_sumscores.columns.user_id)
+            .join(UserTeamMember, Users.id == UserTeamMember.user_id)
+            .join(Teams, UserTeamMember.team_id == Teams.id)
+            .filter(Teams.contest_id == contest_id)
+            .filter(Users.banned == False, Users.hidden == False)
+            .group_by(Users.id, Users.oauth_id, Users.name, Users.hidden, Users.banned)
+            .order_by(
+                db.func.sum(u_sumscores.columns.score).desc(),
+                db.func.max(u_sumscores.columns.date).asc(),
+                db.func.max(u_sumscores.columns.id).asc(),
+            )
+        )
+        if bracket_id is not None:
+            user_q = user_q.filter(Users.bracket_id == bracket_id)
+
+        user_data = [
+            {
+                "Rank": i + 1,
+                "user_id": r.user_id,
+                "oauth_id": r.oauth_id,
+                "name": r.name,
+                "hidden": r.hidden,
+                "banned": r.banned,
+                "score": r.score or 0,
+            }
+            for i, r in enumerate(user_q.all())
+        ]
+
+        # ── Sheet 4: Top Teams Solved Most Challenges ─────────────────────────
+        top_q = (
+            db.session.query(
+                Teams.id.label("team_id"),
+                Teams.name.label("team_name"),
+                db.func.count(Solves.id).label("solved_challenges_count"),
+                Teams.hidden.label("hidden"),
+                Teams.banned.label("banned"),
+            )
+            .join(Solves, Solves.team_id == Teams.id)
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+            .filter(ContestChallenge.contest_id == contest_id, Teams.contest_id == contest_id)
+            .group_by(Teams.id, Teams.name, Teams.hidden, Teams.banned)
+            .order_by(db.func.count(Solves.id).desc())
+        )
+
+        top_data = [
+            {
+                "team_id": r.team_id,
+                "team_name": r.team_name,
+                "solved_challenges_count": r.solved_challenges_count,
+                "hidden": r.hidden,
+                "banned": r.banned,
+            }
+            for r in top_q.all()
+        ]
+
+        # ── Build Excel ───────────────────────────────────────────────────────
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            pd.DataFrame(standings_data).to_excel(writer, sheet_name="Standings", index=False)
+            pd.DataFrame(submit_data).to_excel(writer, sheet_name="Submit Standings", index=False)
+            pd.DataFrame(user_data).to_excel(writer, sheet_name="Users Standings", index=False)
+            pd.DataFrame(top_data).to_excel(writer, sheet_name="Top Teams Solved Most Chal", index=False)
+        output.seek(0)
+
+        safe_name = "".join(c if c.isalnum() or c in "-_ " else "_" for c in contest.name).strip()
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"scoreboard_{safe_name}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    except Exception as e:
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}, 500
 
 
 @admin.route("/admin/contests/<int:contest_id>/challenges")
