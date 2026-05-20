@@ -2,17 +2,6 @@
 
 {% block stylesheets %}
 <style>
-    /* ═══════════════════════════════════════════════════════════════
-       Contest-scoped sidebar — matches the design in the reference image
-       (right panel): "CONTEST" header, large icons, generous spacing
-       ═══════════════════════════════════════════════════════════════ */
-
-    /* Override sidebar width/padding to match main sidebar */
-    #sidebar {
-        padding: 20px 16px 16px;
-        gap: 0;
-    }
-
     /* ── Back link ─────────────────────────────────────────────── */
     .cs-back {
         display: flex;
@@ -27,7 +16,7 @@
         padding: 6px 10px;
         border-radius: 6px;
         margin-bottom: 18px;
-        transition: background 0.18s, color 0.18s;
+        transition: all 0.2s ease;
         width: 100%;
     }
 
@@ -36,8 +25,9 @@
     }
 
     .cs-back:hover {
-        background: var(--primary-orange);
-        color: #fff !important;
+        background-color: var(--primary-orange);
+        color: var(--bg-white) !important;
+        transform: translateX(3px);
     }
 
     /* ── Section header — "CONTEST" bold uppercase label ──────── */
@@ -176,42 +166,42 @@ Override the entire sidebar block with contest-scoped navigation
         <i class="bx bx-arrow-back"></i> All Contests
     </a>
 
-    {# ── "CONTEST" section label (matches image) ── #}
+    {# ── "CONTEST" section label ── #}
     <span class="cs-section-label">Contest</span>
 
     {# ── Dashboard ── #}
     <a href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_dashboard' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_dashboard' %}active{% endif %}">
         <i class="bx bx-bar-chart-alt-2"></i> Dashboard
     </a>
 
     <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint in ['admin.contest_challenges', 'admin.contest_import_challenges'] %}active{% endif %}">
+        class="nav-link {% if request.endpoint in ['admin.contest_challenges', 'admin.contest_import_challenges'] %}active{% endif %}">
         <i class="bx bx-book"></i> Challenges
     </a>
 
     <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_users' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_users' %}active{% endif %}">
         <i class="bx bx-user"></i> Users
     </a>
 
     <a href="{{ url_for('admin.contest_teams', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_teams' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_teams' %}active{% endif %}">
         <i class="bx bx-group"></i> Teams
     </a>
 
     <a href="{{ url_for('admin.contest_action_logs', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_action_logs' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_action_logs' %}active{% endif %}">
         <i class="bx bx-list-ul"></i> Action Logs
     </a>
 
     <a href="{{ url_for('admin.contest_tickets', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_tickets' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_tickets' %}active{% endif %}">
         <i class="bx bx-envelope"></i> Tickets
     </a>
 
     <a href="{{ url_for('admin.contest_instances', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_instances' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_instances' %}active{% endif %}">
         <i class="bx bx-time-five"></i> Instance History
     </a>
 
@@ -246,13 +236,13 @@ Override the entire sidebar block with contest-scoped navigation
     </a>
 
     <a href="{{ url_for('admin.contest_dynamic_reward', contest_id=contest.id) }}"
-        class="cs-nav-link {% if request.endpoint == 'admin.contest_dynamic_reward' %}active{% endif %}">
+        class="nav-link {% if request.endpoint == 'admin.contest_dynamic_reward' %}active{% endif %}">
         <i class="bx bx-line-chart"></i> Dynamic Reward Query
     </a>
 
     {# ── Logout at bottom ── #}
     <div class="mt-auto w-100" style="border-top: 1px solid rgba(0,0,0,0.07); padding-top: 8px; margin-top: 12px;">
-        <a href="{{ url_for('auth.logout') }}" class="cs-nav-link" style="color: var(--text-light);">
+        <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: var(--text-light);">
             <i class="bx bx-log-out"></i> Logout
         </a>
     </div>
