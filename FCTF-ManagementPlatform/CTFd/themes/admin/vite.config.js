@@ -73,6 +73,7 @@ export default defineConfig({
       input: {
         "pages/main": resolve(__dirname, "assets/js/pages/main.js"),
         "pages/challenge": resolve(__dirname, "assets/js/pages/challenge.js"),
+        "pages/challenge-template": resolve(__dirname, "assets/js/pages/challenge-template.js"),
         "pages/challenges": resolve(__dirname, "assets/js/pages/challenges.js"),
         "pages/configs": resolve(__dirname, "assets/js/pages/configs.js"),
         "pages/notifications": resolve(

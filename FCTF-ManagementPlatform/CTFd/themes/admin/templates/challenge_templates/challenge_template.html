@@ -1,0 +1,389 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block stylesheets %}
+    {{ Assets.css("assets/css/challenge-board.scss", theme="admin") }}
+    <style>
+    .clean-page-header {
+        background: #ffffff;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    .clean-page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 300;
+        color: #2c3e50;
+        margin: 0.5rem 0;
+        letter-spacing: -0.5px;
+    }
+    .clean-page-header h2 {
+        font-size: 1.1rem;
+        font-weight: 400;
+        color: #6c757d;
+        margin: 0.25rem 0;
+    }
+    .clean-icon-btn {
+        color: #6c757d;
+        transition: all 0.2s ease;
+        font-size: 1.5rem;
+        margin: 0 0.5rem;
+        cursor: pointer;
+    }
+    .clean-icon-btn:hover { color: #ff6b35; transform: translateY(-2px); }
+    .clean-actions { margin-top: 1.5rem; }
+    .clean-badge {
+        padding: 0.35rem 0.65rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .clean-badge-success { background: #d4edda; color: #155724; }
+    .clean-badge-danger  { background: #f8d7da; color: #721c24; }
+    .clean-badge-secondary { background: #e2e3e5; color: #6c757d; }
+    .clean-nav-tabs {
+        border-bottom: 2px solid #e8e8e8;
+        margin-bottom: 1.5rem;
+        background: #ffffff;
+    }
+    .clean-nav-tabs .nav-link {
+        border: none;
+        color: #495057 !important;
+        background: transparent !important;
+        font-weight: 500;
+        font-size: 0.9rem;
+        padding: 0.75rem 1.25rem;
+        transition: all 0.2s ease;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+    }
+    .clean-nav-tabs .nav-link:hover {
+        color: #ff6b35 !important;
+        background: #fff5f2 !important;
+        border-bottom-color: #ff6b35;
+    }
+    .clean-nav-tabs .nav-link.active {
+        color: #ff6b35 !important;
+        background: #ffffff !important;
+        border-bottom-color: #ff6b35;
+        font-weight: 600;
+    }
+    .clean-tab-content { padding: 1rem 0; background: #ffffff; }
+    .clean-tab-content h3 { color: #2c3e50 !important; }
+    .clean-modal .modal-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 1.25rem 1.5rem;
+    }
+    .clean-modal .modal-title { color: #2c3e50; font-weight: 400; font-size: 1.25rem; }
+    .clean-modal .modal-body { padding: 1.5rem; }
+    #challenge-properties .table { font-size: 0.9rem; margin-bottom: 0; }
+    #challenge-properties .table thead { background: #f8f9fa; }
+    #challenge-properties .table thead th {
+        border-bottom: 2px solid #e8e8e8;
+        color: #495057;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        padding: 0.75rem;
+    }
+    #challenge-properties .table tbody tr {
+        border-bottom: 1px solid #f1f1f1;
+        transition: all 0.15s ease;
+    }
+    #challenge-properties .table tbody tr:hover { background: #fffbf9; }
+    #challenge-properties .table tbody td { padding: 0.75rem; vertical-align: middle; }
+    #challenge-properties .btn-fa {
+        color: #6c757d;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 1.1rem;
+        padding: 0.25rem 0.5rem;
+    }
+    #challenge-properties .btn-fa:hover { color: #ff6b35; transform: scale(1.1); }
+    #challenge-properties .delete-file:hover,
+    #challenge-properties .delete-flag:hover,
+    #challenge-properties .delete-hint:hover { color: #dc3545; }
+    #challenge-properties .form-control,
+    #challenge-properties input[type="text"],
+    #challenge-properties input[type="number"],
+    #challenge-properties select,
+    #challenge-properties textarea {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+    #challenge-properties .form-control:focus,
+    #challenge-properties input:focus,
+    #challenge-properties select:focus,
+    #challenge-properties textarea:focus {
+        border-color: #ff6b35;
+        box-shadow: 0 0 0 0.15rem rgba(255, 107, 53, 0.15);
+        outline: none;
+    }
+    #challenge-properties .btn {
+        border: 1px solid #dee2e6;
+        background: #ffffff;
+        color: #495057;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    #challenge-properties .btn:hover {
+        border-color: #ff6b35; color: #ff6b35; background: #fff5f2;
+    }
+    #challenge-properties .btn-primary { background: #ff6b35; color: #ffffff; border-color: #ff6b35; }
+    #challenge-properties .btn-primary:hover { background: #e85d2a; border-color: #e85d2a; color: #ffffff; }
+    #challenge-properties label { color: #495057; font-weight: 500; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    #challenge-properties .text-muted { color: #6c757d !important; font-size: 0.875rem; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="clean-page-header">
+        <div class="container" style="text-transform: none;">
+            <div class="mb-2">
+                <a href="{{ url_for('admin.challenge_templates_listing') }}"
+                   style="color:#ff6b35; text-decoration:none; font-size:0.9rem;">
+                    <i class="fas fa-arrow-left"></i> Challenge Templates
+                </a>
+            </div>
+            <h1 class="text-center">{{ challenge.name }}</h1>
+            <h2 class="text-center">{{ challenge.category }}</h2>
+            <h2 class="text-center text-muted">{{ challenge.type }}</h2>
+            {% if challenge.difficulty %}
+            <div class="text-center my-2">
+                {% for i in range(1, 6) %}
+                    {% if i <= challenge.difficulty %}
+                    <i class="fas fa-star" style="color:#ff6b35;font-size:1.2rem"></i>
+                    {% else %}
+                    <i class="far fa-star" style="color:#dee2e6;font-size:1.2rem"></i>
+                    {% endif %}
+                {% endfor %}
+                <span class="ml-2 text-muted" style="font-size:.85rem">
+                    {% set diff_labels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'] %}
+                    {{ diff_labels[challenge.difficulty - 1] }}
+                </span>
+            </div>
+            {% endif %}
+            {% if challenge.require_deploy %}
+            <h5 class="text-center">
+                <span class="clean-badge {% if is_deploy_success %}clean-badge-success{% else %}clean-badge-danger{% endif %}">
+                    {% if is_deploy_success %}Deployed{% else %}Not Deployed{% endif %}
+                </span>
+            </h5>
+            {% endif %}
+            <div class="pt-3 text-center clean-actions">
+                <a class="delete-challenge clean-icon-btn text-danger" title="Delete Template">
+                    <i class="btn-fa fas fa-trash-alt" data-toggle="tooltip" data-placement="top"
+                       title="Delete Template"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <nav class="clean-nav-tabs nav nav-tabs nav-fill" id="challenge-properties" role="tablist">
+                    <a class="nav-item nav-link small active" data-toggle="tab" href="#files" role="tab">Files</a>
+                    <a class="nav-item nav-link small" data-toggle="tab" href="#flags" role="tab">Flags</a>
+                    <a class="nav-item nav-link small" data-toggle="tab" href="#topics" role="tab">Topics</a>
+                    <a class="nav-item nav-link small" data-toggle="tab" href="#tags" role="tab">Tags</a>
+                    <a class="nav-item nav-link small" data-toggle="tab" href="#hints" role="tab">Hints</a>
+                    {% if challenge.require_deploy %}
+                    <a class="nav-item nav-link small" data-toggle="tab" href="#deploy-info" role="tab">Deploy</a>
+                    <a class="nav-item nav-link small" data-toggle="tab" href="#versions" role="tab">Versions</a>
+                    {% endif %}
+                </nav>
+
+                <div class="clean-tab-content tab-content" id="nav-tabContent">
+                    <!-- Files -->
+                    <div class="tab-pane fade show active" id="files" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-center py-3 d-block">Challenge Files</h3>
+                                <div class="alert alert-info d-flex align-items-center justify-content-center mt-n2" role="alert">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    <span><strong>Downloadable assets</strong> — PDFs can be viewed in the browser.</span>
+                                </div>
+                                {% include "admin/modals/challenges/files.html" %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flags -->
+                    <div class="tab-pane fade" id="flags" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-center py-3 d-block">Flags</h3>
+                                {% include "admin/modals/challenges/flags.html" %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Topics -->
+                    <div class="tab-pane fade" id="topics" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-center py-3 d-block">Topics</h3>
+                                {% include "admin/modals/challenges/topics.html" %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="tab-pane fade" id="tags" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-center py-3 d-block">Tags</h3>
+                                {% include "admin/modals/challenges/tags.html" %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hints -->
+                    <div class="tab-pane fade" id="hints" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-center py-3 d-block">Hints</h3>
+                                {% include "admin/modals/challenges/hints.html" %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if challenge.require_deploy %}
+                    <!-- Deploy Info -->
+                    <div class="tab-pane fade" id="deploy-info" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-center py-3 d-block">Deploy Configuration</h3>
+                                <table class="table table-sm" style="font-size:0.875rem;">
+                                    <tbody>
+                                        <tr><td class="font-weight-bold">Expose Port</td><td>{{ expose_port or 'N/A' }}</td></tr>
+                                        <tr><td class="font-weight-bold">Image</td><td>{{ image_link_name or 'N/A' }}</td></tr>
+                                        <tr><td class="font-weight-bold">CPU Limit</td><td>{{ challenge.cpu_limit or 'N/A' }} mCPU</td></tr>
+                                        <tr><td class="font-weight-bold">CPU Request</td><td>{{ challenge.cpu_request or 'N/A' }} mCPU</td></tr>
+                                        <tr><td class="font-weight-bold">Memory Limit</td><td>{{ challenge.memory_limit or 'N/A' }} Mi</td></tr>
+                                        <tr><td class="font-weight-bold">Memory Request</td><td>{{ challenge.memory_request or 'N/A' }} Mi</td></tr>
+                                        <tr>
+                                            <td class="font-weight-bold">gVisor</td>
+                                            <td>
+                                                {% if challenge.use_gvisor %}
+                                                <span class="clean-badge clean-badge-success">Enabled</span>
+                                                {% else %}
+                                                <span class="clean-badge clean-badge-secondary">Disabled</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">Harden Container</td>
+                                            <td>
+                                                {% if challenge.harden_container %}
+                                                <span class="clean-badge clean-badge-success">Yes</span>
+                                                {% else %}
+                                                <span class="clean-badge clean-badge-secondary">No</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-weight-bold">Shared Instance</td>
+                                            <td>
+                                                {% if challenge.shared_instant %}
+                                                <span class="clean-badge clean-badge-success">Yes</span>
+                                                {% else %}
+                                                <span class="clean-badge clean-badge-secondary">No</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr><td class="font-weight-bold">Total Deploys</td><td>{{ deploys }}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Versions -->
+                    <div class="tab-pane fade" id="versions" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="text-center py-3 d-block">Image Versions</h3>
+                                <div style="overflow-x:auto;">
+                                    <table class="table table-sm" style="font-size: 0.85rem; margin-bottom:0;">
+                                        <thead style="background: #f8f9fa;">
+                                            <tr>
+                                                <th class="text-center" style="width:60px;">Ver.</th>
+                                                <th>Image Tag</th>
+                                                <th class="text-center" style="width:70px;">Status</th>
+                                                <th class="text-center" style="width:50px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if not versions %}
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-4">
+                                                    <i class="fas fa-code-branch" style="font-size: 1.5rem; color: #dee2e6; display: block; margin-bottom: 0.5rem;"></i>
+                                                    No versions recorded yet.<br>
+                                                    <small>Versions are created automatically when a new image is deployed.</small>
+                                                </td>
+                                            </tr>
+                                            {% else %}
+                                            {% for version in versions %}
+                                            <tr>
+                                                <td class="text-center"><strong>v{{ version.version_number }}</strong></td>
+                                                <td style="word-break:break-all;">
+                                                    <code style="background:#f8f9fa;padding:0.1rem 0.35rem;border-radius:3px;font-size:0.78rem;">{{ version.image_tag or 'N/A' }}</code>
+                                                    <br><small class="text-muted">{% if version.created_at %}<span data-time="{{ version.created_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm"></span>{% endif %}</small>
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if version.is_active %}
+                                                    <span style="background:#d4edda;color:#155724;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.7rem;font-weight:600;">ACTIVE</span>
+                                                    {% else %}
+                                                    <span style="background:#e2e3e5;color:#6c757d;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.7rem;font-weight:500;">OLD</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    <a href="{{ url_for('admin.challenge_templates_version_detail', template_id=challenge.id, version_id=version.id) }}"
+                                                       style="color:#ff6b35;" title="View detail">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Update Form -->
+            <div id="challenge-update-container" class="col-md-6">
+                {{ update_template | safe }}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        var CHALLENGE_ID = {{ challenge.id }};
+        var CHALLENGE_NAME = {{ challenge.name | tojson }};
+    </script>
+    <script defer src="{{ request.script_root }}{{ update_script }}"></script>
+{% endblock %}
+
+{% block entrypoint %}
+    {{ Assets.js("assets/js/pages/challenge-template.js", theme="admin") }}
+{% endblock %}

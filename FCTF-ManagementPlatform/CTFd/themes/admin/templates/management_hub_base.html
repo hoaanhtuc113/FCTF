@@ -700,8 +700,9 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="bx bx-book"></i> Challenge Template
+                    <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.challenge_template') %}active{% endif %}"
+                       href="{{ url_for('admin.challenge_templates_listing') }}">
+                        <i class="bx bx-collection"></i> Challenge Template
                     </a>
                 </li>
                 <li class="nav-item">
