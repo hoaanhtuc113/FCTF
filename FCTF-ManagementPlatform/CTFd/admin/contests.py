@@ -1,12 +1,96 @@
+import csv
 import datetime
-from io import BytesIO
+import re
+from io import BytesIO, StringIO
 
-from flask import flash, redirect, render_template, request, send_file, url_for
+from flask import Response, flash, redirect, render_template, request, send_file, stream_with_context, url_for
 from sqlalchemy import or_
 
 from CTFd.admin import admin
-from CTFd.models import Contests, Users, db
+from CTFd.models import ChallengeStartTracking, Challenges, ContestChallenge, Contests, Teams, Users, db
 from CTFd.utils.decorators import admins_only
+
+
+# ─── helpers cho contest instances ───────────────────────────────────────────
+
+def _ci_parse_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _ci_escape_like(value):
+    if not value:
+        return value
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _ci_parse_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return None
+
+
+def _ci_local_to_utc(dt, timezone_offset):
+    offset_minutes = _ci_parse_int(timezone_offset) or 0
+    return dt + datetime.timedelta(minutes=offset_minutes)
+
+
+def _ci_parse_quick_range(value):
+    if not value:
+        return None
+    match = re.match(r"^(\d+)(m|h)$", value.strip())
+    if not match:
+        return None
+    amount = int(match.group(1))
+    unit = match.group(2)
+    if amount <= 0:
+        return None
+    return datetime.timedelta(minutes=amount) if unit == "m" else datetime.timedelta(hours=amount)
+
+
+def _ci_base_query(contest_id):
+    return (
+        db.session.query(
+            ChallengeStartTracking,
+            Teams.id.label("team_id"),
+            Teams.name.label("team_name"),
+            Challenges.id.label("challenge_id"),
+            Challenges.name.label("challenge_name"),
+        )
+        .outerjoin(Teams, ChallengeStartTracking.team_id == Teams.id)
+        .join(ContestChallenge, ChallengeStartTracking.contest_challenge_id == ContestChallenge.id)
+        .join(Challenges, ContestChallenge.challenge_template_id == Challenges.id)
+        .filter(ContestChallenge.contest_id == contest_id)
+        .order_by(ChallengeStartTracking.started_at.desc())
+    )
+
+
+def _ci_apply_filters(query, team_filter, challenge_filter, start_date, end_date):
+    team_id = _ci_parse_int(team_filter)
+    if team_filter:
+        if team_id is not None:
+            query = query.filter(Teams.id == team_id)
+        else:
+            query = query.filter(Teams.name.ilike(f"%{_ci_escape_like(team_filter)}%", escape="\\"))
+
+    challenge_id = _ci_parse_int(challenge_filter)
+    if challenge_filter:
+        if challenge_id is not None:
+            query = query.filter(Challenges.id == challenge_id)
+        else:
+            query = query.filter(Challenges.name.ilike(f"%{_ci_escape_like(challenge_filter)}%", escape="\\"))
+
+    if start_date:
+        query = query.filter(ChallengeStartTracking.started_at >= start_date)
+    if end_date:
+        query = query.filter(ChallengeStartTracking.started_at <= end_date)
+
+    return query
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -943,12 +1027,111 @@ def contest_send_ticket_response(contest_id):
 @admins_only
 def contest_instances(contest_id):
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    is_detail = True
+
+    page = abs(request.args.get("page", 1, type=int))
+    per_page = request.args.get("per_page", 50, type=int)
+    per_page = max(1, min(per_page, 200))
+
+    team_filter = (request.args.get("team") or "").strip()
+    challenge_filter = (request.args.get("challenge") or "").strip()
+    start_filter = (request.args.get("start") or "").strip()
+    end_filter = (request.args.get("end") or "").strip()
+    quick_filter = (request.args.get("quick") or "").strip()
+    timezone_offset = (request.args.get("timezone_offset") or "").strip()
+
+    start_date = _ci_parse_datetime(start_filter)
+    end_date = _ci_parse_datetime(end_filter)
+    quick_range = _ci_parse_quick_range(quick_filter)
+    if quick_range:
+        end_date = datetime.datetime.utcnow()
+        start_date = end_date - quick_range
+    else:
+        if start_date:
+            start_date = _ci_local_to_utc(start_date, timezone_offset)
+        if end_date:
+            end_date = _ci_local_to_utc(end_date, timezone_offset)
+
+    query = _ci_base_query(contest_id)
+    query = _ci_apply_filters(query, team_filter, challenge_filter, start_date, end_date)
+
+    logs = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    args = dict(request.args)
+    args.pop("page", None)
+
     return render_template(
         "admin/contests/sections/instances.html",
         contest=contest,
-        is_detail=is_detail,
+        is_detail=True,
+        logs=logs,
+        prev_page=url_for(request.endpoint, contest_id=contest_id, page=logs.prev_num, **args),
+        next_page=url_for(request.endpoint, contest_id=contest_id, page=logs.next_num, **args),
+        team_filter=team_filter,
+        challenge_filter=challenge_filter,
+        start_filter=start_filter,
+        end_filter=end_filter,
+        quick_filter=quick_filter,
+        timezone_offset=timezone_offset,
+        per_page=per_page,
     )
+
+
+@admin.route("/admin/contests/<int:contest_id>/instances/export/csv")
+@admins_only
+def contest_instances_export_csv(contest_id):
+    Contests.query.filter_by(id=contest_id).first_or_404()
+
+    team_filter = (request.args.get("team") or "").strip()
+    challenge_filter = (request.args.get("challenge") or "").strip()
+    start_filter = (request.args.get("start") or "").strip()
+    end_filter = (request.args.get("end") or "").strip()
+    quick_filter = (request.args.get("quick") or "").strip()
+    timezone_offset = (request.args.get("timezone_offset") or "").strip()
+
+    start_date = _ci_parse_datetime(start_filter)
+    end_date = _ci_parse_datetime(end_filter)
+    quick_range = _ci_parse_quick_range(quick_filter)
+    if quick_range:
+        end_date = datetime.datetime.utcnow()
+        start_date = end_date - quick_range
+    else:
+        if start_date:
+            start_date = _ci_local_to_utc(start_date, timezone_offset)
+        if end_date:
+            end_date = _ci_local_to_utc(end_date, timezone_offset)
+
+    query = _ci_base_query(contest_id)
+    query = _ci_apply_filters(query, team_filter, challenge_filter, start_date, end_date)
+
+    def generate():
+        sio = StringIO()
+        writer = csv.writer(sio)
+        writer.writerow(["id", "started_at", "stopped_at", "label", "challenge_id", "challenge_name", "team_id", "team_name"])
+        yield sio.getvalue()
+        sio.seek(0)
+        sio.truncate(0)
+
+        for row in query.yield_per(1000):
+            tracking = row.ChallengeStartTracking
+            writer.writerow([
+                tracking.id,
+                tracking.started_at.isoformat() if tracking.started_at else "",
+                tracking.stopped_at.isoformat() if tracking.stopped_at else "",
+                tracking.label or "",
+                row.challenge_id,
+                row.challenge_name or "",
+                row.team_id or "",
+                row.team_name or "",
+            ])
+            yield sio.getvalue()
+            sio.seek(0)
+            sio.truncate(0)
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="instances_{contest_id}.csv"',
+        "Content-Type": "text/csv; charset=utf-8",
+    }
+    return Response(stream_with_context(generate()), headers=headers)
 
 
 @admin.route("/admin/contests/<int:contest_id>/bracket")
