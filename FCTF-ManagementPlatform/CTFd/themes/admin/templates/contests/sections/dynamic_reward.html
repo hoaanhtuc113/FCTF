@@ -1,18 +1,411 @@
 {% extends "admin/contests/contest_base.html" %}
 
+{% block contest_stylesheets %}
+<style>
+  .rewards-page .page-subtitle { margin-top: 0.5rem; color: #6c757d; font-size: 0.95rem; }
+  .section-card { background: #ffffff; padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e8e8e8; margin-bottom: 1.5rem; }
+  .section-title { color: #2c3e50; font-weight: 600; font-size: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e8910d; margin-bottom: 1rem; }
+  .template-card { border: 1px solid #e8e8e8; border-radius: 8px; }
+  .template-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); transform: translateY(-2px); transition: all 0.2s; }
+  .template-card.selected { border-color: #e8910d; box-shadow: 0 0 0 2px rgba(232,145,13,0.25); }
+  .stat-card { border: 1px solid #dee2e6; border-radius: 6px; text-align: center; padding: 0.5rem; margin-bottom: 0.5rem; }
+  .stat-card h4 { margin-bottom: 0; color: #e8910d; }
+  .search-select-wrapper { position: relative; }
+  .search-select-wrapper .dropdown-list { position: absolute; z-index: 100; width: 100%; max-height: 200px; overflow-y: auto; background: #fff; border: 1px solid #ced4da; border-top: 0; border-radius: 0 0 4px 4px; display: none; }
+  .search-select-wrapper .dropdown-list.show { display: block; }
+  .search-select-wrapper .dropdown-item { padding: 0.35rem 0.75rem; cursor: pointer; font-size: 0.875rem; }
+  .search-select-wrapper .dropdown-item:hover { background-color: #f0f0f0; }
+  .search-select-wrapper .dropdown-item.active { background-color: #e8910d; color: #fff; }
+  .detail-row td { background: #fff8f0; padding: 0.5rem 1rem !important; }
+  .detail-row .detail-list { max-height: 200px; overflow-y: auto; font-size: 0.85rem; }
+  .detail-row .detail-list table { margin-bottom: 0; }
+  tr.expandable-row { cursor: pointer; }
+  tr.expandable-row:hover { background-color: #fff3e6 !important; }
+  .cell-truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+{% endblock %}
+
 {% block contest_content %}
-<div class="page-header">
+<div class="rewards-page">
+  <div class="page-header">
     <div class="container">
-        <h1><i class="bx bx-line-chart"></i> Dynamic Reward Query
-            <small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
-        </h1>
+      <h1><i class="bx bx-line-chart"></i> Dynamic Reward Query
+        <small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+      </h1>
     </div>
-</div>
-<div class="container">
-    <div class="coming-soon-box">
-        <i class="bx bx-line-chart"></i>
-        <h4>Dynamic Reward Query</h4>
-        <p>Dynamic reward configuration for <strong>{{ contest.name }}</strong> will be available here.</p>
+  </div>
+
+  <div class="container">
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-th-large"></i> Choose Template</div>
+      <div class="row" id="template-cards">
+        <div class="col-12 text-center py-3">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        </div>
+      </div>
     </div>
+
+    <div class="section-card" id="params-card" style="display:none;">
+      <div class="section-title"><i class="fas fa-sliders-h"></i> Parameters</div>
+      <div class="alert alert-secondary py-2 mb-3">
+        <strong id="selected-template-name" class="d-block"></strong>
+        <small class="text-muted" id="selected-template-desc"></small>
+      </div>
+      <div id="params-container"></div>
+      <div class="mt-2">
+        <button id="preview-btn" class="btn btn-warning text-white">
+          <i class="fas fa-eye"></i> Preview Results
+        </button>
+        <button id="reset-btn" class="btn btn-outline-secondary ml-2">
+          <i class="fas fa-undo"></i> Reset
+        </button>
+      </div>
+    </div>
+
+    <div class="section-card" id="results-card" style="display:none;">
+      <div class="section-title d-flex justify-content-between align-items-center">
+        <div><i class="fas fa-list"></i> Results</div>
+        <span class="badge badge-warning text-white" id="result-count">0</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="row mb-2" id="stats-row">
+          <div class="col-md-3"><div class="stat-card"><h4 id="stat-count">0</h4><small class="text-muted">Recipients</small></div></div>
+          <div class="col-md-3"><div class="stat-card"><h4 id="stat-avg">-</h4><small class="text-muted">Avg Value</small></div></div>
+          <div class="col-md-3"><div class="stat-card"><h4 id="stat-max">-</h4><small class="text-muted">Max Value</small></div></div>
+          <div class="col-md-3"><div class="stat-card"><h4 id="stat-min">-</h4><small class="text-muted">Min Value</small></div></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-striped table-hover mb-2">
+            <thead class="thead-dark"><tr id="results-header"></tr></thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+        <div class="mt-2 pt-2 border-top">
+          <button id="export-csv-btn" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Export Excel
+          </button>
+          <small class="text-muted ml-2"><i class="fas fa-info-circle"></i> File CSV có thể mở bằng Excel</small>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<div class="modal fade" id="errorModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white py-2">
+        <h6 class="modal-title mb-0"><i class="fas fa-exclamation-circle"></i> Error</h6>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body py-2" id="errorMessage"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+  let allTemplates = [];
+  let selectedTemplate = null;
+  let currentResults = null;
+  let categoriesCache = [];
+  let challengesCache = [];
+  let teamsCache = [];
+  let bracketsCache = [];
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;').replaceAll("'","&#39;");
+  }
+  function safeIdSuffix(v) { return String(v==null?'':v).replace(/[^a-zA-Z0-9_-]/g,''); }
+  function safeIcon(v) { const s=String(v==null?'':v).replace(/[^a-zA-Z0-9_-]/g,''); return s||'tag'; }
+
+  function apiFetch(url, options) {
+    const root=(typeof init!=='undefined'&&init.urlRoot)?init.urlRoot:'';
+    const nonce=(typeof init!=='undefined'&&init.csrfNonce)?init.csrfNonce:'';
+    options=options||{method:'GET'};
+    options.credentials='same-origin';
+    if(!options.headers)options.headers={};
+    options.headers['Accept']='application/json';
+    options.headers['Content-Type']='application/json';
+    options.headers['CSRF-Token']=nonce;
+    return fetch(root+url,options);
+  }
+
+  function showError(msg) {
+    document.getElementById('errorMessage').textContent=msg;
+    $('#errorModal').modal('show');
+  }
+
+  const PARAM_LABELS={limit:'Limit',min_score:'Min Score',max_score:'Max Score',min_rank:'Min Rank',max_rank:'Max Rank',min_count:'Min First Bloods',min_categories_solved:'Min Categories Solved',min_perfect_solves:'Min Perfect Solves',min_solves:'Min Solves',min_attempts:'Min Wrong Attempts',category:'Category',challenge_id:'Challenge',team_id:'Team'};
+  const VALUE_LABELS={top_teams_by_score:'Score',first_blood_hunters:'First Bloods',category_masters:'Categories Cleared',perfect_solvers:'Perfect Solves',most_attempts:'Wrong Attempts',solve_count_champions:'Challenges Solved',first_clear_each_category:'Full Clear Date',first_blood_by_category:'Category',no_hints_solvers:'No-Hint Solves'};
+
+  async function initPage() {
+    await Promise.all([loadTemplates(),loadCategories(),loadChallenges(),loadTeams(),loadBrackets()]);
+  }
+  async function loadTemplates() {
+    try { const r=await apiFetch('/admin/rewards/templates'); const d=await r.json(); if(d.success){allTemplates=d.templates;renderTemplateCards();} } catch(e){showError('Failed to load templates');}
+  }
+  async function loadCategories() { try{const r=await apiFetch('/admin/rewards/categories');const d=await r.json();if(d.success)categoriesCache=d.categories;}catch(e){} }
+  async function loadChallenges() { try{const r=await apiFetch('/admin/rewards/challenges');const d=await r.json();if(d.success)challengesCache=d.challenges;}catch(e){} }
+  async function loadTeams() { try{const r=await apiFetch('/admin/rewards/teams');const d=await r.json();if(d.success)teamsCache=d.teams;}catch(e){} }
+  async function loadBrackets() { try{const r=await apiFetch('/admin/rewards/brackets');const d=await r.json();if(d.success)bracketsCache=d.brackets;}catch(e){} }
+
+  function renderTemplateCards() {
+    const container=document.getElementById('template-cards');
+    if(!allTemplates.length){container.innerHTML='<div class="col-12 text-center py-3"><p class="text-muted mb-0">No templates found</p></div>';return;}
+    container.innerHTML=allTemplates.map(t=>`
+      <div class="col-md-4 col-lg-3 mb-2">
+        <div class="card template-card h-100" style="cursor:pointer;" data-template-id="${escapeHtml(t.id)}">
+          <div class="card-body p-2">
+            <h6 class="mb-1"><i class="fas fa-${safeIcon(t.icon)}"></i> ${escapeHtml(t.name)}</h6>
+            <p class="small text-muted mb-1">${escapeHtml(t.description)}</p>
+            <span class="badge badge-primary badge-sm">${escapeHtml(t.category)}</span>
+          </div>
+        </div>
+      </div>`).join('');
+    document.querySelectorAll('.template-card').forEach(card=>{
+      card.addEventListener('click',()=>{
+        document.querySelectorAll('.template-card').forEach(c=>c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectTemplate(card.dataset.templateId);
+      });
+    });
+  }
+
+  async function selectTemplate(id) {
+    try{const r=await apiFetch(`/admin/rewards/templates/${id}`);const d=await r.json();if(d.success){selectedTemplate=d.template;showParams();}}catch(e){showError('Failed to load template');}
+  }
+
+  function buildField(p) {
+    const label=PARAM_LABELS[p]||p.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase());
+    const sid=safeIdSuffix(p);
+    let input='';
+    if(p==='category'){
+      const opts=categoriesCache.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      input=`<select class="form-control form-control-sm" id="param-${sid}"><option value="">All</option>${opts}</select>`;
+    } else if(p==='challenge_id'){
+      input=buildSearchSelect(p,challengesCache.map(c=>({value:c.id,label:`${c.name} (${c.category})`})));
+    } else if(p==='team_id'){
+      input=buildSearchSelect(p,teamsCache.map(t=>({value:t.id,label:t.name})));
+    } else {
+      input=`<input type="number" class="form-control form-control-sm" id="param-${sid}" placeholder="${p==='limit'?'10':''}">`;
+    }
+    return `<div class="form-group col-md-6 mb-2"><label class="mb-1 small font-weight-bold">${escapeHtml(label)}</label>${input}</div>`;
+  }
+
+  function buildSearchSelect(paramName,items) {
+    const id=`param-${safeIdSuffix(paramName)}`;
+    return `<div class="search-select-wrapper" id="wrapper-${id}"><input type="text" class="form-control form-control-sm" id="${id}-search" placeholder="Type to search..." autocomplete="off"><input type="hidden" id="${id}"><div class="dropdown-list" id="${id}-list"><div class="dropdown-item text-muted">Type to search...</div></div></div>`;
+  }
+
+  function initSearchSelects() {
+    document.querySelectorAll('.search-select-wrapper').forEach(wrapper=>{
+      const si=wrapper.querySelector('input[type="text"]');
+      const hi=wrapper.querySelector('input[type="hidden"]');
+      const list=wrapper.querySelector('.dropdown-list');
+      const pn=hi.id.replace('param-','');
+      const items=pn==='challenge_id'?challengesCache.map(c=>({value:c.id,label:`${c.name} (${c.category})`})):teamsCache.map(t=>({value:t.id,label:t.name}));
+      si.addEventListener('focus',()=>{renderDropdown(list,items,'',hi,si);list.classList.add('show');});
+      si.addEventListener('input',()=>{const q=si.value.toLowerCase();renderDropdown(list,items.filter(i=>i.label.toLowerCase().includes(q)),q,hi,si);list.classList.add('show');hi.value='';});
+      document.addEventListener('click',e=>{if(!wrapper.contains(e.target))list.classList.remove('show');});
+    });
+  }
+
+  function renderDropdown(listEl,items,query,hi,si) {
+    if(!items.length){listEl.innerHTML='<div class="dropdown-item text-muted">No results</div>';return;}
+    listEl.innerHTML=items.slice(0,50).map(i=>`<div class="dropdown-item" data-value="${escapeHtml(i.value)}">${highlightMatch(i.label,query)}</div>`).join('');
+    listEl.querySelectorAll('.dropdown-item').forEach(item=>{item.addEventListener('click',()=>{hi.value=item.dataset.value;si.value=item.textContent;listEl.classList.remove('show');});});
+  }
+
+  function highlightMatch(text,query) {
+    const src=String(text||'');if(!query)return escapeHtml(src);
+    const idx=src.toLowerCase().indexOf(String(query||'').toLowerCase());
+    if(idx===-1)return escapeHtml(src);
+    return escapeHtml(src.substring(0,idx))+'<strong>'+escapeHtml(src.substring(idx,idx+query.length))+'</strong>'+escapeHtml(src.substring(idx+query.length));
+  }
+
+  function showParams() {
+    document.getElementById('selected-template-name').textContent=selectedTemplate.name;
+    document.getElementById('selected-template-desc').textContent=selectedTemplate.description;
+    const container=document.getElementById('params-container');
+    const params=selectedTemplate.customizable_params||[];
+    let bracketHtml='';
+    if(bracketsCache.length>0){
+      const opts=bracketsCache.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
+      bracketHtml=`<div class="form-group col-md-6 mb-2"><label class="mb-1 small font-weight-bold">Bracket</label><select class="form-control form-control-sm" id="param-bracket_id"><option value="">All Brackets</option>${opts}</select></div>`;
+    }
+    if(!params.length&&!bracketHtml){container.innerHTML='<p class="text-muted small mb-0">No customizable parameters — click Preview to run with defaults</p>';}
+    else{container.innerHTML=`<div class="form-row">${params.map(buildField).join('')}${bracketHtml}</div>`;initSearchSelects();}
+    document.getElementById('params-card').style.display='block';
+    document.getElementById('results-card').style.display='none';
+    document.getElementById('params-card').scrollIntoView({behavior:'smooth'});
+  }
+
+  async function previewResults() {
+    if(!selectedTemplate)return;
+    const params={};
+    const bracketEl=document.getElementById('param-bracket_id');
+    if(bracketEl&&bracketEl.value)params['bracket_id']=Number(bracketEl.value);
+    (selectedTemplate.customizable_params||[]).forEach(p=>{
+      const el=document.getElementById(`param-${safeIdSuffix(p)}`);
+      if(el&&el.value){
+        if(['challenge_id','team_id','limit','min_score','max_score','min_rank','max_rank','min_count','min_categories_solved','min_perfect_solves','min_solves','min_attempts'].includes(p)||el.type==='number'){params[p]=Number(el.value);}
+        else{params[p]=el.value;}
+      }
+    });
+    try{
+      document.getElementById('preview-btn').disabled=true;
+      document.getElementById('preview-btn').innerHTML='<i class="fas fa-spinner fa-spin"></i> Loading...';
+      const r=await apiFetch('/admin/rewards/preview',{method:'POST',body:JSON.stringify({template_id:selectedTemplate.id,params})});
+      const d=await r.json();
+      if(!r.ok||!d.success){showError(d.error||'Preview failed');return;}
+      currentResults=d;renderResults(d);
+    }catch(e){showError('Network error');}
+    finally{document.getElementById('preview-btn').disabled=false;document.getElementById('preview-btn').innerHTML='<i class="fas fa-eye"></i> Preview Results';}
+  }
+
+  function truncText(s,n){return s&&s.length>n?s.substring(0,n)+'…':(s||'');}
+
+  function getResultColumns() {
+    const tid=selectedTemplate?selectedTemplate.id:'';
+    const entity=(selectedTemplate?(selectedTemplate.query_config||{}).entity:'team')||'team';
+    let valueLabel=VALUE_LABELS[tid]||'Value';
+    if(currentResults)currentResults._effectiveEntity=entity;
+    if(entity==='solve'){
+      const cols=[{key:'rank',label:'#',width:'5%'},{key:'entity_name',label:'Challenge',width:'30%'},{key:'category',label:'Category',width:'20%'},{key:'team_name',label:'Team',width:'25%'}];
+      if(tid!=='first_blood_by_category')cols.push({key:'metric_value',label:valueLabel,width:'20%'});
+      return cols;
+    }
+    const cols=[{key:'rank',label:'#',width:'5%'},{key:'entity_id',label:'ID',width:'8%'},{key:'entity_name',label:'Team',width:'25%'},{key:'metric_value',label:valueLabel,width:'15%'}];
+    if(tid==='first_clear_each_category')cols.push({key:'category',label:'Category',width:'14%'});
+    cols.push({key:'last_solve_date',label:'Last Solve',width:'18%'});
+    return cols;
+  }
+
+  function parseDateAsLocal(dateStr) {
+    if(!dateStr)return null;const raw=String(dateStr).trim();if(!raw)return null;
+    if(/^\d+$/.test(raw)){const n=Number(raw);if(!isNaN(n)){return new Date(raw.length<=10?n*1000:n);}}
+    const hasZ=/(?:Z|UTC|GMT|[+-]\d{2}(?::?\d{2})?)$/i.test(raw);
+    for(const c of[raw,raw.replace(' ','T')]){const d=new Date(hasZ?c:`${c}Z`);if(!isNaN(d.getTime()))return d;}
+    const f=new Date(raw);return isNaN(f.getTime())?null:f;
+  }
+  function formatDate(s){const d=parseDateAsLocal(s);if(!d)return s||'-';return d.toLocaleString(undefined,{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+
+  const EXPANDABLE=['top_teams_by_score','first_blood_hunters','category_masters','perfect_solvers','solve_count_champions','no_hints_solvers'];
+
+  function renderResults(data) {
+    const results=data.result||[];
+    const tid=selectedTemplate?selectedTemplate.id:'';
+    const isExp=EXPANDABLE.includes(tid);
+    document.getElementById('stat-count').textContent=results.length;
+    if(results.length>0){
+      const vals=results.map(r=>Number(r.metric_value)||0);
+      const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+      document.getElementById('stat-avg').textContent=(Math.round((avg+Number.EPSILON)*100)/100).toFixed(2);
+      document.getElementById('stat-max').textContent=Math.max(...vals);
+      document.getElementById('stat-min').textContent=Math.min(...vals);
+    } else {['stat-avg','stat-max','stat-min'].forEach(id=>document.getElementById(id).textContent='-');}
+    const columns=getResultColumns();
+    const vis=columns.filter(col=>{
+      if(['rank','metric_value','entity_id','entity_name'].includes(col.key))return true;
+      if(col.key==='category')return results.some(r=>r.category);
+      if(col.key==='team_name')return results.some(r=>r.team_name);
+      if(col.key==='last_solve_date')return results.some(r=>r.last_solve_date);
+      return true;
+    });
+    document.getElementById('results-header').innerHTML=vis.map(c=>`<th style="width:${escapeHtml(c.width)}">${escapeHtml(c.label)}</th>`).join('');
+    const tbody=document.getElementById('results-body');
+    tbody.innerHTML=results.map((r,i)=>{
+      const icon=isExp?'<i class="fas fa-chevron-right fa-xs mr-1 expand-icon"></i>':'';
+      return '<tr class="'+(isExp?'expandable-row':'')+'" data-idx="'+i+'">'+vis.map(col=>{
+        if(col.key==='rank')return`<td>${icon}${escapeHtml(r.rank!=null?r.rank:i+1)}</td>`;
+        if(col.key==='last_solve_date')return`<td>${escapeHtml(formatDate(r.last_solve_date))}</td>`;
+        if(col.key==='entity_name'||col.key==='team_name')return`<td class="cell-truncate" title="${escapeHtml(r[col.key]||'')}">${escapeHtml(truncText(r[col.key],30))}</td>`;
+        const v=r[col.key];return`<td>${escapeHtml(v!=null?v:'')}</td>`;
+      }).join('')+'</tr>';
+    }).join('');
+    if(isExp){
+      tbody.querySelectorAll('tr.expandable-row').forEach(row=>{
+        row.addEventListener('click',function(){
+          const idx=parseInt(this.dataset.idx);
+          const ex=this.nextElementSibling;
+          if(ex&&ex.classList.contains('detail-row')){ex.remove();this.querySelector('.expand-icon').classList.replace('fa-chevron-down','fa-chevron-right');return;}
+          tbody.querySelectorAll('.detail-row').forEach(d=>d.remove());
+          tbody.querySelectorAll('.expand-icon').forEach(ic=>ic.classList.replace('fa-chevron-down','fa-chevron-right'));
+          this.querySelector('.expand-icon').classList.replace('fa-chevron-right','fa-chevron-down');
+          loadRowDetails(this,results[idx],vis.length);
+        });
+      });
+    }
+    document.getElementById('result-count').textContent=`${results.length} results`;
+    document.getElementById('results-card').style.display='block';
+    document.getElementById('results-card').scrollIntoView({behavior:'smooth'});
+  }
+
+  async function loadRowDetails(rowEl,rowData,colSpan) {
+    const tid=selectedTemplate?selectedTemplate.id:'';
+    const detailRow=document.createElement('tr');
+    detailRow.className='detail-row';
+    detailRow.innerHTML=`<td colspan="${escapeHtml(colSpan)}"><div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i> Loading details...</div></td>`;
+    rowEl.after(detailRow);
+    try{
+      const r=await apiFetch('/admin/rewards/details',{method:'POST',body:JSON.stringify({template_id:tid,entity_type:'team',entity_id:rowData.entity_id})});
+      const d=await r.json();
+      if(d.success&&d.details&&d.details.length>0){
+        const details=d.details;
+        let html='<div class="detail-list"><table class="table table-sm table-bordered mb-0"><thead><tr>';
+        if(d.detail_type==='category_clear'){
+          html+='<th>#</th><th>Category</th><th>Solved</th><th>Total</th><th>Clear Date</th></tr></thead><tbody>';
+          details.forEach((dd,i)=>{html+=`<tr><td>${escapeHtml(i+1)}</td><td>${escapeHtml(dd.category||'')}</td><td>${escapeHtml(dd.solved_count||'')}</td><td>${escapeHtml(dd.total_challenges||'')}</td><td>${escapeHtml(formatDate(dd.full_clear_date))}</td></tr>`;});
+        } else {
+          html+='<th>#</th><th>Challenge</th><th>Category</th><th>Score</th><th>Solve Time</th></tr></thead><tbody>';
+          details.forEach((dd,i)=>{html+=`<tr><td>${escapeHtml(i+1)}</td><td>${escapeHtml(dd.challenge_name||'')}</td><td>${escapeHtml(dd.category||'')}</td><td>${escapeHtml(dd.score||'')}</td><td>${escapeHtml(formatDate(dd.solve_date))}</td></tr>`;});
+        }
+        html+='</tbody></table></div>';
+        detailRow.innerHTML=`<td colspan="${escapeHtml(colSpan)}">${html}</td>`;
+      } else {detailRow.innerHTML=`<td colspan="${escapeHtml(colSpan)}"><div class="text-muted text-center py-2">No details available</div></td>`;}
+    }catch(e){detailRow.innerHTML=`<td colspan="${escapeHtml(colSpan)}"><div class="text-danger text-center py-2">Failed to load details</div></td>`;}
+  }
+
+  function exportToCSV() {
+    if(!currentResults||!currentResults.result||!currentResults.result.length){showError('No results to export');return;}
+    const results=currentResults.result;
+    const columns=getResultColumns().filter(col=>{
+      if(['rank','metric_value','entity_id','entity_name'].includes(col.key))return true;
+      if(col.key==='category')return results.some(r=>r.category);
+      if(col.key==='team_name')return results.some(r=>r.team_name);
+      if(col.key==='last_solve_date')return results.some(r=>r.last_solve_date);
+      return true;
+    });
+    const header=columns.map(c=>c.label).join(',');
+    const rows=results.map(r=>columns.map(col=>{
+      let v=r[col.key];
+      if(col.key==='last_solve_date')v=formatDate(r.last_solve_date);
+      if(v==null)v='';
+      const s=String(v);
+      return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replaceAll('"','""')}"`:s;
+    }).join(','));
+    const csv='\uFEFF'+[header,...rows].join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;
+    a.download=`reward_${selectedTemplate?selectedTemplate.id:'export'}.csv`;
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    initPage();
+    document.getElementById('preview-btn').addEventListener('click',previewResults);
+    document.getElementById('reset-btn').addEventListener('click',function(){
+      selectedTemplate=null;currentResults=null;
+      document.querySelectorAll('.template-card').forEach(c=>c.classList.remove('selected'));
+      document.getElementById('params-card').style.display='none';
+      document.getElementById('results-card').style.display='none';
+    });
+    document.getElementById('export-csv-btn').addEventListener('click',exportToCSV);
+  });
+</script>
 {% endblock %}

@@ -5,7 +5,7 @@ from sqlalchemy import func as sa_func
 from sqlalchemy.sql import and_, false, true
 
 from CTFd.cache import cache
-from CTFd.models import Challenges, Solves, Users, db
+from CTFd.models import Challenges, ContestChallenge, Solves, Users, db
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils import get_config
 from CTFd.utils.dates import isoformat, unix_time_to_utc
@@ -57,16 +57,14 @@ def get_all_challenges(admin=False, field=None, q=None, **query_args):
 
 @cache.memoize(timeout=60)
 def get_solves_for_challenge_id(challenge_id, freeze=False):
+    """Get solves for a given challenge template id, going through ContestChallenge."""
     Model = get_model()
-    # Note that we specifically query for the Solves.account.name
-    # attribute here because it is faster than having SQLAlchemy
-    # query for the attribute directly and it's unknown what the
-    # affects of changing the relationship lazy attribute would be
     solves = (
         Solves.query.add_columns(Model.name.label("account_name"))
         .join(Model, Solves.account_id == Model.id)
+        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
         .filter(
-            Solves.challenge_id == challenge_id,
+            ContestChallenge.challenge_template_id == challenge_id,
             Model.banned == False,
             Model.hidden == False,
         )
@@ -95,9 +93,11 @@ def get_solves_for_challenge_id(challenge_id, freeze=False):
 
 @cache.memoize(timeout=60)
 def get_solve_ids_for_user_id(user_id):
+    """Return a set of challenge_template_ids that the user has solved."""
     user = Users.query.filter_by(id=user_id).first()
     solve_ids = (
-        Solves.query.with_entities(Solves.challenge_id)
+        Solves.query.with_entities(ContestChallenge.challenge_template_id)
+        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
         .filter(Solves.account_id == user.account_id)
         .all()
     )
@@ -107,10 +107,10 @@ def get_solve_ids_for_user_id(user_id):
 
 @cache.memoize(timeout=60)
 def get_solve_counts_for_challenges(challenge_id=None, admin=False):
-    if challenge_id is None:
-        challenge_id_filter = ()
-    else:
-        challenge_id_filter = (Solves.challenge_id == challenge_id,)
+    """Return a dict of {challenge_template_id: solve_count}.
+    
+    Maps through ContestChallenge to get template IDs.
+    """
     AccountModel = get_model()
     freeze = get_config("freeze")
     if freeze and not admin:
@@ -121,15 +121,21 @@ def get_solve_counts_for_challenges(challenge_id=None, admin=False):
         AccountModel.banned == false(),
         AccountModel.hidden == false(),
     )
+
     solves_q = (
         db.session.query(
-            Solves.challenge_id,
-            sa_func.count(Solves.challenge_id),
+            ContestChallenge.challenge_template_id,
+            sa_func.count(Solves.id),
         )
+        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
         .join(AccountModel)
-        .filter(*challenge_id_filter, freeze_cond, exclude_solves_cond)
-        .group_by(Solves.challenge_id)
+        .filter(freeze_cond, exclude_solves_cond)
     )
+
+    if challenge_id is not None:
+        solves_q = solves_q.filter(ContestChallenge.challenge_template_id == challenge_id)
+
+    solves_q = solves_q.group_by(ContestChallenge.challenge_template_id)
 
     solve_counts = {}
     for chal_id, solve_count in solves_q:

@@ -90,16 +90,7 @@
                                class="clean-form-control w-100" placeholder="Leave blank for open access">
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="form-label-sm">User Mode</label>
-                        <select id="contest-user-mode" name="user_mode" class="clean-form-control w-100">
-                            <option value="users">Users</option>
-                            <option value="teams">Teams</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <div class="form-group">
                         <label class="form-label-sm">State</label>
                         <select id="contest-state" name="state" class="clean-form-control w-100">
@@ -291,7 +282,7 @@
             slug: form.slug.value.trim() || null,
             description: form.description.value.trim(),
             access_password: form.access_password.value.trim() || null,
-            user_mode: form.user_mode.value,
+            user_mode: "teams",
             state: form.state.value,
             start_time: form.start_time.value || null,
             end_time: form.end_time.value || null,
@@ -328,7 +319,7 @@
         .then(function (res) { return res.json(); })
         .then(function (json) {
             if (json.success) {
-                window.location.href = '/admin/contests/' + json.data.id;
+                window.location.href = '/admin/contests';
             } else {
                 const errors = json.errors || {};
                 const msg = Object.values(errors).flat().join('\n') || 'Failed to create contest.';

@@ -369,11 +369,7 @@
             btn.disabled = false;
             btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
             if (json.success) {
-                const al = document.getElementById('save-alert');
-                al.classList.remove('d-none');
-                setTimeout(function () { al.classList.add('d-none'); }, 3000);
-                const nameEl = document.querySelector('.cs-contest-name div');
-                if (nameEl) nameEl.textContent = data.name.substring(0, 36);
+                window.location.href = '/admin/contests';
             } else {
                 const ea = document.getElementById('error-alert');
                 document.getElementById('error-msg').textContent =

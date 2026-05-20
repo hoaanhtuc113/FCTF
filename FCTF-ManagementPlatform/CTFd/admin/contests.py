@@ -168,15 +168,8 @@ def contests_new():
 @admin.route("/admin/contests/<int:contest_id>")
 @admins_only
 def contests_detail(contest_id):
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    owner = Users.query.filter_by(id=contest.owner_id).first() if contest.owner_id else None
-    is_detail = True
-    return render_template(
-        "admin/contests/contest.html",
-        contest=contest,
-        owner=owner,
-        is_detail=is_detail,
-    )
+    from flask import redirect
+    return redirect(url_for("admin.contest_dashboard", contest_id=contest_id))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -194,14 +187,156 @@ def contest_dashboard(contest_id):
         is_detail=is_detail,
     )
 
-@admin.route("/admin/contests/<int:contest_id>/submissions")
+
+@admin.route("/admin/contests/<int:contest_id>/settings")
 @admins_only
-def contest_submissions(contest_id):
+def contest_settings(contest_id):
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
     is_detail = True
     return render_template(
+        "admin/contests/contest.html",
+        contest=contest,
+        is_detail=is_detail,
+    )
+
+@admin.route("/admin/contests/<int:contest_id>/submissions")
+@admins_only
+def contest_submissions(contest_id):
+    return _contest_submissions_view(contest_id, submission_type=None)
+
+
+@admin.route("/admin/contests/<int:contest_id>/submissions/correct")
+@admins_only
+def contest_submissions_correct(contest_id):
+    return _contest_submissions_view(contest_id, submission_type="correct")
+
+
+@admin.route("/admin/contests/<int:contest_id>/submissions/incorrect")
+@admins_only
+def contest_submissions_incorrect(contest_id):
+    return _contest_submissions_view(contest_id, submission_type="incorrect")
+
+
+def _contest_submissions_view(contest_id, submission_type):
+    from CTFd.models import ContestChallenge, Submissions, Challenges, Teams, Users
+    from CTFd.utils.modes import get_model
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    # Get contest challenge ids
+    cc_ids = [r[0] for r in db.session.query(ContestChallenge.id)
+              .filter(ContestChallenge.contest_id == contest_id).all()]
+
+    q = request.args.get("q", "").strip()
+    field = request.args.get("field", "provided")
+    team_filter = request.args.get("team_id", "").strip()
+    user_filter = request.args.get("user_id", "").strip()
+    challenge_filter = request.args.get("challenge_id", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+    timezone_offset = request.args.get("timezone_offset", "").strip()
+    page = abs(request.args.get("page", 1, type=int))
+
+    filters = []
+    if cc_ids:
+        filters.append(Submissions.contest_challenge_id.in_(cc_ids))
+    else:
+        filters.append(Submissions.id == -1)
+
+    if submission_type == "correct":
+        filters.append(Submissions.type == "correct")
+    elif submission_type == "incorrect":
+        filters.append(Submissions.type == "incorrect")
+
+    if team_filter:
+        try:
+            filters.append(Submissions.team_id == int(team_filter))
+        except ValueError:
+            pass
+    if user_filter:
+        try:
+            filters.append(Submissions.user_id == int(user_filter))
+        except ValueError:
+            pass
+    if challenge_filter:
+        try:
+            cid = int(challenge_filter)
+            cc_sub = [r[0] for r in db.session.query(ContestChallenge.id)
+                      .filter(ContestChallenge.contest_id == contest_id,
+                              ContestChallenge.challenge_template_id == cid).all()]
+            if cc_sub:
+                filters.append(Submissions.contest_challenge_id.in_(cc_sub))
+            else:
+                filters.append(Submissions.id == -1)
+        except ValueError:
+            pass
+    if q and Submissions.__mapper__.has_property(field):
+        filters.append(getattr(Submissions, field).ilike(f"%{q}%"))
+
+    import datetime as dt
+    if date_from:
+        try:
+            df = dt.datetime.strptime(date_from, "%Y-%m-%d")
+            filters.append(Submissions.date >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt2 = dt.datetime.strptime(date_to, "%Y-%m-%d") + dt.timedelta(days=1)
+            filters.append(Submissions.date < dt2)
+        except ValueError:
+            pass
+
+    submissions = (
+        Submissions.query.filter(*filters)
+        .order_by(Submissions.date.desc())
+        .paginate(page=page, per_page=50, error_out=False)
+    )
+
+    # Dropdowns — only teams/users/challenges in this contest
+    all_teams = []
+    all_users = []
+    all_challenges = []
+    if cc_ids:
+        team_ids = [r[0] for r in db.session.query(Submissions.team_id.distinct())
+                    .filter(Submissions.contest_challenge_id.in_(cc_ids),
+                            Submissions.team_id.isnot(None)).all()]
+        user_ids = [r[0] for r in db.session.query(Submissions.user_id.distinct())
+                    .filter(Submissions.contest_challenge_id.in_(cc_ids),
+                            Submissions.user_id.isnot(None)).all()]
+        if team_ids:
+            all_teams = Teams.query.filter(Teams.id.in_(team_ids)).order_by(Teams.name).all()
+        if user_ids:
+            all_users = Users.query.filter(Users.id.in_(user_ids)).order_by(Users.name).all()
+        all_challenges = (
+            db.session.query(Challenges)
+            .join(ContestChallenge, ContestChallenge.challenge_template_id == Challenges.id)
+            .filter(ContestChallenge.contest_id == contest_id)
+            .order_by(Challenges.name).all()
+        )
+
+    args = dict(request.args)
+    args.pop("page", None)
+    is_detail = True
+
+    return render_template(
         "admin/contests/sections/submissions.html",
         contest=contest,
+        submissions=submissions,
+        submission_type=submission_type,
+        prev_page=url_for(request.endpoint, contest_id=contest_id, page=submissions.prev_num, **args),
+        next_page=url_for(request.endpoint, contest_id=contest_id, page=submissions.next_num, **args),
+        q=q,
+        field=field,
+        all_teams=all_teams,
+        all_users=all_users,
+        all_challenges=all_challenges,
+        team_filter=team_filter,
+        user_filter=user_filter,
+        challenge_filter=challenge_filter,
+        date_from=date_from,
+        date_to=date_to,
+        timezone_offset=timezone_offset,
         is_detail=is_detail,
     )
 
@@ -883,48 +1018,92 @@ def contest_teams(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/action_logs")
 @admins_only
 def contest_action_logs(contest_id):
+    from CTFd.admin.admin_audit import (
+        ALL_ACTIONS, TARGET_TYPES, ACTOR_ROLES, ACTION_LABELS,
+        _build_query, _current_filters,
+    )
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    page = abs(request.args.get("page", 1, type=int))
+    per_page = request.args.get("per_page", 50, type=int)
+    per_page = max(1, min(per_page, 200))
+    filters = _current_filters()
+    q = _build_query(**filters)
+    logs = q.paginate(page=page, per_page=per_page, error_out=False)
+    args = dict(request.args)
+    args.pop("page", None)
     is_detail = True
     return render_template(
         "admin/contests/sections/action_logs.html",
         contest=contest,
+        logs=logs,
+        prev_page=url_for(request.endpoint, contest_id=contest_id, page=logs.prev_num, **args),
+        next_page=url_for(request.endpoint, contest_id=contest_id, page=logs.next_num, **args),
+        per_page=per_page,
+        all_actions=ALL_ACTIONS,
+        target_types=TARGET_TYPES,
+        actor_roles=ACTOR_ROLES,
+        action_labels=ACTION_LABELS,
         is_detail=is_detail,
+        **filters,
     )
 
+@admin.route("/admin/contests/<int:contest_id>/action_logs/export/csv")
+@admins_only
+def contest_action_logs_export_csv(contest_id):
+    import json
+    from CTFd.admin.admin_audit import ACTION_LABELS, _build_query, _current_filters
+    filters = _current_filters()
+    q = _build_query(**filters)
 
-@admin.route("/admin/contests/<int:contest_id>/tickets", methods=["GET"])
+    def generate():
+        sio = StringIO()
+        writer = csv.writer(sio)
+        writer.writerow(["id","timestamp","actor_id","actor_name","actor_type","action","action_label","target_type","target_id","ip_address"])
+        yield sio.getvalue(); sio.seek(0); sio.truncate(0)
+        for log in q.yield_per(1000):
+            writer.writerow([log.id, log.timestamp.isoformat() if log.timestamp else "",
+                log.actor_id or "", log.actor_name or "", log.actor_type or "",
+                log.action, ACTION_LABELS.get(log.action, log.action),
+                log.target_type or "", log.target_id or "", log.ip_address or ""])
+            yield sio.getvalue(); sio.seek(0); sio.truncate(0)
+
+    return Response(stream_with_context(generate()),
+        headers={"Content-Disposition": 'attachment; filename="contest_action_logs.csv"',
+                 "Content-Type": "text/csv; charset=utf-8"})
+
+
+@admin.route("/admin/contests/<int:contest_id>/tickets")
 @admins_only
 def contest_tickets(contest_id):
     from CTFd.SendTicket import get_all_tickets
-    contest = Contests.query.filter_by(id=contest_id).first_or_404()
-    is_detail = True
 
-    page = request.args.get("page", default=1, type=int) or 1
-    per_page = request.args.get("per_page", default=50, type=int) or 50
-    page = max(page, 1)
-    per_page = min(max(per_page, 1), 100)
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
+    page = max(request.args.get("page", 1, type=int), 1)
+    per_page = min(max(request.args.get("per_page", 50, type=int), 1), 100)
     status = request.args.get("status", type=str)
     type_ = request.args.get("type", type=str)
     search = request.args.get("search", type=str)
 
-    response, status_code = get_all_tickets(
-        status=status,
-        type_=type_,
-        search=search,
-        page=page,
-        per_page=per_page,
-        contest_id=contest_id,
-    )
+    try:
+        response, status_code = get_all_tickets(
+            status=status, type_=type_, search=search,
+            page=page, per_page=per_page,
+            contest_id=contest_id,
+        )
+        if not isinstance(response, dict):
+            response = {}
+        tickets = response.get("tickets", []) if status_code == 200 else []
+        total = response.get("total", 0) if status_code == 200 else 0
+    except Exception:
+        tickets, total = [], 0
 
-    tickets = response.get("tickets", []) if status_code == 200 else []
-    total = response.get("total", 0) if status_code == 200 else 0
-
+    is_detail = True
     return render_template(
         "admin/contests/sections/tickets.html",
         contest=contest,
-        is_detail=is_detail,
-        tickets=tickets,
-        total=total,
+        tickets=tickets or [],
+        total=total or 0,
         page=page,
         per_page=per_page,
         status_options=["Open", "Closed"],
@@ -932,6 +1111,7 @@ def contest_tickets(contest_id):
         selected_status=status,
         selected_type=type_,
         search=search,
+        is_detail=is_detail,
     )
 
 
@@ -1058,11 +1238,12 @@ def contest_instances(contest_id):
 
     args = dict(request.args)
     args.pop("page", None)
+    is_detail = True
 
     return render_template(
         "admin/contests/sections/instances.html",
         contest=contest,
-        is_detail=True,
+        is_detail=is_detail,
         logs=logs,
         prev_page=url_for(request.endpoint, contest_id=contest_id, page=logs.prev_num, **args),
         next_page=url_for(request.endpoint, contest_id=contest_id, page=logs.next_num, **args),
