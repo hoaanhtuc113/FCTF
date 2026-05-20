@@ -1,0 +1,18 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_content %}
+<div class="page-header">
+    <div class="container">
+        <h1><i class="bx bx-network-chart"></i> Bracket
+            <small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+        </h1>
+    </div>
+</div>
+<div class="container">
+    <div class="coming-soon-box">
+        <i class="bx bx-network-chart"></i>
+        <h4>Bracket</h4>
+        <p>Bracket management for <strong>{{ contest.name }}</strong> will be available here.</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,225 @@
+import datetime
+import re
+
+from flask import request
+from flask_restx import Namespace, Resource
+
+from CTFd.models import Contests, Users, db
+from CTFd.utils.decorators import admins_only
+from CTFd.utils.logging.audit_logger import log_audit
+
+contests_namespace = Namespace("contests", description="Endpoint to manage Contests")
+
+
+def _slugify(text: str) -> str:
+    """Convert a string to a URL-safe slug."""
+    text = text.lower().strip()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "-", text)
+    text = re.sub(r"^-+|-+$", "", text)
+    return text
+
+
+def _contest_to_dict(contest: Contests) -> dict:
+    return {
+        "id": contest.id,
+        "name": contest.name,
+        "description": contest.description,
+        "slug": contest.slug,
+        "owner_id": contest.owner_id,
+        "user_mode": contest.user_mode,
+        "state": contest.state,
+        "start_time": contest.start_time.isoformat() if contest.start_time else None,
+        "end_time": contest.end_time.isoformat() if contest.end_time else None,
+        "freeze_scoreboard_at": (
+            contest.freeze_scoreboard_at.isoformat()
+            if contest.freeze_scoreboard_at
+            else None
+        ),
+        "view_after_ctf": contest.view_after_ctf,
+        "challenge_visibility": contest.challenge_visibility,
+        "score_visibility": contest.score_visibility,
+        "account_visibility": contest.account_visibility,
+        "registration_visibility": contest.registration_visibility,
+        "team_size": contest.team_size,
+        "captain_only_start_challenge": contest.captain_only_start_challenge,
+        "captain_only_submit_challenge": contest.captain_only_submit_challenge,
+        "team_disbanding": contest.team_disbanding,
+        "allow_name_change": contest.allow_name_change,
+        "incorrect_submissions_per_min": contest.incorrect_submissions_per_min,
+        "created_at": contest.created_at.isoformat() if contest.created_at else None,
+        "updated_at": contest.updated_at.isoformat() if contest.updated_at else None,
+    }
+
+
+def _parse_datetime(value):
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/v1/contests  — list + create
+# ─────────────────────────────────────────────────────────────────────────────
+
+@contests_namespace.route("")
+class ContestList(Resource):
+    method_decorators = [admins_only]
+
+    def get(self):
+        """List all contests with optional filtering."""
+        q = request.args.get("q", "").strip()
+        field = request.args.get("field", "name")
+        state = request.args.get("state", "")
+        user_mode = request.args.get("user_mode", "")
+        page = abs(request.args.get("page", 1, type=int))
+        per_page = min(abs(request.args.get("per_page", 20, type=int)), 100)
+
+        filters = []
+        if q:
+            allowed = {"name", "slug", "description"}
+            if field in allowed and hasattr(Contests, field):
+                filters.append(getattr(Contests, field).ilike(f"%{q}%"))
+        if state:
+            filters.append(Contests.state == state)
+        if user_mode:
+            filters.append(Contests.user_mode == user_mode)
+
+        paginated = (
+            Contests.query.filter(*filters)
+            .order_by(Contests.id.asc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
+
+        return {
+            "success": True,
+            "data": [_contest_to_dict(c) for c in paginated.items],
+            "meta": {
+                "page": paginated.page,
+                "pages": paginated.pages,
+                "per_page": per_page,
+                "total": paginated.total,
+            },
+        }
+
+    def post(self):
+        """Create a new contest."""
+        data = request.get_json(force=True, silent=True) or {}
+
+        name = (data.get("name") or "").strip()
+        if not name:
+            return {"success": False, "errors": {"name": ["Name is required"]}}, 400
+
+        slug = (data.get("slug") or "").strip()
+        if not slug:
+            slug = _slugify(name)
+
+        # Ensure slug uniqueness
+        base_slug = slug
+        counter = 1
+        while Contests.query.filter_by(slug=slug).first():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        contest = Contests(
+            name=name,
+            description=data.get("description") or "",
+            slug=slug,
+            access_password=data.get("access_password") or None,
+            owner_id=data.get("owner_id") or None,
+            user_mode=data.get("user_mode") or "users",
+            state=data.get("state") or "hidden",
+            start_time=_parse_datetime(data.get("start_time")),
+            end_time=_parse_datetime(data.get("end_time")),
+            freeze_scoreboard_at=_parse_datetime(data.get("freeze_scoreboard_at")),
+            view_after_ctf=bool(data.get("view_after_ctf", False)),
+            challenge_visibility=data.get("challenge_visibility") or "private",
+            score_visibility=data.get("score_visibility") or "private",
+            account_visibility=data.get("account_visibility") or "private",
+            registration_visibility=data.get("registration_visibility") or "private",
+            team_size=data.get("team_size") or None,
+            captain_only_start_challenge=bool(data.get("captain_only_start_challenge", True)),
+            captain_only_submit_challenge=bool(data.get("captain_only_submit_challenge", False)),
+            team_disbanding=bool(data.get("team_disbanding", True)),
+            allow_name_change=bool(data.get("allow_name_change", True)),
+            incorrect_submissions_per_min=data.get("incorrect_submissions_per_min") or None,
+        )
+
+        db.session.add(contest)
+        db.session.commit()
+
+        log_audit(action="contest_create", data={"contest_id": contest.id, "name": contest.name})
+
+        return {"success": True, "data": _contest_to_dict(contest)}, 201
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/v1/contests/<id>  — get, update, delete
+# ─────────────────────────────────────────────────────────────────────────────
+
+@contests_namespace.route("/<int:contest_id>")
+class ContestDetail(Resource):
+    method_decorators = [admins_only]
+
+    def get(self, contest_id):
+        """Get a single contest."""
+        contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        return {"success": True, "data": _contest_to_dict(contest)}
+
+    def patch(self, contest_id):
+        """Update a contest (partial update)."""
+        contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        data = request.get_json(force=True, silent=True) or {}
+
+        str_fields = [
+            "name", "description", "slug", "access_password",
+            "user_mode", "state",
+            "challenge_visibility", "score_visibility",
+            "account_visibility", "registration_visibility",
+        ]
+        bool_fields = [
+            "view_after_ctf", "captain_only_start_challenge",
+            "captain_only_submit_challenge", "team_disbanding", "allow_name_change",
+        ]
+        int_fields = ["owner_id", "team_size", "incorrect_submissions_per_min"]
+        dt_fields = ["start_time", "end_time", "freeze_scoreboard_at"]
+
+        for f in str_fields:
+            if f in data:
+                setattr(contest, f, data[f] or None if f in ("access_password",) else (data[f] or ""))
+
+        for f in bool_fields:
+            if f in data:
+                setattr(contest, f, bool(data[f]))
+
+        for f in int_fields:
+            if f in data:
+                val = data[f]
+                setattr(contest, f, int(val) if val not in (None, "", 0) else None)
+
+        for f in dt_fields:
+            if f in data:
+                setattr(contest, f, _parse_datetime(data[f]))
+
+        contest.updated_at = datetime.datetime.utcnow()
+        db.session.commit()
+
+        log_audit(action="contest_update", data={"contest_id": contest.id})
+
+        return {"success": True, "data": _contest_to_dict(contest)}
+
+    def delete(self, contest_id):
+        """Delete a contest."""
+        contest = Contests.query.filter_by(id=contest_id).first_or_404()
+        name = contest.name
+        db.session.delete(contest)
+        db.session.commit()
+
+        log_audit(action="contest_delete", data={"contest_id": contest_id, "name": name})
+
+        return {"success": True, "data": {}}

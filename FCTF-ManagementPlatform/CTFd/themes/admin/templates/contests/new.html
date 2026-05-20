@@ -1,0 +1,349 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block stylesheets %}
+<style>
+    .form-section {
+        background: #fff;
+        border: 1px solid var(--border-light);
+        border-radius: 6px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: var(--shadow-sm);
+    }
+    .form-section-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--primary-orange);
+        margin-bottom: 1rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 2px solid #ffe8df;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .form-label-sm {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 0.2rem;
+    }
+    .form-hint {
+        font-size: 0.75rem;
+        color: var(--text-light);
+        margin-top: 0.15rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1>
+            <i class="bx bx-plus-circle"></i> New Contest
+            <a href="{{ url_for('admin.contests_listing') }}"
+               class="clean-btn ml-3" style="font-size:0.8rem; font-weight:500;">
+                <i class="bx bx-arrow-back"></i> Back to Contests
+            </a>
+        </h1>
+    </div>
+</div>
+
+<div class="container">
+    <form id="new-contest-form">
+
+        <!-- Basic Info -->
+        <div class="form-section">
+            <div class="form-section-title"><i class="bx bx-info-circle"></i> Basic Information</div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label-sm">Contest Name <span class="text-danger">*</span></label>
+                        <input type="text" id="contest-name" name="name"
+                               class="clean-form-control w-100" placeholder="e.g. FCTF 2026 Finals"
+                               required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label-sm">Slug</label>
+                        <input type="text" id="contest-slug" name="slug"
+                               class="clean-form-control w-100" placeholder="auto-generated from name">
+                        <div class="form-hint">URL-safe identifier. Auto-filled from name if left blank.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label-sm">Description</label>
+                <textarea id="contest-description" name="description"
+                          class="clean-form-control w-100" rows="3"
+                          placeholder="Brief description of this contest…"></textarea>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label-sm">Access Password</label>
+                        <input type="text" id="contest-password" name="access_password"
+                               class="clean-form-control w-100" placeholder="Leave blank for open access">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">User Mode</label>
+                        <select id="contest-user-mode" name="user_mode" class="clean-form-control w-100">
+                            <option value="users">Users</option>
+                            <option value="teams">Teams</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">State</label>
+                        <select id="contest-state" name="state" class="clean-form-control w-100">
+                            <option value="hidden">Hidden</option>
+                            <option value="visible">Visible</option>
+                            <option value="paused">Paused</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule -->
+        <div class="form-section">
+            <div class="form-section-title"><i class="bx bx-calendar"></i> Schedule</div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label-sm">Start Time</label>
+                        <input type="datetime-local" id="contest-start" name="start_time"
+                               class="clean-form-control w-100">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label-sm">End Time</label>
+                        <input type="datetime-local" id="contest-end" name="end_time"
+                               class="clean-form-control w-100">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label-sm">Freeze Scoreboard At</label>
+                        <input type="datetime-local" id="contest-freeze" name="freeze_scoreboard_at"
+                               class="clean-form-control w-100">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="view-after-ctf" name="view_after_ctf">
+                    <label class="custom-control-label" for="view-after-ctf">
+                        Allow viewing after CTF ends
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visibility -->
+        <div class="form-section">
+            <div class="form-section-title"><i class="bx bx-show"></i> Visibility Settings</div>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Challenge Visibility</label>
+                        <select name="challenge_visibility" class="clean-form-control w-100">
+                            <option value="private">Private</option>
+                            <option value="public">Public</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Score Visibility</label>
+                        <select name="score_visibility" class="clean-form-control w-100">
+                            <option value="private">Private</option>
+                            <option value="public">Public</option>
+                            <option value="admins">Admins Only</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Account Visibility</label>
+                        <select name="account_visibility" class="clean-form-control w-100">
+                            <option value="private">Private</option>
+                            <option value="public">Public</option>
+                            <option value="admins">Admins Only</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Registration Visibility</label>
+                        <select name="registration_visibility" class="clean-form-control w-100">
+                            <option value="private">Private</option>
+                            <option value="public">Public</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Settings -->
+        <div class="form-section" id="team-settings-section">
+            <div class="form-section-title"><i class="bx bx-group"></i> Team Settings</div>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Max Team Size</label>
+                        <input type="number" name="team_size" min="1"
+                               class="clean-form-control w-100" placeholder="Unlimited">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="form-label-sm">Wrong Submissions / Min</label>
+                        <input type="number" name="incorrect_submissions_per_min" min="1"
+                               class="clean-form-control w-100" placeholder="Unlimited">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="captain-start" name="captain_only_start_challenge" checked>
+                        <label class="custom-control-label" for="captain-start">Captain only start challenge</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="captain-submit" name="captain_only_submit_challenge">
+                        <label class="custom-control-label" for="captain-submit">Captain only submit flag</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="team-disband" name="team_disbanding" checked>
+                        <label class="custom-control-label" for="team-disband">Allow team disbanding</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="name-change" name="allow_name_change" checked>
+                        <label class="custom-control-label" for="name-change">Allow name change</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="d-flex justify-content-end mb-4">
+            <a href="{{ url_for('admin.contests_listing') }}" class="clean-btn mr-2">Cancel</a>
+            <button type="submit" class="clean-btn clean-btn-primary" id="submit-btn">
+                <i class="bx bx-save"></i> Create Contest
+            </button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const nonce = init.csrfNonce;
+
+    // Auto-generate slug from name
+    const nameInput = document.getElementById('contest-name');
+    const slugInput = document.getElementById('contest-slug');
+    let slugManuallyEdited = false;
+
+    slugInput.addEventListener('input', function () {
+        slugManuallyEdited = slugInput.value.trim() !== '';
+    });
+
+    nameInput.addEventListener('input', function () {
+        if (!slugManuallyEdited) {
+            slugInput.value = nameInput.value
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/[\s_-]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+    });
+
+    // Form submit
+    document.getElementById('new-contest-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Creating…';
+
+        const form = e.target;
+        const data = {
+            name: form.name.value.trim(),
+            slug: form.slug.value.trim() || null,
+            description: form.description.value.trim(),
+            access_password: form.access_password.value.trim() || null,
+            user_mode: form.user_mode.value,
+            state: form.state.value,
+            start_time: form.start_time.value || null,
+            end_time: form.end_time.value || null,
+            freeze_scoreboard_at: form.freeze_scoreboard_at.value || null,
+            view_after_ctf: form.view_after_ctf.checked,
+            challenge_visibility: form.challenge_visibility.value,
+            score_visibility: form.score_visibility.value,
+            account_visibility: form.account_visibility.value,
+            registration_visibility: form.registration_visibility.value,
+            team_size: form.team_size.value ? parseInt(form.team_size.value) : null,
+            incorrect_submissions_per_min: form.incorrect_submissions_per_min.value
+                ? parseInt(form.incorrect_submissions_per_min.value) : null,
+            captain_only_start_challenge: form.captain_only_start_challenge.checked,
+            captain_only_submit_challenge: form.captain_only_submit_challenge.checked,
+            team_disbanding: form.team_disbanding.checked,
+            allow_name_change: form.allow_name_change.checked,
+        };
+
+        if (!data.name) {
+            alert('Contest name is required.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            return;
+        }
+
+        fetch('/api/v1/contests', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'CSRF-Token': nonce,
+            },
+            body: JSON.stringify(data),
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (json) {
+            if (json.success) {
+                window.location.href = '/admin/contests/' + json.data.id;
+            } else {
+                const errors = json.errors || {};
+                const msg = Object.values(errors).flat().join('\n') || 'Failed to create contest.';
+                alert(msg);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+            }
+        })
+        .catch(function (err) {
+            console.error(err);
+            alert('An error occurred. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Create Contest';
+        });
+    });
+})();
+</script>
+{% endblock %}

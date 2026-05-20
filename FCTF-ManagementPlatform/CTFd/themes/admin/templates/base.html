@@ -697,6 +697,11 @@
                         <i class="bx bx-book"></i> Challenges
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.contests_listing') }}">
+                        <i class="bx bx-trophy"></i> Contests
+                    </a>
+                </li>
                 {% if is_admin() or is_jury() %}
 
                 <li class="nav-item">

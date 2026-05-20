@@ -1,0 +1,513 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+	.statistics-text {
+		background: #ffffff;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+	}
+	.statistics-text h5 {
+		color: #495057;
+		font-size: 0.95rem;
+		margin-bottom: 1rem;
+		font-weight: 500;
+		line-height: 1.6;
+	}
+	.statistics-text h5 b { color: #2c3e50; font-weight: 700; font-size: 1.1rem; }
+	.statistics-text hr { border-top: 2px solid #e8e8e8; margin: 1.5rem 0; }
+	.graph-container {
+		background: #ffffff;
+		padding: 2rem;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		min-height: 400px;
+	}
+	.graph-title {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.1rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 2px solid #e8e8e8;
+	}
+	.spinner { color: #ff6b35; }
+	.section-divider {
+		border: 0;
+		height: 2px;
+		background: linear-gradient(to right, transparent, #e8e8e8, transparent);
+		margin: 2rem 0;
+	}
+	.stats-highlight {
+		display: inline-block;
+		padding: 0.25rem 0.5rem;
+		background: #fff5f2;
+		border-radius: 4px;
+		color: #ff6b35;
+		font-weight: 700;
+	}
+	.pie-stats { text-align: center; margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 6px; }
+	.pie-stats h5 { color: #495057; font-size: 0.9rem; margin: 0.5rem 0; }
+	.pie-stats h5 b { color: #ff6b35; font-size: 1.2rem; }
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-bar-chart-alt-2"></i> Dashboard — {{ contest.name }}</h1>
+	</div>
+</div>
+
+<div class="container">
+	<div class="row d-flex align-items-stretch">
+		<div class="col-md-4 mb-4">
+			<div class="statistics-text h-100">
+				<h5><b id="stat-challenges">—</b> challenges</h5>
+				<h5><b id="stat-participants">—</b> <span id="stat-participants-label">participants</span></h5>
+				<h5><b id="stat-points">—</b> total possible points</h5>
+				<hr>
+				<h5><b id="stat-solves">—</b> correct submissions</h5>
+				<h5><b id="stat-wrong">—</b> wrong submissions</h5>
+				<hr>
+				<h5 id="most-solved-row" style="display:none">
+					<span class="stats-highlight" id="most-solved-name"></span>
+					has the most solves with <b id="most-solved-count"></b> solves
+				</h5>
+				<h5 id="least-solved-row" style="display:none">
+					<span class="stats-highlight" id="least-solved-name"></span>
+					has the least solves with <b id="least-solved-count"></b> solves
+				</h5>
+			</div>
+		</div>
+		<div class="col-md-8 mb-4">
+			<div class="graph-container h-100">
+				<div class="graph-title">Solves Over Time</div>
+				<div id="solves-graph" class="d-flex align-items-center">
+					<div class="text-center w-100">
+						<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<hr class="section-divider">
+
+	<div class="row">
+		<div class="col-md-12 mb-4">
+			<div class="graph-container">
+				<div class="graph-title">Score Distribution</div>
+				<div id="score-distribution-graph" class="d-flex align-items-center">
+					<div class="text-center w-100">
+						<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<hr class="section-divider">
+
+	<div class="row">
+		<div class="col-md-12 mb-4">
+			<div class="graph-container">
+				<div class="graph-title">Solve Percentages</div>
+				<div id="solve-percentages-graph" class="d-flex align-items-center">
+					<div class="text-center w-100">
+						<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<hr class="section-divider">
+
+	<div class="row">
+		<div class="col-md-6 mb-4">
+			<div class="graph-container">
+				<div class="graph-title">Avg Solve Time per Challenge</div>
+				<div id="avg-solve-time-graph" class="d-flex align-items-center" style="min-height:320px;">
+					<div class="text-center w-100">
+						<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-6 mb-4">
+			<div class="graph-container">
+				<div class="graph-title">Wrong Attempts per Challenge</div>
+				<div id="wrong-attempts-graph" class="d-flex align-items-center" style="min-height:320px;">
+					<div class="text-center w-100">
+						<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<hr class="section-divider">
+
+	<div class="row">
+		<div class="col-md-6 mb-4">
+			<div class="graph-container">
+				<div class="graph-title">Submission Results</div>
+				<div id="keys-pie-graph" class="d-flex align-items-center" style="min-height:300px;">
+					<div class="text-center w-100">
+						<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+					</div>
+				</div>
+				<div class="pie-stats">
+					<h5><b id="pie-solves">—</b> right submissions</h5>
+					<h5><b id="pie-wrong">—</b> wrong submissions</h5>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-6 mb-4">
+			<div class="graph-container">
+				<div class="graph-title">Challenge Categories</div>
+				<div id="categories-pie-graph" class="d-flex align-items-center" style="min-height:300px;">
+					<div class="text-center w-100">
+						<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<hr class="section-divider">
+
+	<div class="row">
+		<div class="col-md-12 mb-4">
+			<div class="graph-container">
+				<div class="d-flex align-items-center justify-content-between graph-title">
+					<span>Challenge Difficulty Snapshot</span>
+					<button type="button" class="btn btn-sm btn-outline-primary" id="challenge-analytics-export">
+						Export CSV
+					</button>
+				</div>
+				<div class="row">
+					<div class="col-md-8">
+						<div class="table-responsive">
+							<table class="table table-sm" id="challenge-analytics-table">
+								<thead>
+									<tr>
+										<th>Challenge</th>
+										<th>Solve Conversion</th>
+										<th>Avg Tries/Attempter</th>
+										<th>Solvers Using Hint</th>
+										<th>Avg Hints/Solve</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr><td colspan="5" class="text-center">Loading...</td></tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div class="col-md-4">
+						<div id="category-solves-graph" class="d-flex align-items-center" style="min-height:320px;">
+							<div class="text-center w-100">
+								<i class="fas fa-circle-notch fa-spin fa-3x fa-fw spinner"></i>
+							</div>
+						</div>
+						<div class="pie-stats">
+							<h5>Most solved category: <b id="category-most-solved">-</b></h5>
+							<h5>Least solved category: <b id="category-least-solved">-</b></h5>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+(function () {
+"use strict";
+
+const CONTEST_ID = {{ contest.id }};
+const BASE = "/api/v1/contest_statistics/" + CONTEST_ID;
+
+// ── helpers ──────────────────────────────────────────────────────────────
+function colorHash(str) {
+	let hash = 0;
+	for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+	const h = Math.abs(hash) % 360;
+	return `hsl(${h},60%,55%)`;
+}
+function formatPercent(v) { return v == null ? "-" : Number(v).toFixed(1) + "%"; }
+function formatFixed(v, d) { return v == null ? "-" : Number(v).toFixed(d); }
+function solveConvPct(row) {
+	const a = Number(row.attempter_count || 0), s = Number(row.solve_count || 0);
+	return a <= 0 ? null : (s / a) * 100;
+}
+
+// ── fetch wrappers ────────────────────────────────────────────────────────
+let analyticsCache = null;
+function fetchAnalytics() {
+	if (!analyticsCache) analyticsCache = fetch(BASE + "/challenges/analytics").then(r => r.json());
+	return analyticsCache;
+}
+function fetchSolves()       { return fetch(BASE + "/challenges/solves").then(r => r.json()); }
+function fetchPercentages()  { return fetch(BASE + "/challenges/percentages").then(r => r.json()); }
+function fetchSubTypes()     { return fetch(BASE + "/submissions/types").then(r => r.json()); }
+function fetchDistribution() { return fetch(BASE + "/scores/distribution").then(r => r.json()); }
+function fetchSummary()      { return fetch(BASE + "/summary").then(r => r.json()); }
+
+// ── summary card ─────────────────────────────────────────────────────────
+fetchSummary().then(function(res) {
+	if (!res.success) return;
+	const d = res.data;
+	document.getElementById("stat-challenges").textContent    = d.challenge_count;
+	document.getElementById("stat-participants").textContent  = d.participant_count;
+	document.getElementById("stat-participants-label").textContent = d.user_mode === "teams" ? "teams" : "users";
+	document.getElementById("stat-points").textContent        = d.total_points;
+	document.getElementById("stat-solves").textContent        = d.solve_count;
+	document.getElementById("stat-wrong").textContent         = d.wrong_count;
+	document.getElementById("pie-solves").textContent         = d.solve_count;
+	document.getElementById("pie-wrong").textContent          = d.wrong_count;
+	if (d.most_solved) {
+		document.getElementById("most-solved-name").textContent  = d.most_solved;
+		document.getElementById("most-solved-count").textContent = d.solve_data[d.most_solved];
+		document.getElementById("most-solved-row").style.display = "";
+	}
+	if (d.least_solved) {
+		document.getElementById("least-solved-name").textContent  = d.least_solved;
+		document.getElementById("least-solved-count").textContent = d.solve_data[d.least_solved];
+		document.getElementById("least-solved-row").style.display = "";
+	}
+});
+
+// ── chart factory ─────────────────────────────────────────────────────────
+function makeChart(selector) {
+	const el = document.querySelector(selector);
+	if (!el) return null;
+	el.innerHTML = "";
+	return echarts.init(el);
+}
+
+// ── Solves Over Time (bar) ────────────────────────────────────────────────
+fetchSolves().then(function(res) {
+	if (!res.success) return;
+	const data = res.data;
+	const sorted = [...data].sort((a, b) => b.solves - a.solves);
+	const names  = sorted.map(d => d.name);
+	const counts = sorted.map(d => d.solves);
+	const chart  = makeChart("#solves-graph");
+	if (!chart) return;
+	chart.setOption({
+		title: { left:"center", text:"Solve Counts", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+		tooltip: { trigger:"item", textStyle:{fontFamily:"Space Mono"} },
+		toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, magicType:{show:true,type:["line","bar"]}, saveAsImage:{show:true} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+		xAxis: { name:"Solve Count", nameLocation:"middle", type:"value", nameTextStyle:{fontFamily:"Space Mono"} },
+		yAxis: { name:"Challenge Name", nameLocation:"middle", nameGap:60, type:"category", data:names, nameTextStyle:{fontFamily:"Space Mono"}, axisLabel:{interval:0} },
+		dataZoom: [{show:false,start:0,end:100},{type:"inside",yAxisIndex:0,show:true,width:20},{fillerColor:"rgba(233,236,241,0.4)",show:true,yAxisIndex:0,width:20}],
+		series: [{ itemStyle:{normal:{color:"#ff5500"}}, data:counts, type:"bar" }],
+	});
+	window.addEventListener("resize", () => chart.resize());
+});
+
+// ── Score Distribution ────────────────────────────────────────────────────
+fetchDistribution().then(function(res) {
+	if (!res.success) return;
+	const data = res.data.brackets;
+	const keys = Object.keys(data).map(Number).sort((a,b)=>a-b);
+	const brackets = [], sizes = [];
+	let start = "<0";
+	keys.forEach(k => { brackets.push(start + " - " + k); sizes.push(data[k]); start = k; });
+	const chart = makeChart("#score-distribution-graph");
+	if (!chart) return;
+	chart.setOption({
+		title: { left:"center", text:"Score Distribution", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+		tooltip: { trigger:"item", textStyle:{fontFamily:"Space Mono"} },
+		toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, magicType:{show:true,type:["line","bar"]}, saveAsImage:{show:true} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+		xAxis: { name:"Score Bracket", nameGap:40, nameLocation:"middle", type:"category", data:brackets, nameTextStyle:{fontFamily:"Space Mono"}, axisLabel:{fontFamily:"Space Mono",interval:0} },
+		yAxis: { name:"Number of Participants", nameGap:50, nameLocation:"middle", type:"value", nameTextStyle:{fontFamily:"Space Mono"} },
+		dataZoom: [{show:false,start:0,end:100},{type:"inside",show:true,start:0,end:100},{fillerColor:"rgba(233,236,241,0.4)",show:true,right:60,yAxisIndex:0,width:20},{type:"slider",fillerColor:"rgba(233,236,241,0.4)",top:35,height:20,show:true,start:0,end:100}],
+		series: [{ itemStyle:{normal:{color:"#ff5500"}}, data:sizes, type:"bar" }],
+	});
+	window.addEventListener("resize", () => chart.resize());
+});
+
+// ── Solve Percentages ─────────────────────────────────────────────────────
+fetchPercentages().then(function(res) {
+	if (!res.success) return;
+	const data = res.data;
+	const names = [], percents = [];
+	Object.values(data).forEach(d => { names.push(d.name); percents.push(d.percentage * 100); });
+	const chart = makeChart("#solve-percentages-graph");
+	if (!chart) return;
+	chart.setOption({
+		title: { left:"center", text:"Solve Percentages per Challenge", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+		tooltip: { trigger:"item", formatter: d => d.name + " - " + (Math.round(d.value*10)/10).toFixed(1) + "%", textStyle:{fontFamily:"Space Mono"} },
+		toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, magicType:{show:true,type:["line","bar"]}, saveAsImage:{show:true} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+		xAxis: { name:"Challenge Name", nameGap:40, nameLocation:"middle", type:"category", data:names, nameTextStyle:{fontFamily:"Space Mono"}, axisLabel:{fontFamily:"Space Mono",interval:0,rotate:50} },
+		yAxis: { name:"Percentage (%)", nameGap:50, nameLocation:"middle", type:"value", min:0, max:100, nameTextStyle:{fontFamily:"Space Mono"} },
+		dataZoom: [{show:false,start:0,end:100},{type:"inside",show:true,start:0,end:100},{fillerColor:"rgba(233,236,241,0.4)",show:true,right:60,yAxisIndex:0,width:20},{type:"slider",fillerColor:"rgba(233,236,241,0.4)",top:35,height:20,show:true,start:0,end:100}],
+		series: [{ itemStyle:{normal:{color:"#ff5500"}}, data:percents, type:"bar" }],
+	});
+	window.addEventListener("resize", () => chart.resize());
+});
+
+// ── Submission Results pie ────────────────────────────────────────────────
+fetchSubTypes().then(function(res) {
+	if (!res.success) return;
+	const d = res.data;
+	const chart = makeChart("#keys-pie-graph");
+	if (!chart) return;
+	chart.setOption({
+		title: { left:"center", text:"Submission Percentages", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+		tooltip: { trigger:"item", textStyle:{fontFamily:"Space Mono"} },
+		toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, saveAsImage:{} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+		legend: { orient:"vertical", top:"middle", right:0, data:["Fails","Solves"] },
+		series: [{
+			name:"Submission Percentages", type:"pie", radius:["30%","50%"],
+			label: { show:false, position:"center" },
+			itemStyle: { normal:{ label:{show:true, formatter: d => d.name+" - "+d.value+" ("+d.percent+"%)"},labelLine:{show:true} }, emphasis:{label:{show:true,position:"center",textStyle:{fontSize:"14",fontWeight:"normal"}}} },
+			emphasis: { label:{show:true,fontSize:"30",fontWeight:"bold"} },
+			labelLine: { show:false },
+			data: [
+				{ value:d.incorrect, name:"Fails",  itemStyle:{color:"rgb(207,38,0)"} },
+				{ value:d.correct,   name:"Solves", itemStyle:{color:"rgb(0,209,64)"} },
+			],
+		}],
+	});
+	window.addEventListener("resize", () => chart.resize());
+});
+
+// ── Analytics (avg solve time, wrong attempts, categories, table) ─────────
+fetchAnalytics().then(function(res) {
+	if (!res.success) return;
+	const rows = res.data.challenges || [];
+	const cats  = res.data.categories || {};
+
+	// Avg Solve Time
+	const filtered = rows.filter(r => r.avg_solve_seconds != null)
+		.map(r => ({name:r.name, value:r.avg_solve_seconds}))
+		.sort((a,b) => b.value - a.value).slice(0,20);
+	const avgChart = makeChart("#avg-solve-time-graph");
+	if (avgChart) {
+		avgChart.setOption({
+			title: { left:"center", text:"Avg Solve Time (minutes)", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+			tooltip: { trigger:"item", formatter: d => d.name+" - "+d.value+"m", textStyle:{fontFamily:"Space Mono"} },
+			toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, saveAsImage:{show:true} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+			xAxis: { type:"value", name:"Minutes", nameTextStyle:{fontFamily:"Space Mono"} },
+			yAxis: { type:"category", data:filtered.map(r=>r.name), nameTextStyle:{fontFamily:"Space Mono"} },
+			series: [{ itemStyle:{normal:{color:"#ff5500"}}, data:filtered.map(r=>Math.round(r.value/60)), type:"bar" }],
+		});
+		window.addEventListener("resize", () => avgChart.resize());
+	}
+
+	// Wrong Attempts
+	const wrongSorted = [...rows].map(r=>({name:r.name,value:r.wrong_attempts||0})).sort((a,b)=>b.value-a.value).slice(0,20);
+	const wrongChart = makeChart("#wrong-attempts-graph");
+	if (wrongChart) {
+		wrongChart.setOption({
+			title: { left:"center", text:"Wrong Attempts (top 20)", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+			tooltip: { trigger:"item", textStyle:{fontFamily:"Space Mono"} },
+			toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, saveAsImage:{show:true} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+			xAxis: { type:"value", name:"Attempts", nameTextStyle:{fontFamily:"Space Mono"} },
+			yAxis: { type:"category", data:wrongSorted.map(r=>r.name), nameTextStyle:{fontFamily:"Space Mono"} },
+			series: [{ itemStyle:{normal:{color:"#cf2600"}}, data:wrongSorted.map(r=>r.value), type:"bar" }],
+		});
+		window.addEventListener("resize", () => wrongChart.resize());
+	}
+
+	// Categories pie
+	const catNames = Object.keys(cats), catVals = catNames.map(k=>cats[k]);
+	const catChart = makeChart("#categories-pie-graph");
+	if (catChart) {
+		const option = {
+			title: { left:"center", text:"Category Breakdown", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+			tooltip: { trigger:"item", textStyle:{fontFamily:"Space Mono"} },
+			toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, saveAsImage:{} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+			legend: { type:"scroll", orient:"vertical", top:"middle", right:10, data:[] },
+			series: [{ name:"Category Breakdown", type:"pie", radius:["30%","50%"], label:{show:false,position:"center"}, itemStyle:{normal:{label:{show:true,formatter:d=>d.percent+"% ("+d.value+")"},labelLine:{show:true}},emphasis:{label:{show:true,position:"center",textStyle:{fontSize:"14",fontWeight:"normal"}}}}, emphasis:{label:{show:true,fontSize:"30",fontWeight:"bold"}}, data:[] }],
+		};
+		catNames.forEach((cat,i) => { option.legend.data.push(cat); option.series[0].data.push({value:catVals[i],name:cat,itemStyle:{color:colorHash(cat)}}); });
+		catChart.setOption(option);
+		window.addEventListener("resize", () => catChart.resize());
+	}
+
+	// Category solves bar
+	const paired = catNames.map((n,i)=>({name:n,value:catVals[i]})).sort((a,b)=>b.value-a.value);
+	const catSolvesChart = makeChart("#category-solves-graph");
+	if (catSolvesChart) {
+		catSolvesChart.setOption({
+			title: { left:"center", text:"Category Solves", textStyle:{fontFamily:"Space Mono",color:"#ff5500"} },
+			tooltip: { trigger:"item", textStyle:{fontFamily:"Space Mono"} },
+			toolbox: { show:true, feature:{ dataView:{show:true,readOnly:false}, saveAsImage:{show:true} }, emphasis:{iconStyle:{borderColor:"#ff5500"}} },
+			xAxis: { type:"value", name:"Solves", nameTextStyle:{fontFamily:"Space Mono"} },
+			yAxis: { type:"category", data:paired.map(p=>p.name), nameTextStyle:{fontFamily:"Space Mono"} },
+			series: [{ type:"bar", data:paired.map(p=>p.value), itemStyle:{color:params=>colorHash(paired[params.dataIndex].name)} }],
+		});
+		window.addEventListener("resize", () => catSolvesChart.resize());
+	}
+
+	// Category summary
+	const mostEl  = document.getElementById("category-most-solved");
+	const leastEl = document.getElementById("category-least-solved");
+	if (mostEl)  mostEl.textContent  = res.data.category_most_solved?.name  || "-";
+	if (leastEl) leastEl.textContent = res.data.category_least_solved?.name || "-";
+
+	// Analytics table
+	const tbody = document.querySelector("#challenge-analytics-table tbody");
+	if (tbody) {
+		tbody.innerHTML = "";
+		if (!rows.length) {
+			tbody.innerHTML = '<tr><td colspan="5" class="text-center">No data</td></tr>';
+		} else {
+			[...rows].sort((a,b) => {
+				const ca = solveConvPct(a), cb = solveConvPct(b);
+				if (ca===null && cb!==null) return 1;
+				if (ca!==null && cb===null) return -1;
+				if (ca!==null && cb!==null && ca!==cb) return ca-cb;
+				return Number(b.avg_attempts_per_attempter||0)-Number(a.avg_attempts_per_attempter||0);
+			}).forEach(row => {
+				const tr = document.createElement("tr");
+				const att = Number(row.attempter_count||0), sol = Number(row.solve_count||0);
+				const conv = solveConvPct(row);
+				const convText = conv===null ? "-" : formatPercent(conv)+" ("+sol+"/"+att+")";
+				const hasCap = row.max_attempts && Number(row.max_attempts)>0;
+				const triesText = row.avg_attempts_per_attempter==null ? "-" : formatFixed(row.avg_attempts_per_attempter,2)+(hasCap?" / cap "+row.max_attempts:"");
+				const hintText  = row.pct_solvers_used_hints==null  ? "-" : formatPercent(row.pct_solvers_used_hints);
+				const avgHText  = row.avg_hints_per_solve==null     ? "-" : formatFixed(row.avg_hints_per_solve,2);
+				[row.name||"-", convText, triesText, hintText, avgHText].forEach(v => {
+					const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
+				});
+				tbody.appendChild(tr);
+			});
+		}
+	}
+});
+
+// ── Export CSV ────────────────────────────────────────────────────────────
+document.getElementById("challenge-analytics-export").addEventListener("click", function() {
+	fetchAnalytics().then(function(res) {
+		if (!res.success) return;
+		const rows = res.data.challenges || [];
+		const header = ["Challenge","Solve Conversion (%)","Solved","Attempted","Avg Tries/Attempter","Solvers Using Hint (%)","Avg Hints/Solve","Max Attempts"];
+		const lines = [header.join(",")];
+		rows.forEach(row => {
+			const sol = Number(row.solve_count||0), att = Number(row.attempter_count||0);
+			const conv = solveConvPct(row);
+			const name = String(row.name).replaceAll('"','""');
+			lines.push(['"'+name+'"', conv==null?"":conv.toFixed(1), sol, att, row.avg_attempts_per_attempter??"", row.pct_solvers_used_hints??"", row.avg_hints_per_solve??"", row.max_attempts??0].join(","));
+		});
+		const blob = new Blob([lines.join("\n")],{type:"text/csv"});
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a"); a.href=url; a.download="contest-"+CONTEST_ID+"-analytics.csv";
+		document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+	});
+});
+
+})();
+</script>
+{% endblock %}

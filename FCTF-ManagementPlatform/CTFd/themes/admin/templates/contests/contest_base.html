@@ -1,0 +1,200 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block stylesheets %}
+<style>
+    /* ═══════════════════════════════════════════════════════════════
+       Contest-scoped sidebar — matches the design in the reference image
+       (right panel): "CONTEST" header, large icons, generous spacing
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* Override sidebar width/padding to match main sidebar */
+    #sidebar {
+        padding: 20px 16px 16px;
+        gap: 0;
+    }
+
+    /* ── Back link ─────────────────────────────────────────────── */
+    .cs-back {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-light);
+        font-family: "Space Mono", monospace;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-decoration: none !important;
+        padding: 6px 10px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+        transition: background 0.18s, color 0.18s;
+        width: 100%;
+    }
+    .cs-back i { font-size: 0.95rem; }
+    .cs-back:hover { background: var(--primary-orange); color: #fff !important; }
+
+    /* ── Section header — "CONTEST" bold uppercase label ──────── */
+    .cs-section-label {
+        font-family: "Space Mono", monospace;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.4px;
+        color: var(--text-dark);
+        padding: 0 10px;
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    /* ── Nav links — large icon, generous padding, monospace ──── */
+    .cs-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        color: var(--text-medium);
+        font-family: "Space Mono", monospace;
+        font-size: 0.88rem;
+        font-weight: 500;
+        padding: 12px 10px;
+        border-radius: 8px;
+        text-decoration: none !important;
+        transition: background 0.18s, color 0.18s;
+        margin-bottom: 2px;
+        width: 100%;
+        cursor: pointer;
+    }
+    .cs-nav-link i {
+        font-size: 1.3rem;
+        min-width: 24px;
+        color: var(--text-light);
+        flex-shrink: 0;
+        transition: color 0.18s;
+    }
+    .cs-nav-link:hover {
+        background: var(--primary-orange);
+        color: #fff !important;
+    }
+    .cs-nav-link:hover i { color: #fff; }
+    .cs-nav-link.active {
+        background: var(--primary-orange);
+        color: #fff !important;
+        font-weight: 700;
+    }
+    .cs-nav-link.active i { color: #fff; }
+
+    /* ── Coming-soon placeholder ───────────────────────────────── */
+    .coming-soon-box {
+        background: #fff;
+        border: 2px dashed var(--border-medium);
+        border-radius: 8px;
+        padding: 3rem 2rem;
+        text-align: center;
+        color: var(--text-light);
+        margin-top: 1rem;
+    }
+    .coming-soon-box i {
+        font-size: 3rem;
+        color: var(--border-medium);
+        display: block;
+        margin-bottom: 0.75rem;
+    }
+    .coming-soon-box h4 { color: var(--text-medium); font-weight: 600; margin-bottom: 0.5rem; }
+    .coming-soon-box p  { font-size: 0.88rem; margin: 0; }
+</style>
+{% block contest_stylesheets %}{% endblock %}
+{% endblock %}
+
+
+{# ══════════════════════════════════════════════════════════════════
+   Override the entire sidebar block with contest-scoped navigation
+   ══════════════════════════════════════════════════════════════════ #}
+{% block sidebar %}
+<nav id="sidebar" class="d-flex flex-column">
+
+    {# ── Logo ── #}
+    <a href="{{ url_for('views.static_html', route='/') }}" class="navbar-brand logo-container" style="margin-bottom: 20px;">
+        {% if Configs.ctf_logo %}
+        <img src="{{ url_for('views.files', path=Configs.ctf_logo) }}" alt="{{ Configs.ctf_name }}">
+        {% else %}
+        <img src="{{ url_for('views.themes', theme='admin', path='img/logo.png') }}" alt="F-CTF">
+        {% endif %}
+    </a>
+
+    {# ── Back to contest list ── #}
+    <a href="{{ url_for('admin.contests_listing') }}" class="cs-back">
+        <i class="bx bx-arrow-back"></i> All Contests
+    </a>
+
+    {# ── "CONTEST" section label (matches image) ── #}
+    <span class="cs-section-label">Contest</span>
+
+    {# ── Dashboard ── #}
+    <a href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_dashboard' %}active{% endif %}">
+        <i class="bx bx-bar-chart-alt-2"></i> Dashboard
+    </a>
+
+    <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_challenges' %}active{% endif %}">
+        <i class="bx bx-desktop"></i> Challenges
+    </a>
+
+    <a href="{{ url_for('admin.contest_users', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_users' %}active{% endif %}">
+        <i class="bx bx-user"></i> Users
+    </a>
+
+    <a href="{{ url_for('admin.contest_teams', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_teams' %}active{% endif %}">
+        <i class="bx bx-group"></i> Teams
+    </a>
+
+    <a href="{{ url_for('admin.contest_action_logs', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_action_logs' %}active{% endif %}">
+        <i class="bx bx-list-ul"></i> Action Logs
+    </a>
+
+    <a href="{{ url_for('admin.contest_tickets', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_tickets' %}active{% endif %}">
+        <i class="bx bx-envelope"></i> Tickets
+    </a>
+
+    <a href="{{ url_for('admin.contest_instances', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_instances' %}active{% endif %}">
+        <i class="bx bx-time-five"></i> Instance History
+    </a>
+
+    <a href="{{ url_for('admin.contest_scoreboard', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_scoreboard' %}active{% endif %}">
+        <i class="bx bx-bar-chart-alt-2"></i> Scoreboard
+    </a>
+
+    <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_submissions' %}active{% endif %}">
+        <i class="bx bx-navigation"></i> Submissions
+    </a>
+
+    <a href="{{ url_for('admin.contest_dynamic_reward', contest_id=contest.id) }}"
+       class="cs-nav-link {% if request.endpoint == 'admin.contest_dynamic_reward' %}active{% endif %}">
+        <i class="bx bx-line-chart"></i> Dynamic Reward Query
+    </a>
+
+    {# ── Logout at bottom ── #}
+    <div class="mt-auto w-100" style="border-top: 1px solid rgba(0,0,0,0.07); padding-top: 8px; margin-top: 12px;">
+        <a href="{{ url_for('auth.logout') }}" class="cs-nav-link" style="color: var(--text-light);">
+            <i class="bx bx-log-out"></i> Logout
+        </a>
+    </div>
+
+</nav>
+{% endblock sidebar %}
+
+
+{# ── Page content ── #}
+{% block content %}
+{% block contest_content %}{% endblock %}
+{% endblock %}
+
+{% block scripts %}
+{% block contest_scripts %}{% endblock %}
+{% endblock %}

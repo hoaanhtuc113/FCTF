@@ -1,0 +1,384 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block stylesheets %}
+<style>
+    /* Contest list — page-specific overrides only */
+    .state-badge-visible   { background: #d4edda; color: #155724; }
+    .state-badge-hidden    { background: #e2e3e5; color: #6c757d; }
+    .state-badge-paused    { background: #fff3cd; color: #856404; }
+    .state-badge-ended     { background: #f8d7da; color: #721c24; }
+    .sort-link { color: var(--text-medium); text-decoration: none; white-space: nowrap; }
+    .sort-link:hover { color: var(--primary-orange); }
+    .sort-link .sort-icon { font-size: 0.7rem; margin-left: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1><i class="bx bx-trophy"></i> Contests</h1>
+    </div>
+</div>
+
+<div class="container">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    <!-- Search / Filter bar -->
+    <div class="clean-search-container">
+        <form method="GET" class="m-0" id="contest-filter-form">
+            <div class="row no-gutters align-items-end">
+                <div class="col-md-2 px-1">
+                    <label>Search Field</label>
+                    <select name="field" class="clean-form-control ss-select w-100">
+                        <option value="name"   {% if field == 'name'   %}selected{% endif %}>Name</option>
+                        <option value="slug"   {% if field == 'slug'   %}selected{% endif %}>Slug</option>
+                        <option value="description" {% if field == 'description' %}selected{% endif %}>Description</option>
+                    </select>
+                </div>
+                <div class="col-md-3 px-1">
+                    <label>Search Text</label>
+                    <input type="text" name="q" value="{{ q or '' }}"
+                           class="clean-form-control w-100" placeholder="Search contests…">
+                </div>
+                <div class="col-md-2 px-1">
+                    <label>State</label>
+                    <select name="state" class="clean-form-control ss-select w-100">
+                        <option value="">All States</option>
+                        <option value="visible" {% if state_filter == 'visible' %}selected{% endif %}>Visible</option>
+                        <option value="hidden"  {% if state_filter == 'hidden'  %}selected{% endif %}>Hidden</option>
+                        <option value="paused"  {% if state_filter == 'paused'  %}selected{% endif %}>Paused</option>
+                        <option value="ended"   {% if state_filter == 'ended'   %}selected{% endif %}>Ended</option>
+                    </select>
+                </div>
+                <div class="col-md-2 px-1">
+                    <label>Mode</label>
+                    <select name="user_mode" class="clean-form-control ss-select w-100">
+                        <option value="">All Modes</option>
+                        <option value="users" {% if user_mode_filter == 'users' %}selected{% endif %}>Users</option>
+                        <option value="teams" {% if user_mode_filter == 'teams' %}selected{% endif %}>Teams</option>
+                    </select>
+                </div>
+                <div class="col-md-2 px-1">
+                    <label>Sort By</label>
+                    <select name="sort_by" class="clean-form-control ss-select w-100">
+                        <option value="id"         {% if sort_by == 'id'         %}selected{% endif %}>ID</option>
+                        <option value="name"       {% if sort_by == 'name'       %}selected{% endif %}>Name</option>
+                        <option value="start_time" {% if sort_by == 'start_time' %}selected{% endif %}>Start Time</option>
+                        <option value="end_time"   {% if sort_by == 'end_time'   %}selected{% endif %}>End Time</option>
+                        <option value="created_at" {% if sort_by == 'created_at' %}selected{% endif %}>Created At</option>
+                    </select>
+                </div>
+                <div class="col-md-1 px-1">
+                    <label>Dir</label>
+                    <select name="sort_dir" class="clean-form-control ss-select w-100">
+                        <option value="asc"  {% if sort_dir == 'asc'  %}selected{% endif %}>↑ Asc</option>
+                        <option value="desc" {% if sort_dir == 'desc' %}selected{% endif %}>↓ Desc</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row no-gutters mt-2">
+                <div class="col-md-12 px-1 d-flex">
+                    <button type="submit" class="clean-btn clean-btn-primary mr-1">
+                        <i class="bx bx-search"></i> Search
+                    </button>
+                    <a href="{{ url_for('admin.contests_listing') }}"
+                       class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+                       style="width: 38px;" title="Reset filters">
+                        <i class="bx bx-refresh"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+        <div>
+            <a href="{{ url_for('admin.contests_new') }}" class="clean-btn clean-btn-primary">
+                <i class="bx bx-plus"></i> Create Contest
+            </a>
+        </div>
+        <div class="d-flex">
+            <button type="button" class="clean-btn clean-btn-danger ml-2" id="contests-delete-btn"
+                    title="Delete selected contests" disabled>
+                <i class="bx bx-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="clean-table-wrapper mt-2">
+        <table class="clean-table table" id="contests-table">
+            <thead>
+                <tr>
+                    <th data-checkbox>
+                        <input type="checkbox" class="table-check" id="select-all-contests" autocomplete="off">
+                    </th>
+                    <th class="text-center">ID</th>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th class="text-center">Mode</th>
+                    <th class="text-center">State</th>
+                    <th class="text-center">Start Time</th>
+                    <th class="text-center">End Time</th>
+                    <th class="text-center">Created</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contest in contests.items %}
+                <tr data-href="{{ url_for('admin.contests_detail', contest_id=contest.id) }}"
+                    data-contest-id="{{ contest.id }}">
+                    <td data-checkbox onclick="event.stopPropagation()">
+                        <input type="checkbox" class="table-check contest-check"
+                               value="{{ contest.id }}" autocomplete="off"
+                               data-contest-id="{{ contest.id }}">
+                    </td>
+                    <td class="text-center">{{ contest.id }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.contests_detail', contest_id=contest.id) }}">
+                            {{ contest.name | truncate(40) }}
+                        </a>
+                        {% if contest.description %}
+                        <div class="text-muted" style="font-size:0.78rem;">
+                            {{ contest.description | truncate(60) }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <code style="font-size:0.8rem;">{{ contest.slug }}</code>
+                    </td>
+                    <td class="text-center">
+                        <span class="clean-badge clean-badge-secondary">{{ contest.user_mode }}</span>
+                    </td>
+                    <td class="text-center">
+                        {% if contest.state == 'visible' %}
+                            <span class="clean-badge state-badge-visible">visible</span>
+                        {% elif contest.state == 'hidden' %}
+                            <span class="clean-badge state-badge-hidden">hidden</span>
+                        {% elif contest.state == 'paused' %}
+                            <span class="clean-badge state-badge-paused">paused</span>
+                        {% elif contest.state == 'ended' %}
+                            <span class="clean-badge state-badge-ended">ended</span>
+                        {% else %}
+                            <span class="clean-badge clean-badge-secondary">{{ contest.state }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center" style="font-size:0.82rem;">
+                        {% if contest.start_time %}
+                            {{ contest.start_time.strftime('%Y-%m-%d %H:%M') }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center" style="font-size:0.82rem;">
+                        {% if contest.end_time %}
+                            {{ contest.end_time.strftime('%Y-%m-%d %H:%M') }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center" style="font-size:0.82rem;">
+                        {{ contest.created_at.strftime('%Y-%m-%d') if contest.created_at else '—' }}
+                    </td>
+                    <td class="text-center" onclick="event.stopPropagation()">
+                        <a href="{{ url_for('admin.contests_detail', contest_id=contest.id) }}"
+                           class="clean-btn clean-action-btn-sm" title="Edit">
+                            <i class="bx bx-edit"></i>
+                        </a>
+                        <button class="clean-btn clean-btn-danger clean-action-btn-sm ml-1 btn-delete-single"
+                                data-contest-id="{{ contest.id }}"
+                                data-contest-name="{{ contest.name }}"
+                                title="Delete">
+                            <i class="bx bx-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                        <i class="bx bx-info-circle"></i> No contests found.
+                        <a href="{{ url_for('admin.contests_new') }}">Create one</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if contests.pages > 0 %}
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        <div class="clean-info-text">
+            Page <span class="clean-highlight">{{ contests.page }}</span>
+            of <span class="clean-highlight">{{ contests.pages }}</span>
+            &bull; {{ contests.total }} total
+        </div>
+        {% if contests.pages > 1 %}
+        <nav aria-label="Contest pagination">
+            <ul class="clean-pagination pagination mb-0">
+                <li class="page-item {% if contests.page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ prev_page if contests.page > 1 else '#' }}">&laquo;</a>
+                </li>
+                {% set start_page = [1, contests.page - 2]|max %}
+                {% set end_page   = [contests.pages, contests.page + 2]|min %}
+                {% if start_page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.contests_listing', page=1, q=q, field=field, state=state_filter, user_mode=user_mode_filter, sort_by=sort_by, sort_dir=sort_dir) }}">1</a>
+                </li>
+                {% if start_page > 2 %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+                {% endif %}
+                {% for pn in range(start_page, end_page + 1) %}
+                <li class="page-item {% if pn == contests.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.contests_listing', page=pn, q=q, field=field, state=state_filter, user_mode=user_mode_filter, sort_by=sort_by, sort_dir=sort_dir) }}">{{ pn }}</a>
+                </li>
+                {% endfor %}
+                {% if end_page < contests.pages %}
+                {% if end_page < contests.pages - 1 %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.contests_listing', page=contests.pages, q=q, field=field, state=state_filter, user_mode=user_mode_filter, sort_by=sort_by, sort_dir=sort_dir) }}">{{ contests.pages }}</a>
+                </li>
+                {% endif %}
+                <li class="page-item {% if contests.page == contests.pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ next_page if contests.page < contests.pages else '#' }}">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bx bx-trash text-danger"></i> Delete Contest</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" id="delete-modal-body">
+                Are you sure you want to delete the selected contest(s)?
+                This action <strong>cannot be undone</strong>.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="clean-btn" data-dismiss="modal">Cancel</button>
+                <button type="button" class="clean-btn clean-btn-danger" id="confirm-delete-btn">
+                    <i class="bx bx-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const nonce = init.csrfNonce;
+
+    // Row click → navigate to detail
+    document.querySelectorAll('#contests-table tbody tr[data-href]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('[data-checkbox]') || e.target.closest('.btn-delete-single') || e.target.closest('a')) return;
+            window.location.href = row.dataset.href;
+        });
+    });
+
+    // Select all checkbox
+    const selectAll = document.getElementById('select-all-contests');
+    const deleteBtn = document.getElementById('contests-delete-btn');
+
+    function updateDeleteBtn() {
+        const checked = document.querySelectorAll('.contest-check:checked');
+        deleteBtn.disabled = checked.length === 0;
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            document.querySelectorAll('.contest-check').forEach(function (cb) {
+                cb.checked = selectAll.checked;
+            });
+            updateDeleteBtn();
+        });
+    }
+
+    document.querySelectorAll('.contest-check').forEach(function (cb) {
+        cb.addEventListener('change', updateDeleteBtn);
+    });
+
+    // Delete logic
+    let pendingDeleteIds = [];
+
+    function openDeleteModal(ids, names) {
+        pendingDeleteIds = ids;
+        const body = document.getElementById('delete-modal-body');
+        if (names && names.length) {
+            body.innerHTML = `Are you sure you want to delete <strong>${ids.length}</strong> contest(s)?<br>
+                <small class="text-muted">${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}</small><br><br>
+                This action <strong>cannot be undone</strong>.`;
+        }
+        $('#deleteModal').modal('show');
+    }
+
+    // Bulk delete button
+    deleteBtn.addEventListener('click', function () {
+        const checked = document.querySelectorAll('.contest-check:checked');
+        const ids = Array.from(checked).map(cb => parseInt(cb.value));
+        const names = Array.from(checked).map(cb => {
+            const row = cb.closest('tr');
+            return row ? row.querySelector('td:nth-child(3) a')?.textContent?.trim() : '';
+        });
+        openDeleteModal(ids, names);
+    });
+
+    // Single row delete button
+    document.querySelectorAll('.btn-delete-single').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = parseInt(btn.dataset.contestId);
+            const name = btn.dataset.contestName || '';
+            openDeleteModal([id], [name]);
+        });
+    });
+
+    // Confirm delete
+    document.getElementById('confirm-delete-btn').addEventListener('click', function () {
+        if (!pendingDeleteIds.length) return;
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Deleting…';
+
+        const reqs = pendingDeleteIds.map(id =>
+            fetch(`/api/v1/contests/${id}`, {
+                method: 'DELETE',
+                headers: { 'CSRF-Token': nonce, 'Content-Type': 'application/json' },
+            })
+        );
+
+        Promise.all(reqs).then(function () {
+            $('#deleteModal').modal('hide');
+            window.location.reload();
+        }).catch(function (err) {
+            console.error(err);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-trash"></i> Delete';
+            alert('An error occurred while deleting. Please try again.');
+        });
+    });
+})();
+</script>
+{% endblock %}
