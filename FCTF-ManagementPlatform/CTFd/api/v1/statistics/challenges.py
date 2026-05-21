@@ -5,6 +5,7 @@ from sqlalchemy.sql import and_
 from CTFd.api.v1.statistics import statistics_namespace
 from CTFd.models import (
     Challenges,
+    ContestChallenge,
     Fails,
     HintUnlocks,
     Hints,
@@ -53,11 +54,13 @@ class ChallengeSolveStatistics(Resource):
 
         solves_sub = (
             db.session.query(
-                Solves.challenge_id, db.func.count(Solves.challenge_id).label("solves")
+                ContestChallenge.challenge_template_id.label("challenge_id"),
+                db.func.count(Solves.id).label("solves"),
             )
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
             .join(Model, Solves.account_id == Model.id)
             .filter(Model.banned == False, Model.hidden == False)
-            .group_by(Solves.challenge_id)
+            .group_by(ContestChallenge.challenge_template_id)
             .subquery()
         )
 
@@ -116,8 +119,9 @@ class ChallengeSolvePercentages(Resource):
         for challenge in challenges:
             solve_count = (
                 Solves.query.join(Model, Solves.account_id == Model.id)
+                .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
                 .filter(
-                    Solves.challenge_id == challenge.id,
+                    ContestChallenge.challenge_template_id == challenge.id,
                     Model.banned == False,
                     Model.hidden == False,
                 )
@@ -180,26 +184,30 @@ class ChallengeAnalytics(Resource):
         else:
             avg_expr = literal(None)
 
+        # Solves grouped by challenge_template_id (via ContestChallenge)
         solves_sub = (
             db.session.query(
-                Solves.challenge_id,
+                ContestChallenge.challenge_template_id.label("challenge_id"),
                 func.count(Solves.id).label("solve_count"),
                 avg_expr.label("avg_solve_seconds"),
             )
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
             .join(Model, Solves.account_id == Model.id)
             .filter(Model.banned == False, Model.hidden == False, *time_filters(Solves.date))
-            .group_by(Solves.challenge_id)
+            .group_by(ContestChallenge.challenge_template_id)
             .subquery()
         )
 
+        # Fails grouped by challenge_template_id (via ContestChallenge)
         fails_sub = (
             db.session.query(
-                Fails.challenge_id,
+                ContestChallenge.challenge_template_id.label("challenge_id"),
                 func.count(Fails.id).label("wrong_attempts"),
             )
+            .join(ContestChallenge, Fails.contest_challenge_id == ContestChallenge.id)
             .join(Model, Fails.account_id == Model.id)
             .filter(Model.banned == False, Model.hidden == False, *time_filters(Fails.date))
-            .group_by(Fails.challenge_id)
+            .group_by(ContestChallenge.challenge_template_id)
             .subquery()
         )
 
@@ -223,23 +231,23 @@ class ChallengeAnalytics(Resource):
             solve_account_join = Solves.user_id == Users.id
             submission_account_join = Submissions.user_id == Users.id
 
-        # Total hint unlocks by all active accounts per challenge
+        # Total hint unlocks by all active accounts per challenge template
         hint_usage_sub = (
             db.session.query(
-                Hints.challenge_id,
+                Hints.challenge_template_id.label("challenge_id"),
                 func.count(HintUnlocks.id).label("hint_usage"),
             )
             .join(Hints, HintUnlocks.target == Hints.id)
             .join(account_model, hint_account_join)
             .filter(*account_filters, *time_filters(HintUnlocks.date))
-            .group_by(Hints.challenge_id)
+            .group_by(Hints.challenge_template_id)
             .subquery()
         )
 
         # Distinct active solvers who used at least one hint on that challenge
         solvers_used_hints_sub = (
             db.session.query(
-                Hints.challenge_id,
+                Hints.challenge_template_id.label("challenge_id"),
                 func.count(func.distinct(hint_account_col)).label("solvers_used_hints"),
             )
             .join(Hints, HintUnlocks.target == Hints.id)
@@ -247,19 +255,23 @@ class ChallengeAnalytics(Resource):
             .join(
                 Solves,
                 and_(
-                    Solves.challenge_id == Hints.challenge_id,
+                    Solves.contest_challenge_id == ContestChallenge.id,
                     solve_account_col == hint_account_col,
                 ),
             )
+            .join(ContestChallenge, and_(
+                ContestChallenge.challenge_template_id == Hints.challenge_template_id,
+                Solves.contest_challenge_id == ContestChallenge.id,
+            ))
             .filter(*account_filters, *time_filters(HintUnlocks.date), *time_filters(Solves.date))
-            .group_by(Hints.challenge_id)
+            .group_by(Hints.challenge_template_id)
             .subquery()
         )
 
         # Total hints unlocked by solvers on that challenge
         solver_hint_usage_sub = (
             db.session.query(
-                Hints.challenge_id,
+                Hints.challenge_template_id.label("challenge_id"),
                 func.count(HintUnlocks.id).label("solver_hint_usage"),
             )
             .join(Hints, HintUnlocks.target == Hints.id)
@@ -267,50 +279,56 @@ class ChallengeAnalytics(Resource):
             .join(
                 Solves,
                 and_(
-                    Solves.challenge_id == Hints.challenge_id,
+                    Solves.contest_challenge_id == ContestChallenge.id,
                     solve_account_col == hint_account_col,
                 ),
             )
+            .join(ContestChallenge, and_(
+                ContestChallenge.challenge_template_id == Hints.challenge_template_id,
+                Solves.contest_challenge_id == ContestChallenge.id,
+            ))
             .filter(*account_filters, *time_filters(HintUnlocks.date), *time_filters(Solves.date))
-            .group_by(Hints.challenge_id)
+            .group_by(Hints.challenge_template_id)
             .subquery()
         )
 
-        # Total attempts and distinct attempters per challenge
+        # Total attempts and distinct attempters per challenge (via ContestChallenge)
         attempts_sub = (
             db.session.query(
-                Submissions.challenge_id,
+                ContestChallenge.challenge_template_id.label("challenge_id"),
                 func.count(Submissions.id).label("total_attempts"),
                 func.count(func.distinct(submission_account_col)).label("attempter_count"),
             )
+            .join(ContestChallenge, Submissions.contest_challenge_id == ContestChallenge.id)
             .join(account_model, submission_account_join)
             .filter(
                 *account_filters,
                 Submissions.type.in_(["correct", "incorrect"]),
                 *time_filters(Submissions.date),
             )
-            .group_by(Submissions.challenge_id)
+            .group_by(ContestChallenge.challenge_template_id)
             .subquery()
         )
 
-        # First solve timestamp per challenge (in contest window)
+        # First solve timestamp per challenge (in contest window, via ContestChallenge)
         first_solve_sub = (
             db.session.query(
-                Solves.challenge_id,
+                ContestChallenge.challenge_template_id.label("challenge_id"),
                 func.min(Solves.date).label("first_solve_date"),
             )
+            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
             .join(account_model, solve_account_join)
             .filter(*account_filters, *time_filters(Solves.date))
-            .group_by(Solves.challenge_id)
+            .group_by(ContestChallenge.challenge_template_id)
             .subquery()
         )
 
         hint_count_sub = (
             db.session.query(
-                Hints.challenge_id,
+                Hints.challenge_template_id.label("challenge_id"),
                 func.count(Hints.id).label("hint_count"),
             )
-            .group_by(Hints.challenge_id)
+            .group_by(Hints.challenge_template_id)
             .subquery()
         )
 
@@ -464,9 +482,11 @@ class ChallengeAnalytics(Resource):
                 }
             )
 
+        # Category solve counts — via ContestChallenge join
         category_counts = (
             db.session.query(Challenges.category, func.count(Solves.id).label("solves"))
-            .join(Solves, Solves.challenge_id == Challenges.id)
+            .join(ContestChallenge, ContestChallenge.challenge_template_id == Challenges.id)
+            .join(Solves, Solves.contest_challenge_id == ContestChallenge.id)
             .join(Model, Solves.account_id == Model.id)
             .filter(
                 Model.banned == False,

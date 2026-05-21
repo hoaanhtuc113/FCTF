@@ -1,0 +1,236 @@
+{% extends "admin/management_hub_base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1>Create Challenge Template</h1>
+    </div>
+</div>
+
+<!-- Options Modal (shown after clicking Create) -->
+<div class="modal fade bd-example-modal-lg" role="dialog" id="challenge-create-options">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Options</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" enctype="multipart/form-data" id="template-options-form">
+
+                    <!-- Flag -->
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <label>
+                                    Flag:<br>
+                                    <small class="form-text text-muted">Static flag for your challenge</small>
+                                </label>
+                                <input type="text" class="form-control" name="flag">
+                            </div>
+                            <div class="col-md-4">
+                                <label>
+                                    &nbsp;
+                                    <small class="form-text text-muted">&nbsp;</small>
+                                </label>
+                                <select class="form-control custom-select w-100" name="flag_data">
+                                    <option value="">Case Sensitive</option>
+                                    <option value="case_insensitive">Case Insensitive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <input type="hidden" name="flag_type" value="static">
+                    </div>
+
+                    <!-- Setup Deploy checkbox -->
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="require_deploy" id="setup_docker">
+                            Setup Deploy
+                        </label>
+                    </div>
+
+                    <!-- Deploy fields (hidden until Setup Deploy is checked) -->
+                    <div class="form-group d-none" id="expose_port_container">
+                        <label>Expose port<br>
+                            <small class="form-text text-muted">Port exposed by the Docker container</small>
+                        </label>
+                        <input type="text" class="form-control" name="expose_port" id="expose_port"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_connection_protocol">
+                        <label>Connection Protocol<br>
+                            <small class="form-text text-muted">Protocol contestants use to connect</small>
+                        </label>
+                        <select class="form-control" name="connection_protocol" id="connection_protocol">
+                            <option value="http" selected>HTTP</option>
+                            <option value="tcp">TCP</option>
+                        </select>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container">
+                        <label>CPU Limit (mCPU)<br>
+                            <small class="form-text text-muted">Max CPU the pod can use</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_limit" min="1" value="100">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_cpu_request">
+                        <label>CPU Request (mCPU)<br>
+                            <small class="form-text text-muted">Min CPU for scheduling</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_request" min="1" value="10">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_memory_limit">
+                        <label>Memory Limit (Mi)<br>
+                            <small class="form-text text-muted">Max memory the pod can use</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_limit" min="1" value="128">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_memory_request">
+                        <label>Memory Request (Mi)<br>
+                            <small class="form-text text-muted">Min memory for scheduling</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_request" min="1" value="32">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_use_gvisor">
+                        <label>Use gVisor<br>
+                            <small class="form-text text-muted">Run pod with gVisor sandbox for extra isolation</small>
+                        </label>
+                        <select class="form-control" name="use_gvisor">
+                            <option value="true" selected>True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_harden_container">
+                        <label>
+                            <input type="checkbox" name="harden_container" id="harden_container" checked>
+                            Harden Container<br>
+                            <small class="form-text text-muted">
+                                Apply security hardening: restricted PSS, read-only root FS,
+                                drop all capabilities, non-root UID 1000, /tmp as tmpfs.
+                            </small>
+                        </label>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_shared_instant">
+                        <label>
+                            <input type="checkbox" name="shared_instant" id="shared_instant">
+                            Shared Instance<br>
+                            <small class="form-text text-muted">One shared deployed instance for all contestants</small>
+                        </label>
+                    </div>
+
+                    <!-- Deploy file upload (only when Setup Deploy is checked) -->
+                    <div class="form-group">
+                        <div class="form-group d-none upload-file">
+                            <label>Deploy Files:<br>
+                                <small class="form-text text-muted">ZIP containing Dockerfile and challenge files</small>
+                            </label>
+                            <input class="form-control-file" type="file" accept=".zip" name="deploy_file">
+                        </div>
+                    </div>
+
+                    <!-- Regular file upload (always visible when no deploy) -->
+                    <div class="form-group">
+                        <div class="form-group multi_files">
+                            <label>Files:<br>
+                                <small class="form-text text-muted">Files distributed with your challenge</small>
+                            </label>
+                            <input class="form-control-file" type="file" name="file">
+                            <sub class="text-muted">Attach multiple files using Control+Click or Cmd+Click</sub>
+                        </div>
+                    </div>
+
+                    <!-- NOTE: State is intentionally omitted here.
+                         State is configured per-contest in contests_challenges. -->
+
+                    <input id="challenge_id" type="hidden" name="challenge_id">
+                    <div id="create-upload-status" class="alert d-none" role="alert"></div>
+
+                    <div class="form-group">
+                        <button class="btn btn-primary float-right create-challenge-submit"
+                                type="submit" id="deploy-btn">Finish</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Challenge type selector + info form -->
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-3 offset-md-1">
+            <div class="col-title">
+                <h5 class="text-center">Challenge Types</h5>
+            </div>
+            <div id="create-chals-select">
+                {% for type in types %}
+                <label class="w-100">
+                    <input type="radio" name="type" class="card-radio d-none"
+                           value="{{ type }}" {% if type == "standard" %}checked{% endif %} />
+                    <div class="card rounded-0">
+                        <div class="card-body">
+                            <span class="card-title">
+                                <div class="form-check">
+                                    <input class="form-check-input card-radio-clone" type="radio"
+                                           style="visibility: hidden;" checked>
+                                    <span class="form-check-label">{{ type }}</span>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="col-title">
+                <h5 class="text-center">Information</h5>
+            </div>
+            <div id="create-chal-entry-div"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Setup Deploy checkbox toggle
+$(document).on('change', '#setup_docker', function () {
+    const checked = $(this).is(':checked');
+    if (checked) {
+        $('#expose_port_container, #deploy_resource_container_connection_protocol,\
+           #deploy_resource_container, #deploy_resource_container_cpu_request,\
+           #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request,\
+           #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container,\
+           #deploy_resource_container_shared_instant').removeClass('d-none');
+        $('.upload-file').removeClass('d-none');
+        $('.multi_files').addClass('d-none');
+        $('#deploy_resource_container input[name="cpu_limit"]').val(100);
+        $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(10);
+        $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(128);
+        $('#deploy_resource_container_memory_request input[name="memory_request"]').val(32);
+    } else {
+        $('#expose_port_container, #deploy_resource_container_connection_protocol,\
+           #deploy_resource_container, #deploy_resource_container_cpu_request,\
+           #deploy_resource_container_memory_limit, #deploy_resource_container_memory_request,\
+           #deploy_resource_container_use_gvisor, #deploy_resource_container_harden_container,\
+           #deploy_resource_container_shared_instant').addClass('d-none');
+        $('.upload-file').addClass('d-none');
+        $('.multi_files').removeClass('d-none');
+    }
+});
+
+// Restore deploy fields state when modal opens
+$('#challenge-create-options').on('shown.bs.modal', function () {
+    $('#setup_docker').trigger('change');
+});
+
+// Options form submit is handled by challenge-template.js (handleTemplateOptions).
+</script>
+{% endblock %}
+
+{% block entrypoint %}
+{{ Assets.js("assets/js/pages/challenge-template.js", theme="admin") }}
+{% endblock %}

@@ -49,7 +49,7 @@ def get_ticket_by_id(ticket_id):
         return {'message': 'An error occurred while retrieving ticket', 'error': str(e)}, 500
 
 
-def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, per_page=50):
+def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, per_page=50, contest_id=None):
     try:
         page = max(int(page), 1)
         per_page = max(int(per_page), 1)
@@ -68,6 +68,8 @@ def get_all_tickets(user_id=None, status=None, type_=None, search=None, page=1, 
 
         if user_id:
             query = query.filter(Tickets.author_id == user_id)
+        if contest_id is not None:
+            query = query.filter(Tickets.contest_id == contest_id)
         if status:
             query = query.filter(Tickets.status.ilike(status))
         if type_:

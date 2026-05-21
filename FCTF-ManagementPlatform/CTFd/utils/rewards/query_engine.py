@@ -92,10 +92,15 @@ class QuerySpecError(ValueError):
     pass
 
 
-@lru_cache(maxsize=128)
 def _table_columns(table_name: str) -> set[str]:
+    """No cache — always read fresh from DB to avoid stale schema checks."""
     inspector = inspect(db.engine)
     return {col["name"] for col in inspector.get_columns(table_name)}
+
+
+def clear_schema_cache() -> None:
+    """Clear the cached table column sets (call after schema migrations)."""
+    _table_columns.cache_clear()
 
 
 def _require_columns(table_name: str, columns: Iterable[str]) -> None:
@@ -110,12 +115,13 @@ def _require_columns(table_name: str, columns: Iterable[str]) -> None:
 def _assert_schema(entity: str) -> None:
     _require_columns(
         "submissions",
-        ["id", "team_id", "user_id", "challenge_id", "date", "type"],
+        ["id", "team_id", "user_id", "contest_challenge_id", "date", "type"],
     )
     _require_columns("solves", ["id"])
-    _require_columns("challenges", ["id", "value", "category", "name"])
-    _require_columns("unlocks", ["team_id", "user_id", "target", "type"])
-    _require_columns("hints", ["id", "challenge_id"])
+    _require_columns("challenge_templates", ["id", "category", "name"])
+    _require_columns("contests_challenges", ["id", "value", "contest_id", "challenge_template_id"])
+    _require_columns("unlocks", ["team_id", "user_id", "hint_id", "type"])
+    _require_columns("hints", ["id", "challenge_template_id"])
     _require_columns("awards", ["id", "team_id", "user_id", "value", "date"])
 
     if entity == "team":
@@ -310,15 +316,17 @@ WITH base_solves AS (
         s.id AS solve_id,
         s.team_id,
         s.user_id,
-        s.challenge_id,
+        s.contest_challenge_id,
+        cc.challenge_template_id AS challenge_id,
         s.date AS solve_date,
-        c.value AS challenge_value,
-        c.category AS category,
-        c.name AS challenge_name,
+        cc.value AS challenge_value,
+        ct.category AS category,
+        ct.name AS challenge_name,
         {solve_time_expr} AS solve_time
     FROM submissions s
     JOIN solves sol ON sol.id = s.id
-    JOIN challenges c ON c.id = s.challenge_id
+    JOIN contests_challenges cc ON cc.id = s.contest_challenge_id
+    JOIN challenge_templates ct ON ct.id = cc.challenge_template_id
     WHERE s.type = 'correct'
 ),
 first_bloods AS (
@@ -327,11 +335,11 @@ first_bloods AS (
     GROUP BY challenge_id
 ),
 hint_usage AS (
-    SELECT u.team_id, h.challenge_id
+    SELECT u.team_id, h.challenge_template_id AS challenge_id
     FROM unlocks u
-    JOIN hints h ON h.id = u.target
+    JOIN hints h ON h.id = u.hint_id
     WHERE u.type = 'hints'
-    GROUP BY u.team_id, h.challenge_id
+    GROUP BY u.team_id, h.challenge_template_id
 ),
 solves_enriched AS (
     SELECT
@@ -350,9 +358,9 @@ solves_filtered AS (
     {base_where}
 ),
 category_totals AS (
-    SELECT c.category, COUNT(DISTINCT c.id) AS total_challenges
-    FROM challenges c
-    GROUP BY c.category
+    SELECT ct.category, COUNT(DISTINCT ct.id) AS total_challenges
+    FROM challenge_templates ct
+    GROUP BY ct.category
 ),
 team_awards AS (
     SELECT team_id, COALESCE(SUM(value), 0) AS award_value
@@ -373,7 +381,7 @@ wrong_before AS (
     FROM submissions s
     JOIN solves sol ON sol.id = s.id
     LEFT JOIN submissions w
-        ON w.challenge_id = s.challenge_id
+        ON w.contest_challenge_id = s.contest_challenge_id
         AND w.type = 'incorrect'
         AND w.date < s.date
         AND w.team_id = s.team_id

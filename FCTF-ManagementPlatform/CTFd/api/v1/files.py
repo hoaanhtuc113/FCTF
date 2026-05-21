@@ -18,6 +18,7 @@ from CTFd.utils.logging.audit_logger import log_audit
 import CTFd.plugins.upload_zip_files.routes as upload_helper
 from werkzeug.utils import secure_filename
 import os
+import tempfile
 import json
 import re
 from CTFd.utils.uploads import delete_folder
@@ -174,13 +175,16 @@ class FilesList(Resource):
             }, 400
 
         if deploy_file and require_deploy:
-            # Lưu tệp tạm thời vào đĩa trước khi xử lý nó
             filename = secure_filename(deploy_file.filename)
-            temp_file_path = os.path.join("/tmp", filename)
+            temp_file_path = os.path.join(tempfile.gettempdir(), filename)
             deploy_file.save(temp_file_path)
-            print(temp_file_path)
-            print("save successfully")
-            return upload_helper.upload_file(challenge_id, temp_file_path, expose_port)
+            try:
+                return upload_helper.upload_file(challenge_id, temp_file_path, expose_port)
+            finally:
+                try:
+                    os.remove(temp_file_path)
+                except OSError:
+                    pass
 
         for f in files:
             print("upload file to local")

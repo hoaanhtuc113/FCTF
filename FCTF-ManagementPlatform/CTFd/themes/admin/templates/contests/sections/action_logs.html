@@ -1,18 +1,370 @@
 {% extends "admin/contests/contest_base.html" %}
 
+{% block contest_stylesheets %}
+<style>
+	.mono { font-family: "Space Mono", monospace; font-size: .8rem; white-space: pre-wrap; word-break: break-word; }
+	.diff-pre { background: #f4f4f4; border-radius: 4px; padding: .6rem .8rem; font-size: .8rem; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; }
+	.diff-col { width: 50%; vertical-align: top; padding: .4rem; }
+	#diffFieldTable th { background: #f8f9fa; font-size: .8rem; white-space: nowrap; }
+	#diffFieldTable td { font-size: .8rem; vertical-align: top; word-break: break-all; }
+	.diff-row-changed { background-color: #fff9e6 !important; }
+	.diff-row-added   { background-color: #eaffea !important; }
+	.diff-row-removed { background-color: #fff0f0 !important; }
+	.diff-val-before  { color: #b02a37; }
+	.diff-val-after   { color: #0a6640; }
+	.diff-val-same    { color: #495057; }
+	.diff-sensitive   { font-style: italic; color: #6c757d; letter-spacing: .05em; }
+	.badge-changed { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #fd7e14; color: #fff; border-radius: .25rem; }
+	.badge-added   { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #198754; color: #fff; border-radius: .25rem; }
+	.badge-removed { font-size: .65rem; padding: .2em .45em; vertical-align: middle; background: #dc3545; color: #fff; border-radius: .25rem; }
+	.badge-action  { font-size: .7rem; padding: .3em .6em; border-radius: 4px; }
+	.badge-create  { background: #d4edda; color: #155724; }
+	.badge-update  { background: #fff3cd; color: #856404; }
+	.badge-delete  { background: #f8d7da; color: #721c24; }
+	.badge-bulk    { background: #d1ecf1; color: #0c5460; }
+	.badge-role-admin  { background: #e2d9f3; color: #432874; }
+	.badge-role-jury   { background: #d1ecf1; color: #0c5460; }
+	.badge-role-writer { background: #d4edda; color: #155724; }
+	.badge-target  { font-size: .7rem; }
+	.view-diff-btn { font-size: .75rem; padding: .2rem .5rem; }
+	.timestamp-cell { white-space: nowrap !important; }
+</style>
+{% endblock %}
+
 {% block contest_content %}
 <div class="page-header">
-    <div class="container">
-        <h1><i class="bx bx-list-ul"></i> Action Logs
-            <small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
-        </h1>
-    </div>
+	<div class="container">
+		<h1><i class="bx bx-list-ul"></i> Action Logs
+			<small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+		</h1>
+	</div>
 </div>
 <div class="container">
-    <div class="coming-soon-box">
-        <i class="bx bx-list-ul"></i>
-        <h4>Action Logs</h4>
-        <p>Contest-scoped action logs for <strong>{{ contest.name }}</strong> will be shown here.</p>
-    </div>
+	<!-- Filters -->
+	<div class="clean-search-container">
+		<form method="GET" class="m-0">
+			<input type="hidden" id="timezone_offset" name="timezone_offset" value="{{ timezone_offset or '' }}" />
+			<div class="row no-gutters align-items-end">
+				<div class="col-md-3 px-1">
+					<label>Actor (id or name)</label>
+					<input class="clean-form-control w-100" name="actor" value="{{ actor_filter }}" placeholder="e.g. 5 or alice" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Role</label>
+					<select class="clean-form-control ss-select w-100" name="role">
+						<option value="" {% if not role_filter %}selected{% endif %}>All roles</option>
+						{% for r in actor_roles %}
+						<option value="{{ r }}" {% if role_filter == r %}selected{% endif %}>{{ r }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-3 px-1">
+					<label>Action</label>
+					<select class="clean-form-control ss-select w-100" name="action">
+						<option value="" {% if not action_filter %}selected{% endif %}>All actions</option>
+						{% for a in all_actions %}
+						<option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ action_labels.get(a, a) }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Target type</label>
+					<select class="clean-form-control ss-select w-100" name="target_type">
+						<option value="" {% if not target_type_filter %}selected{% endif %}>All</option>
+						{% for t in target_types %}
+						<option value="{{ t }}" {% if target_type_filter == t %}selected{% endif %}>{{ t }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Target ID</label>
+					<input class="clean-form-control w-100" name="target_id" value="{{ target_id_filter }}" placeholder="e.g. 42" />
+				</div>
+			</div>
+			<div class="row no-gutters align-items-end mt-1">
+				<div class="col-md-2 px-1">
+					<label>From</label>
+					<input class="clean-form-control w-100" type="datetime-local" name="date_from" value="{{ date_from }}" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label>To</label>
+					<input class="clean-form-control w-100" type="datetime-local" name="date_to" value="{{ date_to }}" />
+				</div>
+				<div class="col-md-2 px-1">
+					<label>Per page</label>
+					<select class="clean-form-control ss-select w-100" name="per_page">
+						{% for n in [25, 50, 100, 200] %}
+						<option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="col-md-3 px-1"></div>
+				<div class="col-md-3 px-1 d-flex">
+					<button type="submit" class="clean-btn clean-btn-primary flex-grow-1 mr-1">
+						<i class="fas fa-search"></i> Filter
+					</button>
+					<a href="{{ url_for('admin.contest_action_logs', contest_id=contest.id) }}"
+					   class="clean-btn btn-outline-secondary d-flex align-items-center justify-content-center"
+					   style="width:40px;" title="Clear">
+						<i class="fas fa-sync-alt"></i>
+					</a>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<!-- Summary + export -->
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+		<div class="clean-info-text">
+			Page <span class="clean-highlight">{{ logs.page }}</span>
+			of <span class="clean-highlight">{{ logs.pages }}</span>
+			&bull; {{ logs.total }} record{{ 's' if logs.total != 1 else '' }}
+		</div>
+		<a class="clean-btn" href="{{ url_for('admin.contest_action_logs_export_csv', contest_id=contest.id,
+				actor=actor_filter, role=role_filter, action=action_filter,
+				target_type=target_type_filter, target_id=target_id_filter,
+				date_from=date_from, date_to=date_to, timezone_offset=timezone_offset) }}">
+			<i class="fas fa-download"></i> Export CSV
+		</a>
+	</div>
+
+	<!-- Table -->
+	<div class="clean-table-wrapper mt-2">
+		<table class="clean-table table">
+			<thead>
+				<tr>
+					<th class="text-center"><b>#</b></th>
+					<th class="text-center"><b>Timestamp</b></th>
+					<th class="text-center"><b>Actor</b></th>
+					<th class="text-center"><b>Action</b></th>
+					<th class="text-center"><b>Target</b></th>
+					<th class="text-center"><b>IP</b></th>
+					<th class="text-center"><b>Changes</b></th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for log in logs.items %}
+				{% set action_verb = log.action.split('_')[-1] %}
+				<tr>
+					<td class="text-muted mono small text-center">{{ log.id }}</td>
+					<td class="mono small text-center timestamp-cell">
+						{% if log.timestamp %}
+						<span data-time="{{ log.timestamp | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
+						{% else %}—{% endif %}
+					</td>
+					<td class="text-center cell-truncate">
+						{% if log.actor_id %}
+						<a href="{{ url_for('admin.users_detail', user_id=log.actor_id) }}">{{ (log.actor_name or ('User #' ~ log.actor_id)) | truncate(24) }}</a>
+						<div class="text-muted small">#{{ log.actor_id }}</div>
+						{% else %}<span class="text-muted">—</span>{% endif %}
+						{% if log.actor_type %}
+						<span class="badge badge-role-{{ log.actor_type }} ms-1">{{ log.actor_type }}</span>
+						{% endif %}
+					</td>
+					<td class="text-center">
+						{% if action_verb == 'create' %}
+						<span class="badge badge-action badge-create">{{ action_labels.get(log.action, log.action) }}</span>
+						{% elif action_verb == 'update' %}
+						<span class="badge badge-action badge-update">{{ action_labels.get(log.action, log.action) }}</span>
+						{% elif action_verb == 'delete' %}
+						<span class="badge badge-action badge-delete">{{ action_labels.get(log.action, log.action) }}</span>
+						{% else %}
+						<span class="badge badge-action badge-bulk">{{ action_labels.get(log.action, log.action) }}</span>
+						{% endif %}
+					</td>
+					<td class="text-center">
+						{% if log.target_type %}
+						<span class="badge bg-secondary badge-target">{{ log.target_type }}</span>
+						{% set extra = log.extra_data or {} %}
+						{% if log.target_id %}
+						<span class="text-muted small ms-1">
+							{% if log.target_type == 'user' %}
+							<a href="{{ url_for('admin.users_detail', user_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
+							{% elif log.target_type == 'team' %}
+							<a href="{{ url_for('admin.teams_detail', team_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
+							{% elif log.target_type == 'challenge' %}
+							<a href="{{ url_for('admin.challenges_detail', challenge_id=log.target_id) }}">#{{ log.target_id }}</a>
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
+							{% else %}
+							#{{ log.target_id }}
+							{% if extra.get('name') %}<br><span class="text-info">{{ extra['name'] | truncate(30) }}</span>{% endif %}
+							{% endif %}
+						</span>
+						{% endif %}
+						{% else %}<span class="text-muted">—</span>{% endif %}
+					</td>
+					<td class="mono small text-muted text-center">{{ log.ip_address or '—' }}</td>
+					<td class="text-center">
+						{% if log.before_state or log.after_state or log.extra_data %}
+						<button class="clean-btn view-diff-btn"
+							data-toggle="modal" data-target="#diffModal"
+							data-log-id="{{ log.id }}"
+							data-action="{{ log.action }}"
+							data-before='{{ log.before_state | tojson if log.before_state else "{}" }}'
+							data-after='{{ log.after_state | tojson if log.after_state else "{}" }}'
+							data-extra='{{ log.extra_data | tojson if log.extra_data else "{}" }}'>
+							<i class="bx bx-search-alt-2"></i> View
+						</button>
+						{% else %}<span class="text-muted">—</span>{% endif %}
+					</td>
+				</tr>
+				{% endfor %}
+				{% if logs.total == 0 %}
+				<tr>
+					<td colspan="7" class="text-center text-muted py-4">No audit records match the current filters.</td>
+				</tr>
+				{% endif %}
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Pagination -->
+	{% if logs.pages > 1 %}
+	<div class="d-flex justify-content-between align-items-center mt-2">
+		<div class="clean-info-text">
+			Page <span class="clean-highlight">{{ logs.page }}</span> of <span class="clean-highlight">{{ logs.pages }}</span> &bull; {{ logs.total }} total
+		</div>
+		<nav>
+			<ul class="clean-pagination pagination mb-0">
+				<li class="page-item {% if logs.page == 1 %}disabled{% endif %}">
+					<a class="page-link" href="{{ prev_page if logs.page > 1 else '#' }}">&laquo;</a>
+				</li>
+				{% set sp = [1, logs.page - 2]|max %}
+				{% set ep = [logs.pages, logs.page + 2]|min %}
+				{% for pn in range(sp, ep + 1) %}
+				<li class="page-item {% if pn == logs.page %}active{% endif %}">
+					<a class="page-link" href="{{ url_for('admin.contest_action_logs', contest_id=contest.id, page=pn,
+						actor=actor_filter, role=role_filter, action=action_filter,
+						target_type=target_type_filter, target_id=target_id_filter,
+						date_from=date_from, date_to=date_to, per_page=per_page) }}">{{ pn }}</a>
+				</li>
+				{% endfor %}
+				<li class="page-item {% if logs.page == logs.pages %}disabled{% endif %}">
+					<a class="page-link" href="{{ next_page if logs.page < logs.pages else '#' }}">&raquo;</a>
+				</li>
+			</ul>
+		</nav>
+	</div>
+	{% endif %}
 </div>
+
+<!-- Diff modal (same as admin_audit) -->
+<div class="modal fade" id="diffModal" tabindex="-1" role="dialog">
+	<div class="modal-dialog modal-xl modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"><i class="bx bx-detail"></i> Change Details — <span id="diffModalAction"></span> <span class="text-muted small">#<span id="diffModalId"></span></span></h5>
+				<button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+			</div>
+			<div class="modal-body">
+				<div id="diffSummary" class="mb-2"></div>
+				<div id="diffTableSection">
+					<h6 class="mb-2">Before &rarr; After</h6>
+					<div style="max-height:420px;overflow-y:auto;">
+						<table id="diffFieldTable" class="table table-bordered table-sm mb-0">
+							<thead><tr><th style="width:22%">Field</th><th style="width:39%" class="text-danger">Before</th><th style="width:39%" class="text-success">After</th></tr></thead>
+							<tbody id="diffFieldBody"></tbody>
+						</table>
+					</div>
+				</div>
+				<div id="diffRawSection" style="display:none">
+					<h6 class="mb-2">Before &rarr; After</h6>
+					<table class="table table-bordered table-sm mb-0">
+						<thead><tr><th class="diff-col text-danger">Before</th><th class="diff-col text-success">After</th></tr></thead>
+						<tbody><tr>
+							<td class="diff-col"><pre id="diffBefore" class="diff-pre mb-0"></pre></td>
+							<td class="diff-col"><pre id="diffAfter" class="diff-pre mb-0"></pre></td>
+						</tr></tbody>
+					</table>
+				</div>
+				<div id="extraDataSection" class="mt-3">
+					<h6>Extra data</h6>
+					<pre id="diffExtra" class="diff-pre"></pre>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="clean-btn" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+(function () {
+	'use strict';
+	var tzInput = document.getElementById('timezone_offset');
+	if (tzInput && !tzInput.value) tzInput.value = String(new Date().getTimezoneOffset());
+
+	var diffModal = document.getElementById('diffModal');
+	if (!diffModal) return;
+
+	var SENSITIVE = ['password','passwd','secret','token','api_key','apikey','access_token','refresh_token','private_key','hash','salt'];
+	function isSensitive(k) { var lk = String(k).toLowerCase(); return SENSITIVE.some(function(s){return lk===s||lk.indexOf(s)!==-1;}); }
+	function decodeHtml(s) { if(!s) return ''; var t=document.createElement('textarea'); t.innerHTML=String(s); return t.value; }
+	function tryParse(v) { try{return JSON.parse(v);}catch(e){return null;} }
+	function parseRaw(raw) {
+		var n=decodeHtml(raw||'').trim();
+		if(!n||n==='{}'||n==='null') return null;
+		var p=tryParse(n); if(p===null) return n;
+		if(typeof p==='string'){var r=tryParse(p);return r!==null?r:p;}
+		if(p&&typeof p==='object'&&Object.keys(p).length===0) return null;
+		return p;
+	}
+	function prettyVal(v) { if(v===null||v===undefined) return '—'; if(typeof v==='object') return JSON.stringify(v,null,2); return String(v); }
+	function valsEq(a,b) { if(typeof a==='object'||typeof b==='object') return JSON.stringify(a)===JSON.stringify(b); return a===b; }
+	function makeCell(key,val,changed,side) {
+		var td=document.createElement('td'); td.className='mono';
+		if(isSensitive(key)){var sp=document.createElement('span');sp.className='diff-sensitive';sp.textContent='••••••••';td.appendChild(sp);return td;}
+		var text=(val===undefined||val===null)?'—':prettyVal(val);
+		var sp=document.createElement('span');
+		sp.className=changed?(side==='before'?'diff-val-before':'diff-val-after'):'diff-val-same';
+		sp.style.whiteSpace='pre-wrap'; sp.textContent=text; td.appendChild(sp); return td;
+	}
+	function buildDiff(bObj,aObj) {
+		var tbody=document.getElementById('diffFieldBody'); tbody.innerHTML='';
+		var keys={}; if(bObj&&typeof bObj==='object') Object.keys(bObj).forEach(function(k){keys[k]=1;}); if(aObj&&typeof aObj==='object') Object.keys(aObj).forEach(function(k){keys[k]=1;});
+		var ks=Object.keys(keys); if(!ks.length) return false;
+		var nc=0,na=0,nr=0;
+		ks.forEach(function(key){
+			var bv=bObj?bObj[key]:undefined, av=aObj?aObj[key]:undefined;
+			var inB=bObj&&Object.prototype.hasOwnProperty.call(bObj,key), inA=aObj&&Object.prototype.hasOwnProperty.call(aObj,key);
+			var added=!inB&&inA, removed=inB&&!inA, changed=inB&&inA&&!valsEq(bv,av);
+			if(added)na++; if(removed)nr++; if(changed)nc++;
+			var tr=document.createElement('tr');
+			if(changed)tr.className='diff-row-changed'; else if(added)tr.className='diff-row-added'; else if(removed)tr.className='diff-row-removed';
+			var tdK=document.createElement('td'); tdK.className='mono fw-semibold'; tdK.style.whiteSpace='nowrap'; tdK.textContent=key;
+			if(added){var b=document.createElement('span');b.className='badge-added ms-1';b.textContent='new';tdK.appendChild(document.createTextNode(' '));tdK.appendChild(b);}
+			else if(removed){var b=document.createElement('span');b.className='badge-removed ms-1';b.textContent='removed';tdK.appendChild(document.createTextNode(' '));tdK.appendChild(b);}
+			else if(changed){var b=document.createElement('span');b.className='badge-changed ms-1';b.textContent='changed';tdK.appendChild(document.createTextNode(' '));tdK.appendChild(b);}
+			tr.appendChild(tdK);
+			tr.appendChild(makeCell(key,inB?bv:undefined,changed||removed,'before'));
+			tr.appendChild(makeCell(key,inA?av:undefined,changed||added,'after'));
+			tbody.appendChild(tr);
+		});
+		var sum=document.getElementById('diffSummary'); sum.innerHTML='';
+		function addB(cls,txt){var sp=document.createElement('span');sp.className=cls+' me-1';sp.textContent=txt;sum.appendChild(sp);}
+		if(nc)addB('badge-changed',nc+' changed'); if(na)addB('badge-added',na+' added'); if(nr)addB('badge-removed',nr+' removed');
+		return true;
+	}
+
+	$(diffModal).on('show.bs.modal', function(event) {
+		var btn=event.relatedTarget; if(!btn) return;
+		document.getElementById('diffModalAction').textContent=btn.getAttribute('data-action')||'';
+		document.getElementById('diffModalId').textContent=btn.getAttribute('data-log-id')||'';
+		document.getElementById('diffSummary').innerHTML='';
+		var bObj=parseRaw(btn.getAttribute('data-before')), aObj=parseRaw(btn.getAttribute('data-after')), eObj=parseRaw(btn.getAttribute('data-extra'));
+		var isObjs=(bObj&&typeof bObj==='object')||(aObj&&typeof aObj==='object');
+		var ts=document.getElementById('diffTableSection'), rs=document.getElementById('diffRawSection');
+		if(isObjs){buildDiff(bObj&&typeof bObj==='object'?bObj:{},aObj&&typeof aObj==='object'?aObj:{});ts.style.display='';rs.style.display='none';}
+		else{document.getElementById('diffBefore').textContent=bObj!=null?String(bObj):'(no before state)';document.getElementById('diffAfter').textContent=aObj!=null?String(aObj):'(no after state)';ts.style.display='none';rs.style.display='';}
+		var es=document.getElementById('extraDataSection');
+		if(eObj!=null){document.getElementById('diffExtra').textContent=typeof eObj==='object'?JSON.stringify(eObj,null,2):String(eObj);es.style.display='';}
+		else{es.style.display='none';}
+	});
+})();
+</script>
 {% endblock %}

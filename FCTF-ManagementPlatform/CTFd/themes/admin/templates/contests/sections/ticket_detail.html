@@ -1,0 +1,252 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+	.ticket-container {
+		padding: 0.75rem 0;
+	}
+
+	.ticket-info-card {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		overflow: hidden;
+		margin-bottom: 1.5rem;
+	}
+
+	.ticket-info-card .card-header {
+		background: #f8f9fa;
+		border-bottom: 2px solid #e8e8e8;
+		padding: 1rem 1.5rem;
+	}
+
+	.ticket-info-card .card-header h3 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.2rem;
+		margin: 0;
+	}
+
+	.ticket-info-table {
+		margin: 0;
+		font-size: 0.9rem;
+	}
+
+	.ticket-info-table tr {
+		border-bottom: 1px solid #f1f1f1;
+	}
+
+	.ticket-info-table tr:last-child {
+		border-bottom: none;
+	}
+
+	.ticket-info-table th {
+		background: #f8f9fa;
+		color: #495057;
+		font-weight: 600;
+		padding: 0.875rem 1.5rem;
+		width: 200px;
+		vertical-align: top;
+		text-transform: uppercase;
+		font-size: 0.75rem;
+		letter-spacing: 0.5px;
+	}
+
+	.ticket-info-table td {
+		padding: 0.875rem 1.5rem;
+		color: #495057;
+		vertical-align: top;
+	}
+
+	.ticket-info-table textarea {
+		width: 100%;
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.75rem;
+		font-size: 0.9rem;
+		resize: vertical;
+		background: #f8f9fa;
+	}
+
+	.response-section {
+		background: #ffffff;
+		border-radius: 8px;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		border: 1px solid #e8e8e8;
+		padding: 2rem;
+	}
+
+	.response-section h3 {
+		color: #2c3e50;
+		font-weight: 600;
+		font-size: 1.2rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 2px solid #e8e8e8;
+	}
+
+	.response-section .form-group label {
+		color: #495057;
+		font-weight: 600;
+		margin-bottom: 0.5rem;
+		display: block;
+	}
+
+	.response-section .form-control {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 0.75rem;
+		transition: all 0.2s ease;
+		font-size: 0.9rem;
+	}
+
+	.response-section .form-control:focus {
+		border-color: #ff6b35;
+		box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.15);
+		outline: none;
+	}
+
+	.response-section .btn-primary {
+		background-color: #ff6b35;
+		border-color: #ff6b35;
+		padding: 0.65rem 2rem;
+		font-weight: 600;
+		transition: all 0.2s ease;
+	}
+
+	.response-section .btn-primary:hover {
+		background-color: #e85d2a;
+		border-color: #e85d2a;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+	}
+
+	.status-badge {
+		display: inline-block;
+		padding: 0.35rem 0.75rem;
+		border-radius: 4px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+
+	.status-badge.closed { background: #d4edda; color: #155724; }
+	.status-badge.open   { background: #fff3cd; color: #856404; }
+	.status-badge.pending { background: #ffe8df; color: #ff6b35; }
+
+	.btn-back {
+		color: #6c757d;
+		text-decoration: none;
+		font-size: 0.9rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin-bottom: 1rem;
+		transition: color 0.2s;
+	}
+	.btn-back:hover { color: #ff6b35; text-decoration: none; }
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="page-header">
+	<div class="container">
+		<h1><i class="bx bx-envelope"></i> Ticket Details
+			<small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+		</h1>
+	</div>
+</div>
+
+<div class="container ticket-container">
+	<a href="{{ url_for('admin.contest_tickets', contest_id=contest.id) }}" class="btn-back">
+		<i class="fas fa-arrow-left"></i> Back to Tickets
+	</a>
+
+	{% if ticket_data %}
+		<!-- Ticket Information Card -->
+		<div class="ticket-info-card">
+			<div class="card-header">
+				<h3>Ticket Information</h3>
+			</div>
+			<table class="table ticket-info-table mb-0">
+				<tr>
+					<th>ID</th>
+					<td>{{ ticket_data.id }}</td>
+				</tr>
+				<tr>
+					<th>Author Name</th>
+					<td>{{ ticket_data.author_name }}</td>
+				</tr>
+				<tr>
+					<th>Create Date</th>
+					<td>
+						{% if ticket_data.date %}
+							<span data-time="{{ ticket_data.date | isoformat }}" data-time-format="YYYY-MM-DD HH:mm:ss"></span>
+						{% else %}
+							N/A
+						{% endif %}
+					</td>
+				</tr>
+				<tr>
+					<th>Replier</th>
+					<td>{{ ticket_data.replier_name if ticket_data.replier_name is not none else 'N/A' }}</td>
+				</tr>
+				<tr>
+					<th>Status</th>
+					<td>
+						{% if ticket_data.status %}
+							<span class="status-badge {{ ticket_data.status.lower() }}">{{ ticket_data.status }}</span>
+						{% else %}
+							N/A
+						{% endif %}
+					</td>
+				</tr>
+				<tr>
+					<th>Type</th>
+					<td>{{ ticket_data.type }}</td>
+				</tr>
+				<tr>
+					<th>Title</th>
+					<td><strong>{{ ticket_data.title }}</strong></td>
+				</tr>
+				<tr>
+					<th>Description</th>
+					<td>
+						<textarea class="form-control" rows="6" readonly>{{ ticket_data.description }}</textarea>
+					</td>
+				</tr>
+			</table>
+		</div>
+
+		<!-- Response Section -->
+		<div class="response-section">
+			{% if ticket_data.status == 'Closed' and ticket_data.replier_message %}
+				<h3>Admin Response</h3>
+				<div class="form-group">
+					<textarea class="form-control" rows="6" readonly>{{ ticket_data.replier_message }}</textarea>
+				</div>
+			{% else %}
+				<h3>Write Your Response</h3>
+				<form action="{{ url_for('admin.contest_send_ticket_response', contest_id=contest.id) }}" method="post">
+					<input type="hidden" name="nonce" value="{{ Session.nonce }}">
+					<div class="form-group">
+						<label for="response">Response:</label>
+						<textarea id="response" name="response" class="form-control" rows="6" required placeholder="Enter your response to this ticket..."></textarea>
+					</div>
+					<input type="hidden" name="replier_id" value="{{ userId }}">
+					<input type="hidden" name="ticket_id" value="{{ ticket_data.id }}">
+					<button type="submit" class="btn btn-primary">
+						<i class="fas fa-paper-plane"></i> Submit Response
+					</button>
+				</form>
+			{% endif %}
+		</div>
+	{% else %}
+		<div class="alert alert-danger" role="alert">
+			<i class="fas fa-exclamation-triangle"></i> No Ticket Found
+		</div>
+	{% endif %}
+</div>
+{% endblock %}

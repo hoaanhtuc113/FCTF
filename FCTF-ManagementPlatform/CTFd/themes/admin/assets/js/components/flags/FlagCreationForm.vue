@@ -68,6 +68,7 @@ export default {
   name: "FlagCreationForm",
   props: {
     challenge_id: Number,
+    apiBase: { type: String, default: "/api/v1/challenges" },
   },
   data: function () {
     return {
@@ -117,7 +118,7 @@ export default {
     submitFlag: function (event) {
       let form = $(event.target);
       let params = form.serializeJSON(true);
-      params["challenge"] = this.$props.challenge_id;
+      params["challenge_template_id"] = this.$props.challenge_id;
 
       CTFd.fetch("/api/v1/flags", {
         method: "POST",

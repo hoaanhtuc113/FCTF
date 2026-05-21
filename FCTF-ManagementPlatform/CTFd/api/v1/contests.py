@@ -132,7 +132,7 @@ class ContestList(Resource):
             slug=slug,
             access_password=data.get("access_password") or None,
             owner_id=data.get("owner_id") or None,
-            user_mode=data.get("user_mode") or "users",
+            user_mode=data.get("user_mode") or "teams",
             state=data.get("state") or "hidden",
             start_time=_parse_datetime(data.get("start_time")),
             end_time=_parse_datetime(data.get("end_time")),

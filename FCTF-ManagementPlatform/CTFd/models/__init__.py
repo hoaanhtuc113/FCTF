@@ -1182,7 +1182,7 @@ class Contests(db.Model):
     )
 
     # Contest mode & lifecycle
-    user_mode = db.Column(db.String(32), nullable=False, default="users")
+    user_mode = db.Column(db.String(32), nullable=False, default="teams")
     state = db.Column(db.String(32), nullable=False, default="hidden")
     start_time = db.Column(db.DateTime, nullable=True)
     end_time = db.Column(db.DateTime, nullable=True)

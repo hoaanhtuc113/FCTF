@@ -135,7 +135,7 @@
             </thead>
             <tbody>
                 {% for contest in contests.items %}
-                <tr data-href="{{ url_for('admin.contests_detail', contest_id=contest.id) }}"
+                <tr data-href="{{ url_for('admin.contest_dashboard', contest_id=contest.id) }}"
                     data-contest-id="{{ contest.id }}">
                     <td data-checkbox onclick="event.stopPropagation()">
                         <input type="checkbox" class="table-check contest-check"
@@ -190,7 +190,7 @@
                         {{ contest.created_at.strftime('%Y-%m-%d') if contest.created_at else '—' }}
                     </td>
                     <td class="text-center" onclick="event.stopPropagation()">
-                        <a href="{{ url_for('admin.contests_detail', contest_id=contest.id) }}"
+                        <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
                            class="clean-btn clean-action-btn-sm" title="Edit">
                             <i class="bx bx-edit"></i>
                         </a>
