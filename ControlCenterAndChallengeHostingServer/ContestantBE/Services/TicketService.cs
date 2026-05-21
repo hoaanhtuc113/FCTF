@@ -40,7 +40,7 @@ public class TicketService : ITicketService
                 Title = request.title,
                 Type = request.type,
                 Description = request.description,
-                CreateAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
                 Status = "open"
             };
 
@@ -84,7 +84,7 @@ public class TicketService : ITicketService
                               Status = t.Status,
                               Title = t.Title,
                               Type = t.Type,
-                              Date = t.CreateAt ?? DateTime.MinValue,
+                              Date = t.CreatedAt ?? DateTime.MinValue,
                               Description = t.Description,
                               ReplierName = r != null ? r.Name : null,
                               ReplierMessage = t.ReplierMessage
@@ -128,7 +128,7 @@ public class TicketService : ITicketService
                                     Status = t.Status,
                                     Title = t.Title,
                                     Type = t.Type,
-                                    Date = t.CreateAt ?? DateTime.MinValue,
+                                    Date = t.CreatedAt ?? DateTime.MinValue,
                                     Description = t.Description,
                                     ReplierName = r != null ? r.Name : null,
                                     ReplierMessage = t.ReplierMessage
@@ -162,7 +162,9 @@ public class TicketService : ITicketService
                         join a in _context.Users on t.AuthorId equals a.Id
                         join r in _context.Users on t.ReplierId equals r.Id into replierJoin
                         from r in replierJoin.DefaultIfEmpty()
-                        join team in _context.Teams on a.TeamId equals team.Id into teamJoin
+                        join utm in _context.UserTeamMembers on a.Id equals utm.UserId into utmJoin
+                        from utm in utmJoin.DefaultIfEmpty()
+                        join team in _context.Teams on utm.TeamId equals team.Id into teamJoin
                         from team in teamJoin.DefaultIfEmpty()
                         select new { t, a, r, team };
 
@@ -182,7 +184,7 @@ public class TicketService : ITicketService
 
             var tickets = await query
                 .AsNoTracking()
-                .OrderByDescending(x => x.t.CreateAt)
+                .OrderByDescending(x => x.t.CreatedAt)
                 .Skip((page - 1) * perPage)
                 .Take(perPage)
                 .Select(x => new TicketResponseDTO
@@ -193,7 +195,7 @@ public class TicketService : ITicketService
                     Status = x.t.Status,
                     Title = x.t.Title,
                     Type = x.t.Type,
-                    Date = (DateTime)x.t.CreateAt,
+                    Date = x.t.CreatedAt ?? DateTime.MinValue,
                     Description = x.t.Description,
                     ReplierName = x.r != null ? x.r.Name : null,
                     ReplierMessage = x.t.ReplierMessage
@@ -248,7 +250,7 @@ public class TicketService : ITicketService
             Status = ticket.Status,
             Title = ticket.Title,
             Type = ticket.Type,
-            Date = ticket.CreateAt ?? DateTime.MinValue,
+            Date = ticket.CreatedAt ?? DateTime.MinValue,
             Description = ticket.Description,
             ReplierName = replierName,
             ReplierMessage = ticket.ReplierMessage

@@ -64,6 +64,8 @@ public class HintService : IHintService
             return;
         }
 
+        var userTeamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
+
         try
         {
             var requirementsObj = System.Text.Json.JsonSerializer.Deserialize<ChallengeRequirementsDTO>(challenge.Requirements);
@@ -95,12 +97,12 @@ public class HintService : IHintService
 
             if (_configHelper.IsTeamsMode())
             {
-                if (user.TeamId == null)
+                if (userTeamId == null)
                 {
                     throw new InvalidOperationException("User team not found");
                 }
 
-                solvesQuery = solvesQuery.Where(s => s.TeamId == user.TeamId);
+                solvesQuery = solvesQuery.Where(s => s.TeamId == userTeamId);
             }
             else
             {
@@ -123,7 +125,7 @@ public class HintService : IHintService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user.Id, user.TeamId, new { challengeId = challenge.Id, requirements = challenge.Requirements });
+            _logger.LogError(ex, user.Id, userTeamId, new { challengeId = challenge.Id, requirements = challenge.Requirements });
         }
     }
 
@@ -144,8 +146,9 @@ public class HintService : IHintService
             var hasCost = (hint.Cost ?? 0) > 0;
 
             var user = await _context.Users
-                .Include(u => u.Team)
+                .Include(u => u.TeamMemberships)
                 .FirstOrDefaultAsync(u => u.Id == userId);
+            var userTeamId = (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId;
 
             // If unauthenticated/null user and hint has cost, keep the old behavior: locked.
             if (user == null && hasCost)
@@ -169,13 +172,13 @@ public class HintService : IHintService
                     Unlock? unlocked;
                     if (_configHelper.IsTeamsMode())
                     {
-                        unlocked = user.TeamId == null
+                        unlocked = userTeamId == null
                             ? null
                             : await _context.Unlocks
                                 .AsNoTracking()
                                 .FirstOrDefaultAsync(u =>
-                                    u.TeamId == user.TeamId &&
-                                    u.Target == hint.Id &&
+                                    u.TeamId == userTeamId &&
+                                    u.HintId == hint.Id &&
                                     (u.Type == HintUnlockType || u.Type == null));
                     }
                     else
@@ -184,7 +187,7 @@ public class HintService : IHintService
                             .AsNoTracking()
                             .FirstOrDefaultAsync(u =>
                                 u.UserId == user.Id &&
-                                u.Target == hint.Id &&
+                                u.HintId == hint.Id &&
                                 (u.Type == HintUnlockType || u.Type == null));
                     }
 
@@ -236,24 +239,26 @@ public class HintService : IHintService
             {
                 var currentUser = await _context.Users
                     .AsNoTracking()
+                    .Include(u => u.TeamMemberships)
                     .FirstOrDefaultAsync(u => u.Id == user);
+                var currentUserTeamId = (int?)currentUser?.TeamMemberships.FirstOrDefault()?.TeamId;
 
                 if (currentUser != null)
                 {
                     var unlocksQuery = _context.Unlocks
                         .AsNoTracking()
                         .Where(u =>
-                            u.Target != null &&
-                            hintIds.Contains(u.Target.Value) &&
+                            u.HintId != null &&
+                            hintIds.Contains(u.HintId.Value) &&
                             (u.Type == HintUnlockType || u.Type == null));
 
                     if (_configHelper.IsTeamsMode())
                     {
-                        if (currentUser.TeamId != null)
+                        if (currentUserTeamId != null)
                         {
-                            unlocksQuery = unlocksQuery.Where(u => u.TeamId == currentUser.TeamId);
+                            unlocksQuery = unlocksQuery.Where(u => u.TeamId == currentUserTeamId);
                             var unlocked = await unlocksQuery
-                                .Select(u => u.Target!.Value)
+                                .Select(u => u.HintId!.Value)
                                 .ToListAsync();
                             unlockedHintIds = new HashSet<int>(unlocked);
                         }
@@ -262,7 +267,7 @@ public class HintService : IHintService
                     {
                         unlocksQuery = unlocksQuery.Where(u => u.UserId == currentUser.Id);
                         var unlocked = await unlocksQuery
-                            .Select(u => u.Target!.Value)
+                            .Select(u => u.HintId!.Value)
                             .ToListAsync();
                         unlockedHintIds = new HashSet<int>(unlocked);
                     }
@@ -303,16 +308,19 @@ public class HintService : IHintService
             }
 
             var user = await _context.Users
-                .Include(u => u.Team)
+                .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
                 throw new InvalidOperationException("User not found");
 
+            var userTeamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
+            var userTeam = user.TeamMemberships.FirstOrDefault()?.Team;
+
             // Use distributed lock to prevent race condition across multiple backend replicas
             // Lock key is based on team/user to allow parallel unlocks for different teams
             var lockKey = _configHelper.IsTeamsMode()
-                ? $"hint:unlock:team:{user.TeamId}"
+                ? $"hint:unlock:team:{userTeamId}"
                 : $"hint:unlock:user:{user.Id}";
             var lockToken = Guid.NewGuid().ToString();
             var lockExpiry = TimeSpan.FromSeconds(30); // Max time to complete unlock operation
@@ -332,9 +340,9 @@ public class HintService : IHintService
                     IQueryable<Unlock> allUnlocksQuery = _context.Unlocks.Where(u => u.Type == HintUnlockType);
                     if (_configHelper.IsTeamsMode())
                     {
-                        if (user.TeamId == null)
+                        if (userTeamId == null)
                             throw new InvalidOperationException("User team not found");
-                        allUnlocksQuery = allUnlocksQuery.Where(u => u.TeamId == user.TeamId);
+                        allUnlocksQuery = allUnlocksQuery.Where(u => u.TeamId == userTeamId);
                     }
                     else
                     {
@@ -342,7 +350,7 @@ public class HintService : IHintService
                     }
 
                     var allUnlocks = await allUnlocksQuery
-                        .Select(u => u.Target)
+                        .Select(u => u.HintId)
                         .ToListAsync();
                     var unlockIds = new HashSet<int>(allUnlocks.Where(t => t.HasValue).Select(t => t.Value));
 
@@ -374,37 +382,33 @@ public class HintService : IHintService
                 {
                     // Team Mode: Check by TeamId
                     existing = await _context.Unlocks
-                        .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.TeamId == user.TeamId);
+                        .FirstOrDefaultAsync(u => u.HintId == req.Target && u.Type == req.Type && u.TeamId == userTeamId);
                 }
                 else
                 {
                     // User Mode: Check by UserId
                     existing = await _context.Unlocks
-                        .FirstOrDefaultAsync(u => u.Target == req.Target && u.Type == req.Type && u.UserId == user.Id);
+                        .FirstOrDefaultAsync(u => u.HintId == req.Target && u.Type == req.Type && u.UserId == user.Id);
                 }
 
                 if (existing != null)
                     throw new InvalidOperationException("Already unlocked");
 
                 // Check score inside lock to prevent TOCTOU race
-                var userCheck = await _context.Users
-                    .AsNoTracking()
-                    .Include(u => u.Team)
-                    .FirstOrDefaultAsync(u => u.Id == user.Id);
-                if (userCheck?.Team == null)
+                if (userTeam == null)
                     throw new InvalidOperationException("User team not found");
 
-                var score = await _scoreHelper.GetTeamScore(userCheck.Team, admin: true);
+                var score = await _scoreHelper.GetTeamScore(userTeam, admin: true);
 
                 if (target.Cost != null && target.Cost > score)
                     throw new InvalidOperationException("Not enough points to unlock this hint");
 
                 var unlock = new Unlock
                 {
-                    Target = req.Target,
+                    HintId = req.Target,
                     Type = req.Type,
                     UserId = user.Id,
-                    TeamId = user.TeamId,
+                    TeamId = userTeamId,
                     Date = DateTime.UtcNow
                 };
                 _context.Unlocks.Add(unlock);
@@ -412,7 +416,7 @@ public class HintService : IHintService
                 var award = new Award
                 {
                     UserId = user.Id,
-                    TeamId = user.TeamId,
+                    TeamId = userTeamId,
                     Name = "Hint " + target.ChallengeId,
                     Description = "Hint for " + target.Challenge.Name,
                     Value = -target.Cost.GetValueOrDefault(),
@@ -427,7 +431,7 @@ public class HintService : IHintService
                 {
                     Id = unlock.Id,
                     Type = unlock.Type,
-                    Target = unlock.Target,
+                    Target = unlock.HintId,
                     TeamId = unlock.TeamId,
                     UserId = unlock.UserId,
                     Date = unlock.Date

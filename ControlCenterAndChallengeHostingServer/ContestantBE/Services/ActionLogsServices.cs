@@ -24,13 +24,13 @@ public class ActionLogsServices : IActionLogsServices
         var data = await _context.ActionLogs
             .AsNoTracking()
             .Include(al => al.User)
-            .OrderByDescending(x => x.ActionDate)
+            .OrderByDescending(x => x.Date)
             .Select(al => new ActionLogsDTO
             {
-                ActionId = al.ActionId,
-                ActionType = al.ActionType,
-                ActionDate = al.ActionDate,
-                ActionDetail = al.ActionDetail,
+                ActionId = al.Id,
+                ActionType = al.Type,
+                ActionDate = al.Date,
+                ActionDetail = al.Detail,
                 TopicName = al.TopicName,
                 UserId = al.UserId,
                 UserName = al.User != null ? al.User.Name : ""
@@ -39,19 +39,26 @@ public class ActionLogsServices : IActionLogsServices
 
         return data;
     }
+
     public async Task<List<ActionLogsDTO>> GetActionLogsTeam(int teamId)
     {
+        var userIds = await _context.UserTeamMembers
+            .AsNoTracking()
+            .Where(m => m.TeamId == teamId)
+            .Select(m => (int?)m.UserId)
+            .ToListAsync();
+
         var data = await _context.ActionLogs
             .AsNoTracking()
             .Include(al => al.User)
-            .Where(al => al.User != null && al.User.TeamId == teamId)
-            .OrderByDescending(x => x.ActionDate)
+            .Where(al => al.UserId != null && userIds.Contains(al.UserId))
+            .OrderByDescending(x => x.Date)
             .Select(al => new ActionLogsDTO
             {
-                ActionId = al.ActionId,
-                ActionType = al.ActionType,
-                ActionDate = al.ActionDate,
-                ActionDetail = al.ActionDetail,
+                ActionId = al.Id,
+                ActionType = al.Type,
+                ActionDate = al.Date,
+                ActionDetail = al.Detail,
                 TopicName = al.TopicName,
                 UserId = al.UserId,
                 UserName = al.User != null ? al.User.Name : ""
@@ -71,9 +78,9 @@ public class ActionLogsServices : IActionLogsServices
 
         var log = new ActionLog
         {
-            ActionType = req.ActionType,
-            ActionDetail = req.ActionDetail,
-            ActionDate = DateTime.UtcNow,
+            Type = req.ActionType,
+            Detail = req.ActionDetail,
+            Date = DateTime.UtcNow,
             UserId = userId,
             TopicName = topic_name ?? "Null",
         };
@@ -88,9 +95,10 @@ public class ActionLogsServices : IActionLogsServices
 
         return new ActionLogsDTO
         {
-            ActionType = log.ActionType,
-            ActionDate = log.ActionDate,
-            ActionDetail = log.ActionDetail,
+            ActionId = log.Id,
+            ActionType = log.Type,
+            ActionDate = log.Date,
+            ActionDetail = log.Detail,
             TopicName = log.TopicName,
             UserId = log.UserId,
             UserName = username

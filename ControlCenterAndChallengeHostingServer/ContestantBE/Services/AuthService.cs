@@ -484,7 +484,6 @@ public class AuthService : IAuthService
                 Verified = false,
                 Hidden = false,
                 Banned = false,
-                TeamId = null,
                 Created = DateTime.UtcNow,
             };
 
@@ -575,7 +574,7 @@ public class AuthService : IAuthService
 
             // load tracked entity so we can update password if we migrate hash format
             var user = await _context.Users
-                .Include(t => t.Team)
+                .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Name == loginDto.username);
 
@@ -603,11 +602,12 @@ public class AuthService : IAuthService
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your account is not allowed");
             }
-            if (user.Team == null)
+            var userTeam = user.TeamMemberships.FirstOrDefault()?.Team;
+            if (userTeam == null)
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("You don't have a team yet");
             }
-            if (user.Team != null && (user.Team.Banned ?? false))
+            if (userTeam.Banned ?? false)
             {
                 return BaseResponseDTO<AuthResponseDTO>.Fail("Your team has been banned");
             }
@@ -656,12 +656,12 @@ public class AuthService : IAuthService
                 id = user.Id,
                 username = user.Name ?? string.Empty,
                 email = user.Email ?? string.Empty,
-                team = user.Team == null
+                team = userTeam == null
                     ? null
                     : new TeamResponse
                     {
-                        id = user.Team.Id,
-                        teamName = user.Team.Name ?? string.Empty
+                        id = userTeam.Id,
+                        teamName = userTeam.Name ?? string.Empty
                     },
                 token = jwt
             };
