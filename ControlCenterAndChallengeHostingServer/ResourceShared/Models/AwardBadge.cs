@@ -9,9 +9,9 @@ public partial class AwardBadge
 
     public string? Name { get; set; }
 
-    public int? ChallengeTemplateId { get; set; }
+    public int? ChallengeId { get; set; }
 
-    public virtual Challenge? ChallengeTemplate { get; set; }
+    public virtual Challenge? Challenge { get; set; }
 
     public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 }

@@ -12,7 +12,7 @@ public partial class Unlock
 
     public int? HintId { get; set; }
 
-    public int? ContestChallengeId { get; set; }
+    public int? ChallengeId { get; set; }
 
     public DateTime? Date { get; set; }
 
@@ -20,7 +20,7 @@ public partial class Unlock
 
     public virtual Hint? Hint { get; set; }
 
-    public virtual ContestChallenge? ContestChallenge { get; set; }
+    public virtual Challenge? Challenge { get; set; }
 
     public virtual Team? Team { get; set; }
 

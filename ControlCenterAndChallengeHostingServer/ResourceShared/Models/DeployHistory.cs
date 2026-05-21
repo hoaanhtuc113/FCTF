@@ -6,7 +6,7 @@ public partial class DeployHistory
 {
     public int Id { get; set; }
 
-    public int? ChallengeTemplateId { get; set; }
+    public int? ChallengeId { get; set; }
 
     public string? LogContent { get; set; }
 
@@ -14,5 +14,5 @@ public partial class DeployHistory
 
     public DateTime? DeployAt { get; set; }
 
-    public virtual Challenge? ChallengeTemplate { get; set; }
+    public virtual Challenge? Challenge { get; set; }
 }
