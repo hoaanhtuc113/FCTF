@@ -153,15 +153,15 @@
     <!-- Action Buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div>
-            <a href="{{ url_for('admin.contest_import_challenges', contest_id=contest.id) }}"
+            <a href="{{ url_for('admin.contest_challenges_new', contest_id=contest.id) }}"
                class="clean-btn clean-btn-primary">
-                <i class="btn-fa fas fa-file-import"></i> Import Challenges
+                <i class="btn-fa fas fa-plus"></i> Create Challenge
             </a>
         </div>
         <div class="btn-group" role="group">
             <button type="button" class="clean-btn clean-btn-danger ml-2"
-                    id="cc-delete-button" data-toggle="tooltip" title="Remove selected challenges from contest">
-                <i class="btn-fa fas fa-trash-alt"></i> Remove
+                    id="cc-delete-button" data-toggle="tooltip" title="Delete selected challenges">
+                <i class="btn-fa fas fa-trash-alt"></i> Delete
             </button>
         </div>
     </div>
@@ -189,23 +189,22 @@
             </thead>
             <tbody>
                 {% for cc in contest_challenges.items %}
-                {% set tpl = cc.challenge_template %}
-                <tr data-href="{{ url_for('admin.challenges_detail', challenge_id=tpl.id) }}">
+                <tr data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=cc.id) }}">
                     <td data-checkbox>
                         <input type="checkbox" class="table-check" autocomplete="off"
                                value="{{ cc.id }}" data-cc-id="{{ cc.id }}">
                     </td>
-                    <td class="text-center">{{ tpl.id }}</td>
-                    <td class="text-center cell-truncate" title="{{ tpl.name }}">
-                        <a href="{{ url_for('admin.challenges_detail', challenge_id=tpl.id) }}">
-                            {{ tpl.name | truncate(40) }}
+                    <td class="text-center">{{ cc.id }}</td>
+                    <td class="text-center cell-truncate" title="{{ cc.name }}">
+                        <a href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=cc.id) }}">
+                            {{ cc.name | truncate(40) }}
                         </a>
                     </td>
-                    <td class="text-center cell-truncate-sm" title="{{ tpl.category }}">{{ tpl.category | truncate(20) }}</td>
+                    <td class="text-center cell-truncate-sm" title="{{ cc.category }}">{{ cc.category | truncate(20) }}</td>
                     <td class="text-center" style="white-space:nowrap">
-                        {% if tpl.difficulty %}
+                        {% if cc.difficulty %}
                             {% for i in range(1, 6) %}
-                                {% if i <= tpl.difficulty %}
+                                {% if i <= cc.difficulty %}
                                 <i class="fas fa-star" style="color:#ff6b35;font-size:.75rem"></i>
                                 {% else %}
                                 <i class="far fa-star" style="color:#dee2e6;font-size:.75rem"></i>
@@ -215,12 +214,12 @@
                             <span class="text-muted">&mdash;</span>
                         {% endif %}
                     </td>
-                    <td class="text-center cell-truncate-sm" title="{{ tpl.creator }}">{{ tpl.creator | truncate(20) }}</td>
+                    <td class="text-center cell-truncate-sm" title="{{ cc.creator }}">{{ cc.creator | truncate(20) }}</td>
                     <td class="text-center">{{ cc.value if cc.value is not none else '&mdash;' }}</td>
-                    <td class="text-center">{{ tpl.type }}</td>
+                    <td class="text-center">{{ cc.type }}</td>
                     <td class="text-center">
-                        {% if tpl.tags %}
-                            {% for t in tpl.tags %}
+                        {% if cc.tags %}
+                            {% for t in cc.tags %}
                                 <span class="clean-badge clean-badge-secondary mr-1" title="{{ t.value }}">{{ t.value | truncate(15) }}</span>
                             {% endfor %}
                         {% else %}
@@ -228,13 +227,13 @@
                         {% endif %}
                     </td>
                     <td class="text-center">
-                        {% if tpl.deploy_status == 'DEPLOY_SUCCESS' %}
+                        {% if cc.deploy_status == 'DEPLOY_SUCCESS' %}
                         <span class="clean-badge clean-badge-success">DEPLOY_SUCCESS</span>
-                        {% elif tpl.deploy_status == 'DEPLOY_FAILED' %}
+                        {% elif cc.deploy_status == 'DEPLOY_FAILED' %}
                         <span class="clean-badge clean-badge-danger">DEPLOY_FAILED</span>
-                        {% elif tpl.deploy_status == 'PENDING_DEPLOY' %}
+                        {% elif cc.deploy_status == 'PENDING_DEPLOY' %}
                         <span class="clean-badge clean-badge-primary">PENDING_DEPLOY</span>
-                        {% elif tpl.deploy_status == 'CREATED' %}
+                        {% elif cc.deploy_status == 'CREATED' %}
                         <span class="clean-badge clean-badge-secondary">CREATED</span>
                         {% else %}
                         <span class="clean-badge clean-badge-warning">NOT YET</span>
@@ -244,7 +243,7 @@
                         {% set badge_state = 'clean-badge-danger' if cc.state == 'hidden' else 'clean-badge-success' %}
                         <span class="clean-badge {{ badge_state }}">{{ cc.state }}</span>
                     </td>
-                    {% if tpl.require_deploy %}
+                    {% if cc.require_deploy %}
                     <td class="text-center">
                         <div class="action-dropdown">
                             <button type="button" class="clean-btn clean-action-btn-sm"
@@ -253,18 +252,18 @@
                             </button>
                             <div class="action-menu">
                                 <a class="action-menu-item"
-                                   href="{{ url_for('challengeHistory.view_deploy_history', challenge_id=tpl.id) }}"
+                                   href="{{ url_for('challengeHistory.view_deploy_history', challenge_id=cc.id) }}"
                                    onclick="closeAllActionMenus()">
                                     <i class="fas fa-history fa-fw mr-1"></i> History
                                 </a>
                                 <a class="action-menu-item" href="#"
-                                   onclick="previewChallenge({{ tpl.id }}, this); closeAllActionMenus(); return false;">
+                                   onclick="previewChallenge({{ cc.id }}, this); closeAllActionMenus(); return false;">
                                     <i class="fas fa-eye fa-fw mr-1"></i> Preview
                                 </a>
-                                {% if tpl.shared_instant %}
+                                {% if cc.shared_instant %}
                                 <div class="action-menu-divider"></div>
                                 <a class="action-menu-item" href="#"
-                                   onclick="startSharedChallenge({{ tpl.id }}, this); closeAllActionMenus(); return false;">
+                                   onclick="startSharedChallenge({{ cc.id }}, this); closeAllActionMenus(); return false;">
                                     <i class="fas fa-play fa-fw mr-1"></i> Start
                                 </a>
                                 {% endif %}
@@ -280,7 +279,8 @@
                 {% else %}
                 <tr>
                     <td colspan="12" class="text-center text-muted py-4">
-                        <i class="bx bx-info-circle"></i> No challenges assigned to this contest.
+                        <i class="bx bx-info-circle"></i> No challenges in this contest yet.
+                        <a href="{{ url_for('admin.contest_challenges_new', contest_id=contest.id) }}" class="ml-2">Create one</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -363,16 +363,16 @@ if (allCb) {
     });
 }
 
-/* Remove selected challenges from contest */
+/* Delete selected challenges (permanently) */
 const delBtn = document.getElementById('cc-delete-button');
 if (delBtn) {
     delBtn.addEventListener('click', function() {
         const ids = Array.from(document.querySelectorAll('input[data-cc-id]:checked')).map(function(cb) { return cb.value; });
         if (!ids.length) { alert('Please select at least one challenge.'); return; }
-        if (!confirm('Remove ' + ids.length + ' challenge(s) from this contest?')) return;
+        if (!confirm('Permanently delete ' + ids.length + ' challenge(s)? This cannot be undone.')) return;
         const csrfToken = (window.init && init.csrfNonce) || '';
         Promise.all(ids.map(function(id) {
-            return fetch('/api/v1/contest_challenges/' + id, {
+            return fetch('/api/v1/challenges/' + id, {
                 method: 'DELETE',
                 headers: { 'CSRF-Token': csrfToken }
             });

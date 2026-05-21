@@ -25,15 +25,26 @@ class BaseChallenge(object):
     challenge_model = Challenges
 
     @classmethod
-    def create(cls, request):
+    def create(cls, request, extra_data=None):
         """
         This method is used to process the challenge creation request.
 
         :param request:
+        :param extra_data: optional dict of server-validated fields (e.g. contest_id) to
+                           merge into the request data before model creation.
         :return:
         """
         data = request.form or request.get_json()
         data = dict(data)
+        # Strip fields that are not Challenges model columns
+        data.pop("contest_token", None)
+        data.pop("file_upload", None)
+        # Form sends user_id but model column is created_by
+        if "user_id" in data:
+            data.setdefault("created_by", data.pop("user_id"))
+        # Merge server-validated fields (higher priority than client data)
+        if extra_data:
+            data.update(extra_data)
         for key in ("cpu_limit", "cpu_request", "memory_limit", "memory_request", "max_deploy_count"):
             if key in data and data[key] is not None:
                 try:
@@ -59,7 +70,10 @@ class BaseChallenge(object):
                     data["difficulty"] = int(diff_val)
                 except (TypeError, ValueError):
                     data["difficulty"] = None
-        if int(data["time_limit"]) >= -1:
+        # Remove any keys not present as model columns to avoid TypeError
+        valid_columns = {c.name for c in cls.challenge_model.__table__.columns}
+        data = {k: v for k, v in data.items() if k in valid_columns}
+        if int(data.get("time_limit", 0)) >= -1:
             challenge = cls.challenge_model(**data)
 
             db.session.add(challenge)

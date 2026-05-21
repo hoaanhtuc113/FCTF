@@ -1,6 +1,6 @@
-{% extends "admin/base.html" %}
+{% extends "admin/contests/contest_base.html" %}
 
-{% block stylesheets %}
+{% block contest_stylesheets %}
 <style>
 	/* Clean Team Detail Page Styles - Same as User Detail */
 	.team-detail-page .jumbotron {
@@ -200,7 +200,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block contest_content %}
 <div class="team-detail-page">
 <div id="team-info-edit-modal" class="modal fade">
 	<div class="modal-dialog">
@@ -793,7 +793,7 @@
 
 {% endblock %}
 
-{% block scripts %}
+{% block contest_scripts %}
 
 
 <script>

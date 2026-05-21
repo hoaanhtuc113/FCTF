@@ -224,18 +224,17 @@ def rewards_details():
                 ct.total_challenges,
                 MAX(sf.solve_date) AS full_clear_date
             FROM (
-                SELECT s.id AS solve_id, cc.challenge_template_id AS challenge_id,
-                       ctt.name AS challenge_name, ctt.category,
-                       cc.value AS challenge_value, s.date AS solve_date
+                SELECT s.id AS solve_id, c.id AS challenge_id,
+                       c.name AS challenge_name, c.category,
+                       c.value AS challenge_value, s.date AS solve_date
                 FROM submissions s
                 JOIN solves sol ON sol.id = s.id
-                JOIN contests_challenges cc ON cc.id = s.contest_challenge_id
-                JOIN challenge_templates ctt ON ctt.id = cc.challenge_template_id
+                JOIN challenges c ON c.id = s.challenge_id
                 WHERE s.type = 'correct' AND s.team_id = :entity_id
             ) sf
             JOIN (
                 SELECT category, COUNT(*) AS total_challenges
-                FROM challenge_templates
+                FROM challenges
                 GROUP BY category
             ) ct ON ct.category = sf.category
             GROUP BY sf.category, ct.total_challenges
@@ -256,17 +255,17 @@ def rewards_details():
     if template_id == "first_blood_hunters":
         extra_join = """
             JOIN (
-                SELECT contest_challenge_id, MIN(date) AS fb_date
+                SELECT challenge_id, MIN(date) AS fb_date
                 FROM submissions
                 WHERE type = 'correct'
-                GROUP BY contest_challenge_id
-            ) fb ON fb.contest_challenge_id = s.contest_challenge_id AND fb.fb_date = s.date
+                GROUP BY challenge_id
+            ) fb ON fb.challenge_id = s.challenge_id AND fb.fb_date = s.date
         """
     elif template_id == "perfect_solvers":
         extra_where = """
             AND NOT EXISTS (
                 SELECT 1 FROM submissions w
-                WHERE w.contest_challenge_id = s.contest_challenge_id
+                WHERE w.challenge_id = s.challenge_id
                 AND w.type = 'incorrect'
                 AND w.date < s.date
                 AND w.team_id = :entity_id
@@ -277,29 +276,27 @@ def rewards_details():
             AND NOT EXISTS (
                 SELECT 1 FROM unlocks u
                 JOIN hints h ON h.id = u.hint_id
-                JOIN contests_challenges cc2 ON cc2.challenge_template_id = h.challenge_template_id
                 WHERE u.type = 'hints'
-                AND cc2.id = s.contest_challenge_id
+                AND h.challenge_id = s.challenge_id
                 AND u.team_id = :entity_id
             )
         """
 
     sql = f"""
         SELECT
-            ct.id AS challenge_id,
-            ct.name AS challenge_name,
-            ct.category,
-            cc.value AS score,
+            c.id AS challenge_id,
+            c.name AS challenge_name,
+            c.category,
+            c.value AS score,
             s.date AS solve_date
         FROM submissions s
         JOIN solves sol ON sol.id = s.id
-        JOIN contests_challenges cc ON cc.id = s.contest_challenge_id
-        JOIN challenge_templates ct ON ct.id = cc.challenge_template_id
+        JOIN challenges c ON c.id = s.challenge_id
         {extra_join}
         WHERE s.type = 'correct'
         AND {filter_col} = :entity_id
         {extra_where}
-        ORDER BY ct.category, ct.name
+        ORDER BY c.category, c.name
     """
 
     rows = db.session.execute(sa_text(sql), {"entity_id": entity_id}).fetchall()
