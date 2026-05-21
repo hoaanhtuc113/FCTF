@@ -113,6 +113,7 @@ def challenge_templates_detail(template_id):
         challenge_class.templates["update"].lstrip("/"),
         challenge=challenge,
         ctf_is_active=False,
+        is_template=True,
     )
     update_script = url_for(
         "views.static_html", route=challenge_class.scripts["update"].lstrip("/")

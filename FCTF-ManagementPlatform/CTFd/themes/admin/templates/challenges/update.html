@@ -238,6 +238,34 @@
 </form>
 
 {% block footer %}
+{% if is_template|default(false) %}
+<script>
+(function() {
+    var container = document.getElementById('challenge-update-container');
+    if (!container) return;
+    ['cooldown', 'value', 'time_limit', 'max_attempts', 'state'].forEach(function(name) {
+        container.querySelectorAll('[name="' + name + '"]').forEach(function(el) {
+            var fg = el.closest('.form-group');
+            if (fg) fg.style.display = 'none';
+        });
+    });
+    ['standard-value-section', 'dynamic-value-section'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    var btnGroup = container.querySelector('.btn-group-toggle');
+    if (btnGroup) {
+        var fg = btnGroup.closest('.form-group');
+        if (fg) fg.style.display = 'none';
+    }
+    var cooldownEl = container.querySelector('#submission_cooldown');
+    if (cooldownEl) {
+        var fg = cooldownEl.closest('.form-group');
+        if (fg) fg.style.display = 'none';
+    }
+})();
+</script>
+{% endif %}
 <script>
 (function() {
 	document.querySelectorAll('.star-rating-picker').forEach(function(picker) {

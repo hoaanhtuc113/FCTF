@@ -99,11 +99,14 @@
 </template>
 
 <script>
+import CTFd from "../../compat/CTFd";
+
 export default {
   name: "HintCreationForm",
   props: {
     challenge_id: Number,
     hints: Array,
+    apiBase: { type: String, default: "/api/v1/challenges" },
   },
   data: function () {
     return {
@@ -133,7 +136,7 @@ export default {
         return;
       }
       let params = {
-        challenge_id: this.$props.challenge_id,
+        challenge_template_id: this.$props.challenge_id,
         content: this.getContent(),
         cost,
         requirements: { prerequisites: this.selectedHints },

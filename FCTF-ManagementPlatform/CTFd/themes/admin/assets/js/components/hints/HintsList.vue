@@ -5,6 +5,7 @@
         ref="HintCreationForm"
         :challenge_id="challenge_id"
         :hints="hints"
+        :apiBase="apiBase"
         @refreshHints="refreshHints"
       />
     </div>
@@ -75,6 +76,7 @@ export default {
   },
   props: {
     challenge_id: Number,
+    apiBase: { type: String, default: "/api/v1/challenges" },
   },
   data: function () {
     return {
@@ -85,7 +87,7 @@ export default {
   methods: {
     loadHints: async function () {
       let result = await CTFd.fetch(
-        `/api/v1/challenges/${this.$props.challenge_id}/hints`,
+        `${this.$props.apiBase}/${this.$props.challenge_id}/hints`,
         {
           method: "GET",
           credentials: "same-origin",

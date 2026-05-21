@@ -292,6 +292,172 @@ function initUpdateForm() {
 }
 
 // ---------------------------------------------------------------------------
+// Strip contest-only fields from the update form (right column)
+// ---------------------------------------------------------------------------
+
+function stripContestFieldsFromUpdateForm() {
+  const container = $("#challenge-update-container");
+  if (!container.length) return;
+
+  // Hide fields that don't belong in a template (no scoring, no state, no cooldown)
+  ["cooldown", "value", "time_limit", "max_attempts", "state"].forEach(name => {
+    container.find(`[name="${name}"]`).each(function () {
+      $(this).prop("required", false).prop("disabled", true);
+      $(this).closest(".form-group").hide();
+    });
+  });
+
+  // Hide the scoring-type toggle and dynamic scoring sections
+  container.find("#standard-value-section").hide();
+  container.find("#dynamic-value-section").hide();
+  container.find(".btn-group-toggle").closest(".form-group").hide();
+}
+
+// ---------------------------------------------------------------------------
+// Deploy form handler for the template detail page
+// ---------------------------------------------------------------------------
+
+function initTemplateDeployForm() {
+  const form = document.getElementById("template-deploy-form");
+  if (!form) return;
+
+  const setupDockerCheckbox = document.getElementById("tpl_setup_docker");
+  const deployBtn = document.getElementById("tpl-deploy-btn");
+  const statusMsg = document.getElementById("tpl-deploy-status-message");
+  const exposePortContainer = document.getElementById("tpl_expose_port_container");
+  const exposePortInput = document.getElementById("tpl_expose_port");
+  const cpuLimitInput = document.getElementById("tpl_cpu_limit");
+  const cpuRequestInput = document.getElementById("tpl_cpu_request");
+  const memoryLimitInput = document.getElementById("tpl_memory_limit");
+  const memoryRequestInput = document.getElementById("tpl_memory_request");
+  const useGvisorInput = document.getElementById("tpl_use_gvisor");
+  const connectionProtocolInput = document.getElementById("tpl_connection_protocol");
+  const hardenContainerCheckbox = document.getElementById("tpl_harden_container");
+  const sharedInstantCheckbox = document.getElementById("tpl_shared_instant");
+  const fileInput = document.getElementById("tpl_deploy_file");
+
+  function showStatus(msg, type) {
+    statusMsg.className = `mt-3 alert alert-${type}`;
+    statusMsg.textContent = msg;
+    statusMsg.style.display = "block";
+  }
+
+  function updateButtonState() {
+    if (setupDockerCheckbox.checked) {
+      exposePortContainer.style.display = "block";
+      deployBtn.disabled = exposePortInput.value === "";
+      form.querySelectorAll(".tpl-deploy-resource-field").forEach(el => (el.style.display = "block"));
+      form.querySelectorAll(".tpl-deploy-resource-field input, .tpl-deploy-resource-field select").forEach(el => {
+        el.disabled = false;
+      });
+    } else {
+      exposePortContainer.style.display = "none";
+      deployBtn.disabled = false;
+      form.querySelectorAll(".tpl-deploy-resource-field").forEach(el => (el.style.display = "none"));
+      form.querySelectorAll(".tpl-deploy-resource-field input, .tpl-deploy-resource-field select").forEach(el => {
+        el.disabled = true;
+      });
+    }
+    fileInput.disabled = false;
+  }
+
+  setupDockerCheckbox.addEventListener("change", updateButtonState);
+  exposePortInput.addEventListener("input", () => {
+    if (setupDockerCheckbox.checked) deployBtn.disabled = exposePortInput.value === "";
+  });
+  updateButtonState();
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    statusMsg.style.display = "none";
+
+    const requireDeploy = setupDockerCheckbox.checked;
+
+    if (requireDeploy) {
+      const cpuLimit = parseInt(cpuLimitInput?.value || "0", 10);
+      const cpuRequest = parseInt(cpuRequestInput?.value || "0", 10);
+      const memoryLimit = parseInt(memoryLimitInput?.value || "0", 10);
+      const memoryRequest = parseInt(memoryRequestInput?.value || "0", 10);
+      if (cpuLimit < 1 || cpuRequest < 1) {
+        ezAlert({ title: "Validation Error", body: "CPU limit/request must be >= 1 (mCPU).", button: "OK" });
+        return;
+      }
+      if (memoryLimit < 1 || memoryRequest < 1) {
+        ezAlert({ title: "Validation Error", body: "Memory limit/request must be >= 1 (Mi).", button: "OK" });
+        return;
+      }
+    }
+
+    deployBtn.disabled = true;
+    showStatus("Saving settings...", "info");
+
+    const patchBody = {
+      require_deploy: requireDeploy,
+      connection_protocol: connectionProtocolInput?.value || "http",
+      expose_port: requireDeploy ? parseInt(exposePortInput?.value || "0", 10) : null,
+      shared_instant: requireDeploy && sharedInstantCheckbox ? sharedInstantCheckbox.checked : false,
+    };
+
+    if (requireDeploy) {
+      Object.assign(patchBody, {
+        cpu_limit: parseInt(cpuLimitInput.value || "0", 10),
+        cpu_request: parseInt(cpuRequestInput.value || "0", 10),
+        memory_limit: parseInt(memoryLimitInput.value || "0", 10),
+        memory_request: parseInt(memoryRequestInput.value || "0", 10),
+        use_gvisor: (useGvisorInput?.value || "true") === "true",
+        harden_container: hardenContainerCheckbox ? hardenContainerCheckbox.checked : true,
+      });
+    } else {
+      Object.assign(patchBody, {
+        cpu_limit: null, cpu_request: null,
+        memory_limit: null, memory_request: null,
+        use_gvisor: null, harden_container: null,
+      });
+    }
+
+    try {
+      const res = await CTFd.fetch(`${TEMPLATE_API}/${window.CHALLENGE_ID}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify(patchBody),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        let body = "";
+        for (const k in data.errors || {}) body += data.errors[k].join("\n") + "\n";
+        ezAlert({ title: "Error", body: body || JSON.stringify(data), button: "OK" });
+        deployBtn.disabled = false;
+        statusMsg.style.display = "none";
+        return;
+      }
+
+      const hasFile = fileInput && fileInput.files && fileInput.files.length > 0 && fileInput.files[0].name;
+      if (hasFile) {
+        showStatus(`Uploading ${fileInput.files[0].name}...`, "info");
+        try {
+          await helpers.files.upload(form, { challenge_id: window.CHALLENGE_ID, type: "challenge" });
+          showStatus("Deploy request accepted. Executing workflow...", "info");
+        } catch (err) {
+          showStatus(err?.message || "File upload failed.", "danger");
+          deployBtn.disabled = false;
+          return;
+        }
+      } else {
+        showStatus("Deploy settings saved successfully.", "success");
+      }
+
+      deployBtn.disabled = false;
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      showStatus("Network error. Please try again.", "danger");
+      deployBtn.disabled = false;
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Delete flow
 // ---------------------------------------------------------------------------
 
@@ -319,21 +485,26 @@ function initDeleteButton() {
 
 $(() => {
   // Vue components for the edit / detail page
-  if (document.getElementById("tags-vue")) {
-    new Vue({ el: "#tags-vue", components: { TagsList }, render: h => h(TagsList, { props: { challengeId: window.CHALLENGE_ID, apiBase: TEMPLATE_API } }) });
+  if (document.getElementById("challenge-tags")) {
+    new Vue({ el: "#challenge-tags", components: { TagsList }, render: h => h(TagsList, { props: { challenge_id: window.CHALLENGE_ID, apiBase: TEMPLATE_API } }) });
   }
-  if (document.getElementById("flags-vue")) {
-    new Vue({ el: "#flags-vue", components: { FlagList }, render: h => h(FlagList, { props: { challengeId: window.CHALLENGE_ID } }) });
+  if (document.getElementById("challenge-flags")) {
+    new Vue({ el: "#challenge-flags", components: { FlagList }, render: h => h(FlagList, { props: { challenge_id: window.CHALLENGE_ID, apiBase: TEMPLATE_API } }) });
   }
-  if (document.getElementById("hints-vue")) {
-    new Vue({ el: "#hints-vue", components: { HintsList }, render: h => h(HintsList, { props: { challengeId: window.CHALLENGE_ID } }) });
+  if (document.getElementById("challenge-hints")) {
+    new Vue({ el: "#challenge-hints", components: { HintsList }, render: h => h(HintsList, { props: { challenge_id: window.CHALLENGE_ID, apiBase: TEMPLATE_API } }) });
   }
-  if (document.getElementById("files-vue")) {
-    new Vue({ el: "#files-vue", components: { ChallengeFilesList }, render: h => h(ChallengeFilesList, { props: { challengeId: window.CHALLENGE_ID } }) });
+  if (document.getElementById("challenge-files")) {
+    new Vue({ el: "#challenge-files", components: { ChallengeFilesList }, render: h => h(ChallengeFilesList, { props: { challengeId: window.CHALLENGE_ID } }) });
+  }
+  if (document.getElementById("challenge-topics")) {
+    new Vue({ el: "#challenge-topics", components: { TopicsList }, render: h => h(TopicsList, { props: { challenge_id: window.CHALLENGE_ID, apiBase: TEMPLATE_API } }) });
   }
 
   initDeleteButton();
   initUpdateForm();
+  stripContestFieldsFromUpdateForm();
+  initTemplateDeployForm();
 
   // Challenge type selector on the new.html page
   const typeRadios = document.querySelectorAll(".card-radio");

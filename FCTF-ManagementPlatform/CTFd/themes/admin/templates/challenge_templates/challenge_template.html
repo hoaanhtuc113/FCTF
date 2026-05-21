@@ -42,6 +42,25 @@
     .clean-badge-success { background: #d4edda; color: #155724; }
     .clean-badge-danger  { background: #f8d7da; color: #721c24; }
     .clean-badge-secondary { background: #e2e3e5; color: #6c757d; }
+    .clean-checkbox-label {
+        color: #495057;
+        font-weight: 500;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+    .clean-checkbox-label input[type="checkbox"] {
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+    }
+    #template-deploy-form label { color: #495057; font-weight: 500; font-size: 0.9rem; margin-bottom: 0.5rem; display: block; }
+    #template-deploy-form .form-control { border: 1px solid #dee2e6; border-radius: 4px; padding: 0.5rem 0.75rem; font-size: 0.9rem; }
+    #template-deploy-form .form-control:focus { border-color: #ff6b35; box-shadow: 0 0 0 0.15rem rgba(255,107,53,0.15); outline: none; }
+    #tpl-deploy-btn { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+    #tpl-deploy-btn:hover { background: #e85d2a; border-color: #e85d2a; }
+    #tpl-deploy-btn:disabled { background: #e8e8e8; border-color: #e8e8e8; color: #6c757d; cursor: not-allowed; }
     .clean-nav-tabs {
         border-bottom: 2px solid #e8e8e8;
         margin-bottom: 1.5rem;
@@ -263,49 +282,159 @@
                     <!-- Deploy Info -->
                     <div class="tab-pane fade" id="deploy-info" role="tabpanel">
                         <div class="row">
-                            <div class="col-md-12">
-                                <h3 class="text-center py-3 d-block">Deploy Configuration</h3>
-                                <table class="table table-sm" style="font-size:0.875rem;">
-                                    <tbody>
-                                        <tr><td class="font-weight-bold">Expose Port</td><td>{{ expose_port or 'N/A' }}</td></tr>
-                                        <tr><td class="font-weight-bold">Image</td><td>{{ image_link_name or 'N/A' }}</td></tr>
-                                        <tr><td class="font-weight-bold">CPU Limit</td><td>{{ challenge.cpu_limit or 'N/A' }} mCPU</td></tr>
-                                        <tr><td class="font-weight-bold">CPU Request</td><td>{{ challenge.cpu_request or 'N/A' }} mCPU</td></tr>
-                                        <tr><td class="font-weight-bold">Memory Limit</td><td>{{ challenge.memory_limit or 'N/A' }} Mi</td></tr>
-                                        <tr><td class="font-weight-bold">Memory Request</td><td>{{ challenge.memory_request or 'N/A' }} Mi</td></tr>
-                                        <tr>
-                                            <td class="font-weight-bold">gVisor</td>
-                                            <td>
-                                                {% if challenge.use_gvisor %}
-                                                <span class="clean-badge clean-badge-success">Enabled</span>
-                                                {% else %}
-                                                <span class="clean-badge clean-badge-secondary">Disabled</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-weight-bold">Harden Container</td>
-                                            <td>
-                                                {% if challenge.harden_container %}
-                                                <span class="clean-badge clean-badge-success">Yes</span>
-                                                {% else %}
-                                                <span class="clean-badge clean-badge-secondary">No</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-weight-bold">Shared Instance</td>
-                                            <td>
-                                                {% if challenge.shared_instant %}
-                                                <span class="clean-badge clean-badge-success">Yes</span>
-                                                {% else %}
-                                                <span class="clean-badge clean-badge-secondary">No</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        <tr><td class="font-weight-bold">Total Deploys</td><td>{{ deploys }}</td></tr>
-                                    </tbody>
-                                </table>
+                            <div class="col-md-12 py-3">
+                                <form id="template-deploy-form" enctype="multipart/form-data">
+                                    <div class="form-group">
+                                        <label class="clean-checkbox-label">
+                                            <input type="checkbox" name="require_deploy" id="tpl_setup_docker" {% if challenge.require_deploy %}checked{% endif %}>
+                                            <span class="ml-2">Setup Deploy</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group" id="tpl_expose_port_container">
+                                        <label>
+                                            Expose port<br>
+                                            <small class="form-text text-muted">Expose a port for the Docker container</small>
+                                        </label>
+                                        <input type="text" class="form-control" name="expose_port" id="tpl_expose_port" value="{{ expose_port }}"
+                                               oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label>
+                                            Connection Protocol<br>
+                                            <small class="form-text text-muted">Protocol used by contestants to connect to this challenge instance.</small>
+                                        </label>
+                                        <select class="form-control" name="connection_protocol" id="tpl_connection_protocol">
+                                            <option value="http" {% if challenge.connection_protocol != 'tcp' %}selected{% endif %}>HTTP</option>
+                                            <option value="tcp" {% if challenge.connection_protocol == 'tcp' %}selected{% endif %}>TCP</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label>
+                                            CPU Limit (mCPU)<br>
+                                            <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
+                                        </label>
+                                        <input type="number" class="form-control" name="cpu_limit" id="tpl_cpu_limit"
+                                               min="1" value="{{ challenge.cpu_limit if challenge.cpu_limit is not none else 200 }}">
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label>
+                                            CPU Request (mCPU)<br>
+                                            <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
+                                        </label>
+                                        <input type="number" class="form-control" name="cpu_request" id="tpl_cpu_request"
+                                               min="1" value="{{ challenge.cpu_request if challenge.cpu_request is not none else 100 }}">
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label>
+                                            Memory Limit (Mi)<br>
+                                            <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
+                                        </label>
+                                        <input type="number" class="form-control" name="memory_limit" id="tpl_memory_limit"
+                                               min="1" value="{{ challenge.memory_limit if challenge.memory_limit is not none else 256 }}">
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label>
+                                            Memory Request (Mi)<br>
+                                            <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
+                                        </label>
+                                        <input type="number" class="form-control" name="memory_request" id="tpl_memory_request"
+                                               min="1" value="{{ challenge.memory_request if challenge.memory_request is not none else 32 }}">
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label>
+                                            Use gVisor<br>
+                                            <small class="form-text text-muted">Run the pod with gVisor sandbox for extra isolation.</small>
+                                        </label>
+                                        <select class="form-control" name="use_gvisor" id="tpl_use_gvisor">
+                                            <option value="true" {% if challenge.use_gvisor %}selected{% endif %}>True</option>
+                                            <option value="false" {% if not challenge.use_gvisor %}selected{% endif %}>False</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label class="clean-checkbox-label">
+                                            <input type="checkbox" name="harden_container" id="tpl_harden_container"
+                                                   {% if challenge.harden_container is none or challenge.harden_container %}checked{% endif %}>
+                                            <span class="ml-2">Harden Container</span>
+                                        </label>
+                                        <small class="form-text text-muted">Apply security hardening to the container: restricted Pod Security Standards, read-only root filesystem, drop all capabilities, run as non-root user (UID 1000), and mount /tmp as an in-memory volume.</small>
+                                    </div>
+                                    <div class="form-group tpl-deploy-resource-field">
+                                        <label class="clean-checkbox-label">
+                                            <input type="checkbox" name="shared_instant" id="tpl_shared_instant"
+                                                   {% if challenge.shared_instant %}checked{% endif %}>
+                                            <span class="ml-2">Shared Instance</span>
+                                        </label>
+                                        <small class="form-text text-muted">Use one shared deployed instance for all contestants instead of per-user instances.</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            Image name<br>
+                                            <small class="form-text text-muted">Current deployed image</small>
+                                        </label>
+                                        <input type="text" class="form-control" value="{{ image_link_name if image_link_name else 'No image deployed' }}" disabled readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            {% if challenge.deploy_status == "DEPLOY_SUCCESS" %}
+                                            Change deploy file:<br>
+                                            <small class="form-text text-muted">Upload a new deploy file</small>
+                                            {% else %}
+                                            Deploy Files:<br>
+                                            <small class="form-text text-muted">Files distributed along with your challenge</small>
+                                            {% endif %}
+                                        </label>
+                                        <input class="form-control-file" type="file" name="deploy_file" id="tpl_deploy_file">
+                                    </div>
+                                    <div class="form-group">
+                                        <button id="tpl-deploy-btn" class="btn btn-primary" type="submit">
+                                            <i class="fas fa-save"></i> Save Changes
+                                        </button>
+                                    </div>
+                                    <div id="tpl-deploy-status-message" class="mt-3 alert" style="display:none;"></div>
+                                </form>
+
+                                {% set recent_deploys = challenge.deploy_histories | sort(attribute='deploy_at', reverse=True) if challenge.deploy_histories else [] %}
+                                {% if recent_deploys %}
+                                <div class="card mt-4 border-0" style="border-radius:8px;border:1px solid #e8e8e8;">
+                                    <div class="card-body py-3 px-4">
+                                        <h6 class="font-weight-bold mb-3" style="color:#495057;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.5px;">
+                                            <i class="fas fa-history mr-2" style="color:#ff6b35;"></i>Recent Deploy History
+                                        </h6>
+                                        <div style="overflow-x:auto;">
+                                            <table class="table table-sm mb-0" style="font-size:0.8rem;">
+                                                <thead style="background:#f8f9fa;">
+                                                    <tr>
+                                                        <th class="text-center" style="width:50px;">#</th>
+                                                        <th>Status</th>
+                                                        <th>Deploy At</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for dh in recent_deploys[:5] %}
+                                                    <tr>
+                                                        <td class="text-center text-muted">{{ dh.id }}</td>
+                                                        <td>
+                                                            {% if dh.deploy_status == 'DEPLOY_SUCCESS' or dh.deploy_status == 'Succeeded' %}
+                                                            <span class="clean-badge clean-badge-success">{{ dh.deploy_status }}</span>
+                                                            {% elif dh.deploy_status == 'DEPLOY_FAILED' or dh.deploy_status == 'Failed' %}
+                                                            <span class="clean-badge clean-badge-danger">{{ dh.deploy_status }}</span>
+                                                            {% else %}
+                                                            <span class="clean-badge clean-badge-secondary">{{ dh.deploy_status }}</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td class="text-muted">
+                                                            {% if dh.deploy_at %}
+                                                            <span data-time="{{ dh.deploy_at | isoformat }}" data-time-format="YYYY-MM-DD HH:mm"></span>
+                                                            {% else %}—{% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
