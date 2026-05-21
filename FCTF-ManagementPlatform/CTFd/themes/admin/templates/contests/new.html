@@ -36,6 +36,26 @@
         color: var(--text-light);
         margin-top: 0.15rem;
     }
+    .password-toggle-btn {
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.25rem;
+        color: var(--text-light, #888);
+        font-size: 1.15rem;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+    }
+    .password-toggle-btn:hover {
+        color: var(--primary-orange, #e67e22);
+    }
 </style>
 {% endblock %}
 
@@ -53,7 +73,7 @@
 </div>
 
 <div class="container">
-    <form id="new-contest-form">
+    <form id="new-contest-form" autocomplete="off">
 
         <!-- Basic Info -->
         <div class="form-section">
@@ -71,7 +91,8 @@
                     <div class="form-group">
                         <label class="form-label-sm">Slug</label>
                         <input type="text" id="contest-slug" name="slug"
-                               class="clean-form-control w-100" placeholder="auto-generated from name">
+                               class="clean-form-control w-100" placeholder="auto-generated from name"
+                               autocomplete="off">
                         <div class="form-hint">URL-safe identifier. Auto-filled from name if left blank.</div>
                     </div>
                 </div>
@@ -86,8 +107,14 @@
                 <div class="col-md-6">
                     <div class="form-group">
                         <label class="form-label-sm">Access Password</label>
-                        <input type="text" id="contest-password" name="access_password"
-                               class="clean-form-control w-100" placeholder="Leave blank for open access">
+                        <div style="position:relative;">
+                            <input type="password" id="contest-password" name="access_password"
+                                   class="clean-form-control w-100" placeholder="Leave blank for open access"
+                                   style="padding-right:2.5rem;" autocomplete="new-password">
+                            <button type="button" class="password-toggle-btn" onclick="togglePassword('contest-password', this)" title="Show/Hide password">
+                                <i class="bx bx-hide"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -245,6 +272,18 @@
 
 {% block scripts %}
 <script>
+function togglePassword(inputId, btn) {
+    var input = document.getElementById(inputId);
+    var icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bx bx-show';
+    } else {
+        input.type = 'password';
+        icon.className = 'bx bx-hide';
+    }
+}
+
 (function () {
     const nonce = init.csrfNonce;
 
