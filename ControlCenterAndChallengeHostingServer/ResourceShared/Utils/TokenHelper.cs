@@ -26,10 +26,16 @@ namespace ResourceShared.Utils
             // Tạo UUID unique cho mỗi lần login
             var tokenUuid = Guid.NewGuid().ToString();
 
+            var teamId = await _context.UserTeamMembers
+                .AsNoTracking()
+                .Where(m => m.UserId == user.Id)
+                .Select(m => m.TeamId)
+                .FirstOrDefaultAsync();
+
             AuthInfo authInfo = new()
             {
                 userId = user.Id,
-                teamId = user.TeamId ?? 0
+                teamId = teamId
             };
             var jwt = CreateToken(authInfo, tokenUuid, expireMinutes: 60 * 24 * 7); // 7 days
 

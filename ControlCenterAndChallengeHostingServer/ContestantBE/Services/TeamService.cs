@@ -30,15 +30,16 @@ public class TeamService : ITeamService
         {
             var team = await _context.Teams
                 .AsNoTracking()
-                .Include(t => t.Users)
-                .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == userId));
+                .Include(t => t.Members).ThenInclude(m => m.User)
+                .FirstOrDefaultAsync(t => t.Members.Any(m => m.UserId == userId));
             var bracketId = team?.BracketId;
             if (team == null) return null;
 
-            var usersScore = await _scoreHelper.GetUsersScore(team.Users, true);
+            var teamUsers = team.Members.Select(m => m.User).ToList();
+            var usersScore = await _scoreHelper.GetUsersScore(teamUsers, true);
 
             var members = new List<TeamMemberDTO>();
-            foreach (var u in team.Users)
+            foreach (var u in teamUsers)
             {
                 _ = usersScore.TryGetValue(u, out int score);
                 members.Add(new TeamMemberDTO
@@ -85,8 +86,8 @@ public class TeamService : ITeamService
         {
             var team = await _context.Teams
                 .AsNoTracking()
-                .Include(t => t.Users)
-                .FirstOrDefaultAsync(t => t.Users.Any(u => u.Id == userId));
+                .Include(t => t.Members).ThenInclude(m => m.User)
+                .FirstOrDefaultAsync(t => t.Members.Any(m => m.UserId == userId));
 
             if (team == null) return [];
 
@@ -109,8 +110,8 @@ public class TeamService : ITeamService
                     },
                     Team = new TeamDto
                     {
-                        Id = s?.User?.Team?.Id ?? default,
-                        Name = s?.User?.Team?.Name ?? string.Empty,
+                        Id = team.Id,
+                        Name = team.Name ?? string.Empty,
                     },
                     Date = s.IdNavigation.Date,
                     Type = s.IdNavigation.Type,
