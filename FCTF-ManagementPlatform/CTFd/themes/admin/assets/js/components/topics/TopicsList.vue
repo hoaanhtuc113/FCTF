@@ -49,7 +49,6 @@ import CTFd from "../../compat/CTFd";
 export default {
   props: {
     challenge_id: Number,
-    apiBase: { type: String, default: "/api/v1/challenges" },
   },
   data: function () {
     return {
@@ -63,7 +62,7 @@ export default {
   },
   methods: {
     loadTopics: function () {
-      CTFd.fetch(`${this.$props.apiBase}/${this.$props.challenge_id}/topics`, {
+      CTFd.fetch(`/api/v1/challenges/${this.$props.challenge_id}/topics`, {
         method: "GET",
         credentials: "same-origin",
         headers: {
@@ -115,7 +114,7 @@ export default {
       }
       const params = {
         value: value,
-        challenge_template_id: this.$props.challenge_id,
+        challenge: this.$props.challenge_id,
         type: "challenge",
       };
 

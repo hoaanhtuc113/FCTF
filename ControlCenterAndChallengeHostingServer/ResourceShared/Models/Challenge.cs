@@ -16,7 +16,7 @@ public partial class Challenge
     public string? Category { get; set; }
 
     public string? Type { get; set; }
-
+    
     public int? Difficulty { get; set; }
 
     public int? Value { get; set; }

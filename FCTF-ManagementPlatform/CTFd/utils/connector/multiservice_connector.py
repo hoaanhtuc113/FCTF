@@ -72,77 +72,6 @@ def get_workflow_name(challenge_id):
     workflow_name = redis_client.get(key)
     return workflow_name
 
-# ---------------------------------------------------------------------------
-# Contest-scoped helpers (Phase 2: contests_challenges isolation)
-# ---------------------------------------------------------------------------
-
-def generate_contest_cache_key(contest_challenge_id, team_id):
-    """Cache key scoped to a specific contest_challenge + team.
-
-    Keeps deployments isolated: same template in two contests gets
-    separate Redis entries and Argo workflows.
-    """
-    return f"deploy_cc_{contest_challenge_id}_{team_id}"
-
-def get_contest_workflow_key(contest_challenge_id):
-    return f"cc_up_workflow_{contest_challenge_id}"
-
-def get_contest_workflow_name(contest_challenge_id):
-    key = get_contest_workflow_key(contest_challenge_id)
-    return redis_client.get(key)
-
-def delete_cached_files_by_contest_challenge(contest_challenge_id):
-    """Remove all Redis keys associated with a contest_challenge deployment."""
-    pattern = f"deploy_cc_{contest_challenge_id}_*"
-    for key in redis_client.scan_iter(match=pattern):
-        redis_client.delete(key)
-
-def prepare_contest_start_payload(challenge, contest_id, contest_challenge_id, user_id, team_id):
-    """Build the signed payload for starting a challenge inside a contest.
-
-    Includes contestId and contestChallengeId so the Deployment Service
-    can namespace k8s resources per-contest and per-contest-challenge.
-    """
-    unix_time = str(int(time.time()))
-    secret_key = create_secret_key(
-        PRIVATE_KEY,
-        unix_time,
-        {
-            "challengeId": challenge.id,
-            "contestId": contest_id,
-            "contestChallengeId": contest_challenge_id,
-            "teamId": team_id,
-            "userId": user_id,
-        },
-    )
-    payload = {
-        "challengeId": challenge.id,
-        "contestId": contest_id,
-        "contestChallengeId": contest_challenge_id,
-        "teamId": team_id,
-        "userId": user_id,
-        "unixTime": unix_time,
-    }
-    headers = {"SecretKey": secret_key}
-    api_start = f"{DEPLOYMENT_SERVICE_API}/api/challenge/start"
-    return payload, headers, api_start
-
-def prepare_contest_up_payload(challenge_id, contest_id, contest_challenge_id, path, image_tag):
-    """Build the signed upload payload for a contest-scoped challenge build."""
-    unix_time = str(int(time.time()))
-    signing_data = {
-        "challengeId": challenge_id,
-        "contestId": contest_id,
-        "contestChallengeId": contest_challenge_id,
-        "challengePath": path,
-        "imageTag": image_tag,
-    }
-    secret_key = create_secret_key(PRIVATE_KEY, unix_time, signing_data)
-    headers = {"SecretKey": secret_key, "Content-Type": "application/json"}
-    payload = {**signing_data, "unixTime": unix_time}
-    api_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/upload"
-    return payload, headers, api_url
-
 def get_team_id_and_cache_key(user, challenge_id):
     if user.type != "user":
         team_id = -1
@@ -452,29 +381,13 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
                     "exposedPort": expose_port,
                 }
 
-                payload, headers, api_url = prepare_up_challenge_payload(challenge.id, dockerfile_path, image_tag)
-
-                try:
-                    response = requests.post(api_url, headers=headers, json=payload, timeout=10)
-                except requests.exceptions.ConnectionError:
-                    # Deployment service offline (local dev or service down) — files are on NFS,
-                    # save the template as PENDING_DEPLOY so it can be triggered later.
-                    print(f"[WARN] Deployment service unreachable at {api_url} — marking challenge as PENDING_DEPLOY")
-                    challenge.require_deploy = True
-                    challenge.deploy_status = "PENDING_DEPLOY"
-                    challenge.image_link = json.dumps(object_image)
-                    db.session.commit()
-                    return {
-                        "success": True,
-                        "message": "Files uploaded to NFS. Deployment service is offline — challenge queued for deploy.",
-                        "challenge_id": challenge.id,
-                        "deploy_status": "PENDING_DEPLOY",
-                    }, 200
+                payload, headers, api_url = prepare_up_challenge_payload(challenge.id,dockerfile_path, image_tag)
+                response = requests.post(api_url, headers=headers, json=payload)
 
                 if response.status_code != 200:
                     print(f"Error uploading challenge: {response.text}")
                     return {"success": False, "error": f"Deployment service error: {response.text}"}, 500
-
+                    
                 result = response.json()
                 workflow_name = result.get("metadata", {}).get("name")
 
@@ -490,6 +403,7 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
                 print(f"Challenge {challenge.id} deployment started with workflow {workflow_name}, started at {started_at}")
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
+                challenge.state = "hidden"
                 challenge.image_link = json.dumps(object_image)
 
                 # Auto-save challenge version

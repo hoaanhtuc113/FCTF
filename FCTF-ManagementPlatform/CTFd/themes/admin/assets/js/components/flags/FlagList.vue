@@ -4,7 +4,6 @@
       <FlagCreationForm
         ref="FlagCreationForm"
         :challenge_id="challenge_id"
-        :apiBase="apiBase"
         @refreshFlags="refreshFlags"
       />
     </div>
@@ -77,7 +76,6 @@ export default {
   },
   props: {
     challenge_id: Number,
-    apiBase: { type: String, default: "/api/v1/challenges" },
   },
   data: function () {
     return {
@@ -87,7 +85,7 @@ export default {
   },
   methods: {
     loadFlags: function () {
-      CTFd.fetch(`${this.$props.apiBase}/${this.$props.challenge_id}/flags`, {
+      CTFd.fetch(`/api/v1/challenges/${this.$props.challenge_id}/flags`, {
         method: "GET",
         credentials: "same-origin",
         headers: {
