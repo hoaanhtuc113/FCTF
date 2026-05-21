@@ -128,7 +128,12 @@ export default {
         .then((response) => {
           if (response.success) {
             this.challenges = response.data;
+          } else {
+            console.error("[Requirements] API error:", response);
           }
+        })
+        .catch((err) => {
+          console.error("[Requirements] loadChallenges failed:", err, "URL:", url);
         });
     },
     getChallengeNameById: function (challenge_id) {
