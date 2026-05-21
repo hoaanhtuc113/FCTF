@@ -584,6 +584,14 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+
+        # Inject required-but-never-sent fields from the existing row so that
+        # partial PATCH payloads (Requirements, Next, deploy settings, etc.)
+        # don't fail ChallengeSchema validation with "Missing data for required field".
+        _existing = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        data.setdefault("contest_id", _existing.contest_id)
+        data.setdefault("type", _existing.type)
+
         # Normalize difficulty: empty string → None so schema validation passes
         if "difficulty" in data:
             diff_val = data["difficulty"]
