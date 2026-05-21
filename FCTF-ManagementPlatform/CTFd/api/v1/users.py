@@ -213,6 +213,23 @@ class UserList(Resource):
 
         db.session.add(response.data)
         db.session.commit()
+        
+        # Handle team creation if contest_id is provided
+        contest_id = req.get("contest_id")
+        if contest_id:
+            from CTFd.models import Teams
+            team = Teams(
+                name=response.data.name,
+                email=response.data.email,
+                password=req.get("password"),
+                contest_id=contest_id,
+                captain_user_id=response.data.id
+            )
+            db.session.add(team)
+            db.session.commit()
+            
+            team.members.append(response.data)
+            db.session.commit()
 
         log_audit(
             action="user_create",
@@ -221,15 +238,9 @@ class UserList(Resource):
                 "name": response.data.name,
                 "email": response.data.email,
                 "type": response.data.type,
-                "website": response.data.website,
-                "affiliation": response.data.affiliation,
-                "country": response.data.country,
-                "bracket_id": response.data.bracket_id,
                 "hidden": response.data.hidden,
                 "banned": response.data.banned,
                 "verified": response.data.verified,
-                "language": response.data.language,
-                "team_id": response.data.team_id,
             }
         )
 
@@ -301,12 +312,6 @@ class UserPublic(Resource):
             "banned": user.banned,
             "hidden": user.hidden,
             "verified": user.verified,
-            "website": user.website,
-            "affiliation": user.affiliation,
-            "country": user.country,
-            "bracket_id": user.bracket_id,
-            "language": user.language,
-            "team_id": user.team_id,
         }
         
         data = request.get_json()
@@ -342,12 +347,6 @@ class UserPublic(Resource):
             "banned": user.banned,
             "hidden": user.hidden,
             "verified": user.verified,
-            "website": user.website,
-            "affiliation": user.affiliation,
-            "country": user.country,
-            "bracket_id": user.bracket_id,
-            "language": user.language,
-            "team_id": user.team_id,
             "password_changed": bool(data.get("password")),
         }
         
@@ -386,15 +385,9 @@ class UserPublic(Resource):
             "name": user.name,
             "email": user.email,
             "type": user.type,
-            "website": user.website,
-            "affiliation": user.affiliation,
-            "country": user.country,
-            "bracket_id": user.bracket_id,
             "hidden": user.hidden,
             "banned": user.banned,
             "verified": user.verified,
-            "language": user.language,
-            "team_id": user.team_id,
         }
 
         _purge_user_references(user_id=user_id)

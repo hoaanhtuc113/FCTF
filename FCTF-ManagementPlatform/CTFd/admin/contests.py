@@ -290,11 +290,232 @@ def contest_participants(contest_id):
     )
 
 
+@admin.route("/admin/contests/<int:contest_id>/import_users", methods=["POST"])
+@admins_only
+def contest_import_users(contest_id):
+    """
+    Upsert users into a contest:
+    - If a user with the given email does NOT exist → create user
+    - If a user already exists → reuse
+    - Assign user to team by team_name (CSV column):
+        * If team_name provided → find or create that team in this contest
+        * Otherwise → create solo team (team name = user name)
+    """
+    from CTFd.models import Teams, UserTeamMember
+    from CTFd.utils.crypto import hash_password
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    req = request.get_json(force=True) or {}
+
+    email     = (req.get("email") or "").strip()
+    name      = (req.get("name") or "").strip()
+    password  = (req.get("password") or "").strip()
+    utype     = req.get("type", "user")
+    verified  = req.get("verified", True)
+    hidden    = req.get("hidden", False)
+    team_name = (req.get("team") or "").strip()
+
+    if not email or not name:
+        return {"success": False, "errors": {"name": ["Name and email are required."]}}, 400
+
+    # ── 1. Find or create the User ─────────────────────────────────────────
+    user = Users.query.filter_by(email=email).first()
+    if user is None:
+        if not password:
+            return {"success": False, "errors": {"password": ["Password is required for new users."]}}, 400
+        user = Users(
+            name=name,
+            email=email,
+            password=hash_password(password),
+            type=utype,
+            verified=verified,
+            hidden=hidden,
+        )
+        db.session.add(user)
+        db.session.flush()
+        created = True
+    else:
+        created = False
+
+    # ── 2. Determine target team name ──────────────────────────────────────
+    resolved_team_name = team_name if team_name else user.name
+
+    # ── 3. Check if user is already in a team with this name in the contest ─
+    already_in_team = (
+        db.session.query(UserTeamMember)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(
+            Teams.contest_id == contest_id,
+            UserTeamMember.user_id == user.id,
+            Teams.name == resolved_team_name,
+        )
+        .first()
+    )
+
+    if already_in_team is None:
+        # ── 4. Find or create the team in this contest ─────────────────────
+        team = Teams.query.filter_by(
+            contest_id=contest_id,
+            name=resolved_team_name
+        ).first()
+
+        if team is None:
+            team = Teams(
+                name=resolved_team_name,
+                email=user.email if not team_name else None,
+                password=hash_password(password or "changeme"),
+                contest_id=contest_id,
+                captain_user_id=user.id,
+            )
+            db.session.add(team)
+            db.session.flush()
+
+        team.members.append(user)
+
+    db.session.commit()
+
+    return {
+        "success": True,
+        "data": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "team": resolved_team_name,
+            "created": created,
+        }
+    }, 200
+
+
+@admin.route("/admin/contests/<int:contest_id>/users/<int:user_id>", methods=["DELETE"])
+@admins_only
+def contest_remove_user(contest_id, user_id):
+    """
+    Remove a user from a contest by deleting their UserTeamMember entries
+    for teams in this contest. If a team becomes empty, delete it too.
+    Does NOT delete the global user account.
+    """
+    from CTFd.models import Teams, UserTeamMember
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    user = Users.query.filter_by(id=user_id).first_or_404()
+
+    # Find all team memberships for this user in this contest
+    memberships = (
+        db.session.query(UserTeamMember)
+        .join(Teams, Teams.id == UserTeamMember.team_id)
+        .filter(
+            Teams.contest_id == contest_id,
+            UserTeamMember.user_id == user_id,
+        )
+        .all()
+    )
+
+    if not memberships:
+        return {"success": False, "errors": {"user": ["User is not in this contest."]}}, 404
+
+    for membership in memberships:
+        team_id = membership.team_id
+        db.session.delete(membership)
+        db.session.flush()
+
+        # If team is now empty, delete it
+        remaining = UserTeamMember.query.filter_by(team_id=team_id).count()
+        if remaining == 0:
+            team = Teams.query.get(team_id)
+            if team:
+                db.session.delete(team)
+
+    db.session.commit()
+    return {"success": True, "data": {"user_id": user_id}}, 200
+
+
+@admin.route("/admin/contests/<int:contest_id>/add_existing_user", methods=["POST"])
+@admins_only
+def contest_add_existing_user(contest_id):
+    """
+    Add an existing user from the system into a contest:
+    - User is found by username (name) or email
+    - We check if they already have a team in this contest
+    - We resolve the team name (either custom team or solo team)
+    - Add user to the team in this contest
+    """
+    from CTFd.models import Teams, UserTeamMember, Users
+    from CTFd.utils.crypto import hash_password
+    from sqlalchemy import or_
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    req = request.get_json(force=True) or {}
+
+    username_or_email = (req.get("username") or "").strip()
+    team_name         = (req.get("team") or "").strip()
+
+    if not username_or_email:
+        return {"success": False, "errors": {"username": ["Username or email is required."]}}, 400
+
+    # 1. Find the existing user
+    user = Users.query.filter(
+        or_(
+            Users.name == username_or_email,
+            Users.email == username_or_email
+        )
+    ).first()
+
+    if user is None:
+        return {"success": False, "errors": {"username": ["User not found in system."]}}, 404
+
+    # 2. Check if user is already in this contest
+    existing_team = (
+        db.session.query(Teams)
+        .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+        .filter(
+            Teams.contest_id == contest_id,
+            UserTeamMember.user_id == user.id,
+        )
+        .first()
+    )
+
+    if existing_team:
+        return {"success": False, "errors": {"username": ["User is already in this contest."]}}, 400
+
+    # 3. Determine target team name
+    resolved_team_name = team_name if team_name else user.name
+
+    # 4. Find or create the team in this contest
+    team = Teams.query.filter_by(
+        contest_id=contest_id,
+        name=resolved_team_name
+    ).first()
+
+    if team is None:
+        team = Teams(
+            name=resolved_team_name,
+            email=user.email if not team_name else None,
+            password=hash_password("changeme"),
+            contest_id=contest_id,
+            captain_user_id=user.id,
+        )
+        db.session.add(team)
+        db.session.flush()
+
+    team.members.append(user)
+    db.session.commit()
+
+    return {
+        "success": True,
+        "data": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "team": resolved_team_name,
+        }
+    }, 200
+
+
 @admin.route("/admin/contests/<int:contest_id>/users")
 @admins_only
 def contest_users(contest_id):
-    from sqlalchemy import func
-    from CTFd.models import ContestChallenge, Submissions, Teams
+    from sqlalchemy import func, or_
+    from CTFd.models import ContestChallenge, Submissions, Teams, Users, Contests, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
@@ -311,14 +532,22 @@ def contest_users(contest_id):
     page = abs(request.args.get("page", 1, type=int))
 
     filters = [Users.type == "user"]
+    
+    # In team mode, users belong to a contest if they are members of a team in that contest
+    team_users_subquery = db.session.query(UserTeamMember.user_id)\
+        .join(Teams, Teams.id == UserTeamMember.team_id)\
+        .filter(Teams.contest_id == contest_id).subquery()
+        
+    contest_or_submitted = [Users.id.in_(team_users_subquery)]
+    
     if cc_ids:
         participant_ids = [r[0] for r in db.session.query(Submissions.user_id.distinct())
                           .filter(Submissions.contest_challenge_id.in_(cc_ids),
                                   Submissions.user_id.isnot(None)).all()]
         if participant_ids:
-            filters.append(Users.id.in_(participant_ids))
-        else:
-            filters.append(Users.id == -1)  # no results
+            contest_or_submitted.append(Users.id.in_(participant_ids))
+            
+    filters.append(or_(*contest_or_submitted))
 
     if q and Users.__mapper__.has_property(field):
         filters.append(getattr(Users, field).ilike(f"%{q}%"))
@@ -341,6 +570,19 @@ def contest_users(contest_id):
     users = (Users.query.filter(*filters)
              .order_by(Users.id.asc())
              .paginate(page=page, per_page=50, error_out=False))
+
+    user_ids = [u.id for u in users.items]
+    teams_map = {}
+    if user_ids:
+        team_memberships = db.session.query(Teams, UserTeamMember.user_id)\
+            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)\
+            .filter(Teams.contest_id == contest_id, UserTeamMember.user_id.in_(user_ids))\
+            .all()
+        for team, uid in team_memberships:
+            teams_map[uid] = team
+
+    for u in users.items:
+        u.contest_team = teams_map.get(u.id)
 
     args = dict(request.args)
     args.pop("page", None)

@@ -3,7 +3,7 @@ from sqlalchemy.sql import not_
 from sqlalchemy import or_
 
 from CTFd.admin import admin
-from CTFd.models import Challenges, Tracking, UserFields, Users
+from CTFd.models import db, Challenges, Tracking, UserFields, Users, Teams, UserTeamMember
 from CTFd.utils import get_config
 from CTFd.utils.decorators import admin_or_jury, admins_only
 from CTFd.utils.modes import TEAMS_MODE
@@ -119,6 +119,25 @@ def users_listing():
             .paginate(page=page, per_page=50, error_out=False)
         )
 
+    # Attach team and team_id dynamically
+    if get_config("user_mode") == TEAMS_MODE:
+        user_ids = [u.id for u in users.items]
+        teams_map = {}
+        if user_ids:
+            team_memberships = db.session.query(Teams, UserTeamMember.user_id)\
+                .join(UserTeamMember, UserTeamMember.team_id == Teams.id)\
+                .filter(UserTeamMember.user_id.in_(user_ids))\
+                .all()
+            for team, uid in team_memberships:
+                teams_map[uid] = team
+        for u in users.items:
+            u.team = teams_map.get(u.id)
+            u.team_id = u.team.id if u.team else None
+    else:
+        for u in users.items:
+            u.team = None
+            u.team_id = None
+
     args = dict(request.args)
     args.pop("page", 1)
 
@@ -164,6 +183,25 @@ def users_pending_listing():
         .paginate(page=page, per_page=50, error_out=False)
     )
 
+    # Attach team and team_id dynamically
+    if get_config("user_mode") == TEAMS_MODE:
+        user_ids = [u.id for u in users.items]
+        teams_map = {}
+        if user_ids:
+            team_memberships = db.session.query(Teams, UserTeamMember.user_id)\
+                .join(UserTeamMember, UserTeamMember.team_id == Teams.id)\
+                .filter(UserTeamMember.user_id.in_(user_ids))\
+                .all()
+            for team, uid in team_memberships:
+                teams_map[uid] = team
+        for u in users.items:
+            u.team = teams_map.get(u.id)
+            u.team_id = u.team.id if u.team else None
+    else:
+        for u in users.items:
+            u.team = None
+            u.team_id = None
+
     registration_custom_field_columns, registration_custom_field_values = (
         _build_registration_custom_field_data(users.items)
     )
@@ -203,16 +241,29 @@ def users_detail(user_id):
     solves = user.get_solves(admin=True)
 
     # Get challenges that the user is missing
+    user_team = None
     if get_config("user_mode") == TEAMS_MODE:
-        if user.team:
-            all_solves = user.team.get_solves(admin=True)
+        user_team = (
+            Teams.query
+            .join(UserTeamMember, UserTeamMember.team_id == Teams.id)
+            .filter(UserTeamMember.user_id == user_id)
+            .first()
+        )
+        if user_team:
+            all_solves = user_team.get_solves(admin=True)
         else:
             all_solves = user.get_solves(admin=True)
     else:
         all_solves = user.get_solves(admin=True)
 
+    user.team = user_team
+    user.team_id = user_team.id if user_team else None
+
     solve_ids = [s.challenge_id for s in all_solves]
-    missing = Challenges.query.filter(not_(Challenges.id.in_(solve_ids))).all()
+    if solve_ids:
+        missing = Challenges.query.filter(not_(Challenges.id.in_(solve_ids))).all()
+    else:
+        missing = Challenges.query.all()
 
     # Get IP addresses that the User has used
     addrs = (
