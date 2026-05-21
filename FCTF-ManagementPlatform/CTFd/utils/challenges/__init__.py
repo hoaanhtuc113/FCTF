@@ -5,7 +5,7 @@ from sqlalchemy import func as sa_func
 from sqlalchemy.sql import and_, false, true
 
 from CTFd.cache import cache
-from CTFd.models import Challenges, ContestChallenge, Solves, Users, db
+from CTFd.models import Challenges, Solves, Users, db
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils import get_config
 from CTFd.utils.dates import isoformat, unix_time_to_utc

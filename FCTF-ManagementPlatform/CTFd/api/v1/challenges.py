@@ -27,7 +27,7 @@ from CTFd.models import (
 )
 from CTFd.models import Challenges
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
-from CTFd.models import ContestChallenge, Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
+from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.plugins.dynamic_challenges import DynamicChallenge
 from CTFd.schemas.challenges import ChallengeSchema

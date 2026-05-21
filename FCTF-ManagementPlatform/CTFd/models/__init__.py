@@ -26,15 +26,10 @@ def get_class_by_tablename(tablename):
         if hasattr(c, "__tablename__") and c.__tablename__ == tablename:
             classes.append(c)
 
-    # We didn't find this class
     if len(classes) == 0:
         return None
-    # This is a class where we have only one possible candidate.
-    # It's either a top level class or a polymorphic class with a specific hardcoded table name
     elif len(classes) == 1:
         return classes[0]
-    # In this case we are dealing with a polymorphic table where all of the tables have the same table name.
-    # However for us to identify the parent class we can look for the class that defines the polymorphic_on arg
     else:
         for c in classes:
             mapper_args = dict(c.__mapper_args__)
@@ -53,15 +48,38 @@ def compile_datetime_mysql(_type, _compiler, **kw):
 
 
 class Challenges(db.Model):
-    __tablename__ = "challenge_templates"
+    __tablename__ = "challenges"
     id = db.Column(db.Integer, primary_key=True)
+
+    # Contest ownership — replaces the old contests_challenges join table
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Challenge identity
     name = db.Column(db.String(80))
     description = db.Column(db.Text)
     category = db.Column(db.String(80))
     type = db.Column(db.String(80))
     difficulty = db.Column(db.Integer, nullable=True, default=None)
+
+    # Contest config (merged from contests_challenges)
+    value = db.Column(db.Integer, nullable=True)
+    state = db.Column(db.String(32), nullable=False, default="hidden")
+    max_attempts = db.Column(db.Integer, nullable=True)
+    cooldown = db.Column(db.Integer, nullable=True)
+    time_limit = db.Column(db.Integer, nullable=True)
+    start_time = db.Column(db.DateTime, nullable=True)
+    finish_time = db.Column(db.DateTime, nullable=True)
+    requirements = db.Column(db.JSON, nullable=True)
+    next_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Deploy config
     require_deploy = db.Column(db.Boolean, nullable=False, default=False)
     deploy_status = db.Column(db.Text, nullable=True, default="CREATED")
+    deploy_file = db.Column(db.Text, nullable=True)
     image_link = db.Column(db.Text, nullable=True)
     connection_info = db.Column(db.Text)
     connection_protocol = db.Column(db.String(10), nullable=False, default="http")
@@ -72,16 +90,35 @@ class Challenges(db.Model):
     use_gvisor = db.Column(db.Boolean, nullable=True)
     harden_container = db.Column(db.Boolean, nullable=True, default=True)
     shared_instant = db.Column(db.Boolean, nullable=False, default=False)
+    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
+
+    # Metadata
     last_update = db.Column(db.DateTime)
     created_by = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    files = db.relationship("ChallengeFiles", foreign_keys="ChallengeFiles.challenge_template_id", backref="challenge")
-    tags = db.relationship("Tags", foreign_keys="Tags.challenge_template_id", backref="challenge")
-    hints = db.relationship("Hints", foreign_keys="Hints.challenge_template_id", backref="challenge")
-    flags = db.relationship("Flags", foreign_keys="Flags.challenge_template_id", backref="challenge")
-    topics = db.relationship("ChallengeTopics", foreign_keys="ChallengeTopics.challenge_template_id", backref="challenge")
+    # Relationships
+    contest = db.relationship("Contests", foreign_keys=[contest_id], lazy="select")
+    next_challenge = db.relationship(
+        "Challenges", foreign_keys=[next_id], remote_side=[id], lazy="select"
+    )
+    files = db.relationship(
+        "ChallengeFiles", foreign_keys="ChallengeFiles.challenge_id", backref="challenge"
+    )
+    tags = db.relationship(
+        "Tags", foreign_keys="Tags.challenge_id", backref="challenge"
+    )
+    hints = db.relationship(
+        "Hints", foreign_keys="Hints.challenge_id", backref="challenge"
+    )
+    flags = db.relationship(
+        "Flags", foreign_keys="Flags.challenge_id", backref="challenge"
+    )
+    topics = db.relationship(
+        "ChallengeTopics", foreign_keys="ChallengeTopics.challenge_id", backref="challenge"
+    )
+
     class alt_defaultdict(defaultdict):
         """
         This slightly modified defaultdict is intended to allow SQLAlchemy to
@@ -89,7 +126,6 @@ class Challenges(db.Model):
 
         e.g. Challenges.query.all() should not fail if `type` is `a_missing_type`
         """
-
         def __missing__(self, key):
             return self["standard"]
 
@@ -112,11 +148,126 @@ class Challenges(db.Model):
 
         return get_chal_class(self.type)
 
+    @property
+    def prerequisites(self):
+        if self.requirements:
+            return self.requirements.get("prerequisites", [])
+        return []
+
     def __init__(self, *args, **kwargs):
         super(Challenges, self).__init__(**kwargs)
 
     def __repr__(self):
         return "<Challenge %r>" % self.name
+
+
+class ChallengeVersion(db.Model):
+    __tablename__ = "challenge_versions"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False
+    )
+    version_number = db.Column(db.Integer, nullable=False, default=1)
+    image_link = db.Column(db.Text, nullable=True)
+    deploy_file = db.Column(db.Text, nullable=True)
+    cpu_limit = db.Column(db.String(50), nullable=True)
+    cpu_request = db.Column(db.String(50), nullable=True)
+    memory_limit = db.Column(db.String(50), nullable=True)
+    memory_request = db.Column(db.String(50), nullable=True)
+    use_gvisor = db.Column(db.Boolean, nullable=True, default=False)
+    harden_container = db.Column(db.Boolean, nullable=True, default=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=False)
+    created_by = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+
+    challenge = db.relationship(
+        "Challenges",
+        foreign_keys=[challenge_id],
+        backref=db.backref(
+            "versions", lazy="dynamic", order_by="ChallengeVersion.version_number.desc()"
+        ),
+    )
+    creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeVersion, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeVersion challenge_id={} version={}>".format(
+            self.challenge_id, self.version_number
+        )
+
+    @property
+    def image_tag(self):
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                link = obj.get("imageLink", "")
+                return link.split(":")[-1] if link else ""
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
+    @property
+    def expose_port(self):
+        import json
+        if self.image_link:
+            try:
+                obj = json.loads(self.image_link)
+                return obj.get("exposedPort", "")
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return ""
+
+
+class DeployedChallenge(db.Model):
+    __tablename__ = "deploy_histories"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=True
+    )
+    log_content = db.Column(db.Text, nullable=True)
+    deploy_status = db.Column(db.String(50), nullable=False, default="null")
+    deploy_at = db.Column(db.DateTime, nullable=True)
+    challenge = db.relationship(
+        "Challenges",
+        foreign_keys=[challenge_id],
+        backref=db.backref("deploy_histories", lazy=True),
+    )
+
+
+class ChallengeStartTracking(db.Model):
+    __tablename__ = "challenge_start_tracking"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
+    team_id = db.Column(
+        db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True
+    )
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False
+    )
+    started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    stopped_at = db.Column(db.DateTime, nullable=True)
+    label = db.Column(db.String(255), nullable=True)
+
+    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
+    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")
+
+    def __init__(self, *args, **kwargs):
+        super(ChallengeStartTracking, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "<ChallengeStartTracking user_id={} team_id={} challenge_id={}>".format(
+            self.user_id, self.team_id, self.challenge_id
+        )
+
 
 class Tickets(db.Model):
     __tablename__ = "tickets"
@@ -125,17 +276,23 @@ class Tickets(db.Model):
     title = db.Column(db.String(255))
     type = db.Column(db.String(80))
     description = db.Column(db.Text)
-    replier_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    replier_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
     replier_message = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(80), default="open")
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class Hints(db.Model):
     __tablename__ = "hints"
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(80), default="standard")
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
     content = db.Column(db.Text)
     cost = db.Column(db.Integer, default=0)
@@ -175,110 +332,14 @@ class Hints(db.Model):
         return "<Hint %r>" % self.content
 
 
-class DeployedChallenge(db.Model):
-    __tablename__ = "deploy_histories"
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=True
-    )
-    log_content = db.Column(db.Text, nullable=True)
-    deploy_status = db.Column(db.String(50), nullable=False, default="null")
-    deploy_at = db.Column(db.DateTime, nullable=True)
-    challenge_template = db.relationship(
-        "Challenges", foreign_keys=[challenge_template_id], backref=db.backref("deploy_histories", lazy=True)
-    )
-
-
-class ChallengeVersion(db.Model):
-    __tablename__ = "challenge_template_versions"
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False
-    )
-    version_number = db.Column(db.Integer, nullable=False, default=1)
-    image_link = db.Column(db.Text, nullable=True)
-    deploy_file = db.Column(db.Text, nullable=True)
-    cpu_limit = db.Column(db.String(50), nullable=True)
-    cpu_request = db.Column(db.String(50), nullable=True)
-    memory_limit = db.Column(db.String(50), nullable=True)
-    memory_request = db.Column(db.String(50), nullable=True)
-    use_gvisor = db.Column(db.Boolean, nullable=True, default=False)
-    harden_container = db.Column(db.Boolean, nullable=True, default=False)
-    is_active = db.Column(db.Boolean, nullable=False, default=False)
-    created_by = db.Column(
-        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-    notes = db.Column(db.Text, nullable=True)
-
-    challenge_template = db.relationship(
-        "Challenges",
-        foreign_keys=[challenge_template_id],
-        backref=db.backref("versions", lazy="dynamic", order_by="ChallengeVersion.version_number.desc()"),
-    )
-    creator = db.relationship("Users", foreign_keys=[created_by], lazy="select")
-
-    def __init__(self, *args, **kwargs):
-        super(ChallengeVersion, self).__init__(**kwargs)
-
-    def __repr__(self):
-        return "<ChallengeVersion challenge_template_id={} version={}>".format(
-            self.challenge_template_id, self.version_number
-        )
-
-    @property
-    def image_tag(self):
-        import json
-        if self.image_link:
-            try:
-                obj = json.loads(self.image_link)
-                link = obj.get("imageLink", "")
-                return link.split(":")[-1] if link else ""
-            except (json.JSONDecodeError, AttributeError):
-                return ""
-        return ""
-
-    @property
-    def expose_port(self):
-        import json
-        if self.image_link:
-            try:
-                obj = json.loads(self.image_link)
-                return obj.get("exposedPort", "")
-            except (json.JSONDecodeError, AttributeError):
-                return ""
-        return ""
-
-
-class ChallengeStartTracking(db.Model):
-    __tablename__ = "challenge_start_tracking"
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    contest_challenge_id = db.Column(db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=False)
-    started_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-    stopped_at = db.Column(db.DateTime, nullable=True)
-    label = db.Column(db.String(255), nullable=True)
-
-    user = db.relationship("Users", foreign_keys=[user_id], lazy="select")
-    team = db.relationship("Teams", foreign_keys=[team_id], lazy="select")
-    contest_challenge = db.relationship("ContestChallenge", foreign_keys=[contest_challenge_id], lazy="select")
-
-    def __init__(self, *args, **kwargs):
-        super(ChallengeStartTracking, self).__init__(**kwargs)
-
-    def __repr__(self):
-        return "<ChallengeStartTracking user_id={} team_id={} contest_challenge_id={}>".format(
-            self.user_id, self.team_id, self.contest_challenge_id
-        )
-
-
 class Awards(db.Model):
     __tablename__ = "awards"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
-    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
+    )
     type = db.Column(db.String(80), default="standard")
     name = db.Column(db.String(80))
     description = db.Column(db.Text)
@@ -314,8 +375,8 @@ class Awards(db.Model):
 class Tags(db.Model):
     __tablename__ = "tags"
     id = db.Column(db.Integer, primary_key=True)
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
     value = db.Column(db.String(80))
 
@@ -335,8 +396,8 @@ class Topics(db.Model):
 class ChallengeTopics(db.Model):
     __tablename__ = "challenge_topics"
     id = db.Column(db.Integer, primary_key=True)
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
     topic_id = db.Column(db.Integer, db.ForeignKey("topics.id", ondelete="CASCADE"))
 
@@ -368,8 +429,8 @@ class Files(db.Model):
 
 class ChallengeFiles(Files):
     __mapper_args__ = {"polymorphic_identity": "challenge"}
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
 
     def __init__(self, *args, **kwargs):
@@ -379,8 +440,8 @@ class ChallengeFiles(Files):
 class Flags(db.Model):
     __tablename__ = "flags"
     id = db.Column(db.Integer, primary_key=True)
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE")
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
     type = db.Column(db.String(80))
     content = db.Column(db.Text)
@@ -392,11 +453,11 @@ class Flags(db.Model):
         super(Flags, self).__init__(**kwargs)
 
     def __repr__(self):
-        return "<Flag {0} for challenge {1}>".format(self.content, self.challenge_template_id)
+        return "<Flag {0} for challenge {1}>".format(self.content, self.challenge_id)
+
+
 class StaticFlag(Flags):
-    __mapper_args__ = {
-        "polymorphic_identity": "static"  # Identifies the 'static' type flag
-    }
+    __mapper_args__ = {"polymorphic_identity": "static"}
 
     def __init__(self, *args, **kwargs):
         super(StaticFlag, self).__init__(*args, **kwargs)
@@ -404,11 +465,9 @@ class StaticFlag(Flags):
     def __repr__(self):
         return f"<StaticFlag {self.content} for challenge {self.challenge_id}>"
 
-# Subclass for RegexFlag
+
 class RegexFlag(Flags):
-    __mapper_args__ = {
-        "polymorphic_identity": "regex"  # Identifies the 'regex' type flag
-    }
+    __mapper_args__ = {"polymorphic_identity": "regex"}
 
     def __init__(self, *args, **kwargs):
         super(RegexFlag, self).__init__(*args, **kwargs)
@@ -416,28 +475,31 @@ class RegexFlag(Flags):
     def __repr__(self):
         return f"<RegexFlag {self.content} for challenge {self.challenge_id}>"
 
-# Example of adding more flag types
+
 class DynamicFlag(Flags):
-    __mapper_args__ = {
-        "polymorphic_identity": "dynamic"  # Identifies the 'dynamic' type flag
-    }
+    __mapper_args__ = {"polymorphic_identity": "dynamic"}
 
     def __init__(self, *args, **kwargs):
         super(DynamicFlag, self).__init__(*args, **kwargs)
 
     def __repr__(self):
         return f"<DynamicFlag {self.content} for challenge {self.challenge_id}>"
-    
+
+
 class ActionLogs(db.Model):
     __tablename__ = "action_logs"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     date = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     type = db.Column(db.Integer, nullable=False)
     detail = db.Column(db.String(255), nullable=False)
     topic_name = db.Column(db.String(255), nullable=True)
-    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
+    )
 
     user = db.relationship(
         "Users",
@@ -459,6 +521,7 @@ class ActionLogs(db.Model):
 
     def __repr__(self):
         return f"<ActionLogs(id={self.id}, user_id={self.user_id}, type={self.type})>"
+
 
 class UserTeamMember(db.Model):
     __tablename__ = "user_team_members"
@@ -489,7 +552,6 @@ class Users(db.Model):
     # Core attributes
     id = db.Column(db.Integer, primary_key=True)
     oauth_id = db.Column(db.Integer, unique=True)
-    # User names are not constrained to be unique to allow for official/unofficial teams.
     name = db.Column(db.String(128))
     password = db.Column(db.String(128))
     email = db.Column(db.String(128), unique=True)
@@ -564,12 +626,15 @@ class Users(db.Model):
             return self.get_place(admin=False)
         else:
             return None
+
     @property
     def is_challenge_writer(self):
-        return self.type == 'challenge_writer'
+        return self.type == "challenge_writer"
+
     @property
     def is_jury(self):
-        return self.type == 'jury'
+        return self.type == "jury"
+
     @property
     def filled_all_required_fields(self):
         required_user_fields = {
@@ -584,7 +649,6 @@ class Users(db.Model):
             .filter_by(user_id=self.id)
             .all()
         }
-        # Require that users select a bracket
         missing_bracket = (
             Brackets.query.filter_by(type="users").count()
             and self.bracket_id is not None
@@ -689,16 +753,15 @@ class Admins(Users):
     __tablename__ = "admins"
     __mapper_args__ = {"polymorphic_identity": "admin"}
 
+
 class ChallengeWriter(Users):
-    __tablename__ = 'challenge_writers'
-    __mapper_args__ = {
-        'polymorphic_identity': 'challenge_writer',
-    }
+    __tablename__ = "challenge_writers"
+    __mapper_args__ = {"polymorphic_identity": "challenge_writer"}
+
+
 class Jury(Users):
-    __tablename__ = 'jurys'
-    __mapper_args__ = {
-        'polymorphic_identity': 'jury',
-    }
+    __tablename__ = "jurys"
+    __mapper_args__ = {"polymorphic_identity": "jury"}
 
 
 def _get_team_invite_secret_key():
@@ -752,7 +815,6 @@ class Teams(db.Model):
     # Core attributes
     id = db.Column(db.Integer, primary_key=True)
     oauth_id = db.Column(db.Integer, unique=True)
-    # Team names are not constrained to be unique to allow for official/unofficial teams.
     name = db.Column(db.String(128))
     email = db.Column(db.String(128))
     password = db.Column(db.String(128))
@@ -781,11 +843,12 @@ class Teams(db.Model):
     hidden = db.Column(db.Boolean, default=False)
     banned = db.Column(db.Boolean, default=False)
 
-    # Relationship for Users
     captain_user_id = db.Column(
         db.Integer,
-        db.ForeignKey("users.id", ondelete="SET NULL", use_alter=True, name="fk_teams_captain_user_id"),
-        nullable=True
+        db.ForeignKey(
+            "users.id", ondelete="SET NULL", use_alter=True, name="fk_teams_captain_user_id"
+        ),
+        nullable=True,
     )
     captain = db.relationship("Users", foreign_keys=[captain_user_id])
 
@@ -810,7 +873,7 @@ class Teams(db.Model):
     @property
     def fields(self):
         return self.get_fields(admin=False)
-   
+
     @property
     def solves(self):
         return self.get_solves(admin=False)
@@ -885,6 +948,7 @@ class Teams(db.Model):
     @classmethod
     def load_invite_code(cls, code):
         from CTFd.exceptions import TeamTokenExpiredException, TeamTokenInvalidException
+
         try:
             payload, signature = code.split(".", 1)
         except ValueError:
@@ -908,11 +972,11 @@ class Teams(db.Model):
         if invite_expiration < int(time.time()):
             raise TeamTokenExpiredException
 
-        # Load the team by the ID in the invite
         team = cls.query.filter_by(id=team_id).first_or_404()
 
-        # Create the team specific secret
-        verified = _team_invite_verification(team.id, team.password, secret_key) == invite_object["v"]
+        verified = (
+            _team_invite_verification(team.id, team.password, secret_key) == invite_object["v"]
+        )
         if verified is False:
             raise TeamTokenInvalidException
         return team
@@ -974,14 +1038,8 @@ class Teams(db.Model):
 
     @cache.memoize()
     def get_place(self, admin=False, numeric=False):
-        """
-        This method is generally a clone of CTFd.scoreboard.get_standings.
-        The point being that models.py must be self-reliant and have little
-        to no imports within the CTFd application as importing from the
-        application itself will result in a circular import.
-        """
         from CTFd.utils.humanize.numbers import ordinalize
-        from CTFd.utils.scores import get_team_standings  # noqa: I001
+        from CTFd.utils.scores import get_team_standings
 
         standings = get_team_standings(admin=admin)
 
@@ -993,16 +1051,18 @@ class Teams(db.Model):
                 return ordinalize(n)
         else:
             return None
+
+
 class AwardBadges(db.Model):
     __tablename__ = "award_badges"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80))
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="SET NULL"), nullable=True
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="SET NULL"), nullable=True
     )
 
-    challenge = db.relationship("Challenges", foreign_keys=[challenge_template_id], lazy="select")
+    challenge = db.relationship("Challenges", foreign_keys=[challenge_id], lazy="select")
 
     def __repr__(self):
         return f"<AwardBadge {self.name}>"
@@ -1012,8 +1072,12 @@ class Achievements(db.Model):
     __tablename__ = "achievements"
 
     id = db.Column(db.Integer, primary_key=True)
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True)
-    award_badge_id = db.Column(db.Integer, db.ForeignKey("award_badges.id", ondelete="CASCADE"))
+    team_id = db.Column(
+        db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"), nullable=True
+    )
+    award_badge_id = db.Column(
+        db.Integer, db.ForeignKey("award_badges.id", ondelete="CASCADE")
+    )
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     award_badge = db.relationship("AwardBadges", foreign_keys=[award_badge_id], lazy="select")
@@ -1026,8 +1090,8 @@ class Achievements(db.Model):
 class Submissions(db.Model):
     __tablename__ = "submissions"
     id = db.Column(db.Integer, primary_key=True)
-    contest_challenge_id = db.Column(
-        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=True
     )
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
@@ -1036,11 +1100,10 @@ class Submissions(db.Model):
     type = db.Column(db.String(32))
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-    # Relationships
     user = db.relationship("Users", foreign_keys="Submissions.user_id", lazy="select")
     team = db.relationship("Teams", foreign_keys="Submissions.team_id", lazy="select")
-    contest_challenge = db.relationship(
-        "ContestChallenge", foreign_keys="Submissions.contest_challenge_id", lazy="select"
+    challenge = db.relationship(
+        "Challenges", foreign_keys="Submissions.challenge_id", lazy="select"
     )
 
     __mapper_args__ = {"polymorphic_on": type}
@@ -1074,22 +1137,22 @@ class Submissions(db.Model):
         return child_classes[type]
 
     def __repr__(self):
-        return f"<Submission id={self.id}, contest_challenge_id={self.contest_challenge_id}, ip={self.ip}, provided={self.provided}>"
+        return f"<Submission id={self.id}, challenge_id={self.challenge_id}, ip={self.ip}, provided={self.provided}>"
 
 
 class Solves(Submissions):
     __tablename__ = "solves"
     __table_args__ = (
-        db.UniqueConstraint("contest_challenge_id", "user_id"),
-        db.UniqueConstraint("contest_challenge_id", "team_id"),
+        db.UniqueConstraint("challenge_id", "user_id"),
+        db.UniqueConstraint("challenge_id", "team_id"),
         {},
     )
     id = db.Column(
         None, db.ForeignKey("submissions.id", ondelete="CASCADE"), primary_key=True
     )
-    contest_challenge_id = column_property(
-        db.Column(db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE")),
-        Submissions.contest_challenge_id,
+    challenge_id = column_property(
+        db.Column(db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")),
+        Submissions.challenge_id,
     )
     user_id = column_property(
         db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE")),
@@ -1102,8 +1165,8 @@ class Solves(Submissions):
 
     user = db.relationship("Users", foreign_keys="Solves.user_id", lazy="select")
     team = db.relationship("Teams", foreign_keys="Solves.team_id", lazy="select")
-    contest_challenge = db.relationship(
-        "ContestChallenge", foreign_keys="Solves.contest_challenge_id", lazy="select"
+    challenge = db.relationship(
+        "Challenges", foreign_keys="Solves.challenge_id", lazy="select"
     )
 
     __mapper_args__ = {"polymorphic_identity": "correct"}
@@ -1122,9 +1185,11 @@ class Unlocks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
-    hint_id = db.Column(db.Integer, db.ForeignKey("hints.id", ondelete="CASCADE"), nullable=True)
-    contest_challenge_id = db.Column(
-        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
+    hint_id = db.Column(
+        db.Integer, db.ForeignKey("hints.id", ondelete="CASCADE"), nullable=True
+    )
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=True
     )
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     type = db.Column(db.String(32))
@@ -1155,7 +1220,9 @@ class Tracking(db.Model):
     type = db.Column(db.String(32))
     ip = db.Column(db.String(46))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
-    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
+    )
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     user = db.relationship("Users", foreign_keys="Tracking.user_id", lazy="select")
@@ -1189,7 +1256,7 @@ class Contests(db.Model):
     freeze_scoreboard_at = db.Column(db.DateTime, nullable=True)
     view_after_ctf = db.Column(db.Boolean, nullable=False, default=False)
 
-    # Visibility settings (migrated from config table)
+    # Visibility settings
     challenge_visibility = db.Column(db.String(32), nullable=False, default="private")
     score_visibility = db.Column(db.String(32), nullable=False, default="private")
     account_visibility = db.Column(db.String(32), nullable=False, default="private")
@@ -1220,45 +1287,6 @@ class Contests(db.Model):
 
     def __repr__(self):
         return "<Contest %r>" % self.name
-
-
-class ContestChallenge(db.Model):
-    __tablename__ = "contests_challenges"
-
-    id = db.Column(db.Integer, primary_key=True)
-    contest_id = db.Column(
-        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=False
-    )
-    challenge_template_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_templates.id", ondelete="CASCADE"), nullable=False
-    )
-    template_version_id = db.Column(
-        db.Integer, db.ForeignKey("challenge_template_versions.id", ondelete="SET NULL"), nullable=True
-    )
-    value = db.Column(db.Integer, nullable=True)
-    state = db.Column(db.String(32), nullable=False, default="hidden")
-    max_attempts = db.Column(db.Integer, nullable=True)
-    cooldown = db.Column(db.Integer, nullable=True)
-    time_limit = db.Column(db.Integer, nullable=True)
-    start_time = db.Column(db.DateTime, nullable=True)
-    finish_time = db.Column(db.DateTime, nullable=True)
-    max_deploy_count = db.Column(db.Integer, nullable=True, default=0)
-    next_id = db.Column(
-        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="SET NULL"), nullable=True
-    )
-
-    contest = db.relationship("Contests", foreign_keys=[contest_id], lazy="select")
-    challenge_template = db.relationship("Challenges", foreign_keys=[challenge_template_id], lazy="select")
-    template_version = db.relationship("ChallengeVersion", foreign_keys=[template_version_id], lazy="select")
-    next_challenge = db.relationship("ContestChallenge", foreign_keys=[next_id], remote_side=[id], lazy="select")
-
-    def __init__(self, **kwargs):
-        super(ContestChallenge, self).__init__(**kwargs)
-
-    def __repr__(self):
-        return "<ContestChallenge contest_id={} challenge_template_id={}>".format(
-            self.contest_id, self.challenge_template_id
-        )
 
 
 class Configs(db.Model):
@@ -1320,8 +1348,8 @@ class Comments(db.Model):
 
 class ChallengeComments(Comments):
     __mapper_args__ = {"polymorphic_identity": "challenge"}
-    contest_challenge_id = db.Column(
-        db.Integer, db.ForeignKey("contests_challenges.id", ondelete="CASCADE"), nullable=True
+    challenge_id = db.Column(
+        db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE"), nullable=True
     )
 
 
@@ -1345,7 +1373,9 @@ class Fields(db.Model):
     required = db.Column(db.Boolean, default=False)
     public = db.Column(db.Boolean, default=False)
     editable = db.Column(db.Boolean, default=False)
-    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
+    )
 
     __mapper_args__ = {"polymorphic_identity": "standard", "polymorphic_on": type}
 
@@ -1364,7 +1394,9 @@ class FieldEntries(db.Model):
     type = db.Column(db.String(80), default="standard")
     value = db.Column(db.JSON)
     field_id = db.Column(db.Integer, db.ForeignKey("fields.id", ondelete="CASCADE"))
-    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="SET NULL"), nullable=True
+    )
 
     field = db.relationship(
         "Fields", foreign_keys="FieldEntries.field_id", lazy="joined"
@@ -1403,7 +1435,9 @@ class Brackets(db.Model):
     name = db.Column(db.String(255))
     description = db.Column(db.Text)
     type = db.Column(db.String(80))
-    contest_id = db.Column(db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True)
+    contest_id = db.Column(
+        db.Integer, db.ForeignKey("contests.id", ondelete="CASCADE"), nullable=True
+    )
     contest = db.relationship("Contests", foreign_keys="Brackets.contest_id", lazy="select")
 
 
@@ -1421,27 +1455,22 @@ class AdminAuditLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
-    # ── Who did it ─────────────────────────────────────────────────────────
     actor_id = db.Column(
         db.Integer,
         db.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Cached so the record survives user deletion
     actor_name = db.Column(db.String(128), nullable=True)
-    actor_type = db.Column(db.String(80), nullable=True)   # admin / jury / challenge_writer
+    actor_type = db.Column(db.String(80), nullable=True)
 
-    # ── What happened ──────────────────────────────────────────────────────
-    action = db.Column(db.String(128), nullable=False)     # e.g. "challenge_update"
-    target_type = db.Column(db.String(80), nullable=True)  # user / team / challenge / config / submission
-    target_id = db.Column(db.Integer, nullable=True)       # PK of the affected entity
+    action = db.Column(db.String(128), nullable=False)
+    target_type = db.Column(db.String(80), nullable=True)
+    target_id = db.Column(db.Integer, nullable=True)
 
-    # ── Change snapshots ───────────────────────────────────────────────────
     before_state = db.Column(db.JSON, nullable=True)
     after_state = db.Column(db.JSON, nullable=True)
-    extra_data = db.Column(db.JSON, nullable=True)         # arbitrary extra context
+    extra_data = db.Column(db.JSON, nullable=True)
 
-    # ── Request metadata ───────────────────────────────────────────────────
     ip_address = db.Column(db.String(46), nullable=True)
     timestamp = db.Column(
         db.DateTime,

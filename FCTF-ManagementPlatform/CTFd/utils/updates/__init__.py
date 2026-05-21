@@ -59,6 +59,9 @@ def update_check(force=False):
             pass
         except ValueError:
             pass
+        except Exception:
+            # Swallow DB errors that can occur during migrations when tables don't exist yet
+            pass
         else:
             try:
                 latest = check["resource"]["tag"]

@@ -1,7 +1,7 @@
 from flask import request
 from flask_restx import Namespace, Resource
 
-from CTFd.models import Challenges, ContestChallenge, Contests, db
+from CTFd.models import Challenges, Contests, db
 from CTFd.utils.decorators import admins_only
 
 contest_challenges_namespace = Namespace(

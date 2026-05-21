@@ -6,7 +6,7 @@ from io import StringIO
 from flask import Response, render_template, request, stream_with_context, url_for
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeStartTracking, Challenges, ContestChallenge, Teams, db
+from CTFd.models import ChallengeStartTracking, Challenges, Teams, db
 from CTFd.utils.decorators import admin_or_jury
 
 

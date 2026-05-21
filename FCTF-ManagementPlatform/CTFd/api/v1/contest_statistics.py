@@ -10,7 +10,6 @@ from sqlalchemy import func
 
 from CTFd.models import (
     Challenges,
-    ContestChallenge,
     Contests,
     Fails,
     Hints,
@@ -31,11 +30,11 @@ contest_statistics_namespace = Namespace(
 
 
 def _get_contest_challenge_ids(contest_id: int):
-    """Return list of ContestChallenge.id for a given contest."""
+    """Return list of Challenge.id for a given contest."""
     return [
         r[0]
-        for r in db.session.query(ContestChallenge.id)
-        .filter(ContestChallenge.contest_id == contest_id)
+        for r in db.session.query(Challenges.id)
+        .filter(Challenges.contest_id == contest_id)
         .all()
     ]
 
@@ -49,28 +48,28 @@ class ContestSummary(Resource):
 
     def get(self, contest_id):
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
-        cc_ids = _get_contest_challenge_ids(contest_id)
+        challenge_ids = _get_contest_challenge_ids(contest_id)
 
-        challenge_count = len(cc_ids)
+        challenge_count = len(challenge_ids)
         total_points = 0
-        if cc_ids:
+        if challenge_ids:
             total_points = (
-                db.session.query(func.coalesce(func.sum(ContestChallenge.value), 0))
-                .filter(ContestChallenge.contest_id == contest_id)
+                db.session.query(func.coalesce(func.sum(Challenges.value), 0))
+                .filter(Challenges.contest_id == contest_id)
                 .scalar() or 0
             )
 
         solve_count = 0
         wrong_count = 0
-        if cc_ids:
+        if challenge_ids:
             solve_count = (
                 db.session.query(func.count(Solves.id))
-                .filter(Solves.contest_challenge_id.in_(cc_ids))
+                .filter(Solves.challenge_id.in_(challenge_ids))
                 .scalar() or 0
             )
             wrong_count = (
                 db.session.query(func.count(Fails.id))
-                .filter(Fails.contest_challenge_id.in_(cc_ids))
+                .filter(Fails.challenge_id.in_(challenge_ids))
                 .scalar() or 0
             )
 
@@ -79,32 +78,31 @@ class ContestSummary(Resource):
             participant_count = (
                 db.session.query(func.count(func.distinct(Submissions.team_id)))
                 .filter(
-                    Submissions.contest_challenge_id.in_(cc_ids),
+                    Submissions.challenge_id.in_(challenge_ids),
                     Submissions.team_id.isnot(None),
                 )
                 .scalar() or 0
-            ) if cc_ids else 0
+            ) if challenge_ids else 0
         else:
             participant_count = (
                 db.session.query(func.count(func.distinct(Submissions.user_id)))
                 .filter(
-                    Submissions.contest_challenge_id.in_(cc_ids),
+                    Submissions.challenge_id.in_(challenge_ids),
                     Submissions.user_id.isnot(None),
                 )
                 .scalar() or 0
-            ) if cc_ids else 0
+            ) if challenge_ids else 0
 
         # Most / least solved challenge
         solve_data = {}
-        if cc_ids:
+        if challenge_ids:
             rows = (
                 db.session.query(
                     Challenges.name,
                     func.count(Solves.id).label("cnt"),
                 )
-                .join(ContestChallenge, ContestChallenge.challenge_template_id == Challenges.id)
-                .outerjoin(Solves, Solves.contest_challenge_id == ContestChallenge.id)
-                .filter(ContestChallenge.contest_id == contest_id)
+                .outerjoin(Solves, Solves.challenge_id == Challenges.id)
+                .filter(Challenges.contest_id == contest_id)
                 .group_by(Challenges.name)
                 .all()
             )
@@ -138,20 +136,19 @@ class ContestChallengeSolves(Resource):
     method_decorators = [admins_only]
 
     def get(self, contest_id):
-        cc_ids = _get_contest_challenge_ids(contest_id)
-        if not cc_ids:
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+        if not challenge_ids:
             return {"success": True, "data": []}
 
         rows = (
             db.session.query(
-                ContestChallenge.id,
+                Challenges.id,
                 Challenges.name,
                 func.count(Solves.id).label("solves"),
             )
-            .join(Challenges, Challenges.id == ContestChallenge.challenge_template_id)
-            .outerjoin(Solves, Solves.contest_challenge_id == ContestChallenge.id)
-            .filter(ContestChallenge.contest_id == contest_id)
-            .group_by(ContestChallenge.id, Challenges.name)
+            .outerjoin(Solves, Solves.challenge_id == Challenges.id)
+            .filter(Challenges.contest_id == contest_id)
+            .group_by(Challenges.id, Challenges.name)
             .all()
         )
 
@@ -171,8 +168,8 @@ class ContestChallengePercentages(Resource):
 
     def get(self, contest_id):
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
-        cc_ids = _get_contest_challenge_ids(contest_id)
-        if not cc_ids:
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+        if not challenge_ids:
             return {"success": True, "data": {}}
 
         # Total unique participants
@@ -180,7 +177,7 @@ class ContestChallengePercentages(Resource):
             total = (
                 db.session.query(func.count(func.distinct(Submissions.team_id)))
                 .filter(
-                    Submissions.contest_challenge_id.in_(cc_ids),
+                    Submissions.challenge_id.in_(challenge_ids),
                     Submissions.team_id.isnot(None),
                 )
                 .scalar() or 0
@@ -189,7 +186,7 @@ class ContestChallengePercentages(Resource):
             total = (
                 db.session.query(func.count(func.distinct(Submissions.user_id)))
                 .filter(
-                    Submissions.contest_challenge_id.in_(cc_ids),
+                    Submissions.challenge_id.in_(challenge_ids),
                     Submissions.user_id.isnot(None),
                 )
                 .scalar() or 0
@@ -197,14 +194,13 @@ class ContestChallengePercentages(Resource):
 
         rows = (
             db.session.query(
-                ContestChallenge.id,
+                Challenges.id,
                 Challenges.name,
                 func.count(Solves.id).label("solves"),
             )
-            .join(Challenges, Challenges.id == ContestChallenge.challenge_template_id)
-            .outerjoin(Solves, Solves.contest_challenge_id == ContestChallenge.id)
-            .filter(ContestChallenge.contest_id == contest_id)
-            .group_by(ContestChallenge.id, Challenges.name)
+            .outerjoin(Solves, Solves.challenge_id == Challenges.id)
+            .filter(Challenges.contest_id == contest_id)
+            .group_by(Challenges.id, Challenges.name)
             .all()
         )
 
@@ -228,18 +224,18 @@ class ContestSubmissionTypes(Resource):
     method_decorators = [admins_only]
 
     def get(self, contest_id):
-        cc_ids = _get_contest_challenge_ids(contest_id)
-        if not cc_ids:
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+        if not challenge_ids:
             return {"success": True, "data": {"correct": 0, "incorrect": 0}}
 
         correct = (
             db.session.query(func.count(Solves.id))
-            .filter(Solves.contest_challenge_id.in_(cc_ids))
+            .filter(Solves.challenge_id.in_(challenge_ids))
             .scalar() or 0
         )
         incorrect = (
             db.session.query(func.count(Fails.id))
-            .filter(Fails.contest_challenge_id.in_(cc_ids))
+            .filter(Fails.challenge_id.in_(challenge_ids))
             .scalar() or 0
         )
 
@@ -256,8 +252,8 @@ class ContestScoreDistribution(Resource):
 
     def get(self, contest_id):
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
-        cc_ids = _get_contest_challenge_ids(contest_id)
-        if not cc_ids:
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+        if not challenge_ids:
             return {"success": True, "data": {"brackets": {}}}
 
         # Compute score per participant
@@ -265,10 +261,10 @@ class ContestScoreDistribution(Resource):
             score_rows = (
                 db.session.query(
                     Solves.team_id,
-                    func.coalesce(func.sum(ContestChallenge.value), 0).label("score"),
+                    func.coalesce(func.sum(Challenges.value), 0).label("score"),
                 )
-                .join(ContestChallenge, ContestChallenge.id == Solves.contest_challenge_id)
-                .filter(Solves.contest_challenge_id.in_(cc_ids), Solves.team_id.isnot(None))
+                .join(Challenges, Challenges.id == Solves.challenge_id)
+                .filter(Solves.challenge_id.in_(challenge_ids), Solves.team_id.isnot(None))
                 .group_by(Solves.team_id)
                 .all()
             )
@@ -276,10 +272,10 @@ class ContestScoreDistribution(Resource):
             score_rows = (
                 db.session.query(
                     Solves.user_id,
-                    func.coalesce(func.sum(ContestChallenge.value), 0).label("score"),
+                    func.coalesce(func.sum(Challenges.value), 0).label("score"),
                 )
-                .join(ContestChallenge, ContestChallenge.id == Solves.contest_challenge_id)
-                .filter(Solves.contest_challenge_id.in_(cc_ids), Solves.user_id.isnot(None))
+                .join(Challenges, Challenges.id == Solves.challenge_id)
+                .filter(Solves.challenge_id.in_(challenge_ids), Solves.user_id.isnot(None))
                 .group_by(Solves.user_id)
                 .all()
             )
@@ -307,8 +303,8 @@ class ContestChallengeAnalytics(Resource):
     method_decorators = [admins_only]
 
     def get(self, contest_id):
-        cc_ids = _get_contest_challenge_ids(contest_id)
-        if not cc_ids:
+        challenge_ids = _get_contest_challenge_ids(contest_id)
+        if not challenge_ids:
             return {
                 "success": True,
                 "data": {
@@ -319,49 +315,45 @@ class ContestChallengeAnalytics(Resource):
                 },
             }
 
-        # Per-challenge analytics
         rows = (
             db.session.query(
-                ContestChallenge.id,
+                Challenges.id,
                 Challenges.name,
                 Challenges.category,
-                ContestChallenge.value,
-                ContestChallenge.max_attempts,
+                Challenges.value,
+                Challenges.max_attempts,
             )
-            .join(Challenges, Challenges.id == ContestChallenge.challenge_template_id)
-            .filter(ContestChallenge.contest_id == contest_id)
+            .filter(Challenges.contest_id == contest_id)
             .all()
         )
 
         challenges_out = []
         category_solves = {}
 
-        for cc_id, name, category, value, max_attempts in rows:
+        for ch_id, name, category, value, max_attempts in rows:
             solve_count = (
                 db.session.query(func.count(Solves.id))
-                .filter(Solves.contest_challenge_id == cc_id)
+                .filter(Solves.challenge_id == ch_id)
                 .scalar() or 0
             )
             wrong_attempts = (
                 db.session.query(func.count(Fails.id))
-                .filter(Fails.contest_challenge_id == cc_id)
+                .filter(Fails.challenge_id == ch_id)
                 .scalar() or 0
             )
             attempter_count = (
                 db.session.query(func.count(func.distinct(Submissions.user_id)))
-                .filter(Submissions.contest_challenge_id == cc_id)
+                .filter(Submissions.challenge_id == ch_id)
                 .scalar() or 0
             )
 
-            # Avg solve time (seconds from first submission to solve)
             avg_solve_seconds = None
             solve_times = (
                 db.session.query(Solves.date)
-                .filter(Solves.contest_challenge_id == cc_id)
+                .filter(Solves.challenge_id == ch_id)
                 .all()
             )
             if solve_times:
-                # Use contest start_time as reference if available
                 contest_obj = Contests.query.get(contest_id)
                 ref = contest_obj.start_time if contest_obj and contest_obj.start_time else None
                 if ref:
@@ -369,12 +361,11 @@ class ContestChallengeAnalytics(Resource):
                     if deltas:
                         avg_solve_seconds = sum(deltas) / len(deltas)
 
-            # Hint usage
             hint_users = (
                 db.session.query(func.count(func.distinct(Unlocks.user_id)))
                 .join(Hints, Hints.id == Unlocks.hint_id)
                 .filter(
-                    Unlocks.contest_challenge_id == cc_id,
+                    Hints.challenge_id == ch_id,
                     Unlocks.type == "hints",
                 )
                 .scalar() or 0
@@ -392,7 +383,7 @@ class ContestChallengeAnalytics(Resource):
             )
 
             challenges_out.append({
-                "id": cc_id,
+                "id": ch_id,
                 "name": name,
                 "category": category or "Uncategorized",
                 "value": value,

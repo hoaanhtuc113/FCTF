@@ -7,7 +7,7 @@ from flask import Response, flash, redirect, render_template, request, send_file
 from sqlalchemy import or_
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeStartTracking, Challenges, ContestChallenge, Contests, Teams, Users, db
+from CTFd.models import ChallengeStartTracking, Challenges, Contests, Teams, Users, db
 from CTFd.utils.decorators import admins_only
 
 
