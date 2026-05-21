@@ -119,8 +119,14 @@ public class TokenAuthenticationMiddleware
                         u.Verified,
                         u.Banned,
                         u.Hidden,
-                        u.TeamId,
-                        TeamBanned = u.Team != null ? u.Team.Banned : (bool?)null,
+                        TeamId = db.UserTeamMembers
+                            .Where(m => m.UserId == u.Id)
+                            .Select(m => (int?)m.TeamId)
+                            .FirstOrDefault(),
+                        TeamBanned = db.UserTeamMembers
+                            .Where(m => m.UserId == u.Id)
+                            .Select(m => (bool?)m.Team.Banned)
+                            .FirstOrDefault(),
                         TokenValueFromDb = db.Tokens
                             .Where(t => t.UserId == id && t.Type == Enums.UserType.User)
                             .Select(t => t.Value)

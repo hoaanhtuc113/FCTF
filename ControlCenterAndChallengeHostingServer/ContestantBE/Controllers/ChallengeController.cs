@@ -96,14 +96,14 @@ public class ChallengeController : BaseController
         {
             var userId = UserContext.UserId;
             var user = await _context.Users
-                .Include(u => u.Team)
+                .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
                 return NotFound(new { error = "User not found" });
 
-            _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, user.TeamId, new { challengeId = id });
+            _userBehaviorLogger.Log("VIEW_CHALLENGE", user.Id, UserContext.TeamId, new { challengeId = id });
 
             var result = await _challengeServices.GetById(id, user);
 
@@ -153,7 +153,7 @@ public class ChallengeController : BaseController
     {
         var userId = UserContext.UserId;
         var user = await _context.Users
-            .Include(u => u.Team)
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
 
@@ -162,7 +162,7 @@ public class ChallengeController : BaseController
 
         try
         {
-            _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, user.TeamId, null);
+            _userBehaviorLogger.Log("VIEW_All_TOPIC", user.Id, UserContext.TeamId, null);
             var result = await _challengeServices.GetTopic(user);
             return Ok(new
             {
@@ -227,8 +227,9 @@ public class ChallengeController : BaseController
     public async Task<IActionResult> Attempt([FromBody] ChallengeAttemptRequest request)
     {
         var userId = UserContext.UserId;
+        var teamId = (int?)UserContext.TeamId;
         var user = await _context.Users
-            .Include(u => u.Team)
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
 
@@ -241,9 +242,9 @@ public class ChallengeController : BaseController
         if (challenge == null)
             return NotFound(new { error = "Challenge not found" });
 
-        await Console.Out.WriteLineAsync($"[Requesst Attempt Challenge] User {userId} : Team {user?.TeamId} : Challenge {challenge.Name} with flag {request.Submission}");
+        await Console.Out.WriteLineAsync($"[Requesst Attempt Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name} with flag {request.Submission}");
 
-        _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user?.Id, user?.TeamId, new { challengeId = request.ChallengeId, flag = request.Submission });
+        _userBehaviorLogger.Log("ATTEMPT_CHALLENGE", user?.Id, teamId, new { challengeId = request.ChallengeId, flag = request.Submission });
         if (_configHelper.GetConfig("paused", false))
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
@@ -257,7 +258,8 @@ public class ChallengeController : BaseController
             });
         }
 
-        if (_configHelper.IsUserMode() && user?.Team == null)
+        var userTeam = user?.TeamMemberships.FirstOrDefault()?.Team;
+        if (_configHelper.IsUserMode() && userTeam == null)
             return Forbid();
 
         request.Submission = request.Submission?.Trim();
@@ -288,11 +290,9 @@ public class ChallengeController : BaseController
                 }
             });
         }
-        var team = user?.Team;
-
         // Check captain_only_submit_challenge config
         var captainOnlySubmit = _configHelper.GetConfig("captain_only_submit_challenge", false);
-        if (captainOnlySubmit && team != null && team.CaptainId != user?.Id)
+        if (captainOnlySubmit && userTeam != null && userTeam.CaptainUserId != user?.Id)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
             {
@@ -310,7 +310,7 @@ public class ChallengeController : BaseController
 
         if (cooldownSeconds > 0)
         {
-            var cooldownKey = $"submission_cooldown_{challenge.Id}_{user?.TeamId}";
+            var cooldownKey = $"submission_cooldown_{challenge.Id}_{teamId}";
             var nowSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var cooldownCheck = await _redisHelper.CheckAndUpdateCooldownAsync(
                 cooldownKey,
@@ -325,7 +325,7 @@ public class ChallengeController : BaseController
                 if (timeElapsed < cooldownSeconds)
                 {
                     var remainingCooldown = (int)(cooldownSeconds - timeElapsed);
-                    _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user?.Id, user?.TeamId, new { challengeId = request.ChallengeId, remainingCooldown }, LogLevel.Warning);
+                    _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user?.Id, teamId, new { challengeId = request.ChallengeId, remainingCooldown }, LogLevel.Warning);
                     return StatusCode(StatusCodes.Status429TooManyRequests, new
                     {
                         success = true,
@@ -354,7 +354,7 @@ public class ChallengeController : BaseController
                 {
                     var solve_ids = (await _context.Solves
                                     .AsNoTracking()
-                                    .Where(s => s.TeamId == user.TeamId)
+                                    .Where(s => s.TeamId == teamId)
                                     .Select(s => s.ChallengeId)
                                     .OrderBy(id => id)
                                     .ToListAsync()).ToHashSet();
@@ -389,7 +389,7 @@ public class ChallengeController : BaseController
         // Pre-check 1: Already solved (no lock - read-only, common case)
         var solvePreCheck = await _context.Solves
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == teamId);
         if (solvePreCheck != null)
         {
             return Ok(new
@@ -409,7 +409,7 @@ public class ChallengeController : BaseController
         {
             currentFailsPreCheck = await _context.Submissions
                 .AsNoTracking()
-                .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                .Where(s => s.ChallengeId == challenge.Id && s.TeamId == teamId && s.Type == "incorrect")
                 .CountAsync();
 
             if (currentFailsPreCheck >= challenge.MaxAttempts.Value)
@@ -428,7 +428,7 @@ public class ChallengeController : BaseController
 
         // Attempt the challenge (outside lock - CPU intensive, parallel execution OK)
         AttemptDTO attempt = await ChallengeHelper.Attempt(_context, challenge, request);
-        var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
+        var deploymentKey = ChallengeHelper.GetCacheKey(challenge.Id, teamId!.Value);
 
         // Handle correct attempt - CRITICAL SECTION with minimal lock
         if (attempt.status)
@@ -471,7 +471,7 @@ public class ChallengeController : BaseController
                 try
                 {
                     var existingSolve = await _context.Solves
-                        .Where(x => x.ChallengeId == challenge.Id && x.TeamId == user.TeamId)
+                        .Where(x => x.ChallengeId == challenge.Id && x.TeamId == teamId)
                         .AsNoTracking()
                         .ToListAsync();
 
@@ -491,7 +491,7 @@ public class ChallengeController : BaseController
                     var submission = new Submission
                     {
                         UserId = user.Id,
-                        TeamId = user.TeamId,
+                        TeamId = teamId,
                         ChallengeId = challenge.Id,
                         Ip = _userHelper.GetIP(HttpContext),
                         Provided = request.Submission,
@@ -499,7 +499,7 @@ public class ChallengeController : BaseController
                         Solf = new Solf
                         {
                             UserId = user.Id,
-                            TeamId = user.TeamId,
+                            TeamId = teamId,
                             ChallengeId = challenge.Id,
                         }
                     };
@@ -534,7 +534,7 @@ public class ChallengeController : BaseController
                 }
                 catch (Exception ex)
                 {
-                    await Console.Error.WriteLineAsync($"[Error] Submission save/recalc failed for challenge {challenge.Id}, team {user.TeamId}: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"[Error] Submission save/recalc failed for challenge {challenge.Id}, team {teamId}: {ex.Message}");
                     return StatusCode(StatusCodes.Status500InternalServerError, new
                     {
                         success = false,
@@ -567,7 +567,7 @@ public class ChallengeController : BaseController
                 }
                 catch (Exception ex)
                 {
-                    await Console.Error.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                    await Console.Error.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {teamId}: {ex.Message}");
                 }
             }
 
@@ -604,7 +604,7 @@ public class ChallengeController : BaseController
         var (kpmExceeded, kpmCount) = await CheckAndIncrementKpmAsync(user.Id, kpm_limit);
         if (kpmExceeded)
         {
-            _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user.Id, user.TeamId, new { challengeId = request.ChallengeId, kpmCount, kpm_limit }, LogLevel.Warning);
+            _userBehaviorLogger.Log("CHALLENGE_SUBMISSION_RATE_LIMITED", user.Id, teamId, new { challengeId = request.ChallengeId, kpmCount, kpm_limit }, LogLevel.Warning);
             return StatusCode(StatusCodes.Status429TooManyRequests, new
             {
                 success = true,
@@ -622,7 +622,7 @@ public class ChallengeController : BaseController
         // Phase 2: Max attempts validation using Redis Lua script (atomic operation)
         if (hasMaxAttempts)
         {
-            var attemptKey = $"attempt_count_{challenge.Id}_{user.TeamId}";
+            var attemptKey = $"attempt_count_{challenge.Id}_{teamId}";
 
             // Calculate smart sync threshold (1.5x maxAttempts)
             var smartSyncThreshold = (long)(challenge.MaxAttempts.Value * 1.5);
@@ -630,7 +630,7 @@ public class ChallengeController : BaseController
             // Get actual DB count for smart sync (only used if counter is corrupted)
             var actualDbCount = await _context.Submissions
                 .AsNoTracking()
-                .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+                .Where(s => s.ChallengeId == challenge.Id && s.TeamId == teamId && s.Type == "incorrect")
                 .CountAsync();
 
             // Execute Lua script: atomic smart sync + pre-check + INCR + double-check
@@ -664,7 +664,7 @@ public class ChallengeController : BaseController
         var summit_fail = new Submission
         {
             UserId = user.Id,
-            TeamId = user.TeamId,
+            TeamId = teamId,
             ChallengeId = challenge.Id,
             Ip = _userHelper.GetIP(HttpContext),
             Provided = request.Submission,
@@ -704,7 +704,7 @@ public class ChallengeController : BaseController
 
         // Calculate remaining attempts (use cached count if available)
         var failsCount = currentFailsPreCheck ?? await _context.Submissions
-            .Where(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId && s.Type == "incorrect")
+            .Where(s => s.ChallengeId == challenge.Id && s.TeamId == teamId && s.Type == "incorrect")
             .CountAsync();
         var attemptsLeft = max_tries_check.Value - failsCount;
         var triesStr = attemptsLeft == 1 ? "try" : "tries";
@@ -724,7 +724,7 @@ public class ChallengeController : BaseController
             }
             catch (Exception ex)
             {
-                await Console.Error.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {user.TeamId}: {ex.Message}");
+                await Console.Error.WriteLineAsync($"Error stopping challenge {challenge.Id} for team {teamId}: {ex.Message}");
             }
         }
 
@@ -747,14 +747,16 @@ public class ChallengeController : BaseController
     {
 
         var userId = UserContext.UserId;
+        var teamId = (int?)UserContext.TeamId;
         var user = await _context.Users
             .AsNoTracking()
-            .Include(u => u.Team)
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
             .FirstOrDefaultAsync(u => u.Id == userId);
-        if (user?.Team == null || user.TeamId == null)
+        var userTeam = user?.TeamMemberships.FirstOrDefault()?.Team;
+        if (userTeam == null || teamId == null)
             return NotFound(new { error = "Team not found" });
 
-        _userBehaviorLogger.Log("START_CHALLENGE", user.Id, user.TeamId, new { challengeId = challengeStartReq.challengeId });
+        _userBehaviorLogger.Log("START_CHALLENGE", user!.Id, teamId, new { challengeId = challengeStartReq.challengeId });
         var challenge = await _context.Challenges
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
@@ -774,7 +776,7 @@ public class ChallengeController : BaseController
                 {
                     var solve_ids = (await _context.Solves
                                     .AsNoTracking()
-                                    .Where(s => s.TeamId == user.TeamId)
+                                    .Where(s => s.TeamId == teamId)
                                     .Select(s => s.ChallengeId)
                                     .OrderBy(id => id)
                                     .ToListAsync()).ToHashSet();
@@ -810,7 +812,7 @@ public class ChallengeController : BaseController
             var incorrectSubmissionCount = await _context.Submissions
                 .AsNoTracking()
                 .Where(s => s.ChallengeId == challenge.Id
-                    && s.TeamId == user.TeamId
+                    && s.TeamId == teamId
                     && s.Type == SubmissionTypes.INCORRECT)
                 .CountAsync();
 
@@ -827,7 +829,7 @@ public class ChallengeController : BaseController
         {
             var currentDeployCount = await _context.ChallengeStartTrackings
                 .AsNoTracking()
-                .Where(d => d.ChallengeId == challenge.Id && d.TeamId == user.TeamId)
+                .Where(d => d.ChallengeId == challenge.Id && d.TeamId == teamId)
                 .CountAsync();
             if (currentDeployCount >= challenge.MaxDeployCount.Value)
             {
@@ -840,7 +842,7 @@ public class ChallengeController : BaseController
 
         var solve = await _context.Solves
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == teamId);
         if (solve != null)
         {
             return BadRequest(new { error = "Your team has already solved this challenge. You cannot start this challenge." });
@@ -848,25 +850,25 @@ public class ChallengeController : BaseController
 
         // Check captain_only_start_challenge config (stored as "1" or "0" in database)
         var captainOnlyStart = _configHelper.GetConfig("captain_only_start_challenge", true);
-        if (captainOnlyStart && user.Id != user.Team.CaptainId)
+        if (captainOnlyStart && user!.Id != userTeam.CaptainUserId)
         {
             return BadRequest(new { error = "Contact the organizers to select a team captain. Only the team captain has the permission to start the challenge." });
         }
 
-        await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name}");
+        await Console.Out.WriteLineAsync($"[Requesst Start Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
         // Check limit_challenges - maximum concurrent challenges per team
         var limit_challenges = _configHelper.LimitChallenges();
 
-        var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, user.TeamId.Value);
-        var teamIdStr = user.TeamId.Value.ToString();
+        var deploymentKey = ChallengeHelper.GetCacheKey(challengeStartReq.challengeId, teamId!.Value);
+        var teamIdStr = teamId.Value.ToString();
         var challengeIdStr = challenge.Id.ToString();
         var cacheDto = new ChallengeDeploymentCacheDTO
         {
             challenge_id = challenge.Id,
-            team_id = user.TeamId.Value,
+            team_id = teamId.Value,
             status = DeploymentStatus.INITIAL,
-            user_id = user.Id,
+            user_id = user!.Id,
         };
         string deploymentValue = System.Text.Json.JsonSerializer.Serialize(cacheDto);
 
@@ -882,10 +884,10 @@ public class ChallengeController : BaseController
         switch (redisResult)
         {
             case DeploymentCheckResult.LimitExceeded:
-                await Console.Out.WriteLineAsync($" Team {user.TeamId} had limit exceeded from challenge {challenge.Name}");
+                await Console.Out.WriteLineAsync($" Team {teamId} had limit exceeded from challenge {challenge.Name}");
                 return BadRequest(new { error = $"You have reached the maximum limit of {limit_challenges} concurrent challenges." });
             case DeploymentCheckResult.AlreadyExists:
-                await Console.Out.WriteLineAsync($" Team {user.TeamId} had already deploy from challenge {challenge.Name}");
+                await Console.Out.WriteLineAsync($" Team {teamId} had already deploy from challenge {challenge.Name}");
                 var deploymentCache = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(deploymentKey) ?? new ChallengeDeploymentCacheDTO();
 
                 switch (deploymentCache.status)
@@ -935,7 +937,7 @@ public class ChallengeController : BaseController
             if (response.status != (int)HttpStatusCode.OK)
             {
                 // >>> ROLLBACK: Xóa ngay slot vừa chiếm trong Redis <<<
-                await Console.Error.WriteLineAsync($"[Rollback] Team {user.TeamId} start challenge failed: {response.message}.");
+                await Console.Error.WriteLineAsync($"[Rollback] Team {teamId} start challenge failed: {response.message}.");
                 await _redisHelper.AtomicRemoveDeploymentZSet(teamIdStr, deploymentKey, challengeIdStr);
             }
             else
@@ -982,28 +984,29 @@ public class ChallengeController : BaseController
             return BadRequest(new { error = "ChallengeId is required" });
 
         var userId = UserContext.UserId;
+        var teamId = (int?)UserContext.TeamId;
         var user = await _context.Users
-            .Include(u => u.Team)
+            .Include(u => u.TeamMemberships).ThenInclude(m => m.Team)
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId);
-        if (user?.TeamId == null || user.Team == null)
+        if (teamId == null || user == null)
             return BadRequest(new { error = "User no join team" });
 
-        _userBehaviorLogger.Log("STOP_CHALLENGE", user.Id, user.TeamId, new { challengeStartReq.challengeId });
+        _userBehaviorLogger.Log("STOP_CHALLENGE", userId, teamId, new { challengeStartReq.challengeId });
 
         var challenge = await _context.Challenges
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == challengeStartReq.challengeId);
 
         if (challenge == null) return BadRequest(new { error = "Challenge not found" });
-        var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, user.TeamId.Value);
+        var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, teamId.Value);
 
         if (!await _redisHelper.KeyExistsAsync(cache_key))
             return BadRequest(new { error = "Challenge not started or already stopped, no active cache found." });
 
         try
         {
-            await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {user.TeamId} : Challenge {challenge.Name}");
+            await Console.Out.WriteLineAsync($"[Requesst Stop Challenge] User {userId} : Team {teamId} : Challenge {challenge.Name}");
 
             var response = await _challengeServices.ForceStopChallenge(challenge.Id, user);
             return response.status switch
@@ -1040,11 +1043,8 @@ public class ChallengeController : BaseController
             });
         }
         var userId = UserContext.UserId;
-        var user = await _context.Users
-            .Include(u => u.Team)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == userId);
-        if (user?.TeamId == null || user.Team == null)
+        var teamIdClaim = UserContext.TeamId;
+        if (teamIdClaim == 0)
         {
             return BadRequest(new ChallengeDeployResponeDTO
             {
@@ -1066,7 +1066,7 @@ public class ChallengeController : BaseController
             status = (int)HttpStatusCode.BadRequest,
             pod_status = Enums.DeploymentStatusEnum.Failed
         });
-        int teamId = user.TeamId.Value;
+        int teamId = teamIdClaim;
         if (challenge.SharedInstant)
         {
             teamId = -2; // Use -2 to indicate shared instance in cache keys and service logic

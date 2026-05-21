@@ -151,10 +151,10 @@ public class ScoreHelper
         }
 
         // First get team member IDs to simplify the query
-        var teamMemberIds = await _context.Users
+        var teamMemberIds = await _context.UserTeamMembers
             .AsNoTracking()
-            .Where(u => u.TeamId == team.Id)
-            .Select(u => u.Id)
+            .Where(m => m.TeamId == team.Id)
+            .Select(m => m.UserId)
             .ToListAsync();
 
         if (teamMemberIds.Count == 0)
@@ -201,10 +201,10 @@ public class ScoreHelper
     {
 
         // First get team member IDs to avoid complex navigation in LINQ
-        var teamMemberIds = await _context.Users
+        var teamMemberIds = await _context.UserTeamMembers
             .AsNoTracking()
-            .Where(u => u.TeamId == team.Id)
-            .Select(u => u.Id)
+            .Where(m => m.TeamId == team.Id)
+            .Select(m => m.UserId)
             .ToListAsync();
 
         if (!teamMemberIds.Any())
@@ -215,7 +215,6 @@ public class ScoreHelper
             .Include(s => s.IdNavigation)
             .Include(s => s.Challenge)
             .Include(s => s.User)
-            .ThenInclude(u => u.Team)
             .Where(s => s.UserId.HasValue && teamMemberIds.Contains(s.UserId.Value))
             .OrderByDescending(s => s.IdNavigation.Date)
             .AsQueryable();
@@ -253,7 +252,7 @@ public class ScoreHelper
             .Select(t => new
             {
                 TeamId = t.Id,
-                MemberIds = t.Users.Select(u => u.Id).ToList()
+                MemberIds = t.Members.Select(m => m.UserId).ToList()
             })
             .ToListAsync();
 

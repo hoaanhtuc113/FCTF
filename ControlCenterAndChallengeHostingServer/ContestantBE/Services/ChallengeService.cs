@@ -98,6 +98,9 @@ public class ChallengeService : IChallengeService
 
     public async Task<BaseResponseDTO<ChallengeByIdDTO>> GetById(int challengeId, User user)
     {
+        var teamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
+        var userTeam = user.TeamMemberships.FirstOrDefault()?.Team;
+
         var challenge = await _dbContext.Challenges
             .AsNoTracking()
             .Include(c => c.Files)
@@ -120,11 +123,11 @@ public class ChallengeService : IChallengeService
             };
         }
 
-        var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, user.TeamId);
+        var requirementsObj = TryParseRequirements(challenge.Requirements, challenge.Id, teamId);
 
         var solvedChallengeIds = await _dbContext.Solves
             .AsNoTracking()
-            .Where(s => s.TeamId == user.TeamId && s.ChallengeId.HasValue)
+            .Where(s => s.TeamId == teamId && s.ChallengeId.HasValue)
             .Select(s => s.ChallengeId!.Value)
             .ToListAsync();
 
@@ -149,15 +152,15 @@ public class ChallengeService : IChallengeService
 
         var solve_id = await _dbContext.Solves
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            .FirstOrDefaultAsync(s => s.ChallengeId == challenge.Id && s.TeamId == teamId);
 
         var attempts = await _dbContext.Submissions
             .AsNoTracking()
-            .CountAsync(s => s.ChallengeId == challenge.Id && s.TeamId == user.TeamId);
+            .CountAsync(s => s.ChallengeId == challenge.Id && s.TeamId == teamId);
 
         var deployedCount = await _dbContext.ChallengeStartTrackings
             .AsNoTracking()
-            .CountAsync(d => d.ChallengeId == challenge.Id && d.TeamId == user.TeamId);
+            .CountAsync(d => d.ChallengeId == challenge.Id && d.TeamId == teamId);
 
         var files = new List<object>();
         foreach (var file in challenge.Files)
@@ -165,7 +168,7 @@ public class ChallengeService : IChallengeService
             var token = new FileTokenDTOs
             {
                 user_id = user.Id,
-                team_id = user.TeamId,
+                team_id = teamId,
                 file_id = file.Id
             };
             var file_url = $"/files?path={file.Location}&token={ItsDangerousCompatHelper.Dumps(token)}";
@@ -205,18 +208,18 @@ public class ChallengeService : IChallengeService
             next_name = nextName,
             solve_by_myteam = solve_id != null ? true : false,
             files = files,
-            is_captain = user.Id == user.Team.CaptainId,
+            is_captain = user.Id == userTeam?.CaptainUserId,
             captain_only_start = captainOnlyStart,
             captain_only_submit = captainOnlySubmit,
             difficulty = difficultyVisible ? challenge.Difficulty : null,
             shared_instance = challenge.SharedInstant
         };
-        int teamId = user.TeamId ?? 0;
+        int resolvedTeamId = teamId ?? 0;
         if (challenge.SharedInstant)
         {
-            teamId = -2; // use -2 to indicate shared instance, so all teams can see the same deployment status
+            resolvedTeamId = -2; // use -2 to indicate shared instance, so all teams can see the same deployment status
         }
-        var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, teamId);
+        var cache_key = ChallengeHelper.GetCacheKey(challenge.Id, resolvedTeamId);
         if (await _redisHelper.KeyExistsAsync(cache_key))
         {
             var cached_value = await _redisHelper.GetFromCacheAsync<ChallengeDeploymentCacheDTO>(cache_key);
@@ -366,6 +369,8 @@ public class ChallengeService : IChallengeService
 
     public async Task<List<TopicDTO>> GetTopic(User user)
     {
+        var teamId = (int?)user.TeamMemberships.FirstOrDefault()?.TeamId;
+
         var challengeStats = await _dbContext.Challenges
             .AsNoTracking()
             .Where(c => c.State != Enums.ChallengeState.HIDDEN)
@@ -380,7 +385,7 @@ public class ChallengeService : IChallengeService
 
         var solvedStats = await _dbContext.Solves
             .AsNoTracking()
-            .Where(s => s.TeamId == user.TeamId &&
+            .Where(s => s.TeamId == teamId &&
                         s.Challenge.State != Enums.ChallengeState.HIDDEN)
             .GroupBy(s => s.Challenge.Category)
             .Select(g => new
@@ -412,20 +417,22 @@ public class ChallengeService : IChallengeService
 
     public async Task<ChallengeDeployResponeDTO> ChallengeStart(Challenge challenge, User user)
     {
+        var teamId = user.TeamMemberships.FirstOrDefault()?.TeamId
+            ?? throw new InvalidOperationException("User has no team");
         try
         {
             var unixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var parammeters = new ChallengeStartStopReqDTO
             {
                 challengeId = challenge.Id,
-                teamId = user.TeamId.Value,
+                teamId = teamId,
                 userId = user.Id,
                 unixTime = unixTime.ToString()
             };
             var data = new Dictionary<string, string>
             {
                 { "challengeId", challenge.Id.ToString() },
-                { "teamId", user.TeamId.Value.ToString() },
+                { "teamId", teamId.ToString() },
                 { "userId", user.Id.ToString() },
             };
             string generatedSecretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
@@ -476,7 +483,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, user?.TeamId, new { challengeId = challenge.Id });
+            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId = challenge.Id });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
@@ -488,7 +495,8 @@ public class ChallengeService : IChallengeService
 
     public async Task<ChallengeDeployResponeDTO> ForceStopChallenge(int challengeId, User user)
     {
-        if (user?.TeamId == null)
+        var teamId = (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId;
+        if (teamId == null)
         {
             return new ChallengeDeployResponeDTO
             {
@@ -498,7 +506,7 @@ public class ChallengeService : IChallengeService
             };
         }
 
-        var lockKey = $"challenge:stop:team:{user.TeamId.Value}:challenge:{challengeId}";
+        var lockKey = $"challenge:stop:team:{teamId.Value}:challenge:{challengeId}";
         var lockToken = Guid.NewGuid().ToString("N");
         var lockExpiry = TimeSpan.FromSeconds(30);
         var lockAcquired = false;
@@ -507,12 +515,12 @@ public class ChallengeService : IChallengeService
         var data = new Dictionary<string, string>
         {
             { "challengeId", challengeId.ToString() },
-            { "teamId", user?.TeamId?.ToString() ?? string.Empty},
+            { "teamId", teamId.Value.ToString() },
         };
         var parammeters = new ChallengeStartStopReqDTO
         {
             challengeId = challengeId,
-            teamId = user.TeamId.Value,
+            teamId = teamId.Value,
             unixTime = unixTime.ToString()
         };
         var secretKey = SecretKeyHelper.CreateSecretKey(unixTime, data);
@@ -534,7 +542,7 @@ public class ChallengeService : IChallengeService
                 };
             }
 
-            var cacheKey = ChallengeHelper.GetCacheKey(challengeId, user.TeamId.Value);
+            var cacheKey = ChallengeHelper.GetCacheKey(challengeId, teamId.Value);
             if (!await _redisHelper.KeyExistsAsync(cacheKey))
             {
                 return new ChallengeDeployResponeDTO
@@ -585,7 +593,7 @@ public class ChallengeService : IChallengeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, user?.Id, user?.TeamId, new { challengeId });
+            _logger.LogError(ex, user?.Id, (int?)user?.TeamMemberships.FirstOrDefault()?.TeamId, new { challengeId });
             return new ChallengeDeployResponeDTO
             {
                 status = (int)HttpStatusCode.InternalServerError,
