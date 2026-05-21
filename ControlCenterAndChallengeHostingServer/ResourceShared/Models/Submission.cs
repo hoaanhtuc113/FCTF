@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -7,7 +7,7 @@ public partial class Submission
 {
     public int Id { get; set; }
 
-    public int? ChallengeId { get; set; }
+    public int? ContestChallengeId { get; set; }
 
     public int? UserId { get; set; }
 
@@ -19,9 +19,9 @@ public partial class Submission
 
     public string? Type { get; set; }
 
-    public DateTime? Date { get; set; } = DateTime.Now;
+    public DateTime? Date { get; set; } = DateTime.UtcNow;
 
-    public virtual Challenge? Challenge { get; set; }
+    public virtual ContestChallenge? ContestChallenge { get; set; }
 
     public virtual Solf? Solf { get; set; }
 

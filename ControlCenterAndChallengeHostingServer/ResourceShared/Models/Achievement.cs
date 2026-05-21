@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 
 namespace ResourceShared.Models;
 
@@ -7,21 +6,13 @@ public partial class Achievement
 {
     public int Id { get; set; }
 
-    public int? UserId { get; set; }
-
     public int? TeamId { get; set; }
 
-    public int? ChallengeId { get; set; }
+    public int AwardBadgeId { get; set; }
 
-    public string? Name { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
 
-    public int? AchievementId { get; set; }
-
-    public virtual AwardBadge? AchievementNavigation { get; set; }
-
-    public virtual Challenge? Challenge { get; set; }
+    public virtual AwardBadge AwardBadge { get; set; } = null!;
 
     public virtual Team? Team { get; set; }
-
-    public virtual User? User { get; set; }
 }

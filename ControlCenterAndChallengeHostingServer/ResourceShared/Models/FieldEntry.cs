@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -16,6 +16,10 @@ public partial class FieldEntry
     public int? UserId { get; set; }
 
     public int? TeamId { get; set; }
+
+    public int? ContestId { get; set; }
+
+    public virtual Contest? Contest { get; set; }
 
     public virtual Field? Field { get; set; }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -13,7 +13,11 @@ public partial class Tracking
 
     public int? UserId { get; set; }
 
+    public int? ContestId { get; set; }
+
     public DateTime? Date { get; set; }
+
+    public virtual Contest? Contest { get; set; }
 
     public virtual User? User { get; set; }
 }

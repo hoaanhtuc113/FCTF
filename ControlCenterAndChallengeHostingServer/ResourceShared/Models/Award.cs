@@ -25,7 +25,11 @@ public partial class Award
 
     public string? Requirements { get; set; }
 
+    public int? ContestId { get; set; }
+
     public string? Type { get; set; }
+
+    public virtual Contest? Contest { get; set; }
 
     public virtual Team? Team { get; set; }
 

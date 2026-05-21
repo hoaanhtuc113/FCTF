@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -21,9 +21,13 @@ public partial class Ticket
 
     public string? Status { get; set; }
 
-    public DateTime? CreateAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
+
+    public int? ContestId { get; set; }
 
     public virtual User? Author { get; set; }
+
+    public virtual Contest? Contest { get; set; }
 
     public virtual User? Replier { get; set; }
 }

@@ -9,13 +9,15 @@ public partial class Hint
 
     public string? Type { get; set; }
 
-    public int? ChallengeId { get; set; }
+    public int? ChallengeTemplateId { get; set; }
 
     public string? Content { get; set; }
 
     public int? Cost { get; set; }
 
     public string? Requirements { get; set; }
+
+    public virtual ICollection<Unlock> Unlocks { get; set; } = new List<Unlock>();
 
     public virtual Challenge? Challenge { get; set; }
 }

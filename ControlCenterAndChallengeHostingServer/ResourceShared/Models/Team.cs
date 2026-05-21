@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -29,13 +29,13 @@ public partial class Team
 
     public DateTime? Created { get; set; }
 
-    public int? CaptainId { get; set; }
+    public int? CaptainUserId { get; set; }
 
     public int? BracketId { get; set; }
 
-    public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
+    public int? ContestId { get; set; }
 
-    public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();
+    public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 
     public virtual ICollection<Award> Awards { get; set; } = new List<Award>();
 
@@ -43,17 +43,17 @@ public partial class Team
 
     public virtual User? Captain { get; set; }
 
+    public virtual Contest? Contest { get; set; }
+
     public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
 
     public virtual ICollection<FieldEntry> FieldEntries { get; set; } = new List<FieldEntry>();
 
-    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public virtual ICollection<UserTeamMember> Members { get; set; } = new List<UserTeamMember>();
 
     public virtual ICollection<Solf> Solves { get; set; } = new List<Solf>();
 
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 
     public virtual ICollection<Unlock> Unlocks { get; set; } = new List<Unlock>();
-
-    public virtual ICollection<User> Users { get; set; } = new List<User>();
 }

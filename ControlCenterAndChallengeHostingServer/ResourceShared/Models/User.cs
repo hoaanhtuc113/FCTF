@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -31,25 +31,19 @@ public partial class User
 
     public bool? Verified { get; set; }
 
-    public int? TeamId { get; set; }
-
     public DateTime? Created { get; set; }
 
     public string? Language { get; set; }
 
     public int? BracketId { get; set; }
 
-    public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
-
     public virtual ICollection<ActionLog> ActionLogs { get; set; } = new List<ActionLog>();
-
-    public virtual ICollection<AwardBadge> AwardBadges { get; set; } = new List<AwardBadge>();
 
     public virtual ICollection<Award> Awards { get; set; } = new List<Award>();
 
     public virtual Bracket? Bracket { get; set; }
 
-    public virtual ICollection<Challenge> Challenges { get; set; } = new List<Challenge>();
+    public virtual ICollection<Challenge> CreatedChallenges { get; set; } = new List<Challenge>();
 
     public virtual ICollection<Comment> CommentAuthors { get; set; } = new List<Comment>();
 
@@ -57,15 +51,11 @@ public partial class User
 
     public virtual ICollection<FieldEntry> FieldEntries { get; set; } = new List<FieldEntry>();
 
-    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
-
     public virtual ICollection<Solf> Solves { get; set; } = new List<Solf>();
 
     public virtual ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 
-    public virtual Team? Team { get; set; }
-
-    public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
+    public virtual ICollection<UserTeamMember> TeamMemberships { get; set; } = new List<UserTeamMember>();
 
     public virtual ICollection<Ticket> TicketAuthors { get; set; } = new List<Ticket>();
 

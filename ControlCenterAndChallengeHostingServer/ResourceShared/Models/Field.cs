@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -20,6 +20,10 @@ public partial class Field
     public bool? Public { get; set; }
 
     public bool? Editable { get; set; }
+
+    public int? ContestId { get; set; }
+
+    public virtual Contest? Contest { get; set; }
 
     public virtual ICollection<FieldEntry> FieldEntries { get; set; } = new List<FieldEntry>();
 }

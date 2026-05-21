@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -12,6 +12,10 @@ public partial class Bracket
     public string? Description { get; set; }
 
     public string? Type { get; set; }
+
+    public int? ContestId { get; set; }
+
+    public virtual Contest? Contest { get; set; }
 
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 

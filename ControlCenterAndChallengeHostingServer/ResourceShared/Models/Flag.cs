@@ -7,7 +7,7 @@ public partial class Flag
 {
     public int Id { get; set; }
 
-    public int? ChallengeId { get; set; }
+    public int? ChallengeTemplateId { get; set; }
 
     public string? Type { get; set; }
 
