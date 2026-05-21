@@ -16,15 +16,147 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
-    # NOTE: Tables challenges, challenge_versions were already created and old tables
-    # (contests_challenges, challenge_template_versions, challenge_templates) were already
-    # dropped along with their FK constraints in a previous partial run.
-    # This upgrade only applies the remaining column-level operations.
+def _drop_fks_on_columns(inspector, table, columns):
+    for fk in inspector.get_foreign_keys(table):
+        if any(c in fk.get('constrained_columns', []) for c in columns):
+            if fk.get('name'):
+                op.drop_constraint(fk['name'], table, type_='foreignkey')
 
-    # Rewire plugin tables to new challenges table
+
+def upgrade():
+    from sqlalchemy import inspect as sa_inspect
+    bind = op.get_bind()
+    inspector = sa_inspect(bind)
+
+    # ── Phase A: table-level work (only needed on a fresh database) ──────────
+    # On a previous partial run, challenges + challenge_versions were already
+    # created and the old tables were already dropped; skip this entire block.
+    if not inspector.has_table('challenges'):
+
+        # 1. Drop FKs that child tables hold against contests_challenges
+        for tbl, cols in [
+            ('solves',                  ['contest_challenge_id']),
+            ('submissions',             ['contest_challenge_id']),
+            ('comments',                ['contest_challenge_id']),
+            ('unlocks',                 ['contest_challenge_id']),
+            ('challenge_start_tracking',['contest_challenge_id']),
+        ]:
+            if inspector.has_table(tbl):
+                _drop_fks_on_columns(inspector, tbl, cols)
+
+        # 2. Drop FKs that contests_challenges holds against other tables
+        #    (challenge_templates, challenge_template_versions, self-ref next_id)
+        if inspector.has_table('contests_challenges'):
+            _drop_fks_on_columns(
+                inspector, 'contests_challenges',
+                ['challenge_template_id', 'template_version_id', 'next_id', 'contest_id'],
+            )
+            op.drop_table('contests_challenges')
+
+        # 3. Drop FK that challenge_template_versions holds against challenge_templates
+        if inspector.has_table('challenge_template_versions'):
+            _drop_fks_on_columns(
+                inspector, 'challenge_template_versions',
+                ['challenge_template_id', 'created_by'],
+            )
+            op.drop_table('challenge_template_versions')
+
+        # 4. Drop all remaining FKs that point to challenge_templates
+        for tbl, cols in [
+            ('dynamic_challenge',   ['id']),
+            ('award_badges',        ['challenge_template_id']),
+            ('challenge_topics',    ['challenge_template_id']),
+            ('deploy_histories',    ['challenge_template_id']),
+            ('files',               ['challenge_template_id']),
+            ('flags',               ['challenge_template_id']),
+            ('hints',               ['challenge_template_id']),
+            ('tags',                ['challenge_template_id']),
+        ]:
+            if inspector.has_table(tbl):
+                _drop_fks_on_columns(inspector, tbl, cols)
+        if inspector.has_table('multiple_choice_challenge'):
+            _drop_fks_on_columns(inspector, 'multiple_choice_challenge', ['id'])
+
+        # 5. Now it is safe to drop challenge_templates
+        if inspector.has_table('challenge_templates'):
+            op.drop_table('challenge_templates')
+
+        # 6. Create the new unified challenges table
+        op.create_table(
+            'challenges',
+            sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
+            sa.Column('contest_id', sa.Integer(), nullable=False),
+            sa.Column('name', sa.String(80), nullable=True),
+            sa.Column('description', sa.Text(), nullable=True),
+            sa.Column('category', sa.String(80), nullable=True),
+            sa.Column('type', sa.String(80), nullable=True),
+            sa.Column('difficulty', sa.Integer(), nullable=True),
+            sa.Column('value', sa.Integer(), nullable=True),
+            sa.Column('state', sa.String(32), nullable=False, server_default='hidden'),
+            sa.Column('max_attempts', sa.Integer(), nullable=True),
+            sa.Column('cooldown', sa.Integer(), nullable=True),
+            sa.Column('time_limit', sa.Integer(), nullable=True),
+            sa.Column('start_time', sa.DateTime(), nullable=True),
+            sa.Column('finish_time', sa.DateTime(), nullable=True),
+            sa.Column('requirements', sa.JSON(), nullable=True),
+            sa.Column('next_id', sa.Integer(), nullable=True),
+            sa.Column('require_deploy', sa.Boolean(), nullable=False, server_default='0'),
+            sa.Column('deploy_status', sa.Text(), nullable=True, server_default='CREATED'),
+            sa.Column('deploy_file', sa.Text(), nullable=True),
+            sa.Column('image_link', sa.Text(), nullable=True),
+            sa.Column('connection_info', sa.Text(), nullable=True),
+            sa.Column('connection_protocol', sa.String(10), nullable=False, server_default='http'),
+            sa.Column('cpu_limit', sa.Integer(), nullable=True),
+            sa.Column('cpu_request', sa.Integer(), nullable=True),
+            sa.Column('memory_limit', sa.Integer(), nullable=True),
+            sa.Column('memory_request', sa.Integer(), nullable=True),
+            sa.Column('use_gvisor', sa.Boolean(), nullable=True),
+            sa.Column('harden_container', sa.Boolean(), nullable=True, server_default='1'),
+            sa.Column('shared_instant', sa.Boolean(), nullable=False, server_default='0'),
+            sa.Column('max_deploy_count', sa.Integer(), nullable=True, server_default='0'),
+            sa.Column('last_update', sa.DateTime(), nullable=True),
+            sa.Column('created_by', sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(['contest_id'], ['contests.id'], ondelete='CASCADE'),
+            sa.ForeignKeyConstraint(['next_id'], ['challenges.id'], ondelete='SET NULL'),
+            sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
+            sa.PrimaryKeyConstraint('id'),
+        )
+
+    # ── Create challenge_versions if missing (covers both fresh and partial) ──
+    if not inspector.has_table('challenge_versions'):
+        op.create_table(
+            'challenge_versions',
+            sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
+            sa.Column('challenge_id', sa.Integer(), nullable=False),
+            sa.Column('version_number', sa.Integer(), nullable=False, server_default='1'),
+            sa.Column('image_link', sa.Text(), nullable=True),
+            sa.Column('deploy_file', sa.Text(), nullable=True),
+            sa.Column('cpu_limit', sa.String(50), nullable=True),
+            sa.Column('cpu_request', sa.String(50), nullable=True),
+            sa.Column('memory_limit', sa.String(50), nullable=True),
+            sa.Column('memory_request', sa.String(50), nullable=True),
+            sa.Column('use_gvisor', sa.Boolean(), nullable=True),
+            sa.Column('harden_container', sa.Boolean(), nullable=True),
+            sa.Column('is_active', sa.Boolean(), nullable=False, server_default='0'),
+            sa.Column('created_by', sa.Integer(), nullable=True),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.Column('notes', sa.Text(), nullable=True),
+            sa.ForeignKeyConstraint(['challenge_id'], ['challenges.id'], ondelete='CASCADE'),
+            sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
+            sa.PrimaryKeyConstraint('id'),
+        )
+
+    # ── Phase B: column-level work (same for both fresh and partial runs) ─────
+    # Refresh the inspector so it reflects the tables we just created/dropped.
+    inspector = sa_inspect(bind)
+
+    # Rewire plugin tables to the new challenges table.
+    # _drop_fks_on_columns is safe when no FK exists (no-op).
+    _drop_fks_on_columns(inspector, 'dynamic_challenge', ['id'])
     op.create_foreign_key(None, 'dynamic_challenge', 'challenges', ['id'], ['id'], ondelete='CASCADE')
-    op.create_foreign_key(None, 'multiple_choice_challenge', 'challenges', ['id'], ['id'], ondelete='CASCADE')
+    if inspector.has_table('multiple_choice_challenge'):
+        _drop_fks_on_columns(inspector, 'multiple_choice_challenge', ['id'])
+        op.create_foreign_key(None, 'multiple_choice_challenge', 'challenges', ['id'], ['id'], ondelete='CASCADE')
 
     # award_badges
     op.add_column('award_badges', sa.Column('challenge_id', sa.Integer(), nullable=True))
