@@ -540,7 +540,12 @@ $(() => {
           })
           .then(function (response) {
             if (response.success) {
-              window.location = CTFd.config.urlRoot + "/admin/challenges";
+              const deleteRedirect =
+                (typeof window.CHALLENGE_AFTER_DELETE_REDIRECT === "string" &&
+                  window.CHALLENGE_AFTER_DELETE_REDIRECT)
+                  ? window.CHALLENGE_AFTER_DELETE_REDIRECT
+                  : "/admin/challenges";
+              window.location = CTFd.config.urlRoot + deleteRedirect;
             }
           });
       },
