@@ -135,6 +135,7 @@ class ChallengeList(Resource):
             "category": (str, None),
             "type": (str, None),
             "state": (str, None),
+            "contest_id": (int, None),
             "q": (str, None),
             "field": (
                 RawEnum(

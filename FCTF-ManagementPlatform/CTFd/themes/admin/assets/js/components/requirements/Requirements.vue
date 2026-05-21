@@ -110,7 +110,11 @@ export default {
   },
   methods: {
     loadChallenges: function () {
-      CTFd.fetch("/api/v1/challenges?view=admin", {
+      const contestId = window.CONTEST_ID;
+      const url = contestId
+        ? `/api/v1/challenges?view=admin&contest_id=${contestId}`
+        : "/api/v1/challenges?view=admin";
+      CTFd.fetch(url, {
         method: "GET",
         credentials: "same-origin",
         headers: {
