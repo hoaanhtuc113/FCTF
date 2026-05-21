@@ -627,6 +627,7 @@
 	<script>
 		var CHALLENGE_ID = {{ challenge.id }};
 		var CHALLENGE_NAME = {{ challenge.name | tojson }};
+		window.CONTEST_ID = {{ contest.id }};
 		window.CHALLENGE_AFTER_DELETE_REDIRECT = "/admin/contests/{{ contest.id }}/challenges";
 		window.CHALLENGE_AFTER_DEPLOY_REDIRECT = "/admin/contests/{{ contest.id }}/challenges/{{ challenge.id }}";
 	</script>
