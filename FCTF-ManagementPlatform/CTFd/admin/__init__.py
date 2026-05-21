@@ -39,6 +39,7 @@ from CTFd.admin import admin_audit  # noqa: F401
 from CTFd.admin import instances_history  # noqa: F401
 from CTFd.admin import contests  # noqa: F401
 from CTFd.admin import challenge_templates  # noqa: F401
+from CTFd.admin import kypo  # noqa: F401
 
 from CTFd.cache import (
     cache,

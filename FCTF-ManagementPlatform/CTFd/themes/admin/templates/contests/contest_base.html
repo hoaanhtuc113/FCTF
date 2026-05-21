@@ -83,17 +83,21 @@
         color: #fff !important;
         font-weight: 700;
     }
-    .cs-nav-link.active i { color: #fff; }
+
+    .cs-nav-link.active i {
+        color: #fff;
+    }
 
     /* ── Submissions sub-menu ──────────────────────────────────── */
     .cs-sub-menu {
         display: none;
-        background: rgba(255,107,53,0.08);
+        background: rgba(255, 107, 53, 0.08);
         border-left: 3px solid var(--primary-orange);
         margin: 0 0 4px 14px;
         border-radius: 0 6px 6px 0;
         padding: 4px 0;
     }
+
     .cs-sub-link {
         display: block;
         color: var(--text-medium);
@@ -105,12 +109,26 @@
         transition: background 0.15s, color 0.15s;
         border-radius: 0 6px 6px 0;
     }
-    .cs-sub-link:hover { background: var(--primary-orange); color: #fff !important; }
-    .cs-sub-link.active { background: var(--primary-orange); color: #fff !important; font-weight: 700; }
+
+    .cs-sub-link:hover {
+        background: var(--primary-orange);
+        color: #fff !important;
+    }
+
+    .cs-sub-link.active {
+        background: var(--primary-orange);
+        color: #fff !important;
+        font-weight: 700;
+    }
 
     /* rotate chevron when open */
-    .cs-nav-link.sub-btn.open .bx-chevron-down { transform: rotate(180deg); }
-    .cs-nav-link.sub-btn .bx-chevron-down { transition: transform 0.2s ease; }
+    .cs-nav-link.sub-btn.open .bx-chevron-down {
+        transform: rotate(180deg);
+    }
+
+    .cs-nav-link.sub-btn .bx-chevron-down {
+        transition: transform 0.2s ease;
+    }
 
     /* ── Coming-soon placeholder ───────────────────────────────── */
     .coming-soon-box {
@@ -206,32 +224,38 @@ Override the entire sidebar block with contest-scoped navigation
     </a>
 
     <a href="{{ url_for('admin.contest_scoreboard', contest_id=contest.id) }}"
-       class="cs-nav-link {% if request.endpoint == 'admin.contest_scoreboard' %}active{% endif %}">
+        class="cs-nav-link {% if request.endpoint == 'admin.contest_scoreboard' %}active{% endif %}">
         <i class="bx bx-trophy"></i> Scoreboard
     </a>
 
     <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
-       class="cs-nav-link sub-btn {% if request.endpoint in ['admin.contest_submissions', 'admin.contest_submissions_correct', 'admin.contest_submissions_incorrect'] %}active{% endif %}">
+        class="cs-nav-link sub-btn {% if request.endpoint in ['admin.contest_submissions', 'admin.contest_submissions_correct', 'admin.contest_submissions_incorrect'] %}active{% endif %}">
         <i class="bx bx-radio-circle-marked"></i> Submissions
         <i class="bx bx-chevron-down ml-auto" style="font-size:1rem;"></i>
     </a>
-    <div class="cs-sub-menu" {% if request.endpoint in ['admin.contest_submissions', 'admin.contest_submissions_correct', 'admin.contest_submissions_incorrect'] %}style="display:block;"{% endif %}>
+    <div class="cs-sub-menu" {% if request.endpoint in ['admin.contest_submissions', 'admin.contest_submissions_correct'
+        , 'admin.contest_submissions_incorrect' ] %}style="display:block;" {% endif %}>
         <a href="{{ url_for('admin.contest_submissions', contest_id=contest.id) }}"
-           class="cs-sub-link {% if request.endpoint == 'admin.contest_submissions' %}active{% endif %}">
+            class="cs-sub-link {% if request.endpoint == 'admin.contest_submissions' %}active{% endif %}">
             All Submissions
         </a>
         <a href="{{ url_for('admin.contest_submissions_correct', contest_id=contest.id) }}"
-           class="cs-sub-link {% if request.endpoint == 'admin.contest_submissions_correct' %}active{% endif %}">
+            class="cs-sub-link {% if request.endpoint == 'admin.contest_submissions_correct' %}active{% endif %}">
             Correct Submissions
         </a>
         <a href="{{ url_for('admin.contest_submissions_incorrect', contest_id=contest.id) }}"
-           class="cs-sub-link {% if request.endpoint == 'admin.contest_submissions_incorrect' %}active{% endif %}">
+            class="cs-sub-link {% if request.endpoint == 'admin.contest_submissions_incorrect' %}active{% endif %}">
             Incorrect Submissions
         </a>
     </div>
 
+    <a href="{{ url_for('admin.kypo_resources', contest_id=contest.id) }}"
+        class="cs-nav-link {% if request.endpoint == 'admin.kypo_resources' %}active{% endif %}">
+        <i class="bx bx-chip"></i> KYPO Resources
+    </a>
+
     <a href="{{ url_for('admin.contest_settings', contest_id=contest.id) }}"
-       class="cs-nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
+        class="cs-nav-link {% if request.endpoint == 'admin.contest_settings' %}active{% endif %}">
         <i class="bx bx-cog"></i> Settings
     </a>
 
@@ -258,20 +282,20 @@ Override the entire sidebar block with contest-scoped navigation
 
 {% block scripts %}
 <script>
-// Submissions dropdown toggle
-document.addEventListener('DOMContentLoaded', function() {
-    var subBtn = document.querySelector('.cs-nav-link.sub-btn');
-    if (subBtn) {
-        subBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            var menu = subBtn.nextElementSibling;
-            if (!menu) return;
-            var isOpen = menu.style.display === 'block';
-            menu.style.display = isOpen ? 'none' : 'block';
-            subBtn.classList.toggle('open', !isOpen);
-        });
-    }
-});
+    // Submissions dropdown toggle
+    document.addEventListener('DOMContentLoaded', function () {
+        var subBtn = document.querySelector('.cs-nav-link.sub-btn');
+        if (subBtn) {
+            subBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                var menu = subBtn.nextElementSibling;
+                if (!menu) return;
+                var isOpen = menu.style.display === 'block';
+                menu.style.display = isOpen ? 'none' : 'block';
+                subBtn.classList.toggle('open', !isOpen);
+            });
+        }
+    });
 </script>
 {% block contest_scripts %}{% endblock %}
 {% endblock %}
