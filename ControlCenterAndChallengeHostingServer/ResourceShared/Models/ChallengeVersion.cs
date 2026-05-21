@@ -6,7 +6,7 @@ public partial class ChallengeVersion
 {
     public int Id { get; set; }
 
-    public int ChallengeTemplateId { get; set; }
+    public int ChallengeId { get; set; }
 
     public int VersionNumber { get; set; } = 1;
 
@@ -34,7 +34,7 @@ public partial class ChallengeVersion
 
     public string? Notes { get; set; }
 
-    public virtual Challenge ChallengeTemplate { get; set; } = null!;
+    public virtual Challenge Challenge { get; set; } = null!;
 
     public virtual User? Creator { get; set; }
 }

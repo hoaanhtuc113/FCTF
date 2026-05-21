@@ -55,7 +55,7 @@ public partial class Contest
 
     public virtual User? Owner { get; set; }
 
-    public virtual ICollection<ContestChallenge> ContestChallenges { get; set; } = new List<ContestChallenge>();
+    public virtual ICollection<Challenge> Challenges { get; set; } = new List<Challenge>();
 
     public virtual ICollection<Team> Teams { get; set; } = new List<Team>();
 }

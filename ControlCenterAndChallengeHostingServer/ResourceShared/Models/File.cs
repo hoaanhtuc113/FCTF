@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ResourceShared.Models;
@@ -11,7 +11,7 @@ public partial class File
 
     public string? Location { get; set; }
 
-    public int? ChallengeTemplateId { get; set; }
+    public int? ChallengeId { get; set; }
 
     public string? Sha1sum { get; set; }
 
