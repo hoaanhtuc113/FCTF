@@ -149,6 +149,10 @@ class Challenges(db.Model):
         return get_chal_class(self.type)
 
     @property
+    def challenge_template(self):
+        return self
+
+    @property
     def prerequisites(self):
         if self.requirements:
             return self.requirements.get("prerequisites", [])
