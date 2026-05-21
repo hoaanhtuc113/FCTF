@@ -1081,15 +1081,20 @@ def contest_add_existing_user(contest_id):
     ).first()
 
     if team is None:
-        team = Teams(
-            name=resolved_team_name,
-            email=user.email if not team_name else None,
-            password=hash_password("changeme"),
-            contest_id=contest_id,
-            captain_user_id=user.id,
-        )
-        db.session.add(team)
-        db.session.flush()
+        if team_name:
+            # If the admin explicitly provided a team name, it MUST exist
+            return {"success": False, "errors": {"team": ["Team does not exist in this contest."]}}, 400
+        else:
+            # Otherwise, create a solo team with the user's name
+            team = Teams(
+                name=resolved_team_name,
+                email=user.email,
+                password=hash_password("changeme"),
+                contest_id=contest_id,
+                captain_user_id=user.id,
+            )
+            db.session.add(team)
+            db.session.flush()
 
     team.members.append(user)
     db.session.commit()
@@ -1103,6 +1108,33 @@ def contest_add_existing_user(contest_id):
             "team": resolved_team_name,
         }
     }, 200
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams_search", methods=["GET"])
+@admins_only
+def contest_teams_search(contest_id):
+    from CTFd.models import Teams
+    q = request.args.get("q", "").strip()
+    if not q:
+        return {"success": True, "data": []}
+    
+    teams = Teams.query.filter(
+        Teams.contest_id == contest_id,
+        Teams.name.ilike(f"%{q}%")
+    ).limit(10).all()
+    
+    return {
+        "success": True,
+        "data": [{"id": t.id, "name": t.name} for t in teams]
+    }
+
+
+@admin.route("/admin/contests/<int:contest_id>/users/new")
+@admins_only
+def contest_users_new(contest_id):
+    from CTFd.models import Contests
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    return render_template("admin/contests/users_new.html", contest=contest)
 
 
 @admin.route("/admin/contests/<int:contest_id>/users")

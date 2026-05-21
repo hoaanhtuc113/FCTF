@@ -1,6 +1,9 @@
 {% with form = Forms.users.UserCreateForm() %}
 {% from "admin/macros/forms.html" import render_extra_fields %}
 <form id="user-info-create-form" method="POST">
+	{% if contest %}
+	<input type="hidden" name="contest_id" value="{{ contest.id }}">
+	{% endif %}
 	<div class="form-group">
 		{{ form.name.label }}
 		{{ form.name(class="form-control", autocomplete="off") }}

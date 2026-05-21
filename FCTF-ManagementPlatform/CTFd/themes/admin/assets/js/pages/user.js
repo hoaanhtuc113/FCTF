@@ -49,7 +49,11 @@ function createUser(event) {
     .then(function (response) {
       if (response.success) {
         const user_id = response.data.id;
-        window.location = CTFd.config.urlRoot + "/admin/users/" + user_id;
+        if (params.contest_id) {
+            window.location = CTFd.config.urlRoot + "/admin/contests/" + params.contest_id + "/users";
+        } else {
+            window.location = CTFd.config.urlRoot + "/admin/users/" + user_id;
+        }
       } else {
         $("#user-info-create-form > #results").empty();
         Object.keys(response.errors).forEach(function (key, _index) {

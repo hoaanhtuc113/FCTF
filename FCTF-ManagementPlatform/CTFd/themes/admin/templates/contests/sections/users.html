@@ -70,48 +70,6 @@
     color: #555;
     min-height: 1.2rem;
 }
-/* Create user modal */
-.create-user-modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.55);
-    z-index: 1050;
-    align-items: center;
-    justify-content: center;
-}
-.create-user-modal-overlay.active { display: flex; }
-.create-user-modal-box {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-    padding: 2rem;
-    width: 100%;
-    max-width: 520px;
-    position: relative;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-.create-user-modal-box h5 {
-    font-weight: 700;
-    margin-bottom: 1.2rem;
-    color: #2c3e50;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.create-user-modal-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: none;
-    border: none;
-    font-size: 1.3rem;
-    cursor: pointer;
-    color: #888;
-    line-height: 1;
-}
-.create-user-modal-close:hover { color: #333; }
 </style>
 {% endblock %}
 
@@ -205,9 +163,9 @@
     <!-- Action buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div class="d-flex gap-2" style="gap:0.5rem;">
-            <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user">
+            <a href="{{ url_for('admin.contest_users_new', contest_id=contest.id) }}" class="clean-btn clean-btn-primary" id="btn-create-user">
                 <i class="fas fa-user-plus"></i> Create User
-            </button>
+            </a>
             <button type="button" class="clean-btn btn-outline-info" id="btn-add-existing-user">
                 <i class="fas fa-user-check"></i> Add Existing User
             </button>
@@ -367,52 +325,59 @@
     <input type="hidden" id="contest-id" value="{{ contest.id }}">
 </div>
 
-<!-- ── Create User Modal ───────────────────────────────────────────── -->
-<div class="create-user-modal-overlay" id="create-user-modal">
-    <div class="create-user-modal-box">
-        <button class="create-user-modal-close" id="create-user-modal-close" title="Close">&times;</button>
-        <h5><i class="fas fa-user-plus" style="color:var(--primary-orange,#ff6b35);"></i> Create New User</h5>
-        <form id="contest-create-user-form">
+<!-- ── Edit Users Modal ─────────────────────────────────────────────── -->
+<div class="import-modal-overlay" id="edit-users-modal">
+    <div class="import-modal-box">
+        <button class="import-modal-close" id="edit-modal-close" title="Close">&times;</button>
+        <h5><i class="fas fa-pencil-alt" style="color:var(--primary-orange,#ff6b35);"></i> Edit Users</h5>
+        <p style="font-size:0.85rem;color:#666;margin-bottom:1rem;">Apply changes to all selected users. Leave a field as <strong>--</strong> to keep its current value.</p>
+        <form id="edit-users-form">
             <div class="form-group">
-                <label for="cu-name">Username <span style="color:#e53e3e;">*</span></label>
-                <input type="text" id="cu-name" class="clean-form-control w-100" placeholder="Enter username" required autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label for="cu-email">Email <span style="color:#e53e3e;">*</span></label>
-                <input type="email" id="cu-email" class="clean-form-control w-100" placeholder="Enter email" required autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label for="cu-password">Password <span style="color:#e53e3e;">*</span></label>
-                <input type="password" id="cu-password" class="clean-form-control w-100" placeholder="Enter password" required autocomplete="new-password">
-            </div>
-            <div class="form-group">
-                <label for="cu-type">Role</label>
-                <select id="cu-type" class="clean-form-control w-100">
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="challenge_writer">Challenge Writer</option>
-                    <option value="jury">Jury</option>
+                <label for="eu-verified">Verified</label>
+                <select id="eu-verified" class="clean-form-control w-100">
+                    <option value="">--</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
                 </select>
             </div>
-            <div class="d-flex" style="gap:0.5rem;margin-top:0.5rem;">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="cu-verified" checked>
-                    <label class="form-check-label" for="cu-verified">Verified</label>
-                </div>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="cu-hidden">
-                    <label class="form-check-label" for="cu-hidden">Hidden</label>
-                </div>
+            <div class="form-group mt-2">
+                <label for="eu-banned">Banned</label>
+                <select id="eu-banned" class="clean-form-control w-100">
+                    <option value="">--</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                </select>
             </div>
-            <div id="cu-error" class="alert alert-danger mt-2" style="display:none;"></div>
-            <div id="cu-success" class="alert alert-success mt-2" style="display:none;"></div>
+            <div class="form-group mt-2">
+                <label for="eu-hidden">Hidden</label>
+                <select id="eu-hidden" class="clean-form-control w-100">
+                    <option value="">--</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                </select>
+            </div>
+            <div id="eu-error" class="alert alert-danger mt-2" style="display:none;"></div>
             <div class="d-flex justify-content-end mt-3" style="gap:0.5rem;">
-                <button type="button" class="clean-btn btn-outline-secondary" id="cu-cancel">Cancel</button>
-                <button type="submit" class="clean-btn clean-btn-primary" id="cu-submit">
-                    <i class="fas fa-plus"></i> Create
+                <button type="button" class="clean-btn btn-outline-secondary" id="eu-cancel">Cancel</button>
+                <button type="submit" class="clean-btn clean-btn-primary" id="eu-submit">
+                    <i class="fas fa-save"></i> Apply
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- ── Delete Confirm Modal ──────────────────────────────────────────── -->
+<div class="import-modal-overlay" id="delete-confirm-modal">
+    <div class="import-modal-box" style="max-width:380px;">
+        <h5 style="color:#c0392b;"><i class="fas fa-exclamation-triangle"></i> Remove Users</h5>
+        <p id="delete-confirm-body" style="margin:0.75rem 0 1.25rem;">Are you sure you want to remove these users from this contest?</p>
+        <div class="d-flex justify-content-end" style="gap:0.5rem;">
+            <button type="button" class="clean-btn btn-outline-secondary" id="delete-cancel-btn">Cancel</button>
+            <button type="button" class="clean-btn clean-btn-danger" id="delete-confirm-btn">
+                <i class="fas fa-trash-alt"></i> Remove
+            </button>
+        </div>
     </div>
 </div>
 
@@ -462,9 +427,10 @@
                 <input type="text" class="clean-form-control w-100" id="ae-username" placeholder="e.g. player1 or player1@gmail.com" required autocomplete="off">
                 <div id="ae-username-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
             </div>
-            <div class="form-group mt-2">
+            <div class="form-group mt-2" style="position:relative;">
                 <label for="ae-team">Team Name (Optional)</label>
                 <input type="text" class="clean-form-control w-100" id="ae-team" placeholder="Defaults to user name (solo team)" autocomplete="off">
+                <div id="ae-team-suggestions" class="dropdown-menu w-100" style="display:none; position:absolute; z-index:1000; max-height:200px; overflow-y:auto; margin-top:2px;"></div>
             </div>
             <div id="ae-error" class="alert alert-danger mt-2" style="display:none;"></div>
             <div id="ae-success" class="alert alert-success mt-2" style="display:none;"></div>
@@ -511,103 +477,117 @@ if (allCb) {
     });
 }
 
-// ── Delete (remove from contest only) ────────────────────────────────────
+// ── Delete — styled popup ──────────────────────────────────────────────────
+const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+const deleteConfirmBody  = document.getElementById('delete-confirm-body');
+const deleteCancelBtn    = document.getElementById('delete-cancel-btn');
+const deleteConfirmBtn   = document.getElementById('delete-confirm-btn');
+let _pendingDeleteIds    = [];
+
+function openDeleteModal(ids) {
+    _pendingDeleteIds = ids;
+    const target = ids.length === 1 ? '1 user' : ids.length + ' users';
+    deleteConfirmBody.textContent = 'Remove ' + target + ' from this contest? Their global account will NOT be deleted.';
+    deleteConfirmModal.classList.add('active');
+}
+function closeDeleteModal() { deleteConfirmModal.classList.remove('active'); }
+
+if (deleteCancelBtn) deleteCancelBtn.addEventListener('click', closeDeleteModal);
+deleteConfirmModal.addEventListener('click', function(e) {
+    if (e.target === deleteConfirmModal) closeDeleteModal();
+});
+if (deleteConfirmBtn) {
+    deleteConfirmBtn.addEventListener('click', function() {
+        deleteConfirmBtn.disabled = true;
+        deleteConfirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing…';
+        Promise.all(_pendingDeleteIds.map(id => fetch('/admin/contests/{{ contest.id }}/users/' + id, {
+            method: 'DELETE',
+            headers: csrfHeaders()
+        }))).then(() => window.location.reload())
+           .catch(() => {
+               deleteConfirmBtn.disabled = false;
+               deleteConfirmBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+               alert('Some removals failed. Please try again.');
+           });
+    });
+}
+
 const delBtn = document.getElementById('users-delete-button');
 if (delBtn) {
     delBtn.addEventListener('click', function() {
         const ids = selectedUserIds();
         if (!ids.length) { alert('Select at least one user to remove.'); return; }
-        if (!confirm('Remove ' + ids.length + ' user(s) from this contest? Their global account will NOT be deleted.')) return;
-        Promise.all(ids.map(id => fetch('/admin/contests/{{ contest.id }}/users/' + id, {
-            method: 'DELETE',
-            headers: csrfHeaders()
-        }))).then(() => window.location.reload())
-           .catch(() => alert('Some removals failed. Please try again.'));
+        openDeleteModal(ids);
     });
 }
 
-// ── Edit (navigate to user detail) ────────────────────────────────────────
+// ── Edit — styled popup (like old /admin/users bulk edit) ─────────────────
+const editUsersModal  = document.getElementById('edit-users-modal');
+const editModalClose  = document.getElementById('edit-modal-close');
+const editCancelBtn   = document.getElementById('eu-cancel');
+const editUsersForm   = document.getElementById('edit-users-form');
+const euError         = document.getElementById('eu-error');
+let _pendingEditIds   = [];
+
+function openEditModal(ids) {
+    _pendingEditIds = ids;
+    editUsersForm.reset();
+    euError.style.display = 'none';
+    editUsersModal.classList.add('active');
+}
+function closeEditModal() { editUsersModal.classList.remove('active'); }
+
+if (editModalClose) editModalClose.addEventListener('click', closeEditModal);
+if (editCancelBtn)  editCancelBtn.addEventListener('click', closeEditModal);
+editUsersModal.addEventListener('click', function(e) {
+    if (e.target === editUsersModal) closeEditModal();
+});
+
 const editBtn = document.getElementById('users-edit-button');
 if (editBtn) {
     editBtn.addEventListener('click', function() {
         const ids = selectedUserIds();
-        if (!ids.length) { alert('Select a user to edit.'); return; }
-        if (ids.length > 1) { alert('Please select only one user to edit.'); return; }
-        window.location.href = '/admin/users/' + ids[0];
+        if (!ids.length) { alert('Select at least one user to edit.'); return; }
+        openEditModal(ids);
     });
 }
 
-// ── Create User Modal ──────────────────────────────────────────────────────
-const createModal   = document.getElementById('create-user-modal');
-const createOpenBtn = document.getElementById('btn-create-user');
-const createCloseBtn= document.getElementById('create-user-modal-close');
-const createCancelBtn= document.getElementById('cu-cancel');
-const createForm    = document.getElementById('contest-create-user-form');
-const cuError       = document.getElementById('cu-error');
-const cuSuccess     = document.getElementById('cu-success');
-
-function openCreateModal() {
-    createModal.classList.add('active');
-    createForm.reset();
-    cuError.style.display = 'none';
-    cuSuccess.style.display = 'none';
-    document.getElementById('cu-verified').checked = true;
-    document.getElementById('cu-name').focus();
-}
-function closeCreateModal() { createModal.classList.remove('active'); }
-
-if (createOpenBtn)  createOpenBtn.addEventListener('click', openCreateModal);
-if (createCloseBtn) createCloseBtn.addEventListener('click', closeCreateModal);
-if (createCancelBtn)createCancelBtn.addEventListener('click', closeCreateModal);
-createModal.addEventListener('click', function(e) {
-    if (e.target === createModal) closeCreateModal();
-});
-
-if (createForm) {
-    createForm.addEventListener('submit', function(e) {
+if (editUsersForm) {
+    editUsersForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        cuError.style.display   = 'none';
-        cuSuccess.style.display = 'none';
+        euError.style.display = 'none';
 
-        const payload = {
-            name:     document.getElementById('cu-name').value.trim(),
-            email:    document.getElementById('cu-email').value.trim(),
-            password: document.getElementById('cu-password').value,
-            type:     document.getElementById('cu-type').value,
-            verified: document.getElementById('cu-verified').checked,
-            hidden:   document.getElementById('cu-hidden').checked,
-            contest_id: {{ contest.id }}
-        };
+        const data = {};
+        const verified = document.getElementById('eu-verified').value;
+        const banned   = document.getElementById('eu-banned').value;
+        const hidden   = document.getElementById('eu-hidden').value;
+        if (verified !== '') data.verified = (verified === 'true');
+        if (banned   !== '') data.banned   = (banned   === 'true');
+        if (hidden   !== '') data.hidden   = (hidden   === 'true');
 
-        const submitBtn = document.getElementById('cu-submit');
+        if (!Object.keys(data).length) {
+            euError.textContent = 'Please change at least one field.';
+            euError.style.display = 'block';
+            return;
+        }
+
+        const submitBtn = document.getElementById('eu-submit');
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…';
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying…';
 
-        fetch('/api/v1/users', {
-            method: 'POST',
-            headers: csrfHeaders(),
-            body: JSON.stringify(payload)
-        })
-        .then(r => r.json())
-        .then(data => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Create';
-            if (data.success) {
-                cuSuccess.textContent = 'User "' + payload.name + '" created successfully!';
-                cuSuccess.style.display = 'block';
-                setTimeout(function() { closeCreateModal(); window.location.reload(); }, 1200);
-            } else {
-                const msg = (data.errors && Object.values(data.errors).flat().join(' ')) || 'Failed to create user.';
-                cuError.textContent = msg;
-                cuError.style.display = 'block';
-            }
-        })
-        .catch(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Create';
-            cuError.textContent = 'Network error. Please try again.';
-            cuError.style.display = 'block';
-        });
+        Promise.all(_pendingEditIds.map(id =>
+            fetch('/api/v1/users/' + id, {
+                method: 'PATCH',
+                headers: csrfHeaders(),
+                body: JSON.stringify(data)
+            })
+        )).then(() => { window.location.reload(); })
+          .catch(() => {
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = '<i class="fas fa-save"></i> Apply';
+              euError.textContent = 'Network error. Please try again.';
+              euError.style.display = 'block';
+          });
     });
 }
 
@@ -762,6 +742,8 @@ const aeError       = document.getElementById('ae-error');
 const aeSuccess     = document.getElementById('ae-success');
 const aeSuggestions = document.getElementById('ae-username-suggestions');
 const aeUsernameInput = document.getElementById('ae-username');
+const aeTeamInput   = document.getElementById('ae-team');
+const aeTeamSuggestions = document.getElementById('ae-team-suggestions');
 
 function openAeModal() {
     aeModal.classList.add('active');
@@ -769,9 +751,14 @@ function openAeModal() {
     aeError.style.display = 'none';
     aeSuccess.style.display = 'none';
     aeSuggestions.style.display = 'none';
+    aeTeamSuggestions.style.display = 'none';
     aeUsernameInput.focus();
 }
-function closeAeModal() { aeModal.classList.remove('active'); aeSuggestions.style.display = 'none'; }
+function closeAeModal() { 
+    aeModal.classList.remove('active'); 
+    aeSuggestions.style.display = 'none'; 
+    aeTeamSuggestions.style.display = 'none';
+}
 
 if (aeOpenBtn)  aeOpenBtn.addEventListener('click', openAeModal);
 if (aeCloseBtn) aeCloseBtn.addEventListener('click', closeAeModal);
@@ -824,10 +811,53 @@ aeUsernameInput.addEventListener('input', function() {
     }, 300);
 });
 
+// Team autocomplete logic
+let aeTeamSearchTimeout = null;
+aeTeamInput.addEventListener('input', function() {
+    clearTimeout(aeTeamSearchTimeout);
+    const q = this.value.trim();
+    if (q.length < 2) {
+        aeTeamSuggestions.style.display = 'none';
+        return;
+    }
+    aeTeamSearchTimeout = setTimeout(() => {
+        fetch(`/admin/contests/{{ contest.id }}/teams_search?q=` + encodeURIComponent(q), {
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.data && data.data.length > 0) {
+                aeTeamSuggestions.innerHTML = '';
+                data.data.forEach(team => {
+                    const a = document.createElement('a');
+                    a.className = 'dropdown-item';
+                    a.href = '#';
+                    a.style.cursor = 'pointer';
+                    a.textContent = team.name;
+                    a.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        aeTeamInput.value = team.name;
+                        aeTeamSuggestions.style.display = 'none';
+                    });
+                    aeTeamSuggestions.appendChild(a);
+                });
+                aeTeamSuggestions.style.display = 'block';
+            } else {
+                aeTeamSuggestions.style.display = 'none';
+            }
+        }).catch(() => {
+            aeTeamSuggestions.style.display = 'none';
+        });
+    }, 300);
+});
+
 // Hide suggestions when clicking outside
 document.addEventListener('click', function(e) {
     if (e.target !== aeUsernameInput && !aeSuggestions.contains(e.target)) {
         aeSuggestions.style.display = 'none';
+    }
+    if (e.target !== aeTeamInput && !aeTeamSuggestions.contains(e.target)) {
+        aeTeamSuggestions.style.display = 'none';
     }
 });
 
