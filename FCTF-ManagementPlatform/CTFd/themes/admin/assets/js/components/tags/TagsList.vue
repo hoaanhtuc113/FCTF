@@ -70,7 +70,6 @@ import CTFd from "../../compat/CTFd";
 export default {
   props: {
     challenge_id: Number,
-    apiBase: { type: String, default: "/api/v1/challenges" },
     // When true this component acts as a tag picker for search (global tags)
     picker: { type: Boolean, default: false },
     // Initial tags CSV for picker mode
@@ -130,7 +129,7 @@ export default {
           .catch((err) => console.error("Failed to load tag suggestions", err));
       } else {
         // Existing behavior: load tags for a specific challenge
-        CTFd.fetch(`${this.$props.apiBase}/${this.$props.challenge_id}/tags`, {
+        CTFd.fetch(`/api/v1/challenges/${this.$props.challenge_id}/tags`, {
           method: "GET",
           credentials: "same-origin",
           headers: {
@@ -190,24 +189,14 @@ export default {
         if (this.tagValue) {
           const params = {
             value: this.tagValue,
-            challenge_template_id: this.$props.challenge_id,
+            challenge: this.$props.challenge_id,
           };
-          CTFd.fetch("/api/v1/tags", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(params),
-          })
-            .then((r) => r.json())
-            .then((response) => {
-              if (response.success) {
-                this.tagValue = "";
-                this.loadTags();
-              }
-            });
+          CTFd.api.post_tag_list({}, params).then((response) => {
+            if (response.success) {
+              this.tagValue = "";
+              this.loadTags();
+            }
+          });
         }
       }
     },

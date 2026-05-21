@@ -5,7 +5,6 @@
         ref="HintCreationForm"
         :challenge_id="challenge_id"
         :hints="hints"
-        :apiBase="apiBase"
         @refreshHints="refreshHints"
       />
     </div>
