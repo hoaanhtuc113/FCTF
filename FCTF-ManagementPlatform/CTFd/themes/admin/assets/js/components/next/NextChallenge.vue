@@ -102,7 +102,12 @@ export default {
         .then((response) => {
           if (response.success) {
             this.challenges = response.data;
+          } else {
+            console.error("[NextChallenge] API error:", response);
           }
+        })
+        .catch((err) => {
+          console.error("[NextChallenge] loadChallenges failed:", err, "URL:", url);
         });
     },
     updateNext: function () {

@@ -1254,7 +1254,7 @@ class ChallengeHints(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, challenge_id):
         hints = Hints.query.filter_by(challenge_id=challenge_id).all()
-        schema = HintSchema(many=True)
+        schema = HintSchema(many=True, view="admin")
         response = schema.dump(hints)
 
         if response.errors:
