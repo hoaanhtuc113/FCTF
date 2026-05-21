@@ -885,7 +885,12 @@ def contest_challenge_detail(contest_id, challenge_id):
     challenge = Challenges.query.filter_by(id=challenge_id, contest_id=contest_id).first_or_404()
 
     deploys = DeployedChallenge.query.filter_by(challenge_id=challenge.id).order_by(DeployedChallenge.id.desc()).all()
-    isDeploySuccess = bool(deploys and deploys[0].deploy_status == "DEPLOY_SUCCESS")
+    _last_status = (deploys[0].deploy_status or "").upper() if deploys else ""
+    _chal_status = (challenge.deploy_status or "").lower()
+    isDeploySuccess = bool(
+        _last_status in ("DEPLOY_SUCCESS", "SUCCEEDED", "SUCCESS") or
+        _chal_status in ("success", "deploy_success", "succeeded")
+    )
 
     expose_port = ""
     image_link_name = ""

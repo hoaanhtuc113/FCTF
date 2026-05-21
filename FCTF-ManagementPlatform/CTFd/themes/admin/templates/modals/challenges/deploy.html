@@ -264,6 +264,11 @@
   var CHALLENGE_ID = {{ challenge.id }};
   var DEPLOYS = {{ deploys }};
   var ISDEPLOYSUCCESS = "{{ 'true' if isDeploySuccess else 'false' }}";
+  function _safeEzAlert(opts) {
+    if (typeof ezAlert === 'function') { ezAlert(opts); }
+    else { alert((opts.title ? opts.title + ': ' : '') + (opts.body || '')); }
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("challenge-deploy");
     const fileInput = document.getElementById("file-upload");
@@ -420,7 +425,7 @@
         useGvisor = (useGvisorInput?.value || "true") === "true";
 
         if (cpuLimit < 1 || cpuRequest < 1) {
-          ezAlert({
+          _safeEzAlert({
             title: "Validation Error",
             body: "CPU limit/request must be greater than or equal to 1 (mCPU).",
             button: "OK"
@@ -429,7 +434,7 @@
         }
 
         if (memoryLimit < 1 || memoryRequest < 1) {
-          ezAlert({
+          _safeEzAlert({
             title: "Validation Error",
             body: "Memory limit/request must be greater than or equal to 1 (Mi).",
             button: "OK"
@@ -474,7 +479,7 @@
               for (const k in updateData.errors || {}) {
                 body += updateData.errors[k].join("\n") + "\n";
               }
-              ezAlert({ title: "Error", body: body || "Invalid resource settings", button: "OK" });
+              _safeEzAlert({ title: "Error", body: body || "Invalid resource settings", button: "OK" });
               reject(new Error("Invalid resource settings"));
               return;
             }
@@ -494,8 +499,10 @@
             }
 
             setTimeout(function() {
-              window.location =
-                CTFd.config.urlRoot + "/admin/challenges/" + CHALLENGE_ID;
+              var deployRedirect = (typeof window.CHALLENGE_AFTER_DEPLOY_REDIRECT === 'string' && window.CHALLENGE_AFTER_DEPLOY_REDIRECT)
+                ? window.CHALLENGE_AFTER_DEPLOY_REDIRECT
+                : '/admin/challenges/' + CHALLENGE_ID;
+              window.location = CTFd.config.urlRoot + deployRedirect;
             }, 900);
 
             resolve();
