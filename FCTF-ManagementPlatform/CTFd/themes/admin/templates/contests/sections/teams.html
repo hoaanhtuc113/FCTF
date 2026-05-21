@@ -85,9 +85,9 @@
     <!-- Action buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div>
-            <button type="button" class="clean-btn clean-btn-primary" id="teams-create-button">
+            <a href="{{ url_for('admin.contest_new_team_page', contest_id=contest.id) }}" class="clean-btn clean-btn-primary">
                 <i class="fas fa-plus"></i> Create Team
-            </button>
+            </a>
         </div>
         <div class="d-flex">
             <button type="button" class="clean-btn mr-2" id="teams-edit-button"
@@ -121,14 +121,14 @@
             </thead>
             <tbody>
                 {% for team in teams.items %}
-                <tr name="{{ team.id }}" data-href="{{ url_for('admin.teams_detail', team_id=team.id) }}">
+                <tr name="{{ team.id }}" data-href="{{ url_for('admin.contest_team_detail', contest_id=contest.id, team_id=team.id) }}">
                     <td data-checkbox>
                         <input type="checkbox" class="table-check" value="{{ team.id }}"
                                autocomplete="off" data-team-id="{{ team.id }}">
                     </td>
                     <td class="text-center">{{ team.id }}</td>
                     <td class="text-center">
-                        <a href="{{ url_for('admin.teams_detail', team_id=team.id) }}">
+                        <a href="{{ url_for('admin.contest_team_detail', contest_id=contest.id, team_id=team.id) }}">
                             {{ team.name | truncate(32) }}
                         </a>
                         {% if team.oauth_id %}
@@ -246,6 +246,7 @@
 
     <input type="hidden" id="is_jury" value="false">
 </div>
+
 {% endblock %}
 
 {% block contest_scripts %}
@@ -259,7 +260,7 @@ document.querySelectorAll('#teamsboard tbody tr[data-href]').forEach(function(ro
 });
 
 // Select all checkbox
-const allCb = document.querySelector('[data-checkbox-all]');
+var allCb = document.querySelector('[data-checkbox-all]');
 if (allCb) {
     allCb.addEventListener('change', function() {
         document.querySelectorAll('.table-check:not([data-checkbox-all])').forEach(function(cb) {

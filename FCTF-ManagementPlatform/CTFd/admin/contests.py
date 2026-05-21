@@ -5,6 +5,7 @@ from io import BytesIO, StringIO
 
 from flask import Response, flash, redirect, render_template, request, send_file, stream_with_context, url_for
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 from CTFd.admin import admin
 from CTFd.models import ChallengeStartTracking, Challenges, Contests, Teams, Users, db
@@ -63,9 +64,8 @@ def _ci_base_query(contest_id):
             Challenges.name.label("challenge_name"),
         )
         .outerjoin(Teams, ChallengeStartTracking.team_id == Teams.id)
-        .join(ContestChallenge, ChallengeStartTracking.contest_challenge_id == ContestChallenge.id)
-        .join(Challenges, ContestChallenge.challenge_template_id == Challenges.id)
-        .filter(ContestChallenge.contest_id == contest_id)
+        .join(Challenges, ChallengeStartTracking.challenge_id == Challenges.id)
+        .filter(Challenges.contest_id == contest_id)
         .order_by(ChallengeStartTracking.started_at.desc())
     )
 
@@ -1141,13 +1141,12 @@ def contest_users_new(contest_id):
 @admins_only
 def contest_users(contest_id):
     from sqlalchemy import func, or_
-    from CTFd.models import ContestChallenge, Submissions, Teams, Users, Contests, UserTeamMember
+    from CTFd.models import Challenges, Submissions, Teams, Users, Contests, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    # Get user_ids who submitted in this contest
-    cc_ids = [r[0] for r in db.session.query(ContestChallenge.id)
-              .filter(ContestChallenge.contest_id == contest_id).all()]
+    challenge_ids = [r[0] for r in db.session.query(Challenges.id)
+                     .filter(Challenges.contest_id == contest_id).all()]
 
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
@@ -1158,21 +1157,20 @@ def contest_users(contest_id):
     page = abs(request.args.get("page", 1, type=int))
 
     filters = [Users.type == "user"]
-    
-    # In team mode, users belong to a contest if they are members of a team in that contest
+
     team_users_subquery = db.session.query(UserTeamMember.user_id)\
         .join(Teams, Teams.id == UserTeamMember.team_id)\
         .filter(Teams.contest_id == contest_id).subquery()
-        
+
     contest_or_submitted = [Users.id.in_(team_users_subquery)]
-    
-    if cc_ids:
+
+    if challenge_ids:
         participant_ids = [r[0] for r in db.session.query(Submissions.user_id.distinct())
-                          .filter(Submissions.contest_challenge_id.in_(cc_ids),
+                          .filter(Submissions.challenge_id.in_(challenge_ids),
                                   Submissions.user_id.isnot(None)).all()]
         if participant_ids:
             contest_or_submitted.append(Users.id.in_(participant_ids))
-            
+
     filters.append(or_(*contest_or_submitted))
 
     if q and Users.__mapper__.has_property(field):
@@ -1234,33 +1232,37 @@ def contest_users(contest_id):
 @admins_only
 def contest_teams(contest_id):
     from sqlalchemy import func
-    from CTFd.models import ContestChallenge, Submissions, Teams, Brackets, UserTeamMember
+    from CTFd.models import Teams, Brackets, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    cc_ids = [r[0] for r in db.session.query(ContestChallenge.id)
-              .filter(ContestChallenge.contest_id == contest_id).all()]
-
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
+    hidden = request.args.get("hidden") in ("1", "true", "on", "yes")
+    banned = request.args.get("banned") in ("1", "true", "on", "yes")
+    bracket_id = request.args.get("bracket_id", type=int)
     page = abs(request.args.get("page", 1, type=int))
 
-    filters = []
-    if cc_ids:
-        team_ids = [r[0] for r in db.session.query(Submissions.team_id.distinct())
-                    .filter(Submissions.contest_challenge_id.in_(cc_ids),
-                            Submissions.team_id.isnot(None)).all()]
-        if team_ids:
-            filters.append(Teams.id.in_(team_ids))
-        else:
-            filters.append(Teams.id == -1)
+    filters = [Teams.contest_id == contest_id]
 
     if q and Teams.__mapper__.has_property(field):
         filters.append(getattr(Teams, field).ilike(f"%{q}%"))
 
-    teams = (Teams.query.filter(*filters)
-             .order_by(Teams.id.asc())
-             .paginate(page=page, per_page=50, error_out=False))
+    if hidden:
+        filters.append(Teams.hidden.is_(True))
+    if banned:
+        filters.append(Teams.banned.is_(True))
+    if bracket_id:
+        filters.append(Teams.bracket_id == bracket_id)
+
+    brackets = Brackets.query.order_by(Brackets.id.asc()).all()
+
+    teams = (
+        Teams.query.options(joinedload(Teams.captain))
+        .filter(*filters)
+        .order_by(Teams.id.asc())
+        .paginate(page=page, per_page=50, error_out=False)
+    )
 
     member_counts = {
         team_id: count
@@ -1268,8 +1270,6 @@ def contest_teams(contest_id):
             UserTeamMember.team_id, func.count(UserTeamMember.user_id)
         ).group_by(UserTeamMember.team_id).all()
     }
-
-    brackets = Brackets.query.order_by(Brackets.id.asc()).all()
 
     args = dict(request.args)
     args.pop("page", None)
@@ -1283,10 +1283,112 @@ def contest_teams(contest_id):
         next_page=url_for(request.endpoint, contest_id=contest_id, page=teams.next_num, **args),
         q=q,
         field=field,
+        hidden=hidden,
+        banned=banned,
         member_counts=member_counts,
         brackets=brackets,
+        bracket_id=bracket_id,
         is_detail=is_detail,
     )
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams/new", methods=["GET"])
+@admins_only
+def contest_new_team_page(contest_id):
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    return render_template("admin/teams/new.html", contest=contest)
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams/new", methods=["POST"])
+@admins_only
+def contest_create_team(contest_id):
+    from CTFd.utils.crypto import hash_password
+
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    req = request.get_json(force=True) or {}
+
+    name = (req.get("name") or "").strip()
+    password = (req.get("password") or "").strip()
+    email = (req.get("email") or "").strip() or None
+    hidden = bool(req.get("hidden", False))
+    banned = bool(req.get("banned", False))
+
+    if not name:
+        return {"success": False, "errors": {"name": ["Name is required."]}}, 400
+    if not password:
+        return {"success": False, "errors": {"password": ["Password is required."]}}, 400
+
+    if Teams.query.filter_by(contest_id=contest_id, name=name).first():
+        return {"success": False, "errors": {"name": ["A team with this name already exists in this contest."]}}, 400
+
+    team = Teams(
+        name=name,
+        email=email,
+        password=hash_password(password),
+        contest_id=contest_id,
+        hidden=hidden,
+        banned=banned,
+    )
+    db.session.add(team)
+    db.session.commit()
+
+    return {"success": True, "data": {"id": team.id, "name": team.name}}, 201
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>")
+@admins_only
+def contest_team_detail(contest_id, team_id):
+    from sqlalchemy import not_
+    from CTFd.models import Challenges, Tracking
+
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    team = Teams.query.filter_by(id=team_id).first_or_404()
+
+    members = team.members
+    member_ids = [member.id for member in members]
+
+    solves = team.get_solves(admin=True)
+    fails = team.get_fails(admin=True)
+    awards = team.get_awards(admin=True)
+    score = team.get_score(admin=True)
+    place = team.get_place(admin=True)
+
+    solve_ids = [s.challenge_id for s in solves]
+    missing_q = Challenges.query.filter(Challenges.contest_id == contest_id)
+    if solve_ids:
+        missing_q = missing_q.filter(not_(Challenges.id.in_(solve_ids)))
+    missing = missing_q.all()
+
+    addrs = (
+        Tracking.query.filter(Tracking.user_id.in_(member_ids))
+        .order_by(Tracking.date.desc())
+        .all()
+    )
+
+    return render_template(
+        "admin/teams/team.html",
+        contest=contest,
+        team=team,
+        members=members,
+        score=score,
+        place=place,
+        solves=solves,
+        fails=fails,
+        missing=missing,
+        awards=awards,
+        addrs=addrs,
+        is_detail=True,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/teams/<int:team_id>/delete", methods=["POST"])
+@admins_only
+def contest_delete_team(contest_id, team_id):
+    Contests.query.filter_by(id=contest_id).first_or_404()
+    team = Teams.query.filter_by(id=team_id, contest_id=contest_id).first_or_404()
+    db.session.delete(team)
+    db.session.commit()
+    return {"success": True}, 200
 
 
 @admin.route("/admin/contests/<int:contest_id>/action_logs")
