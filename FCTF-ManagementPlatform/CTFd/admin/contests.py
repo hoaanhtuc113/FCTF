@@ -785,8 +785,6 @@ def contest_challenges(contest_id):
         creator_id = getattr(ch, "created_by", None)
         user = Users.query.filter_by(id=creator_id).first() if creator_id else None
         ch.creator = user.name if user else "Unknown"
-        # Provide a .challenge_template alias so the template works unchanged
-        ch.challenge_template = ch
 
     raw_categories = (
         Challenges.query.with_entities(Challenges.category)

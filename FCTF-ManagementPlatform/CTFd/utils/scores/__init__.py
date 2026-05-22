@@ -1,7 +1,7 @@
 from sqlalchemy.sql.expression import union_all
 
 from CTFd.cache import cache
-from CTFd.models import Achievements, AwardBadges, Awards, Brackets, Challenges, Solves, Teams, Users, db
+from CTFd.models import Achievements, AwardBadges, Awards, Brackets, Challenges, Solves, Teams, UserTeamMember, Users, db
 from CTFd.utils import get_config
 from CTFd.utils.dates import unix_time_to_utc
 from CTFd.utils.modes import get_model
@@ -279,13 +279,24 @@ def get_user_standings(count=None, bracket_id=None, admin=False, fields=None):
         .subquery()
     )
 
+    # Correlated subquery: get the first team_id from UserTeamMember for each user
+    # (Users no longer have a direct team_id column; membership is via UserTeamMember)
+    _team_id_subq = (
+        db.session.query(UserTeamMember.team_id)
+        .filter(UserTeamMember.user_id == Users.id)
+        .limit(1)
+        .correlate(Users)
+        .as_scalar()
+        .label("team_id")
+    )
+
     if admin:
         standings_query = (
             db.session.query(
                 Users.id.label("user_id"),
                 Users.oauth_id.label("oauth_id"),
                 Users.name.label("name"),
-                Users.team_id.label("team_id"),
+                _team_id_subq,
                 Users.hidden,
                 Users.banned,
                 sumscores.columns.score,
@@ -304,7 +315,7 @@ def get_user_standings(count=None, bracket_id=None, admin=False, fields=None):
                 Users.id.label("user_id"),
                 Users.oauth_id.label("oauth_id"),
                 Users.name.label("name"),
-                Users.team_id.label("team_id"),
+                _team_id_subq,
                 sumscores.columns.score,
                 *fields,
             )

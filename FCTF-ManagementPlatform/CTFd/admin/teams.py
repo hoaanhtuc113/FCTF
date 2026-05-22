@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import not_
 
 from CTFd.admin import admin
-from CTFd.models import Brackets, Challenges, Teams, Tracking, Users, db
+from CTFd.models import Brackets, Challenges, Contests, Teams, Tracking, UserTeamMember, Users, db
 from CTFd.utils.decorators import admin_or_jury, admins_only
 
 
@@ -42,9 +42,8 @@ def teams_listing():
 
     member_counts = {
         team_id: count
-        for team_id, count in db.session.query(Users.team_id, func.count(Users.id))
-        .filter(Users.team_id.isnot(None))
-        .group_by(Users.team_id)
+        for team_id, count in db.session.query(UserTeamMember.team_id, func.count(UserTeamMember.user_id))
+        .group_by(UserTeamMember.team_id)
         .all()
     }
 
@@ -69,13 +68,23 @@ def teams_listing():
 @admin.route("/admin/teams/new")
 @admins_only
 def teams_new():
-    return render_template("admin/teams/new.html")
+    # contest_base.html sidebar requires a `contest` context variable
+    contest = Contests.query.order_by(Contests.id.asc()).first()
+    return render_template("admin/teams/new.html", contest=contest)
 
 
 @admin.route("/admin/teams/<int:team_id>")
 @admin_or_jury
 def teams_detail(team_id):
     team = Teams.query.filter_by(id=team_id).first_or_404()
+
+    # contest_base.html sidebar requires a `contest` context variable
+    contest = None
+    if team.contest_id:
+        contest = Contests.query.filter_by(id=team.contest_id).first()
+    if contest is None:
+        # Fallback: use the first contest so the sidebar can still render
+        contest = Contests.query.order_by(Contests.id.asc()).first()
 
     # Get members
     members = team.members
@@ -104,6 +113,7 @@ def teams_detail(team_id):
 
     return render_template(
         "admin/teams/team.html",
+        contest=contest,
         team=team,
         members=members,
         score=score,

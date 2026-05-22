@@ -5,7 +5,7 @@ from flask_marshmallow import Marshmallow
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import column_property, validates
+from sqlalchemy.orm import column_property, synonym, validates
 
 from CTFd.cache import cache
 
@@ -634,6 +634,41 @@ class Users(db.Model):
             return None
 
     @property
+    def team(self):
+        """Return the Teams object this user belongs to (via UserTeamMember).
+
+        A cached value set by admin views takes priority so that templates can
+        use the already-queried team without an extra DB round-trip.
+        """
+        if hasattr(self, "_team_cache"):
+            return self._team_cache
+        utm = UserTeamMember.query.filter_by(user_id=self.id).first()
+        if utm:
+            return Teams.query.filter_by(id=utm.team_id).first()
+        return None
+
+    @team.setter
+    def team(self, value):
+        # Allow admin views to pre-set the team (e.g. admin/users.py) so the
+        # template can use user.team without an additional DB query.
+        self._team_cache = value
+
+    @property
+    def team_id(self):
+        """Return the team ID this user belongs to (via UserTeamMember).
+
+        A cached value set by admin views takes priority.
+        """
+        if hasattr(self, "_team_id_cache"):
+            return self._team_id_cache
+        utm = UserTeamMember.query.filter_by(user_id=self.id).first()
+        return utm.team_id if utm else None
+
+    @team_id.setter
+    def team_id(self, value):
+        self._team_id_cache = value
+
+    @property
     def is_challenge_writer(self):
         return self.type == "challenge_writer"
 
@@ -856,6 +891,8 @@ class Teams(db.Model):
         ),
         nullable=True,
     )
+    # Alias so that legacy code using captain_id continues to work
+    captain_id = synonym("captain_user_id")
     captain = db.relationship("Users", foreign_keys=[captain_user_id])
 
     field_entries = db.relationship(

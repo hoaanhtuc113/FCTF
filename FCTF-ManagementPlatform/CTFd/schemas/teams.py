@@ -49,6 +49,8 @@ class TeamSchema(ma.ModelSchema):
     )
     country = field_for(Teams, "country", validate=[validate_country_code])
     bracket_id = Integer(allow_none=True, missing=None)
+    # captain_user_id is the model column; expose it as captain_id for API compatibility
+    captain_id = Integer(attribute="captain_user_id", allow_none=True)
     fields = Nested(
         TeamFieldEntriesSchema, partial=True, many=True, attribute="field_entries"
     )

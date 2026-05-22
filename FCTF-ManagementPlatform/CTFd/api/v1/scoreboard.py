@@ -5,7 +5,7 @@ from flask_restx import Namespace, Resource
 from sqlalchemy import select
 
 from CTFd.cache import cache, make_cache_key, make_cache_key_with_query_string
-from CTFd.models import Awards, Brackets, Solves, Users, db
+from CTFd.models import Awards, Brackets, Solves, UserTeamMember, Users, db
 from CTFd.utils import get_config
 from CTFd.utils.dates import isoformat, unix_time_to_utc
 from CTFd.utils.decorators.visibility import (
@@ -33,23 +33,22 @@ class ScoreboardList(Resource):
         account_type = get_mode_as_word()
 
         if mode == TEAMS_MODE:
-            r = db.session.execute(
-                select(
-                    [
-                        Users.id,
-                        Users.name,
-                        Users.oauth_id,
-                        Users.team_id,
-                        Users.hidden,
-                        Users.banned,
-                        Users.bracket_id,
-                        Brackets.name.label("bracket_name"),
-                    ]
+            # Users are linked to teams via UserTeamMember (no direct team_id on Users)
+            users = (
+                db.session.query(
+                    Users.id,
+                    Users.name,
+                    Users.oauth_id,
+                    UserTeamMember.team_id.label("team_id"),
+                    Users.hidden,
+                    Users.banned,
+                    Users.bracket_id,
+                    Brackets.name.label("bracket_name"),
                 )
-                .where(Users.team_id.isnot(None))
-                .join(Brackets, Users.bracket_id == Brackets.id, isouter=True)
+                .join(UserTeamMember, UserTeamMember.user_id == Users.id)
+                .outerjoin(Brackets, Users.bracket_id == Brackets.id)
+                .all()
             )
-            users = r.fetchall()
             membership = defaultdict(dict)
             for u in users:
                 if u.hidden is False and u.banned is False:
@@ -65,7 +64,8 @@ class ScoreboardList(Resource):
             # Get user_standings as a dict so that we can more quickly get member scores
             user_standings = get_user_standings()
             for u in user_standings:
-                membership[u.team_id][u.user_id]["score"] = int(u.score)
+                if u.team_id and u.user_id in membership.get(u.team_id, {}):
+                    membership[u.team_id][u.user_id]["score"] = int(u.score)
 
         for i, x in enumerate(standings):
             entry = {
