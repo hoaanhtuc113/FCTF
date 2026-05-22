@@ -208,13 +208,19 @@ def force_stop_all(user_id):
     headers = {"Secretkey": secret_key}
     stop_url = f"{DEPLOYMENT_SERVICE_API}/api/challenge/stop-all"
     try:
-        response = requests.post(stop_url,  headers=headers,json=payload)
+        response = requests.post(stop_url, headers=headers, json=payload, timeout=10)
         response_data = response.json()
         print(f"Force stop all response: {response_data}")
-
         return response_data
+    except requests.exceptions.ConnectionError as e:
+        print(f"[force_stop_all] Deployment service unreachable: {e}")
+        return {"success": False, "error": "Deployment service is not reachable", "error_detail": str(e)}
+    except requests.exceptions.Timeout:
+        print("[force_stop_all] Deployment service timed out")
+        return {"success": False, "error": "Deployment service timed out"}
     except requests.exceptions.RequestException as e:
-        raise Exception(e)
+        print(f"[force_stop_all] Request error: {e}")
+        return {"success": False, "error": str(e)}
 
 def format_response(data):
     return jsonify(data), 200

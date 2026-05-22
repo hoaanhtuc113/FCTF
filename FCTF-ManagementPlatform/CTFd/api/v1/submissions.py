@@ -149,10 +149,10 @@ class SubmissionsList(Resource):
 
         # Resolve challenge name for audit context
         _challenge_name = None
-        _challenge_id = response.data.get("challenge_id")
-        if _challenge_id:
-            from CTFd.models import Challenges as _Challenges
-            _ch = _Challenges.query.filter_by(id=_challenge_id).first()
+        _ch_id = response.data.get("challenge_id")
+        if _ch_id:
+            from CTFd.models import Challenges as ChallengesModel
+            _ch = ChallengesModel.query.filter_by(id=_ch_id).first()
             if _ch:
                 _challenge_name = _ch.name
 
@@ -162,7 +162,7 @@ class SubmissionsList(Resource):
             data={
                 "id": response.data["id"],
                 "type": response.data.get("type"),
-                "challenge_id": _challenge_id,
+                "challenge_id": _ch_id,
                 "challenge_name": _challenge_name,
                 "user_id": response.data.get("user_id"),
                 "team_id": response.data.get("team_id"),
@@ -292,16 +292,16 @@ class Submission(Resource):
         # Audit log
         # Resolve challenge name for audit context
         _challenge_name = None
-        _challenge_id = response.data.get("challenge_id")
-        if _challenge_id:
-            from CTFd.models import Challenges as _Challenges
-            _ch = _Challenges.query.filter_by(id=_challenge_id).first()
+        _ch_id = response.data.get("challenge_id")
+        if _ch_id:
+            from CTFd.models import Challenges as ChallengesModel
+            _ch = ChallengesModel.query.filter_by(id=_ch_id).first()
             if _ch:
                 _challenge_name = _ch.name
 
         after_state = {
             "type": response.data.get("type"),
-            "challenge_id": _challenge_id,
+            "challenge_id": _ch_id,
             "challenge_name": _challenge_name,
             "user_id": response.data.get("user_id"),
             "team_id": response.data.get("team_id"),
@@ -335,8 +335,8 @@ class Submission(Resource):
         # Resolve challenge name for audit context
         _challenge_name = None
         if submission.challenge_id:
-            from CTFd.models import Challenges as _Challenges
-            _ch = _Challenges.query.filter_by(id=submission.challenge_id).first()
+            from CTFd.models import Challenges as ChallengesModel
+            _ch = ChallengesModel.query.filter_by(id=submission.challenge_id).first()
             if _ch:
                 _challenge_name = _ch.name
 
@@ -355,7 +355,7 @@ class Submission(Resource):
         
         # Decrement Redis attempt counter if submission type is "incorrect"
         if submission.type == "incorrect" and submission.challenge_id and submission.team_id:
-            attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"           
+            attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"
             try:
                 # Check if key exists first
                 key_exists = redis_client.exists(attempt_key)                   

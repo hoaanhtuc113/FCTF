@@ -353,6 +353,8 @@ def contest_scoreboard(contest_id):
     bracket_id = request.args.get("bracket_id", type=int)
     brackets = Brackets.query.filter_by(contest_id=contest_id).all()
 
+    # Team standings: Solves → Challenges (challenge_id), filter by contest_id
+    # Challenges.value holds the point value for this challenge in this contest
     team_scores = (
         db.session.query(
             Solves.team_id.label("account_id"),
@@ -512,7 +514,6 @@ def contest_scoreboard_export(contest_id):
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
         bracket_id = request.args.get("bracket_id", type=int)
 
-        # bracket lookup map (id → name) để tránh join phức tạp
         bracket_map = {b.id: b.name for b in Brackets.query.filter_by(contest_id=contest_id).all()}
 
         # ── Sheet 1: Teams Standings ──────────────────────────────────────────
@@ -780,10 +781,10 @@ def contest_challenges(contest_id):
         page=page, per_page=50, error_out=False
     )
 
-    for cc in contest_challenges_paged.items:
-        creator_id = getattr(cc, "created_by", None)
+    for ch in contest_challenges_paged.items:
+        creator_id = getattr(ch, "created_by", None)
         user = Users.query.filter_by(id=creator_id).first() if creator_id else None
-        cc.creator = user.name if user else "Unknown"
+        ch.creator = user.name if user else "Unknown"
 
     raw_categories = (
         Challenges.query.with_entities(Challenges.category)
@@ -1214,7 +1215,7 @@ def contest_users_new(contest_id):
 @admins_only
 def contest_users(contest_id):
     from sqlalchemy import func, or_
-    from CTFd.models import Challenges, Submissions, Teams, Users, Contests, UserTeamMember
+    from CTFd.models import Submissions, Teams, Users, Contests, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
@@ -1306,28 +1307,19 @@ def contest_users(contest_id):
 @admins_only
 def contest_teams(contest_id):
     from sqlalchemy import func
-    from CTFd.models import Challenges, Submissions, Teams, Brackets, UserTeamMember
+    from CTFd.models import Submissions, Teams, Brackets, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    challenge_ids = [r[0] for r in db.session.query(Challenges.id)
-                     .filter(Challenges.contest_id == contest_id).all()]
+    # Teams belonging to this contest directly
+    filters = [Teams.contest_id == contest_id]
+
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
     hidden = request.args.get("hidden") in ("1", "true", "on", "yes")
     banned = request.args.get("banned") in ("1", "true", "on", "yes")
     bracket_id = request.args.get("bracket_id", type=int)
     page = abs(request.args.get("page", 1, type=int))
-
-    filters = [Teams.contest_id == contest_id]
-    if challenge_ids:
-        team_ids = [r[0] for r in db.session.query(Submissions.team_id.distinct())
-                    .filter(Submissions.challenge_id.in_(challenge_ids),
-                            Submissions.team_id.isnot(None)).all()]
-        if team_ids:
-            filters.append(Teams.id.in_(team_ids))
-        else:
-            filters.append(Teams.id == -1)
 
     if q and Teams.__mapper__.has_property(field):
         filters.append(getattr(Teams, field).ilike(f"%{q}%"))
@@ -1478,20 +1470,77 @@ def contest_delete_team(contest_id, team_id):
 @admin.route("/admin/contests/<int:contest_id>/action_logs")
 @admins_only
 def contest_action_logs(contest_id):
-    from CTFd.admin.admin_audit import (
-        ALL_ACTIONS, TARGET_TYPES, ACTOR_ROLES, ACTION_LABELS,
-        _build_query, _current_filters,
-    )
+    from CTFd.models import ActionLogs, Users
+
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
     page = abs(request.args.get("page", 1, type=int))
     per_page = request.args.get("per_page", 50, type=int)
     per_page = max(1, min(per_page, 200))
-    filters = _current_filters()
-    q = _build_query(**filters)
-    logs = q.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Filter params
+    q_search   = request.args.get("q", "").strip()
+    field      = request.args.get("field", "detail")
+    user_filter = request.args.get("user_id", "").strip()
+    type_filter = request.args.get("type", "").strip()
+    date_from   = request.args.get("date_from", "").strip()
+    date_to     = request.args.get("date_to", "").strip()
+
+    import datetime as dt
+    filters = [ActionLogs.contest_id == contest_id]
+
+    if user_filter:
+        try:
+            filters.append(ActionLogs.user_id == int(user_filter))
+        except ValueError:
+            pass
+
+    if type_filter:
+        try:
+            filters.append(ActionLogs.type == int(type_filter))
+        except ValueError:
+            pass
+
+    if q_search and hasattr(ActionLogs, field):
+        filters.append(getattr(ActionLogs, field).ilike(f"%{q_search}%"))
+
+    if date_from:
+        try:
+            filters.append(ActionLogs.date >= dt.datetime.strptime(date_from, "%Y-%m-%d"))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            filters.append(ActionLogs.date < dt.datetime.strptime(date_to, "%Y-%m-%d") + dt.timedelta(days=1))
+        except ValueError:
+            pass
+
+    logs = (
+        ActionLogs.query.filter(*filters)
+        .order_by(ActionLogs.date.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    # Distinct users in this contest's logs for filter dropdown
+    user_ids_in_logs = [
+        r[0] for r in db.session.query(ActionLogs.user_id.distinct())
+        .filter(ActionLogs.contest_id == contest_id, ActionLogs.user_id.isnot(None)).all()
+    ]
+    users_in_contest = (
+        Users.query.filter(Users.id.in_(user_ids_in_logs)).order_by(Users.name).all()
+        if user_ids_in_logs else []
+    )
+
+    # Distinct action types
+    action_types = [
+        r[0] for r in db.session.query(ActionLogs.type.distinct())
+        .filter(ActionLogs.contest_id == contest_id).all()
+    ]
+
     args = dict(request.args)
     args.pop("page", None)
     is_detail = True
+
     return render_template(
         "admin/contests/sections/action_logs.html",
         contest=contest,
@@ -1499,37 +1548,51 @@ def contest_action_logs(contest_id):
         prev_page=url_for(request.endpoint, contest_id=contest_id, page=logs.prev_num, **args),
         next_page=url_for(request.endpoint, contest_id=contest_id, page=logs.next_num, **args),
         per_page=per_page,
-        all_actions=ALL_ACTIONS,
-        target_types=TARGET_TYPES,
-        actor_roles=ACTOR_ROLES,
-        action_labels=ACTION_LABELS,
+        q=q_search,
+        field=field,
+        user_filter=user_filter,
+        type_filter=type_filter,
+        date_from=date_from,
+        date_to=date_to,
+        users_in_contest=users_in_contest,
+        action_types=action_types,
         is_detail=is_detail,
-        **filters,
     )
 
 @admin.route("/admin/contests/<int:contest_id>/action_logs/export/csv")
 @admins_only
 def contest_action_logs_export_csv(contest_id):
     import json
-    from CTFd.admin.admin_audit import ACTION_LABELS, _build_query, _current_filters
-    filters = _current_filters()
-    q = _build_query(**filters)
+    from CTFd.models import ActionLogs
+
+    q = ActionLogs.query.filter(
+        ActionLogs.contest_id == contest_id
+    ).order_by(ActionLogs.date.desc())
 
     def generate():
         sio = StringIO()
         writer = csv.writer(sio)
-        writer.writerow(["id","timestamp","actor_id","actor_name","actor_type","action","action_label","target_type","target_id","ip_address"])
+        writer.writerow(["id", "timestamp", "user_id", "type", "detail", "topic_name", "contest_id"])
         yield sio.getvalue(); sio.seek(0); sio.truncate(0)
         for log in q.yield_per(1000):
-            writer.writerow([log.id, log.timestamp.isoformat() if log.timestamp else "",
-                log.actor_id or "", log.actor_name or "", log.actor_type or "",
-                log.action, ACTION_LABELS.get(log.action, log.action),
-                log.target_type or "", log.target_id or "", log.ip_address or ""])
+            writer.writerow([
+                log.id,
+                log.date.isoformat() if log.date else "",
+                log.user_id or "",
+                log.type,
+                log.detail or "",
+                log.topic_name or "",
+                log.contest_id or "",
+            ])
             yield sio.getvalue(); sio.seek(0); sio.truncate(0)
 
-    return Response(stream_with_context(generate()),
-        headers={"Content-Disposition": 'attachment; filename="contest_action_logs.csv"',
-                 "Content-Type": "text/csv; charset=utf-8"})
+    return Response(
+        stream_with_context(generate()),
+        headers={
+            "Content-Disposition": f'attachment; filename="contest_{contest_id}_action_logs.csv"',
+            "Content-Type": "text/csv; charset=utf-8",
+        }
+    )
 
 
 @admin.route("/admin/contests/<int:contest_id>/tickets")
@@ -1784,6 +1847,17 @@ def contest_bracket(contest_id):
         "admin/contests/sections/bracket.html",
         contest=contest,
         is_detail=is_detail,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/monitoring")
+@admins_only
+def contest_monitoring(contest_id):
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    return render_template(
+        "admin/contests/sections/monitoring.html",
+        contest=contest,
+        is_detail=True,
     )
 
 

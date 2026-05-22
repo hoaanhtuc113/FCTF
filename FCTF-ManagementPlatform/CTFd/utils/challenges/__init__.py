@@ -57,7 +57,7 @@ def get_all_challenges(admin=False, field=None, q=None, **query_args):
 
 @cache.memoize(timeout=60)
 def get_solves_for_challenge_id(challenge_id, freeze=False):
-    """Get solves for a given challenge id."""
+    """Get solves for a given challenge_id."""
     Model = get_model()
     solves = (
         Solves.query.add_columns(Model.name.label("account_name"))
@@ -122,7 +122,7 @@ def get_solve_counts_for_challenges(challenge_id=None, admin=False):
             Solves.challenge_id,
             sa_func.count(Solves.id),
         )
-        .join(AccountModel)
+        .join(AccountModel, Solves.account_id == AccountModel.id)
         .filter(freeze_cond, exclude_solves_cond)
     )
 

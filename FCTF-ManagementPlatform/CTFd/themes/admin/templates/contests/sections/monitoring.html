@@ -1,0 +1,572 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+/* ── Monitoring page — scoped to contest ── */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.fa-spin { animation: spin 1s linear infinite; }
+
+.clean-table { table-layout: auto; white-space: normal; }
+.clean-table-wrapper { overflow-y: visible; }
+.clean-table tbody td { overflow-wrap: anywhere; }
+
+.action-dropdown { position: relative; display: inline-block; }
+
+.action-menu {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    min-width: 160px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 4px 0;
+    font-size: 0.875rem;
+}
+.action-menu.open { display: block; }
+
+.action-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.9rem;
+    color: #495057 !important;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.action-menu-item:hover { background: #fff5f2; color: #ff6b35 !important; }
+.action-menu-item-danger { color: #dc3545 !important; }
+.action-menu-item-danger:hover { background: #dc3545; color: #fff !important; }
+.action-menu-divider { height: 1px; background: #dee2e6; margin: 4px 0; }
+
+.token-cell { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.token-value {
+    display: inline-block;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.btn-copy-token { padding: 0.2rem 0.45rem; font-size: 0.75rem; line-height: 1.2; }
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.status-badge-running  { background: #d4edda; color: #155724; }
+.status-badge-pending  { background: #fff3cd; color: #856404; }
+.status-badge-deleting { background: #f8d7da; color: #721c24; }
+.status-badge-unknown  { background: #e2e3e5; color: #6c757d; }
+
+.clean-info-text  { color: #6c757d; font-size: 0.9rem; }
+.clean-highlight  { color: #ff6b35; font-weight: 500; }
+
+.clean-pagination .page-link {
+    border: 1px solid #dee2e6; color: #495057;
+    padding: 0.5rem 0.75rem; margin: 0 0.15rem; border-radius: 4px; transition: all 0.2s;
+}
+.clean-pagination .page-link:hover { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+.clean-pagination .page-item.active .page-link { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+.clean-pagination .page-item.disabled .page-link { background: #f8f9fa; color: #6c757d; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="page-header">
+    <div class="container">
+        <h1><i class="bx bx-server"></i> Monitoring
+            <small class="text-muted ml-2" style="font-size:0.75rem;font-weight:400;">{{ contest.name }}</small>
+        </h1>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Filters -->
+    <div class="clean-search-container">
+        <div class="row no-gutters align-items-center">
+            <div class="col-md-3 px-1">
+                <input type="text" id="teamFilter" list="teamFilterList" class="clean-form-control w-100"
+                    placeholder="All Teams" onkeyup="handleSearch()" onchange="handleSearch()">
+                <datalist id="teamFilterList"></datalist>
+            </div>
+            <div class="col-md-3 px-1">
+                <input type="text" id="userFilter" list="userFilterList" class="clean-form-control w-100"
+                    placeholder="All Users" onkeyup="handleSearch()" onchange="handleSearch()">
+                <datalist id="userFilterList"></datalist>
+            </div>
+            <div class="col-md-3 px-1">
+                <input type="text" id="categoryFilter" list="categoryFilterList" class="clean-form-control w-100"
+                    placeholder="All Categories" onkeyup="handleSearch()" onchange="handleSearch()">
+                <datalist id="categoryFilterList"></datalist>
+            </div>
+            <div class="col-md-3 px-1">
+                <select id="statusFilter" class="clean-form-control w-100" onchange="handleSearch()">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="running">Running</option>
+                    <option value="deleting">Deleting</option>
+                </select>
+            </div>
+        </div>
+        <div class="row no-gutters align-items-center mt-1">
+            <div class="col-md-9 px-1">
+                <input type="text" id="challengeSearch" class="clean-form-control w-100"
+                    placeholder="Search by challenge name..." onkeyup="handleSearch()">
+            </div>
+            <div class="col-md-3 px-1 d-flex">
+                <button onclick="clearFilters()" class="clean-btn flex-grow-1 mr-1">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+                <button onclick="loadData()" class="clean-btn clean-btn-primary flex-grow-1">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="d-flex justify-content-end align-items-center mb-2">
+        <span class="clean-info-text mr-2">
+            Selected: <span class="clean-highlight" id="selectedCountTop">0</span>
+        </span>
+        <button id="bulkStopBtnTop" onclick="bulkStopSelected()" class="clean-btn clean-btn-danger mr-1" disabled>
+            <i class="fas fa-stop-circle"></i> Stop Selected
+        </button>
+        <button onclick="stopAllContest()" class="clean-btn clean-btn-danger">
+            <i class="fas fa-trash-alt"></i> Stop All in Contest
+        </button>
+    </div>
+
+    <!-- Table -->
+    <div class="clean-table-wrapper">
+        <table id="challengeTable" class="table clean-table mb-0">
+            <colgroup>
+                <col style="width:36px;">
+                <col style="width:4%;">
+                <col style="width:18%;">
+                <col style="width:12%;">
+                <col style="width:12%;">
+                <col style="width:9%;">
+                <col style="width:10%;">
+                <col style="width:18%;">
+                <col style="width:10%;">
+                <col style="width:7%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th data-checkbox>
+                        <input id="selectAll" type="checkbox" class="table-check"
+                            onchange="toggleSelectAllOnPage(this.checked)" aria-label="Select all">
+                    </th>
+                    <th class="text-center">ID</th>
+                    <th class="text-center">Challenge</th>
+                    <th class="text-center">Team</th>
+                    <th class="text-center">User</th>
+                    <th class="text-center">Category</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Token</th>
+                    <th class="text-center">Time Finished</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot id="tableFooter" style="display:none;">
+                <tr>
+                    <td colspan="10" class="text-center py-4" style="color:#999;font-style:italic;">
+                        <i class="bx bx-info-circle" style="font-size:1.2rem;vertical-align:middle;"></i>
+                        <span id="footerMsg">No instances found</span>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="row mt-3" id="paginationContainer">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="clean-info-text" role="status" aria-live="polite">
+                    Page <span class="clean-highlight" id="currentPage">1</span>
+                    of <span class="clean-highlight" id="totalPages">1</span>
+                    &bull; <span id="totalItems">0</span> total
+                </div>
+                <nav>
+                    <ul class="clean-pagination pagination mb-0" id="paginationControls"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+const CONTEST_ID = {{ contest.id }};
+
+let currentPage = 1;
+const perPage = 50;
+let sortBy = "time_finished";
+let sortOrder = "desc";
+let paginationData = null;
+let searchTimeout = null;
+let selectedInstances = new Map();
+
+function makeKey(cid, tid) { return `${cid}:${tid}`; }
+
+function updateSelectedUI() {
+    const n = selectedInstances.size;
+    const el = document.getElementById("selectedCountTop");
+    if (el) el.textContent = String(n);
+    const btn = document.getElementById("bulkStopBtnTop");
+    if (btn) btn.disabled = n === 0;
+}
+
+function toggleRowSelection(cid, tid, checked) {
+    const k = makeKey(cid, tid);
+    if (checked) selectedInstances.set(k, { challenge_id: cid, team_id: tid });
+    else selectedInstances.delete(k);
+    updateSelectedUI();
+}
+
+function toggleSelectAllOnPage(checked) {
+    document.querySelectorAll('input.instance-checkbox').forEach(cb => {
+        cb.checked = checked;
+        toggleRowSelection(Number(cb.dataset.challengeId), Number(cb.dataset.teamId), checked);
+    });
+}
+
+function syncSelectAllCheckbox() {
+    const all = document.getElementById("selectAll");
+    if (!all) return;
+    const cbs = Array.from(document.querySelectorAll('input.instance-checkbox'));
+    if (!cbs.length) { all.checked = false; all.indeterminate = false; return; }
+    const n = cbs.filter(c => c.checked).length;
+    all.checked = n === cbs.length;
+    all.indeterminate = n > 0 && n < cbs.length;
+}
+
+function populateSuggestions(inputId, listId, items) {
+    const dl = document.getElementById(listId);
+    if (!dl) return;
+    dl.innerHTML = "";
+    (Array.isArray(items) ? items : []).forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v;
+        dl.appendChild(opt);
+    });
+}
+
+function showTableFooter(msg) {
+    const tf = document.getElementById("tableFooter");
+    const fm = document.getElementById("footerMsg");
+    if (tf) tf.style.display = "";
+    if (fm) fm.textContent = msg || "No instances found";
+}
+function hideTableFooter() {
+    const tf = document.getElementById("tableFooter");
+    if (tf) tf.style.display = "none";
+}
+
+function createStatusBadge(status) {
+    const s = String(status || "unknown").toLowerCase();
+    const cls = s === "running" ? "status-badge-running"
+              : s === "pending" ? "status-badge-pending"
+              : s === "deleting" ? "status-badge-deleting"
+              : "status-badge-unknown";
+    const span = document.createElement("span");
+    span.className = `status-badge ${cls}`;
+    span.textContent = status || "Unknown";
+    return span;
+}
+
+function createTokenCell(token) {
+    const td = document.createElement("td");
+    td.className = "text-center";
+    if (!token) { td.textContent = "N/A"; return td; }
+    const wrap = document.createElement("div");
+    wrap.className = "token-cell";
+    const span = document.createElement("span");
+    span.className = "token-value";
+    span.title = token;
+    span.textContent = token.substring(0, 8) + "...";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm btn-outline-secondary btn-copy-token";
+    btn.dataset.token = encodeURIComponent(token);
+    btn.innerHTML = '<i class="fas fa-copy"></i>';
+    btn.addEventListener("click", () => copyToken(btn));
+    wrap.appendChild(span);
+    wrap.appendChild(btn);
+    td.appendChild(wrap);
+    return td;
+}
+
+function createActionCell(cid, tid, ns) {
+    const td = document.createElement("td");
+    td.className = "text-center";
+    const wrap = document.createElement("div");
+    wrap.className = "action-dropdown";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "clean-btn clean-action-btn-sm";
+    btn.textContent = "Actions";
+    btn.addEventListener("click", e => toggleActionMenu(btn, e));
+    const menu = document.createElement("div");
+    menu.className = "action-menu";
+
+    const podLog = document.createElement("a");
+    podLog.className = "action-menu-item"; podLog.href = "#";
+    podLog.innerHTML = '<i class="fas fa-file-alt fa-fw mr-1"></i> Pod Logs';
+    podLog.addEventListener("click", e => { e.preventDefault(); closeAllMenus(); window.location.href = `/deploy_History/${cid}/pods-logs?team_id=${tid}`; });
+
+    const reqLog = document.createElement("a");
+    reqLog.className = "action-menu-item"; reqLog.href = "#";
+    reqLog.innerHTML = '<i class="fas fa-exchange-alt fa-fw mr-1"></i> Request Logs';
+    reqLog.addEventListener("click", e => {
+        e.preventDefault(); closeAllMenus();
+        const nsParam = ns ? `&ns=${encodeURIComponent(ns)}` : '';
+        window.location.href = `/deploy_History/${cid}/request-logs?team_id=${tid}${nsParam}`;
+    });
+
+    const div = document.createElement("div");
+    div.className = "action-menu-divider";
+
+    const stop = document.createElement("a");
+    stop.className = "action-menu-item action-menu-item-danger"; stop.href = "#";
+    stop.innerHTML = '<i class="fas fa-stop-circle fa-fw mr-1"></i> Stop';
+    stop.addEventListener("click", e => { e.preventDefault(); closeAllMenus(); stopInstance(cid, tid); });
+
+    menu.appendChild(podLog);
+    menu.appendChild(reqLog);
+    menu.appendChild(div);
+    menu.appendChild(stop);
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+    td.appendChild(wrap);
+    return td;
+}
+
+function buildRow(row) {
+    const cid = Number(row.challenge_id);
+    const tid = Number(row.team_id);
+    if (!Number.isFinite(cid) || !Number.isFinite(tid)) return null;
+    const tr = document.createElement("tr");
+
+    const cbTd = document.createElement("td");
+    cbTd.setAttribute("data-checkbox", "");
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.className = "table-check instance-checkbox";
+    cb.dataset.challengeId = cid; cb.dataset.teamId = tid;
+    cb.checked = selectedInstances.has(makeKey(cid, tid));
+    cb.addEventListener("change", () => { toggleRowSelection(cid, tid, cb.checked); syncSelectAllCheckbox(); });
+    cbTd.appendChild(cb);
+    tr.appendChild(cbTd);
+
+    const cell = (txt, cls = "text-center") => {
+        const td = document.createElement("td");
+        td.className = cls; td.textContent = txt;
+        return td;
+    };
+
+    tr.appendChild(cell(String(cid)));
+    tr.appendChild(cell(String(row.challenge_name || "N/A")));
+    tr.appendChild(cell(String(row.team_name || "N/A")));
+    tr.appendChild(cell(String(row.user_name || "N/A")));
+    tr.appendChild(cell(String(row.challenge_category || "N/A")));
+
+    const stTd = document.createElement("td");
+    stTd.className = "text-center";
+    stTd.appendChild(createStatusBadge(row.status));
+    tr.appendChild(stTd);
+
+    tr.appendChild(createTokenCell(String(row.challenge_url || "")));
+    tr.appendChild(cell(row.time_finished ? new Date(row.time_finished).toLocaleString() : "N/A"));
+    tr.appendChild(createActionCell(cid, tid, String(row.ns || "")));
+    return tr;
+}
+
+async function loadData(page = 1) {
+    currentPage = page;
+    const tbody = document.querySelector("#challengeTable tbody");
+    if (tbody) tbody.innerHTML = "";
+    showTableFooter("Loading...");
+
+    const q = v => (document.getElementById(v)?.value ?? "").trim();
+    let url = `/api/challenge/get-all-instance?page=${page}&per_page=${perPage}`
+            + `&sort_by=${sortBy}&sort_order=${sortOrder}&contest_id=${CONTEST_ID}`;
+
+    if (q("challengeSearch"))  url += `&challenge_name=${encodeURIComponent(q("challengeSearch"))}`;
+    if (q("teamFilter"))       url += `&team_name=${encodeURIComponent(q("teamFilter"))}`;
+    if (q("userFilter"))       url += `&user_name=${encodeURIComponent(q("userFilter"))}`;
+    if (q("categoryFilter"))   url += `&challenge_category=${encodeURIComponent(q("categoryFilter"))}`;
+    if (q("statusFilter"))     url += `&status=${encodeURIComponent(q("statusFilter"))}`;
+
+    try {
+        const fetchFn = (typeof CTFd !== "undefined" && CTFd.fetch) ? CTFd.fetch : window.fetch;
+        const resp = await fetchFn(url, { method: "GET", credentials: "same-origin", headers: { Accept: "application/json" } });
+        if (!resp.ok) { showTableFooter(`Error ${resp.status}: ${resp.statusText}`); return; }
+        const result = await resp.json();
+        if (tbody) tbody.innerHTML = "";
+
+        if (result.success) {
+            paginationData = result.pagination;
+            if (result.teams) populateSuggestions("teamFilter", "teamFilterList", result.teams);
+            if (result.users) populateSuggestions("userFilter", "userFilterList", result.users);
+            if (result.categories) populateSuggestions("categoryFilter", "categoryFilterList", result.categories);
+
+            if (!result.data || !result.data.length) {
+                showTableFooter("No instances found for this contest");
+                updatePagination(); return;
+            }
+            hideTableFooter();
+            result.data.forEach(row => { const tr = buildRow(row); if (tr) tbody.appendChild(tr); });
+            updatePagination();
+            syncSelectAllCheckbox();
+            updateSelectedUI();
+        } else {
+            showTableFooter("Error: " + (result.error || "Unknown error"));
+        }
+    } catch (err) {
+        if (tbody) tbody.innerHTML = "";
+        showTableFooter("Failed to load: " + err.message);
+    }
+}
+
+function handleSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => loadData(1), 300);
+}
+
+function clearFilters() {
+    ["challengeSearch","teamFilter","userFilter","categoryFilter"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+    });
+    const st = document.getElementById("statusFilter");
+    if (st) st.value = "";
+    loadData(1);
+}
+
+function updatePagination() {
+    if (!paginationData) return;
+    document.getElementById("currentPage").textContent = paginationData.page;
+    document.getElementById("totalPages").textContent = paginationData.total_pages;
+    document.getElementById("totalItems").textContent = paginationData.total_items;
+
+    const ctrl = document.getElementById("paginationControls");
+    ctrl.innerHTML = "";
+    const total = paginationData.total_pages;
+
+    const li = (label, page, disabled, active) => {
+        const l = document.createElement("li");
+        l.className = `page-item${disabled ? " disabled" : ""}${active ? " active" : ""}`;
+        l.innerHTML = `<a class="page-link" href="#" onclick="loadData(${page});return false;">${label}</a>`;
+        return l;
+    };
+
+    ctrl.appendChild(li("&laquo;", currentPage - 1, !paginationData.has_prev));
+    let start = Math.max(1, currentPage - 2), end = Math.min(total, currentPage + 2);
+    if (currentPage <= 3) end = Math.min(5, total);
+    if (currentPage >= total - 2) start = Math.max(1, total - 4);
+    if (start > 1) { ctrl.appendChild(li("1", 1)); if (start > 2) ctrl.appendChild(li("...", currentPage, true)); }
+    for (let p = start; p <= end; p++) ctrl.appendChild(li(p, p, false, p === currentPage));
+    if (end < total) { if (end < total - 1) ctrl.appendChild(li("...", currentPage, true)); ctrl.appendChild(li(total, total)); }
+    ctrl.appendChild(li("&raquo;", currentPage + 1, !paginationData.has_next));
+}
+
+async function copyToken(btn) {
+    try {
+        const token = decodeURIComponent(btn?.dataset?.token || "");
+        if (!token) return;
+        await navigator.clipboard.writeText(token);
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>'; btn.disabled = true;
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1200);
+    } catch (e) { alert("Cannot copy: " + e.message); }
+}
+
+async function stopInstance(cid, tid) {
+    try {
+        const resp = await CTFd.fetch("/api/challenge/stop-by-admin", {
+            method: "POST",
+            body: JSON.stringify({ challenge_id: cid, team_id: tid })
+        });
+        if (resp.ok) { alert("Instance stopped."); loadData(currentPage); }
+        else { const r = await resp.json(); alert("Failed: " + (r.error || "Unknown error")); }
+    } catch (e) { alert("Error: " + e.message); }
+}
+
+async function bulkStopSelected() {
+    const items = Array.from(selectedInstances.values());
+    if (!items.length) return;
+    if (!confirm(`Stop ${items.length} selected instance(s)?`)) return;
+    const btn = document.getElementById("bulkStopBtnTop");
+    const orig = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "Stopping..."; }
+    try {
+        const resp = await CTFd.fetch("/api/challenge/stop-bulk", { method: "POST", body: JSON.stringify({ items }) });
+        const result = await resp.json().catch(() => null);
+        if (!resp.ok) { alert("Failed: " + ((result && (result.error || result.message)) || "Unknown")); return; }
+        alert(`Stopped: ${result.stopped || 0}, Failed: ${result.failed || 0}`);
+        if (result && Array.isArray(result.results)) {
+            result.results.forEach(r => { if (r?.success) selectedInstances.delete(makeKey(r.challenge_id, r.team_id)); });
+        } else { selectedInstances.clear(); }
+        updateSelectedUI();
+        await loadData(currentPage);
+    } catch (e) { alert("Error: " + e.message); }
+    finally { if (btn) { btn.textContent = orig; btn.disabled = selectedInstances.size === 0; } updateSelectedUI(); }
+}
+
+async function stopAllContest() {
+    if (!confirm(`Stop ALL running instances for contest "{{ contest.name }}"?\n\nThis cannot be undone.`)) return;
+    const btn = event.target.closest("button");
+    const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+    try {
+        const resp = await CTFd.fetch("/api/challenge/stop-all", { method: "DELETE" });
+        if (resp.ok) { alert("All instances stopped."); loadData(); }
+        else { const r = await resp.json(); alert("Failed: " + (r.error || "Unknown")); }
+    } catch (e) { alert("Error: " + e.message); }
+    finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+/* ── action menu helpers ── */
+function closeAllMenus() {
+    document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+}
+function toggleActionMenu(btn, e) {
+    e.stopPropagation();
+    const menu = btn.nextElementSibling;
+    if (!menu) return;
+    const open = menu.classList.contains('open');
+    closeAllMenus();
+    if (!open) { menu.classList.add('open'); positionMenu(menu, btn); }
+}
+function positionMenu(menu, btn) {
+    const r = btn.getBoundingClientRect();
+    const w = menu.offsetWidth || 160;
+    let left = r.right - w;
+    if (left < 4) left = r.left;
+    menu.style.top = (r.bottom + 2) + 'px';
+    menu.style.left = left + 'px';
+}
+document.addEventListener('click', closeAllMenus);
+window.addEventListener('scroll', () => {
+    const m = document.querySelector('.action-menu.open');
+    if (m) positionMenu(m, m.previousElementSibling);
+});
+
+document.addEventListener('DOMContentLoaded', loadData);
+</script>
+{% endblock %}

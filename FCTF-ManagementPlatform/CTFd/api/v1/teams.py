@@ -17,7 +17,7 @@ from CTFd.cache import (
     clear_user_session,
 )
 from CTFd.constants import RawEnum
-from CTFd.models import Awards, Challenges, Submissions, Teams, Tokens, Unlocks, Users, db
+from CTFd.models import Awards, Challenges, Submissions, Teams, Tokens, Unlocks, UserTeamMember, Users, db
 from CTFd.schemas.awards import AwardSchema
 from CTFd.schemas.submissions import SubmissionSchema
 from CTFd.schemas.teams import TeamSchema
@@ -328,7 +328,6 @@ class TeamPublic(Resource):
         }
 
         for member in team.members:
-            member.team_id = None
             clear_user_session(user_id=member.id)
 
         db.session.delete(team)
@@ -470,7 +469,6 @@ class TeamPrivate(Resource):
             )
 
         for member in team.members:
-            member.team_id = None
             clear_user_session(user_id=member.id)
 
         db.session.delete(team)
@@ -552,7 +550,8 @@ class TeamMembers(Resource):
                     400,
                 )
 
-            if user.team_id is None:
+            already_in_team = UserTeamMember.query.filter_by(user_id=user.id).first()
+            if already_in_team is None:
                 team.members.append(user)
                 db.session.commit()
             else:
@@ -587,7 +586,8 @@ class TeamMembers(Resource):
         user_id = data["user_id"]
         user = Users.query.filter_by(id=user_id).first_or_404()
 
-        if user.team_id == team.id:
+        membership = UserTeamMember.query.filter_by(user_id=user.id, team_id=team.id).first()
+        if membership:
             team.members.remove(user)
 
             # Remove information that links the user to the team
@@ -788,9 +788,10 @@ class TeamContestant(Resource):
             token_auth = Tokens.query.filter_by(value=token).first()
             user = Users.query.filter_by(id=token_auth.user_id).first() if token_auth else None
         if user:
-            team = Teams.query.filter_by(id=user.team_id).first()
+            utm = UserTeamMember.query.filter_by(user_id=user.id).first()
+            team = Teams.query.filter_by(id=utm.team_id).first() if utm else None
             if team:
-                users_member = Users.query.filter_by(team_id=team.id).all()
+                users_member = team.members
                 members = [
                     {
                         "name": member.name,

@@ -86,6 +86,7 @@ class QuerySpec:
     filters: List[FilterSpec]
     limit: int
     order: Dict[str, str]
+    contest_id: int | None = None
 
 
 class QuerySpecError(ValueError):
@@ -118,7 +119,7 @@ def _assert_schema(entity: str) -> None:
         ["id", "team_id", "user_id", "challenge_id", "date", "type"],
     )
     _require_columns("solves", ["id"])
-    _require_columns("challenges", ["id", "contest_id", "category", "name", "value"])
+    _require_columns("challenges", ["id", "category", "name", "value"])
     _require_columns("unlocks", ["team_id", "user_id", "hint_id", "type"])
     _require_columns("hints", ["id", "challenge_id"])
     _require_columns("awards", ["id", "team_id", "user_id", "value", "date"])
@@ -172,6 +173,10 @@ def validate_query_spec(payload: Dict[str, Any]) -> QuerySpec:
 
     parsed_filters = _parse_filters(filters)
 
+    contest_id = payload.get("contest_id")
+    if contest_id is not None:
+        contest_id = int(contest_id)
+
     return QuerySpec(
         rule=rule,
         entity=entity,
@@ -179,6 +184,7 @@ def validate_query_spec(payload: Dict[str, Any]) -> QuerySpec:
         filters=parsed_filters,
         limit=limit,
         order=order,
+        contest_id=contest_id,
     )
 
 
@@ -303,6 +309,17 @@ def compile_query(spec: QuerySpec) -> Tuple[str, Dict[str, Any]]:
     params["limit"] = spec.limit
     params["full_clear_category"] = full_clear_category
 
+    contest_id = spec.contest_id
+    if contest_id is not None:
+        params["contest_id"] = contest_id
+        contest_ch_where = " AND ch.contest_id = :contest_id"
+        contest_cat_where = "\n    WHERE ch.contest_id = :contest_id"
+        contest_wrong_where = " AND ch.contest_id = :contest_id"
+    else:
+        contest_ch_where = ""
+        contest_cat_where = ""
+        contest_wrong_where = ""
+
     dialect = db.engine.dialect.name if db.engine else "postgresql"
     if dialect in {"mysql", "mariadb"}:
         solve_time_expr = "UNIX_TIMESTAMP(s.date)"
@@ -317,14 +334,14 @@ WITH base_solves AS (
         s.user_id,
         s.challenge_id,
         s.date AS solve_date,
-        c.value AS challenge_value,
-        c.category AS category,
-        c.name AS challenge_name,
+        ch.value AS challenge_value,
+        ch.category AS category,
+        ch.name AS challenge_name,
         {solve_time_expr} AS solve_time
     FROM submissions s
     JOIN solves sol ON sol.id = s.id
-    JOIN challenges c ON c.id = s.challenge_id
-    WHERE s.type = 'correct'
+    JOIN challenges ch ON ch.id = s.challenge_id
+    WHERE s.type = 'correct'{contest_ch_where}
 ),
 first_bloods AS (
     SELECT challenge_id, MIN(solve_date) AS first_blood_date
@@ -332,7 +349,7 @@ first_bloods AS (
     GROUP BY challenge_id
 ),
 hint_usage AS (
-    SELECT u.team_id, h.challenge_id
+    SELECT u.team_id, h.challenge_id AS challenge_id
     FROM unlocks u
     JOIN hints h ON h.id = u.hint_id
     WHERE u.type = 'hints'
@@ -355,9 +372,9 @@ solves_filtered AS (
     {base_where}
 ),
 category_totals AS (
-    SELECT c.category, COUNT(DISTINCT c.id) AS total_challenges
-    FROM challenges c
-    GROUP BY c.category
+    SELECT ch.category, COUNT(DISTINCT ch.id) AS total_challenges
+    FROM challenges ch{contest_cat_where}
+    GROUP BY ch.category
 ),
 team_awards AS (
     SELECT team_id, COALESCE(SUM(value), 0) AS award_value
@@ -366,10 +383,11 @@ team_awards AS (
     GROUP BY team_id
 ),
 wrong_team AS (
-    SELECT team_id, COUNT(*) AS wrong_count
-    FROM submissions
-    WHERE type = 'incorrect'
-    GROUP BY team_id
+    SELECT s.team_id, COUNT(*) AS wrong_count
+    FROM submissions s
+    JOIN challenges ch ON ch.id = s.challenge_id
+    WHERE s.type = 'incorrect'{contest_wrong_where}
+    GROUP BY s.team_id
 ),
 wrong_before AS (
     SELECT

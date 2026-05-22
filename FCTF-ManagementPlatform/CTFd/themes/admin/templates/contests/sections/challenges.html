@@ -157,6 +157,10 @@
                class="clean-btn clean-btn-primary">
                 <i class="btn-fa fas fa-plus"></i> Create Challenge
             </a>
+            <a href="{{ url_for('admin.challenges_sandbox_new') }}?contest_id={{ contest.id }}"
+               class="clean-btn clean-btn-secondary">
+                <i class="fas fa-flask"></i> Sandbox Challenge
+            </a>
         </div>
         <div class="btn-group" role="group">
             <button type="button" class="clean-btn clean-btn-danger ml-2"

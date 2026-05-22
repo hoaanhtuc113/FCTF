@@ -249,6 +249,8 @@ Override the entire sidebar block with contest-scoped navigation
         </a>
     </div>
 
+  
+
     <a href="{{ url_for('admin.kypo_resources', contest_id=contest.id) }}"
         class="cs-nav-link {% if request.endpoint == 'admin.kypo_resources' %}active{% endif %}">
         <i class="bx bx-chip"></i> KYPO Resources
@@ -262,6 +264,10 @@ Override the entire sidebar block with contest-scoped navigation
     <a href="{{ url_for('admin.contest_dynamic_reward', contest_id=contest.id) }}"
         class="nav-link {% if request.endpoint == 'admin.contest_dynamic_reward' %}active{% endif %}">
         <i class="bx bx-line-chart"></i> Dynamic Reward Query
+    </a>
+    <a href="{{ url_for('admin.contest_monitoring', contest_id=contest.id) }}"
+        class="cs-nav-link {% if request.endpoint == 'admin.contest_monitoring' %}active{% endif %}">
+        <i class="bx bx-server"></i> Monitoring
     </a>
 
     {# ── Logout at bottom ── #}

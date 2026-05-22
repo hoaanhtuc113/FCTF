@@ -67,6 +67,7 @@ from CTFd.models import (
     Tracking,
     Tokens,
     Unlocks,
+    UserTeamMember,
     Users,
     AwardBadges,
     db,
@@ -372,19 +373,19 @@ def dump_csv_with_passwords(field=None, q=None):
 
     charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     
-    # Build query with filters
+    # Build query with filters — join via UserTeamMember (no direct team_id on Users)
     query = (
         db.session.query(Users, Teams)
-        .outerjoin(Teams, Users.team_id == Teams.id)
+        .outerjoin(UserTeamMember, UserTeamMember.user_id == Users.id)
+        .outerjoin(Teams, Teams.id == UserTeamMember.team_id)
         .filter(Users.type == "user")
-        .options(joinedload(Users.team))
     )
-    
+
     # Apply filters if provided
     if q and field:
         if Users.__mapper__.has_property(field):
             query = query.filter(getattr(Users, field).like(f"%{q}%"))
-    
+
     users = query.all()
 
     import concurrent.futures
@@ -396,7 +397,7 @@ def dump_csv_with_passwords(field=None, q=None):
         hashed = bcrypt_sha256.using(rounds=4).hash(str(new_pass))
         if isinstance(hashed, bytes):
             hashed = hashed.decode("utf-8")
-        return (user.id, hashed, user.name, user.email, user.team_id or "", team.name if team else "", new_pass)
+        return (user.id, hashed, user.name, user.email, team.id if team else "", team.name if team else "", new_pass)
 
     # Dùng ThreadPoolExecutor để hash song song
     results = []
@@ -436,25 +437,26 @@ def dump_csv_without_passwords(field=None, q=None):
     writer = csv.writer(output)
     writer.writerow(["name", "email", "team_id", "team_name"])
 
-    # Build query with filters
+    # Build query with filters — join via UserTeamMember (no direct team_id on Users)
     query = (
         db.session.query(Users, Teams)
-        .outerjoin(Teams, Users.team_id == Teams.id)
+        .outerjoin(UserTeamMember, UserTeamMember.user_id == Users.id)
+        .outerjoin(Teams, Teams.id == UserTeamMember.team_id)
         .filter(Users.type == "user")
     )
-    
+
     # Apply filters if provided
     if q and field:
         if Users.__mapper__.has_property(field):
             query = query.filter(getattr(Users, field).like(f"%{q}%"))
-    
+
     users = query.all()
 
     for user, team in users:
         writer.writerow([
             user.name,
             user.email,
-            user.team_id or "",
+            team.id if team else "",
             team.name if team else "",
         ])
 

@@ -203,6 +203,7 @@ def rewards_details():
     payload = request.get_json() or {}
     template_id = payload.get("template_id", "")
     entity_id = payload.get("entity_id")
+    contest_id = payload.get("contest_id")
 
     if not entity_id:
         return jsonify({"success": False, "error": "entity_id is required"}), 400
@@ -212,36 +213,42 @@ def rewards_details():
     # Always filter by team
     filter_col = "s.team_id"
 
+    contest_ch_where = " AND ch.contest_id = :contest_id" if contest_id else ""
+    contest_cat_where = " WHERE ch.contest_id = :contest_id" if contest_id else ""
+    base_params: dict = {"entity_id": entity_id}
+    if contest_id:
+        base_params["contest_id"] = int(contest_id)
+
     # Build extra conditions based on the template type
     extra_join = ""
     extra_where = ""
 
     if template_id == "category_masters":
-        sql = """
+        sql = f"""
             SELECT
                 sf.category,
                 COUNT(DISTINCT sf.challenge_id) AS solved_count,
                 ct.total_challenges,
                 MAX(sf.solve_date) AS full_clear_date
             FROM (
-                SELECT s.id AS solve_id, c.id AS challenge_id,
-                       c.name AS challenge_name, c.category,
-                       c.value AS challenge_value, s.date AS solve_date
+                SELECT s.id AS solve_id, ch.id AS challenge_id,
+                       ch.name AS challenge_name, ch.category,
+                       ch.value AS challenge_value, s.date AS solve_date
                 FROM submissions s
                 JOIN solves sol ON sol.id = s.id
-                JOIN challenges c ON c.id = s.challenge_id
-                WHERE s.type = 'correct' AND s.team_id = :entity_id
+                JOIN challenges ch ON ch.id = s.challenge_id
+                WHERE s.type = 'correct' AND s.team_id = :entity_id{contest_ch_where}
             ) sf
             JOIN (
-                SELECT category, COUNT(*) AS total_challenges
-                FROM challenges
-                GROUP BY category
+                SELECT ch.category, COUNT(*) AS total_challenges
+                FROM challenges ch{contest_cat_where}
+                GROUP BY ch.category
             ) ct ON ct.category = sf.category
             GROUP BY sf.category, ct.total_challenges
             HAVING COUNT(DISTINCT sf.challenge_id) >= ct.total_challenges
             ORDER BY full_clear_date ASC
         """
-        rows = db.session.execute(sa_text(sql), {"entity_id": entity_id}).fetchall()
+        rows = db.session.execute(sa_text(sql), base_params).fetchall()
         details = []
         for row in rows:
             details.append({
@@ -284,22 +291,22 @@ def rewards_details():
 
     sql = f"""
         SELECT
-            c.id AS challenge_id,
-            c.name AS challenge_name,
-            c.category,
-            c.value AS score,
+            ch.id AS challenge_id,
+            ch.name AS challenge_name,
+            ch.category,
+            ch.value AS score,
             s.date AS solve_date
         FROM submissions s
         JOIN solves sol ON sol.id = s.id
-        JOIN challenges c ON c.id = s.challenge_id
+        JOIN challenges ch ON ch.id = s.challenge_id
         {extra_join}
         WHERE s.type = 'correct'
-        AND {filter_col} = :entity_id
+        AND {filter_col} = :entity_id{contest_ch_where}
         {extra_where}
-        ORDER BY c.category, c.name
+        ORDER BY ch.category, ch.name
     """
 
-    rows = db.session.execute(sa_text(sql), {"entity_id": entity_id}).fetchall()
+    rows = db.session.execute(sa_text(sql), base_params).fetchall()
 
     details = []
     for row in rows:
