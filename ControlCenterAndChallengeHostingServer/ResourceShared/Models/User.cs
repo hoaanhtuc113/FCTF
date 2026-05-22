@@ -19,11 +19,6 @@ public partial class User
 
     public string? Secret { get; set; }
 
-    public string? Website { get; set; }
-
-    public string? Affiliation { get; set; }
-
-    public string? Country { get; set; }
 
     public bool? Hidden { get; set; } = false;
 
@@ -33,7 +28,6 @@ public partial class User
 
     public DateTime? Created { get; set; }
 
-    public string? Language { get; set; }
 
     public int? BracketId { get; set; }
 

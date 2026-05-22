@@ -857,21 +857,17 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.OauthId, "oauth_id").IsUnique();
 
             entity.Property(e => e.Id).HasColumnType("int(11)").HasColumnName("id");
-            entity.Property(e => e.Affiliation).HasMaxLength(128).HasColumnName("affiliation");
             entity.Property(e => e.Banned).HasColumnName("banned");
             entity.Property(e => e.BracketId).HasColumnType("int(11)").HasColumnName("bracket_id");
-            entity.Property(e => e.Country).HasMaxLength(32).HasColumnName("country");
             entity.Property(e => e.Created).HasMaxLength(6).HasColumnName("created");
             entity.Property(e => e.Email).HasMaxLength(128).HasColumnName("email");
             entity.Property(e => e.Hidden).HasColumnName("hidden");
-            entity.Property(e => e.Language).HasMaxLength(32).HasColumnName("language");
             entity.Property(e => e.Name).HasMaxLength(128).HasColumnName("name");
             entity.Property(e => e.OauthId).HasColumnType("int(11)").HasColumnName("oauth_id");
             entity.Property(e => e.Password).HasMaxLength(128).HasColumnName("password");
             entity.Property(e => e.Secret).HasMaxLength(128).HasColumnName("secret");
             entity.Property(e => e.Type).HasMaxLength(80).HasColumnName("type");
             entity.Property(e => e.Verified).HasColumnName("verified");
-            entity.Property(e => e.Website).HasMaxLength(128).HasColumnName("website");
 
             entity.HasOne(d => d.Bracket).WithMany(p => p.Users)
                 .HasForeignKey(d => d.BracketId)
