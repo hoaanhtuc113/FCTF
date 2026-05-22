@@ -6,14 +6,13 @@ class HintSchema(ma.ModelSchema):
     class Meta:
         model = Hints
         include_fk = True
-        dump_only = ("id", "type", "html")
+        dump_only = ("id", "html")
 
     views = {
-        "locked": ["id", "type", "challenge", "challenge_id", "cost"],
+        "locked": ["id", "type", "challenge_id", "cost"],
         "unlocked": [
             "id",
             "type",
-            "challenge",
             "challenge_id",
             "content",
             "html",
@@ -22,7 +21,6 @@ class HintSchema(ma.ModelSchema):
         "admin": [
             "id",
             "type",
-            "challenge",
             "challenge_id",
             "content",
             "html",

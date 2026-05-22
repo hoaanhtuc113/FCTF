@@ -5,7 +5,7 @@ from typing import List
 from datetime import datetime, timedelta, timezone
 import requests  # noqa: I001
 
-from flask import abort, jsonify, render_template, request, session, url_for
+from flask import abort, current_app, jsonify, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
 import redis
 from CTFd.StartChallenge import create_secret_key, generate_cache_key
@@ -135,6 +135,7 @@ class ChallengeList(Resource):
             "category": (str, None),
             "type": (str, None),
             "state": (str, None),
+            "contest_id": (int, None),
             "q": (str, None),
             "field": (
                 RawEnum(
@@ -265,7 +266,32 @@ class ChallengeList(Resource):
         },
     )
     def post(self):
+        from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+        from CTFd.models import Contests
+
         data = request.form or request.get_json()
+        data = dict(data)
+
+        # ── Resolve contest_id from signed token ──────────────────────────────
+        # contest_token is generated server-side when the admin visits
+        # /admin/contests/<id>/challenges/new.  Validating the HMAC signature
+        # prevents any client-side tampering of the contest_id value.
+        contest_token = data.pop("contest_token", None)
+        validated_contest_id = None
+        if contest_token:
+            s = URLSafeTimedSerializer(current_app.secret_key)
+            try:
+                payload = s.loads(contest_token, salt="create-challenge", max_age=7200)
+                validated_contest_id = int(payload["contest_id"])
+            except SignatureExpired:
+                return {"success": False, "errors": {"contest_token": ["Token expired, please refresh the page"]}}, 400
+            except (BadSignature, Exception):
+                return {"success": False, "errors": {"contest_token": ["Invalid token"]}}, 400
+
+        if validated_contest_id is None:
+            return {"success": False, "errors": {"contest_id": ["contest_token is required"]}}, 400
+
+        Contests.query.filter_by(id=validated_contest_id).first_or_404()
 
         # Trim name and category fields
         if "name" in data:
@@ -278,7 +304,7 @@ class ChallengeList(Resource):
             return {"success": False, "errors": {"name": ["Name cannot be empty"]}}, 400
         if not data.get("category"):
             return {"success": False, "errors": {"category": ["Category cannot be empty"]}}, 400
-        
+
         # Validate category max length
         if len(data.get("category", "")) > 20:
             return {"success": False, "errors": {"category": ["Category must be 20 characters or less"]}}, 400
@@ -294,6 +320,11 @@ class ChallengeList(Resource):
                 except (TypeError, ValueError):
                     data["difficulty"] = None
 
+        # Inject validated contest_id before schema validation so the
+        # ModelSchema (which marks contest_id required because nullable=False)
+        # does not raise "Missing data for required field".
+        data["contest_id"] = validated_contest_id
+
         schema = ChallengeSchema()
         response = schema.load(data)
         if response.errors:
@@ -301,7 +332,9 @@ class ChallengeList(Resource):
 
         challenge_type = data["type"]
         challenge_class = get_chal_class(challenge_type)
-        challenge = challenge_class.create(request)
+        # Pass the server-validated contest_id so create() can merge it into
+        # the model data (client cannot spoof this value).
+        challenge = challenge_class.create(request, extra_data={"contest_id": validated_contest_id})
         response = challenge_class.read(challenge)
 
         log_audit(
@@ -321,7 +354,7 @@ class ChallengeList(Resource):
                 "difficulty": challenge.difficulty,
                 "requirements": challenge.requirements,
                 "next_id": challenge.next_id,
-                "user_id": challenge.user_id,
+                "user_id": challenge.created_by,
                 "require_deploy": challenge.require_deploy,
                 "deploy_status": challenge.deploy_status,
                 "image_link": challenge.image_link,
@@ -407,6 +440,7 @@ class Challenge(Resource):
                     solve_ids = (
                         Solves.query.with_entities(Solves.challenge_id)
                         .filter(Solves.account_id == user.account_id)
+                        .order_by(Solves.challenge_id.asc())
                         .all()
                     )
                 else:
@@ -450,12 +484,11 @@ class Challenge(Resource):
         hints = []
         if authed():
             user = get_current_user()
-            team = get_current_team()
 
-            # TODO: Convert this into a re-useable decorator
             if is_admin() or is_challenge_writer() or is_jury():
-                pass
+                team = None
             else:
+                team = get_current_team()
                 if config.is_teams_mode() and team is None:
                     abort(403)
 
@@ -510,7 +543,7 @@ class Challenge(Resource):
         if authed():
             attempts = Submissions.query.filter(
                 Submissions.account_id == user.account_id,
-                Submissions.challenge_id == chal.id,
+                Submissions.challenge_id == challenge_id
             ).count()
         else:
             attempts = 0
@@ -551,6 +584,14 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+
+        # Inject required-but-never-sent fields from the existing row so that
+        # partial PATCH payloads (Requirements, Next, deploy settings, etc.)
+        # don't fail ChallengeSchema validation with "Missing data for required field".
+        _existing = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        data.setdefault("contest_id", _existing.contest_id)
+        data.setdefault("type", _existing.type)
+
         # Normalize difficulty: empty string → None so schema validation passes
         if "difficulty" in data:
             diff_val = data["difficulty"]
@@ -590,7 +631,7 @@ class Challenge(Resource):
             "difficulty": challenge.difficulty,
             "requirements": challenge.requirements,
             "next_id": challenge.next_id,
-            "user_id": challenge.user_id,
+            "user_id": challenge.created_by,
             "require_deploy": challenge.require_deploy,
             "deploy_status": challenge.deploy_status,
             "image_link": challenge.image_link,
@@ -606,10 +647,10 @@ class Challenge(Resource):
         }
 
         if user.type == "admin":
-            data["user_id"] = challenge.user_id
+            data["user_id"] = challenge.created_by
             pass
         elif user.type == "challenge_writer":
-            if challenge.user_id != user_id:
+            if challenge.created_by != user_id:
                 return {
                     "success": False,
                     "error": "You are not authorized to update this challenge.",
@@ -680,7 +721,7 @@ class Challenge(Resource):
                 "difficulty": challenge.difficulty,
                 "requirements": challenge.requirements,
                 "next_id": challenge.next_id,
-                "user_id": challenge.user_id,
+                "user_id": challenge.created_by,
                 "require_deploy": challenge.require_deploy,
                 "deploy_status": challenge.deploy_status,
                 "image_link": challenge.image_link,
@@ -733,7 +774,7 @@ class Challenge(Resource):
             "difficulty": challenge.difficulty,
             "requirements": challenge.requirements,
             "next_id": challenge.next_id,
-            "user_id": challenge.user_id,
+            "user_id": challenge.created_by,
             "require_deploy": challenge.require_deploy,
             "deploy_status": challenge.deploy_status,
             "image_link": challenge.image_link,
@@ -927,7 +968,7 @@ class ChallengeAttempt(Resource):
 
         fails = Fails.query.filter(
             Fails.account_id == user.account_id,
-            Fails.challenge_id == int(challenge_id),
+            Fails.challenge_id == challenge_id
         ).count()
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
@@ -940,8 +981,7 @@ class ChallengeAttempt(Resource):
 
         if challenge.requirements:
             requirements = challenge.requirements.get("prerequisites", [])
-            solve_ids = {
-                s.challenge_id for s in
+            solve_ids = {solve_id for solve_id, in
                 Solves.query.with_entities(Solves.challenge_id)
                 .filter(Solves.account_id == user.account_id)
                 .all()
@@ -984,9 +1024,10 @@ class ChallengeAttempt(Resource):
                 429,
             )
 
+        # Check if already solved
         solves = Solves.query.filter(
             Solves.account_id == user.account_id,
-            Solves.challenge_id == challenge.id,
+            Solves.challenge_id == challenge_id
         ).first()
 
         # Challenge not solved yet
@@ -1211,8 +1252,9 @@ class ChallengeTopics(Resource):
 class ChallengeHints(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, challenge_id):
-        hints = Hints.query.filter_by(challenge_id=challenge_id).all()
-        schema = HintSchema(many=True)
+        # challenge_id from URL is a string; cast to int for the integer FK column
+        hints = Hints.query.filter_by(challenge_id=int(challenge_id)).all()
+        schema = HintSchema(many=True, view="admin")
         response = schema.dump(hints)
 
         if response.errors:

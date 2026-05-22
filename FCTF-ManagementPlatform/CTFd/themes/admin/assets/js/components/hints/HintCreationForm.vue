@@ -99,6 +99,7 @@
 </template>
 
 <script>
+import CTFd from "../../compat/CTFd";
 
 export default {
   name: "HintCreationForm",
@@ -135,10 +136,12 @@ export default {
       }
       let params = {
         challenge_id: this.$props.challenge_id,
+        type: "standard",
         content: this.getContent(),
         cost,
         requirements: { prerequisites: this.selectedHints },
       };
+      console.log("[HintCreationForm] Submitting hint:", params);
       CTFd.fetch("/api/v1/hints", {
         method: "POST",
         credentials: "same-origin",
@@ -152,9 +155,19 @@ export default {
           return response.json();
         })
         .then((response) => {
+          console.log("[HintCreationForm] API response:", response);
           if (response.success) {
             this.$emit("refreshHints", this.$options.name);
+          } else {
+            const errMsg = response.errors
+              ? JSON.stringify(response.errors)
+              : "Unknown error from server";
+            alert("Failed to create hint: " + errMsg);
           }
+        })
+        .catch((err) => {
+          console.error("[HintCreationForm] fetch error:", err);
+          alert("Network error while creating hint.");
         });
     },
   },

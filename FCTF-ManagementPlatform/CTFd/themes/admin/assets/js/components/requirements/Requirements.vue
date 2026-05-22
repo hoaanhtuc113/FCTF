@@ -110,7 +110,13 @@ export default {
   },
   methods: {
     loadChallenges: function () {
-      CTFd.fetch("/api/v1/challenges?view=admin", {
+      const contestId = window.CONTEST_ID;
+      if (!contestId) {
+        console.warn("[Requirements] window.CONTEST_ID not set, cannot load challenges.");
+        return;
+      }
+      const url = `/api/v1/contest_challenges?contest_id=${contestId}&per_page=200`;
+      CTFd.fetch(url, {
         method: "GET",
         credentials: "same-origin",
         headers: {
@@ -124,7 +130,12 @@ export default {
         .then((response) => {
           if (response.success) {
             this.challenges = response.data;
+          } else {
+            console.error("[Requirements] API error:", response);
           }
+        })
+        .catch((err) => {
+          console.error("[Requirements] loadChallenges failed:", err, "URL:", url);
         });
     },
     getChallengeNameById: function (challenge_id) {

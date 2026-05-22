@@ -149,6 +149,10 @@ class Challenges(db.Model):
         return get_chal_class(self.type)
 
     @property
+    def challenge_template(self):
+        return self
+
+    @property
     def prerequisites(self):
         if self.requirements:
             return self.requirements.get("prerequisites", [])
@@ -314,10 +318,12 @@ class Hints(db.Model):
 
     @property
     def html(self):
-        from CTFd.utils.config.pages import build_markdown
-        from CTFd.utils.helpers import markup
-
-        return markup(build_markdown(self.content))
+        try:
+            from CTFd.utils.config.pages import build_markdown
+            from CTFd.utils.helpers import markup
+            return markup(build_markdown(self.content))
+        except (ImportError, Exception):
+            return self.content or ""
 
     @property
     def prerequisites(self):

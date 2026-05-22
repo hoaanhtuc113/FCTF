@@ -279,6 +279,12 @@ function loadChalTemplate(challenge) {
             return obj;
           }, {});
 
+        // Attach signed contest token when creating from a contest page.
+        // window.CHALLENGE_CONTEST_TOKEN is set server-side in the template script block
+        // (not in any form field), so the client cannot tamper with it via form editing.
+        if (typeof window.CHALLENGE_CONTEST_TOKEN === "string" && window.CHALLENGE_CONTEST_TOKEN) {
+          params.contest_token = window.CHALLENGE_CONTEST_TOKEN;
+        }
 
         try {
           // Create challenge first (JSON)
@@ -488,10 +494,15 @@ function handleChallengeOptions(event) {
       }
     });
   }).then(function () {
-    // Step 3: Redirect to challenge detail page
+    // Step 3: Redirect to challenge detail page.
+    // When creating from a contest page, window.CHALLENGE_AFTER_CREATE_REDIRECT
+    // is set to "/admin/contests/<id>/challenges/" so the redirect stays
+    // within the contest context.
     setTimeout(function () {
-      window.location =
-        CTFd.config.urlRoot + "/admin/challenges/" + params.challenge_id;
+      const basePath = (typeof window.CHALLENGE_AFTER_CREATE_REDIRECT === "string" && window.CHALLENGE_AFTER_CREATE_REDIRECT)
+        ? window.CHALLENGE_AFTER_CREATE_REDIRECT
+        : "/admin/challenges/";
+      window.location = CTFd.config.urlRoot + basePath + params.challenge_id;
     }, 1200);
   });
 }
@@ -529,7 +540,12 @@ $(() => {
           })
           .then(function (response) {
             if (response.success) {
-              window.location = CTFd.config.urlRoot + "/admin/challenges";
+              const deleteRedirect =
+                (typeof window.CHALLENGE_AFTER_DELETE_REDIRECT === "string" &&
+                  window.CHALLENGE_AFTER_DELETE_REDIRECT)
+                  ? window.CHALLENGE_AFTER_DELETE_REDIRECT
+                  : "/admin/challenges";
+              window.location = CTFd.config.urlRoot + deleteRedirect;
             }
           });
       },
