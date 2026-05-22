@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { CheckCircle, Lock } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 interface Challenge {
   id: number;
@@ -17,10 +17,11 @@ interface ChallengeCardProps {
 
 export function ChallengeCard({ challenge, isContestActive }: ChallengeCardProps) {
   const navigate = useNavigate();
+  const { contestId } = useParams<{ contestId?: string }>();
 
   const handleClick = () => {
     if (isContestActive) {
-      navigate(`/challenge/${challenge.id}`);
+      navigate(contestId ? `/contest/${contestId}/challenge/${challenge.id}` : `/challenge/${challenge.id}`);
     }
   };
 

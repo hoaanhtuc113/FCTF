@@ -12,7 +12,8 @@ import { ThemeProvider } from './context/ThemeContext';
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 const Register = lazy(() => import('./pages/Register').then(module => ({ default: module.Register })));
-// Dashboard and Home screens have been removed; users go straight to challenges after login
+// Dashboard and Home screens have been removed; users go straight to contests after login
+const Contests = lazy(() => import('./pages/Contests').then(module => ({ default: module.Contests })));
 const Challenges = lazy(() => import('./pages/Challenges').then(module => ({ default: module.Challenges })));
 const Scoreboard = lazy(() => import('./pages/Scoreboard').then(module => ({ default: module.Scoreboard })));
 const PublicScoreboard = lazy(() => import('./pages/PublicScoreboard').then(module => ({ default: module.PublicScoreboard })));
@@ -37,70 +38,78 @@ function AppRoutes() {
               <Route path="/register" element={<Register />} />
               <Route path="/public/scoreboard" element={<PublicScoreboard />} />
               <Route
-                path="/challenges"
+                path="/contests"
                 element={
                   <PrivateRoute>
+                    <Contests />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/contest/:contestId/challenges"
+                element={
+                  <PrivateRoute requireContest={true}>
                     <Layout><Challenges /></Layout>
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/challenge/:id"
+                path="/contest/:contestId/challenge/:id"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requireContest={true}>
                     <Layout><Challenges /></Layout>
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/scoreboard"
+                path="/contest/:contestId/scoreboard"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requireContest={true}>
                     <Layout><Scoreboard /></Layout>
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/tickets"
+                path="/contest/:contestId/tickets"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requireContest={true}>
                     <Layout><Tickets /></Layout>
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/tickets/:id"
+                path="/contest/:contestId/tickets/:id"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requireContest={true}>
                     <Layout><TicketDetail /></Layout>
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/profile"
+                path="/contest/:contestId/profile"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requireContest={true}>
                     <Layout><Profile /></Layout>
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/instances"
+                path="/contest/:contestId/instances"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requireContest={true}>
                     <Layout><Instances /></Layout>
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/action-logs"
+                path="/contest/:contestId/action-logs"
                 element={
-                  <PrivateRoute>
+                  <PrivateRoute requireContest={true}>
                     <Layout><ActionLogsPage /></Layout>
                   </PrivateRoute>
                 }
               />
-              <Route path="/" element={<Navigate to="/challenges" replace />} />
+              <Route path="/" element={<Navigate to="/contests" replace />} />
             </Routes>
           </Suspense>
         </AuthProvider>

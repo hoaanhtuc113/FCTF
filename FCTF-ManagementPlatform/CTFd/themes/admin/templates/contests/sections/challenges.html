@@ -164,7 +164,7 @@
         </div>
         <div class="btn-group" role="group">
             <button type="button" class="clean-btn clean-btn-danger ml-2"
-                    id="cc-delete-button" data-toggle="tooltip" title="Delete selected challenges">
+                    id="challenges-delete-button" data-toggle="tooltip" title="Delete selected challenges">
                 <i class="btn-fa fas fa-trash-alt"></i> Delete
             </button>
         </div>
@@ -196,7 +196,7 @@
                 <tr data-href="{{ url_for('admin.contest_challenge_detail', contest_id=contest.id, challenge_id=cc.id) }}">
                     <td data-checkbox>
                         <input type="checkbox" class="table-check" autocomplete="off"
-                               value="{{ cc.id }}" data-cc-id="{{ cc.id }}">
+                               value="{{ cc.id }}" data-challenge-id="{{ cc.id }}">
                     </td>
                     <td class="text-center">{{ cc.id }}</td>
                     <td class="text-center cell-truncate" title="{{ cc.name }}">
@@ -367,21 +367,7 @@ if (allCb) {
     });
 }
 
-/* Delete selected challenges (permanently) */
-const delBtn = document.getElementById('cc-delete-button');
-if (delBtn) {
-    delBtn.addEventListener('click', function() {
-        const ids = Array.from(document.querySelectorAll('input[data-cc-id]:checked')).map(function(cb) { return cb.value; });
-        if (!ids.length) { alert('Please select at least one challenge.'); return; }
-        if (!confirm('Permanently delete ' + ids.length + ' challenge(s)? This cannot be undone.')) return;
-        const csrfToken = (window.init && init.csrfNonce) || '';
-        Promise.all(ids.map(function(id) {
-            return fetch('/api/v1/challenges/' + id, {
-                method: 'DELETE',
-                headers: { 'CSRF-Token': csrfToken }
-            });
-        })).then(function() { window.location.reload(); });
-    });
-}
+/* Delete selected challenges — handled by deleteSelectedChallenges() in challenges.js
+   (uses ezQuery Bootstrap modal + CTFd.fetch with auto-CSRF, bound to #challenges-delete-button) */
 </script>
 {% endblock %}

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { configService } from '../services/configService';
+import { contestService } from '../services/contestService';
 import {
   Box,
   Avatar,
@@ -50,17 +51,42 @@ export function Layout({ children }: LayoutProps) {
   const [contestStatus, setContestStatus] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [smallIconUrl, setSmallIconUrl] = useState<string | null>(null);
+  const [activeContest, setActiveContest] = useState<any>(null);
+
+  const { contestId } = useParams<{ contestId?: string }>();
 
   const tabs = [
-    { label: 'Challenges', path: '/challenges', icon: <Security fontSize="small" /> },
-    { label: 'Instances', path: '/instances', icon: <ViewList fontSize="small" /> },
-    { label: 'Scoreboard', path: '/scoreboard', icon: <EmojiEvents fontSize="small" /> },
-    { label: 'Action Logs', path: '/action-logs', icon: <History fontSize="small" /> },
-    { label: 'Tickets', path: '/tickets', icon: <SupportAgent fontSize="small" /> },
+    { label: 'Challenges', path: contestId ? `/contest/${contestId}/challenges` : '/challenges', icon: <Security fontSize="small" /> },
+    { label: 'Instances', path: contestId ? `/contest/${contestId}/instances` : '/instances', icon: <ViewList fontSize="small" /> },
+    { label: 'Scoreboard', path: contestId ? `/contest/${contestId}/scoreboard` : '/scoreboard', icon: <EmojiEvents fontSize="small" /> },
+    { label: 'Action Logs', path: contestId ? `/contest/${contestId}/action-logs` : '/action-logs', icon: <History fontSize="small" /> },
+    { label: 'Tickets', path: contestId ? `/contest/${contestId}/tickets` : '/tickets', icon: <SupportAgent fontSize="small" /> },
   ];
 
   useEffect(() => {
     const fetchContestStatus = async () => {
+      // 1. Prioritize active selected contest times
+      const selectedContest = contestService.getActiveContest();
+      setActiveContest(selectedContest);
+
+      if (selectedContest) {
+        const now = new Date();
+        const startDate = new Date(selectedContest.start_time);
+        const endDate = new Date(selectedContest.end_time);
+
+        if (now < startDate) {
+          setContestStatus('Starts in');
+          startCountdown(startDate);
+        } else if (now < endDate) {
+          setContestStatus('Ends in');
+          startCountdown(endDate);
+        } else {
+          setContestStatus('Contest ended');
+        }
+        return;
+      }
+
+      // 2. Fallback to global config if no selected contest is active
       try {
         const config = await configService.getDateConfig();
         if (!config) return;
@@ -153,7 +179,7 @@ export function Layout({ children }: LayoutProps) {
 
   const handleProfile = () => {
     handleMenuClose();
-    navigate('/profile');
+    navigate(contestId ? `/contest/${contestId}/profile` : '/profile');
   };
 
   const handleThemeToggle = () => {
@@ -191,7 +217,7 @@ export function Layout({ children }: LayoutProps) {
             {/* Logo */}
             <Box
               className="flex items-center gap-2 cursor-pointer"
-              onClick={() => navigate('/challenges')}
+              onClick={() => navigate(contestId ? `/contest/${contestId}/challenges` : '/challenges')}
             >
               <img
                 src={logoUrl || '/assets/fctf-logo.png'}
@@ -199,6 +225,31 @@ export function Layout({ children }: LayoutProps) {
                 className="w-10 h-10 object-contain"
               />
             </Box>
+
+            {/* Active Contest Indicator & Switch Button */}
+            {activeContest && (
+              <Box 
+                className="ml-4 flex items-center gap-2 px-3 py-1.5 rounded-lg border font-mono text-xs"
+                sx={{
+                  borderColor: theme === 'dark' ? 'rgba(234, 122, 0, 0.3)' : '#ece7df',
+                  bgcolor: theme === 'dark' ? 'rgba(234, 122, 0, 0.05)' : '#fffdf8',
+                }}
+              >
+                <span className="text-orange-500 font-black animate-pulse">●</span>
+                <span className="text-gray-400 font-bold hidden md:inline">ARENA:</span>
+                <span className={`font-black truncate max-w-[150px] sm:max-w-[220px] ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                  {activeContest.name}
+                </span>
+                <button
+                  onClick={() => navigate('/contests')}
+                  className={`ml-1 font-bold transition-all ${theme === 'dark' ? 'text-gray-500 hover:text-orange-400' : 'text-gray-500 hover:text-orange-600'}`}
+                  title="Switch Contest"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  [SWITCH]
+                </button>
+              </Box>
+            )}
 
             {/* Navigation Tabs */}
             <Box className="flex-1 flex items-center gap-2 ml-8">
@@ -377,6 +428,30 @@ export function Layout({ children }: LayoutProps) {
               )}
 
               {/* Menu Items */}
+              {activeContest && (
+                <MenuItem
+                  onClick={() => {
+                    handleMenuClose();
+                    navigate('/contests');
+                  }}
+                  sx={{
+                    gap: 1.5,
+                    mx: 1,
+                    my: 0.5,
+                    borderRadius: 1.5,
+                    fontWeight: 600,
+                    fontFamily: 'ui-monospace, monospace',
+                    color: theme === 'dark' ? 'rgb(229, 231, 235)' : 'rgb(55, 65, 81)',
+                    '&:hover': {
+                      backgroundColor: theme === 'dark' ? 'rgba(75, 85, 99, 0.5)' : 'rgba(243, 244, 246, 1)',
+                    },
+                  }}
+                >
+                  <ViewList fontSize="small" sx={{ color: theme === 'dark' ? '#fb923c' : '#f97316' }} />
+                  <span>{'[>]'} Switch Contest</span>
+                </MenuItem>
+              )}
+
               <MenuItem
                 onClick={handleProfile}
                 sx={{

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../hooks/useToast';
-import { Box, TextField, Button, CircularProgress } from '@mui/material';
+import { Box, TextField, Button, CircularProgress, IconButton } from '@mui/material';
+import { Moon, Sun, Shield } from 'lucide-react';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { configService } from '../services/configService';
 import { getTurnstileSiteKey } from '../services/envService';
@@ -49,17 +51,38 @@ export function Login() {
     }
   }, []);
 
+  const { theme, toggleTheme } = useTheme();
+
   const colors = {
-    pageBg: '#f6f5f3',
-    panelBg: '#ffffff',
-    border: '#ece7df',
-    primary: '#ea7a00',
-    primaryDark: '#d86600',
-    text: '#121212',
-    textSecondary: '#6b7280',
-    inputBg: '#fffcf8',
-    inputBorder: '#e7dfd1',
+    light: {
+      pageBg: '#f6f5f3',
+      panelBg: '#ffffff',
+      border: '#ece7df',
+      text: '#121212',
+      textSecondary: '#6b7280',
+      inputBg: '#fffcf8',
+      inputBorder: '#e7dfd1',
+      primary: '#ea7a00',
+      primaryDark: '#d86600',
+      tagBg: '#fff7ec',
+      shadow: '0 18px 45px rgba(17, 24, 39, 0.04)',
+    },
+    dark: {
+      pageBg: '#090d16',
+      panelBg: '#111827',
+      border: '#1f2937',
+      text: '#f3f4f6',
+      textSecondary: '#9ca3af',
+      inputBg: '#1f2937',
+      inputBorder: '#374151',
+      primary: '#ea7a00',
+      primaryDark: '#fb923c',
+      tagBg: 'rgba(234, 122, 0, 0.1)',
+      shadow: '0 18px 45px rgba(0, 0, 0, 0.5)',
+    }
   };
+
+  const activeColors = theme === 'dark' ? colors.dark : colors.light;
 
   const yieldToBrowser = useCallback(async () => {
     await new Promise<void>((resolve) => {
@@ -81,8 +104,8 @@ export function Login() {
     try {
       await login(username, password, captchaTokenRef.current ?? undefined);
       toast.success('auth_success');
-      // after authentication, go directly to the challenges page
-      navigate('/challenges');
+      // after authentication, go to the contests selection page
+      navigate('/contests');
     } catch (err) {
       console.log(err);
       resetCaptcha();
@@ -171,16 +194,71 @@ export function Login() {
       style={{
         position: 'relative',
         overflow: 'hidden',
-        backgroundColor: colors.pageBg,
+        backgroundColor: activeColors.pageBg,
+        color: activeColors.text,
       }}
     >
       <CyberBackground />
 
-      <Box sx={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+      <Box
+        component="header"
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          p: { xs: 2, sm: 4 },
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '8px',
+              bgcolor: activeColors.tagBg,
+              color: activeColors.primary,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: `1px solid ${activeColors.primary}`,
+            }}
+          >
+            <Shield size={16} />
+          </Box>
+          <Box sx={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.05em', fontFamily: '"JetBrains Mono", monospace' }}>
+            FCTF <span style={{ color: activeColors.primary }}>//</span> PORTAL
+          </Box>
+        </Box>
+
+        <IconButton
+          onClick={() => { toggleTheme(); toast.success(`Switched to ${theme === 'dark' ? 'light' : 'dark'} mode`); }}
+          sx={{
+            color: activeColors.textSecondary,
+            p: 1,
+            border: `1px solid ${activeColors.border}`,
+            borderRadius: '8px',
+            bgcolor: theme === 'dark' ? 'rgba(31, 41, 55, 0.5)' : 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(8px)',
+            '&:hover': {
+              borderColor: activeColors.primary,
+              color: activeColors.primary,
+            }
+          }}
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </IconButton>
+      </Box>
+
+      <Box sx={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4, pt: { xs: 10, sm: 4 } }}>
         <Box sx={{ width: '100%', maxWidth: '960px' }}>
-          <Box sx={{ maxWidth: '460px', mx: 'auto' }}>
-            <Box sx={{ mb: 3, textAlign: 'center' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <Box sx={{ maxWidth: '440px', mx: 'auto' }}>
+            <Box sx={{ mb: 4, textAlign: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', mb: 2 }}>
                 <Box
                   sx={{
                     display: 'inline-flex',
@@ -190,72 +268,74 @@ export function Login() {
                     px: 2,
                     py: 0.75,
                     borderRadius: '999px',
-                    border: `1px solid ${colors.inputBorder}`,
-                    bgcolor: '#fff7ec',
-                    color: colors.primary,
-                    fontSize: 13,
+                    border: `1px solid ${activeColors.inputBorder}`,
+                    bgcolor: activeColors.tagBg,
+                    color: activeColors.primary,
+                    fontSize: 12,
+                    fontWeight: 700,
                     whiteSpace: 'nowrap',
                     width: 'max-content',
                   }}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-                  </svg>
-                  IA-Lab — Faculty of Information Assurance · FPT University Hà Nội
+                  IA-Lab — Faculty of Information Assurance
                 </Box>
               </Box>
 
-              <Box sx={{ mt: 2, fontSize: 36, fontWeight: 700, lineHeight: 1.2 }}>
+              <Box sx={{ fontSize: { xs: 36, sm: 46 }, fontWeight: 800, lineHeight: 1.15, mb: 1.5 }}>
                 <span
-                  className="text-gradient-amber"
                   style={{
                     background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 50%,#dc2626 100%)',
                     WebkitBackgroundClip: 'text',
                     backgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
-                    fontSize: 60,
-                    fontWeight: 800,
                     color: 'transparent',
-                    fontFamily: 'var(--font-mono), "JetBrains Mono", ui-monospace, monospace',
+                    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
                   }}
                 >
                   Sân Chơi
                 </span>
               </Box>
-              <Box sx={{ mt: 1, color: colors.textSecondary, fontSize: 14 }}>
+              <Box sx={{ color: activeColors.textSecondary, fontSize: 14 }}>
                 Authenticate to enter the FPT Capture The Flag platform
               </Box>
             </Box>
 
             <Box
               sx={{
-                border: `1px solid ${colors.border}`,
-                bgcolor: colors.panelBg,
-                p: 3.5,
-                borderRadius: '10px',
-                boxShadow: '0 18px 45px rgba(17, 24, 39, 0.08)',
+                border: `1px solid ${activeColors.border}`,
+                bgcolor: theme === 'dark' ? 'rgba(17, 24, 39, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+                backdropFilter: 'blur(16px)',
+                p: { xs: 3, sm: 4 },
+                borderRadius: '16px',
+                boxShadow: activeColors.shadow,
+                position: 'relative',
+                overflow: 'hidden'
               }}
             >
-              <Box sx={{ mb: 2.5, color: colors.primary, fontSize: 14, fontWeight: 700 }}>
+              {/* Premium Glow Effect */}
+              <div 
+                className="absolute -top-24 -right-24 w-48 h-48 pointer-events-none rounded-full opacity-50" 
+                style={{
+                  background: 'radial-gradient(circle, rgba(234, 122, 0, 0.15) 0%, transparent 70%)',
+                }}
+              />
+              <div 
+                className="absolute -bottom-24 -left-24 w-48 h-48 pointer-events-none rounded-full opacity-50" 
+                style={{
+                  background: 'radial-gradient(circle, rgba(234, 122, 0, 0.1) 0%, transparent 70%)',
+                }}
+              />
+
+              <Box sx={{ mb: 3, color: activeColors.primary, fontSize: 13, fontWeight: 800, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
                 AUTHENTICATION
               </Box>
 
-              <form onSubmit={handleSubmit}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Box sx={{ mb: 0.75, fontSize: 12, color: colors.textSecondary }}>
-                      Username
+              <form onSubmit={handleSubmit} style={{ position: 'relative', zIndex: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  <Box>
+                    <Box sx={{ mb: 1, fontSize: 12, color: activeColors.textSecondary, fontWeight: 700 }}>
+                      USERNAME //
                     </Box>
                     <TextField
                       fullWidth
@@ -265,33 +345,35 @@ export function Login() {
                       placeholder="input_username"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                          fontFamily: '"JetBrains Mono", monospace',
                           fontSize: 13,
-                          bgcolor: colors.inputBg,
-                          color: colors.text,
+                          bgcolor: activeColors.inputBg,
+                          color: activeColors.text,
                           borderRadius: '8px',
                           '& fieldset': {
-                            borderColor: colors.inputBorder,
+                            borderColor: activeColors.inputBorder,
+                            transition: 'all 0.2s',
                           },
                           '&:hover fieldset': {
-                            borderColor: colors.primary,
+                            borderColor: activeColors.primary,
                           },
                           '&.Mui-focused fieldset': {
-                            borderColor: colors.primary,
+                            borderColor: activeColors.primary,
                             borderWidth: '1px',
+                            boxShadow: `0 0 0 3px ${activeColors.tagBg}`,
                           },
                         },
                         '& .MuiInputBase-input::placeholder': {
-                          color: colors.textSecondary,
-                          opacity: 1,
+                          color: activeColors.textSecondary,
+                          opacity: 0.7,
                         },
                       }}
                     />
                   </Box>
 
                   <Box>
-                    <Box sx={{ mb: 0.75, color: colors.textSecondary, fontSize: 12 }}>
-                      Password
+                    <Box sx={{ mb: 1, color: activeColors.textSecondary, fontSize: 12, fontWeight: 700 }}>
+                      PASSWORD //
                     </Box>
                     <TextField
                       fullWidth
@@ -303,24 +385,26 @@ export function Login() {
                       placeholder="enter_password"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                          fontFamily: '"JetBrains Mono", monospace',
                           fontSize: 13,
-                          color: colors.text,
-                          bgcolor: colors.inputBg,
+                          color: activeColors.text,
+                          bgcolor: activeColors.inputBg,
                           borderRadius: '8px',
                           '& fieldset': {
-                            borderColor: colors.inputBorder,
+                            borderColor: activeColors.inputBorder,
+                            transition: 'all 0.2s',
                           },
                           '&:hover fieldset': {
-                            borderColor: colors.primary,
+                            borderColor: activeColors.primary,
                           },
                           '&.Mui-focused fieldset': {
-                            borderColor: colors.primary,
+                            borderColor: activeColors.primary,
                             borderWidth: '1px',
+                            boxShadow: `0 0 0 3px ${activeColors.tagBg}`,
                           },
                           '& input::placeholder': {
-                            color: colors.textSecondary,
-                            opacity: 1,
+                            color: activeColors.textSecondary,
+                            opacity: 0.7,
                           },
                         },
                       }}
@@ -328,7 +412,7 @@ export function Login() {
                   </Box>
 
                   {captchaEnabled ? (
-                    <Box>
+                    <Box sx={{ mt: 1, p: 1, bgcolor: activeColors.inputBg, borderRadius: '8px', border: `1px solid ${activeColors.inputBorder}`, display: 'flex', justifyContent: 'center' }}>
                       <AuthTurnstile
                         siteKey={turnstileSiteKey}
                         action="contestant_login"
@@ -339,83 +423,89 @@ export function Login() {
                       />
                     </Box>
                   ) : (
-                    <Box sx={{ color: colors.textSecondary, fontSize: 11 }}>
-                      captcha: disabled
+                    <Box sx={{ color: activeColors.textSecondary, fontSize: 11, fontStyle: 'italic' }}>
+                      * captcha checking: disabled
                     </Box>
                   )}
 
-                  <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                     <Button
                       fullWidth
                       onClick={handleClear}
                       sx={{
-                        fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                        fontFamily: '"JetBrains Mono", monospace',
                         fontSize: 13,
+                        fontWeight: 700,
                         textTransform: 'none',
-                        color: colors.textSecondary,
-                        border: `1px solid ${colors.inputBorder}`,
-                        bgcolor: '#fff',
-                        py: 1.2,
+                        color: activeColors.textSecondary,
+                        border: `1px solid ${activeColors.inputBorder}`,
+                        bgcolor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#fff',
+                        py: 1.25,
+                        borderRadius: '8px',
                         '&:hover': {
-                          bgcolor: '#fff7ec',
-                          borderColor: colors.primary,
-                          color: colors.primary,
+                          bgcolor: activeColors.tagBg,
+                          borderColor: activeColors.primary,
+                          color: activeColors.primary,
                         },
                       }}
                     >
-                      [CLEAR]
+                      [ CLEAR ]
                     </Button>
                     <Button
                       type="submit"
                       fullWidth
                       disabled={loading}
                       sx={{
-                        fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
+                        fontFamily: '"JetBrains Mono", monospace',
                         fontSize: 13,
+                        fontWeight: 800,
                         textTransform: 'none',
                         color: '#fff',
-                        bgcolor: colors.primary,
-                        border: `1px solid ${colors.primary}`,
-                        py: 1.2,
+                        bgcolor: activeColors.primary,
+                        border: `1px solid ${activeColors.primary}`,
+                        py: 1.25,
+                        borderRadius: '8px',
+                        boxShadow: `0 4px 14px 0 rgba(234, 122, 0, 0.39)`,
                         '&:hover': {
-                          bgcolor: colors.primaryDark,
-                          borderColor: colors.primaryDark,
+                          bgcolor: activeColors.primaryDark,
+                          borderColor: activeColors.primaryDark,
+                          boxShadow: `0 6px 20px rgba(234, 122, 0, 0.23)`,
                         },
                         '&:disabled': {
-                          bgcolor: '#f4f4f5',
-                          color: '#a1a1aa',
-                          borderColor: '#e4e4e7',
+                          bgcolor: theme === 'dark' ? '#374151' : '#f4f4f5',
+                          color: theme === 'dark' ? '#9ca3af' : '#a1a1aa',
+                          borderColor: theme === 'dark' ? '#4b5563' : '#e4e4e7',
+                          boxShadow: 'none',
                         },
                       }}
                     >
                       {loading ? (
-                        <CircularProgress size={20} sx={{ color: '#a1a1aa' }} />
+                        <CircularProgress size={20} sx={{ color: theme === 'dark' ? '#9ca3af' : '#a1a1aa' }} />
                       ) : (
-                        '[LOGIN]'
+                        '[ LOGIN ]'
                       )}
                     </Button>
                   </Box>
                 </Box>
               </form>
-
-
             </Box>
 
-            <Box sx={{ mt: 3, textAlign: 'center', color: colors.textSecondary, fontSize: 11 }}>
-              <Box>FPT_University © {new Date().getFullYear()}</Box>
-              <Box sx={{ mt: 1 }}>
-                <span style={{ color: colors.textSecondary }}>
-                  {registrationEnabled ? 'new_team?' : 'need_access?'}
-                </span>{' '}
+            <Box sx={{ mt: 4, textAlign: 'center', color: activeColors.textSecondary, fontSize: 12 }}>
+              <Box sx={{ mb: 1 }}>FPT_University © {new Date().getFullYear()}</Box>
+              <Box>
+                <span>{registrationEnabled ? 'new_team? ' : 'need_access? '}</span>
                 {registrationEnabled ? (
                   <span
-                    style={{ color: colors.text, cursor: 'pointer' }}
+                    style={{ color: activeColors.primary, cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}
                     onClick={() => navigate('/register')}
                   >
                     register_now
                   </span>
                 ) : (
-                  <span style={{ color: colors.text, cursor: 'pointer' }} onClick={() => navigate('/contact')}>
+                  <span 
+                    style={{ color: activeColors.primary, cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }} 
+                    onClick={() => navigate('/contact')}
+                  >
                     contact_admin
                   </span>
                 )}
@@ -432,28 +522,28 @@ export function Login() {
           position: 'sticky',
           bottom: 0,
           zIndex: 20,
-          borderTop: `1px solid ${colors.border}`,
-          bgcolor: 'rgba(255,255,255,0.75)',
+          borderTop: `1px solid ${activeColors.border}`,
+          bgcolor: theme === 'dark' ? 'rgba(17, 24, 39, 0.75)' : 'rgba(255, 255, 255, 0.75)',
           backdropFilter: 'blur(4px)',
         }}
       >
         <Box
           sx={{
-            maxWidth: '1120px',
+            maxWidth: '1280px',
             mx: 'auto',
-            px: { xs: 2, sm: 3, lg: 4 },
+            px: { xs: 2, sm: 4 },
             py: 1.8,
             display: 'flex',
             flexDirection: { xs: 'column', sm: 'row' },
-            alignItems: { xs: 'center', sm: 'center' },
+            alignItems: 'center',
             justifyContent: 'space-between',
             gap: 1,
           }}
         >
-          <Box sx={{ fontSize: 11, color: 'rgba(107,114,128,0.75)' }}>
-            © 2026 Phòng thí nghiệm ATTT — khoa ATTT, FPT University Hà Nội
+          <Box sx={{ fontSize: 11, color: activeColors.textSecondary }}>
+            © {new Date().getFullYear()} Phòng thí nghiệm ATTT — khoa ATTT, FPT University Hà Nội
           </Box>
-          <Box sx={{ fontSize: 11, color: 'rgba(107,114,128,0.55)', textAlign: { xs: 'center', sm: 'right' } }}>
+          <Box sx={{ fontSize: 11, color: activeColors.textSecondary, textAlign: { xs: 'center', sm: 'right' } }}>
             Địa chỉ: Phòng D101 & D102, tòa nhà Delta, Trường Đại học FPT, Cơ sở Hà Nội.
           </Box>
         </Box>
