@@ -1,4 +1,4 @@
-﻿using ContestantBE.Attribute;
+using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
 using ContestantBE.Services;
 using ContestantBE.Utils;
@@ -17,6 +17,7 @@ using static ResourceShared.Enums;
 namespace ContestantBE.Controllers;
 
 [Authorize]
+[Route("api/contest/{contestId}/[controller]")]
 public class ChallengeController : BaseController
 {
     private readonly AppDbContext _context;

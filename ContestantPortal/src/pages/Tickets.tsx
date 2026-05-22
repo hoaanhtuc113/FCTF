@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
@@ -32,6 +32,7 @@ interface Ticket {
 export function Tickets() {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const { contestId } = useParams<{ contestId?: string }>();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,7 +121,7 @@ export function Tickets() {
   };
 
   const handleTicketClick = (ticketId: string) => {
-    navigate(`/tickets/${ticketId}`);
+    navigate(contestId ? `/contest/${contestId}/tickets/${ticketId}` : `/tickets/${ticketId}`);
   };
 
   const handleDeleteTicket = async (ticketId: string, e: React.MouseEvent) => {

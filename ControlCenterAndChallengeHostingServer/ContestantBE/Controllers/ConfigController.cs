@@ -1,6 +1,8 @@
 using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ResourceShared.Models;
 using ResourceShared.Utils;
 namespace ContestantBE.Controllers;
 
@@ -9,14 +11,17 @@ public class ConfigController : BaseController
 {
     private readonly CtfTimeHelper _ctfTimeHelper;
     private readonly ConfigHelper _configHelper;
+    private readonly AppDbContext _dbContext;
 
     public ConfigController(
         IUserContext userContext,
         CtfTimeHelper ctfTimeHelper,
-        ConfigHelper configHelper) : base(userContext)
+        ConfigHelper configHelper,
+        AppDbContext dbContext) : base(userContext)
     {
         _ctfTimeHelper = ctfTimeHelper;
         _configHelper = configHelper;
+        _dbContext = dbContext;
     }
 
     private long ToLong(object val)
@@ -106,5 +111,60 @@ public class ConfigController : BaseController
             reason = "not_started";
 
         return Ok(new { isSuccess = true, canAccess, reason });
+    }
+
+    [HttpGet("contest_list")]
+    public async Task<IActionResult> GetContestList()
+    {
+        var contests = await _dbContext.Contests
+            .Where(c => c.State == "visible")
+            .Select(c => new
+            {
+                id = c.Id,
+                name = c.Name,
+                slug = c.Slug,
+                description = c.Description,
+                start_time = c.StartTime,
+                end_time = c.EndTime,
+                team_count = c.Teams.Count,
+                challenge_count = c.Challenges.Count(ch => ch.State == "visible"),
+                category = "CTF"
+            })
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+
+        var result = contests.Select(c =>
+        {
+            string status = "ended";
+            if (c.start_time == null || c.end_time == null)
+            {
+                status = "active";
+            }
+            else if (now < c.start_time)
+            {
+                status = "upcoming";
+            }
+            else if (now >= c.start_time && now <= c.end_time)
+            {
+                status = "active";
+            }
+
+            return new
+            {
+                c.id,
+                c.name,
+                c.slug,
+                c.description,
+                status,
+                start_time = c.start_time?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                end_time = c.end_time?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                c.team_count,
+                c.challenge_count,
+                c.category
+            };
+        });
+
+        return Ok(result);
     }
 }

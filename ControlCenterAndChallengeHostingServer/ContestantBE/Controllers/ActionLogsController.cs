@@ -1,4 +1,4 @@
-﻿using ContestantBE.Interfaces;
+using ContestantBE.Interfaces;
 using ContestantBE.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +7,7 @@ using ResourceShared.DTOs.ActionLogs;
 namespace ContestantBE.Controllers;
 
 [Authorize]
+[Route("api/contest/{contestId}/[controller]")]
 public class ActionLogsController : BaseController
 {
     private readonly IActionLogsServices _actionLogsServices;

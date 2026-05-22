@@ -1,4 +1,4 @@
-﻿using ContestantBE.Interfaces;
+using ContestantBE.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +7,7 @@ using ResourceShared.Utils;
 
 namespace ContestantBE.Controllers;
 
+[Route("api/contest/{contestId}/[controller]")]
 public class ScoreboardController : BaseController
 {
     private readonly IScoreboardService _scoreboardService;
