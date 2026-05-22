@@ -77,6 +77,19 @@ def check_challenge_visibility(f):
                 else:
                     return redirect(url_for("auth.login", next=request.full_path))
 
+        else:
+            # Config not set or unexpected value — default: allow admin through,
+            # require auth for others (treat as "private")
+            if is_admin():
+                return f(*args, **kwargs)
+            elif authed():
+                return f(*args, **kwargs)
+            else:
+                if request.content_type == "application/json":
+                    abort(403)
+                else:
+                    return redirect(url_for("auth.login", next=request.full_path))
+
     return _check_challenge_visibility
 
 

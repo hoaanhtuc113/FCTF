@@ -3,13 +3,16 @@ import datetime
 import re
 from io import BytesIO, StringIO
 
-from flask import Response, current_app, flash, redirect, render_template, request, send_file, stream_with_context, url_for
+import json
+
+from flask import Response, abort, current_app, flash, redirect, render_template, request, send_file, stream_with_context, url_for
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from CTFd.admin import admin
-from CTFd.models import ChallengeStartTracking, Challenges, Contests, Teams, Users, db
-from CTFd.plugins.challenges import CHALLENGE_CLASSES
+from CTFd.models import ChallengeStartTracking, ChallengeVersion, Challenges, Contests, DeployedChallenge, Flags, Solves, Teams, Users, db
+from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
+from CTFd.utils.dates import ctftime
 from CTFd.utils.decorators import admins_only
 
 
@@ -878,9 +881,68 @@ def contest_challenges_new(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/challenges/<int:challenge_id>")
 @admins_only
 def contest_challenge_detail(contest_id, challenge_id):
-    # Verify challenge belongs to this contest before redirecting
-    Challenges.query.filter_by(id=challenge_id, contest_id=contest_id).first_or_404()
-    return redirect(url_for("admin.challenges_detail", challenge_id=challenge_id))
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    challenge = Challenges.query.filter_by(id=challenge_id, contest_id=contest_id).first_or_404()
+
+    deploys = DeployedChallenge.query.filter_by(challenge_id=challenge.id).order_by(DeployedChallenge.id.desc()).all()
+    _last_status = (deploys[0].deploy_status or "").upper() if deploys else ""
+    _chal_status = (challenge.deploy_status or "").lower()
+    isDeploySuccess = bool(
+        _last_status in ("DEPLOY_SUCCESS", "SUCCEEDED", "SUCCESS") or
+        _chal_status in ("success", "deploy_success", "succeeded")
+    )
+
+    expose_port = ""
+    image_link_name = ""
+    image_link_display = ""
+    if challenge.image_link:
+        obj = json.loads(challenge.image_link)
+        expose_port = obj.get("exposedPort", "")
+        image_link_name = obj.get("imageLink", "")
+        image_link_display = image_link_name
+
+    try:
+        challenge_class = get_chal_class(challenge.type)
+    except KeyError:
+        abort(500, f"Challenge type ({challenge.type}) is not installed.")
+
+    ctf_is_active = ctftime()
+    update_j2 = render_template(
+        challenge_class.templates["update"].lstrip("/"),
+        challenge=challenge,
+        ctf_is_active=ctf_is_active,
+    )
+    update_script = url_for("views.static_html", route=challenge_class.scripts["update"].lstrip("/"))
+
+    solves = Solves.query.filter_by(challenge_id=challenge.id).order_by(Solves.date.asc()).all()
+    flags = Flags.query.filter_by(challenge_id=challenge.id).all()
+    all_challenges = db.session.query(Challenges.id, Challenges.name, Challenges.description).all()
+
+    versions = (
+        ChallengeVersion.query
+        .filter_by(challenge_id=challenge.id)
+        .order_by(ChallengeVersion.version_number.desc())
+        .all()
+    )
+
+    return render_template(
+        "admin/contests/challenge_detail.html",
+        contest=contest,
+        challenge=challenge,
+        update_template=update_j2,
+        update_script=update_script,
+        expose_port=expose_port,
+        image_link_name=image_link_name,
+        image_link_display=image_link_display,
+        challenges=all_challenges,
+        solves=solves,
+        flags=flags,
+        deploys=len(deploys),
+        isDeploySuccess=isDeploySuccess,
+        is_detail=True,
+        ctf_is_active=ctf_is_active,
+        versions=versions,
+    )
 
 
 @admin.route("/admin/contests/<int:contest_id>/participants")

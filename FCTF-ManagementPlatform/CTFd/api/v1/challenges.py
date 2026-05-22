@@ -135,6 +135,7 @@ class ChallengeList(Resource):
             "category": (str, None),
             "type": (str, None),
             "state": (str, None),
+            "contest_id": (int, None),
             "q": (str, None),
             "field": (
                 RawEnum(
@@ -483,12 +484,11 @@ class Challenge(Resource):
         hints = []
         if authed():
             user = get_current_user()
-            team = get_current_team()
 
-            # TODO: Convert this into a re-useable decorator
             if is_admin() or is_challenge_writer() or is_jury():
-                pass
+                team = None
             else:
+                team = get_current_team()
                 if config.is_teams_mode() and team is None:
                     abort(403)
 
@@ -584,6 +584,14 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
+
+        # Inject required-but-never-sent fields from the existing row so that
+        # partial PATCH payloads (Requirements, Next, deploy settings, etc.)
+        # don't fail ChallengeSchema validation with "Missing data for required field".
+        _existing = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        data.setdefault("contest_id", _existing.contest_id)
+        data.setdefault("type", _existing.type)
+
         # Normalize difficulty: empty string → None so schema validation passes
         if "difficulty" in data:
             diff_val = data["difficulty"]
@@ -1244,8 +1252,9 @@ class ChallengeTopics(Resource):
 class ChallengeHints(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, challenge_id):
-        hints = Hints.query.filter_by(challenge_id=challenge_id).all()
-        schema = HintSchema(many=True)
+        # challenge_id from URL is a string; cast to int for the integer FK column
+        hints = Hints.query.filter_by(challenge_id=int(challenge_id)).all()
+        schema = HintSchema(many=True, view="admin")
         response = schema.dump(hints)
 
         if response.errors:

@@ -104,7 +104,8 @@ class HintList(Resource):
         db.session.add(response.data)
         db.session.commit()
 
-        response = schema.dump(response.data)
+        saved_hint = Hints.query.filter_by(id=response.data.id).first()
+        response = schema.dump(saved_hint)
 
         # Resolve challenge name for audit context
         _challenge_name = None
