@@ -57,14 +57,13 @@ def get_all_challenges(admin=False, field=None, q=None, **query_args):
 
 @cache.memoize(timeout=60)
 def get_solves_for_challenge_id(challenge_id, freeze=False):
-    """Get solves for a given challenge template id, going through ContestChallenge."""
+    """Get solves for a given challenge_id."""
     Model = get_model()
     solves = (
         Solves.query.add_columns(Model.name.label("account_name"))
         .join(Model, Solves.account_id == Model.id)
-        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
         .filter(
-            ContestChallenge.challenge_template_id == challenge_id,
+            Solves.challenge_id == challenge_id,
             Model.banned == False,
             Model.hidden == False,
         )
@@ -93,11 +92,10 @@ def get_solves_for_challenge_id(challenge_id, freeze=False):
 
 @cache.memoize(timeout=60)
 def get_solve_ids_for_user_id(user_id):
-    """Return a set of challenge_template_ids that the user has solved."""
+    """Return a set of challenge_ids that the user has solved."""
     user = Users.query.filter_by(id=user_id).first()
     solve_ids = (
-        Solves.query.with_entities(ContestChallenge.challenge_template_id)
-        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+        Solves.query.with_entities(Solves.challenge_id)
         .filter(Solves.account_id == user.account_id)
         .all()
     )
@@ -107,10 +105,7 @@ def get_solve_ids_for_user_id(user_id):
 
 @cache.memoize(timeout=60)
 def get_solve_counts_for_challenges(challenge_id=None, admin=False):
-    """Return a dict of {challenge_template_id: solve_count}.
-    
-    Maps through ContestChallenge to get template IDs.
-    """
+    """Return a dict of {challenge_id: solve_count}."""
     AccountModel = get_model()
     freeze = get_config("freeze")
     if freeze and not admin:
@@ -124,18 +119,17 @@ def get_solve_counts_for_challenges(challenge_id=None, admin=False):
 
     solves_q = (
         db.session.query(
-            ContestChallenge.challenge_template_id,
+            Solves.challenge_id,
             sa_func.count(Solves.id),
         )
-        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
-        .join(AccountModel)
+        .join(AccountModel, Solves.account_id == AccountModel.id)
         .filter(freeze_cond, exclude_solves_cond)
     )
 
     if challenge_id is not None:
-        solves_q = solves_q.filter(ContestChallenge.challenge_template_id == challenge_id)
+        solves_q = solves_q.filter(Solves.challenge_id == challenge_id)
 
-    solves_q = solves_q.group_by(ContestChallenge.challenge_template_id)
+    solves_q = solves_q.group_by(Solves.challenge_id)
 
     solve_counts = {}
     for chal_id, solve_count in solves_q:

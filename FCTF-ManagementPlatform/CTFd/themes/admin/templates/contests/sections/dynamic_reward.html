@@ -106,6 +106,7 @@
 
 {% block contest_scripts %}
 <script>
+  const CONTEST_ID = {{ contest.id }};
   let allTemplates = [];
   let selectedTemplate = null;
   let currentResults = null;
@@ -259,7 +260,7 @@
     try{
       document.getElementById('preview-btn').disabled=true;
       document.getElementById('preview-btn').innerHTML='<i class="fas fa-spinner fa-spin"></i> Loading...';
-      const r=await apiFetch('/admin/rewards/preview',{method:'POST',body:JSON.stringify({template_id:selectedTemplate.id,params})});
+      const r=await apiFetch('/admin/rewards/preview',{method:'POST',body:JSON.stringify({template_id:selectedTemplate.id,params,contest_id:CONTEST_ID})});
       const d=await r.json();
       if(!r.ok||!d.success){showError(d.error||'Preview failed');return;}
       currentResults=d;renderResults(d);
@@ -352,7 +353,7 @@
     detailRow.innerHTML=`<td colspan="${escapeHtml(colSpan)}"><div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i> Loading details...</div></td>`;
     rowEl.after(detailRow);
     try{
-      const r=await apiFetch('/admin/rewards/details',{method:'POST',body:JSON.stringify({template_id:tid,entity_type:'team',entity_id:rowData.entity_id})});
+      const r=await apiFetch('/admin/rewards/details',{method:'POST',body:JSON.stringify({template_id:tid,entity_type:'team',entity_id:rowData.entity_id,contest_id:CONTEST_ID})});
       const d=await r.json();
       if(d.success&&d.details&&d.details.length>0){
         const details=d.details;

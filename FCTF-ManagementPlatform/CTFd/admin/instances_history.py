@@ -102,8 +102,7 @@ def _base_instances_query():
             Challenges.name.label("challenge_name"),
         )
         .outerjoin(Teams, ChallengeStartTracking.team_id == Teams.id)
-        .join(ContestChallenge, ChallengeStartTracking.contest_challenge_id == ContestChallenge.id)
-        .join(Challenges, ContestChallenge.challenge_template_id == Challenges.id)
+        .join(Challenges, ChallengeStartTracking.challenge_id == Challenges.id)
         .order_by(ChallengeStartTracking.started_at.desc())
     )
 

@@ -208,25 +208,27 @@ def stop_challenge_bulk_by_admin():
 
 @challenge.route("/api/challenge/stop-all", methods=["DELETE"])
 def stop_all_challenges():
-    user_id = session["id"]
-    print("useriddddd" +str(user_id))
-    user = Users.query.filter_by(id=user_id).first()
+    user_id = session.get("id")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 403
 
+    user = Users.query.filter_by(id=user_id).first()
     if not user:
         return jsonify({"error": "User Not found"}), 403
-
     if user.type == "user":
         return jsonify({"error": "Permission denied"}), 400
 
     try:
-        return force_stop_all(user_id=user_id)
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error during stop challenge: {e}")
-        return (
-            jsonify({"error": "Failed to connect to stop API", "error_detail": str(e)}),
-            400,
-        )
+        result = force_stop_all(user_id=user_id)
+        if isinstance(result, dict):
+            return jsonify(result), 200
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        print(f"Error during stop-all: {e}")
+        return jsonify({
+            "error": "Deployment service unavailable",
+            "error_detail": str(e),
+        }), 503
 
 
 @challenge.route("/api/challenge/get-all-instance", methods=["POST", "GET"])
@@ -249,6 +251,7 @@ def get_all_instance():
         user_filter = request.args.get("user_name", "").strip().lower()
         category_filter = request.args.get("challenge_category", "").strip().lower()
         status_filter = request.args.get("status", "").strip().lower()
+        contest_id_filter = request.args.get("contest_id", type=int)
         
         pattern = "deploy_challenge_*_*"
         cursor = 0
@@ -299,6 +302,10 @@ def get_all_instance():
                     team_name = team.name
                     
             challenge = Challenges.query.filter_by(id=challenge_id_key).first()
+
+            if contest_id_filter is not None:
+                if not challenge or challenge.contest_id != contest_id_filter:
+                    continue
 
             # Chuyển time_finished sang chuỗi thời gian ISO
             raw_timestamp = value.get("time_finished")

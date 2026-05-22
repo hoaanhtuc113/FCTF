@@ -152,9 +152,9 @@
                         {% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                     <td class="text-center cell-truncate">
-                        {% if sub.contest_challenge and sub.contest_challenge.challenge_template %}
-                        <a href="{{ url_for('admin.challenges_detail', challenge_id=sub.contest_challenge.challenge_template_id) }}">
-                            {{ sub.contest_challenge.challenge_template.name | truncate(28) }}
+                        {% if sub.challenge %}
+                        <a href="{{ url_for('admin.challenges_detail', challenge_id=sub.challenge_id) }}">
+                            {{ sub.challenge.name | truncate(28) }}
                         </a>
                         {% else %}<span class="text-muted">—</span>{% endif %}
                     </td>

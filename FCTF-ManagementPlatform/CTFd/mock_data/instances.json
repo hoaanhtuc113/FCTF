@@ -1,0 +1,54 @@
+{
+  "instances": [
+    {
+      "id": 1,
+      "name": "k3s-cluster-01",
+      "region": "Asia/HCM",
+      "status": "online",
+      "node_count": 3,
+      "cpu_total": 24,
+      "memory_total_gb": 96,
+      "description": "Primary cluster - Ho Chi Minh City"
+    },
+    {
+      "id": 2,
+      "name": "k3s-cluster-02",
+      "region": "Asia/HAN",
+      "status": "online",
+      "node_count": 2,
+      "cpu_total": 16,
+      "memory_total_gb": 64,
+      "description": "Secondary cluster - Ha Noi"
+    },
+    {
+      "id": 3,
+      "name": "k3s-cluster-03",
+      "region": "US/East",
+      "status": "maintenance",
+      "node_count": 4,
+      "cpu_total": 32,
+      "memory_total_gb": 128,
+      "description": "US East Coast cluster - under maintenance"
+    },
+    {
+      "id": 4,
+      "name": "k3s-cluster-04",
+      "region": "EU/West",
+      "status": "online",
+      "node_count": 3,
+      "cpu_total": 24,
+      "memory_total_gb": 96,
+      "description": "Europe West cluster - Frankfurt"
+    },
+    {
+      "id": 5,
+      "name": "k3s-cluster-05",
+      "region": "Asia/SG",
+      "status": "offline",
+      "node_count": 2,
+      "cpu_total": 8,
+      "memory_total_gb": 32,
+      "description": "Singapore cluster - offline for upgrade"
+    }
+  ]
+}

@@ -63,7 +63,7 @@ class SubmissionsList(Resource):
     )
     @validate_args(
         {
-            "contest_challenge_id": (int, None),
+            "challenge_id": (int, None),
             "user_id": (int, None),
             "team_id": (int, None),
             "ip": (str, None),
@@ -74,7 +74,7 @@ class SubmissionsList(Resource):
                 RawEnum(
                     "SubmissionFields",
                     {
-                        "contest_challenge_id": "contest_challenge_id",
+                        "challenge_id": "challenge_id",
                         "user_id": "user_id",
                         "team_id": "team_id",
                         "ip": "ip",
@@ -149,12 +149,12 @@ class SubmissionsList(Resource):
 
         # Resolve challenge name for audit context
         _challenge_name = None
-        _cc_id = response.data.get("contest_challenge_id")
-        if _cc_id:
-            from CTFd.models import ContestChallenge
-            _cc = ContestChallenge.query.filter_by(id=_cc_id).first()
-            if _cc and _cc.challenge_template:
-                _challenge_name = _cc.challenge_template.name
+        _ch_id = response.data.get("challenge_id")
+        if _ch_id:
+            from CTFd.models import Challenges as ChallengesModel
+            _ch = ChallengesModel.query.filter_by(id=_ch_id).first()
+            if _ch:
+                _challenge_name = _ch.name
 
         # Audit log
         log_audit(
@@ -162,7 +162,7 @@ class SubmissionsList(Resource):
             data={
                 "id": response.data["id"],
                 "type": response.data.get("type"),
-                "contest_challenge_id": _cc_id,
+                "challenge_id": _ch_id,
                 "challenge_name": _challenge_name,
                 "user_id": response.data.get("user_id"),
                 "team_id": response.data.get("team_id"),
@@ -221,7 +221,7 @@ class Submission(Resource):
         # Capture before state for audit
         before_state = {
             "type": submission.type,
-            "contest_challenge_id": submission.contest_challenge_id,
+            "challenge_id": submission.challenge_id,
             "user_id": submission.user_id,
             "team_id": submission.team_id,
             "provided": submission.provided,
@@ -235,7 +235,7 @@ class Submission(Resource):
         if submission_type == "correct":
             solve = Solves(
                 user_id=submission.user_id,
-                contest_challenge_id=submission.contest_challenge_id,
+                challenge_id=submission.challenge_id,
                 team_id=submission.team_id,
                 ip=submission.ip,
                 provided=submission.provided,
@@ -263,7 +263,7 @@ class Submission(Resource):
                 # Re-create as an incorrect submission
                 new_sub = Submissions(
                     user_id=submission.user_id,
-                    contest_challenge_id=submission.contest_challenge_id,
+                    challenge_id=submission.challenge_id,
                     team_id=submission.team_id,
                     ip=submission.ip,
                     provided=submission.provided,
@@ -292,16 +292,16 @@ class Submission(Resource):
         # Audit log
         # Resolve challenge name for audit context
         _challenge_name = None
-        _cc_id = response.data.get("contest_challenge_id")
-        if _cc_id:
-            from CTFd.models import ContestChallenge
-            _cc = ContestChallenge.query.filter_by(id=_cc_id).first()
-            if _cc and _cc.challenge_template:
-                _challenge_name = _cc.challenge_template.name
+        _ch_id = response.data.get("challenge_id")
+        if _ch_id:
+            from CTFd.models import Challenges as ChallengesModel
+            _ch = ChallengesModel.query.filter_by(id=_ch_id).first()
+            if _ch:
+                _challenge_name = _ch.name
 
         after_state = {
             "type": response.data.get("type"),
-            "contest_challenge_id": _cc_id,
+            "challenge_id": _ch_id,
             "challenge_name": _challenge_name,
             "user_id": response.data.get("user_id"),
             "team_id": response.data.get("team_id"),
@@ -334,17 +334,17 @@ class Submission(Resource):
         
         # Resolve challenge name for audit context
         _challenge_name = None
-        if submission.contest_challenge_id:
-            from CTFd.models import ContestChallenge
-            _cc = ContestChallenge.query.filter_by(id=submission.contest_challenge_id).first()
-            if _cc and _cc.challenge_template:
-                _challenge_name = _cc.challenge_template.name
+        if submission.challenge_id:
+            from CTFd.models import Challenges as ChallengesModel
+            _ch = ChallengesModel.query.filter_by(id=submission.challenge_id).first()
+            if _ch:
+                _challenge_name = _ch.name
 
         # Capture submission info before deletion
         submission_info = {
             "id": submission.id,
             "type": submission.type,
-            "contest_challenge_id": submission.contest_challenge_id,
+            "challenge_id": submission.challenge_id,
             "challenge_name": _challenge_name,
             "user_id": submission.user_id,
             "team_id": submission.team_id,
@@ -354,8 +354,8 @@ class Submission(Resource):
         }
         
         # Decrement Redis attempt counter if submission type is "incorrect"
-        if submission.type == "incorrect" and submission.contest_challenge_id and submission.team_id:
-            attempt_key = f"attempt_count_{submission.contest_challenge_id}_{submission.team_id}"           
+        if submission.type == "incorrect" and submission.challenge_id and submission.team_id:
+            attempt_key = f"attempt_count_{submission.challenge_id}_{submission.team_id}"
             try:
                 # Check if key exists first
                 key_exists = redis_client.exists(attempt_key)                   

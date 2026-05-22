@@ -268,6 +268,66 @@ def challenges_new():
     return render_template("admin/challenges/new.html", types=types)
 
 
+# ── Sandbox: helpers ─────────────────────────────────────────────────────────
+
+def _load_mock_instances():
+    """
+    Load instance list from CTFd/mock_data/instances.json.
+    Falls back to an empty list if the file is missing or malformed.
+    Replace this function with a real DB/API call when the backend is ready.
+    """
+    from flask import current_app as _app
+    mock_path = os.path.join(_app.root_path, "mock_data", "instances.json")
+    try:
+        with open(mock_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("instances", [])
+    except FileNotFoundError:
+        import logging
+        logging.getLogger(__name__).warning(
+            "mock_data/instances.json not found – sandbox instance list will be empty."
+        )
+        return []
+    except (json.JSONDecodeError, KeyError) as exc:
+        import logging
+        logging.getLogger(__name__).error(
+            "Failed to parse mock_data/instances.json: %s", exc
+        )
+        return []
+
+
+@admin.route("/admin/challenges/sandbox/new", methods=["GET"])
+@admin_or_challenge_writer_only
+def challenges_sandbox_new():
+    """Render the Sandbox Challenge creation page.
+    Instance data is loaded client-side via /api/mock/instances.
+    """
+    from CTFd.models import Contests
+    contest_id = request.args.get("contest_id")
+    if contest_id:
+        contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    else:
+        contest = Contests.query.first()
+        if not contest:
+            abort(404, "No contests found. Please create a contest first.")
+    return render_template("admin/challenges/sandbox_challenge.html", contest=contest)
+
+
+@admin.route("/api/mock/instances", methods=["GET"])
+@admin_or_challenge_writer_only
+def mock_instances_api():
+    """
+    JSON endpoint that serves instance data from mock_data/instances.json.
+    Supports optional ?status= filter (e.g. ?status=online).
+    Replace with a real service call when the backend is ready.
+    """
+    instances = _load_mock_instances()
+    status_filter = request.args.get("status")
+    if status_filter:
+        instances = [i for i in instances if i.get("status") == status_filter]
+    return jsonify({"success": True, "data": instances})
+
+
 @admin.route("/admin/challenges/<int:challenge_id>/versions/<int:version_id>")
 @admin_or_challenge_writer_only_or_jury
 def challenges_version_detail(challenge_id, version_id):

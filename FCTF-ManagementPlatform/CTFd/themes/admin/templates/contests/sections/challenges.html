@@ -152,10 +152,14 @@
 
     <!-- Action Buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
-        <div>
+        <div class="d-flex gap-2">
             <a href="{{ url_for('admin.contest_import_challenges', contest_id=contest.id) }}"
                class="clean-btn clean-btn-primary">
                 <i class="btn-fa fas fa-file-import"></i> Import Challenges
+            </a>
+            <a href="{{ url_for('admin.challenges_sandbox_new') }}?contest_id={{ contest.id }}"
+               class="clean-btn clean-btn-secondary">
+                <i class="fas fa-flask"></i> Sandbox Challenge
             </a>
         </div>
         <div class="btn-group" role="group">

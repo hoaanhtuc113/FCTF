@@ -1,0 +1,675 @@
+{% extends "admin/contests/contest_base.html" %}
+
+{% block contest_stylesheets %}
+<style>
+/* ── Sandbox badge in header ── */
+.sandbox-badge {
+    display: inline-block;
+    background: #ede9fe;
+    color: #7c3aed;
+    border: 1px solid #c4b5fd;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.45rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+}
+
+/* ── Instance status dot ── */
+.instance-status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.instance-status-dot.online      { background: #22c55e; box-shadow: 0 0 4px rgba(34,197,94,0.5); }
+.instance-status-dot.maintenance { background: #f59e0b; box-shadow: 0 0 4px rgba(245,158,11,0.5); }
+.instance-status-dot.offline     { background: #ef4444; }
+
+/* ── Instance filter tabs ── */
+.inst-filter-tab {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    padding: 0.15rem 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.inst-filter-tab:hover  { border-color: #7c3aed; color: #7c3aed; background: #faf8ff; }
+.inst-filter-tab.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+
+/* ── Instance detail preview ── */
+#instance-preview-box {
+    background: #f5f3ff;
+    border: 1px solid #c4b5fd;
+    border-radius: 5px;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block contest_content %}
+<div class="jumbotron">
+    <div class="container">
+        <div class="d-flex align-items-center justify-content-between">
+            <h1>
+                Create Sandbox Challenge
+                <span class="sandbox-badge">Mock UI</span>
+            </h1>
+            {% if contest %}
+            <a href="{{ url_for('admin.contest_challenges', contest_id=contest.id) }}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Contest
+            </a>
+            {% else %}
+            <a href="{{ url_for('admin.challenges_listing') }}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i> Back
+            </a>
+            {% endif %}
+        </div>
+        {% if contest %}
+        <small class="text-muted" style="font-size:0.8rem;">
+            <i class="fas fa-link mr-1"></i>
+            For contest <strong>#{{ contest.id }}</strong>
+        </small>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     OPTIONS MODAL  (identical to admin/challenges/new modal + Instance)
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade bd-example-modal-lg" role="dialog" id="challenge-create-options">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Options</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" enctype="multipart/form-data" id="sandbox-options-form">
+                    <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+                    {% if contest %}
+                    <input type="hidden" name="contest_id" value="{{ contest.id }}">
+                    {% endif %}
+
+                    <!-- Flag -->
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <label>Flag:<br>
+                                    <small class="form-text text-muted">Static flag for your challenge</small>
+                                </label>
+                                <input type="text" class="form-control" name="flag">
+                            </div>
+                            <div class="col-md-4">
+                                <label>&nbsp;<small class="form-text text-muted">&nbsp;</small></label>
+                                <select class="form-control custom-select w-100" name="flag_data">
+                                    <option value="">Case Sensitive</option>
+                                    <option value="case_insensitive">Case Insensitive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <input type="hidden" name="flag_type" value="static">
+                    </div>
+
+                    <!-- Setup Deploy -->
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="require_deploy" id="setup_docker">
+                            Setup Deploy
+                        </label>
+                    </div>
+                    <div class="form-group d-none" id="expose_port_container">
+                        <label>Expose port<br>
+                            <small class="form-text text-muted">Expose a port for the Docker container</small>
+                        </label>
+                        <input type="text" class="form-control" name="expose_port" id="expose_port"
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_connection_protocol">
+                        <label>Connection Protocol<br>
+                            <small class="form-text text-muted">Protocol used by contestants to connect.</small>
+                        </label>
+                        <select class="form-control" name="connection_protocol" id="connection_protocol">
+                            <option value="http" selected>HTTP</option>
+                            <option value="tcp">TCP</option>
+                        </select>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container">
+                        <label>CPU Limit (mCPU)<br>
+                            <small class="form-text text-muted">Maximum CPU the challenge pod is allowed to use.</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_limit" min="1" value="100">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_cpu_request">
+                        <label>CPU Request (mCPU)<br>
+                            <small class="form-text text-muted">Minimum CPU requested for scheduling.</small>
+                        </label>
+                        <input type="number" class="form-control" name="cpu_request" min="1" value="10">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_memory_limit">
+                        <label>Memory Limit (Mi)<br>
+                            <small class="form-text text-muted">Maximum memory the challenge pod is allowed to use.</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_limit" min="1" value="128">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_memory_request">
+                        <label>Memory Request (Mi)<br>
+                            <small class="form-text text-muted">Minimum memory requested for scheduling.</small>
+                        </label>
+                        <input type="number" class="form-control" name="memory_request" min="1" value="32">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_use_gvisor">
+                        <label>Use gVisor<br>
+                            <small class="form-text text-muted">Run the pod with gVisor sandbox for extra isolation.</small>
+                        </label>
+                        <select class="form-control" name="use_gvisor">
+                            <option value="true" selected>True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_harden_container">
+                        <label>
+                            <input type="checkbox" name="harden_container" id="harden_container" checked>
+                            Harden Container<br>
+                            <small class="form-text text-muted">Restricted PSS, read-only root FS, drop all capabilities, non-root UID 1000, /tmp as tmpfs.</small>
+                        </label>
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_max_deploy_count">
+                        <label>Max Deploy Count<br>
+                            <small class="form-text text-muted">Max times a contestant can deploy. 0 = unlimited.</small>
+                        </label>
+                        <input type="number" class="form-control" name="max_deploy_count" min="0" value="0">
+                    </div>
+                    <div class="form-group d-none" id="deploy_resource_container_shared_instant">
+                        <label>
+                            <input type="checkbox" name="shared_instant" id="shared_instant">
+                            Shared Instance<br>
+                            <small class="form-text text-muted">One shared deployed instance for all contestants.</small>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>State<br>
+                            <small class="form-text text-muted">Should the challenge be visible to users</small>
+                        </label>
+                        <select class="form-control custom-select" name="state">
+                            <option value="visible">Visible</option>
+                            <option value="hidden" selected>Hidden</option>
+                        </select>
+                    </div>
+
+                    <input id="challenge_id" type="hidden" name="challenge_id">
+                    <div id="create-upload-status" class="alert d-none" role="alert"></div>
+
+                    <div class="form-group">
+                        <button class="btn btn-primary float-right" type="submit" id="deploy-btn">
+                            Finish
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MAIN LAYOUT  — identical 2-column layout as admin/challenges/new
+     Left: Challenge Types  |  Right: Information form
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="container-fluid">
+    <div class="row">
+
+        <!-- ── Left: Challenge Types ── -->
+        <div class="col-md-3 offset-md-1">
+            <div class="col-title">
+                <h5 class="text-center">Challenge Types</h5>
+            </div>
+            <div id="create-chals-select">
+                <label class="w-100">
+                    <input type="radio" name="type" class="card-radio d-none"
+                           value="sandbox" checked />
+                    <div class="card rounded-0 border-primary">
+                        <div class="card-body">
+                            <span class="card-title">
+                                <div class="form-check">
+                                    <input class="form-check-input card-radio-clone" type="radio"
+                                           style="visibility:hidden;" checked>
+                                    <span class="form-check-label font-weight-bold">
+                                        sandbox
+                                    </span>
+                                </div>
+                            </span>
+                            <small class="text-muted" style="font-size:0.72rem;">
+                                Isolated sandbox environment with dedicated instance
+                            </small>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- ── Right: Information form ── -->
+        <div class="col-md-7">
+            <div class="col-title">
+                <h5 class="text-center">Information</h5>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" id="sandbox-info-form">
+                <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+                {% if contest %}
+                <input type="hidden" name="contest_id" value="{{ contest.id }}">
+                {% endif %}
+
+                <!-- Name -->
+                <div class="form-group">
+                    <label>Name:<br>
+                        <small class="form-text text-muted">The name of your challenge (Maximum 40 characters)</small>
+                    </label>
+                    <input type="text" class="form-control chal-name" name="name"
+                           placeholder="Enter challenge name" maxlength="40" required
+                           oninput="document.getElementById('char-count').textContent=this.value.length">
+                    <small class="form-text text-muted"><span id="char-count">0</span>/40 characters</small>
+                </div>
+
+                <!-- Category -->
+                <div class="form-group">
+                    <label>Category:<br>
+                        <small class="form-text text-muted">The category of your challenge (Maximum 20 characters)</small>
+                    </label>
+                    <input type="text" class="form-control" name="category"
+                           placeholder="Enter challenge category" maxlength="20" required>
+                </div>
+
+                <!-- Difficulty -->
+                <div class="form-group">
+                    <label>Difficulty:<br>
+                        <small class="form-text text-muted">Rate the difficulty of this challenge (1-5 stars)</small>
+                    </label>
+                    <div class="star-rating-picker" data-target="difficulty-input-create">
+                        {% for i in range(1, 6) %}
+                        <i class="far fa-star star-pick" data-value="{{ i }}"
+                           style="cursor:pointer;font-size:1.5rem;color:#dee2e6;margin-right:4px;transition:color .15s"></i>
+                        {% endfor %}
+                        <span class="ml-2 text-muted difficulty-label" style="font-size:.9rem">Not set</span>
+                    </div>
+                    <input type="hidden" name="difficulty" id="difficulty-input-create" value="">
+                </div>
+
+                <!-- ── INSTANCE (new field) ── -->
+                <div class="form-group">
+                    <label>Instance:<br>
+                        <small class="form-text text-muted">Select the k3s cluster to deploy this sandbox challenge on.</small>
+                    </label>
+
+                    <!-- Loading -->
+                    <div id="inst-loading" class="text-center py-2">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span class="text-muted ml-1" style="font-size:0.82rem;">Loading instances…</span>
+                    </div>
+
+                    <!-- Error -->
+                    <div id="inst-error" class="d-none alert alert-danger py-2 px-3" style="font-size:0.82rem;">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        <span id="inst-error-msg">Failed to load instances.</span>
+                        <button type="button" onclick="loadInstances()"
+                                class="btn btn-link btn-sm p-0 ml-2" style="color:#721c24;">Retry</button>
+                    </div>
+
+                    <!-- Loaded -->
+                    <div id="inst-loaded" style="display:none;">
+                        <!-- Filter tabs -->
+                        <div class="mb-2 d-flex flex-wrap" style="gap:6px;">
+                            
+                            <button type="button" onclick="loadInstances()"
+                                    class="btn btn-link btn-sm p-0 ml-auto" style="color:#7c3aed;font-size:0.75rem;">
+                                <i class="fas fa-sync-alt" id="inst-refresh-icon"></i> Refresh
+                            </button>
+                        </div>
+
+                        <select class="form-control custom-select" name="instance_id"
+                                id="instance-select" required>
+                            <option value="">-- Select an instance --</option>
+                        </select>
+
+                        <!-- Detail preview -->
+                        <div id="instance-preview-box" class="d-none">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="instance-status-dot" id="inst-dot"></span>
+                                <strong id="inst-name"></strong>
+                                <span id="inst-status-badge" class="badge ml-2" style="font-size:0.65rem;"></span>
+                            </div>
+                            <div class="row" style="font-size:0.78rem;color:#6c757d;">
+                                <div class="col-6"><i class="fas fa-map-marker-alt mr-1"></i><span id="inst-region"></span></div>
+                                <div class="col-6"><i class="fas fa-microchip mr-1"></i><span id="inst-cpu"></span> mCPU</div>
+                                <div class="col-6 mt-1"><i class="fas fa-memory mr-1"></i><span id="inst-mem"></span> GB RAM</div>
+                                <div class="col-6 mt-1"><i class="fas fa-sitemap mr-1"></i><span id="inst-nodes"></span> nodes</div>
+                            </div>
+                            <div class="mt-1" style="font-size:0.73rem;color:#9ca3af;font-style:italic;">
+                                <i class="fas fa-info-circle mr-1"></i><span id="inst-desc"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description:<br>
+                        <small class="form-text text-muted">Description for your challenge.</small>
+                    </label>
+                    <textarea id="new-desc-editor" class="form-control markdown"
+                              name="description" rows="10"></textarea>
+                </div>
+
+                <!-- Time Limit -->
+                <div class="form-group">
+                    <label>Time Limit:<br>
+                        <small class="form-text text-muted">Specify the time limit for solving this challenge.</small>
+                    </label>
+                    <input type="number" class="form-control" name="time_limit"
+                           min="1" max="30" value="30" placeholder="Enter value" required>
+                </div>
+
+                <!-- Max Attempts -->
+                <div class="form-group">
+                    <label>Max Attempts<br>
+                        <small class="form-text text-muted">Maximum amount of attempts users receive. Leave at 0 for unlimited.</small>
+                    </label>
+                    <input type="number" class="form-control chal-attempts" name="max_attempts"
+                           value="0" min="0" step="1" required>
+                </div>
+
+                <!-- Cooldown -->
+                <div class="form-group">
+                    <label for="submission_cooldown">Submission cooldown (seconds):<br>
+                        <small class="form-text text-muted">Minimum seconds between two submissions (0 = disabled).</small>
+                    </label>
+                    <input type="number" class="form-control" id="submission_cooldown"
+                           name="cooldown" min="0" step="1" value="0">
+                </div>
+
+                <!-- Value -->
+                <div class="form-group">
+                    <label>Value:<br>
+                        <small class="form-text text-muted">How many points are rewarded for solving this challenge.</small>
+                    </label>
+                    <input type="number" class="form-control" name="value"
+                           placeholder="Enter value" min="0" required>
+                </div>
+
+                <input type="hidden" name="user_id" value="{{ Session.id }}">
+                <input type="hidden" name="state" value="hidden">
+                <input type="hidden" name="type" value="standard" id="sandbox-type-hidden">
+
+                <!-- Create button → submits directly -->
+                <div class="form-group">
+                    <button class="btn btn-primary float-right" type="submit"
+                            id="sandbox-create-btn">
+                        Create
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block contest_scripts %}
+<script>
+// ── 1. Card-radio type selector (same as new.html) ────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    var radios = document.querySelectorAll('.card-radio');
+    var cards  = document.querySelectorAll('#create-chals-select .card');
+
+    radios.forEach(function (radio, idx) {
+        radio.addEventListener('change', function () {
+            cards.forEach(function (c) { c.classList.remove('border-primary'); });
+            if (radio.checked) {
+                cards[idx].classList.add('border-primary');
+                document.getElementById('sandbox-type-hidden').value = radio.value;
+                // sync clone radio
+                var clone = cards[idx].querySelector('.card-radio-clone');
+                if (clone) clone.checked = true;
+            }
+        });
+        if (radio.checked) {
+            cards[idx].classList.add('border-primary');
+        }
+    });
+
+    cards.forEach(function (card, idx) {
+        card.addEventListener('click', function () {
+            radios[idx].checked = true;
+            radios[idx].dispatchEvent(new Event('change'));
+        });
+    });
+});
+
+// ── 2. Star difficulty picker (identical to create.html) ──────────────────
+(function () {
+    document.querySelectorAll('.star-rating-picker').forEach(function (picker) {
+        var targetId = picker.getAttribute('data-target');
+        var input    = document.getElementById(targetId);
+        var stars    = picker.querySelectorAll('.star-pick');
+        var label    = picker.querySelector('.difficulty-label');
+        var labels   = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
+
+        function render(val) {
+            stars.forEach(function (s, i) {
+                if (i < val) { s.classList.remove('far'); s.classList.add('fas'); s.style.color = '#ff6b35'; }
+                else         { s.classList.remove('fas'); s.classList.add('far'); s.style.color = '#dee2e6'; }
+            });
+            label.textContent = val > 0 ? labels[val - 1] : 'Not set';
+        }
+
+        stars.forEach(function (star) {
+            star.addEventListener('mouseenter', function () { render(parseInt(this.dataset.value)); });
+            star.addEventListener('click', function () {
+                var v = parseInt(this.dataset.value);
+                if (parseInt(input.value) === v) { input.value = ''; render(0); }
+                else { input.value = v; render(v); }
+            });
+        });
+        picker.addEventListener('mouseleave', function () { render(parseInt(input.value) || 0); });
+        render(parseInt(input.value) || 0);
+    });
+}());
+
+// ── 3. Setup Deploy toggle (identical to new.html) ────────────────────────
+$(document).on('change', '#setup_docker', function () {
+    var checked = $(this).is(':checked');
+    if (checked) {
+        $('#expose_port_container').removeClass('d-none');
+        $('.upload-file').removeClass('d-none');
+        $('.multi_files').addClass('d-none');
+        $('#deploy_resource_container,#deploy_resource_container_cpu_request,' +
+          '#deploy_resource_container_memory_limit,#deploy_resource_container_memory_request,' +
+          '#deploy_resource_container_use_gvisor,#deploy_resource_container_harden_container,' +
+          '#deploy_resource_container_max_deploy_count,#deploy_resource_container_shared_instant,' +
+          '#deploy_resource_container_connection_protocol').removeClass('d-none');
+        $('#deploy_resource_container input[name="cpu_limit"]').val(100);
+        $('#deploy_resource_container_cpu_request input[name="cpu_request"]').val(10);
+        $('#deploy_resource_container_memory_limit input[name="memory_limit"]').val(128);
+        $('#deploy_resource_container_memory_request input[name="memory_request"]').val(32);
+    } else {
+        $('#expose_port_container').addClass('d-none');
+        $('.upload-file').addClass('d-none');
+        $('.multi_files').removeClass('d-none');
+        $('#deploy_resource_container,#deploy_resource_container_cpu_request,' +
+          '#deploy_resource_container_memory_limit,#deploy_resource_container_memory_request,' +
+          '#deploy_resource_container_use_gvisor,#deploy_resource_container_harden_container,' +
+          '#deploy_resource_container_max_deploy_count,#deploy_resource_container_shared_instant,' +
+          '#deploy_resource_container_connection_protocol').addClass('d-none');
+    }
+});
+
+$('#challenge-create-options').on('shown.bs.modal', function () {
+    $('#setup_docker').trigger('change');
+});
+
+// Load instances when document is ready
+document.addEventListener('DOMContentLoaded', function () {
+    loadInstances();
+});
+
+// ── 4. Instance loader — fetch from /api/mock/instances ──────────────────
+var _allInstances = [];
+
+function loadInstances() {
+    var elLoad   = document.getElementById('inst-loading');
+    var elErr    = document.getElementById('inst-error');
+    var elLoaded = document.getElementById('inst-loaded');
+    var elIcon   = document.getElementById('inst-refresh-icon');
+
+    elLoad.style.display = 'block';
+    elErr.classList.add('d-none');
+    elLoaded.style.display = 'none';
+    if (elIcon) elIcon.classList.add('fa-spin');
+
+    fetch('/api/mock/instances', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (json) {
+            if (!json.success) throw new Error(json.message || 'API error');
+            _allInstances = json.data || [];
+            renderInstanceSelect(_allInstances);
+            elLoad.style.display  = 'none';
+            elLoaded.style.display = 'block';
+            if (elIcon) elIcon.classList.remove('fa-spin');
+        })
+        .catch(function (err) {
+            elLoad.style.display = 'none';
+            if (elIcon) elIcon.classList.remove('fa-spin');
+            elErr.classList.remove('d-none');
+            document.getElementById('inst-error-msg').textContent =
+                'Failed to load instances: ' + err.message;
+        });
+}
+
+function renderInstanceSelect(list) {
+    var sel  = document.getElementById('instance-select');
+    var prev = sel.value;
+    sel.innerHTML = '<option value="">-- Select an instance --</option>';
+    list.forEach(function (inst) {
+        var opt = document.createElement('option');
+        opt.value           = inst.id;
+        opt.dataset.status  = inst.status;
+        opt.dataset.region  = inst.region;
+        opt.dataset.cpu     = inst.cpu_total;
+        opt.dataset.memory  = inst.memory_total_gb;
+        opt.dataset.nodes   = inst.node_count;
+        opt.dataset.desc    = inst.description || '';
+        opt.dataset.name    = inst.name || '';
+        opt.textContent     = inst.name || ('ID: ' + inst.id);
+        if (inst.status === 'offline') { opt.disabled = true; opt.textContent += ' (unavailable)'; }
+        sel.appendChild(opt);
+    });
+    if (prev) sel.value = prev;
+    if (!sel.value) document.getElementById('instance-preview-box').classList.add('d-none');
+}
+
+function filterInstances(status, btn) {
+    document.querySelectorAll('.inst-filter-tab').forEach(function (t) { t.classList.remove('active'); });
+    btn.classList.add('active');
+    renderInstanceSelect(status === 'all' ? _allInstances : _allInstances.filter(function (i) { return i.status === status; }));
+}
+
+document.getElementById('instance-select').addEventListener('change', function () {
+    var box = document.getElementById('instance-preview-box');
+    if (!this.value) { box.classList.add('d-none'); return; }
+    var opt    = this.options[this.selectedIndex];
+    var status = opt.dataset.status || 'unknown';
+    document.getElementById('inst-dot').className =
+        'instance-status-dot ' + (status === 'online' ? 'online' : status === 'maintenance' ? 'maintenance' : 'offline');
+    document.getElementById('inst-name').textContent = opt.dataset.name || ('Instance ID: ' + opt.value);
+    var badge = document.getElementById('inst-status-badge');
+    badge.textContent  = status.toUpperCase();
+    badge.style.background = status === 'online' ? '#d4edda' : status === 'maintenance' ? '#fff3cd' : '#f8d7da';
+    badge.style.color      = status === 'online' ? '#155724' : status === 'maintenance' ? '#856404' : '#721c24';
+    document.getElementById('inst-region').textContent = opt.dataset.region || '—';
+    document.getElementById('inst-cpu').textContent    = opt.dataset.cpu    || '—';
+    document.getElementById('inst-mem').textContent    = opt.dataset.memory || '—';
+    document.getElementById('inst-nodes').textContent  = opt.dataset.nodes  || '—';
+    document.getElementById('inst-desc').textContent   = opt.dataset.desc   || '';
+    box.classList.remove('d-none');
+});
+
+// ── 5. Info form submit → POST /api/v1/challenges ─────────────────────
+document.getElementById('sandbox-info-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    // Validate instance selection
+    var sel = document.getElementById('instance-select');
+    if (!sel.value) {
+        alert('Please select an instance before creating the challenge.');
+        sel.focus();
+        return;
+    }
+
+    var btn = document.getElementById('sandbox-create-btn');
+    var originalText = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Creating…';
+
+    // Collect form fields as plain object (exclude instance_id — not a DB column)
+    var params = {};
+    new FormData(this).forEach(function (value, key) {
+        if (key !== 'instance_id' && key !== 'nonce') {
+            params[key] = value;
+        }
+    });
+
+    try {
+        var res = await CTFd.fetch('/api/v1/challenges', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(params),
+        });
+        var response = await res.json();
+
+        if (!response.success) {
+            var msgs = [];
+            for (var field in (response.errors || {})) {
+                msgs.push(field + ': ' + response.errors[field].join(', '));
+            }
+            if (!msgs.length && response.message) msgs.push(response.message);
+            alert('Could not create challenge:\n' + (msgs.join('\n') || 'Unknown error'));
+            return;
+        }
+
+        // Propagate challenge_id into the options modal then open it
+        var challengeId = response.data.id;
+        document.getElementById('challenge_id').value = challengeId;
+
+        // challenge.js already bound handleChallengeOptions to #challenge-create-options form
+        $('#challenge-create-options').modal('show');
+
+    } catch (err) {
+        alert('Network error while creating challenge:\n' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+});
+</script>
+{% endblock %}
+
+{% block entrypoint %}
+{{ Assets.js("assets/js/pages/challenge.js", theme="admin") }}
+{% endblock %}

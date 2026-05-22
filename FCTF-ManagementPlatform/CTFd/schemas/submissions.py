@@ -19,14 +19,14 @@ class SubmissionSchema(ma.ModelSchema):
         "admin": [
             "provided",
             "ip",
-            "contest_challenge_id",
+            "challenge_id",
             "user",
             "team",
             "date",
             "type",
             "id",
         ],
-        "user": ["contest_challenge_id", "user", "team", "date", "type", "id"],
+        "user": ["challenge_id", "user", "team", "date", "type", "id"],
     }
 
     def __init__(self, view=None, *args, **kwargs):

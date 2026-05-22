@@ -405,10 +405,8 @@ class Challenge(Resource):
                 user = get_current_user()
                 if user:
                     solve_ids = (
-                        Solves.query.with_entities(ContestChallenge.challenge_template_id)
-                        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+                        Solves.query.with_entities(Solves.challenge_id)
                         .filter(Solves.account_id == user.account_id)
-                        .order_by(ContestChallenge.challenge_template_id.asc())
                         .all()
                     )
                 else:
@@ -480,7 +478,7 @@ class Challenge(Resource):
         else:
             files = [url_for("views.files", path=f.location) for f in chal.files]
 
-        for hint in Hints.query.filter_by(challenge_template_id=chal.id).all():
+        for hint in Hints.query.filter_by(challenge_id=chal.id).all():
             if hint.id in unlocked_hints or ctf_ended():
                 hints.append(
                     {"id": hint.id, "cost": hint.cost, "content": hint.content}
@@ -510,15 +508,10 @@ class Challenge(Resource):
             solve_count = None
 
         if authed():
-            # Get current attempts for the user — go through ContestChallenge
-            cc_ids = [cc.id for cc in ContestChallenge.query.filter_by(challenge_template_id=challenge_id).all()]
-            if cc_ids:
-                attempts = Submissions.query.filter(
-                    Submissions.account_id == user.account_id,
-                    Submissions.contest_challenge_id.in_(cc_ids)
-                ).count()
-            else:
-                attempts = 0
+            attempts = Submissions.query.filter(
+                Submissions.account_id == user.account_id,
+                Submissions.challenge_id == chal.id,
+            ).count()
         else:
             attempts = 0
 
@@ -720,7 +713,7 @@ class Challenge(Resource):
         responses={200: ("Success", "APISimpleSuccessResponse")},
     )
     def delete(self, challenge_id):
-        DeployedChallenge.query.filter_by(challenge_template_id=challenge_id).delete()
+        DeployedChallenge.query.filter_by(challenge_id=challenge_id).delete()
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         
@@ -932,15 +925,10 @@ class ChallengeAttempt(Resource):
         if config.is_teams_mode() and team is None:
             abort(403)
 
-        # Count fails through ContestChallenge
-        cc_ids = [cc.id for cc in ContestChallenge.query.filter_by(challenge_template_id=challenge_id).all()]
-        if cc_ids:
-            fails = Fails.query.filter(
-                Fails.account_id == user.account_id,
-                Fails.contest_challenge_id.in_(cc_ids)
-            ).count()
-        else:
-            fails = 0
+        fails = Fails.query.filter(
+            Fails.account_id == user.account_id,
+            Fails.challenge_id == int(challenge_id),
+        ).count()
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
 
@@ -952,14 +940,12 @@ class ChallengeAttempt(Resource):
 
         if challenge.requirements:
             requirements = challenge.requirements.get("prerequisites", [])
-            solve_ids = (
-                Solves.query.with_entities(ContestChallenge.challenge_template_id)
-                .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+            solve_ids = {
+                s.challenge_id for s in
+                Solves.query.with_entities(Solves.challenge_id)
                 .filter(Solves.account_id == user.account_id)
-                .order_by(ContestChallenge.challenge_template_id.asc())
                 .all()
-            )
-            solve_ids = {solve_id for solve_id, in solve_ids}
+            }
             all_challenge_ids = {
                 c.id for c in Challenges.query.with_entities(Challenges.id).all()
             }
@@ -998,14 +984,10 @@ class ChallengeAttempt(Resource):
                 429,
             )
 
-        # Check if already solved — through ContestChallenge
-        if cc_ids:
-            solves = Solves.query.filter(
-                Solves.account_id == user.account_id,
-                Solves.contest_challenge_id.in_(cc_ids)
-            ).first()
-        else:
-            solves = None
+        solves = Solves.query.filter(
+            Solves.account_id == user.account_id,
+            Solves.challenge_id == challenge.id,
+        ).first()
 
         # Challenge not solved yet
         if not solves:
@@ -1182,7 +1164,7 @@ class ChallengeFiles(Resource):
         response = []
 
         challenge_files = ChallengeFilesModel.query.filter_by(
-            challenge_template_id=challenge_id
+            challenge_id=challenge_id
         ).all()
 
         for f in challenge_files:
@@ -1196,11 +1178,11 @@ class ChallengeTags(Resource):
     def get(self, challenge_id):
         response = []
 
-        tags = Tags.query.filter_by(challenge_template_id=challenge_id).all()
+        tags = Tags.query.filter_by(challenge_id=challenge_id).all()
 
         for t in tags:
             response.append(
-                {"id": t.id, "challenge_id": t.challenge_template_id, "value": t.value}
+                {"id": t.id, "challenge_id": t.challenge_id, "value": t.value}
             )
         return {"success": True, "data": response}
 
@@ -1211,13 +1193,13 @@ class ChallengeTopics(Resource):
     def get(self, challenge_id):
         response = []
 
-        topics = ChallengeTopicsModel.query.filter_by(challenge_template_id=challenge_id).all()
+        topics = ChallengeTopicsModel.query.filter_by(challenge_id=challenge_id).all()
 
         for t in topics:
             response.append(
                 {
                     "id": t.id,
-                    "challenge_id": t.challenge_template_id,
+                    "challenge_id": t.challenge_id,
                     "topic_id": t.topic_id,
                     "value": t.topic.value,
                 }
@@ -1229,7 +1211,7 @@ class ChallengeTopics(Resource):
 class ChallengeHints(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, challenge_id):
-        hints = Hints.query.filter_by(challenge_template_id=challenge_id).all()
+        hints = Hints.query.filter_by(challenge_id=challenge_id).all()
         schema = HintSchema(many=True)
         response = schema.dump(hints)
 
@@ -1243,7 +1225,7 @@ class ChallengeHints(Resource):
 class ChallengeFlags(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, challenge_id):
-        flags = Flags.query.filter_by(challenge_template_id=challenge_id).all()
+        flags = Flags.query.filter_by(challenge_id=challenge_id).all()
         schema = FlagSchema(many=True)
         response = schema.dump(flags)
 

@@ -63,9 +63,8 @@ def _ci_base_query(contest_id):
             Challenges.name.label("challenge_name"),
         )
         .outerjoin(Teams, ChallengeStartTracking.team_id == Teams.id)
-        .join(ContestChallenge, ChallengeStartTracking.contest_challenge_id == ContestChallenge.id)
-        .join(Challenges, ContestChallenge.challenge_template_id == Challenges.id)
-        .filter(ContestChallenge.contest_id == contest_id)
+        .join(Challenges, ChallengeStartTracking.challenge_id == Challenges.id)
+        .filter(Challenges.contest_id == contest_id)
         .order_by(ChallengeStartTracking.started_at.desc())
     )
 
@@ -218,14 +217,14 @@ def contest_submissions_incorrect(contest_id):
 
 
 def _contest_submissions_view(contest_id, submission_type):
-    from CTFd.models import ContestChallenge, Submissions, Challenges, Teams, Users
+    from CTFd.models import Submissions, Challenges, Teams, Users
     from CTFd.utils.modes import get_model
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    # Get contest challenge ids
-    cc_ids = [r[0] for r in db.session.query(ContestChallenge.id)
-              .filter(ContestChallenge.contest_id == contest_id).all()]
+    # Get challenge ids belonging to this contest
+    cc_ids = [r[0] for r in db.session.query(Challenges.id)
+              .filter(Challenges.contest_id == contest_id).all()]
 
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "provided")
@@ -239,7 +238,7 @@ def _contest_submissions_view(contest_id, submission_type):
 
     filters = []
     if cc_ids:
-        filters.append(Submissions.contest_challenge_id.in_(cc_ids))
+        filters.append(Submissions.challenge_id.in_(cc_ids))
     else:
         filters.append(Submissions.id == -1)
 
@@ -261,11 +260,8 @@ def _contest_submissions_view(contest_id, submission_type):
     if challenge_filter:
         try:
             cid = int(challenge_filter)
-            cc_sub = [r[0] for r in db.session.query(ContestChallenge.id)
-                      .filter(ContestChallenge.contest_id == contest_id,
-                              ContestChallenge.challenge_template_id == cid).all()]
-            if cc_sub:
-                filters.append(Submissions.contest_challenge_id.in_(cc_sub))
+            if cid in cc_ids:
+                filters.append(Submissions.challenge_id == cid)
             else:
                 filters.append(Submissions.id == -1)
         except ValueError:
@@ -299,19 +295,18 @@ def _contest_submissions_view(contest_id, submission_type):
     all_challenges = []
     if cc_ids:
         team_ids = [r[0] for r in db.session.query(Submissions.team_id.distinct())
-                    .filter(Submissions.contest_challenge_id.in_(cc_ids),
+                    .filter(Submissions.challenge_id.in_(cc_ids),
                             Submissions.team_id.isnot(None)).all()]
         user_ids = [r[0] for r in db.session.query(Submissions.user_id.distinct())
-                    .filter(Submissions.contest_challenge_id.in_(cc_ids),
+                    .filter(Submissions.challenge_id.in_(cc_ids),
                             Submissions.user_id.isnot(None)).all()]
         if team_ids:
             all_teams = Teams.query.filter(Teams.id.in_(team_ids)).order_by(Teams.name).all()
         if user_ids:
             all_users = Users.query.filter(Users.id.in_(user_ids)).order_by(Users.name).all()
         all_challenges = (
-            db.session.query(Challenges)
-            .join(ContestChallenge, ContestChallenge.challenge_template_id == Challenges.id)
-            .filter(ContestChallenge.contest_id == contest_id)
+            Challenges.query
+            .filter(Challenges.contest_id == contest_id)
             .order_by(Challenges.name).all()
         )
 
@@ -345,7 +340,7 @@ def _contest_submissions_view(contest_id, submission_type):
 @admins_only
 def contest_scoreboard(contest_id):
     from sqlalchemy.sql.expression import union_all
-    from CTFd.models import AwardBadges, Achievements, Awards, Brackets, Challenges, ContestChallenge, Solves, Teams, Users, UserTeamMember
+    from CTFd.models import AwardBadges, Achievements, Awards, Brackets, Challenges, Solves, Teams, Users, UserTeamMember
     from CTFd.utils.config import is_teams_mode
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
@@ -353,18 +348,18 @@ def contest_scoreboard(contest_id):
     bracket_id = request.args.get("bracket_id", type=int)
     brackets = Brackets.query.filter_by(contest_id=contest_id).all()
 
-    # Team standings: Solves → ContestChallenge (contest_challenge_id), filter by contest_id
-    # ContestChallenge.value holds the point value for this challenge in this contest
+    # Team standings: Solves → Challenges (challenge_id), filter by contest_id
+    # Challenges.value holds the point value for this challenge in this contest
     team_scores = (
         db.session.query(
             Solves.team_id.label("account_id"),
-            db.func.sum(ContestChallenge.value).label("score"),
+            db.func.sum(Challenges.value).label("score"),
             db.func.max(Solves.id).label("id"),
             db.func.max(Solves.date).label("date"),
         )
-        .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
-        .filter(ContestChallenge.contest_id == contest_id)
-        .filter(ContestChallenge.value != 0)
+        .join(Challenges, Solves.challenge_id == Challenges.id)
+        .filter(Challenges.contest_id == contest_id)
+        .filter(Challenges.value != 0)
         .filter(Solves.team_id != None)
         .group_by(Solves.team_id)
     )
@@ -410,13 +405,13 @@ def contest_scoreboard(contest_id):
         u_scores = (
             db.session.query(
                 Solves.user_id.label("user_id"),
-                db.func.sum(ContestChallenge.value).label("score"),
+                db.func.sum(Challenges.value).label("score"),
                 db.func.max(Solves.id).label("id"),
                 db.func.max(Solves.date).label("date"),
             )
-            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
-            .filter(ContestChallenge.contest_id == contest_id)
-            .filter(ContestChallenge.value != 0)
+            .join(Challenges, Solves.challenge_id == Challenges.id)
+            .filter(Challenges.contest_id == contest_id)
+            .filter(Challenges.value != 0)
             .filter(Solves.user_id != None)
             .group_by(Solves.user_id)
         )
@@ -459,8 +454,8 @@ def contest_scoreboard(contest_id):
 
     # First bloods: Achievements → AwardBadges → Challenges, filtered to this contest's challenges
     contest_challenge_tpl_ids = [
-        r[0] for r in db.session.query(ContestChallenge.challenge_template_id)
-        .filter(ContestChallenge.contest_id == contest_id).all()
+        r[0] for r in db.session.query(Challenges.id)
+        .filter(Challenges.contest_id == contest_id).all()
     ]
     first_bloods_data = []
     if contest_challenge_tpl_ids:
@@ -471,10 +466,10 @@ def contest_scoreboard(contest_id):
             )
             .select_from(Achievements)
             .join(AwardBadges, Achievements.award_badge_id == AwardBadges.id)
-            .join(Challenges, AwardBadges.challenge_template_id == Challenges.id)
+            .join(Challenges, AwardBadges.challenge_id == Challenges.id)
             .join(Teams, Achievements.team_id == Teams.id)
             .filter(AwardBadges.name == "First Blood")
-            .filter(AwardBadges.challenge_template_id.in_(contest_challenge_tpl_ids))
+            .filter(AwardBadges.challenge_id.in_(contest_challenge_tpl_ids))
             .all()
         )
         first_bloods_data = [
@@ -509,24 +504,23 @@ def contest_scoreboard_export(contest_id):
     try:
         import traceback
         from sqlalchemy.sql.expression import union_all
-        from CTFd.models import Awards, Brackets, Challenges, ContestChallenge, Solves, Teams, Users, UserTeamMember
+        from CTFd.models import Awards, Brackets, Challenges, Solves, Teams, Users, UserTeamMember
 
         contest = Contests.query.filter_by(id=contest_id).first_or_404()
         bracket_id = request.args.get("bracket_id", type=int)
 
-        # bracket lookup map (id → name) để tránh join phức tạp
         bracket_map = {b.id: b.name for b in Brackets.query.filter_by(contest_id=contest_id).all()}
 
         # ── Sheet 1: Teams Standings ──────────────────────────────────────────
         team_scores = (
             db.session.query(
                 Solves.team_id.label("account_id"),
-                db.func.sum(ContestChallenge.value).label("score"),
+                db.func.sum(Challenges.value).label("score"),
                 db.func.max(Solves.id).label("id"),
                 db.func.max(Solves.date).label("date"),
             )
-            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
-            .filter(ContestChallenge.contest_id == contest_id, ContestChallenge.value != 0)
+            .join(Challenges, Solves.challenge_id == Challenges.id)
+            .filter(Challenges.contest_id == contest_id, Challenges.value != 0)
             .filter(Solves.team_id != None)
             .group_by(Solves.team_id)
         )
@@ -594,10 +588,9 @@ def contest_scoreboard_export(contest_id):
                 Solves.date.label("submission_time"),
                 Teams.country.label("country"),
             )
-            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
+            .join(Challenges, Solves.challenge_id == Challenges.id)
             .join(Teams, Solves.team_id == Teams.id)
-            .join(Challenges, ContestChallenge.challenge_template_id == Challenges.id)
-            .filter(ContestChallenge.contest_id == contest_id)
+            .filter(Challenges.contest_id == contest_id)
             .filter(Teams.hidden == False, Teams.banned == False)
             .order_by(Solves.date.asc())
         )
@@ -620,12 +613,12 @@ def contest_scoreboard_export(contest_id):
         u_scores = (
             db.session.query(
                 Solves.user_id.label("user_id"),
-                db.func.sum(ContestChallenge.value).label("score"),
+                db.func.sum(Challenges.value).label("score"),
                 db.func.max(Solves.id).label("id"),
                 db.func.max(Solves.date).label("date"),
             )
-            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
-            .filter(ContestChallenge.contest_id == contest_id, ContestChallenge.value != 0)
+            .join(Challenges, Solves.challenge_id == Challenges.id)
+            .filter(Challenges.contest_id == contest_id, Challenges.value != 0)
             .filter(Solves.user_id != None)
             .group_by(Solves.user_id)
         )
@@ -688,8 +681,8 @@ def contest_scoreboard_export(contest_id):
                 Teams.banned.label("banned"),
             )
             .join(Solves, Solves.team_id == Teams.id)
-            .join(ContestChallenge, Solves.contest_challenge_id == ContestChallenge.id)
-            .filter(ContestChallenge.contest_id == contest_id, Teams.contest_id == contest_id)
+            .join(Challenges, Solves.challenge_id == Challenges.id)
+            .filter(Challenges.contest_id == contest_id, Teams.contest_id == contest_id)
             .group_by(Teams.id, Teams.name, Teams.hidden, Teams.banned)
             .order_by(db.func.count(Solves.id).desc())
         )
@@ -730,7 +723,7 @@ def contest_scoreboard_export(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/challenges")
 @admins_only
 def contest_challenges(contest_id):
-    from CTFd.models import ContestChallenge, Challenges, Tags
+    from CTFd.models import Challenges, Tags
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
@@ -744,18 +737,14 @@ def contest_challenges(contest_id):
     tag_terms = [t.strip() for t in tags_q.split(",") if t.strip()] if tags_q else []
     page = abs(request.args.get("page", 1, type=int))
 
-    query = (
-        ContestChallenge.query
-        .filter(ContestChallenge.contest_id == contest_id)
-        .join(Challenges, ContestChallenge.challenge_template_id == Challenges.id)
-    )
+    query = Challenges.query.filter(Challenges.contest_id == contest_id)
 
     if tag_terms:
         for term in tag_terms:
             exists_filter = (
                 db.session.query(Tags.id)
                 .filter(
-                    Tags.challenge_template_id == Challenges.id,
+                    Tags.challenge_id == Challenges.id,
                     db.func.lower(Tags.value) == term.lower(),
                 )
                 .exists()
@@ -781,33 +770,27 @@ def contest_challenges(contest_id):
         except ValueError:
             pass
     if state_filter:
-        query = query.filter(ContestChallenge.state == state_filter)
+        query = query.filter(Challenges.state == state_filter)
 
-    contest_challenges_paged = query.order_by(ContestChallenge.id.asc()).paginate(
+    contest_challenges_paged = query.order_by(Challenges.id.asc()).paginate(
         page=page, per_page=50, error_out=False
     )
 
-    for cc in contest_challenges_paged.items:
-        tpl = cc.challenge_template
-        creator_id = getattr(tpl, "user_id", None) or getattr(tpl, "created_by", None)
+    for ch in contest_challenges_paged.items:
+        creator_id = getattr(ch, "created_by", None)
         user = Users.query.filter_by(id=creator_id).first() if creator_id else None
-        tpl.creator = user.name if user else "Unknown"
+        ch.creator = user.name if user else "Unknown"
+        # Provide a .challenge_template alias so the template works unchanged
+        ch.challenge_template = ch
 
-    template_ids = [
-        r[0] for r in db.session.query(ContestChallenge.challenge_template_id)
-        .filter(ContestChallenge.contest_id == contest_id).all()
-    ]
-    if template_ids:
-        raw_categories = (
-            Challenges.query.with_entities(Challenges.category)
-            .filter(Challenges.id.in_(template_ids)).distinct().all()
-        )
-        raw_types = (
-            Challenges.query.with_entities(Challenges.type)
-            .filter(Challenges.id.in_(template_ids)).distinct().all()
-        )
-    else:
-        raw_categories, raw_types = [], []
+    raw_categories = (
+        Challenges.query.with_entities(Challenges.category)
+        .filter(Challenges.contest_id == contest_id).distinct().all()
+    )
+    raw_types = (
+        Challenges.query.with_entities(Challenges.type)
+        .filter(Challenges.contest_id == contest_id).distinct().all()
+    )
 
     categories = [c[0] for c in raw_categories if c and c[0]]
     types = [t[0] for t in raw_types if t and t[0]]
@@ -1141,13 +1124,13 @@ def contest_users_new(contest_id):
 @admins_only
 def contest_users(contest_id):
     from sqlalchemy import func, or_
-    from CTFd.models import ContestChallenge, Submissions, Teams, Users, Contests, UserTeamMember
+    from CTFd.models import Submissions, Teams, Users, Contests, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    # Get user_ids who submitted in this contest
-    cc_ids = [r[0] for r in db.session.query(ContestChallenge.id)
-              .filter(ContestChallenge.contest_id == contest_id).all()]
+    # Get challenge ids belonging to this contest
+    cc_ids = [r[0] for r in db.session.query(Challenges.id)
+              .filter(Challenges.contest_id == contest_id).all()]
 
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
@@ -1168,7 +1151,7 @@ def contest_users(contest_id):
     
     if cc_ids:
         participant_ids = [r[0] for r in db.session.query(Submissions.user_id.distinct())
-                          .filter(Submissions.contest_challenge_id.in_(cc_ids),
+                          .filter(Submissions.challenge_id.in_(cc_ids),
                                   Submissions.user_id.isnot(None)).all()]
         if participant_ids:
             contest_or_submitted.append(Users.id.in_(participant_ids))
@@ -1234,26 +1217,16 @@ def contest_users(contest_id):
 @admins_only
 def contest_teams(contest_id):
     from sqlalchemy import func
-    from CTFd.models import ContestChallenge, Submissions, Teams, Brackets, UserTeamMember
+    from CTFd.models import Submissions, Teams, Brackets, UserTeamMember
 
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
 
-    cc_ids = [r[0] for r in db.session.query(ContestChallenge.id)
-              .filter(ContestChallenge.contest_id == contest_id).all()]
+    # Teams belonging to this contest directly
+    filters = [Teams.contest_id == contest_id]
 
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "name")
     page = abs(request.args.get("page", 1, type=int))
-
-    filters = []
-    if cc_ids:
-        team_ids = [r[0] for r in db.session.query(Submissions.team_id.distinct())
-                    .filter(Submissions.contest_challenge_id.in_(cc_ids),
-                            Submissions.team_id.isnot(None)).all()]
-        if team_ids:
-            filters.append(Teams.id.in_(team_ids))
-        else:
-            filters.append(Teams.id == -1)
 
     if q and Teams.__mapper__.has_property(field):
         filters.append(getattr(Teams, field).ilike(f"%{q}%"))
@@ -1292,20 +1265,77 @@ def contest_teams(contest_id):
 @admin.route("/admin/contests/<int:contest_id>/action_logs")
 @admins_only
 def contest_action_logs(contest_id):
-    from CTFd.admin.admin_audit import (
-        ALL_ACTIONS, TARGET_TYPES, ACTOR_ROLES, ACTION_LABELS,
-        _build_query, _current_filters,
-    )
+    from CTFd.models import ActionLogs, Users
+
     contest = Contests.query.filter_by(id=contest_id).first_or_404()
+
     page = abs(request.args.get("page", 1, type=int))
     per_page = request.args.get("per_page", 50, type=int)
     per_page = max(1, min(per_page, 200))
-    filters = _current_filters()
-    q = _build_query(**filters)
-    logs = q.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Filter params
+    q_search   = request.args.get("q", "").strip()
+    field      = request.args.get("field", "detail")
+    user_filter = request.args.get("user_id", "").strip()
+    type_filter = request.args.get("type", "").strip()
+    date_from   = request.args.get("date_from", "").strip()
+    date_to     = request.args.get("date_to", "").strip()
+
+    import datetime as dt
+    filters = [ActionLogs.contest_id == contest_id]
+
+    if user_filter:
+        try:
+            filters.append(ActionLogs.user_id == int(user_filter))
+        except ValueError:
+            pass
+
+    if type_filter:
+        try:
+            filters.append(ActionLogs.type == int(type_filter))
+        except ValueError:
+            pass
+
+    if q_search and hasattr(ActionLogs, field):
+        filters.append(getattr(ActionLogs, field).ilike(f"%{q_search}%"))
+
+    if date_from:
+        try:
+            filters.append(ActionLogs.date >= dt.datetime.strptime(date_from, "%Y-%m-%d"))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            filters.append(ActionLogs.date < dt.datetime.strptime(date_to, "%Y-%m-%d") + dt.timedelta(days=1))
+        except ValueError:
+            pass
+
+    logs = (
+        ActionLogs.query.filter(*filters)
+        .order_by(ActionLogs.date.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    # Distinct users in this contest's logs for filter dropdown
+    user_ids_in_logs = [
+        r[0] for r in db.session.query(ActionLogs.user_id.distinct())
+        .filter(ActionLogs.contest_id == contest_id, ActionLogs.user_id.isnot(None)).all()
+    ]
+    users_in_contest = (
+        Users.query.filter(Users.id.in_(user_ids_in_logs)).order_by(Users.name).all()
+        if user_ids_in_logs else []
+    )
+
+    # Distinct action types
+    action_types = [
+        r[0] for r in db.session.query(ActionLogs.type.distinct())
+        .filter(ActionLogs.contest_id == contest_id).all()
+    ]
+
     args = dict(request.args)
     args.pop("page", None)
     is_detail = True
+
     return render_template(
         "admin/contests/sections/action_logs.html",
         contest=contest,
@@ -1313,37 +1343,51 @@ def contest_action_logs(contest_id):
         prev_page=url_for(request.endpoint, contest_id=contest_id, page=logs.prev_num, **args),
         next_page=url_for(request.endpoint, contest_id=contest_id, page=logs.next_num, **args),
         per_page=per_page,
-        all_actions=ALL_ACTIONS,
-        target_types=TARGET_TYPES,
-        actor_roles=ACTOR_ROLES,
-        action_labels=ACTION_LABELS,
+        q=q_search,
+        field=field,
+        user_filter=user_filter,
+        type_filter=type_filter,
+        date_from=date_from,
+        date_to=date_to,
+        users_in_contest=users_in_contest,
+        action_types=action_types,
         is_detail=is_detail,
-        **filters,
     )
 
 @admin.route("/admin/contests/<int:contest_id>/action_logs/export/csv")
 @admins_only
 def contest_action_logs_export_csv(contest_id):
     import json
-    from CTFd.admin.admin_audit import ACTION_LABELS, _build_query, _current_filters
-    filters = _current_filters()
-    q = _build_query(**filters)
+    from CTFd.models import ActionLogs
+
+    q = ActionLogs.query.filter(
+        ActionLogs.contest_id == contest_id
+    ).order_by(ActionLogs.date.desc())
 
     def generate():
         sio = StringIO()
         writer = csv.writer(sio)
-        writer.writerow(["id","timestamp","actor_id","actor_name","actor_type","action","action_label","target_type","target_id","ip_address"])
+        writer.writerow(["id", "timestamp", "user_id", "type", "detail", "topic_name", "contest_id"])
         yield sio.getvalue(); sio.seek(0); sio.truncate(0)
         for log in q.yield_per(1000):
-            writer.writerow([log.id, log.timestamp.isoformat() if log.timestamp else "",
-                log.actor_id or "", log.actor_name or "", log.actor_type or "",
-                log.action, ACTION_LABELS.get(log.action, log.action),
-                log.target_type or "", log.target_id or "", log.ip_address or ""])
+            writer.writerow([
+                log.id,
+                log.date.isoformat() if log.date else "",
+                log.user_id or "",
+                log.type,
+                log.detail or "",
+                log.topic_name or "",
+                log.contest_id or "",
+            ])
             yield sio.getvalue(); sio.seek(0); sio.truncate(0)
 
-    return Response(stream_with_context(generate()),
-        headers={"Content-Disposition": 'attachment; filename="contest_action_logs.csv"',
-                 "Content-Type": "text/csv; charset=utf-8"})
+    return Response(
+        stream_with_context(generate()),
+        headers={
+            "Content-Disposition": f'attachment; filename="contest_{contest_id}_action_logs.csv"',
+            "Content-Type": "text/csv; charset=utf-8",
+        }
+    )
 
 
 @admin.route("/admin/contests/<int:contest_id>/tickets")
@@ -1598,6 +1642,17 @@ def contest_bracket(contest_id):
         "admin/contests/sections/bracket.html",
         contest=contest,
         is_detail=is_detail,
+    )
+
+
+@admin.route("/admin/contests/<int:contest_id>/monitoring")
+@admins_only
+def contest_monitoring(contest_id):
+    contest = Contests.query.filter_by(id=contest_id).first_or_404()
+    return render_template(
+        "admin/contests/sections/monitoring.html",
+        contest=contest,
+        is_detail=True,
     )
 
 
