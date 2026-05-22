@@ -20,22 +20,6 @@
 {% endblock %}
 
 {% block content %}
-<div id="user-create-modal" class="modal fade">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 class="text-center w-100">Create User</h2>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-			<div class="modal-body clearfix">
-				{% include "admin/modals/users/create.html" %}
-			</div>
-		</div>
-	</div>
-</div>
-
 <div class="page-header">
 	<div class="container">
 		<h1><i class="bx bx-user"></i> {{ listing_title or 'Users' }}</h1>
@@ -133,28 +117,26 @@
 		</form>
 	</div>
 
-	<div class="d-flex justify-content-between align-items-center action-buttons mt-3">
+	<!-- Read-only notice for Management Hub global user list -->
+	<div class="alert" style="background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.25);border-radius:8px;padding:0.65rem 1rem;margin-top:0.75rem;" role="alert">
+		<i class="fas fa-info-circle" style="color:var(--primary-orange);"></i>
+		<span style="color:#555;font-size:0.9rem;">
+			This is a <strong>read-only</strong> view of all users across every contest.
+			To create, edit, or delete users, go to the <strong>Users</strong> section inside a specific contest.
+		</span>
+	</div>
+
+	<div class="d-flex justify-content-between align-items-center action-buttons mt-2">
+		<div></div>
 		<div class="d-flex align-items-center">
-			{% if not pending_mode and not is_jury() %}
-			<button type="button" class="clean-btn clean-btn-primary mr-2" data-toggle="modal" data-target="#user-create-modal">
-				<i class="fas fa-plus"></i> Create User
-			</button>
-			{% endif %}
 			{% if pending_mode and not is_jury() %}
-			<button type="button" class="clean-btn clean-btn-primary mr-2" id="users-approve-button" title="Approve selected">
-				<i class="btn-fa fas fa-check"></i> Approve
-			</button>
+			<div class="btn-group mr-2" role="group">
+				<button type="button" class="clean-btn clean-btn-primary" id="users-approve-button" title="Approve selected users">
+					<i class="btn-fa fas fa-check"></i> Approve
+				</button>
+			</div>
 			{% endif %}
-			{% if not is_jury() %}
-			<button type="button" class="clean-btn mr-2" style="background:#495057;color:#fff;" id="users-edit-button" title="Bulk edit selected">
-				<i class="fas fa-edit"></i> Edit
-			</button>
-			<button type="button" class="clean-btn" style="background:#dc3545;color:#fff;" id="users-delete-button" title="Delete selected">
-				<i class="fas fa-trash-alt"></i> Delete
-			</button>
-			{% endif %}
-		</div>
-		<div class="d-flex align-items-center">
+
 			{% if not pending_mode %}
 			<div class="dropdown d-inline-block" style="position: relative;">
 				<button class="clean-btn dropdown-toggle" type="button" id="export-csv-button"
@@ -363,64 +345,6 @@
 
 {% block scripts %}
 <script>
-function createUser(event) {
-	event.preventDefault();
-	const fetchFn = (typeof CTFd !== 'undefined' && CTFd.fetch) ? CTFd.fetch : window.fetch;
-
-	const form = document.getElementById('user-info-create-form');
-	const formData = new FormData(form);
-	const params = {};
-	formData.forEach(function(value, key) {
-		if (key === 'notify') { return; }
-		if (key.match(/fields\[\d+\]/)) {
-			if (!params.fields) params.fields = [];
-			const id = parseInt(key.slice(7, -1));
-			params.fields.push({ field_id: id, value: value });
-		} else {
-			const el = form.elements[key];
-			if (el && el.type === 'checkbox') {
-				params[key] = el.checked;
-			} else {
-				params[key] = value;
-			}
-		}
-	});
-	if (!params.fields) params.fields = [];
-
-	const notifyEl = form.elements['notify'];
-	let url = '/api/v1/users';
-	if (notifyEl && notifyEl.checked) url += '?notify=true';
-
-	fetchFn(url, {
-		method: 'POST',
-		credentials: 'same-origin',
-		headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-		body: JSON.stringify(params),
-	})
-	.then(r => r.json())
-	.then(function(response) {
-		if (response.success) {
-			window.location.reload();
-		} else {
-			const results = document.querySelector('#user-info-create-form #results');
-			results.innerHTML = '';
-			Object.values(response.errors).forEach(function(msg) {
-				const badge = document.createElement('div');
-				badge.className = 'alert alert-danger py-1 px-2 mt-1';
-				badge.textContent = msg;
-				results.appendChild(badge);
-			});
-		}
-	});
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-	const createForm = document.getElementById('user-info-create-form');
-	if (createForm) {
-		createForm.addEventListener('submit', createUser);
-	}
-});
-
 function clearAllFilters() {
 	window.location.href = window.location.pathname;
 }
