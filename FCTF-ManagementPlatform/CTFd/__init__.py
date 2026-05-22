@@ -369,10 +369,8 @@ def create_app(config="CTFd.config.Config"):
 
         @app.before_request
         def _restrict_non_staff_access():
-            """This deployment is an admin/staff UI.
-
-            Contestants have a separate portal/backend, so we restrict *all* non-staff
-            access (including legacy /api/* endpoints) to reduce attack surface.
+            """Allow contestants to access their contest UI, but block non-staff
+            from admin routes. Regular users can browse /contests and /c/* routes.
             """
             from CTFd.utils.user import authed, is_challenge_writer, is_jury
 
@@ -386,17 +384,15 @@ def create_app(config="CTFd.config.Config"):
                     or path == "/healthcheck"
             ):
                 return
-            # Allow access to uploaded files (logo, banners, etc.) so public users
-            # can view them without logging in.  The `views.files` handler itself
-            # enforces per-file challenge visibility.
+            # Allow access to uploaded files
             if path.startswith("/files"):
                 return
 
-            # Landing page is public for unauthenticated users
+            # Landing page is public
             if path == "/":
                 return
 
-            # Allow auth endpoints necessary for staff login flows
+            # Allow auth endpoints
             if (
                 path.startswith("/login")
                 or path.startswith("/logout")
@@ -408,7 +404,21 @@ def create_app(config="CTFd.config.Config"):
             ):
                 return
 
-            # For everything else, require staff roles
+            # Contestant-facing routes – require authentication only (not staff)
+            if (
+                path.startswith("/contests") 
+                or path.startswith("/c/") 
+                or path.startswith("/settings")
+                or path.startswith("/api")
+            ):
+                if authed():
+                    return
+                # Redirect unauthenticated to login
+                if path.startswith("/api") or request.content_type == "application/json":
+                    abort(403)
+                return redirect(url_for("auth.login", next=request.full_path))
+
+            # Admin routes – require staff roles
             if is_admin() or is_challenge_writer() or is_jury():
                 return
 
@@ -421,9 +431,11 @@ def create_app(config="CTFd.config.Config"):
                 abort(403)
             return redirect(url_for("auth.login", next=request.full_path))
 
+        # Enable CORS for the separate Vite frontend
+        CORS(app, supports_credentials=True)
+
         return app
 
 
 if __name__ == "__main__":
     app = create_app()
-    CORS(app)

@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block stylesheets %}
+{{ super() }}
+<style>
+  /* ── Contest List Page ─────────────────────────────── */
+  :root {
+    --brand: #ff6b35;
+    --brand-dark: #e85d2a;
+    --brand-glow: rgba(255,107,53,.25);
+    --surface: #1a1d23;
+    --surface-2: #22262e;
+    --surface-3: #2a2f3a;
+    --border: rgba(255,255,255,.07);
+    --text: #e8eaf0;
+    --text-muted: #8b92a5;
+    --radius: 14px;
+    --shadow: 0 8px 32px rgba(0,0,0,.45);
+  }
+
+  body {
+    background: #12151a;
+    color: var(--text);
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Hero Header ──────────────────────────────────── */
+  .contests-hero {
+    background: linear-gradient(135deg, #0f1117 0%, #1a1d23 50%, #1e1529 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 0 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .contests-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 60% at 20% 50%, rgba(255,107,53,.08) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 60% at 80% 30%, rgba(108,60,255,.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .contests-hero .hero-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,107,53,.12);
+    border: 1px solid rgba(255,107,53,.3);
+    color: var(--brand);
+    border-radius: 50px;
+    padding: 4px 14px;
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .contests-hero h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    background: linear-gradient(135deg, #ffffff 30%, #c0bfff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+  }
+  .contests-hero p.subtitle {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 520px;
+    line-height: 1.6;
+  }
+  .hero-user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 6px 16px 6px 8px;
+    margin-top: 20px;
+    font-size: .88rem;
+  }
+  .hero-user-badge .avatar {
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(135deg, var(--brand), #7c3aed);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: .82rem;
+    color: #fff;
+  }
+
+  /* ── Grid ────────────────────────────────────────── */
+  .contests-section {
+    padding: 48px 0 80px;
+  }
+  .section-title {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .contests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+  }
+
+  /* ── Contest Card ─────────────────────────────────── */
+  .contest-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 26px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .25s, transform .2s, box-shadow .25s;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+  }
+  .contest-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    transition: opacity .25s;
+    opacity: 0;
+  }
+  .contest-card.status-running::before  { background: linear-gradient(90deg,#22c55e,#16a34a); }
+  .contest-card.status-upcoming::before { background: linear-gradient(90deg,#3b82f6,#6366f1); }
+  .contest-card.status-ended::before   { background: linear-gradient(90deg,#6b7280,#4b5563); }
+
+  .contest-card:hover {
+    border-color: rgba(255,107,53,.4);
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(0,0,0,.5), 0 0 0 1px rgba(255,107,53,.1);
+  }
+  .contest-card:hover::before { opacity: 1; }
+
+  /* glow bg accent */
+  .contest-card::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; right: -40px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+  }
+  .contest-card.status-running::after  { background: radial-gradient(circle, rgba(34,197,94,.15), transparent); }
+  .contest-card.status-upcoming::after { background: radial-gradient(circle, rgba(59,130,246,.12), transparent); }
+  .contest-card:hover::after { opacity: 1; }
+
+  /* card header */
+  .card-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .contest-icon {
+    width: 46px; height: 46px;
+    background: linear-gradient(135deg, rgba(255,107,53,.2), rgba(124,58,237,.15));
+    border: 1px solid rgba(255,107,53,.25);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+
+  /* status badge */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 50px;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .status-badge .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .badge-running  { background: rgba(34,197,94,.12);  color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+  .badge-running .dot  { background: #22c55e; animation: pulse-green 1.5s infinite; }
+  .badge-upcoming { background: rgba(59,130,246,.12); color: #93c5fd; border: 1px solid rgba(59,130,246,.25); }
+  .badge-upcoming .dot { background: #3b82f6; }
+  .badge-ended    { background: rgba(107,114,128,.12); color: #9ca3af; border: 1px solid rgba(107,114,128,.2); }
+  .badge-ended .dot    { background: #6b7280; }
+
+  @keyframes pulse-green {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,.4); }
+    50%       { opacity: .7; box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+  }
+
+  /* card body */
+  .contest-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+  .contest-desc {
+    color: var(--text-muted);
+    font-size: .875rem;
+    line-height: 1.6;
+    margin-bottom: 18px;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* meta row */
+  .contest-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin-bottom: 20px;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: .78rem;
+    color: var(--text-muted);
+  }
+  .meta-item i { color: var(--brand); font-size: .8rem; }
+
+  /* timer */
+  .contest-timer {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .8rem;
+    color: var(--text-muted);
+  }
+  .contest-timer .timer-label { font-weight: 600; color: var(--text); }
+  .countdown { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--brand); }
+
+  /* CTA button */
+  .btn-enter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: .92rem;
+    text-decoration: none;
+    transition: all .2s;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-enter-primary {
+    background: linear-gradient(135deg, var(--brand), #e04a1a);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(255,107,53,.3);
+  }
+  .btn-enter-primary:hover {
+    background: linear-gradient(135deg, #ff7d4a, var(--brand));
+    box-shadow: 0 6px 24px rgba(255,107,53,.5);
+    transform: translateY(-1px);
+    color: #fff;
+  }
+  .btn-enter-outline {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-enter-outline:hover {
+    border-color: rgba(255,255,255,.2);
+    color: var(--text);
+    background: var(--surface-3);
+  }
+  .btn-enter-ghost {
+    background: rgba(59,130,246,.1);
+    color: #93c5fd;
+    border: 1px solid rgba(59,130,246,.2);
+  }
+  .btn-enter-ghost:hover {
+    background: rgba(59,130,246,.2);
+    color: #bfdbfe;
+  }
+
+  /* ── Empty state ─────────────────────────────────── */
+  .empty-state {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-muted);
+  }
+  .empty-state .empty-icon {
+    font-size: 3.5rem;
+    margin-bottom: 20px;
+    opacity: .35;
+  }
+  .empty-state h3 { color: var(--text); font-size: 1.3rem; margin-bottom: 8px; }
+
+  /* ── Responsive ──────────────────────────────────── */
+  @media (max-width: 576px) {
+    .contests-hero { padding: 40px 0 32px; }
+    .contests-grid { grid-template-columns: 1fr; }
+    .contest-card  { padding: 22px 18px 18px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="contests-hero">
+  <div class="container">
+    <span class="hero-label"><i class="fas fa-flag"></i> FCTF Platform</span>
+    <h1>Choose Your Contest</h1>
+    <p class="subtitle">Select a competition to join and start solving challenges. Good luck!</p>
+    {% if User and User.name %}
+    <div class="hero-user-badge">
+      <div class="avatar">{{ User.name[0]|upper }}</div>
+      <span>Logged in as <strong>{{ User.name }}</strong></span>
+      <a href="{{ url_for('auth.logout') }}" style="color:var(--text-muted); font-size:.78rem; margin-left:4px;">
+        <i class="fas fa-sign-out-alt"></i>
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Contests grid -->
+<div class="contests-section">
+  <div class="container">
+
+    {% if contests %}
+
+    {# ── Running contests ── #}
+    {% set running = contests | selectattr("status", "equalto", "running") | list %}
+    {% if running %}
+    <div class="section-title"><i class="fas fa-circle" style="color:#22c55e;font-size:.55rem;"></i> Active Now</div>
+    <div class="contests-grid mb-5">
+      {% for c in running %}
+      {% include "components/contest_card.html" %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Upcoming contests ── #}
+    {% set upcoming = contests | selectattr("status", "equalto", "upcoming") | list %}
+    {% if upcoming %}
+    <div class="section-title mt-4"><i class="fas fa-hourglass-half" style="color:#3b82f6;font-size:.75rem;"></i> Upcoming</div>
+    <div class="contests-grid mb-5">
+      {% for c in upcoming %}
+      {% include "components/contest_card.html" %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Ended contests ── #}
+    {% set ended = contests | selectattr("status", "equalto", "ended") | list %}
+    {% if ended %}
+    <div class="section-title mt-4"><i class="fas fa-check-circle" style="color:#6b7280;font-size:.75rem;"></i> Ended</div>
+    <div class="contests-grid">
+      {% for c in ended %}
+      {% include "components/contest_card.html" %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="contests-grid">
+      <div class="empty-state">
+        <div class="empty-icon">🏆</div>
+        <h3>No contests available right now</h3>
+        <p>Check back later — new competitions will be announced soon.</p>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Countdown timers
+(function() {
+  const timers = document.querySelectorAll('[data-countdown]');
+  function update() {
+    const now = Date.now();
+    timers.forEach(el => {
+      const target = parseInt(el.dataset.countdown, 10) * 1000;
+      const diff = target - now;
+      if (diff <= 0) { el.textContent = '—'; return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      el.textContent = d > 0
+        ? `${d}d ${h}h ${m}m`
+        : `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    });
+  }
+  update();
+  setInterval(update, 1000);
+})();
+</script>
+{% endblock %}

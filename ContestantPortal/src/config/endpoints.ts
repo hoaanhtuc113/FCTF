@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     DATE_CONFIG: '/Config/get_date_config',
     PUBLIC: '/Config/get_public_config',
     CONTEST_ACCESS: '/Config/contest_access',
+    CONTEST_LIST: '/Config/contest_list',
   },
   CHALLENGES: {
     BY_TOPIC: '/challenge/by-topic',

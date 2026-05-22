@@ -1,4 +1,4 @@
-﻿using ContestantBE.Interfaces;
+using ContestantBE.Interfaces;
 using ContestantBE.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ContestantBE.Controllers;
 
 [Authorize]
+[Route("api/contest/{contestId}/[controller]")]
 public class TeamController : BaseController
 {
     private readonly ITeamService _teamService;

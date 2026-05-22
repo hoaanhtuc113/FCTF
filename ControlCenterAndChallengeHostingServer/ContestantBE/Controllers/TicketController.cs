@@ -1,4 +1,4 @@
-﻿using ContestantBE.Attribute;
+using ContestantBE.Attribute;
 using ContestantBE.Interfaces;
 using ContestantBE.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +9,7 @@ using ResourceShared.Logger;
 namespace ContestantBE.Controllers;
 
 [Authorize]
+[Route("api/contest/{contestId}/[controller]")]
 public class TicketController : BaseController
 {
     private readonly ITicketService _ticketService;

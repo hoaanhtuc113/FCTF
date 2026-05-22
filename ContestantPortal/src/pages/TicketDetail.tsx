@@ -28,7 +28,7 @@ interface Ticket {
 }
 
 export function TicketDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id, contestId } = useParams<{ id: string; contestId?: string }>();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -108,7 +108,7 @@ export function TicketDetail() {
           [!] Ticket not found
         </Typography>
         <button
-          onClick={() => navigate('/tickets')}
+          onClick={() => navigate(contestId ? `/contest/${contestId}/tickets` : '/tickets')}
           className={`mt-4 flex items-center gap-2 px-4 py-2 rounded-lg font-bold font-mono transition-all border ${
             theme === 'dark'
               ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-600'
@@ -126,7 +126,7 @@ export function TicketDetail() {
     <div className="min-h-[70vh]">
       {/* Back Button */}
       <button
-        onClick={() => navigate('/tickets')}
+        onClick={() => navigate(contestId ? `/contest/${contestId}/tickets` : '/tickets')}
         className={`mb-4 flex items-center gap-2 px-4 py-2 rounded-lg font-bold font-mono transition-all border ${
           theme === 'dark'
             ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-600'

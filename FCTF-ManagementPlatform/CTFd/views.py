@@ -18,6 +18,7 @@ from CTFd.constants.config import ConfigTypes
 from CTFd.constants.themes import DEFAULT_THEME
 from CTFd.models import (
     Admins,
+    Contests,
     Files,
     Teams,
     Users,
@@ -310,6 +311,47 @@ def settings():
         infos=infos,
         errors=errors,
     )
+
+
+@views.route("/contests", methods=["GET"])
+@authed_only
+def contests_list():
+    import datetime as dt
+    now = dt.datetime.utcnow()
+    contests = Contests.query.filter(
+        Contests.state.in_(["active", "paused", "ended"])
+    ).order_by(Contests.start_time.asc()).all()
+
+    # Build a list with extra computed props per contest
+    contest_data = []
+    for c in contests:
+        status = "upcoming"
+        if c.start_time and c.end_time:
+            if now < c.start_time:
+                status = "upcoming"
+            elif now > c.end_time:
+                status = "ended"
+            else:
+                status = "running"
+        elif c.state == "ended":
+            status = "ended"
+        elif c.state == "active":
+            status = "running"
+
+        contest_data.append({
+            "id": c.id,
+            "name": c.name,
+            "description": c.description,
+            "slug": c.slug,
+            "start_time": c.start_time,
+            "end_time": c.end_time,
+            "state": c.state,
+            "status": status,
+            "user_mode": c.user_mode,
+            "team_size": c.team_size,
+        })
+
+    return render_template("contests.html", contests=contest_data, now=now)
 
 
 @views.route("/")

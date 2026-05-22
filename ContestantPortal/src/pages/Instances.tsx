@@ -5,7 +5,7 @@ import { fetchWithAuth } from '../services/api';
 import { API_ENDPOINTS } from '../config/endpoints';
 import { Terminal, Refresh, ContentCopy } from '@mui/icons-material';
 import Swal from '../services/safeSwal';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { formatUTCToLocaleString } from '../utils/timezone';
 
 interface ChallengeInstance {
@@ -22,6 +22,7 @@ interface ChallengeInstance {
 export function Instances() {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const { contestId } = useParams<{ contestId?: string }>();
   const [instances, setInstances] = useState<ChallengeInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -164,7 +165,7 @@ export function Instances() {
 
   const handleNavigateToChallenge = (challengeId: number, category: string) => {
     // Navigate to challenges page with category selected and challenge opened
-    navigate(`/challenges?category=${encodeURIComponent(category)}&challenge=${challengeId}`);
+    navigate(contestId ? `/contest/${contestId}/challenges?category=${encodeURIComponent(category)}&challenge=${challengeId}` : `/challenges?category=${encodeURIComponent(category)}&challenge=${challengeId}`);
   };
 
   const getStatusColor = (status: string) => {
