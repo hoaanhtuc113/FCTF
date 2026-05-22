@@ -289,7 +289,6 @@ def handle_zip_file_upload(challenge, file_path, challenge_id):
             try:
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
-                challenge.state = "hidden"
                 db.session.commit()
 
                 response = requests.post(url, headers={"SecretKey": secret_key}, data=payload, files=files)
@@ -403,7 +402,6 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
                 print(f"Challenge {challenge.id} deployment started with workflow {workflow_name}, started at {started_at}")
                 challenge.require_deploy = True
                 challenge.deploy_status = "PENDING_DEPLOY"
-                challenge.state = "hidden"
                 challenge.image_link = json.dumps(object_image)
 
                 # Auto-save challenge version
@@ -465,7 +463,6 @@ def handle_challenge_upload(challenge, file_path, expose_port=None):
             
     except Exception as e:
         challenge.deploy_status = "FILE_UPLOAD_FAILED"
-        challenge.state = "hidden"
         db.session.commit()
         print(f"Error handling challenge upload: {e}")
         return {"success": False, "error": f"Error processing challenge upload: {str(e)}"}, 500
