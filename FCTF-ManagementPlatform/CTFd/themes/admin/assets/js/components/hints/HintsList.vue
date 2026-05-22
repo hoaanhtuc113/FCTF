@@ -97,7 +97,9 @@ export default {
         }
       );
       let response = await result.json();
-      this.hints = response.data;
+      console.log("[HintsList] loadHints response:", response);
+      // Guard: data may be null if API had an issue
+      this.hints = Array.isArray(response.data) ? response.data : (response.data ? [response.data] : []);
       return response.success;
     },
     addHint: function () {

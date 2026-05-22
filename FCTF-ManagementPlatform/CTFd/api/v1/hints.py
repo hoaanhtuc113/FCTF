@@ -101,10 +101,9 @@ class HintList(Resource):
         if response.errors:
             return {"success": False, "errors": response.errors}, 400
 
+        db.session.add(response.data)
         db.session.commit()
 
-        # Re-query the saved hint to avoid accessing an expired/lazy-load-broken
-        # ORM instance after commit (which causes the 500 while the record IS saved).
         saved_hint = Hints.query.filter_by(id=response.data.id).first()
         response = schema.dump(saved_hint)
 

@@ -111,9 +111,11 @@ export default {
   methods: {
     loadChallenges: function () {
       const contestId = window.CONTEST_ID;
-      const url = contestId
-        ? `/api/v1/challenges?view=admin&contest_id=${contestId}`
-        : "/api/v1/challenges?view=admin";
+      if (!contestId) {
+        console.warn("[Requirements] window.CONTEST_ID not set, cannot load challenges.");
+        return;
+      }
+      const url = `/api/v1/contest_challenges?contest_id=${contestId}&per_page=200`;
       CTFd.fetch(url, {
         method: "GET",
         credentials: "same-origin",

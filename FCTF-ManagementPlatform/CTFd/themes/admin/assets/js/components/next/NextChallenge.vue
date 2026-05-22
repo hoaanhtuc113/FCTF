@@ -10,7 +10,7 @@
           >
         </label>
         <select class="form-control custom-select" v-model="selected_id">
-          <option value="null">--</option>
+          <option :value="null">--</option>
           <option
             v-for="challenge in otherChallenges"
             :value="challenge.id"
@@ -40,23 +40,25 @@ import CTFd from "../../compat/CTFd";
 export default {
   props: {
     challenge_id: Number,
+    // next_id is passed from the Jinja template (window.CHALLENGE_NEXT_ID)
+    // so we never need to call GET /api/v1/challenges/{id} at all
+    initial_next_id: { type: Number, default: null },
   },
   data: function () {
     return {
-      challenge: null,
       challenges: [],
-      selected_id: null,
+      // Track what is currently saved in the DB
+      saved_next_id: this.initial_next_id,
+      // Track what user has selected in the dropdown
+      selected_id: this.initial_next_id,
     };
   },
   computed: {
     updateAvailable: function () {
-      if (this.challenge) {
-        return this.selected_id != this.challenge.next_id;
-      } else {
-        return false;
-      }
+      // Enable Save when user's selection differs from what's saved in DB
+      return this.selected_id !== this.saved_next_id;
     },
-    // Get all challenges besides the current one and current next
+    // All challenges in contest except the current one
     otherChallenges: function () {
       return this.challenges.filter((challenge) => {
         return challenge.id !== this.$props.challenge_id;
@@ -64,30 +66,13 @@ export default {
     },
   },
   methods: {
-    loadData: function () {
-      CTFd.fetch(`/api/v1/challenges/${this.$props.challenge_id}`, {
-        method: "GET",
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      })
-        .then((response) => {
-          return response.json();
-        })
-        .then((response) => {
-          if (response.success) {
-            this.challenge = response.data;
-            this.selected_id = response.data.next_id;
-          }
-        });
-    },
     loadChallenges: function () {
       const contestId = window.CONTEST_ID;
-      const url = contestId
-        ? `/api/v1/challenges?view=admin&contest_id=${contestId}`
-        : "/api/v1/challenges?view=admin";
+      if (!contestId) {
+        console.warn("[NextChallenge] window.CONTEST_ID not set, cannot load challenges.");
+        return;
+      }
+      const url = `/api/v1/contest_challenges?contest_id=${contestId}&per_page=200`;
       CTFd.fetch(url, {
         method: "GET",
         credentials: "same-origin",
@@ -111,6 +96,7 @@ export default {
         });
     },
     updateNext: function () {
+      const newNextId = this.selected_id !== null ? this.selected_id : null;
       CTFd.fetch(`/api/v1/challenges/${this.$props.challenge_id}`, {
         method: "PATCH",
         credentials: "same-origin",
@@ -119,22 +105,29 @@ export default {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          next_id: this.selected_id != "null" ? this.selected_id : null,
+          next_id: newNextId,
         }),
       })
         .then((response) => {
           return response.json();
         })
         .then((data) => {
+          console.log("[NextChallenge] updateNext response:", data);
           if (data.success) {
-            this.loadData();
-            this.loadChallenges();
+            // Update local saved state — no re-fetch needed
+            this.saved_next_id = newNextId;
+            console.log("[NextChallenge] Saved next_id:", newNextId);
+          } else {
+            alert("Failed to save: " + JSON.stringify(data.errors || data));
           }
+        })
+        .catch((err) => {
+          console.error("[NextChallenge] updateNext error:", err);
+          alert("Network error while saving.");
         });
     },
   },
   created() {
-    this.loadData();
     this.loadChallenges();
   },
 };
@@ -196,3 +189,4 @@ export default {
   opacity: 0.6;
 }
 </style>
+

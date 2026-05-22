@@ -484,12 +484,11 @@ class Challenge(Resource):
         hints = []
         if authed():
             user = get_current_user()
-            team = get_current_team()
 
-            # TODO: Convert this into a re-useable decorator
             if is_admin() or is_challenge_writer() or is_jury():
-                pass
+                team = None
             else:
+                team = get_current_team()
                 if config.is_teams_mode() and team is None:
                     abort(403)
 
@@ -1253,7 +1252,8 @@ class ChallengeTopics(Resource):
 class ChallengeHints(Resource):
     @admin_or_challenge_writer_only_or_jury
     def get(self, challenge_id):
-        hints = Hints.query.filter_by(challenge_id=challenge_id).all()
+        # challenge_id from URL is a string; cast to int for the integer FK column
+        hints = Hints.query.filter_by(challenge_id=int(challenge_id)).all()
         schema = HintSchema(many=True, view="admin")
         response = schema.dump(hints)
 
