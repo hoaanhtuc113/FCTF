@@ -1,6 +1,10 @@
 -- Least privilege MariaDB accounts for .NET services + admin account
 -- Scope: database ctfd
 -- Update all REPLACE_* passwords before running.
+--
+-- !! QUAN TRỌNG: Khi thêm bảng mới vào schema (qua Alembic migration hoặc EF),
+--    phải cập nhật file này để GRANT quyền cho các service liên quan.
+--    Thiếu bước này sẽ gây lỗi "SELECT command denied" trên production.
 
 -- Baseline hardening equivalent to mysql_secure_installation tasks.
 DROP USER IF EXISTS ''@'localhost';
@@ -52,6 +56,12 @@ GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
+GRANT SELECT ON ctfd.user_team_members TO 'contestant_be'@'%';
+GRANT INSERT ON ctfd.user_team_members TO 'contestant_be'@'%';
+GRANT UPDATE ON ctfd.user_team_members TO 'contestant_be'@'%';
+GRANT DELETE ON ctfd.user_team_members TO 'contestant_be'@'%';
 
 -- DeploymentCenter
 GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
