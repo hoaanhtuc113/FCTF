@@ -29,7 +29,7 @@ services:
     image: bitnami/redis:latest
     container_name: fctf-redis
     ports:
-      - "6380:6379"
+      - "6379:6379"
     environment:
       REDIS_PASSWORD: redis_password
     volumes:
