@@ -163,9 +163,9 @@
     <!-- Action buttons -->
     <div class="d-flex justify-content-between align-items-center action-buttons mt-2">
         <div class="d-flex gap-2" style="gap:0.5rem;">
-            <a href="{{ url_for('admin.contest_users_new', contest_id=contest.id) }}" class="clean-btn clean-btn-primary" id="btn-create-user">
+            <button type="button" class="clean-btn clean-btn-primary" id="btn-create-user">
                 <i class="fas fa-user-plus"></i> Create User
-            </a>
+            </button>
             <button type="button" class="clean-btn btn-outline-info" id="btn-add-existing-user">
                 <i class="fas fa-user-check"></i> Add Existing User
             </button>
@@ -325,6 +325,15 @@
     <input type="hidden" id="contest-id" value="{{ contest.id }}">
 </div>
 
+<!-- ── Create User Modal ────────────────────────────────────────────── -->
+<div class="import-modal-overlay" id="create-user-modal">
+    <div class="import-modal-box" style="max-width:520px;">
+        <button class="import-modal-close" id="create-user-modal-close" title="Close">&times;</button>
+        <h5><i class="fas fa-user-plus" style="color:var(--primary-orange,#ff6b35);"></i> Create User</h5>
+        {% include "admin/modals/users/create.html" %}
+    </div>
+</div>
+
 <!-- ── Edit Users Modal ─────────────────────────────────────────────── -->
 <div class="import-modal-overlay" id="edit-users-modal">
     <div class="import-modal-box">
@@ -449,6 +458,83 @@
 {% block contest_scripts %}
 <script>
 (function() {
+// ── Create User Modal ──────────────────────────────────────────────────────
+const createUserModal     = document.getElementById('create-user-modal');
+const createUserOpenBtn   = document.getElementById('btn-create-user');
+const createUserCloseBtn  = document.getElementById('create-user-modal-close');
+const createUserForm      = document.getElementById('user-info-create-form');
+
+function openCreateUserModal() {
+    if (createUserForm) createUserForm.reset();
+    const results = createUserForm && createUserForm.querySelector('#results');
+    if (results) results.innerHTML = '';
+    createUserModal.classList.add('active');
+}
+function closeCreateUserModal() { createUserModal.classList.remove('active'); }
+
+if (createUserOpenBtn)  createUserOpenBtn.addEventListener('click', openCreateUserModal);
+if (createUserCloseBtn) createUserCloseBtn.addEventListener('click', closeCreateUserModal);
+createUserModal.addEventListener('click', function(e) {
+    if (e.target === createUserModal) closeCreateUserModal();
+});
+
+if (createUserForm) {
+    createUserForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(createUserForm);
+        const params = {};
+        params.fields = [];
+        formData.forEach(function(value, key) {
+            if (key === 'notify') return;
+            if (key.match(/fields\[\d+\]/)) {
+                const id = parseInt(key.slice(7, -1));
+                params.fields.push({ field_id: id, value: value });
+            } else {
+                const el = createUserForm.elements[key];
+                params[key] = (el && el.type === 'checkbox') ? el.checked : value;
+            }
+        });
+        params.contest_id = {{ contest.id }};
+
+        const notifyEl = createUserForm.elements['notify'];
+        let url = '/api/v1/users';
+        if (notifyEl && notifyEl.checked) url += '?notify=true';
+
+        const submitBtn = createUserForm.querySelector('[type=submit]');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating…'; }
+
+        fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: csrfHeaders(),
+            body: JSON.stringify(params),
+        })
+        .then(r => r.json())
+        .then(function(response) {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
+            const results = createUserForm.querySelector('#results');
+            if (results) results.innerHTML = '';
+            if (response.success) {
+                window.location.reload();
+            } else {
+                if (results) {
+                    Object.values(response.errors).forEach(function(msg) {
+                        const badge = document.createElement('div');
+                        badge.className = 'alert alert-danger py-1 px-2 mt-1';
+                        badge.style.fontSize = '0.85rem';
+                        badge.textContent = msg;
+                        results.appendChild(badge);
+                    });
+                }
+            }
+        })
+        .catch(function() {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create'; }
+            alert('Network error. Please try again.');
+        });
+    });
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 function csrfHeaders() {
     return {
