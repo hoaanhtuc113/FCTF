@@ -787,10 +787,7 @@
     <!-- Tabs -->
     <div class="kypo-tabs">
         <button class="kypo-tab" onclick="kypoSwitchTab('definitions', this)">&#128230; Sandbox Definitions</button>
-        <button class="kypo-tab active" onclick="kypoSwitchTab('training-defs', this)">&#128216; Training
-            Definitions</button>
-        <button class="kypo-tab" onclick="kypoSwitchTab('pools', this)">&#127882; Pools</button>
-        <button class="kypo-tab" onclick="kypoSwitchTab('instances', this)">&#9654; Training Instances</button>
+        <button class="kypo-tab active" onclick="kypoSwitchTab('pools', this)">&#127882; Pools</button>
     </div>
 
     <!-- ══ TAB: Sandbox Definitions ══ -->
@@ -801,226 +798,24 @@
             <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-def')">+ Tạo
                 Definition</button>
         </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">bruteforce-log-analysis</div>
-                    <span class="kypo-card-id">KYPO ID: 6</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <span class="kypo-badge kypo-badge-green">&#10003; Synced</span>
-                    <button class="kypo-icon-btn" title="Xem chi tiết"
-                        onclick="kypoToast('Xem chi tiết Sandbox Definition 6')">&#128065;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#9135;</span> main</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128279;</span>
-                    https://github.com/kypo-labs/bruteforce-log-analysis.git</div>
-            </div>
-        </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">sql-injection-lab</div>
-                    <span class="kypo-card-id">KYPO ID: 12</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <span class="kypo-badge kypo-badge-green">&#10003; Synced</span>
-                    <button class="kypo-icon-btn" title="Xem chi tiết"
-                        onclick="kypoToast('Xem chi tiết Sandbox Definition 12')">&#128065;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#9135;</span> v2.1</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128279;</span>
-                    https://github.com/kypo-labs/sql-injection-lab.git</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══ TAB: Training Definitions ══ -->
-    <div id="kypo-tab-training-defs" class="kypo-tab-pane active">
-        <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Training Definition định nghĩa nội dung bài lab: các level, câu hỏi, flag,
-                hint.</span>
-            <div style="display:flex;gap:8px">
-                <button class="kypo-btn kypo-btn-secondary" onclick="kypoOpenModal('kypo-modal-import-td')">&#8681;
-                    Import JSON</button>
-                <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-create-td')">+ Tạo
-                    Definition</button>
-            </div>
-        </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">Bruteforce Log Analysis</div>
-                    <span class="kypo-card-id">KYPO TD ID: 6</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <span class="kypo-badge kypo-badge-green">RELEASED</span>
-                    <button class="kypo-icon-btn" title="Xem chi tiết"
-                        onclick="kypoToast('Xem chi tiết TD 6')">&#128065;</button>
-                    <button class="kypo-icon-btn k-danger" title="Xóa"
-                        onclick="kypoToast('Không thể xóa — đang dùng trong Training Instance', 'error')">&#128465;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128218;</span> 3 levels (Access, Info,
-                    Training)</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#9201;</span> ~15 phút</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128100;</span> Demo Admin &bull; 22/04/2026
-                </div>
-            </div>
-        </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">Operation Corporate Breach</div>
-                    <span class="kypo-card-id">KYPO TD ID: 16</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <span class="kypo-badge kypo-badge-orange">UNRELEASED</span>
-                    <button class="kypo-icon-btn" title="Chỉnh sửa"
-                        onclick="kypoOpenModal('kypo-modal-create-td')">&#9998;</button>
-                    <button class="kypo-icon-btn k-danger" title="Xóa"
-                        onclick="kypoToast('Đã xóa Training Definition', 'success')">&#128465;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128218;</span> 7 levels</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#9201;</span> ~107 phút</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128100;</span> Demo Admin &bull; 14/05/2026
-                </div>
-            </div>
-        </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">SQL Injection Fundamentals</div>
-                    <span class="kypo-card-id">KYPO TD ID: 19</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <span class="kypo-badge kypo-badge-gray">ARCHIVED</span>
-                    <button class="kypo-icon-btn" title="Xem" onclick="kypoToast('Xem TD 19')">&#128065;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128218;</span> 4 levels</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#9201;</span> ~30 phút</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128100;</span> Demo Admin &bull; 10/03/2026
-                </div>
-            </div>
+        <div id="kypo-def-list">
+            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Đang tải...</div>
         </div>
     </div>
 
     <!-- ══ TAB: Pools ══ -->
-    <div id="kypo-tab-pools" class="kypo-tab-pane">
+    <div id="kypo-tab-pools" class="kypo-tab-pane active">
         <div class="kypo-toolbar">
             <span class="kypo-toolbar-hint">Pool = tập hợp sandbox được allocate từ 1 Definition. Pool quyết định có bao
                 nhiêu team có thể chơi đồng thời.</span>
             <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-pool')">+ Tạo Pool</button>
         </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">Pool CTF Spring 2026 &mdash; Bruteforce Lab</div>
-                    <span class="kypo-card-id">KYPO Pool ID: 39</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <button class="kypo-icon-btn" title="Refresh"
-                        onclick="kypoToast('Pool 39: 4/5 READY')">&#8635;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128293;</span> 1/5 đang dùng</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> Definition ID: 6</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128101;</span> Tối đa 5 team đồng thời</div>
-            </div>
-            <div class="kypo-pool-bar">
-                <div class="kypo-pool-fill" style="width:20%"></div>
-            </div>
-        </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">Pool demo_lab1</div>
-                    <span class="kypo-card-id">KYPO Pool ID: 46</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <button class="kypo-icon-btn" title="Refresh"
-                        onclick="kypoToast('Pool 46: 3/4 READY, 1 BUILDING')">&#8635;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128293;</span> 1/4 đang dùng</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> Definition ID: 6</div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128101;</span> Tối đa 4 team đồng thời</div>
-            </div>
-            <div class="kypo-pool-bar">
-                <div class="kypo-pool-fill" style="width:25%"></div>
-            </div>
+        <div id="kypo-pool-list">
+            <div class="kypo-card" style="text-align:center;color:var(--text-light)">Đang tải...</div>
         </div>
     </div>
 
-    <!-- ══ TAB: Training Instances ══ -->
-    <div id="kypo-tab-instances" class="kypo-tab-pane">
-        <div class="kypo-toolbar">
-            <span class="kypo-toolbar-hint">Training Instance liên kết Pool + Training Definition. Thí sinh dùng access
-                token để vào bài.</span>
-            <button class="kypo-btn kypo-btn-primary" onclick="kypoOpenModal('kypo-modal-ti')">+ Tạo Training
-                Instance</button>
-        </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">demo_lab1</div>
-                    <span class="kypo-card-id">KYPO TI ID: 29</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <span class="kypo-badge kypo-badge-green">&#10003; Đang diễn ra</span>
-                    <button class="kypo-icon-btn" title="Copy token"
-                        onclick="kypoToast('Đã copy: 123-3565', 'success')">&#128203;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128273;</span> <span class="kypo-token"
-                        onclick="kypoToast('Đã copy: 123-3565', 'success')">123-3565</span></div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128197;</span> 19/05/2026 &rarr; 15/07/2026
-                </div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128279;</span> Pool: 46 | TD: 6</div>
-            </div>
-        </div>
-
-        <div class="kypo-card">
-            <div class="kypo-card-hd">
-                <div>
-                    <div class="kypo-card-title">Operation Corporate Breach</div>
-                    <span class="kypo-card-id">KYPO TI ID: 28</span>
-                </div>
-                <div class="kypo-card-actions">
-                    <span class="kypo-badge kypo-badge-gray">Đã kết thúc</span>
-                    <button class="kypo-icon-btn" title="Copy token"
-                        onclick="kypoToast('Đã copy: HOD-4551', 'success')">&#128203;</button>
-                </div>
-            </div>
-            <div class="kypo-card-meta">
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128273;</span> <span
-                        class="kypo-token">HOD-4551</span></div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128197;</span> 14/05/2026 &rarr; 15/05/2026
-                </div>
-                <div class="kypo-meta-item"><span class="kypo-meta-icon">&#128279;</span> Pool: 45 | TD: 16</div>
-            </div>
-        </div>
-    </div>
+</div>
 
 </div><!-- /container -->
 
@@ -1035,16 +830,18 @@
         </div>
         <div class="kypo-modal-body">
             <div class="kypo-info-box">&#8505; KYPO sẽ clone repo và build sandbox. Đảm bảo repo có file
-                <code>topology.yml</code>.</div>
+                <code>topology.yml</code>.
+            </div>
             <div class="kypo-form-group">
                 <label class="kypo-form-label">Git Repository URL *</label>
-                <input class="kypo-form-control" type="url" placeholder="https://github.com/org/sandbox-lab.git">
+                <input class="kypo-form-control" id="def-git-url" type="url"
+                    placeholder="https://github.com/org/sandbox-lab.git">
             </div>
             <div class="kypo-row">
                 <div class="kypo-col">
                     <div class="kypo-form-group">
                         <label class="kypo-form-label">Branch / Tag *</label>
-                        <input class="kypo-form-control" type="text" value="main">
+                        <input class="kypo-form-control" id="def-git-revision" type="text" value="main">
                     </div>
                 </div>
                 <div class="kypo-col">
@@ -1057,38 +854,76 @@
         </div>
         <div class="kypo-modal-ft">
             <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-def')">Hủy</button>
-            <button class="kypo-btn kypo-btn-primary"
-                onclick="kypoCloseModal('kypo-modal-def');kypoToast('&#10003; Tạo Sandbox Definition thành công!','success')">&#10003;
-                Tạo</button>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitSandboxDef()">&#10003; Tạo</button>
         </div>
     </div>
 </div>
 
-<!-- Modal: Import Training Definition JSON -->
-<div class="kypo-modal-overlay" id="kypo-modal-import-td" onclick="kypoOverlayClose(event,'kypo-modal-import-td')">
+<!-- Modal: Edit Pool -->
+<div class="kypo-modal-overlay" id="kypo-modal-edit-pool" onclick="kypoOverlayClose(event,'kypo-modal-edit-pool')">
     <div class="kypo-modal">
         <div class="kypo-modal-hd">
-            <div class="kypo-modal-title">&#8681; Import <span class="hl">Training Definition</span></div>
-            <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-import-td')">&times;</button>
+            <div class="kypo-modal-title">&#9998; Edit <span class="hl">Sandbox Pool</span></div>
+            <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-edit-pool')">&times;</button>
         </div>
         <div class="kypo-modal-body">
-            <div class="kypo-info-box">&#8505; Paste JSON export từ KYPO hoặc upload file .json. FCTF sẽ import vào KYPO
-                và lưu ID trả về.</div>
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Upload file JSON</label>
-                <input type="file" accept=".json" class="kypo-form-control">
-            </div>
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Hoặc paste JSON trực tiếp</label>
-                <textarea class="kypo-form-control" rows="8" placeholder='{"title": "...", "levels": [...]}'
-                    style="font-family:monospace;font-size:11px"></textarea>
+            <input type="hidden" id="edit-pool-id">
+            <div class="kypo-row">
+                <div class="kypo-col">
+                    <div class="kypo-form-group">
+                        <label class="kypo-form-label">Sandbox Pool Size *</label>
+                        <input class="kypo-form-control" id="edit-pool-size" type="number" value="1" min="1">
+                        <div class="kypo-form-hint">Pool of sandboxes that can be allocated</div>
+                    </div>
+                    <div class="kypo-form-group">
+                        <label class="kypo-form-label">Sandbox Definition *</label>
+                        <select class="kypo-form-control" id="edit-pool-def-id">
+                            <option value="">-- Đang tải definitions... --</option>
+                        </select>
+                    </div>
+                    <div class="kypo-form-group">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+                            <input type="checkbox" id="edit-pool-email"
+                                style="accent-color:var(--primary-orange);width:16px;height:16px">
+                            Send e-mail notifications upon build progression
+                        </label>
+                    </div>
+                </div>
+                <div class="kypo-col">
+                    <div class="kypo-form-group">
+                        <label class="kypo-form-label">Comment</label>
+                        <textarea class="kypo-form-control" id="edit-pool-comment" rows="6"
+                            placeholder="A description/info regarding your pool"></textarea>
+                        <div class="kypo-form-hint">A description/info regarding your pool</div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-import-td')">Hủy</button>
-            <button class="kypo-btn kypo-btn-primary"
-                onclick="kypoCloseModal('kypo-modal-import-td');kypoToast('&#10003; Import thành công! KYPO TD ID: 22','success')">&#8681;
-                Import</button>
+            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-edit-pool')">Hủy</button>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitEditPool()">&#10003; Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Allocate số lượng cụ thể -->
+<div class="kypo-modal-overlay" id="kypo-modal-allocate" onclick="kypoOverlayClose(event,'kypo-modal-allocate')">
+    <div class="kypo-modal">
+        <div class="kypo-modal-hd">
+            <div class="kypo-modal-title">&#128229; Allocate <span class="hl">Sandboxes</span></div>
+            <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-allocate')">&times;</button>
+        </div>
+        <div class="kypo-modal-body">
+            <input type="hidden" id="allocate-pool-id">
+            <div class="kypo-form-group">
+                <label class="kypo-form-label">Số lượng sandbox muốn allocate *</label>
+                <input class="kypo-form-control" id="allocate-count" type="number" value="1" min="1">
+                <div class="kypo-form-hint">KYPO sẽ tạo thêm sandbox VM từ pool này.</div>
+            </div>
+        </div>
+        <div class="kypo-modal-ft">
+            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-allocate')">Hủy</button>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitAllocate()">&#10003; Allocate</button>
         </div>
     </div>
 </div>
@@ -1101,432 +936,26 @@
             <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-pool')">&times;</button>
         </div>
         <div class="kypo-modal-body">
-            <div class="kypo-info-box">&#8505; Pool sẽ tự động allocate sandbox ngay sau khi tạo.</div>
+            <div class="kypo-form-group">
+                <label class="kypo-form-label">Sandbox Pool Size *</label>
+                <input class="kypo-form-control" id="pool-max-size" type="number" value="1" min="1">
+                <div class="kypo-form-hint">Pool of sandboxes that can be allocated</div>
+            </div>
             <div class="kypo-form-group">
                 <label class="kypo-form-label">Sandbox Definition *</label>
-                <select class="kypo-form-control">
-                    <option value="">-- Chọn Definition --</option>
-                    <option>bruteforce-log-analysis (KYPO ID: 6)</option>
-                    <option>sql-injection-lab (KYPO ID: 12)</option>
+                <select class="kypo-form-control" id="pool-def-id">
+                    <option value="">-- Đang tải definitions... --</option>
                 </select>
             </div>
             <div class="kypo-form-group">
-                <label class="kypo-form-label">Tên Pool *</label>
-                <input class="kypo-form-control" type="text" placeholder="vd: Pool CTF Spring 2026">
-            </div>
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Số lượng sandbox tối đa *</label>
-                <input class="kypo-form-control" type="number" value="5" min="1">
-                <div class="kypo-form-hint">= số team có thể chơi đồng thời</div>
+                <label class="kypo-form-label">Comment</label>
+                <textarea class="kypo-form-control" id="pool-comment" rows="3"
+                    placeholder="A description/info regarding your pool"></textarea>
             </div>
         </div>
         <div class="kypo-modal-ft">
             <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-pool')">Hủy</button>
-            <button class="kypo-btn kypo-btn-primary"
-                onclick="kypoCloseModal('kypo-modal-pool');kypoToast('&#10003; Tạo Pool & allocate thành công!','success')">&#10003;
-                Tạo Pool &amp; Allocate</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Tạo Training Instance -->
-<div class="kypo-modal-overlay" id="kypo-modal-ti" onclick="kypoOverlayClose(event,'kypo-modal-ti')">
-    <div class="kypo-modal">
-        <div class="kypo-modal-hd">
-            <div class="kypo-modal-title">&#9654; Tạo <span class="hl">Training Instance</span></div>
-            <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-ti')">&times;</button>
-        </div>
-        <div class="kypo-modal-body">
-            <!-- Type selector -->
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Loại Training Instance *</label>
-                <div style="display:flex;gap:10px">
-                    <div style="flex:1" onclick="kypoSelectTiType('linear')">
-                        <div id="kypo-ti-type-linear" class="kypo-type-card selected">
-                            <div class="kypo-type-card-title">&#9654; Linear</div>
-                            <div class="kypo-type-card-desc">Levels theo thứ tự cố định. Phù hợp cho CTF truyền thống.
-                            </div>
-                        </div>
-                    </div>
-                    <div style="flex:1" onclick="kypoSelectTiType('adaptive')">
-                        <div id="kypo-ti-type-adaptive" class="kypo-type-card">
-                            <div class="kypo-type-card-title">&#128260; Adaptive</div>
-                            <div class="kypo-type-card-desc">Điều hướng theo hiệu suất người học.</div>
-                        </div>
-                    </div>
-                </div>
-                <input type="hidden" id="kypo-ti-type-value" value="linear">
-            </div>
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Tiêu đề *</label>
-                <input class="kypo-form-control" type="text" placeholder="vd: CTF Spring 2026 — Bruteforce Lab">
-            </div>
-            <div class="kypo-row">
-                <div class="kypo-col">
-                    <div class="kypo-form-group">
-                        <label class="kypo-form-label">Training Definition *</label>
-                        <select class="kypo-form-control">
-                            <option value="">-- Chọn Training Definition --</option>
-                            <option>Bruteforce Log Analysis (ID: 6)</option>
-                            <option>SQL Injection Fundamentals (ID: 19)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="kypo-col">
-                    <div class="kypo-form-group">
-                        <label class="kypo-form-label">Pool *</label>
-                        <select class="kypo-form-control">
-                            <option value="">-- Chọn Pool --</option>
-                            <option>Pool CTF Spring 2026 (ID: 39, free: 4)</option>
-                            <option>Pool demo_lab1 (ID: 46, free: 3)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="kypo-row">
-                <div class="kypo-col">
-                    <div class="kypo-form-group">
-                        <label class="kypo-form-label">Bắt đầu (giờ VN) *</label>
-                        <input class="kypo-form-control" type="datetime-local">
-                    </div>
-                </div>
-                <div class="kypo-col">
-                    <div class="kypo-form-group">
-                        <label class="kypo-form-label">Kết thúc (giờ VN) *</label>
-                        <input class="kypo-form-control" type="datetime-local">
-                    </div>
-                </div>
-            </div>
-            <div class="kypo-form-hint" style="margin-bottom:12px">&#128337; Tự convert sang UTC khi gửi KYPO.</div>
-            <div class="kypo-form-group">
-                <label class="kypo-form-label">Access Token *</label>
-                <div style="display:flex;gap:7px">
-                    <input class="kypo-form-control" type="text" id="kypo-ti-token" value="fctf-k7m2xq">
-                    <button class="kypo-btn kypo-btn-secondary" onclick="kypoRegenToken()">&#8635;</button>
-                </div>
-                <div class="kypo-form-hint">Lưu lại token này &mdash; dùng khi link với challenge trong FCTF.</div>
-            </div>
-        </div>
-        <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-ti')">Hủy</button>
-            <button class="kypo-btn kypo-btn-primary"
-                onclick="kypoCloseModal('kypo-modal-ti');kypoToast('&#10003; Tạo Training Instance thành công!','success')">&#10003;
-                Tạo</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Tạo / Chỉnh sửa Training Definition (full level editor) -->
-<div class="kypo-modal-overlay" id="kypo-modal-create-td" onclick="kypoOverlayClose(event,'kypo-modal-create-td')">
-    <div class="kypo-modal kypo-modal-lg">
-        <div class="kypo-modal-hd">
-            <div class="kypo-modal-title">&#128218; Tạo <span class="hl">Training Definition</span></div>
-            <button class="kypo-modal-close" onclick="kypoCloseModal('kypo-modal-create-td')">&times;</button>
-        </div>
-        <div class="kypo-modal-body">
-
-            <!-- Basic Info -->
-            <div class="kypo-td-form" style="margin-bottom:16px">
-                <div class="kypo-td-section">
-                    <div class="kypo-td-section-title"><span>&#128210;</span> Thông tin cơ bản</div>
-
-                    <!-- TD type selector -->
-                    <div class="kypo-form-group">
-                        <label class="kypo-form-label">Loại Training Definition *</label>
-                        <div style="display:flex;gap:10px;margin-bottom:4px">
-                            <div style="flex:1" onclick="kypoSelectTdType('linear')">
-                                <div id="kypo-td-type-linear" class="kypo-type-card selected">
-                                    <div class="kypo-type-card-title">&#9654; Linear</div>
-                                    <div class="kypo-type-card-desc">Các level theo thứ tự cố định. Phù hợp cho CTF
-                                        truyền thống.</div>
-                                </div>
-                            </div>
-                            <div style="flex:1" onclick="kypoSelectTdType('adaptive')">
-                                <div id="kypo-td-type-adaptive" class="kypo-type-card">
-                                    <div class="kypo-type-card-title">&#128260; Adaptive</div>
-                                    <div class="kypo-type-card-desc">Điều hướng theo hiệu suất người học. Phù hợp cho
-                                        training.</div>
-                                </div>
-                            </div>
-                        </div>
-                        <input type="hidden" id="kypo-td-type-value" value="linear">
-                    </div>
-
-                    <div class="kypo-row">
-                        <div class="kypo-col">
-                            <div class="kypo-form-group">
-                                <label class="kypo-form-label">Tiêu đề *</label>
-                                <input class="kypo-form-control" type="text"
-                                    placeholder="vd: SQL Injection Fundamentals">
-                            </div>
-                            <div class="kypo-form-group">
-                                <label class="kypo-form-label">Mô tả</label>
-                                <textarea class="kypo-form-control" rows="3" placeholder="Mô tả bài lab..."></textarea>
-                            </div>
-                            <div class="kypo-row">
-                                <div class="kypo-col">
-                                    <div class="kypo-form-group">
-                                        <label class="kypo-form-label">Thời gian ước tính (phút)</label>
-                                        <input class="kypo-form-control" type="number" value="30" min="1">
-                                    </div>
-                                </div>
-                                <div class="kypo-col">
-                                    <div class="kypo-form-group">
-                                        <label class="kypo-form-label">Loại flag</label>
-                                        <select class="kypo-form-control">
-                                            <option value="static">Static flag</option>
-                                            <option value="dynamic">Dynamic flag</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="kypo-col">
-                            <div class="kypo-form-group">
-                                <label class="kypo-form-label">Prerequisites</label>
-                                <div class="kypo-outcome-list" id="kypo-prereq-list">
-                                    <div class="kypo-outcome-item">
-                                        <input class="kypo-form-control" type="text"
-                                            placeholder="vd: Basic Linux command line">
-                                        <button class="kypo-icon-btn k-danger kypo-btn-sm"
-                                            onclick="this.closest('.kypo-outcome-item').remove()">&times;</button>
-                                    </div>
-                                </div>
-                                <button class="kypo-btn kypo-btn-secondary kypo-btn-sm" onclick="kypoAddPrereq()">+ Thêm
-                                    prerequisite</button>
-                            </div>
-                            <div class="kypo-form-group">
-                                <label class="kypo-form-label">Learning Outcomes</label>
-                                <div class="kypo-outcome-list" id="kypo-outcome-list">
-                                    <div class="kypo-outcome-item">
-                                        <input class="kypo-form-control" type="text"
-                                            placeholder="vd: Hiểu SQL injection">
-                                        <button class="kypo-icon-btn k-danger kypo-btn-sm"
-                                            onclick="this.closest('.kypo-outcome-item').remove()">&times;</button>
-                                    </div>
-                                </div>
-                                <button class="kypo-btn kypo-btn-secondary kypo-btn-sm" onclick="kypoAddOutcome()">+
-                                    Thêm outcome</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Level editor -->
-            <div class="kypo-td-form">
-                <div class="kypo-td-section">
-                    <div class="kypo-td-section-title" style="justify-content:space-between">
-                        <span>
-                            <span>&#127919;</span>
-                            <span id="kypo-level-section-label">Levels</span>
-                            <span style="font-size:11px;color:var(--text-light);font-weight:400"
-                                id="kypo-level-count">(2 levels)</span>
-                        </span>
-                        <div class="kypo-add-level-wrap">
-                            <button class="kypo-btn kypo-btn-primary kypo-btn-sm" id="kypo-btn-add-level"
-                                onclick="kypoToggleAddMenu()">+ Add Level &#9660;</button>
-                            <div class="kypo-add-level-menu" id="kypo-add-level-menu">
-                                <div id="kypo-menu-linear">
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('training')">
-                                        <div class="opt-icon kypo-lt-training">&#127919;</div>
-                                        <div>
-                                            <div class="opt-name">Training Level</div>
-                                            <div class="opt-desc">Bài tập sandbox, flag, hint</div>
-                                        </div>
-                                    </div>
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('access')">
-                                        <div class="opt-icon kypo-lt-access">&#128274;</div>
-                                        <div>
-                                            <div class="opt-name">Access Level</div>
-                                            <div class="opt-desc">Thông tin truy cập sandbox</div>
-                                        </div>
-                                    </div>
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('assessment')">
-                                        <div class="opt-icon kypo-lt-assessment">&#128218;</div>
-                                        <div>
-                                            <div class="opt-name">Assessment Level</div>
-                                            <div class="opt-desc">Câu hỏi trắc nghiệm, tự luận</div>
-                                        </div>
-                                    </div>
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('info')">
-                                        <div class="opt-icon kypo-lt-info">&#8505;</div>
-                                        <div>
-                                            <div class="opt-name">Info Level</div>
-                                            <div class="opt-desc">Nội dung hướng dẫn, thông tin</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="kypo-menu-adaptive" style="display:none">
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('training')">
-                                        <div class="opt-icon kypo-lt-training">&#127919;</div>
-                                        <div>
-                                            <div class="opt-name">Training Phase</div>
-                                            <div class="opt-desc">Bài tập sandbox, flag, hint</div>
-                                        </div>
-                                    </div>
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('info')">
-                                        <div class="opt-icon kypo-lt-info">&#8505;</div>
-                                        <div>
-                                            <div class="opt-name">Info Phase</div>
-                                            <div class="opt-desc">Nội dung hướng dẫn, thông tin</div>
-                                        </div>
-                                    </div>
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('adaptive')">
-                                        <div class="opt-icon kypo-lt-adaptive">&#10067;</div>
-                                        <div>
-                                            <div class="opt-name">Adaptive Questionnaire</div>
-                                            <div class="opt-desc">Câu hỏi điều hướng luồng học</div>
-                                        </div>
-                                    </div>
-                                    <div class="kypo-add-level-opt" onclick="kypoAddLevel('access')">
-                                        <div class="opt-icon kypo-lt-access">&#128274;</div>
-                                        <div>
-                                            <div class="opt-name">Access Phase</div>
-                                            <div class="opt-desc">Thông tin truy cập sandbox</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="kypo-level-list" id="kypo-level-list">
-
-                        <!-- Level 1: Access Level (pre-filled) -->
-                        <div class="kypo-level-item">
-                            <div class="kypo-level-item-hd" onclick="kypoToggleLevel(event, this)">
-                                <span class="kypo-level-drag">&#10175;</span>
-                                <div class="kypo-level-type-icon kypo-lt-access">&#128274;</div>
-                                <span class="kypo-level-item-title">Truy cập vào server</span>
-                                <span class="kypo-badge kypo-badge-orange" style="font-size:10px">Access</span>
-                                <span class="kypo-level-order">Level 1</span>
-                                <button class="kypo-icon-btn k-danger kypo-btn-sm"
-                                    onclick="kypoRemoveLevel(event,this)">&times;</button>
-                                <span class="kypo-level-chevron open">&#9660;</span>
-                            </div>
-                            <div class="kypo-level-body open">
-                                <div class="kypo-form-group">
-                                    <label class="kypo-form-label">Tiêu đề *</label>
-                                    <input class="kypo-form-control" type="text" value="Truy cập vào server">
-                                </div>
-                                <div class="kypo-form-group">
-                                    <label class="kypo-form-label">Nội dung hướng dẫn truy cập</label>
-                                    <div class="kypo-markdown-editor">
-                                        <div class="kypo-markdown-toolbar">
-                                            <button class="kypo-md-btn"><b>B</b></button>
-                                            <button class="kypo-md-btn"><i>I</i></button>
-                                            <button class="kypo-md-btn">{ }</button>
-                                        </div>
-                                        <textarea class="kypo-markdown-area">SSH vào server tại địa chỉ sau:
-- **Host:** {{SANDBOX_IP}}
-- **Username:** user
-- **Password:** P@ssw0rd</textarea>
-                                    </div>
-                                    <div class="kypo-form-hint">Hỗ trợ Markdown. Dùng
-                                        <code>&#123;&#123;SANDBOX_IP&#125;&#125;</code> để inject IP sandbox tự động.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Level 2: Training Level (pre-filled) -->
-                        <div class="kypo-level-item">
-                            <div class="kypo-level-item-hd" onclick="kypoToggleLevel(event, this)">
-                                <span class="kypo-level-drag">&#10175;</span>
-                                <div class="kypo-level-type-icon kypo-lt-training">&#127919;</div>
-                                <span class="kypo-level-item-title">Tìm flag trong log</span>
-                                <span class="kypo-badge kypo-badge-blue" style="font-size:10px">Training</span>
-                                <span class="kypo-level-order">Level 2</span>
-                                <button class="kypo-icon-btn k-danger kypo-btn-sm"
-                                    onclick="kypoRemoveLevel(event,this)">&times;</button>
-                                <span class="kypo-level-chevron">&#9660;</span>
-                            </div>
-                            <div class="kypo-level-body">
-                                <div style="display:flex;gap:16px">
-                                    <div style="flex:1;min-width:0">
-                                        <div class="kypo-form-group">
-                                            <label class="kypo-form-label">Tiêu đề *</label>
-                                            <input class="kypo-form-control" type="text" value="Tìm flag trong log">
-                                        </div>
-                                        <div class="kypo-form-group">
-                                            <label class="kypo-form-label">Content *</label>
-                                            <div class="kypo-markdown-editor">
-                                                <div class="kypo-markdown-toolbar">
-                                                    <button class="kypo-md-btn"><b>B</b></button>
-                                                    <button class="kypo-md-btn"><i>I</i></button>
-                                                    <button class="kypo-md-btn">{ }</button>
-                                                </div>
-                                                <textarea class="kypo-markdown-area">Phân tích `/var/log/mysql/audit.log` để tìm flag ẩn trong các failed login attempt từ **10.10.10.20**.
-
-Flag có format `FLAG{...}`</textarea>
-                                            </div>
-                                        </div>
-                                        <div class="kypo-form-group">
-                                            <label class="kypo-form-label">Hints</label>
-                                            <div class="kypo-hint-list" id="kypo-hint-list-2">
-                                                <div class="kypo-hint-item">
-                                                    <div style="display:flex;gap:6px;align-items:center">
-                                                        <input class="kypo-form-control" type="text"
-                                                            placeholder="Tiêu đề hint" value="Gợi ý 1" style="flex:1">
-                                                        <input class="kypo-form-control" type="number"
-                                                            placeholder="Trừ điểm" value="10" style="flex:0 0 80px">
-                                                        <button class="kypo-icon-btn k-danger"
-                                                            onclick="this.closest('.kypo-hint-item').remove()">&times;</button>
-                                                    </div>
-                                                    <input class="kypo-form-control" type="text"
-                                                        placeholder="Nội dung hint"
-                                                        value="Lọc theo IP nguồn 10.10.10.20">
-                                                </div>
-                                            </div>
-                                            <button class="kypo-btn kypo-btn-secondary kypo-btn-sm"
-                                                onclick="kypoAddHint('kypo-hint-list-2')">+ Thêm hint</button>
-                                        </div>
-                                    </div>
-                                    <div style="width:220px;flex-shrink:0">
-                                        <div class="kypo-form-group">
-                                            <label class="kypo-form-label">Points *</label>
-                                            <input class="kypo-form-control" type="number" value="100" min="0"
-                                                max="100">
-                                            <div class="kypo-form-hint">0 to 100</div>
-                                        </div>
-                                        <div class="kypo-form-group">
-                                            <label class="kypo-form-label">Incorrect Answer Limit *</label>
-                                            <input class="kypo-form-control" type="number" value="100" min="1"
-                                                max="100">
-                                            <div class="kypo-form-hint">1 to 100</div>
-                                        </div>
-                                        <div class="kypo-form-group">
-                                            <label class="kypo-form-label">Correct Answer — Static *</label>
-                                            <input class="kypo-form-control" type="text" placeholder="Secret answer"
-                                                maxlength="50">
-                                            <div class="kypo-form-hint">Max 50 characters</div>
-                                        </div>
-                                        <div class="kypo-form-group">
-                                            <label
-                                                style="display:flex;align-items:flex-start;gap:7px;font-size:12px;cursor:pointer;line-height:1.4">
-                                                <input type="checkbox" checked
-                                                    style="margin-top:2px;flex-shrink:0;accent-color:var(--primary-orange)">
-                                                Solution Penalized (0 điểm nếu xem solution)
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div><!-- /kypo-level-list -->
-                </div>
-            </div>
-
-        </div><!-- /modal-body -->
-        <div class="kypo-modal-ft">
-            <button class="kypo-btn kypo-btn-secondary" onclick="kypoCloseModal('kypo-modal-create-td')">Hủy</button>
-            <button class="kypo-btn kypo-btn-secondary"
-                onclick="kypoToast('Đã lưu draft Training Definition')">&#128190; Lưu draft</button>
-            <button class="kypo-btn kypo-btn-primary"
-                onclick="kypoCloseModal('kypo-modal-create-td');kypoToast('&#10003; Tạo và Release Training Definition thành công! KYPO TD ID: 22','success')">&#10003;
-                Tạo &amp; Release</button>
+            <button class="kypo-btn kypo-btn-primary" onclick="kypoSubmitPool()">&#10003; Tạo</button>
         </div>
     </div>
 </div>
@@ -1538,6 +967,9 @@ Flag có format `FLAG{...}`</textarea>
 {% block scripts %}
 {{ super() }}
 <script>
+    const CONTEST_ID = {{ contest.id }};
+    const CSRF_TOKEN = init.csrfNonce;
+
     // ── Tab switching ─────────────────────────────────────────────
     function kypoSwitchTab(name, btn) {
         document.querySelectorAll('.kypo-tab').forEach(function (t) { t.classList.remove('active'); });
@@ -1570,175 +1002,6 @@ Flag có format `FLAG{...}`</textarea>
         _kypoToastTimer = setTimeout(function () { el.style.display = 'none'; }, 3200);
     }
 
-    // ── Level toggle ──────────────────────────────────────────────
-    function kypoToggleLevel(event, hd) {
-        if (event.target.closest('.kypo-icon-btn')) return;
-        var chevron = hd.querySelector('.kypo-level-chevron');
-        var body = hd.nextElementSibling;
-        var open = body.classList.toggle('open');
-        chevron.classList.toggle('open', open);
-    }
-
-    // ── Remove level ──────────────────────────────────────────────
-    function kypoRemoveLevel(e, btn) {
-        e.stopPropagation();
-        btn.closest('.kypo-level-item').remove();
-        kypoUpdateLevelCount();
-    }
-
-    function kypoUpdateLevelCount() {
-        var count = document.querySelectorAll('#kypo-level-list .kypo-level-item').length;
-        var isAdaptive = document.getElementById('kypo-td-type-value').value === 'adaptive';
-        var unit = isAdaptive ? 'phases' : 'levels';
-        document.getElementById('kypo-level-count').textContent = '(' + count + ' ' + unit + ')';
-    }
-
-    // ── Add level menu ────────────────────────────────────────────
-    function kypoToggleAddMenu() {
-        document.getElementById('kypo-add-level-menu').classList.toggle('show');
-    }
-
-    document.addEventListener('click', function (e) {
-        if (!e.target.closest('#kypo-btn-add-level') && !e.target.closest('#kypo-add-level-menu')) {
-            var m = document.getElementById('kypo-add-level-menu');
-            if (m) m.classList.remove('show');
-        }
-    });
-
-    // ── Level config ──────────────────────────────────────────────
-    var kypoLevelConfig = {
-        training: { icon: '&#127919;', cls: 'kypo-lt-training', badge: 'kypo-badge-blue', label: 'Training', name: 'Training Level mới' },
-        info: { icon: '&#8505;', cls: 'kypo-lt-info', badge: 'kypo-badge-green', label: 'Info', name: 'Info Level mới' },
-        access: { icon: '&#128274;', cls: 'kypo-lt-access', badge: 'kypo-badge-orange', label: 'Access', name: 'Access Level mới' },
-        assessment: { icon: '&#128218;', cls: 'kypo-lt-assessment', badge: 'kypo-badge-purple', label: 'Assessment', name: 'Assessment Level mới' },
-        adaptive: { icon: '&#10067;', cls: 'kypo-lt-adaptive', badge: 'kypo-badge-blue', label: 'Adaptive Q', name: 'Adaptive Questionnaire mới' },
-    };
-
-    function kypoAddLevel(type) {
-        document.getElementById('kypo-add-level-menu').classList.remove('show');
-        var cfg = kypoLevelConfig[type];
-        var isAdaptive = document.getElementById('kypo-td-type-value').value === 'adaptive';
-        var unitLabel = isAdaptive ? 'Phase' : 'Level';
-        var count = document.querySelectorAll('#kypo-level-list .kypo-level-item').length + 1;
-        var hintListId = 'kypo-hint-list-new-' + count;
-
-        var trainingBody = '<div style="display:flex;gap:16px">' +
-            '<div style="flex:1;min-width:0">' +
-            '<div class="kypo-form-group"><label class="kypo-form-label">Tiêu đề *</label><input class="kypo-form-control" type="text" value="' + cfg.name + '"></div>' +
-            '<div class="kypo-form-group"><label class="kypo-form-label">Content *</label><div class="kypo-markdown-editor"><div class="kypo-markdown-toolbar"><button class="kypo-md-btn"><b>B</b></button><button class="kypo-md-btn"><i>I</i></button><button class="kypo-md-btn">{ }</button></div><textarea class="kypo-markdown-area" placeholder="Nội dung bài tập (Markdown)..."></textarea></div></div>' +
-            '<div class="kypo-form-group"><label class="kypo-form-label">Hints</label><div class="kypo-hint-list" id="' + hintListId + '"></div><button class="kypo-btn kypo-btn-secondary kypo-btn-sm" onclick="kypoAddHint(\'' + hintListId + '\')">+ Thêm hint</button></div>' +
-            '</div>' +
-            '<div style="width:220px;flex-shrink:0">' +
-            '<div class="kypo-form-group"><label class="kypo-form-label">Points *</label><input class="kypo-form-control" type="number" value="100" min="0" max="100"><div class="kypo-form-hint">0 to 100</div></div>' +
-            '<div class="kypo-form-group"><label class="kypo-form-label">Incorrect Answer Limit *</label><input class="kypo-form-control" type="number" value="100" min="1" max="100"></div>' +
-            '<div class="kypo-form-group"><label class="kypo-form-label">Correct Answer — Static *</label><input class="kypo-form-control" type="text" placeholder="Secret answer" maxlength="50"><div class="kypo-form-hint">Max 50 characters</div></div>' +
-            '</div></div>';
-
-        var defaultBody = '<div class="kypo-form-group"><label class="kypo-form-label">Tiêu đề *</label><input class="kypo-form-control" type="text" value="' + cfg.name + '"></div>' +
-            '<div class="kypo-form-group"><label class="kypo-form-label">Nội dung</label><div class="kypo-markdown-editor"><div class="kypo-markdown-toolbar"><button class="kypo-md-btn"><b>B</b></button><button class="kypo-md-btn"><i>I</i></button><button class="kypo-md-btn">{ }</button></div><textarea class="kypo-markdown-area" placeholder="Nội dung (Markdown)..."></textarea></div></div>';
-
-        var html = '<div class="kypo-level-item">' +
-            '<div class="kypo-level-item-hd" onclick="kypoToggleLevel(event, this)">' +
-            '<span class="kypo-level-drag">&#10175;</span>' +
-            '<div class="kypo-level-type-icon ' + cfg.cls + '">' + cfg.icon + '</div>' +
-            '<span class="kypo-level-item-title">' + cfg.name + '</span>' +
-            '<span class="kypo-badge ' + cfg.badge + '" style="font-size:10px">' + cfg.label + '</span>' +
-            '<span class="kypo-level-order">' + unitLabel + ' ' + count + '</span>' +
-            '<button class="kypo-icon-btn k-danger kypo-btn-sm" onclick="kypoRemoveLevel(event,this)">&times;</button>' +
-            '<span class="kypo-level-chevron open">&#9660;</span>' +
-            '</div>' +
-            '<div class="kypo-level-body open">' +
-            (type === 'training' ? trainingBody : defaultBody) +
-            '</div></div>';
-
-        document.getElementById('kypo-level-list').insertAdjacentHTML('beforeend', html);
-        kypoUpdateLevelCount();
-    }
-
-    // ── Add hint ──────────────────────────────────────────────────
-    function kypoAddHint(listId) {
-        document.getElementById(listId).insertAdjacentHTML('beforeend',
-            '<div class="kypo-hint-item">' +
-            '<div style="display:flex;gap:6px;align-items:center">' +
-            '<input class="kypo-form-control" type="text" placeholder="Tiêu đề hint" style="flex:1">' +
-            '<input class="kypo-form-control" type="number" placeholder="Trừ điểm" value="10" style="flex:0 0 80px">' +
-            '<button class="kypo-icon-btn k-danger" onclick="this.closest(\'.kypo-hint-item\').remove()">&times;</button>' +
-            '</div>' +
-            '<input class="kypo-form-control" type="text" placeholder="Nội dung hint">' +
-            '</div>'
-        );
-    }
-
-    // ── Prerequisite & Outcome ────────────────────────────────────
-    function kypoAddPrereq() {
-        document.getElementById('kypo-prereq-list').insertAdjacentHTML('beforeend',
-            '<div class="kypo-outcome-item">' +
-            '<input class="kypo-form-control" type="text" placeholder="vd: Basic Linux command line">' +
-            '<button class="kypo-icon-btn k-danger kypo-btn-sm" onclick="this.closest(\'.kypo-outcome-item\').remove()">&times;</button>' +
-            '</div>'
-        );
-    }
-
-    function kypoAddOutcome() {
-        document.getElementById('kypo-outcome-list').insertAdjacentHTML('beforeend',
-            '<div class="kypo-outcome-item">' +
-            '<input class="kypo-form-control" type="text" placeholder="Learning outcome...">' +
-            '<button class="kypo-icon-btn k-danger kypo-btn-sm" onclick="this.closest(\'.kypo-outcome-item\').remove()">&times;</button>' +
-            '</div>'
-        );
-    }
-
-    // ── Training Definition type selector ─────────────────────────
-    function kypoSelectTdType(type) {
-        document.getElementById('kypo-td-type-value').value = type;
-        var linearCard = document.getElementById('kypo-td-type-linear');
-        var adaptiveCard = document.getElementById('kypo-td-type-adaptive');
-        var menuLinear = document.getElementById('kypo-menu-linear');
-        var menuAdaptive = document.getElementById('kypo-menu-adaptive');
-        var labelEl = document.getElementById('kypo-level-section-label');
-        var btnAdd = document.getElementById('kypo-btn-add-level');
-        var count = document.querySelectorAll('#kypo-level-list .kypo-level-item').length;
-
-        if (type === 'linear') {
-            linearCard.classList.add('selected');
-            adaptiveCard.classList.remove('selected');
-            if (labelEl) labelEl.textContent = 'Levels';
-            if (btnAdd) btnAdd.textContent = '+ Add Level ▾';
-            if (menuLinear) menuLinear.style.display = '';
-            if (menuAdaptive) menuAdaptive.style.display = 'none';
-        } else {
-            adaptiveCard.classList.add('selected');
-            linearCard.classList.remove('selected');
-            if (labelEl) labelEl.textContent = 'Phases';
-            if (btnAdd) btnAdd.textContent = '+ Add Phase ▾';
-            if (menuLinear) menuLinear.style.display = 'none';
-            if (menuAdaptive) menuAdaptive.style.display = '';
-        }
-        kypoUpdateLevelCount();
-    }
-
-    // ── Training Instance type selector ──────────────────────────
-    function kypoSelectTiType(type) {
-        document.getElementById('kypo-ti-type-value').value = type;
-        var linearCard = document.getElementById('kypo-ti-type-linear');
-        var adaptiveCard = document.getElementById('kypo-ti-type-adaptive');
-        if (type === 'linear') {
-            linearCard.classList.add('selected');
-            adaptiveCard.classList.remove('selected');
-        } else {
-            adaptiveCard.classList.add('selected');
-            linearCard.classList.remove('selected');
-        }
-    }
-
-    // ── Token generator ───────────────────────────────────────────
-    function kypoRegenToken() {
-        var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        var s = 'fctf-';
-        for (var i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
-        document.getElementById('kypo-ti-token').value = s;
-    }
-
     // ── Active nav link highlight ─────────────────────────────────
     (function () {
         var links = document.querySelectorAll('#sidebar .nav-link');
@@ -1748,5 +1011,336 @@ Flag có format `FLAG{...}`</textarea>
             }
         });
     })();
+
+    // ════════════════════════════════════════════════════════════
+    // API CALLS
+    // ════════════════════════════════════════════════════════════
+
+    // ── Load Sandbox Definitions ──────────────────────────────────
+    async function loadSandboxDefinitions() {
+        try {
+            const resp = await fetch('/api/v1/kypo/sandbox-definitions', {
+                headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
+            });
+            const json = await resp.json();
+            const list = document.getElementById('kypo-def-list');
+
+            if (!resp.ok) {
+                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Lỗi tải definitions: ' + (json.error || resp.status) + '</div>';
+                return;
+            }
+
+            const items = Array.isArray(json.data) ? json.data
+                : (json.data && json.data.results) ? json.data.results
+                    : (json.data && json.data.content) ? json.data.content : [];
+
+            if (!items.length) {
+                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">Chưa có Sandbox Definition nào trên KYPO</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(function (d) {
+                var title = d.name || d.title || ('Definition #' + d.id);
+                var url = d.url || '';
+                var rev = d.rev || 'main';
+                var state = d.state || '';
+                var badgeCls = state === 'READY' ? 'kypo-badge-green' : 'kypo-badge-orange';
+                return '<div class="kypo-card">' +
+                    '<div class="kypo-card-hd"><div>' +
+                    '<div class="kypo-card-title">' + title + '</div>' +
+                    '<span class="kypo-card-id">KYPO ID: ' + d.id + '</span>' +
+                    '</div><div class="kypo-card-actions">' +
+                    (state ? '<span class="kypo-badge ' + badgeCls + '">' + state + '</span>' : '') +
+                    '</div></div>' +
+                    '<div class="kypo-card-meta">' +
+                    '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#9135;</span> ' + rev + '</div>' +
+                    (url ? '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128279;</span> ' + url + '</div>' : '') +
+                    '</div></div>';
+            }).join('');
+
+            // Populate dropdowns
+            ['pool-def-id', 'edit-pool-def-id'].forEach(function (selId) {
+                var sel = document.getElementById(selId);
+                if (sel) {
+                    sel.innerHTML = '<option value="">-- Chọn Definition --</option>' +
+                        items.map(function (d) {
+                            return '<option value="' + d.id + '">' + (d.name || d.title) + ' (ID: ' + d.id + ')</option>';
+                        }).join('');
+                }
+            });
+        } catch (e) {
+            var list = document.getElementById('kypo-def-list');
+            if (list) list.innerHTML = '<div class="kypo-card" style="color:#c62828">Lỗi kết nối: ' + e.message + '</div>';
+        }
+    }
+
+    // ── Load Pools ────────────────────────────────────────────────
+    async function loadPools() {
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools', {
+                headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
+            });
+            const json = await resp.json();
+            const list = document.getElementById('kypo-pool-list');
+
+            if (!resp.ok) {
+                list.innerHTML = '<div class="kypo-card" style="color:#c62828">Lỗi tải pools: ' + (json.error || resp.status) + '</div>';
+                return;
+            }
+
+            const items = json.data || [];
+            if (!items.length) {
+                list.innerHTML = '<div class="kypo-card" style="text-align:center;color:var(--text-light)">Chưa có Pool nào cho contest này</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(function (p) {
+                var pid = p.kypo_pool_id;
+                return '<div class="kypo-card" id="pool-card-' + pid + '">' +
+                    '<div class="kypo-card-hd"><div>' +
+                    '<div class="kypo-card-title" id="pool-title-' + pid + '">Pool #' + pid + '</div>' +
+                    '<span class="kypo-card-id">KYPO Pool ID: ' + pid + '</span>' +
+                    '</div><div class="kypo-card-actions">' +
+                    '<button class="kypo-icon-btn" title="Edit pool" onclick="editPool(' + pid + ')" style="font-size:15px">&#9998;</button>' +
+                    '<button class="kypo-icon-btn" title="Allocate số lượng cụ thể" onclick="allocateSpecific(' + pid + ')" style="font-size:15px">&#9776;</button>' +
+                    '<button class="kypo-icon-btn" title="Allocate +1" onclick="allocateOne(' + pid + ')" style="font-size:11px;font-weight:700">+1</button>' +
+                    '<button class="kypo-icon-btn k-danger" title="Xóa pool" onclick="deletePool(' + pid + ')" style="font-size:15px">&#128465;</button>' +
+                    '<button class="kypo-icon-btn" title="Toggle resource limit" onclick="toggleResourceLimit(' + pid + ')" style="font-size:15px">&#128274;</button>' +
+                    '<button class="kypo-icon-btn" title="Refresh" onclick="loadPoolDetail(' + pid + ')" style="font-size:15px">&#8635;</button>' +
+                    '<a class="kypo-icon-btn" title="Download SSH Config" href="/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/ssh-config" target="_blank" style="font-size:15px">&#128273;</a>' +
+                    '</div></div>' +
+                    '<div class="kypo-card-meta" id="pool-meta-' + pid + '">' +
+                    '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> Đang tải chi tiết...</div>' +
+                    '</div>' +
+                    '<div class="kypo-pool-bar"><div class="kypo-pool-fill" id="pool-bar-' + pid + '" style="width:0%"></div></div>' +
+                    '</div>';
+            }).join('');
+
+            items.forEach(function (p) { loadPoolDetail(p.kypo_pool_id); });
+        } catch (e) {
+            document.getElementById('kypo-pool-list').innerHTML =
+                '<div class="kypo-card" style="color:#c62828">Lỗi kết nối: ' + e.message + '</div>';
+        }
+    }
+
+    // ── Load chi tiết pool từ KYPO ────────────────────────────────
+    async function loadPoolDetail(kypoPoolId) {
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
+                headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
+            });
+            if (!resp.ok) return;
+            const json = await resp.json();
+            const d = json.data || {};
+
+            const meta = document.getElementById('pool-meta-' + kypoPoolId);
+            const bar = document.getElementById('pool-bar-' + kypoPoolId);
+            if (!meta) return;
+
+            var maxSize = d.max_size || 0;
+            var used = d.size || 0;
+            var pct = maxSize > 0 ? Math.round(used / maxSize * 100) : 0;
+            var lockIcon = d.lock_id ? '&#128274;' : '&#128275;';
+            var lockText = d.lock_id ? 'locked' : 'unlocked';
+
+            var titleEl = document.getElementById('pool-title-' + kypoPoolId);
+            if (titleEl && d.comment) titleEl.textContent = d.comment;
+
+            meta.innerHTML =
+                (d.definition ? '<div class="kypo-meta-item"><span class="kypo-meta-icon">&#128230;</span> ' + d.definition.name + ' (' + d.definition.rev + ')</div>' : '') +
+                '<div class="kypo-meta-item">' + lockIcon + ' ' + lockText + '</div>' +
+                '<div class="kypo-meta-item"><strong>' + used + '/' + maxSize + '</strong></div>';
+
+            if (bar) bar.style.width = pct + '%';
+        } catch (e) { }
+    }
+
+    // ── Submit: Tạo Sandbox Definition ───────────────────────────
+    async function kypoSubmitSandboxDef() {
+        var gitUrl = document.getElementById('def-git-url').value.trim();
+        var rev = document.getElementById('def-git-revision').value.trim() || 'main';
+        if (!gitUrl) { kypoToast('Vui lòng nhập Git URL', 'error'); return; }
+        kypoToast('Đang tạo Sandbox Definition trên KYPO...');
+        try {
+            const resp = await fetch('/api/v1/kypo/sandbox-definitions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
+                body: JSON.stringify({ git_url: gitUrl, git_revision: rev }),
+            });
+            const json = await resp.json();
+            if (resp.ok) {
+                kypoToast('✓ Tạo thành công! KYPO ID: ' + json.data.id, 'success');
+                kypoCloseModal('kypo-modal-def');
+                document.getElementById('def-git-url').value = '';
+                loadSandboxDefinitions();
+            } else {
+                kypoToast('Lỗi: ' + (json.error || JSON.stringify(json.errors)), 'error');
+            }
+        } catch (e) {
+            kypoToast('Lỗi kết nối: ' + e.message, 'error');
+        }
+    }
+
+    // ── Submit: Tạo Pool ──────────────────────────────────────────
+    async function kypoSubmitPool() {
+        var defId = document.getElementById('pool-def-id').value;
+        var comment = document.getElementById('pool-comment').value.trim();
+        var maxSize = parseInt(document.getElementById('pool-max-size').value) || 1;
+        if (!defId) { kypoToast('Vui lòng chọn Sandbox Definition', 'error'); return; }
+        kypoToast('Đang tạo Pool...');
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
+                body: JSON.stringify({ kypo_definition_id: parseInt(defId), max_size: maxSize, comment: comment, allocate: false }),
+            });
+            const json = await resp.json();
+            if (resp.ok) {
+                kypoToast('✓ Tạo Pool thành công! KYPO Pool ID: ' + json.data.kypo_pool_id, 'success');
+                kypoCloseModal('kypo-modal-pool');
+                loadPools();
+            } else {
+                kypoToast('Lỗi: ' + (json.error || 'Tạo pool thất bại'), 'error');
+            }
+        } catch (e) {
+            kypoToast('Lỗi kết nối: ' + e.message, 'error');
+        }
+    }
+
+    // ── Pool actions ──────────────────────────────────────────────
+    async function editPool(kypoPoolId) {
+        document.getElementById('edit-pool-id').value = kypoPoolId;
+        document.getElementById('edit-pool-comment').value = '';
+        document.getElementById('edit-pool-size').value = 1;
+        document.getElementById('edit-pool-email').checked = false;
+
+        var sel = document.getElementById('edit-pool-def-id');
+        var srcSel = document.getElementById('pool-def-id');
+        if (srcSel && srcSel.options.length > 1) sel.innerHTML = srcSel.innerHTML;
+
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
+                headers: { 'Authorization': 'Token ' + CSRF_TOKEN }
+            });
+            if (resp.ok) {
+                const d = (await resp.json()).data || {};
+                document.getElementById('edit-pool-size').value = d.max_size || 1;
+                document.getElementById('edit-pool-comment').value = d.comment || '';
+                document.getElementById('edit-pool-email').checked = d.send_emails || false;
+                if (d.definition && sel) sel.value = d.definition.id;
+            }
+        } catch (e) { }
+        kypoOpenModal('kypo-modal-edit-pool');
+    }
+
+    async function kypoSubmitEditPool() {
+        var pid = document.getElementById('edit-pool-id').value;
+        var comment = document.getElementById('edit-pool-comment').value.trim();
+        var size = parseInt(document.getElementById('edit-pool-size').value) || 1;
+        var defId = document.getElementById('edit-pool-def-id').value;
+        var email = document.getElementById('edit-pool-email').checked;
+        if (!defId) { kypoToast('Vui lòng chọn Sandbox Definition', 'error'); return; }
+        kypoToast('Đang cập nhật pool...');
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/edit', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
+                body: JSON.stringify({ comment: comment, max_size: size, definition_id: parseInt(defId), send_emails: email }),
+            });
+            const json = await resp.json();
+            if (resp.ok) {
+                kypoToast('✓ Cập nhật pool thành công', 'success');
+                kypoCloseModal('kypo-modal-edit-pool');
+                loadPoolDetail(parseInt(pid));
+            } else {
+                kypoToast('Lỗi: ' + (json.error || 'Thất bại'), 'error');
+            }
+        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+    }
+
+    function allocateSpecific(kypoPoolId) {
+        document.getElementById('allocate-pool-id').value = kypoPoolId;
+        document.getElementById('allocate-count').value = 1;
+        kypoOpenModal('kypo-modal-allocate');
+    }
+
+    async function kypoSubmitAllocate() {
+        var pid = document.getElementById('allocate-pool-id').value;
+        var count = parseInt(document.getElementById('allocate-count').value) || 1;
+        kypoCloseModal('kypo-modal-allocate');
+        kypoToast('Đang allocate ' + count + ' sandbox...');
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + pid + '/allocate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
+                body: JSON.stringify({ count: count }),
+            });
+            const json = await resp.json();
+            if (resp.ok) {
+                kypoToast('✓ Allocate ' + count + ' sandbox thành công', 'success');
+                loadPoolDetail(parseInt(pid));
+            } else {
+                kypoToast('Lỗi: ' + (json.error || 'Allocate thất bại'), 'error');
+            }
+        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+    }
+
+    async function allocateOne(kypoPoolId) {
+        kypoToast('Đang allocate sandbox...');
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId + '/allocate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
+                body: JSON.stringify({ count: 1 }),
+            });
+            const json = await resp.json();
+            if (resp.ok) {
+                kypoToast('✓ Allocate thành công', 'success');
+                loadPoolDetail(kypoPoolId);
+            } else {
+                kypoToast('Lỗi: ' + (json.error || 'Allocate thất bại'), 'error');
+            }
+        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+    }
+
+    async function toggleResourceLimit(kypoPoolId) {
+        kypoToast('Đang thay đổi resource limit...');
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId + '/lock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF_TOKEN },
+            });
+            const json = await resp.json();
+            if (resp.ok) {
+                kypoToast('✓ Thay đổi resource limit thành công', 'success');
+                loadPoolDetail(kypoPoolId);
+            } else {
+                kypoToast('Lỗi: ' + (json.error || 'Thất bại'), 'error');
+            }
+        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+    }
+
+    async function deletePool(kypoPoolId) {
+        if (!confirm('Bạn có chắc muốn xóa Pool #' + kypoPoolId + '?')) return;
+        try {
+            const resp = await fetch('/api/v1/kypo/contests/' + CONTEST_ID + '/pools/' + kypoPoolId, {
+                method: 'DELETE',
+                headers: { 'CSRF-Token': CSRF_TOKEN },
+            });
+            const json = await resp.json();
+            if (resp.ok) {
+                kypoToast('✓ Xóa pool thành công', 'success');
+                loadPools();
+            } else {
+                kypoToast('Lỗi: ' + (json.error || 'Xóa thất bại'), 'error');
+            }
+        } catch (e) { kypoToast('Lỗi: ' + e.message, 'error'); }
+    }
+
+    // ── Khởi động ─────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSandboxDefinitions();
+        loadPools();
+    });
 </script>
 {% endblock %}
