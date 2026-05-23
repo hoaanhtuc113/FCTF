@@ -56,12 +56,7 @@ GRANT SELECT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT INSERT ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT UPDATE ON ctfd.tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
-GRANT INSERT ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
-GRANT UPDATE ON ctfd.challenge_start_tracking TO 'contestant_be'@'%';
 GRANT SELECT ON ctfd.user_team_members TO 'contestant_be'@'%';
-GRANT INSERT ON ctfd.user_team_members TO 'contestant_be'@'%';
-GRANT UPDATE ON ctfd.user_team_members TO 'contestant_be'@'%';
-GRANT DELETE ON ctfd.user_team_members TO 'contestant_be'@'%';
 
 -- DeploymentCenter
 GRANT SELECT ON ctfd.users TO 'deployment_center'@'%';
