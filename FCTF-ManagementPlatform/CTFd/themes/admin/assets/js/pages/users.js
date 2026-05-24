@@ -45,6 +45,16 @@ function deleteSelectedUsers(_event) {
   let userIDs = $("input[data-user-id]:checked").map(function () {
     return $(this).data("user-id");
   });
+
+  if (userIDs.length === 0) {
+    ezAlert({
+      title: "Delete Users",
+      body: "Please select at least one user to delete.",
+      button: "OK",
+    });
+    return;
+  }
+
   let target = userIDs.length === 1 ? "user" : "users";
 
   ezQuery({
@@ -159,6 +169,15 @@ function bulkEditUsers(_event) {
   let userIDs = $("input[data-user-id]:checked").map(function () {
     return $(this).data("user-id");
   });
+
+  if (userIDs.length === 0) {
+    ezAlert({
+      title: "Edit Users",
+      body: "Please select at least one user to edit.",
+      button: "OK",
+    });
+    return;
+  }
 
   ezAlert({
     title: "Edit Users",
