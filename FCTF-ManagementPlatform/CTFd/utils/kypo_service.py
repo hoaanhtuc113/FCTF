@@ -1,19 +1,19 @@
 """
 CTFd/utils/kypo_service.py
 
-Service gọi KYPO API dùng admin credentials (hardcode cho v1).
-Token tự động refresh trước khi hết hạn.
+Service for calling the KYPO API using admin credentials (hardcoded for v1).
+Token is automatically refreshed before it expires.
 """
 
 import time
 import requests
 from flask import current_app
 
-# Tắt warning SSL khi dùng verify=False
+# Suppress SSL warnings when using verify=False
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ── Config hardcode cho v1 ───────────────────────────────────────────────────
+# ── Hardcoded config for v1 ──────────────────────────────────────────────────
 KYPO_BASE_URL     = "https://vuontre.iahn.hanoi.vn"
 KYPO_REALM        = "CRCZP"
 KYPO_CLIENT_ID    = "CRCZP-Client"
@@ -23,9 +23,9 @@ KYPO_ADMIN_PASS   = "CAUehoz449aGNy"
 
 class KypoService:
     """
-    Singleton service gọi KYPO API.
-    Dùng grant_type=password với admin account để lấy token.
-    Cache token, tự refresh khi còn 30s nữa hết hạn.
+    Singleton service for calling the KYPO API.
+    Uses grant_type=password with an admin account to obtain a token.
+    Caches the token and auto-refreshes when less than 30 seconds remain.
     """
 
     def __init__(self):
@@ -69,7 +69,7 @@ class KypoService:
 
     def list_sandbox_definitions(self) -> dict:
         """
-        Lấy danh sách sandbox definitions từ KYPO.
+        Fetch the list of sandbox definitions from KYPO.
         GET /sandbox-service/api/v1/definitions
         """
         resp = requests.get(
@@ -83,7 +83,7 @@ class KypoService:
 
     def get_sandbox_definition(self, definition_id: int) -> dict:
         """
-        Lấy chi tiết 1 sandbox definition.
+        Fetch detail of a single sandbox definition.
         GET /sandbox-service/api/v1/definitions/{id}
         """
         resp = requests.get(
@@ -97,7 +97,7 @@ class KypoService:
 
     def create_sandbox_definition(self, git_url: str, revision: str = "main") -> dict:
         """
-        Tạo sandbox definition mới từ Git repo.
+        Create a new sandbox definition from a Git repository.
         POST /sandbox-service/api/v1/definitions
         """
         resp = requests.post(
@@ -114,7 +114,7 @@ class KypoService:
 
     def list_pools(self, page: int = 0, size: int = 50) -> dict:
         """
-        Lấy danh sách tất cả pools từ KYPO.
+        Fetch the list of all pools from KYPO.
         GET /sandbox-service/api/v1/pools
         """
         resp = requests.get(
@@ -129,7 +129,7 @@ class KypoService:
 
     def get_pool(self, pool_id: int) -> dict:
         """
-        Lấy chi tiết 1 pool.
+        Fetch detail of a single pool.
         GET /sandbox-service/api/v1/pools/{id}
         """
         resp = requests.get(
@@ -144,7 +144,7 @@ class KypoService:
     def create_pool(self, definition_id: int, max_size: int,
                     comment: str = "") -> dict:
         """
-        Tạo pool mới từ sandbox definition.
+        Create a new pool from a sandbox definition.
         POST /sandbox-service/api/v1/pools
         """
         resp = requests.post(
@@ -164,7 +164,7 @@ class KypoService:
 
     def allocate_sandboxes(self, pool_id: int, count: int = 1) -> dict:
         """
-        Allocate sandboxes cho pool.
+        Allocate sandboxes for a pool.
         POST /sandbox-service/api/v1/pools/{id}/sandbox-allocation-units
         """
         resp = requests.post(
@@ -182,7 +182,7 @@ class KypoService:
 
     def get_pool_allocation_units(self, pool_id: int) -> dict:
         """
-        Lấy trạng thái allocation units của pool.
+        Fetch the allocation unit status of a pool.
         GET /sandbox-service/api/v1/pools/{id}/sandbox-allocation-units
         """
         resp = requests.get(
@@ -197,10 +197,9 @@ class KypoService:
         resp.raise_for_status()
         return resp.json()
 
-
     def edit_pool(self, pool_id: int, comment: str = "") -> dict:
         """
-        Cập nhật comment của pool.
+        Update the comment of a pool.
         PATCH /sandbox-service/api/v1/pools/{id}
         """
         resp = requests.patch(
@@ -215,9 +214,9 @@ class KypoService:
 
     def download_pool_ssh_config(self, pool_id: int) -> bytes:
         """
-        Download SSH config ZIP của pool.
+        Download the SSH config ZIP for a pool.
         GET /sandbox-service/api/v1/pools/{id}/management-ssh-access
-        Trả về raw bytes của file ZIP.
+        Returns raw bytes of the ZIP file.
         """
         resp = requests.get(
             self._url(f"/sandbox-service/api/v1/pools/{pool_id}/management-ssh-access"),
@@ -230,7 +229,7 @@ class KypoService:
 
     def toggle_pool_lock(self, pool_id: int, lock: bool = True) -> dict:
         """
-        Lock/unlock resource limit của pool.
+        Lock/unlock the resource limit of a pool.
         POST /sandbox-service/api/v1/pools/{id}/lock
         DELETE /sandbox-service/api/v1/pools/{id}/lock
         """
@@ -247,7 +246,7 @@ class KypoService:
 
     def delete_pool(self, pool_id: int) -> None:
         """
-        Xóa pool khỏi KYPO.
+        Delete a pool from KYPO.
         DELETE /sandbox-service/api/v1/pools/{id}
         """
         resp = requests.delete(
@@ -259,5 +258,5 @@ class KypoService:
         resp.raise_for_status()
 
 
-# Singleton — dùng chung toàn app
+# Singleton — shared across the entire application
 kypo_service = KypoService()

@@ -1,17 +1,17 @@
 """
 CTFd/api/v1/kypo.py
 
-API endpoints quản lý KYPO resources (Sandbox Definition, Pool).
-Chỉ admin mới dùng được.
+API endpoints for managing KYPO resources (Sandbox Definition, Pool).
+Admin access only.
 
 Endpoints:
-  GET  /api/v1/kypo/sandbox-definitions          — danh sách từ KYPO
-  GET  /api/v1/kypo/sandbox-definitions/<id>     — chi tiết 1 definition
-  POST /api/v1/kypo/sandbox-definitions          — tạo mới trên KYPO
+  GET  /api/v1/kypo/sandbox-definitions          — list from KYPO
+  GET  /api/v1/kypo/sandbox-definitions/<id>     — detail of a single definition
+  POST /api/v1/kypo/sandbox-definitions          — create new on KYPO
 
-  GET  /api/v1/kypo/contests/<id>/pools          — pools của contest (từ FCTF DB)
-  POST /api/v1/kypo/contests/<id>/pools          — tạo pool trên KYPO + lưu DB
-  GET  /api/v1/kypo/contests/<id>/pools/<kypo_id> — chi tiết pool từ KYPO API
+  GET  /api/v1/kypo/contests/<id>/pools          — pools of a contest (from FCTF DB)
+  POST /api/v1/kypo/contests/<id>/pools          — create pool on KYPO + save to DB
+  GET  /api/v1/kypo/contests/<id>/pools/<kypo_id> — pool detail from KYPO API
 """
 
 from flask import request, Response
@@ -26,7 +26,7 @@ kypo_namespace = Namespace("kypo", description="KYPO Resource Management")
 
 
 # ════════════════════════════════════════════════════════════════
-# Sandbox Definitions — lấy từ KYPO API, không lưu DB
+# Sandbox Definitions — fetched from KYPO API, not stored in DB
 # ════════════════════════════════════════════════════════════════
 
 @kypo_namespace.route("/sandbox-definitions")
@@ -34,7 +34,7 @@ class SandboxDefinitionList(Resource):
     method_decorators = [admins_only]
 
     def get(self):
-        """Lấy danh sách sandbox definitions từ KYPO."""
+        """Fetch the list of sandbox definitions from KYPO."""
         try:
             data = kypo_service.list_sandbox_definitions()
             return {"success": True, "data": data}, 200
@@ -42,13 +42,13 @@ class SandboxDefinitionList(Resource):
             return {"success": False, "error": str(e)}, 502
 
     def post(self):
-        """Tạo sandbox definition mới trên KYPO từ Git repo."""
+        """Create a new sandbox definition on KYPO from a Git repository."""
         body = request.get_json() or {}
         git_url  = (body.get("git_url") or "").strip()
         revision = (body.get("git_revision") or "main").strip() or "main"
 
         if not git_url:
-            return {"success": False, "errors": {"git_url": "Bắt buộc"}}, 400
+            return {"success": False, "errors": {"git_url": "Required"}}, 400
 
         try:
             result = kypo_service.create_sandbox_definition(git_url, revision)
@@ -62,7 +62,7 @@ class SandboxDefinitionDetail(Resource):
     method_decorators = [admins_only]
 
     def get(self, definition_id):
-        """Lấy chi tiết 1 sandbox definition từ KYPO."""
+        """Fetch detail of a single sandbox definition from KYPO."""
         try:
             data = kypo_service.get_sandbox_definition(definition_id)
             return {"success": True, "data": data}, 200
@@ -71,7 +71,7 @@ class SandboxDefinitionDetail(Resource):
 
 
 # ════════════════════════════════════════════════════════════════
-# Pools — lưu mapping trong FCTF DB, chi tiết lấy từ KYPO API
+# Pools — mapping stored in FCTF DB, details fetched from KYPO API
 # ════════════════════════════════════════════════════════════════
 
 @kypo_namespace.route("/contests/<int:contest_id>/pools")
@@ -80,8 +80,8 @@ class PoolList(Resource):
 
     def get(self, contest_id):
         """
-        Lấy danh sách pools của contest từ FCTF DB.
-        Trả về KYPO pool_id để frontend gọi KYPO API lấy chi tiết nếu cần.
+        Fetch the list of pools for a contest from FCTF DB.
+        Returns KYPO pool_id so the frontend can call the KYPO API for details if needed.
         """
         Contests.query.filter_by(id=contest_id).first_or_404()
 
@@ -100,13 +100,13 @@ class PoolList(Resource):
 
     def post(self, contest_id):
         """
-        Tạo pool mới trên KYPO rồi lưu mapping vào FCTF DB.
+        Create a new pool on KYPO then save the mapping to FCTF DB.
 
         Body:
-          - kypo_definition_id: int  (ID sandbox definition bên KYPO)
-          - max_size: int            (số sandbox tối đa)
-          - comment: str             (tên/ghi chú cho pool, optional)
-          - allocate: bool           (tự allocate sau khi tạo, default true)
+          - kypo_definition_id: int  (sandbox definition ID on KYPO)
+          - max_size: int            (maximum number of sandboxes)
+          - comment: str             (pool name/note, optional)
+          - allocate: bool           (auto-allocate after creation, default true)
         """
         Contests.query.filter_by(id=contest_id).first_or_404()
 
@@ -119,10 +119,10 @@ class PoolList(Resource):
         if not kypo_def_id:
             return {
                 "success": False,
-                "errors": {"kypo_definition_id": "Bắt buộc"},
+                "errors": {"kypo_definition_id": "Required"},
             }, 400
 
-        # 1. Tạo pool trên KYPO
+        # 1. Create pool on KYPO
         try:
             pool_result = kypo_service.create_pool(
                 definition_id=kypo_def_id,
@@ -130,11 +130,11 @@ class PoolList(Resource):
                 comment=comment,
             )
         except Exception as e:
-            return {"success": False, "error": f"Tạo pool KYPO thất bại: {e}"}, 502
+            return {"success": False, "error": f"Failed to create KYPO pool: {e}"}, 502
 
         kypo_pool_id = pool_result["id"]
 
-        # 2. Allocate sandboxes ngay sau khi tạo pool (nếu yêu cầu)
+        # 2. Allocate sandboxes immediately after pool creation (if requested)
         allocation_result = None
         if allocate:
             try:
@@ -143,10 +143,10 @@ class PoolList(Resource):
                     count=max_size,
                 )
             except Exception as e:
-                # Không fail hard — pool đã tạo rồi, chỉ log lại
+                # Do not fail hard — pool is already created, just log the error
                 allocation_result = {"error": str(e)}
 
-        # 3. Lưu mapping vào FCTF DB
+        # 3. Save mapping to FCTF DB
         pool = Pool(
             pool_id=kypo_pool_id,
             contest_id=contest_id,
@@ -178,10 +178,10 @@ class PoolDetail(Resource):
         return pool
 
     def get(self, contest_id, kypo_pool_id):
-        """Lấy chi tiết pool từ KYPO API."""
+        """Fetch pool detail from KYPO API."""
         pool = self._get_pool_or_404(contest_id, kypo_pool_id)
         if not pool:
-            return {"success": False, "error": "Pool không thuộc contest này"}, 404
+            return {"success": False, "error": "Pool does not belong to this contest"}, 404
         try:
             data = kypo_service.get_pool(kypo_pool_id)
             return {"success": True, "data": data}, 200
@@ -189,10 +189,10 @@ class PoolDetail(Resource):
             return {"success": False, "error": str(e)}, 502
 
     def delete(self, contest_id, kypo_pool_id):
-        """Xóa pool khỏi KYPO và FCTF DB."""
+        """Delete pool from KYPO and FCTF DB."""
         pool = self._get_pool_or_404(contest_id, kypo_pool_id)
         if not pool:
-            return {"success": False, "error": "Pool không thuộc contest này"}, 404
+            return {"success": False, "error": "Pool does not belong to this contest"}, 404
         try:
             kypo_service.delete_pool(kypo_pool_id)
         except Exception as e:
@@ -207,13 +207,13 @@ class PoolStatus(Resource):
     method_decorators = [admins_only]
 
     def get(self, contest_id, kypo_pool_id):
-        """Lấy trạng thái allocation units của pool từ KYPO."""
+        """Fetch the allocation unit status of a pool from KYPO."""
         pool = Pool.query.filter_by(
             pool_id=kypo_pool_id,
             contest_id=contest_id,
         ).first()
         if not pool:
-            return {"success": False, "error": "Pool không thuộc contest này"}, 404
+            return {"success": False, "error": "Pool does not belong to this contest"}, 404
         try:
             data = kypo_service.get_pool_allocation_units(kypo_pool_id)
             return {"success": True, "data": data}, 200
@@ -226,13 +226,13 @@ class PoolAllocate(Resource):
     method_decorators = [admins_only]
 
     def post(self, contest_id, kypo_pool_id):
-        """Allocate thêm sandbox cho pool."""
+        """Allocate additional sandboxes for a pool."""
         pool = Pool.query.filter_by(
             pool_id=kypo_pool_id,
             contest_id=contest_id,
         ).first()
         if not pool:
-            return {"success": False, "error": "Pool không thuộc contest này"}, 404
+            return {"success": False, "error": "Pool does not belong to this contest"}, 404
 
         body = request.get_json() or {}
         count = body.get("count", 1)
@@ -248,13 +248,13 @@ class PoolEdit(Resource):
     method_decorators = [admins_only]
 
     def patch(self, contest_id, kypo_pool_id):
-        """Cập nhật comment của pool trên KYPO."""
+        """Update the comment of a pool on KYPO."""
         pool = Pool.query.filter_by(
             pool_id=kypo_pool_id,
             contest_id=contest_id,
         ).first()
         if not pool:
-            return {"success": False, "error": "Pool không thuộc contest này"}, 404
+            return {"success": False, "error": "Pool does not belong to this contest"}, 404
 
         body = request.get_json() or {}
         try:
@@ -270,15 +270,15 @@ class PoolSSHConfig(Resource):
 
     def get(self, contest_id, kypo_pool_id):
         """
-        Download SSH config ZIP của pool.
-        Trả về file ZIP để admin download và SSH vào sandbox.
+        Download the SSH config ZIP for a pool.
+        Returns a ZIP file for the admin to download and SSH into sandboxes.
         """
         pool = Pool.query.filter_by(
             pool_id=kypo_pool_id,
             contest_id=contest_id,
         ).first()
         if not pool:
-            return {"success": False, "error": "Pool không thuộc contest này"}, 404
+            return {"success": False, "error": "Pool does not belong to this contest"}, 404
 
         try:
             zip_bytes = kypo_service.download_pool_ssh_config(kypo_pool_id)
@@ -298,15 +298,15 @@ class PoolLock(Resource):
     method_decorators = [admins_only]
 
     def post(self, contest_id, kypo_pool_id):
-        """Toggle resource limit (lock/unlock) của pool."""
+        """Toggle the resource limit (lock/unlock) of a pool."""
         pool = Pool.query.filter_by(
             pool_id=kypo_pool_id,
             contest_id=contest_id,
         ).first()
         if not pool:
-            return {"success": False, "error": "Pool không thuộc contest này"}, 404
+            return {"success": False, "error": "Pool does not belong to this contest"}, 404
         try:
-            # Lấy trạng thái hiện tại rồi toggle
+            # Fetch current state then toggle
             pool_data = kypo_service.get_pool(kypo_pool_id)
             is_locked = pool_data.get("lock_state") == "LOCKED"
             data = kypo_service.toggle_pool_lock(kypo_pool_id, lock=not is_locked)
