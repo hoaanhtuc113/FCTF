@@ -362,6 +362,23 @@ function togglePassword(inputId, btn) {
     }
 }
 
+function validateContestTimes(startVal, endVal, freezeVal) {
+    const start  = startVal  ? new Date(startVal)  : null;
+    const end    = endVal    ? new Date(endVal)    : null;
+    const freeze = freezeVal ? new Date(freezeVal) : null;
+
+    if (start && end && end <= start) {
+        return 'End time must be after start time.';
+    }
+    if (freeze && start && freeze < start) {
+        return 'Freeze scoreboard time must be on or after start time.';
+    }
+    if (freeze && end && freeze > end) {
+        return 'Freeze scoreboard time must be on or before end time.';
+    }
+    return null;
+}
+
 (function () {
     const nonce = init.csrfNonce;
     const contestId = {{ contest.id }};
@@ -396,6 +413,18 @@ function togglePassword(inputId, btn) {
             team_disbanding: form.team_disbanding.checked,
             allow_name_change: form.allow_name_change.checked,
         };
+
+        // Validate time constraints before submitting
+        const timeErr = validateContestTimes(data.start_time, data.end_time, data.freeze_scoreboard_at);
+        if (timeErr) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
+            const ea = document.getElementById('error-alert');
+            document.getElementById('error-msg').textContent = timeErr;
+            ea.classList.remove('d-none');
+            setTimeout(function () { ea.classList.add('d-none'); }, 6000);
+            return;
+        }
 
         fetch('/api/v1/contests/' + contestId, {
             method: 'PATCH',
