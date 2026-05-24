@@ -136,8 +136,8 @@ export function Contests() {
   // Filter contests based on search term and active tab
   const filteredContests = contests.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (c.description ?? '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+      (c.description ?? '').toLowerCase().includes(searchTerm.toLowerCase());
+
     if (!matchesSearch) return false;
     if (activeTab === 'all') return true;
     return c.status === activeTab;
@@ -287,7 +287,7 @@ export function Contests() {
 
       {/* Main Container */}
       <Box sx={{ position: 'relative', zIndex: 1, flex: 1, maxWidth: '1280px', width: '100%', mx: 'auto', px: { xs: 2, sm: 4 }, py: { xs: 4, sm: 6 } }}>
-        
+
         {/* Title Block */}
         <Box sx={{ mb: 5, textAlign: 'center' }}>
           <motion.div
@@ -323,7 +323,6 @@ export function Contests() {
                 lineHeight: 1.1,
               }}
             >
-              Contest{' '}
               <span
                 style={{
                   background: 'linear-gradient(135deg,#f59e0b 0%,#ea580c 50%,#dc2626 100%)',
@@ -465,7 +464,7 @@ export function Contests() {
                           bgcolor: activeColors.panelBg,
                           p: { xs: 3, md: 3 },
                           borderRadius: '12px',
-                          boxShadow: isActive 
+                          boxShadow: isActive
                             ? (theme === 'dark' ? '0 10px 30px rgba(234, 122, 0, 0.15)' : '0 10px 35px rgba(234, 122, 0, 0.08)')
                             : activeColors.shadow,
                           transition: 'all 0.2s ease',
@@ -475,8 +474,8 @@ export function Contests() {
                       >
                         {/* Pulse Glowing Effect for active card */}
                         {isActive && (
-                          <div 
-                            className="absolute top-0 right-0 w-32 h-32 pointer-events-none rounded-full" 
+                          <div
+                            className="absolute top-0 right-0 w-32 h-32 pointer-events-none rounded-full"
                             style={{
                               background: 'radial-gradient(circle, rgba(234, 122, 0, 0.15) 0%, transparent 70%)',
                               transform: 'translate(30%, -30%)'
@@ -565,7 +564,7 @@ export function Contests() {
 
                         {/* Stats & Action (Right) */}
                         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, gap: 4, flexShrink: 0 }}>
-                          
+
                           {/* Info Column */}
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                             {/* Duration / Timer row */}
@@ -609,21 +608,20 @@ export function Contests() {
                                 textTransform: 'none',
                                 py: 1.25,
                                 borderRadius: '8px',
-                                border: `1px solid ${
-                                  isActive 
-                                    ? activeColors.primary 
-                                    : isEnded 
-                                      ? activeColors.border 
-                                      : 'rgba(209, 213, 219, 0.4)'
-                                }`,
+                                border: `1px solid ${isActive
+                                  ? activeColors.primary
+                                  : isEnded
+                                    ? activeColors.border
+                                    : 'rgba(209, 213, 219, 0.4)'
+                                  }`,
                                 bgcolor: isActive ? activeColors.primary : isEnded ? 'transparent' : 'transparent',
                                 color: isActive ? '#fff' : isEnded ? activeColors.text : '#a1a1aa',
                                 fontWeight: 700,
                                 '&:hover': {
-                                  bgcolor: isActive 
-                                    ? activeColors.primaryDark 
-                                    : isEnded 
-                                      ? activeColors.tagBg 
+                                  bgcolor: isActive
+                                    ? activeColors.primaryDark
+                                    : isEnded
+                                      ? activeColors.tagBg
                                       : 'transparent',
                                   borderColor: isActive ? activeColors.primaryDark : activeColors.primary,
                                   color: isActive ? '#fff' : activeColors.primary,
@@ -643,7 +641,7 @@ export function Contests() {
                                   <span>[ NOT STARTED ]</span>
                                 </Box>
                               ) : (
-                                '[ VIEW ARCHIVE // SCOREBOARD ]'
+                                '[ VIEW ARCHIVE ]'
                               )}
                             </Button>
                           </Box>
